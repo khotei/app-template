@@ -14,11 +14,14 @@ graph LR
 ## Structure
 
 <Where the change lives, per workspace: the modules it adds or changes and the invariant each
-keeps. A rule a config holds is linked, never copied.>
+keeps. It names modules and workspaces; the plan's steps hold files and signatures. A rule a
+config holds is linked, never copied.>
 
 ## Contracts
 
-<Interfaces, routes, messages and data shapes that other code or tests depend on, as sketches.>
+<Interfaces, routes, messages and data shapes between modules and between steps that other code
+or tests depend on; it sketches the shape of each contract, and the step that builds it writes
+the signatures.>
 
 ## Seams
 
@@ -31,8 +34,8 @@ keeps. A rule a config holds is linked, never copied.>
 ## Decisions
 
 <One entry per choice that is hard to reverse, surprising without context, and a real trade-off.
-Each line of an entry is one or two sentences; a rejected alternative is kept only when someone
-would propose it again.>
+Each line of an entry is one or two sentences; each entry keeps at least one rejected
+alternative, the one someone would propose again.>
 
 - **D1 — <the decision and the invariant it keeps, in one line>.**
   - **Why:** <the reason>.
@@ -40,6 +43,21 @@ would propose it again.>
   - **Reversal:** <one commit | a migration | irreversible: …>.
   - **Rejected:**
     - <alternative> — <why not>.
+
+## Direction
+
+<One recommendation per choice a stage can still make or undo, shown to the user as written; the
+stage design takes it or sets it aside, with the fact.>
+
+- **<area>** — recommend <option>, over <option>: <why>. Settled in Stage <n>.
+
+## Assumptions
+
+<One entry per fact the design takes as true unchecked; the preparation of the stage it names
+checks it before that stage's design.>
+
+- **A1 — <what the design takes as true>.** Checked in Stage <n>, by <a read | a probe>.
+  If false: <the Seam, Contract or D… it changes>.
 
 ## Risks
 

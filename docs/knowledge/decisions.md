@@ -786,3 +786,71 @@ A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the li
 - **If reversed:** drop the `over-limit` rule of the doc lint; the limits go back to advice.
 - **Revisit when:** a constraint that passes the test of `claude-md.md` no longer fits its file
   after every other line has been cut.
+
+### Rounds by commit
+
+Every round of a ticket's step is a commit, named by its stage, step, round and source
+(`.claude/rules/commits.md › A ticket's rounds`), committed as soon as `make check` is green and
+before the user reads it; the user's own edits, found between rounds, are a round of their own,
+and no commit the user has seen is rewritten before the PR.
+
+- **Why:** the user reviews by commit. A change made over an uncommitted round, by an agent or by
+  hand, cannot be told apart from the round afterwards, so the user re-reads the whole step to
+  find what moved. A subject that opens with the round's id and source, and a fix's body that
+  opens with the round it fixes, show in `git log --oneline` where a change belongs, who asked for
+  it and what it corrects. Committing before reading costs nothing on `main`, which takes the
+  ticket as one squash.
+- **Sources:** `.claude/rules/sdd.md › Gates` (the rounds and the commit gate);
+  [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
+- **Rejected:** the kind of change in the brackets (`FIX`): it repeats the gitmoji and type and
+  leaves the source unnamed. The fixed commit's hash in a fix's body: it goes stale after a
+  cherry-pick. A review of the uncommitted step: the user's edits over it mix with the round. The
+  user's edits folded into the next agent round: that round's diff is no longer the agent's.
+- **Cost:** more commits on the branch, a rejected round among them as a revert; a subject longer
+  by the id, which counts apart from its 50 characters; a commit takes 1.3 s for docs and 2.5 s
+  for code with the pre-commit hook. Every reader of the step's diff reads a committed range
+  (`make review-rules BASE=<base>`, the parallel steps' pick, the claimed finding's worktree), and
+  `git revert` is in the allow list of `.claude/settings.json`. A rejection after later work rests
+  on a round fixes forward, since a revert there would pull the base from under that work.
+- **Guarded by:** review against `.claude/rules/commits.md` and `.claude/rules/sdd.md`; nothing
+  checks a subject's id.
+- **If reversed:** one commit in `commits.md`, `sdd.md` and `/ticket-implement` brings back one
+  commit per reviewed step; a written history keeps its names.
+- **Revisit when:** a ticket's history is read by its PR alone, or the rounds' count makes
+  `git log --oneline` of a branch harder to read than its steps.
+
+### Plans in stages
+
+A ticket's plan holds every step as a skeleton, with its outcome and coverage, and writes the low
+level, a stage design and its steps in full, one stage of about three steps at a time, after the
+facts those steps rest on are checked. Each stage closes with a review of its diff and, when due,
+a verification of what it built (`.claude/rules/sdd.md › Gates`).
+
+- **Why:** the low level written before its facts goes stale. An audit of 21 tickets found
+  late-step detail edited after approval in 6 of the 9 with history: 4 to 8 of the 10 steps after
+  the third, with edits reaching up to 8 steps ahead. What held was the step list, each step's
+  outcome and the architecture's decisions, which the skeleton keeps; so the heavy review lands
+  on the skeleton and the first stage, and each later stage is checked when prepared and
+  reviewed when it closes. Three commits skip the user's OK, so a loop crosses a boundary
+  without stopping: a stage's facts, which land before its triage so a compaction or a question
+  round loses none; a preparation that asks the user nothing; and a stage verification's section
+  when no failure in it needs a requirement changed.
+- **Sources:** `.claude/skills/ticket-plan/stage.md` (the preparation), the stage close of
+  `.claude/skills/ticket-implement/SKILL.md` and the stage mode of
+  `.claude/skills/ticket-verify/SKILL.md`;
+  [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
+- **Rejected:** the whole plan detailed and approved up front: the stale detail above. Each stage
+  approved by the user: an independent critic counted 8 to 14 approvals per ticket and a loop
+  stopping every three steps. A review pass of its own for a stage: the Design pass, given the
+  architecture, the skeleton and the stage design, already reads the stage's shape.
+- **Cost:** the user sees a later stage only as its commits, unless its preparation asks; each
+  close runs `simplify` and two reviewers over the stage's diff, and a verifier every second
+  close or after a change to a contract or the architecture; a plan grows by a section per stage.
+- **Guarded by:** a stage's steps get their sections only from its preparation, and
+  `/ticket-implement` runs no step without one, naming `/ticket-plan <ticket> next` instead;
+  review against `.claude/rules/sdd.md`.
+- **If reversed:** one commit brings back the plan detailed whole under one review and drops the
+  stage close; plans written in stages stay readable, and a plan without stage headings already
+  runs as one.
+- **Revisit when:** the first two tickets planned in stages, `lambda-processes` and
+  `telemetry-minimal`, have reported their per-stage tables.

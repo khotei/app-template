@@ -60,6 +60,7 @@ graph LR
 | 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 | 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 | 27 | [`rules-from-attachment-work`](#27-rules-from-attachment-work) | `docs` | 24 | planned |
+| 29 | [`sdd-stages`](#29-sdd-stages) | `chore` | 2 | in progress: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -831,6 +832,16 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     for a list `update` already took, and S1's probe expected two red cases where four were red.
     `ticket-plan` asks the plan to read the current signature before it promises a red case.
 - **Out of scope.** New domain behaviour; rewriting a rule the session did not touch.
+
+### 29. `sdd-stages`
+
+- **Goal.** The architecture holds the high level for the whole ticket and the plan a skeleton of
+  every step; the low level is written one stage of about three steps at a time, after its facts
+  are checked, and each stage ends with a review. The owner answers only on a change or a real
+  choice.
+- **Number.** 28 is `lambda-processes`, on its own branch; it is the first ticket to use stages.
+- **Status.** In progress:
+  [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md).
 
 ## Ideas to weigh
 

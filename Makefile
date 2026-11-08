@@ -156,15 +156,18 @@ sh-lint: ## Lint the shell scripts outside repos/ with ShellCheck (Docker runnin
 		exec docker run --rm -v "$$PWD:/mnt" -w /mnt $(SHELLCHECK_IMAGE) \
 			--rcfile .misc/lint/shellcheckrc "$$@"' sh < $(SH_LINT_FILES)
 
-# The rules a review of the uncommitted step holds the diff to: each rule without paths:, and each
-# whose filter matches a file the diff adds, changes or deletes (both sides of a rename), untracked
-# files included. /ticket-implement hands this list to the Standards reviewer. The filters are
-# read by .misc/lint/rule-filters.mjs, the doc lint's reader.
-review-rules: ## List the rules that bind the uncommitted diff: no paths: filter, or one it matches
+# The rules a review holds the diff from BASE to the working tree to: each rule without paths:, and
+# each whose filter matches a file the diff adds, changes or deletes (both sides of a rename),
+# untracked files included. /ticket-implement passes the parent of the step's first round as BASE
+# and hands this list to the Standards reviewer. The filters are read by
+# .misc/lint/rule-filters.mjs, the doc lint's reader.
+BASE = HEAD
+
+review-rules: ## List the rules that bind the diff from BASE (default HEAD): no paths: filter, or one it matches
 	@filters=$$(bun .misc/lint/rule-filters.mjs) || exit 2; \
 	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
 		[ -n "$$filter" ] || continue; \
-		files=$$(git diff HEAD --no-renames --name-only -- ":(glob)$$filter" && \
+		files=$$(git diff '$(BASE)' --no-renames --name-only -- ":(glob)$$filter" && \
 			git ls-files --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
 		[ -z "$$files" ] || echo "$$rule"; \
 	done) || exit 2; \

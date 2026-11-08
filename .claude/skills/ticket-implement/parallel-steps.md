@@ -18,13 +18,13 @@ contract. What a worktree owns and its ports:
   started, check the branch `wt/<name>` with `git worktree list` and the symlink `<name>` beside
   its folder. Never move a folder an agent works in.
 - Every status names each worktree by its full path, its `N` and its ports.
-- Rounds commit in the worktree; rebase its branch onto the ticket branch before the next round,
-  then run `bun install` in it.
-- A `bun.lock` conflict, in a rebase or a cherry-pick, is never merged by hand: take either side
+- Rounds commit in the worktree; merge the ticket branch into its branch before the next round,
+  never rebase, so no round the user has seen changes its hash; then run `bun install` in it.
+- A `bun.lock` conflict, in a merge or a cherry-pick, is never merged by hand: take either side
   (`git checkout --ours bun.lock`), run `bun install`, and stage the lockfile it writes.
-- Reviews and commits stay one step at a time. On **commit**, cherry-pick the step's rounds onto
-  the ticket branch, the last with `--no-commit` so the `plan.md` and `architecture.md` edits join
-  it, and run `make check` after each pick.
+- Reviews and closes stay one step at a time. On **close**, cherry-pick the step's rounds onto
+  the ticket branch, each kept as its own commit, run `make check` after each pick, then commit
+  the close's `PLAN` round there.
 - On the **stop** of the skill's step 5, also run `make down` in the worktree, and keep it, its
   symlink and its branch. Remove all three, after `make reset`, only once the step is committed
   on the ticket branch, or when the user drops the step, a `BLOCKED:` one included. Remove them in
