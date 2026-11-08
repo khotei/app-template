@@ -82,7 +82,7 @@ const provisionBuckets = Effect.fn('provisionBuckets')(
  * A queue whose attributes drifted from the inventory fails with `QueueNameExists`: SQS never
  * updates on create, and `make reset` is the local way back.
  */
-export const provisionQueues = Effect.fn('provisionQueues')(
+const provisionQueues = Effect.fn('provisionQueues')(
   (
     queues: Resources['queues'],
     buildName: BuildName,

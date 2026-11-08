@@ -245,6 +245,9 @@ e2e; the old queue's suites went with it)
 [N:ai] piece 9 (the owner): the three migrations give way to one `init` generated from the data
 layer, the same schema as the three applied in order; the main stand was recreated (`make
 reset`, `make up`: "applied 1 migration") · visible: `make check`, `make migration-check`
+[N:ai] piece 10: `provisionQueues`, called from outside only by the old queue's suite, stays
+inside `packages/aws`; `naming.md` loses the `.relay` and `.transport` suffixes no file has ·
+visible: `make check`
 
 ## L4 — A failed send shows under the user's message
 

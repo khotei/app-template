@@ -30,10 +30,9 @@ its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
 | `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
-| `.relay` | a layer moving records from the database to a queue |
 | `.table` · `.entity` | a table · `<Name>Entity` with its `Insert`, `Where` and `Set`, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
 | `.mapper` | `<Model>FromEntity`, an entity's codec into a model · api: `buildApi<Model>`, a model handed to its wire shape, one per response model |
-| `.client` · `.transport` · `.http` | client wiring · the service a package's client runs over · one resource's routes |
+| `.client` · `.http` | client wiring · one resource's routes |
 | `.sender` · `.consumer` | the service that sends a queue's messages · the one that runs a queue's handlers on what it delivers |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers |
 | `.test-fixture` · `.test-util` | sample values, no Effect, no layer · an assertion or value helper, no layer |
