@@ -9,6 +9,35 @@ to AWS prod. SQS invokes the worker function; the worker does not poll the queue
 
 [R] How can a local HTTP call to the api send a message to SQS, and SQS then invoke the worker as
 a Lambda function? MiniStack should handle this locally.
+  [A:ai] Yes: two researchers each ran the whole path on their own MiniStack 1.5.31 (the pinned
+  image, kernel/config/ministack.ts:3). It runs, with these facts:
+  - Proxy mode (`MINISTACK_LAMBDA_PROXY_URL` on a function) POSTs each Lambda event to a process
+    on the host, so `bun --watch` stays; it wins over every other executor (MiniStack
+    `services/lambda_svc.py:5185-5190`, `:5275-5345`). Its timeout is the function's `Timeout`,
+    default 3 s (`:5287`): an LLM reply needs it raised.
+  - Worker: an SQS event source mapping invoked it 8–31 ms after the send; batch up to 10,
+    `ReportBatchItemFailures`, a handler's `ChangeMessageVisibility` and the redrive to the DLQ
+    all worked (run; `lambda_svc.py:7591-7621`). On AWS, Lambda Web Adapter (LWA) 1.1.0 posts
+    the same event to the same `POST /events` and returns the body as the result (LWA
+    `src/lib.rs:470`, `:1549`): one worker route serves both, only config differs.
+  - api: a Function URL works locally (run: `POST /_aws/lambda-url/<id>/chats` gave 201), but
+    proxy mode hands over the raw event, where LWA hands a plain HTTP request. So locally the
+    browser calls the Bun api directly, as today; a Function URL locally needs a dev-only
+    adapter (~30 lines, I assume).
+  - The api never sends to SQS today: it writes a `jobs` row, and `JobRelay`, a 1 s poll loop
+    inside the worker, sends it (kernel/queue/job.relay.ts:47-55, apps/worker/layer.ts:30). That
+    loop cannot live in a Lambda the queue invokes; the send has to move (after the commit, plus
+    a sweep of unsent rows; EventBridge `rate()` is at least 1 minute, `eventbridge.py:3845`).
+  - Differs from AWS: a non-2xx fails an invocation in MiniStack, but in LWA only the codes in
+    `AWS_LWA_ERROR_STATUS_CODES` do (default none, `lib.rs:1644-1660`); AWS rejects a function
+    timeout above the queue's visibility, MiniStack does not check it (AWS docs,
+    services-sqs-configure); `jobId` arrives in camelCase `messageAttributes` (`:7442-7453`).
+  - Pulumi: the provider has endpoints only for `rds`, `s3`, `sqs` (deployment/aws/provider.ts:11);
+    `lambda`, `scheduler` or `events`, and `iam` need adding. Creating the functions through
+    Pulumi against MiniStack was not run (both used boto3 or the SDK).
+  - The two differ only in detail: LWA's `/events` result was read in its source by one and
+    assumed by the other; an end-to-end LWA run in a Bun image (MiniStack `LAMBDA_EXECUTOR=docker`)
+    would settle it. Neither ran anything on real AWS.
 
 ## Map
 
