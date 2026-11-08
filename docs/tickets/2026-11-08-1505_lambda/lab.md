@@ -7,6 +7,8 @@ Flow: lab
 api and worker as lambda. It should work in dev mode first, but in future have the ability to
 extend to AWS prod. SQS should call the worker lambda, the worker should not pull.
 
+[R] Research how we could call local api via HTTP then send message to SQS. Then SQS will call worker via lambda. We have ministack which should deal with it on local.
+
 ## Map
 
 <The only place for a step's status: todo, in progress or done.>
