@@ -55,8 +55,8 @@ export const ChatHandler = HttpApiBuilder.group(
         }),
       )
       .handle(
-        'send',
-        Effect.fn('ChatHandler.send')(
+        'createMessage',
+        Effect.fn('ChatHandler.createMessage')(
           function* ({ params, payload }) {
             const user = yield* CurrentUser
             return yield* createUserMessage.create(user.id, params.chatId, payload)

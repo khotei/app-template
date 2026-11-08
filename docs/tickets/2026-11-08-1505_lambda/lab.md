@@ -244,6 +244,9 @@ Budget: waits for the owner.
 [N:ai] piece 1 (the owner, in the chat): `SendMessageUseCase.send` becomes
 `CreateUserMessageUseCase.create` in `create-user-message.use-case.ts`; the contract's `send`
 and the type `SentMessages` stay · visible: `make check`
+[N:ai] piece 2 (the owner, in the chat): the contract's `send` becomes `createMessage`, beside
+`getMessage`, as `create` names the chat's creation; `SentMessages` becomes `CreatedMessages`, and
+the use case's comments and test names say create · visible: `make api-check`
 
 ### Notes
 

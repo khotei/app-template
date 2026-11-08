@@ -856,7 +856,7 @@
         "tags": [
           "chats"
         ],
-        "operationId": "chats.send",
+        "operationId": "chats.createMessage",
         "parameters": [
           {
             "name": "chatId",

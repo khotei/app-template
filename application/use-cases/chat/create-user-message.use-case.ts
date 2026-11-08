@@ -46,7 +46,7 @@ import {
 import { JobSender } from '@app-template/kernel/job'
 import { generateId, Transaction } from '@app-template/packages/db'
 
-export interface SentMessages {
+export interface CreatedMessages {
   readonly userMessage: Message
   readonly assistantMessage: Message
 }
@@ -60,7 +60,7 @@ export class CreateUserMessageUseCase extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) => Effect.Effect<
-      SentMessages,
+      CreatedMessages,
       | MessageInputInvalidError
       | ChatNotFoundError
       | ChatBusyError
@@ -107,18 +107,18 @@ export class CreateUserMessageUseCase extends Context.Service<
         bindAttachment(attachment, userMessage),
       )
 
-      // A concurrent send that queued the chat after the read leaves no row where its status
-      // holds, so this write dies: a lost race of two sends at once, rolled back whole.
+      // A concurrent create that queued the chat after the read leaves no row where its status
+      // holds, so this write dies: a lost race of two creates at once, rolled back whole.
       yield* chats.update({ status: queued.status }, { id: chatId, status: chat.status })
       yield* encodeMessage(userMessage).pipe(Effect.flatMap(messages.insert))
-      // The bind follows the insert, since its key to the message is not deferrable; a send
+      // The bind follows the insert, since its key to the message is not deferrable; a create
       // without files skips it, as the update would die on no rows.
       if (Arr.isReadonlyArrayNonEmpty(bound)) {
         const ids = Arr.map(bound, Struct.get('id'))
         // The files first: unbound bytes expire, so a crash must never leave a bound row over them.
         yield* files.update({ bound: true }, { id: ids })
-        // `messageId: null` is the race's guard: a send that bound any of them since the read
-        // leaves this write short of a row it names, so it dies and the send rolls back whole.
+        // `messageId: null` is the race's guard: a create that bound any of them since the read
+        // leaves this write short of a row it names, so it dies and the create rolls back whole.
         yield* attachments.update(
           { messageId: userMessage.id, chatId },
           { id: ids, userId, messageId: null },

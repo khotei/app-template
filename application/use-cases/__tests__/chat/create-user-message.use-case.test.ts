@@ -38,7 +38,7 @@ import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.us
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
-/** Completes an assistant message as the worker would, freeing its chat for the next send. */
+/** Completes an assistant message as the worker would, freeing its chat for the next create. */
 const settle = (message: Message) =>
   Effect.gen(function* () {
     const chats = yield* ChatRepository
@@ -61,7 +61,7 @@ const replyJob = (messageId: MessageId) => ({
 
 describe('CreateUserMessageUseCase', () => {
   it.live(
-    'send stores the user message with its attachments bound and a queued reply, and queues the chat keeping its title',
+    'create stores the user message with its attachments bound and a queued reply, and queues the chat keeping its title',
     () => {
       const jobs = recordJobs()
       return Effect.gen(function* () {
@@ -124,7 +124,7 @@ describe('CreateUserMessageUseCase', () => {
   )
 
   it.effect(
-    "the first send queues the reply job with the process's provenance and the title job, a later one the reply only",
+    "the first create queues the reply job with the process's provenance and the title job, a later one the reply only",
     () => {
       const jobs = recordJobs()
       return Effect.gen(function* () {
@@ -150,7 +150,7 @@ describe('CreateUserMessageUseCase', () => {
     },
   )
 
-  it.effect('send while a reply runs is ChatBusyError before any message or job', () => {
+  it.effect('create while a reply runs is ChatBusyError before any message or job', () => {
     const jobs = recordJobs()
     return Effect.gen(function* () {
       const createUserMessage = yield* CreateUserMessageUseCase
@@ -167,7 +167,7 @@ describe('CreateUserMessageUseCase', () => {
   })
 
   it.effect(
-    'send with an attachment bound already is AttachmentBoundError before any message',
+    'create with an attachment bound already is AttachmentBoundError before any message',
     () => {
       const jobs = recordJobs()
       return Effect.gen(function* () {
@@ -190,7 +190,7 @@ describe('CreateUserMessageUseCase', () => {
   )
 
   it.effect(
-    "send with another user's attachment is AttachmentNotFoundError before any message or job",
+    "create with another user's attachment is AttachmentNotFoundError before any message or job",
     () => {
       const jobs = recordJobs()
       return Effect.gen(function* () {
@@ -214,7 +214,7 @@ describe('CreateUserMessageUseCase', () => {
   )
 
   it.effect(
-    'send with an attachment whose bytes are gone is AttachmentNotFoundError before any message or bind',
+    'create with an attachment whose bytes are gone is AttachmentNotFoundError before any message or bind',
     () => {
       const jobs = recordJobs()
       return Effect.gen(function* () {
