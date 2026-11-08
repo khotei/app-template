@@ -389,6 +389,14 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Inherits from `llm-providers` (2026-10-30).** `deployment/` sets no LLM variables, so a
   deployed worker and api fail at start: both need `LLM_REPLY_MODEL`; the worker also
   `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api never reads the key.
+- **Inherits from `lambda` (2026-11-08).** Dev runs the worker behind MiniStack's SQS mapping in
+  proxy mode: the code stays on the host. The production build in dev, api and worker as real
+  Lambda functions inside MiniStack (a Bun image with Lambda Web Adapter,
+  `LAMBDA_EXECUTOR=docker`, a Function URL for the api), moved here unbuilt. Two researchers'
+  runs, stopped before their reports and not rechecked: an image function answered through a
+  Function URL with a cold start of 130–180 ms; a partial batch failure worked; the function
+  reaches Postgres only at `host.docker.internal`, not at the `localhost` the RDS endpoint
+  reports; a rebuild to an answer took about 2 s. Pulumi creating these functions was not run.
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
   runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
