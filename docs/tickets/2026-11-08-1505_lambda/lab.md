@@ -29,8 +29,21 @@ We have jobs table where we track statuses: idle only when create job before sen
 
 ### Notes
 
-<The markers, one per line, each answer indented under what it answers: [Q], [A:ai] with its
-path:line or run, [R], [DO], [D:ai] then [D], [!].>
+[Q:ai] Q1 (what breaks if removed): `idle` and `enqueued` say what `sentAt` says today, null =
+not sent (kernel/data/job/job.table.ts:20, read by the relay at kernel/queue/job.relay.ts:40).
+Does `status` replace `sentAt`, or do both stay, two fields that can disagree?
+[Q:ai] Q1: who reads `in-progress`? While the worker runs, SQS already hides the message; if the
+function dies at its timeout, the row stays `in-progress` until the next delivery. With no reader,
+the system loses nothing without it.
+[Q:ai] Q1: `done` has a reader: a second delivery of the same job (at-least-once,
+kernel/queue/job.relay.ts:19) skips it. When is `error` set: at each failed attempt, or once SQS
+gives up (the last receive, or the dead-letter queue)? Between attempts the job is still due.
+[Q:ai] Q3 (a pure function in the model): the order idle -> enqueued -> in-progress -> done/error
+is a rule; one pure function over (from, to) beside the table, so the relay and the worker do not
+each repeat the check?
+[Q:ai] Naming: the tables already say `queued` and `failed` (kernel/data/chat/message.table.ts:31,
+kernel/data/chat/chat.table.ts:10); the same words for a job: idle, queued, in-progress, done,
+failed?
 
 ### Pieces
 
