@@ -141,6 +141,12 @@ the old; nothing is committed until the owner says so (the owner, in the chat).
 transport service; tests mock `SQSService` (the owner, in the chat).
 [N:ai] Budget overrun: 497 of 250 lines (L1.6 176, queue-2 pieces 1 to 2b 321); pieces 2a
 (129) and 2b (about 106) over their 100. Proposed: three steps (L1, L2, L3) with budgets 400, 300, 100; waits for the owner.
+[D] The worker on `queue-2` starts from an entry point of its own beside the old `main.ts`,
+which it replaces in L3 (the owner, in the chat).
+[D] No mapping invokes the worker for a dead-letter queue: SQS moves a spent message there on
+its own, and the dead-letter handlers go with the old worker (the owner, in the chat).
+[N:ai] What that costs: a last attempt cut by the function's timeout leaves its reply in
+progress, since no one marks it `failed`.
 
 ### Pieces
 
