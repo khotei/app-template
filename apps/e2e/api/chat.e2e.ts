@@ -14,7 +14,7 @@ import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
-import { fakeAnswers, StandTest } from '#testing/stand.test-layer'
+import { StandTest, scriptedAnswers } from '#testing/stand.test-layer'
 
 const isActiveStatus = Schema.is(ActiveMessageStatus)
 
@@ -119,10 +119,10 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 
           assert.deepInclude(reply, {
             status: 'done',
-            text: fakeAnswers['e2e-reply'].text,
+            text: scriptedAnswers.reply.text,
             attachments: [],
           })
-          assert.deepStrictEqual(titled.title, Option.some<string>(fakeAnswers['e2e-title'].title))
+          assert.deepStrictEqual(titled.title, Option.some<string>(scriptedAnswers.title))
           assert.strictEqual(titled.status, 'idle')
           assert.deepStrictEqual(
             Arr.map(asked.attachments, ({ id }) => id),

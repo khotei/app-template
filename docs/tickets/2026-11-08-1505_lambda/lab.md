@@ -288,6 +288,13 @@ Budget: about 150 lines, mostly deletions (the owner, in the chat: variant A) ·
 its model (`e2e-reply`, `e2e-title`), and runs the apps with `LLM_PROVIDER=anthropic` and the new
 optional `ANTHROPIC_API_URL` naming it, so the e2e go through the real Anthropic adapter; the stub
 still exists · visible: `make test-e2e`, `chat.e2e.ts` "a sent message with an upload…"
+[N:ai] piece 2 (the owner, in the chat): `.env.example` names `ANTHROPIC_API_URL`, commented out
+· visible: `make doc-lint`
+[N:ai] piece 3 (the owner, in the chat: "we don't need the API URL, delete it"): the fake Messages
+API and `ANTHROPIC_API_URL` go; `WorkerProcess` is the worker but its `Assistant`, which
+`WorkerLayer` closes with the language model and the e2e stand with `recordAssistant`'s scripted
+answers (variant B); the adapter stays checked by `assistant.llm.test.ts` alone · visible:
+`make test-e2e`, `chat.e2e.ts` "a sent message with an upload…"
 
 ### Notes
 

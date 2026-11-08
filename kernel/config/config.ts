@@ -89,8 +89,6 @@ type LlmSettings =
   | {
       readonly provider: 'anthropic'
       readonly apiKey: Redacted.Redacted
-      /** Anthropic's own URL when none; the e2e stand names its fake Messages API. */
-      readonly apiUrl: Option.Option<string>
       readonly replyModel: string
       readonly titleModel: string
     }
@@ -100,7 +98,6 @@ const llmSettings = {
   anthropic: Config.all({
     provider: Config.succeed('anthropic' as const),
     apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
-    apiUrl: Config.option(Config.String('ANTHROPIC_API_URL')),
     replyModel,
     titleModel: Config.String('LLM_TITLE_MODEL'),
   }),

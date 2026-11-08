@@ -1,4 +1,4 @@
-import { type Config, Effect, Match, Option } from 'effect'
+import { type Config, Effect, Match } from 'effect'
 import type { LanguageModel } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
@@ -29,7 +29,6 @@ export const createLanguageModel = (purpose: {
         anthropic: (options) =>
           createLanguageModelAnthropic({
             apiKey: options.apiKey,
-            apiUrl: Option.getOrUndefined(options.apiUrl),
             model: purpose.anthropic.model(options),
             config: purpose.anthropic.config,
           }),

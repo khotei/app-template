@@ -21,7 +21,7 @@ import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
   Layer.provide([AssistantMessageHandler.layer, ChatTitleHandler.layer]),
-  Layer.provide([AssistantLlmFromConfig, Transaction.layer]),
+  Layer.provide(Transaction.layer),
 )
 
 const BunHttpServerFromConfig = Layer.unwrap(
@@ -33,7 +33,8 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Layer.effectDiscard,
 )
 
-export const WorkerLayer = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
+/** The worker process but its `Assistant`, which the e2e stand scripts. */
+export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([
     ChatRepository.layer,
     MessageRepository.layer,
@@ -43,6 +44,11 @@ export const WorkerLayer = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   ]),
   Layer.provide([Db.layer, SQSServiceFromConfig, S3BucketFromConfig]),
   Layer.provide(PgClientFromConfig),
-  Layer.provide([FetchHttpClient.layer, BunHttpServerFromConfig]),
+  Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
+)
+
+export const WorkerLayer = WorkerProcess.pipe(
+  Layer.provide(AssistantLlmFromConfig),
+  Layer.provide(FetchHttpClient.layer),
 )

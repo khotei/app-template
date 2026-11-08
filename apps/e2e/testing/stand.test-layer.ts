@@ -1,9 +1,11 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { PgClient } from '@effect/sql-pg'
-import { ConfigProvider, Effect, Layer, Redacted, Schema, Struct } from 'effect'
+import { ConfigProvider, Effect, Layer, Option, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer, layerApiClient } from '@app-template/api/testing'
+import { AssistantReply, ChatTitle } from '@app-template/application/chat'
+import { recordAssistant } from '@app-template/application/chat/testing'
 import { buildResourceName, resources } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
@@ -11,7 +13,7 @@ import { FileRepository } from '@app-template/kernel/data'
 import { provisionWorker } from '@app-template/packages/aws'
 import { LambdaClientTest } from '@app-template/packages/aws/testing/e2e'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
-import { WorkerLayer } from '@app-template/worker/testing'
+import { WorkerProcess } from '@app-template/worker/testing'
 
 // `Config.Port` refuses 0, so neither app can take an ephemeral port itself.
 const findFreePort = Effect.sync(() => {
@@ -21,58 +23,8 @@ const findFreePort = Effect.sync(() => {
   return port
 })
 
-/** What the fake Messages API answers each model of the stand, in the shape the apps' schemas read. */
-export const fakeAnswers = {
-  'e2e-reply': { text: 'The fake Messages API answering the whole reply at once.' },
-  'e2e-title': { title: 'Fake chat title' },
-} as const
-
-type FakeModel = keyof typeof fakeAnswers
-
-const decodeFakeRequest = Schema.decodeUnknownSync(
-  Schema.Struct({ model: Schema.Literals(Struct.keys(fakeAnswers)) }),
-)
-
-/** A Messages API on a free port answering each request with its model's answer, for the layer's life. */
-const serveFakeAnthropic = Effect.acquireRelease(
-  Effect.sync(() =>
-    Bun.serve({
-      port: 0,
-      fetch: async (request) => {
-        const { model } = decodeFakeRequest(await request.json())
-        return Response.json({
-          id: 'msg_e2e',
-          type: 'message',
-          role: 'assistant',
-          model,
-          content: [{ type: 'text', text: JSON.stringify(fakeAnswers[model]) }],
-          stop_reason: 'end_turn',
-          stop_sequence: null,
-          usage: {
-            cache_creation: null,
-            cache_creation_input_tokens: null,
-            cache_read_input_tokens: null,
-            input_tokens: 10,
-            output_tokens: 5,
-            service_tier: null,
-          },
-        })
-      },
-    }),
-  ),
-  (server) => Effect.promise(() => server.stop(true)),
-)
-
-/** The processes' environment: the test's database, stage and fake Messages API, the rest as `.env.example` has it. */
-const buildConfigProvider = Effect.fnUntraced(function* ({
-  apiPort,
-  workerPort,
-  anthropicUrl,
-}: {
-  readonly apiPort: number
-  readonly workerPort: number
-  readonly anthropicUrl: string
-}) {
+/** The processes' environment: the test's database and stage, the rest as `.env.example` has it. */
+const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, workerPort: number) {
   const { config } = yield* PgClient.PgClient
   const { region, endpoint, stage } = yield* AwsConfig
   const databaseUrl = yield* Effect.fromNullishOr(config.url)
@@ -88,17 +40,27 @@ const buildConfigProvider = Effect.fnUntraced(function* ({
     NODE_ENV: 'test',
     LOG_LEVEL: 'Warn',
     LLM_PROVIDER: 'anthropic',
-    ANTHROPIC_API_KEY: 'e2e',
-    ANTHROPIC_API_URL: anthropicUrl,
-    LLM_REPLY_MODEL: 'e2e-reply' satisfies FakeModel,
-    LLM_TITLE_MODEL: 'e2e-title' satisfies FakeModel,
+    LLM_REPLY_MODEL: 'e2e-reply',
   })
 })
 
-const Apps = Layer.merge(ApiLayer, WorkerLayer).pipe(Layer.provide(BunCrypto.layer))
+/** What the worker's `Assistant` answers every reply and title in the stand. */
+export const scriptedAnswers = {
+  reply: new AssistantReply({ text: 'The scripted assistant answering the whole reply at once.' }),
+  title: ChatTitle.make('Scripted chat title'),
+}
+
+const { layer: ScriptedAssistant } = recordAssistant({
+  reply: Effect.succeed(scriptedAnswers.reply),
+  suggestTitle: Effect.succeed(Option.some(scriptedAnswers.title)),
+})
+
+const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(
+  Layer.provide([BunCrypto.layer, ScriptedAssistant]),
+)
 
 /**
- * The api and the worker in one runtime over the test's database, stage and fake Messages API,
+ * The api and the worker in one runtime over the test's database and stage, the assistant scripted,
  * with an `ApiClient` on the api; `SqlClient` and `FileRepository` stay in context for what the
  * test reads behind the apps.
  *
@@ -115,12 +77,7 @@ export const StandTest = Layer.unwrap(
       buildName: (name) => buildResourceName(stage, name),
       proxyUrl: `http://host.docker.internal:${workerPort}/events`,
     })
-    const anthropic = yield* serveFakeAnthropic
-    const provider = yield* buildConfigProvider({
-      apiPort,
-      workerPort,
-      anthropicUrl: anthropic.url.origin,
-    })
+    const provider = yield* buildConfigProvider(apiPort, workerPort)
 
     const browser = layerApiClient(`http://localhost:${apiPort}`).pipe(
       Layer.provide(FetchHttpClient.layer),
