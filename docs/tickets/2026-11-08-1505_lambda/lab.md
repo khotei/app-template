@@ -4,8 +4,8 @@ Flow: lab
 
 ## Intent
 
-<The owner's, 3–6 lines, in any language: what becomes visible to a user or an operator, and what
-is already known of the shape.>
+api and worker as lambda. It should work in dev mode first, but in future have the ability to
+extend to AWS prod. SQS should call the worker lambda, the worker should not pull.
 
 ## Map
 
