@@ -17,7 +17,7 @@ import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
 
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
- * identity transaction; the `QueueSender` is the test's, `recordQueue()`.
+ * identity transaction; the `JobSender` is the test's, `recordJobs()`.
  */
 export const ChatTest = Layer.mergeAll(
   ChatService.layer,

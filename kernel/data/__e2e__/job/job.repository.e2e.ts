@@ -2,6 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Deferred, Effect, Exit, Fiber, Layer, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
+import type { JobEntityInsert } from '#kernel/data/job/job.entity'
 import { JobRepository } from '#kernel/data/job/job.repository'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
 
@@ -9,11 +10,11 @@ const JobRepositoryTest = JobRepository.layer.pipe(Layer.provideMerge(DbTest))
 
 const jobId = (n: number) => `0192d4e0-7b3a-7c00-8000-${String(n).padStart(12, '0')}`
 
-const job = (n: number) => ({
+const job = (n: number): typeof JobEntityInsert.Type => ({
   id: jobId(n),
   queue: 'sample',
-  jobId: `job-${n}`,
   body: { n },
+  status: 'idle',
   createdAt: new Date(`2026-10-18T00:00:0${n}.000Z`),
 })
 
@@ -22,14 +23,14 @@ const insertJobs = (ns: ReadonlyArray<number>) =>
     Effect.forEach(ns, (n) => repository.insert(job(n)), { discard: true }),
   )
 
-const selectUnsentIds = (limit: number) =>
-  JobRepository.use((repository) => repository.selectMany({ sentAt: null }, { limit })).pipe(
+const selectIdleIds = (limit: number) =>
+  JobRepository.use((repository) => repository.selectMany({ status: ['idle'] }, { limit })).pipe(
     Effect.map(Arr.map(Struct.get('id'))),
   )
 
 describe('JobRepository', () => {
   // The ids ascend while the creation times descend, so an order by id alone answers 1, 2.
-  it.effect('selects the unsent jobs oldest first, at most the limit', () =>
+  it.effect('selects the idle jobs oldest first, at most the limit', () =>
     Effect.gen(function* () {
       const jobs = yield* JobRepository
       yield* Effect.forEach(
@@ -38,7 +39,7 @@ describe('JobRepository', () => {
         { discard: true },
       )
 
-      assert.deepStrictEqual(yield* selectUnsentIds(2), [jobId(3), jobId(2)])
+      assert.deepStrictEqual(yield* selectIdleIds(2), [jobId(3), jobId(2)])
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
@@ -49,14 +50,14 @@ describe('JobRepository', () => {
       const release = yield* Deferred.make<void>()
       yield* insertJobs([1, 2, 3])
 
-      const holder = yield* selectUnsentIds(1).pipe(
+      const holder = yield* selectIdleIds(1).pipe(
         Effect.tap((ids) => Deferred.succeed(held, ids)),
         Effect.tap(() => Deferred.await(release)),
         sql.withTransaction,
         Effect.forkChild,
       )
       const heldIds = yield* Deferred.await(held)
-      const others = yield* sql.withTransaction(selectUnsentIds(10))
+      const others = yield* sql.withTransaction(selectIdleIds(10))
       yield* Deferred.succeed(release, undefined)
       yield* Fiber.join(holder)
 
@@ -65,15 +66,14 @@ describe('JobRepository', () => {
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
-  it.effect('an update sets sentAt on the jobs it names, which leave the unsent', () =>
+  it.effect('an update sets the status of the jobs it names, which leave the idle', () =>
     Effect.gen(function* () {
       const jobs = yield* JobRepository
-      const sentAt = new Date('2026-10-18T00:01:00.000Z')
       yield* insertJobs([1, 2, 3])
 
-      yield* jobs.update({ sentAt }, { id: [jobId(1), jobId(3)], sentAt: null })
+      yield* jobs.update({ status: 'queued' }, { id: [jobId(1), jobId(3)], status: ['idle'] })
 
-      assert.deepStrictEqual(yield* selectUnsentIds(10), [jobId(2)])
+      assert.deepStrictEqual(yield* selectIdleIds(10), [jobId(2)])
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
@@ -82,27 +82,26 @@ describe('JobRepository', () => {
       const jobs = yield* JobRepository
 
       const exit = yield* jobs
-        .update({ sentAt: new Date(0) }, { id: [jobId(1)], sentAt: null })
+        .update({ status: 'queued' }, { id: [jobId(1)], status: ['idle'] })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
-  it.effect('a second update of a sent job matches no row, dies and keeps its sentAt', () =>
+  it.effect('an update of a job that left the statuses it names dies and keeps its status', () =>
     Effect.gen(function* () {
       const jobs = yield* JobRepository
-      const sentAt = new Date('2026-10-18T00:01:00.000Z')
       yield* insertJobs([1])
-      yield* jobs.update({ sentAt }, { id: [jobId(1)], sentAt: null })
+      yield* jobs.update({ status: 'done' }, { id: [jobId(1)], status: ['idle'] })
 
       const exit = yield* jobs
-        .update({ sentAt: new Date('2026-10-18T00:02:00.000Z') }, { id: [jobId(1)], sentAt: null })
+        .update({ status: 'queued' }, { id: [jobId(1)], status: ['idle'] })
         .pipe(Effect.exit)
       const stored = yield* jobs.selectMany({ id: [jobId(1)] }, { limit: 1 })
 
       assert.isTrue(Exit.hasDies(exit))
-      assert.deepStrictEqual(Arr.map(stored, Struct.get('sentAt')), [sentAt])
+      assert.deepStrictEqual(Arr.map(stored, Struct.get('status')), ['done'])
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 })

@@ -8,8 +8,9 @@
     "./aws": "./aws/index.ts",
     "./data": "./data/index.ts",
     "./llm": "./llm/index.ts",
-    "./queue": "./queue/index.ts",
+    "./job": "./job/index.ts",
     "./data/testing": "./data/__tests__/testing/index.ts",
+    "./job/testing": "./job/__tests__/testing/index.ts",
     "./data/testing/e2e": "./data/__tests__/testing/e2e/index.ts",
     "./aws/testing/e2e": "./aws/__tests__/testing/e2e/index.ts"
   },
@@ -18,7 +19,8 @@
     "#testing/data/*": "./data/__tests__/testing/*.ts",
     "#testing/data/e2e/*": "./data/__tests__/testing/e2e/*.ts",
     "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts",
-    "#testing/queue/e2e/*": "./queue/__tests__/testing/e2e/*.ts"
+    "#testing/job/*": "./job/__tests__/testing/*.ts",
+    "#testing/job/e2e/*": "./job/__tests__/testing/e2e/*.ts"
   },
   "dependencies": {
     "@app-template/packages": "workspace:*",

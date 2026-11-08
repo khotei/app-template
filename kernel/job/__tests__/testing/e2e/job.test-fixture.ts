@@ -1,7 +1,7 @@
 import { Duration, Schema } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
-import type { QueueDefinition } from '@app-template/packages/queue'
+import type { QueueDefinition } from '@app-template/packages/queue-2'
 
 const { assistantMessage } = resources.queues
 
@@ -16,13 +16,12 @@ export class SampleJob extends Schema.Class<SampleJob>('SampleJob')({
   }),
 }) {}
 
-/** On a queue every stage provisions, so a relay can send to its real queue. */
+/** On a queue every stage provisions, so a sender can send to its real queue. */
 export const sampleJobQueue = {
   name: assistantMessage.name,
   schema: SampleJob,
   maxAttempts: assistantMessage.maxReceiveCount,
   retryDelay: () => Duration.zero,
-  jobId: (job) => job.messageId,
 } satisfies QueueDefinition<typeof SampleJob>
 
 export const sampleProvenance = {

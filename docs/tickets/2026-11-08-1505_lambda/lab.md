@@ -71,7 +71,7 @@ a Lambda function? MiniStack should handle this locally.
 | Step | Goal | Kind | Status |
 |---|---|---|---|
 | L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
-| L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | todo |
+| L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
 
 ## L1 — SQS invokes the worker in dev
@@ -196,6 +196,14 @@ accepted and how to see it.>
 
 Budget: waits for the owner · Planned pieces: 3 `status` in `jobs` and its pure transitions ·
 4 the job written `idle`, sent by `afterCommit`, set `queued` · 5 the sweep of `idle` jobs.
+
+### Pieces
+
+[N:ai] piece 2a: `JobSender` in `kernel/job` writes a job `idle` in the caller's transaction,
+sends it by `afterCommit` and sets it `queued`; a failed send leaves it `idle`. `jobs` has
+`status` in place of `sentAt` and `job_id`, set by every insert; `JobRelay`, `QueueSenderJobs`,
+`kernel/queue` and `QueueConfig` are gone; the use cases may import `kernel/job` (the owner) ·
+over 100 lines: it turned green only whole · visible: `make test-e2e`, the `JobSender` e2e
 
 ## L3 — Switch to queue-2
 

@@ -183,8 +183,8 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{db,queue,testing}",
-                      "!@app-template/packages/{db,queue}/testing",
+                      "!@app-template/packages/{db,queue,queue-2,testing}",
+                      "!@app-template/packages/{db,queue,queue-2}/testing",
                       "!@app-template/kernel/{aws,data}",
                       "!@app-template/kernel/{aws,data}/testing",
                       "!@app-template/application/*",
@@ -255,12 +255,12 @@
                       "!@app-template/application/*/testing",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
-                      "!@app-template/kernel/data",
-                      "!@app-template/kernel/data/testing",
+                      "!@app-template/kernel/{data,job}",
+                      "!@app-template/kernel/{data,job}/testing",
                       "!@app-template/packages/*",
                       "!@app-template/packages/*/testing"
                     ],
-                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*: no http-api, app or deployment above them, no boundary part of the kernel (/config, /postgres, /aws, /queue, /llm), which the processes provide; their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
+                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data), the jobs (@app-template/kernel/job) and packages/*: no http-api, app or deployment above them, no client the processes provide (/config, /postgres, /aws, /llm); their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
                   }
                 ]
               }

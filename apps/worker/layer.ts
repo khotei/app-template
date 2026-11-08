@@ -13,7 +13,6 @@ import {
   MessageRepository,
 } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
-import { JobRelaySqs } from '@app-template/kernel/queue'
 import { Transaction } from '@app-template/packages/db'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
@@ -34,7 +33,7 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Layer.effectDiscard,
 )
 
-export const WorkerLayer = Layer.mergeAll(WorkerHttp, JobRelaySqs, LogWorkerLifecycle).pipe(
+export const WorkerLayer = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([
     ChatRepository.layer,
     MessageRepository.layer,

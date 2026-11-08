@@ -6,6 +6,7 @@ export {
 } from '#queue-2/queue.consumer'
 export {
   type AttemptInfo,
+  buildDoublingDelay,
   buildQueueName,
   type Handler,
   type QueueDefinition,

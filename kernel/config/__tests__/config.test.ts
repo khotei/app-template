@@ -1,14 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import {
-  type Config,
-  ConfigProvider,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  References,
-  UndefinedOr,
-} from 'effect'
+import { type Config, ConfigProvider, Effect, Layer, Option, References, UndefinedOr } from 'effect'
 
 import {
   ApiConfig,
@@ -17,7 +8,6 @@ import {
   LlmConfig,
   MinimumLogLevelFromConfig,
   MiniStackConfig,
-  QueueConfig,
   ReplyModelConfig,
   RuntimeConfig,
   WorkerConfig,
@@ -75,15 +65,9 @@ describe('config layers', () => {
   it.effect('applies the defaults', () =>
     Effect.gen(function* () {
       const { nodeEnv, logLevel } = yield* RuntimeConfig
-      const { outboxPollInterval } = yield* QueueConfig
 
-      assert.deepStrictEqual(
-        { nodeEnv, logLevel, outboxPollInterval },
-        { nodeEnv: 'development', logLevel: 'Info', outboxPollInterval: Duration.seconds(1) },
-      )
-    }).pipe(
-      Effect.provide(provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {})),
-    ),
+      assert.deepStrictEqual({ nodeEnv, logLevel }, { nodeEnv: 'development', logLevel: 'Info' })
+    }).pipe(Effect.provide(provideVariables(RuntimeConfig.layer, {}))),
   )
 
   it.effect('reads the stub provider with no key and no model', () =>

@@ -1,25 +1,32 @@
-import { isNull } from 'drizzle-orm'
-import { index, jsonb, snakeCase, text, timestamp } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { index, jsonb, pgEnum, snakeCase, text } from 'drizzle-orm/pg-core'
 import type { Schema } from 'effect'
 
 import { createdAt, id } from '@app-template/packages/db'
 
 /**
- * Jobs a transaction wrote for the relay to send: `queue` is a definition's name, before the
- * stage; `body` is the job encoded through its definition's schema. The relay sets `sentAt` and
- * keeps the row, so operators read what each job carried. No index on `body`: nothing queries it.
+ * `idle` until SQS takes the job, `queued` until the worker settles it, then `done` or `failed`;
+ * a job stays `idle` when its send fails.
+ */
+export const jobStatuses = ['idle', 'queued', 'done', 'failed'] as const
+
+export const jobStatus = pgEnum('job_status', jobStatuses)
+
+/**
+ * Jobs a transaction wrote, sent to SQS once it commits: `queue` is a definition's name, before
+ * the stage; `body` is the job encoded through its definition's schema. A settled job keeps its
+ * row, so operators read what each job carried. No index on `body`: nothing queries it.
  */
 export const jobs = snakeCase.table(
   'jobs',
   {
     id: id(),
     queue: text().notNull(),
-    jobId: text().notNull(),
     body: jsonb().$type<Schema.Json>().notNull(),
+    status: jobStatus().notNull(),
     createdAt: createdAt(),
-    sentAt: timestamp({ withTimezone: true }),
   },
   (table) => [
-    index('jobs_unsent_created_at_index').on(table.createdAt).where(isNull(table.sentAt)),
+    index('jobs_idle_created_at_index').on(table.createdAt).where(sql`${table.status} = 'idle'`),
   ],
 )

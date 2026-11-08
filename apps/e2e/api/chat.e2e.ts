@@ -52,8 +52,8 @@ const uploadPhoto = ApiClient.use((api) =>
     .pipe(Effect.head),
 )
 
-const selectUnsent = SqlClient.SqlClient.use(
-  (sql) => sql`select queue from jobs where sent_at is null`,
+const selectIdle = SqlClient.SqlClient.use(
+  (sql) => sql`select queue from jobs where status = 'idle'`,
 )
 
 const selectJobsOf = (chatId: ChatId) =>
@@ -126,8 +126,8 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             Arr.map(asked.attachments, ({ id }) => id),
             [uploaded.id],
           )
-          const unsent = yield* selectUnsent
-          assert.deepStrictEqual(unsent, [])
+          const idle = yield* selectIdle
+          assert.deepStrictEqual(idle, [])
           const [{ body: replyJob }] = yield* selectReplyJob(chat.id)
           const provenance = Option.getOrThrow(replyJob.provenance)
           assert.deepInclude(provenance, { provider: 'stub', model: 'stub' })

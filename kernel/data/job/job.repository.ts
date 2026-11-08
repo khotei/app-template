@@ -1,5 +1,5 @@
-import { inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, Layer, UndefinedOr } from 'effect'
+import { inArray } from 'drizzle-orm'
+import { Array as Arr, Context, Effect, identity, Layer, UndefinedOr } from 'effect'
 
 import { buildSet, buildWhere, orDieUnless, orDieWithSqlError } from '@app-template/packages/db'
 
@@ -13,11 +13,11 @@ import type {
 } from '#kernel/data/job/job.entity'
 import { jobs } from '#kernel/data/job/job.table'
 
-const encodeSet = buildSet<JobEntitySet, typeof jobs>({ sentAt: (sentAt) => sentAt })
+const encodeSet = buildSet<JobEntitySet, typeof jobs>({ status: identity })
 
 const encodeWhere = buildWhere<JobEntityWhere>({
   id: UndefinedOr.map((id) => inArray(jobs.id, id)),
-  sentAt: UndefinedOr.map(() => isNull(jobs.sentAt)),
+  status: UndefinedOr.map((status) => inArray(jobs.status, status)),
 })
 
 export class JobRepository extends Context.Service<
@@ -26,7 +26,7 @@ export class JobRepository extends Context.Service<
     readonly insert: (job: typeof JobEntityInsert.Type) => Effect.Effect<void>
     /**
      * The oldest jobs first, at most `limit`, each locked until the transaction ends; a job
-     * another transaction holds is skipped, so concurrent relays share the jobs out.
+     * another transaction holds is skipped, so concurrent sweeps share the jobs out.
      */
     readonly selectMany: (
       where: JobEntityWhere,

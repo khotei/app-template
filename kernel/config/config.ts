@@ -1,7 +1,6 @@
 import {
   Config,
   Context,
-  Duration,
   Effect,
   Layer,
   type LogLevel,
@@ -134,20 +133,6 @@ export class ReplyModelConfig extends Context.Service<ReplyModelConfig, ReplyMod
     llmProvider.pipe(
       Config.flatMap((provider): Config.Config<ReplyModelSettings> => replyModelSettings[provider]),
     ),
-  )
-}
-
-export class QueueConfig extends Context.Service<
-  QueueConfig,
-  { readonly outboxPollInterval: Duration.Duration }
->()('@app-template/kernel/config/QueueConfig') {
-  static readonly layer = Layer.effect(
-    this,
-    Config.all({
-      outboxPollInterval: Config.Duration('OUTBOX_POLL_INTERVAL').pipe(
-        Config.withDefault(Duration.seconds(1)),
-      ),
-    }),
   )
 }
 

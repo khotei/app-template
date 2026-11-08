@@ -1,4 +1,4 @@
-import { Array as Arr, type Duration, type Effect, type Schema, String as Str } from 'effect'
+import { Array as Arr, Duration, type Effect, type Schema, String as Str } from 'effect'
 
 export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
@@ -6,6 +6,11 @@ export interface QueueDefinition<S extends Schema.Top> {
   readonly maxAttempts: number
   /** How long a message waits after a failed `attempt`. */
   readonly retryDelay: (attempt: number) => Duration.Input
+}
+
+/** 1, 2, 4, … seconds: a retry delay that backs off a failing handler. */
+export function buildDoublingDelay(attempt: number): Duration.Duration {
+  return Duration.seconds(2 ** (attempt - 1))
 }
 
 export interface AttemptInfo {

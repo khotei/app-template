@@ -147,9 +147,8 @@ before the row that binds them and deletes them once the rows are gone.
 
 `QueueConsumer` (`packages/queue`) consumes jobs over `QueueTransport`, four SQS calls
 (`send`, `receive`, `extend`, `delete`); jobs reach SQS only through the outbox relay
-([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `kernel/queue` wires it
-for the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
-`buildResourceName(STAGE, definition.name)`.
+([database.md › The outbox](database.md#the-outbox)). `JobSender` in `kernel/job` sends a job once
+its transaction commits: a definition's queue is `buildResourceName(STAGE, definition.name)`.
 
 - **Delivery is at-least-once** (the doc of `QueueDefinition.jobId`): the jobs skip a settled
   reply and a titled chat.

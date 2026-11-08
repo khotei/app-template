@@ -45,7 +45,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
-- Enqueue inside the transaction of the writes the job reads, through `QueueSender.send`
+- Enqueue inside the transaction of the writes the job reads, through `JobSender.send`
   ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.

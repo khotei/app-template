@@ -43,8 +43,8 @@ import {
   FileRepository,
   MessageRepository,
 } from '@app-template/kernel/data'
+import { JobSender } from '@app-template/kernel/job'
 import { generateId, Transaction } from '@app-template/packages/db'
-import { QueueSender } from '@app-template/packages/queue'
 
 export interface SentMessages {
   readonly userMessage: Message
@@ -76,7 +76,7 @@ export class SendMessageUseCase extends Context.Service<
     const chatService = yield* ChatService
     const messages = yield* MessageRepository
     const liveAttachments = yield* LiveAttachmentService
-    const queue = yield* QueueSender
+    const jobs = yield* JobSender
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
     const provenance = yield* CurrentReplyProvenance
@@ -131,7 +131,7 @@ export class SendMessageUseCase extends Context.Service<
         createdAt: at,
       })
       yield* encodeMessage(assistantMessage).pipe(Effect.flatMap(messages.insert))
-      yield* queue.send(
+      yield* jobs.send(
         assistantMessageQueue,
         new GenerateAssistantMessage({
           chatId,
@@ -140,7 +140,7 @@ export class SendMessageUseCase extends Context.Service<
         }),
       )
       if (isFirstMessage) {
-        yield* queue.send(
+        yield* jobs.send(
           chatTitleQueue,
           new GenerateChatTitle({ chatId, messageId: userMessage.id }),
         )
