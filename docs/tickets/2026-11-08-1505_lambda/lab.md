@@ -38,6 +38,31 @@ a Lambda function? MiniStack should handle this locally.
   - The two differ only in detail: LWA's `/events` result was read in its source by one and
     assumed by the other; an end-to-end LWA run in a Bun image (MiniStack `LAMBDA_EXECUTOR=docker`)
     would settle it. Neither ran anything on real AWS.
+  [A:ai] On real AWS (the owner asked in the chat): the same path, each hop a managed service;
+  nothing was run on AWS, the facts below are AWS docs and LWA source.
+  - SQS invokes nothing itself: "Lambda polls the queue and invokes your function synchronously
+    with an event", a batch of up to 10; a failed batch shows again after the visibility timeout
+    unless the function returns `batchItemFailures`; delivery is at least once, so the handler
+    must be idempotent (docs.aws.amazon.com/lambda/latest/dg/with-sqs.html). Our code still never
+    polls.
+  - api: a container image (in ECR) with LWA 1.1.0 and the Bun server unchanged, behind a
+    Function URL or API Gateway; worker: the same image shape, LWA posting each batch to
+    `POST /events`. The send to SQS right after the commit, a 1-minute EventBridge Scheduler sweep.
+  - Set `ReportBatchItemFailures` and answer 200 with the failed ids: else a 500 counts as
+    success under LWA's default `AWS_LWA_ERROR_STATUS_CODES` and the batch is deleted.
+  - A function runs at most 900 s; a mapping is refused when the function timeout exceeds the
+    queue's visibility timeout, which deployment/aws/queue.ts does not set yet
+    (docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html, services-sqs-configure).
+  - A synchronous request or response is at most 6 MB (gettingstarted-limits); the upload limit
+    is 10 MiB (http-api/shared/limits.ts:2), so a large upload through the Function URL fails on
+    AWS and needs a presigned S3 upload.
+  - A function in a VPC (to reach RDS) reaches only that VPC; SQS and the LLM provider need a NAT
+    gateway or VPC endpoints (docs.aws.amazon.com/lambda/latest/dg/configuration-vpc-internet.html).
+  - Up to 1,000 concurrent environments by default, each with its own Postgres pool: I assume RDS
+    Proxy is needed. The cold start of a Bun image is unknown until a run on AWS.
+  - The stack does not exist yet: deployment/aws/api.ts, worker.ts, iam.ts hold names only
+    (deployment/aws/api.ts:3). Lambda Web Functions ("serverless HTTP servers", 30 s default
+    request timeout, gettingstarted-limits) may replace LWA for the api; not studied.
 
 ## Map
 
