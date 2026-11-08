@@ -122,13 +122,14 @@ bun install --frozen-lockfile > "$tmp/install.log" 2>&1 || {
 code=0
 if [ "$2" != --no-run ]; then
   # A new folder is a workspace no one has trusted, whose project settings Claude Code reads
-  # without their permissions, --settings or not; the same lists passed as flags keep them.
+  # without their permissions, --settings or not; the same lists passed as flags keep them. The
+  # prompt comes first, since each list flag takes every word after it.
   set -f
   allow=$(jq -r '.permissions.allow | join(",")' .claude/settings.json) || exit 2
   deny=$(jq -r '.permissions.deny + .permissions.ask | join(",")' .claude/settings.json) ||
     exit 2
   set +f
-  claude -p --setting-sources project --allowedTools "$allow" --disallowedTools "$deny" "$2"
+  claude -p "$2" --setting-sources project --allowedTools "$allow" --disallowedTools "$deny"
   code=$?
 fi
 printf '\n== git log --oneline main..\n'
