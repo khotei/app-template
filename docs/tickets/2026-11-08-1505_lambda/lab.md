@@ -23,8 +23,9 @@ Reference: <the example, and how it was run as is> · Budget: reference + <N> li
 
 ### Shape
 
-<The owner's: the functions and services, where the rule lives, the errors; or the path of the
-contract in code.>
+API -> SQS -> Worker -> handler
+We pulling jobs manually from sqs and this is not the case. SQS should call worker.
+We have jobs table where we track statuses: idle only when create job before send, after message send job become enqued, when sqs run worker will set in-progerss before execution, and then done/error (idle -> enqued -> in-progress -> done/error).
 
 ### Notes
 
