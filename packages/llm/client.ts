@@ -18,17 +18,19 @@ const waitForAnswer = HttpClient.transformResponse(
 
 export const createLanguageModelAnthropic = ({
   apiKey,
+  apiUrl,
   model,
   config,
 }: {
   readonly apiKey: Redacted.Redacted
+  readonly apiUrl: string | undefined
   readonly model: string
   readonly config: AnthropicRequestConfig
 }): Effect.Effect<LanguageModel.LanguageModel, never, HttpClient.HttpClient> =>
   AnthropicLanguageModel.make({ model, config }).pipe(
     Effect.provideServiceEffect(
       AnthropicClient.AnthropicClient,
-      AnthropicClient.make({ apiKey, transformClient: waitForAnswer }),
+      AnthropicClient.make({ apiKey, apiUrl, transformClient: waitForAnswer }),
     ),
   )
 

@@ -14,9 +14,7 @@ import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
-import { StandTest } from '#testing/stand.test-layer'
-
-const stubReply = 'This is the development stub answering the whole reply at once.'
+import { fakeAnswers, StandTest } from '#testing/stand.test-layer'
 
 const isActiveStatus = Schema.is(ActiveMessageStatus)
 
@@ -119,8 +117,12 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             params: { chatId: chat.id, messageId: sent.userMessage.id },
           })
 
-          assert.deepInclude(reply, { status: 'done', text: stubReply, attachments: [] })
-          assert.deepStrictEqual(titled.title, Option.some('Stub chat title'))
+          assert.deepInclude(reply, {
+            status: 'done',
+            text: fakeAnswers['e2e-reply'].text,
+            attachments: [],
+          })
+          assert.deepStrictEqual(titled.title, Option.some<string>(fakeAnswers['e2e-title'].title))
           assert.strictEqual(titled.status, 'idle')
           assert.deepStrictEqual(
             Arr.map(asked.attachments, ({ id }) => id),
@@ -130,7 +132,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           assert.deepStrictEqual(idle, [])
           const [{ body: replyJob }] = yield* selectReplyJob(chat.id)
           const provenance = Option.getOrThrow(replyJob.provenance)
-          assert.deepInclude(provenance, { provider: 'stub', model: 'stub' })
+          assert.deepInclude(provenance, { provider: 'anthropic', model: 'e2e-reply' })
           assert.match(provenance.instructionsHash, /^[0-9a-f]{64}$/)
 
           yield* api.chats.delete({ params: { chatId: chat.id } })

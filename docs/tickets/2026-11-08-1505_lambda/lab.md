@@ -74,6 +74,7 @@ a Lambda function? MiniStack should handle this locally.
 | L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
 | L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | in progress |
+| L5 | dev runs on the real Anthropic; the e2e answer from a fake Messages API; no stub and no `LLM_PROVIDER` in the app's code | build | in progress |
 
 ## L1 — SQS invokes the worker in dev
 
@@ -274,6 +275,29 @@ when the database is the cause?
 use case and carried in the job, with a 404 until the worker writes it, or the chat to poll?
 [Q:ai] Who holds "one reply at a time": the chat's `queued`, set by the use case, which a lost
 job would leave set?
+
+## L5 — No stub in the app's code
+
+Budget: about 150 lines, mostly deletions (the owner, in the chat: variant A) · Planned pieces:
+1 the e2e stand answers from a fake Messages API, reached by an optional `ANTHROPIC_API_URL` ·
+2 the stub provider and `LLM_PROVIDER` removed, the docs on the real Anthropic.
+
+### Pieces
+
+[N:ai] piece 1: the e2e stand serves a fake Messages API on a free port, answering each request by
+its model (`e2e-reply`, `e2e-title`), and runs the apps with `LLM_PROVIDER=anthropic` and the new
+optional `ANTHROPIC_API_URL` naming it, so the e2e go through the real Anthropic adapter; the stub
+still exists · visible: `make test-e2e`, `chat.e2e.ts` "a sent message with an upload…"
+
+### Notes
+
+[N:ai] The owner, in the chat: "move the stub to the test level; the app's code must not use
+it", then variant A: a fake Messages API in the e2e stand over the real Anthropic adapter, not
+the `Assistant` port's memory layer under a worker layer left open (variant B), which would leave
+the adapter unchecked by the e2e.
+[N:ai] Two `make dev` side by side ran 2026-11-08 on the real Anthropic: the main tree and the
+worktree `N=1` (3010/3011/3012, MiniStack 4576, stage `local1`) each answered and titled its own
+chat in 3 s; each worker took its own 2 events, each database holds its 2 jobs `done`.
 
 ## Knowledge
 
