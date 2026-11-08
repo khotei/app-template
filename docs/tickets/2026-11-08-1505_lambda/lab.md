@@ -79,7 +79,7 @@ a Lambda function? MiniStack should handle this locally.
 Reference: a researcher's probe (L0.4), run as is on MiniStack 1.5.31: a Bun server on the host
 answers `POST /events`; a proxy-mode function and an SQS mapping with `ReportBatchItemFailures`
 invoke it; a failed record retries after the handler's `ChangeMessageVisibility`, then reaches
-the DLQ · Budget: reference + 250 lines; spent 497, over (see Notes)
+the DLQ · Budget: reference + 250 lines; spent 579, over (see Notes)
 
 ### Shape
 
@@ -171,6 +171,9 @@ visible: `bunx vitest run --project unit packages/queue-2`
 [N:ai] queue-2 piece 2b: `consume` hides a failed record for `retryDelay`, or
 for 0 on the last attempt; `QueueClient.getUrl` holds the queue URLs for the sender and the
 consumer · about 106 lines, over 100 · visible: `bunx vitest run --project unit packages/queue-2`
+[N:ai] queue-2 piece 6a: the worker's `POST /events` runs a batch on the consumer of its queue,
+read from the record's ARN, and answers its failures as JSON; a queue with no consumer dies ·
+82 lines · visible: `bunx vitest run --project unit apps/worker/__tests__/events.http.test.ts`
 
 ### Output
 
