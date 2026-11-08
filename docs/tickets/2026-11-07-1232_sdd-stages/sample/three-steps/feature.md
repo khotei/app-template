@@ -1,7 +1,7 @@
 # The slug of a title
 
 > Ticket: `2026-01-01-0000_sample` · Source: conversation
-> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
+> Related: [architecture.md](./architecture.md) · `plan.md`, which the plan phase writes
 
 ## Problem
 
