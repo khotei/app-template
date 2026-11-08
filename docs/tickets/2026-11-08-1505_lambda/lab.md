@@ -4,10 +4,11 @@ Flow: lab
 
 ## Intent
 
-api and worker as lambda. It should work in dev mode first, but in future have the ability to
-extend to AWS prod. SQS should call the worker lambda, the worker should not pull.
+The api and the worker run as Lambda functions. They work in dev mode first, and can later extend
+to AWS prod. SQS invokes the worker function; the worker does not poll the queue.
 
-[R] Research how we could call local api via HTTP then send message to SQS. Then SQS will call worker via lambda. We have ministack which should deal with it on local.
+[R] How can a local HTTP call to the api send a message to SQS, and SQS then invoke the worker as
+a Lambda function? MiniStack should handle this locally.
 
 ## Map
 
@@ -23,9 +24,20 @@ Reference: <the example, and how it was run as is> · Budget: reference + <N> li
 
 ### Shape
 
-API -> SQS -> Worker -> handler
-We pulling jobs manually from sqs and this is not the case. SQS should call worker.
-We have jobs table where we track statuses: idle only when create job before send, after message send job become enqued, when sqs run worker will set in-progerss before execution, and then done/error (idle -> enqued -> in-progress -> done/error).
+```text
+api -> SQS -> worker -> handler
+```
+
+- Today the worker pulls jobs from SQS itself; it should not. SQS invokes the worker.
+- The `jobs` table tracks each job's status:
+  1. `idle`: the job is created, not yet sent;
+  2. `enqueued`: its message is sent;
+  3. `in-progress`: SQS invoked the worker, set before the handler runs;
+  4. `done` or `error`: after the handler.
+
+```text
+idle -> enqueued -> in-progress -> done | error
+```
 
 ### Notes
 
