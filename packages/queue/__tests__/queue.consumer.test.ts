@@ -2,8 +2,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Layer, Ref, Schema } from 'effect'
 
-import { QueueConsumer, type SqsEvent } from '#queue-2/queue.consumer'
-import type { QueueDefinition } from '#queue-2/queue.model'
+import { QueueConsumer, type SqsEvent } from '#queue/queue.consumer'
+import type { QueueDefinition } from '#queue/queue.model'
 
 class Ping extends Schema.Class<Ping>('Ping')({ text: Schema.String }) {}
 

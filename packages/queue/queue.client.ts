@@ -11,7 +11,7 @@ export class QueueClient extends Context.Service<
     /** The URL of the queue named `queue`, asked of SQS once; a failed lookup is asked again. */
     readonly getUrl: (queue: string) => Effect.Effect<string, QueueError>
   }
->()('@app-template/packages/queue-2/QueueClient', {
+>()('@app-template/packages/queue/QueueClient', {
   make: Effect.gen(function* () {
     const sqs = yield* SQSService
     const urls = yield* Cache.makeWith(

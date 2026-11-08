@@ -24,7 +24,7 @@ import {
   selectMessage,
 } from '@app-template/application/chat/testing'
 import { AssistantMessageTest } from '@app-template/application/use-cases/testing'
-import type { AttemptInfo } from '@app-template/packages/queue-2'
+import type { AttemptInfo } from '@app-template/packages/queue'
 import { epoch } from '@app-template/packages/testing'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'

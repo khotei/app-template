@@ -72,7 +72,7 @@ a Lambda function? MiniStack should handle this locally.
 |---|---|---|---|
 | L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
 | L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
-| L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
+| L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | in progress |
 | L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | in progress |
 | L5 | dev runs on the real Anthropic; the e2e script the worker's `Assistant`; no stub and no `LLM_PROVIDER` in the app's code | build | done |
 
@@ -235,6 +235,13 @@ showed it answers 200 and loses the job.
 
 Budget: waits for the owner · Planned piece: 8 api and worker on `queue-2`; the old queue, the
 relay and `sentAt` removed.
+
+### Pieces
+
+[N:ai] piece 8 (the owner, in the chat: "очисть это все"): the relay and `sentAt` were already
+gone in piece 2a; the old `packages/queue`, imported by nothing but itself, is deleted, and
+`queue-2` takes its name, `@app-template/packages/queue` · visible: `make check` (249 unit, 98
+e2e; the old queue's suites went with it)
 
 ## L4 — A failed send shows under the user's message
 

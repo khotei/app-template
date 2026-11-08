@@ -10,7 +10,7 @@ import {
   type QueueDefinition,
   type SqsBatchResponse,
   type SqsEvent,
-} from '@app-template/packages/queue-2'
+} from '@app-template/packages/queue'
 
 /**
  * The statuses a job leaves for `done` or `failed`, never to come back; `idle` among them, as SQS

@@ -5,7 +5,7 @@ import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
 import { type JobEntity, JobRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
-import { type QueueDefinition, QueueSender } from '@app-template/packages/queue-2'
+import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
 
 type Job = typeof JobEntity.Type
 

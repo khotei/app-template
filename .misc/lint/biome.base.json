@@ -183,8 +183,8 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{db,queue,queue-2,testing}",
-                      "!@app-template/packages/{db,queue,queue-2}/testing",
+                      "!@app-template/packages/{db,queue,testing}",
+                      "!@app-template/packages/db/testing",
                       "!@app-template/kernel/{aws,data}",
                       "!@app-template/kernel/{aws,data}/testing",
                       "!@app-template/application/*",

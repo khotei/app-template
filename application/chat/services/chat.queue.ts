@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
-import { buildDoublingDelay, type QueueDefinition } from '@app-template/packages/queue-2'
+import { buildDoublingDelay, type QueueDefinition } from '@app-template/packages/queue'
 
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId } from '#chat/domain/chat.id'

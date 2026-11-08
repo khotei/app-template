@@ -1,7 +1,7 @@
 import { Duration, Schema } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
-import type { QueueDefinition } from '@app-template/packages/queue-2'
+import type { QueueDefinition } from '@app-template/packages/queue'
 
 const { assistantMessage } = resources.queues
 

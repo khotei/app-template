@@ -1,14 +1,14 @@
+export { QueueError } from '#queue/queue.client'
 export {
-  type AttemptInfo,
-  buildDeadLetterQueue,
-  buildDoublingDelay,
-  encodeJob,
-  handleBatch,
   QueueConsumer,
-  type QueueDefinition,
-  QueueSender,
   type SqsBatchResponse,
   SqsEvent,
-  worker,
-} from '#queue/queue'
-export { QueueError, QueueTransport } from '#queue/queue.transport'
+} from '#queue/queue.consumer'
+export {
+  type AttemptInfo,
+  buildDoublingDelay,
+  buildQueueName,
+  type Handler,
+  type QueueDefinition,
+} from '#queue/queue.model'
+export { type MessageContent, QueueSender } from '#queue/queue.sender'

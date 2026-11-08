@@ -11,14 +11,14 @@ import {
   Schema,
 } from 'effect'
 
-import { QueueClient } from '#queue-2/queue.client'
+import { QueueClient } from '#queue/queue.client'
 import {
   type AttemptInfo,
   buildAttemptInfo,
   buildQueueName,
   type Handler,
   type QueueDefinition,
-} from '#queue-2/queue.model'
+} from '#queue/queue.model'
 
 const SqsRecord = Schema.Struct({
   messageId: Schema.String,
@@ -53,7 +53,7 @@ export class QueueConsumer extends Context.Service<
       handle: Handler<A, E, R>,
     ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
   }
->()('@app-template/packages/queue-2/QueueConsumer', {
+>()('@app-template/packages/queue/QueueConsumer', {
   make: Effect.gen(function* () {
     const sqs = yield* SQSService
     const client = yield* QueueClient

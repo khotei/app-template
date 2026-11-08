@@ -5,7 +5,7 @@ import { assistantMessageQueue, chatTitleQueue } from '@app-template/application
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
 import { JobConsumer } from '@app-template/kernel/job'
-import { buildQueueName, SqsEvent } from '@app-template/packages/queue-2'
+import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'

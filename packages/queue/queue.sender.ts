@@ -1,7 +1,7 @@
 import { SQSService } from '@effect-aws/client-sqs'
 import { Context, Effect, Layer } from 'effect'
 
-import { QueueClient, QueueError } from '#queue-2/queue.client'
+import { QueueClient, QueueError } from '#queue/queue.client'
 
 export interface MessageContent {
   readonly body: string
@@ -12,7 +12,7 @@ export interface MessageContent {
 export class QueueSender extends Context.Service<
   QueueSender,
   { readonly send: (queue: string, message: MessageContent) => Effect.Effect<void, QueueError> }
->()('@app-template/packages/queue-2/QueueSender', {
+>()('@app-template/packages/queue/QueueSender', {
   make: Effect.gen(function* () {
     const sqs = yield* SQSService
     const client = yield* QueueClient

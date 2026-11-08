@@ -6,7 +6,7 @@ import type {
   MessageStatusInvalidError,
 } from '@app-template/application/chat'
 import { GenerateAssistantMessageUseCase } from '@app-template/application/use-cases'
-import type { AttemptInfo } from '@app-template/packages/queue-2'
+import type { AttemptInfo } from '@app-template/packages/queue'
 
 export class AssistantMessageHandler extends Context.Service<
   AssistantMessageHandler,
