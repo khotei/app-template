@@ -74,7 +74,7 @@ a Lambda function? MiniStack should handle this locally.
 | L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
 | L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | in progress |
-| L5 | dev runs on the real Anthropic; the e2e script the worker's `Assistant`; no stub and no `LLM_PROVIDER` in the app's code | build | in progress |
+| L5 | dev runs on the real Anthropic; the e2e script the worker's `Assistant`; no stub and no `LLM_PROVIDER` in the app's code | build | done |
 
 ## L1 — SQS invokes the worker in dev
 
@@ -278,48 +278,12 @@ job would leave set?
 
 ## L5 — No stub in the app's code
 
-Budget: about 150 lines, mostly deletions (the owner, in the chat: variant A, then variant B once
-`ANTHROPIC_API_URL` went) · Planned pieces: 1 the e2e stand answers from a fake Messages API,
-replaced by piece 3, the e2e scripting the worker's `Assistant` · 2 the stub provider and
-`LLM_PROVIDER` removed, the docs on the real Anthropic (piece 4); spent 166 + / 242 −.
+### Output
 
-### Pieces
-
-[N:ai] piece 1: the e2e stand serves a fake Messages API on a free port, answering each request by
-its model (`e2e-reply`, `e2e-title`), and runs the apps with `LLM_PROVIDER=anthropic` and the new
-optional `ANTHROPIC_API_URL` naming it, so the e2e go through the real Anthropic adapter; the stub
-still exists · visible: `make test-e2e`, `chat.e2e.ts` "a sent message with an upload…"
-[N:ai] piece 2 (the owner, in the chat): `.env.example` names `ANTHROPIC_API_URL`, commented out
-· visible: `make doc-lint`
-[N:ai] piece 3 (the owner, in the chat: "we don't need the API URL, delete it"): the fake Messages
-API and `ANTHROPIC_API_URL` go; `WorkerProcess` is the worker but its `Assistant`, which
-`WorkerLayer` closes with the language model and the e2e stand with `recordAssistant`'s scripted
-answers (variant B); the adapter stays checked by `assistant.llm.test.ts` alone · visible:
-`make test-e2e`, `chat.e2e.ts` "a sent message with an upload…"
-[N:ai] piece 4 (the owner, in the chat: "only Anthropic for now, nothing switches"): the stub
-builder, its canned answers and `LLM_PROVIDER` go; `LlmConfig` reads the key and both models,
-`ReplyModelConfig` the reply model, and the provenance names `anthropic` itself; `.env.example`
-sets both models and an empty key; six tests of the stub and the provider went with them ·
-visible: `make check` (252 unit, 109 e2e), `git grep -i stub -- application kernel packages apps`
-finds nothing
-[N:ai] review (Standards): the e2e stand's scripted `Assistant` layer is `AssistantTest`, as
-every test-only layer ends in `Test`; the Map row and the Budget line name the scripted
-`Assistant` in place of the fake Messages API that piece 3 removed.
-
-### Notes
-
-[N:ai] The owner, in the chat: "move the stub to the test level; the app's code must not use
-it", then variant A: a fake Messages API in the e2e stand over the real Anthropic adapter, not
-the `Assistant` port's memory layer under a worker layer left open (variant B), which would leave
-the adapter unchecked by the e2e.
-[N:ai] Two `make dev` side by side ran 2026-11-08 on the real Anthropic: the main tree and the
-worktree `N=1` (3010/3011/3012, MiniStack 4576, stage `local1`) each answered and titled its own
-chat in 3 s; each worker took its own 2 events, each database holds its 2 jobs `done`.
-[N:ai] review (the hunt, claimed, refuted by a run): "an empty `ANTHROPIC_API_KEY` passes as
-present" is not so: Effect 4 reads an empty variable as missing, and
-`ANTHROPIC_API_KEY= … bun <probe of LlmConfig.layer>` answered `ConfigError … at
-["ANTHROPIC_API_KEY"]`, so the worker stops at start. The README said every reply fails at
-Anthropic instead; it says the start fails now.
+dev and prod call only Anthropic: `LlmConfig` reads `ANTHROPIC_API_KEY` and both models, and an
+empty key stops the worker at start with a `ConfigError`. The e2e give `WorkerProcess` a scripted
+`Assistant` (`AssistantTest`); the Anthropic adapter is checked only by its unit test. Visible:
+`make check`, and a message through `make dev` answered by the real model.
 
 ## Knowledge
 
@@ -333,6 +297,11 @@ Anthropic instead; it says the start fails now.
 - `QueueSender.send` registers the send after the commit, so a use case cannot forget it (L1).
 - The worker answers SQS through `handleBatch(definition, handle)(event)`, returning
   `{ batchItemFailures }` (L1).
+
+- dev and prod call only Anthropic; no stub and no `LLM_PROVIDER`; an empty key stops the worker
+  at start (L5).
+- The e2e give `WorkerProcess`, the worker but its `Assistant`, a scripted `Assistant`; the
+  Anthropic adapter is checked only by its unit test (L5).
 
 ## Numbers
 
