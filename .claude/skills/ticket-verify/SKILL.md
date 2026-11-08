@@ -58,15 +58,17 @@ commit gate of `.claude/rules/sdd.md`.
 Verify what stage `<n>` built before a later stage rests on it. A plan without `## Stage`
 headings has no `Completed in`: stop and say so.
 
-1. **Pick the requirements.** The stage's range starts at its base, the fixed point: the commit
+1. **Pick the requirements.** First run the owner check of `/ticket-implement`'s step 1 on the
+   tree, so the user's edits land inside the range. The stage's range starts at its base, the
+   fixed point: the commit
    whose subject ends `St<n> (PLAN) Prepare stage <n>` (`git log --grep='<that text>$'`). It ends
    at the parent of the commit whose subject ends `St<n+1> (PLAN) Prepare stage <n+1>` when one
    exists, else at `HEAD`. Check that `git rev-parse <fixed point>` resolves and
    `git diff <fixed point>...<end>` is not empty, else stop and tell the user. The requirements
    are those whose `Completed in` in `plan.md › Requirement coverage` is stage `<n>`, and each
    one completed earlier whose steps' commits (the subject search of
-   `.claude/rules/commits.md`) touched a file `git diff --name-only <fixed point>...<end>` lists.
-   First run the owner check of `/ticket-implement`'s step 1 on the tree.
+   `.claude/rules/commits.md › A ticket's rounds`) touched a file
+   `git diff --name-only <fixed point>...<end>` lists.
 2. **Verify** them, grouped and briefed as `## Steps` 1 does, each brief naming the range's end
    too, the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No
    reviewer, since the stage's close reviewed its diff, and no lessons, which stay with the

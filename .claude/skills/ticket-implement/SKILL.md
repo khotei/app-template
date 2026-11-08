@@ -12,10 +12,11 @@ step id, take step after step, as **The loop** below says. Gates:
 ## Steps
 
 1. **Pick the step:** the one named, else the first `todo` step whose `Blocked by` steps are all
-   `done`. Of `plan.md`, read only the **Status** table and the step's own section. A step with
-   no `#### S<n>` section of its own, or in a `### Stage <n>` whose `St<n> (PLAN) Prepare stage
-   <n>` commit `git log --grep` does not find, lies in a stage not yet prepared: even when it is
-   named, do not run it, in a loop too; stop and name `/ticket-plan <ticket folder> next`.
+   `done`. Of `plan.md`, read only the **Status** table and the step's own section. Run a step,
+   the named one too, only once its stage is prepared: the step has a `#### S<n>` section and,
+   under a `### Stage <n>` heading, `git log --grep` finds `St<n> (PLAN) Prepare stage <n>`.
+   Otherwise stop and name `/ticket-plan <ticket folder> next`; in a loop, a stage whose question
+   round the user has answered is finished instead, by `stage.md › Does` step 6 read afresh.
    Check that the branch is the ticket branch (`<type>/<slug>`); otherwise stop and ask. Before
    anything else, run the **owner check** on each change `git status --short` shows, an
    untracked file included. At a run's start, before this session has changed anything, ask
