@@ -248,6 +248,10 @@ reset`, `make up`: "applied 1 migration") · visible: `make check`, `make migrat
 [N:ai] piece 10: `provisionQueues`, called from outside only by the old queue's suite, stays
 inside `packages/aws`; `naming.md` loses the `.relay` and `.transport` suffixes no file has ·
 visible: `make check`
+[N:ai] piece 11: the docs left from L1 and L2 describe what runs: the README's flow,
+`aws.md › Queues` (SQS invokes the worker, no receive loop or heartbeat, no dead-letter
+consumer), `database.md › The outbox` and `Stuck replies`, the glossary without `Relay`,
+`tooling.md` · visible: `make doc-lint`
 
 ## L4 — A failed send shows under the user's message
 

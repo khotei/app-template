@@ -154,14 +154,9 @@ _Avoid_: Manager, helper, application service, business logic, service layer
 The entry point of one request or one job in an app.
 _Avoid_: Controller, consumer, processor, endpoint
 
-**Relay**:
-A kernel layer that moves records from the database to a queue and holds no rule
-(`JobRelay`).
-_Avoid_: Dispatcher, publisher, poller
-
 **Outbox**:
 The pattern by which a use case writes its jobs to the table `jobs`, in the transaction of the
-records they read, for the relay to send them.
+records they read, and sends them to SQS once it commits.
 _Avoid_: Event table, queue table
 
 **Job**:

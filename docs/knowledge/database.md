@@ -245,42 +245,35 @@ finds. SQS is reached only through the table `jobs`, whose rows join it.
 ## Stuck replies
 
 A reply that no attempt settles stays active and its chat `queued`, so every next send to the chat
-fails `ChatBusyError` until the worker fails it from the dead-letter queue
+fails `ChatBusyError`: a killed process, a store failing the last write, or a last attempt the
+function's timeout cuts off leaves it so, and nothing consumes the dead-letter queue
 ([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
 not tell a dead reply from one waiting in a backlog.
 
 ## The outbox
 
-A job reaches SQS through the table `jobs`, so it commits or rolls back with the writes that
-enqueue it (the transactional outbox): `apps/api` provides `QueueSenderJobs` as its `QueueSender`
-and never sends to SQS, and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
-The three live in the kernel's `queue` part over the data layer's `JobRepository`, which
-inserts a job, selects the unsent ones and sets their `sentAt`.
+A job is a row of the table `jobs`, written in the transaction of the records that ask for it,
+so a rollback keeps no job and a commit never stands without one
+([decisions.md › Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer)).
+`JobSender` and `JobConsumer` in `kernel/job` move the row's `status` over `JobRepository`;
+`packages/queue` carries the job on SQS ([aws.md › Queues](aws.md#queues)).
 
-- **`QueueSenderJobs`** is the `QueueSender` whose `send`
-  encodes the job through its definition's schema to a JSON value (`Schema.toCodecJson`) and
-  inserts a row: the definition's `name` as `queue` (the stage is added on the way out), the
-  `jobId` and the value as `body`. The insert joins the caller's `sql.withTransaction`; outside
-  one it commits alone.
-- **`body` is `jsonb`, with no index on it.** No code queries the body: the column holds the
-  value for the relay, and `jsonb` keeps it a value an operator can read by hand
-  (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores
-  keys in its own order, so the string the relay sends is the row's, not the sender's.
-- **`JobRelay`**, a layer the worker provides as `JobRelaySqs`, polls
-  in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
-  `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
-  with its `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client
-  sends), sets their `sent_at` and commits. A full batch polls again at once; a shorter one
-  waits `OUTBOX_POLL_INTERVAL` (1 second by default).
-- **A sent row stays,** so `jobs` is the record of what each job carried; the partial index
-  `jobs_unsent_created_at_index` holds only unsent rows, so the poll stays cheap however many
-  sent rows pile up. Nothing removes sent rows yet.
-- **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
-  others take the next rows or none.
-- **A failed batch rolls back,** so its rows stay: the relay logs `outbox relay failed` with
-  the cause and polls again after `OUTBOX_POLL_INTERVAL`. Rows sent before the failure in the
-  same batch are sent again, as is a batch whose commit a crash cuts off: delivery is
-  at-least-once.
+- **`JobSender.send`** encodes the job through its definition's schema to a JSON value
+  (`Schema.toCodecJson`), inserts it `idle`, with the definition's `name` as `queue` (the stage is
+  added on the way out), and answers the step that sends it; the use case runs that step through
+  `Transaction.afterCommit`. The step sends the body as a JSON string, the row's id in the
+  message attribute `jobId`, then sets the row `queued`.
+- **A send SQS refuses is logged** and leaves the row `idle`; nothing resends it yet, so its
+  chat stays `queued`. The partial index `jobs_idle_created_at_index` holds only those rows.
+- **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
+  an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
+  string to parse.
+- **`JobConsumer`** marks the row `running` before its handler, then `done`, `failed` on the last
+  attempt, or `queued` again for the retry. It writes only from `idle`, `queued` or `running`, so
+  a settled job never moves back; a delivery of a settled job is acknowledged without its
+  handler, and a message whose row is missing is a defect that SQS retries, then dead-letters.
+- **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
+  settled rows yet.
 
 ## Migrations
 
