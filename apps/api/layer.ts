@@ -11,7 +11,7 @@ import {
   MessageService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
-import { SendMessageUseCase } from '@app-template/application/use-cases'
+import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
 import { Api } from '@app-template/http-api'
 import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
 import {
@@ -51,7 +51,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     MessageService.layer,
     LiveAttachmentService.layer,
     FileAttachmentService.layer,
-    SendMessageUseCase.layer,
+    CreateUserMessageUseCase.layer,
     RuntimeConfig.layer,
   ]),
 )

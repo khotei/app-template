@@ -121,7 +121,7 @@ import { Effect } from 'effect'                             // external packages
 
 import { buildChat } from '@app-template/application/chat'  // another unit
 
-import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // this unit
+import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'  // this unit
 ```
 
 - **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
@@ -153,7 +153,7 @@ Using the files of `chat` as the map:
 | mapper from an entity to a model | `application/chat/services/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` |
 | queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
-| use case | `application/use-cases/chat/send-message.use-case.ts` | `SendMessageUseCase` |
+| use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts`; `kernel/data/job/job.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket`; `JobRepository` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |

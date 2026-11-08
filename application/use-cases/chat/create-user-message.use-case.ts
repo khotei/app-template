@@ -51,11 +51,11 @@ export interface SentMessages {
   readonly assistantMessage: Message
 }
 
-export class SendMessageUseCase extends Context.Service<
-  SendMessageUseCase,
+export class CreateUserMessageUseCase extends Context.Service<
+  CreateUserMessageUseCase,
   {
     /** Stores the user's message with a queued reply, binds its attachments and queues the jobs. */
-    readonly send: (
+    readonly create: (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
@@ -68,7 +68,7 @@ export class SendMessageUseCase extends Context.Service<
       | AttachmentBoundError
     >
   }
->()('@app-template/application/use-cases/chat/SendMessageUseCase', {
+>()('@app-template/application/use-cases/chat/CreateUserMessageUseCase', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
     const attachments = yield* AttachmentRepository
@@ -81,7 +81,7 @@ export class SendMessageUseCase extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const provenance = yield* CurrentReplyProvenance
 
-    const send = Effect.fn('SendMessageUseCase.send')(function* (
+    const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
@@ -153,7 +153,7 @@ export class SendMessageUseCase extends Context.Service<
       }
     }, transaction.run)
 
-    return { send }
+    return { create }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(

@@ -2,7 +2,7 @@ import { Array as Arr, Effect, Struct } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService } from '@app-template/application/chat'
-import { SendMessageUseCase } from '@app-template/application/use-cases'
+import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
 import { Api, CurrentUser } from '@app-template/http-api'
 
 import { buildApiChat, buildApiMessage } from '#api/chat/chat.mapper'
@@ -13,7 +13,7 @@ export const ChatHandler = HttpApiBuilder.group(
   Effect.fnUntraced(function* (handlers) {
     const chatService = yield* ChatService
     const messageService = yield* MessageService
-    const sendMessage = yield* SendMessageUseCase
+    const createUserMessage = yield* CreateUserMessageUseCase
 
     return handlers
       .handle(
@@ -59,7 +59,7 @@ export const ChatHandler = HttpApiBuilder.group(
         Effect.fn('ChatHandler.send')(
           function* ({ params, payload }) {
             const user = yield* CurrentUser
-            return yield* sendMessage.send(user.id, params.chatId, payload)
+            return yield* createUserMessage.create(user.id, params.chatId, payload)
           },
           Effect.map(
             Struct.evolve({ userMessage: buildApiMessage, assistantMessage: buildApiMessage }),

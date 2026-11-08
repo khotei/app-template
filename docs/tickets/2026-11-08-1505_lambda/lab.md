@@ -73,7 +73,7 @@ a Lambda function? MiniStack should handle this locally.
 | L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
 | L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
-| L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | todo |
+| L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | in progress |
 
 ## L1 — SQS invokes the worker in dev
 
@@ -226,13 +226,31 @@ relay and `sentAt` removed.
 
 Budget: waits for the owner.
 
+### Pieces
+
+[N:ai] piece 1 (the owner, in the chat): `SendMessageUseCase.send` becomes
+`CreateUserMessageUseCase.create` in `create-user-message.use-case.ts`; the contract's `send`
+and the type `SentMessages` stay · visible: `make check`
+
 ### Notes
+
+[N:ai] Stop (the owner's word): piece 1, uncommitted, was rolled back ("let's rollback last
+changes"): the send still reserved the reply's id, and the owner wants no trace of the assistant's
+message in the use case: it sends an event with the user's message, and the worker's handler
+writes the reply and runs it.
 
 [N:ai] The owner, in the chat: as in the agents' chats (Claude Desktop, ChatGPT), a send that
 fails shows its error under the user's message, kept after a reload, with a retry; the user's
 message is kept even when the send's transaction fails. The use case only sets the chat's status,
 stores the user's message and sends the job; the worker writes the assistant's message, and a
 failure there is that message's `failed` with its cause.
+[N:ai] The owner, in the chat: `SendMessageUseCase` becomes `CreateUserMessageUseCase`
+(`create-user-message.use-case.ts`), once it no longer writes the assistant's message.
+[R] How do agent chat apps (Claude Desktop and claude.ai, ChatGPT) show a user's message whose
+send failed, and what do they keep of it across a reload: the states, the retry, where the state
+is stored?
+[N:ai] Stop (the owner's word): the researcher on the question above was stopped before it
+answered; "no need, just split it as planned".
 [Q:ai] Where does a failed send's status live: a status on the user's message (`sent`,
 `failed`), written by a second transaction after the first one rolled back, which fails too
 when the database is the cause?

@@ -175,7 +175,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
   target, where })`), so a second active reply in a chat writes nothing and dies. Any other
   message inserts. The chat's status decides the race first (below), so this index only backs it.
-- **A status move under the status read.** `SendMessageUseCase.send` reads the chat, runs
+- **A status move under the status read.** `CreateUserMessageUseCase.create` reads the chat, runs
   `queueChat` (a `queued` chat is `ChatBusyError`) and moves the status to `queued` `WHERE status
   = <the status it read>` as its first write. Of two sends that both read the chat `idle` at
   once, the second waits on the first's row lock, then matches no row and dies, rolled back
@@ -232,7 +232,7 @@ A use case that writes several aggregates commits them together: `Transaction.ru
 of the `Effect.fn` that holds the writes (`Transaction.layer` wraps
 `SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no repository takes a
-transaction parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message,
+transaction parameter. `CreateUserMessageUseCase.create` writes the chat's `status`, the user message,
 the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds the chat `queued`, and of two binds sharing an
