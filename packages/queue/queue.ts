@@ -1,4 +1,5 @@
 import {
+  Array as Arr,
   Cause,
   Context,
   Duration,
@@ -11,6 +12,7 @@ import {
   Result,
   Schedule,
   Schema,
+  String as Str,
 } from 'effect'
 
 import { buildDeadLetterName } from '@app-template/packages/aws'
@@ -68,10 +70,10 @@ const receiveWait = Duration.seconds(20)
 
 type Restore = <A, E, R>(effect: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
 
-const buildAttemptInfo = (received: Received, maxAttempts: number): AttemptInfo => ({
-  attempt: received.receiveCount,
+const buildAttemptInfo = (receiveCount: number, maxAttempts: number): AttemptInfo => ({
+  attempt: receiveCount,
   maxAttempts,
-  isLastAttempt: received.receiveCount >= maxAttempts,
+  isLastAttempt: receiveCount >= maxAttempts,
 })
 
 const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
@@ -83,6 +85,87 @@ const buildJsonCodec = <A, I>(schema: Schema.Codec<A, I>) =>
  */
 export const encodeJob = <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) =>
   pipe(message, Schema.encodeEffect(Schema.toCodecJson(definition.schema)), Effect.orDie)
+
+const SqsRecord = Schema.Struct({
+  messageId: Schema.String,
+  receiptHandle: Schema.String,
+  body: Schema.String,
+  attributes: Schema.Struct({ ApproximateReceiveCount: Schema.NumberFromString }),
+  messageAttributes: Schema.Struct({ jobId: Schema.Struct({ stringValue: Schema.String }) }).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed({ jobId: { stringValue: '' } })),
+  ),
+  eventSourceARN: Schema.String,
+})
+
+type SqsRecord = typeof SqsRecord.Type
+
+/** The event an SQS event source mapping invokes a function with. */
+export const SqsEvent = Schema.Struct({ Records: Schema.Array(SqsRecord) })
+
+export type SqsEvent = typeof SqsEvent.Type
+
+export interface SqsBatchResponse {
+  readonly batchItemFailures: ReadonlyArray<{ readonly itemIdentifier: string }>
+}
+
+const queueOf = (record: SqsRecord) => Arr.lastNonEmpty(Str.split(record.eventSourceARN, ':'))
+
+/**
+ * Runs `handle` on each record of a batch and answers the failed ones, which the mapping leaves on
+ * the queue: a failure or an undecodable body hides its record for `retryDelay`, or on the last
+ * attempt makes it visible at once for the dead-letter queue.
+ */
+export function handleBatch<A, I, E, R>(
+  definition: QueueDefinition<Schema.Codec<A, I>>,
+  handle: Handler<A, E, R>,
+): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, QueueTransport | R> {
+  const decode = Schema.decodeEffect(buildJsonCodec(definition.schema))
+
+  const retry = Effect.fnUntraced(function* (record: SqsRecord, info: AttemptInfo) {
+    yield* QueueTransport.use((transport) =>
+      transport.extend(queueOf(record), {
+        handle: record.receiptHandle,
+        visibility: info.isLastAttempt ? 0 : definition.retryDelay(info.attempt),
+      }),
+    ).pipe(
+      Effect.tapCause((cause) => Effect.logWarning('queue retry delay failed', cause)),
+      Effect.ignore,
+    )
+    return Option.some({ itemIdentifier: record.messageId })
+  })
+
+  const run = Effect.fnUntraced(
+    function* (record: SqsRecord) {
+      const info = buildAttemptInfo(
+        record.attributes.ApproximateReceiveCount,
+        definition.maxAttempts,
+      )
+      const decoded = yield* decode(record.body).pipe(Effect.result)
+      if (Result.isFailure(decoded)) {
+        yield* Effect.logError('queue message does not decode', decoded.failure)
+        return yield* retry(record, info)
+      }
+
+      const exit = yield* handle(decoded.success, info).pipe(Effect.exit)
+      if (Exit.isSuccess(exit)) return Option.none()
+
+      yield* info.isLastAttempt
+        ? Effect.logError('queue message dead-lettered', exit.cause)
+        : Effect.logWarning('queue message attempt failed', exit.cause)
+      return yield* retry(record, info)
+    },
+    (effect, record) =>
+      Effect.annotateLogs(effect, {
+        jobId: record.messageAttributes.jobId.stringValue,
+        attempt: `${record.attributes.ApproximateReceiveCount}/${definition.maxAttempts}`,
+      }),
+  )
+
+  return (event) =>
+    Effect.forEach(event.Records, run, { concurrency: 'unbounded' }).pipe(
+      Effect.map((failures) => ({ batchItemFailures: Arr.getSomes(failures) })),
+    )
+}
 
 export class QueueSender extends Context.Service<
   QueueSender,
@@ -164,7 +247,7 @@ export class QueueConsumer extends Context.Service<
         // decode and the handler `releaseOnInterrupt`.
         const run = Effect.fnUntraced(
           function* (received: Received, restore: Restore) {
-            const info = buildAttemptInfo(received, definition.maxAttempts)
+            const info = buildAttemptInfo(received.receiveCount, definition.maxAttempts)
             const decoded = yield* decode(received.body).pipe(
               Effect.result,
               releaseOnInterrupt(received, restore),

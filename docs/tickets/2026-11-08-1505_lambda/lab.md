@@ -144,6 +144,9 @@ export const handleBatch: <A, I, E, R>(
 ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, QueueTransport | R>
 ```
 
+[N:ai] L1.6 `handleBatch` answers a batch's failed records and hides each for its retry delay, at
+once on the last attempt · visible: `bunx vitest run --project unit packages/queue`
+
 ### Output
 
 <Proposed by the agent, accepted by the owner. A learn step: the answer and its proof (a command,
