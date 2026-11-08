@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, identity, Layer, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedOr } from 'effect'
 
 import { buildSet, buildWhere, orDieUnless, orDieWithSqlError } from '@app-template/packages/db'
 
@@ -24,6 +24,9 @@ export class JobRepository extends Context.Service<
   JobRepository,
   {
     readonly insert: (job: typeof JobEntityInsert.Type) => Effect.Effect<void>
+    readonly selectOne: (
+      where: JobEntityWhere,
+    ) => Effect.Effect<Option.Option<typeof JobEntity.Type>>
     /**
      * The oldest jobs first, at most `limit`, each locked until the transaction ends; a job
      * another transaction holds is skipped, so concurrent sweeps share the jobs out.
@@ -41,6 +44,11 @@ export class JobRepository extends Context.Service<
       this.of({
         insert: Effect.fn('JobRepository.insert')(
           (job) => db.insert(jobs).values(job),
+          orDieWithSqlError,
+        ),
+        selectOne: Effect.fn('JobRepository.selectOne')(
+          (where) =>
+            db.select().from(jobs).where(encodeWhere(where)).limit(1).pipe(Effect.map(Arr.head)),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('JobRepository.selectMany')(

@@ -84,10 +84,10 @@ export class QueueConsumer extends Context.Service<
 
       const run = Effect.fnUntraced(
         function* (record: SqsRecord) {
-          const info = buildAttemptInfo(
-            record.attributes.ApproximateReceiveCount,
-            definition.maxAttempts,
-          )
+          const info = buildAttemptInfo(record.messageAttributes.jobId.stringValue, {
+            receiveCount: record.attributes.ApproximateReceiveCount,
+            maxAttempts: definition.maxAttempts,
+          })
           const decoded = yield* decode(record.body).pipe(Effect.result)
           if (Result.isFailure(decoded)) {
             yield* Effect.logError('queue message does not decode', decoded.failure)

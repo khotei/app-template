@@ -1,12 +1,13 @@
 import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, ConfigProvider, Effect, Layer, Ref } from 'effect'
+import { Array as Arr, ConfigProvider, Effect, Layer, Option, Ref } from 'effect'
 import { HttpClient, HttpClientRequest, HttpRouter } from 'effect/http'
 
 import { GenerateChatTitle } from '@app-template/application/chat'
 import { chatId, messageId } from '@app-template/application/chat/testing'
 import { SQSServiceFromConfig } from '@app-template/kernel/aws'
+import { JobRepository } from '@app-template/kernel/data'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
@@ -22,6 +23,21 @@ function buildRecord(queue: string, body: unknown) {
     eventSourceARN: `arn:aws:sqs:us-east-1:000000000000:${queue}`,
   }
 }
+
+/** Every message's row is a queued job, so each runs its handler. */
+const QueuedJobsTest = Layer.mock(JobRepository, {
+  selectOne: () =>
+    Effect.succeed(
+      Option.some({
+        id: 'a',
+        queue: 'chat-title',
+        body: {},
+        status: 'queued',
+        createdAt: new Date(0),
+      }),
+    ),
+  update: () => Effect.void,
+})
 
 function recordTitles() {
   const jobs = Ref.makeUnsafe<ReadonlyArray<GenerateChatTitle>>([])
@@ -39,6 +55,7 @@ describe('POST /events', () => {
       Layer.provide([
         titles.layer,
         Layer.mock(AssistantMessageHandler, { handle: () => Effect.die('wrong queue') }),
+        QueuedJobsTest,
         SQSServiceFromConfig,
       ]),
       Layer.provide(

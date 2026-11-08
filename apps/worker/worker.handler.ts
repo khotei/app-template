@@ -4,7 +4,8 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { assistantMessageQueue, chatTitleQueue } from '@app-template/application/chat'
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
-import { buildQueueName, QueueConsumer, SqsEvent } from '@app-template/packages/queue-2'
+import { JobConsumer } from '@app-template/kernel/job'
+import { buildQueueName, SqsEvent } from '@app-template/packages/queue-2'
 
 import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
 import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
@@ -15,7 +16,7 @@ import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
  */
 export const WorkerHandler = HttpRouter.use(
   Effect.fn(function* (router) {
-    const consumer = yield* QueueConsumer
+    const consumer = yield* JobConsumer
     const { stage } = yield* AwsConfig
     const assistantMessage = yield* AssistantMessageHandler
     const chatTitle = yield* ChatTitleHandler
@@ -48,4 +49,4 @@ export const WorkerHandler = HttpRouter.use(
       }),
     )
   }),
-).pipe(Layer.provide([QueueConsumer.layer, AwsConfig.layer]))
+).pipe(Layer.provide([JobConsumer.layer, AwsConfig.layer]))

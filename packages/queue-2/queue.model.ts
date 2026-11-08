@@ -14,6 +14,8 @@ export function buildDoublingDelay(attempt: number): Duration.Duration {
 }
 
 export interface AttemptInfo {
+  /** The `jobs` row the message carries. */
+  readonly jobId: string
   /** 1-based. */
   readonly attempt: number
   readonly maxAttempts: number
@@ -23,8 +25,11 @@ export interface AttemptInfo {
 
 export type Handler<A, E, R> = (message: A, attempt: AttemptInfo) => Effect.Effect<void, E, R>
 
-export function buildAttemptInfo(receiveCount: number, maxAttempts: number): AttemptInfo {
-  return { attempt: receiveCount, maxAttempts, isLastAttempt: receiveCount >= maxAttempts }
+export function buildAttemptInfo(
+  jobId: string,
+  { receiveCount, maxAttempts }: { readonly receiveCount: number; readonly maxAttempts: number },
+): AttemptInfo {
+  return { jobId, attempt: receiveCount, maxAttempts, isLastAttempt: receiveCount >= maxAttempts }
 }
 
 /** The name of the queue an ARN names. */

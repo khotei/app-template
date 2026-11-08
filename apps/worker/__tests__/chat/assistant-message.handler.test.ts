@@ -40,6 +40,7 @@ const exploding = Effect.die(providerExploded)
 const { maxAttempts } = assistantMessageQueue
 
 const attemptInfo = (attempt: number): AttemptInfo => ({
+  jobId: '0192d4e0-7b3a-7c00-8000-000000000050',
   attempt,
   maxAttempts,
   isLastAttempt: attempt >= maxAttempts,

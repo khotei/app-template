@@ -45,8 +45,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
-- Enqueue inside the transaction of the writes the job reads, through `JobSender.send`
-  ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
+- Send a job in the transaction of the writes it reads, its step to SQS after the commit:
+  `jobs.send(<queue>, job).pipe(Effect.flatMap(transaction.afterCommit))`
+  ([decisions.md › Jobs as a table](../../docs/knowledge/decisions.md#jobs-as-a-table-in-the-data-layer)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 

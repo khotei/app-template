@@ -543,22 +543,26 @@ and lifecycle; `deployment` reads both.
 ### Jobs as a table in the data layer
 
 Jobs are the table `jobs` and `JobRepository` in the data layer, each row with its status
-(`idle`, `queued`, `done`, `failed`); `JobSender` in `kernel/job` writes the row in the caller's
-transaction and sends the job to SQS once it commits, and the use cases import it. "Outbox" names
-the pattern, not the table.
+(`idle`, `queued`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row in the
+caller's transaction and answers the step that sends it to SQS and marks it `queued`, which a use
+case runs through `Transaction.afterCommit`: the sender knows no transaction, a rollback keeps
+no job and sends nothing, and a commit never stands without its job. "Outbox" names the pattern,
+not the table.
 
 - **Why:** a row is a job, the glossary's word, and stays after the send; the table is data like
   any other, the transport the boundary's; a send after the commit needs no relay polling the
   table, and a send that fails leaves its row `idle` for the sweep.
 - **Sources:** the guide's outbox written "in the same transaction"
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/)).
-- **Rejected:** the table named `outbox`: it names the pattern and goes wrong once rows outlive
-  the send. An event ledger: a row is a command for the worker, not a fact others subscribe to.
-  `JobSender` in the data layer: the data would know the queue's job shape. A relay polling the
-  table: a process of its own that Lambda does not keep running. An outbox per module: needed
-  only with a schema per module.
-- **Cost:** the use cases import a part of the kernel besides the data layer; a send waits for
-  SQS before the request answers.
+- **Rejected:** the whole send after the commit, row included: a crash between the commit and the
+  row's insert, or an insert that fails, would lose the job and leave its chat `queued` for good.
+  The table named `outbox`: it names the pattern and goes wrong once rows outlive the send. An
+  event ledger: a row is a command for the worker, not a fact others subscribe to. `JobSender` in
+  the data layer: the data would know the queue's job shape. A relay polling the table: a process
+  of its own that Lambda does not keep running. An outbox per module: needed only with a schema
+  per module.
+- **Cost:** `send` answers an effect to run later, `Effect<Effect<void>>`. The use cases import a
+  part of the kernel besides the data layer; a send waits for SQS before the request answers.
 - **Guarded by:** the `kernel/data` and `use-cases` rows of
   [architecture.md › Dependency rules](architecture.md#dependency-rules); the `JobSender` e2e.
 - **If reversed:** a rename in a migration, or the transport inside the data layer.

@@ -73,6 +73,7 @@ a Lambda function? MiniStack should handle this locally.
 | L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
 | L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | todo |
+| L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | todo |
 
 ## L1 — SQS invokes the worker in dev
 
@@ -204,11 +205,41 @@ sends it by `afterCommit` and sets it `queued`; a failed send leaves it `idle`. 
 `status` in place of `sentAt` and `job_id`, set by every insert; `JobRelay`, `QueueSenderJobs`,
 `kernel/queue` and `QueueConfig` are gone; the use cases may import `kernel/job` (the owner) ·
 over 100 lines: it turned green only whole · visible: `make test-e2e`, the `JobSender` e2e
+[N:ai] piece 2b: `JobConsumer` in `kernel/job` wraps `QueueConsumer.consume` and settles the
+row: `done` on success, `failed` on the last attempt's failure, no change before; a settled job is
+a redelivery, acknowledged without its handler; `AttemptInfo.jobId` carries the row; no `running`
+status · visible: `make test-e2e`, the `JobConsumer` e2e
+[D] `JobSender.send` writes the job's row in the use case's transaction and answers the step that
+sends it to SQS and marks it `queued`; the use case runs that step after the commit,
+`jobs.send(<queue>, job).pipe(Effect.flatMap(transaction.afterCommit))`, through the new
+`Transaction.afterCommit`, so the sender knows no transaction and any failed write, the job's
+included, rolls the whole send back (the owner, in the chat, variant A). Variant B, the whole
+send after the commit, was tried: the e2e `chat.e2e.ts` "a send whose title job is refused…"
+showed it answers 200 and loses the job.
 
 ## L3 — Switch to queue-2
 
 Budget: waits for the owner · Planned piece: 8 api and worker on `queue-2`; the old queue, the
 relay and `sentAt` removed.
+
+## L4 — A failed send shows under the user's message
+
+Budget: waits for the owner.
+
+### Notes
+
+[N:ai] The owner, in the chat: as in the agents' chats (Claude Desktop, ChatGPT), a send that
+fails shows its error under the user's message, kept after a reload, with a retry; the user's
+message is kept even when the send's transaction fails. The use case only sets the chat's status,
+stores the user's message and sends the job; the worker writes the assistant's message, and a
+failure there is that message's `failed` with its cause.
+[Q:ai] Where does a failed send's status live: a status on the user's message (`sent`,
+`failed`), written by a second transaction after the first one rolled back, which fails too
+when the database is the cause?
+[Q:ai] What does the api answer for the reply the worker has not written yet: its id, made by the
+use case and carried in the job, with a 404 until the worker writes it, or the chat to poll?
+[Q:ai] Who holds "one reply at a time": the chat's `queued`, set by the use case, which a lost
+job would leave set?
 
 ## Knowledge
 

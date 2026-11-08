@@ -2,7 +2,6 @@ import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Layer } from 'effect'
-import { SqlClient } from 'effect/sql'
 
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
@@ -33,7 +32,7 @@ const body = {
   provenance: { provider: 'anthropic', model: 'claude-sonnet-5-5', instructionsHash: 'a1b2c3' },
 }
 
-const send = JobSender.use((sender) => sender.send(sampleJobQueue, job))
+const send = JobSender.use((sender) => sender.send(sampleJobQueue, job).pipe(Effect.flatten))
 
 const selectJobs = Db.use((db) =>
   db.select({ id: jobs.id, queue: jobs.queue, body: jobs.body, status: jobs.status }).from(jobs),
@@ -69,12 +68,10 @@ const receive = (waitSeconds: number) =>
 // Live: SQS long-polls in real time.
 describe('JobSender', () => {
   it.live(
-    "a committed send leaves a queued row and sends the job to the stage's queue under its row id",
+    "a sent job is queued and reaches the stage's queue under its row id",
     () =>
       Effect.gen(function* () {
-        const sql = yield* SqlClient.SqlClient
-
-        yield* sql.withTransaction(send)
+        yield* send
         const rows = yield* selectJobs
         const received = yield* receive(10)
 
@@ -87,30 +84,14 @@ describe('JobSender', () => {
     30_000,
   )
 
-  it.live('a send in a transaction that then fails leaves no row and sends nothing', () =>
-    Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient
-
-      yield* send.pipe(
-        Effect.andThen(Effect.fail('a later write failed')),
-        sql.withTransaction,
-        Effect.flip,
-      )
-
-      assert.deepStrictEqual(yield* selectJobs, [])
-      assert.deepStrictEqual(yield* receive(1), [])
-    }).pipe(Effect.provide(JobSenderTest)),
-  )
-
-  it.live('a send SQS refuses leaves the row idle for the sweep and logs a warning', () => {
+  it.live('a send SQS refuses leaves the job idle for the sweep and logs a warning', () => {
     const { logs, layer: recordedLogs } = recordLogs()
     return Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient
       const sqs = yield* SQSService
       const url = yield* queueUrl
       yield* sqs.deleteQueue({ QueueUrl: url })
 
-      yield* sql.withTransaction(send)
+      yield* send
 
       assert.deepStrictEqual(
         Arr.map(yield* selectJobs, ({ status }) => status),
