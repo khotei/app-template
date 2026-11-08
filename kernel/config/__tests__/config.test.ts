@@ -20,6 +20,7 @@ import {
   QueueConfig,
   ReplyModelConfig,
   RuntimeConfig,
+  WorkerConfig,
 } from '#kernel/config/config'
 
 const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
@@ -32,6 +33,7 @@ describe('config layers', () => {
     given?: Record<string, string>
   }>([
     { variable: 'API_PORT', layer: ApiConfig.layer },
+    { variable: 'WORKER_PORT', layer: WorkerConfig.layer },
     { variable: 'DATABASE_URL', layer: DatabaseConfig.layer },
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
@@ -73,17 +75,11 @@ describe('config layers', () => {
   it.effect('applies the defaults', () =>
     Effect.gen(function* () {
       const { nodeEnv, logLevel } = yield* RuntimeConfig
-      const { lockExpiration, lockRefreshInterval, outboxPollInterval } = yield* QueueConfig
+      const { outboxPollInterval } = yield* QueueConfig
 
       assert.deepStrictEqual(
-        { nodeEnv, logLevel, lockExpiration, lockRefreshInterval, outboxPollInterval },
-        {
-          nodeEnv: 'development',
-          logLevel: 'Info',
-          lockExpiration: Duration.seconds(15),
-          lockRefreshInterval: Duration.seconds(5),
-          outboxPollInterval: Duration.seconds(1),
-        },
+        { nodeEnv, logLevel, outboxPollInterval },
+        { nodeEnv: 'development', logLevel: 'Info', outboxPollInterval: Duration.seconds(1) },
       )
     }).pipe(
       Effect.provide(provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {})),
@@ -109,24 +105,6 @@ describe('config layers', () => {
     Effect.gen(function* () {
       assert.deepStrictEqual(yield* ReplyModelConfig, read)
     }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, given))),
-  )
-
-  it.effect.each([
-    { refresh: '5 seconds', expiration: '5 seconds', printed: '(5s)' },
-    { refresh: '1 minute', expiration: '5 seconds', printed: '(1m)' },
-  ])(
-    'rejects a lock refresh of $refresh against an expiration of $expiration',
-    ({ refresh, expiration, printed }) =>
-      Effect.gen(function* () {
-        const error = yield* provideVariables(QueueConfig.layer, {
-          QUEUE_LOCK_EXPIRATION: expiration,
-          QUEUE_LOCK_REFRESH_INTERVAL: refresh,
-        }).pipe(Layer.build, Effect.flip)
-
-        assert.strictEqual(error._tag, 'QueueLockRefreshIntervalInvalidError')
-        assert.include(error.message, `QUEUE_LOCK_REFRESH_INTERVAL ${printed}`)
-        assert.include(error.message, 'QUEUE_LOCK_EXPIRATION (5s)')
-      }),
   )
 
   it.effect.each([

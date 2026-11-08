@@ -1,23 +1,21 @@
-import { Effect, Layer } from 'effect'
+import { Context, Effect, Layer } from 'effect'
 
-import {
-  chatTitleDeadLetterQueue,
-  chatTitleQueue,
-  type GenerateChatTitle,
-} from '@app-template/application/chat'
+import type { GenerateChatTitle } from '@app-template/application/chat'
 import { GenerateChatTitleUseCase } from '@app-template/application/use-cases'
-import { worker } from '@app-template/packages/queue'
 
-export const handle = Effect.fn('ChatTitleHandler.handle')(
-  (job: GenerateChatTitle): Effect.Effect<void, never, GenerateChatTitleUseCase> =>
-    GenerateChatTitleUseCase.use((useCase) => useCase.generate(job)),
-)
+export class ChatTitleHandler extends Context.Service<
+  ChatTitleHandler,
+  { readonly handle: (job: GenerateChatTitle) => Effect.Effect<void> }
+>()('@app-template/apps/worker/chat/ChatTitleHandler', {
+  make: Effect.gen(function* () {
+    const useCase = yield* GenerateChatTitleUseCase
 
-export const handleDeadLettered = Effect.fn('ChatTitleHandler.handleDeadLettered')(
-  (): Effect.Effect<void> => Effect.logError('chat title dead-lettered'),
-)
+    const handle = Effect.fn('ChatTitleHandler.handle')(useCase.generate)
 
-export const ChatTitleHandler = Layer.mergeAll(
-  worker(chatTitleQueue, handle),
-  worker(chatTitleDeadLetterQueue, handleDeadLettered),
-).pipe(Layer.provide(GenerateChatTitleUseCase.layer))
+    return { handle }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(GenerateChatTitleUseCase.layer),
+  )
+}

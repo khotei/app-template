@@ -9,7 +9,7 @@ import type { AwsConfig } from '@app-template/kernel/config'
  * the calls that would reach AWS itself: STS for the account, IMDS for the region.
  */
 const buildEndpointArgs = (url: URL): aws.ProviderArgs => ({
-  endpoints: [{ rds: url.origin, s3: url.origin, sqs: url.origin }],
+  endpoints: [{ lambda: url.origin, rds: url.origin, s3: url.origin, sqs: url.origin }],
   s3UsePathStyle: true,
   skipCredentialsValidation: true,
   skipRequestingAccountId: true,

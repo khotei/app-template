@@ -1,57 +1,46 @@
-import { Cause, Effect, Exit, Layer, Option } from 'effect'
+import { Context, Effect, Exit, Layer } from 'effect'
 
-import {
-  assistantMessageDeadLetterQueue,
-  assistantMessageQueue,
-  type ChatStatusInvalidError,
-  type GenerateAssistantMessage,
-  type MessageStatusInvalidError,
+import type {
+  ChatStatusInvalidError,
+  GenerateAssistantMessage,
+  MessageStatusInvalidError,
 } from '@app-template/application/chat'
 import { GenerateAssistantMessageUseCase } from '@app-template/application/use-cases'
-import { type AttemptInfo, worker } from '@app-template/packages/queue'
+import type { AttemptInfo } from '@app-template/packages/queue-2'
 
-/** The last attempt fails the reply on any outcome but success, an interrupt included. */
-export const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
-  job: GenerateAssistantMessage,
-  info: AttemptInfo,
-): Effect.fn.Return<
-  void,
-  MessageStatusInvalidError | ChatStatusInvalidError,
-  GenerateAssistantMessageUseCase
-> {
-  const useCase = yield* GenerateAssistantMessageUseCase
-  if (!info.isLastAttempt) return yield* useCase.generate(job)
-  // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
-  yield* useCase.generate(job).pipe(
-    Effect.onExit(
-      Exit.match({
-        onSuccess: () => Effect.void,
-        onFailure: (cause) => useCase.fail(job.messageId, cause),
-      }),
-    ),
-  )
-})
-
-export const handleDeadLettered = Effect.fn('AssistantMessageHandler.handleDeadLettered')(
-  function* (
-    job: GenerateAssistantMessage,
-    info: AttemptInfo,
-  ): Effect.fn.Return<
-    void,
-    MessageStatusInvalidError | ChatStatusInvalidError,
-    GenerateAssistantMessageUseCase
-  > {
+export class AssistantMessageHandler extends Context.Service<
+  AssistantMessageHandler,
+  {
+    /** The last attempt fails the reply on any outcome but success, an interrupt included. */
+    readonly handle: (
+      job: GenerateAssistantMessage,
+      info: AttemptInfo,
+    ) => Effect.Effect<void, MessageStatusInvalidError | ChatStatusInvalidError>
+  }
+>()('@app-template/apps/worker/chat/AssistantMessageHandler', {
+  make: Effect.gen(function* () {
     const useCase = yield* GenerateAssistantMessageUseCase
 
-    const cause = `dead-lettered after ${info.attempt} attempts on ${assistantMessageDeadLetterQueue.name}`
+    const handle = Effect.fn('AssistantMessageHandler.handle')(function* (
+      job: GenerateAssistantMessage,
+      info: AttemptInfo,
+    ) {
+      if (!info.isLastAttempt) return yield* useCase.generate(job)
+      // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
+      yield* useCase.generate(job).pipe(
+        Effect.onExit(
+          Exit.match({
+            onSuccess: () => Effect.void,
+            onFailure: (cause) => useCase.fail(job.messageId, cause),
+          }),
+        ),
+      )
+    })
 
-    const failed = yield* useCase.fail(job.messageId, Cause.fail(cause))
-
-    if (Option.isSome(failed)) yield* Effect.logError('assistant reply dead-lettered')
-  },
-)
-
-export const AssistantMessageHandler = Layer.mergeAll(
-  worker(assistantMessageQueue, handle),
-  worker(assistantMessageDeadLetterQueue, handleDeadLettered),
-).pipe(Layer.provide(GenerateAssistantMessageUseCase.layer))
+    return { handle }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make).pipe(
+    Layer.provide(GenerateAssistantMessageUseCase.layer),
+  )
+}

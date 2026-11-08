@@ -179,9 +179,9 @@ Which suite runs where:
 
 ## Run and debug
 
-- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001) come from `.env`, others in a
-  [worktree](#worktrees). The web server proxies `/api/*` to `localhost:${API_PORT}`, so the
-  browser stays same-origin and the api needs no CORS.
+- **Ports.** `API_PORT` (3000), `WEB_PORT` (3001) and `WORKER_PORT` (3002) come from `.env`,
+  others in a [worktree](#worktrees). The web server proxies `/api/*` to
+  `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
 - **Debugging.** `make debug-api` prints an inspector block:
 
@@ -233,13 +233,14 @@ A worktree is a full copy of the environment, so trees run `make up` and `make d
 Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`
 (with the Pulumi state), MiniStack container and database container. It shares only the Pulumi
 provider plugins, the main tree's `.pulumi/`, which never change once installed. Its `.env` is
-the main tree's with four ports and the stage moved, since MiniStack names the database's
+the main tree's with five ports and the stage moved, since MiniStack names the database's
 container and volume after the stage:
 
 | Variable | Value | Main tree | `N=1` |
 |---|---|---|---|
 | `API_PORT` | `3000 + 10N` | 3000 | 3010 |
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
+| `WORKER_PORT` | `3002 + 10N` | 3002 | 3012 |
 | `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
 | `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
 | `STAGE` | `local<N>` | `local` | `local1` |

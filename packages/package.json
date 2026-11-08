@@ -31,6 +31,7 @@
     "#testing/db/e2e/*": "./db/__tests__/testing/e2e/*.ts"
   },
   "dependencies": {
+    "@effect-aws/client-lambda": "catalog:effect-aws",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/ai-anthropic": "catalog:effect",

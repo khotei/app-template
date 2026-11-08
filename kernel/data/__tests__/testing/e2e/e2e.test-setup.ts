@@ -45,6 +45,8 @@ const startMiniStack = () =>
   new GenericContainer(ministackImage)
     .withExposedPorts(ministackPort)
     .withEnvironment({ MINISTACK_REGION: ministackRegion })
+    // A worker's proxy URL names the host; Docker Desktop resolves it alone, Linux needs this.
+    .withExtraHosts([{ host: 'host.docker.internal', ipAddress: 'host-gateway' }])
     .withWaitStrategy(Wait.forHttp('/_ministack/health', ministackPort))
     .start()
 

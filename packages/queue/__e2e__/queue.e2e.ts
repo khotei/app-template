@@ -36,17 +36,17 @@ const stage = generateStage()
 const maxAttempts = 3
 
 const queues = {
-  consumed: { name: 'consumed', maxReceiveCount: maxAttempts },
-  exhausted: { name: 'exhausted', maxReceiveCount: maxAttempts },
-  heartbeat: { name: 'heartbeat', maxReceiveCount: maxAttempts },
-  released: { name: 'released', maxReceiveCount: maxAttempts },
-  interrupted: { name: 'interrupted', maxReceiveCount: maxAttempts },
-  recovered: { name: 'recovered', maxReceiveCount: maxAttempts },
-  malformed: { name: 'malformed', maxReceiveCount: maxAttempts },
-  unending: { name: 'unending', maxReceiveCount: maxAttempts },
-  unlabelled: { name: 'unlabelled', maxReceiveCount: maxAttempts },
-  decoding: { name: 'decoding', maxReceiveCount: maxAttempts },
-  settling: { name: 'settling', maxReceiveCount: maxAttempts },
+  consumed: { name: 'consumed', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  exhausted: { name: 'exhausted', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  heartbeat: { name: 'heartbeat', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  released: { name: 'released', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  interrupted: { name: 'interrupted', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  recovered: { name: 'recovered', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  malformed: { name: 'malformed', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  unending: { name: 'unending', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  unlabelled: { name: 'unlabelled', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  decoding: { name: 'decoding', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
+  settling: { name: 'settling', maxReceiveCount: maxAttempts, visibilityTimeoutSeconds: 30 },
 } as const satisfies Resources['queues']
 
 // SQS counts visibility in whole seconds, so one second is the shortest retry delay.

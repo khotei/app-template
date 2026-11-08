@@ -1,5 +1,7 @@
 import type { Resources } from '@app-template/packages/aws'
 
+const workerTimeoutSeconds = 60
+
 export const resources = {
   buckets: {
     attachments: {
@@ -8,7 +10,16 @@ export const resources = {
     },
   },
   queues: {
-    assistantMessage: { name: 'assistant-message', maxReceiveCount: 3 },
-    chatTitle: { name: 'chat-title', maxReceiveCount: 5 },
+    assistantMessage: {
+      name: 'assistant-message',
+      maxReceiveCount: 3,
+      visibilityTimeoutSeconds: workerTimeoutSeconds,
+    },
+    chatTitle: {
+      name: 'chat-title',
+      maxReceiveCount: 5,
+      visibilityTimeoutSeconds: workerTimeoutSeconds,
+    },
   },
+  worker: { name: 'worker', timeoutSeconds: workerTimeoutSeconds },
 } as const satisfies Resources

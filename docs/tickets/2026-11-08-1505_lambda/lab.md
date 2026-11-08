@@ -79,7 +79,7 @@ a Lambda function? MiniStack should handle this locally.
 Reference: a researcher's probe (L0.4), run as is on MiniStack 1.5.31: a Bun server on the host
 answers `POST /events`; a proxy-mode function and an SQS mapping with `ReportBatchItemFailures`
 invoke it; a failed record retries after the handler's `ChangeMessageVisibility`, then reaches
-the DLQ · Budget: reference + 250 lines; spent 579, over (see Notes)
+the DLQ · Budget: reference + 250 lines; spent 967, over (see Notes)
 
 ### Shape
 
@@ -174,6 +174,17 @@ consumer · about 106 lines, over 100 · visible: `bunx vitest run --project uni
 [N:ai] queue-2 piece 6a: the worker's `POST /events` runs a batch on the consumer of its queue,
 read from the record's ARN, and answers its failures as JSON; a queue with no consumer dies ·
 82 lines · visible: `bunx vitest run --project unit apps/worker/__tests__/events.http.test.ts`
+[D] Switch now: the worker and the api move to `queue-2`; the old queue, `JobRelay`, the
+dead-letter handlers and the lock settings go, and `jobs` gets L2's statuses first (the owner, in
+the chat: plan A).
+[D] The kernel's side of the queue is `kernel/job`: `JobSender` writes and sends a job,
+`JobConsumer` settles it (the owner, in the chat).
+[D] The worker's handlers are services, and its route is `WorkerHandler` in `worker.handler.ts`
+(the owner, in the chat).
+[N:ai] piece 1: the worker serves `POST /events` on `WORKER_PORT`; `make up` creates its function
+and one mapping per queue in MiniStack, and the e2e stand its own per stage; the dead-letter
+handlers, `QueueConsumerSqs` and `QUEUE_LOCK_*` are gone · +388 −292 lines, over 100: it turned
+green only whole · visible: `make up`, the README's chat from the shell, `make test-e2e`
 
 ### Output
 

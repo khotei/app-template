@@ -49,6 +49,7 @@ if [ -z "$KEEP" ] && [ "$branch" != "wt/$NAME" ] &&
 fi
 api=$((3000 + 10 * N))
 web=$((3001 + 10 * N))
+worker=$((3002 + 10 * N))
 aws=$((4566 + 10 * N))
 rds=$((15432 + 10 * N))
 stage="STAGE=\"local$N\""
@@ -76,15 +77,17 @@ trap 'rm -f .env.new' EXIT
 trap 'exit 1' HUP INT TERM
 sed -E -e "s/^API_PORT=.*/API_PORT=$api/" \
   -e "s/^WEB_PORT=.*/WEB_PORT=$web/" \
+  -e "s/^WORKER_PORT=.*/WORKER_PORT=$worker/" \
   -e "s/^(AWS_ENDPOINT_URL=.*:)[0-9]+/\1$aws/" \
   -e "s/^STAGE=.*/$stage/" \
   -e "s/^RDS_BASE_PORT=.*/RDS_BASE_PORT=$rds/" "$main/.env" > .env.new
 { grep -qx "API_PORT=$api" .env.new &&
   grep -qx "WEB_PORT=$web" .env.new &&
+  grep -qx "WORKER_PORT=$worker" .env.new &&
   grep -qE "^AWS_ENDPOINT_URL=\"?[a-z]+://[^/]+:$aws([/\"]|$)" .env.new &&
   grep -qx "$stage" .env.new &&
   grep -qx "RDS_BASE_PORT=$rds" .env.new; } ||
-  refuse "$main/.env lacks API_PORT, WEB_PORT, the port of AWS_ENDPOINT_URL, STAGE or RDS_BASE_PORT"
+  refuse "$main/.env lacks API_PORT, WEB_PORT, WORKER_PORT, the port of AWS_ENDPOINT_URL, STAGE or RDS_BASE_PORT"
 # Before the slow steps, so a run started meanwhile finds the stage taken.
 mv .env.new .env || exit 1
 # A folder that already has the name needs no link: ln would put one inside it. A link already

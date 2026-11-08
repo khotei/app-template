@@ -8,7 +8,6 @@ import {
   type Option,
   type Redacted,
   References,
-  Schema,
   Struct,
 } from 'effect'
 
@@ -16,6 +15,12 @@ export class ApiConfig extends Context.Service<ApiConfig, { readonly port: numbe
   '@app-template/kernel/config/ApiConfig',
 ) {
   static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('API_PORT') }))
+}
+
+export class WorkerConfig extends Context.Service<WorkerConfig, { readonly port: number }>()(
+  '@app-template/kernel/config/WorkerConfig',
+) {
+  static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WORKER_PORT') }))
 }
 
 export class WebConfig extends Context.Service<WebConfig, { readonly port: number }>()(
@@ -132,45 +137,18 @@ export class ReplyModelConfig extends Context.Service<ReplyModelConfig, ReplyMod
   )
 }
 
-export class QueueLockRefreshIntervalInvalidError extends Schema.TaggedError<QueueLockRefreshIntervalInvalidError>()(
-  'QueueLockRefreshIntervalInvalidError',
-  { lockExpiration: Schema.Duration, lockRefreshInterval: Schema.Duration },
-) {
-  override get message(): string {
-    return `QUEUE_LOCK_REFRESH_INTERVAL (${Duration.format(this.lockRefreshInterval)}) must be shorter than QUEUE_LOCK_EXPIRATION (${Duration.format(this.lockExpiration)})`
-  }
-}
-
-const isLockRefreshBeforeExpiration = (config: QueueConfig['Service']) =>
-  Duration.isLessThan(config.lockRefreshInterval, config.lockExpiration)
-
-const queueConfig = Config.all({
-  lockExpiration: Config.Duration('QUEUE_LOCK_EXPIRATION').pipe(
-    Config.withDefault(Duration.seconds(15)),
-  ),
-  lockRefreshInterval: Config.Duration('QUEUE_LOCK_REFRESH_INTERVAL').pipe(
-    Config.withDefault(Duration.seconds(5)),
-  ),
-  outboxPollInterval: Config.Duration('OUTBOX_POLL_INTERVAL').pipe(
-    Config.withDefault(Duration.seconds(1)),
-  ),
-}).pipe(
-  Effect.filterOrFail(
-    isLockRefreshBeforeExpiration,
-    ({ lockExpiration, lockRefreshInterval }) =>
-      new QueueLockRefreshIntervalInvalidError({ lockExpiration, lockRefreshInterval }),
-  ),
-)
-
 export class QueueConfig extends Context.Service<
   QueueConfig,
-  {
-    readonly lockExpiration: Duration.Duration
-    readonly lockRefreshInterval: Duration.Duration
-    readonly outboxPollInterval: Duration.Duration
-  }
+  { readonly outboxPollInterval: Duration.Duration }
 >()('@app-template/kernel/config/QueueConfig') {
-  static readonly layer = Layer.effect(this, queueConfig)
+  static readonly layer = Layer.effect(
+    this,
+    Config.all({
+      outboxPollInterval: Config.Duration('OUTBOX_POLL_INTERVAL').pipe(
+        Config.withDefault(Duration.seconds(1)),
+      ),
+    }),
+  )
 }
 
 export const MinimumLogLevelFromConfig = RuntimeConfig.pipe(
