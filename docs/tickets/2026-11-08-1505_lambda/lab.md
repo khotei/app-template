@@ -70,11 +70,14 @@ a Lambda function? MiniStack should handle this locally.
 
 | Step | Goal | Kind | Status |
 |---|---|---|---|
-| L1 | <one goal you can see> | learn \| build | todo |
+| L1 | MiniStack's SQS mapping invokes the worker's `POST /events`; a chat reply arrives with no receive loop | build | in progress |
 
-## L1 — <goal>
+## L1 — SQS invokes the worker in dev
 
-Reference: <the example, and how it was run as is> · Budget: reference + <N> lines
+Reference: a researcher's probe (L0.4), run as is on MiniStack 1.5.31: a Bun server on the host
+answers `POST /events`; a proxy-mode function and an SQS mapping with `ReportBatchItemFailures`
+invoke it; a failed record retries after the handler's `ChangeMessageVisibility`, then reaches
+the DLQ · Budget: reference + <N> lines
 
 ### Shape
 
