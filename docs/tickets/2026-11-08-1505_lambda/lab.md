@@ -159,6 +159,12 @@ Planned pieces: 1 model and sender · 2a `consume` answers the failures · 2b it
 
 [N:ai] L1.6 `handleBatch` answers a batch's failed records and hides each for its retry delay, at
 once on the last attempt · visible: `bunx vitest run --project unit packages/queue`
+[N:ai] queue-2 piece 1: `QueueDefinition` and `QueueSender.send` over SQS.
+[N:ai] queue-2 piece 2a: `QueueConsumer.consume` answers the failed records ·
+visible: `bunx vitest run --project unit packages/queue-2`
+[N:ai] queue-2 piece 2b: `consume` hides a failed record for `retryDelay`, or
+for 0 on the last attempt; `QueueClient.getUrl` holds the queue URLs for the sender and the
+consumer · about 106 lines, over 100 · visible: `bunx vitest run --project unit packages/queue-2`
 
 ### Output
 
