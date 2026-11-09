@@ -135,6 +135,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 [N:ai] L3.7 The `Run` model's body: `buildRun` builds a queued Run, `isActiveRun` and `isStartedRun` read the status, the four moves go through one `transitions` table and `failRun` takes its sentence from `failureMessages` · visible: the same test, 28 passed
 [N:ai] L3.8 The memory fakes' owner where and one-active-per-chat index check become one function each, `holdsChildWhere` and `holdsOneActivePerChat`, so the Run fake shares them with the message fake · visible: `make test-unit` (276 passed)
 [N:ai] L3.9 `RunRepositoryTest` over `RunRows`, in `RepositoryStackTest`: the primary key, the where with the owner through the chat, the set fields, one active Run per chat, the newest Run first, and a chat's delete takes its Runs; no test of its own (`.claude/rules/effect-tests.md`), a throwaway run of those cases passed and was deleted · visible: the use cases' unit tests once they read Runs
+[N:ai] L3.10 `RunFromEntity` and `encodeRun` in a mapper of their own, `application/chat/services/run.mapper.ts` (the owner's word); `decodeRun` lands with its first caller · visible: `bun --bun vitest run application/chat/__tests__/services/run.mapper.test.ts` (5 passed)
 
 ### Output
 
