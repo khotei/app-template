@@ -1,6 +1,7 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
 import {
+  type Attachment,
   type AttachmentBoundError,
   type AttachmentNotFoundError,
   assistantMessageQueue,
@@ -55,24 +56,18 @@ export class CreateUserMessageUseCase extends Context.Service<
     const queue = yield* QueueSender
     const transaction = yield* Transaction
 
-    const store = Effect.fnUntraced(function* (
-      userId: UserId,
+    /** The user's message with its attachments bound and the queued Run that answers it, or none. */
+    const storeUserMessage = Effect.fnUntraced(function* (
       chatId: ChatId,
-      input: MessageInput,
+      {
+        text,
+        attachments,
+      }: { readonly text: string; readonly attachments: ReadonlyArray<Attachment> },
     ) {
-      const chat = yield* chatService.getOne({ id: chatId, userId })
-      yield* ensureMessageInput(input)
-      yield* ensureChatNotBusy(chat)
-      const requested = yield* fileAttachments
-        .getMany({ id: input.attachmentIds, userId })
-        .pipe(Effect.flatMap(ensureAllUnbound))
-
       // The bind follows the message, since its key to the message is not deferrable.
-      const message = yield* messageService.create({ chatId, text: input.text })
-      const attachments = yield* fileAttachments.bind(requested, message)
-      const run = yield* runService.create(new Message({ ...message, attachments }))
-      // Every user message starts a Run, so a chat with none has had no message.
-      return { run, isFirstMessage: Option.isNone(chat.latestRun) }
+      const message = yield* messageService.create({ chatId, text })
+      const bound = yield* fileAttachments.bind(attachments, message)
+      return yield* runService.create(new Message({ ...message, attachments: bound }))
     }, transaction.run)
 
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
@@ -80,20 +75,26 @@ export class CreateUserMessageUseCase extends Context.Service<
       chatId: ChatId,
       input: MessageInput,
     ) {
-      const stored = yield* store(userId, chatId, input)
+      yield* ensureMessageInput(input)
+      const chat = yield* chatService
+        .getOne({ id: chatId, userId })
+        .pipe(Effect.tap(ensureChatNotBusy))
+      const attachments = yield* fileAttachments
+        .getMany({ id: input.attachmentIds, userId })
+        .pipe(Effect.flatMap(ensureAllUnbound))
+
+      const run = yield* storeUserMessage(chatId, { text: input.text, attachments })
+
       yield* queue
-        .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: stored.run.id }))
+        .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: run.id }))
         .pipe(Effect.orDie)
-      if (stored.isFirstMessage) {
+      // Every user message starts a Run, so a chat with none had no message before this one.
+      if (Option.isNone(chat.latestRun)) {
         yield* queue
-          .send(
-            chatTitleQueue,
-            new GenerateChatTitle({ chatId, messageId: stored.run.userMessageId }),
-          )
+          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: run.userMessageId }))
           .pipe(Effect.orDie)
       }
-
-      return stored.run
+      return run
     })
 
     return { create }
