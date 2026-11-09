@@ -149,6 +149,8 @@ export class CreateUserMessageUseCase extends Context.Service<
       input: MessageInput,
     ) {
       const stored = yield* store(userId, chatId, input)
+      // TODO: a refused send, a crash or an aborted request here leaves the reply queued and its
+      // chat busy for good; the reply's Run has to settle it.
       yield* queue
         .send(
           assistantMessageQueue,

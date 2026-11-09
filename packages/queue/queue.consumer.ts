@@ -46,6 +46,7 @@ export class QueueConsumer extends Context.Service<
       function run(record: SqsRecord) {
         return decode(record.body).pipe(
           Effect.matchEffect({
+            // TODO: the work this body named stays as it was (a queued reply keeps its chat busy).
             onFailure: (error) => Effect.logError('queue message does not decode', error),
             onSuccess: handle,
           }),

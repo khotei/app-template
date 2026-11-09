@@ -18,7 +18,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | Step | Goal | Kind | Status |
 |---|---|---|---|
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | learn | done |
-| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | build | in progress |
+| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | build | done |
 | L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | build | todo |
 | L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | build | todo |
 | L5 | A chat's messages with their Runs, a Run's state with its assistant message, and a retry after a failed Run, through the api | build | todo |
@@ -39,160 +39,18 @@ Can you write the signature now?
 
 ## L2 — The jobs go, the send after the commit
 
-Budget: waits for the owner
-
-### Shape
-
-<Drafted by the agent, accepted by the owner in the chat, 2026-11-09; the earlier Shape
-(`onFail`, the job's id from its caller) is in git.>
-
-- No `jobs` table, no `JobRepository`, no `kernel/job`: a job is a queue message, and its work
-  keeps its own record (the assistant message's status now, the Run from L4). Running once, a
-  run that died and a failure stay the use case's, on that record, as today.
-- `packages/queue` sends and consumes by a definition: `send(definition, message)` encodes by its
-  schema, `consume(definition, handle)` decodes; the kernel only passes the stage's queue name.
-  No `jobId` attribute. A body that does not decode is logged and acknowledged.
-- The send runs after the commit. A refused reply send fails the assistant message and its chat
-  in one write, and the api answers `202` with it; a refused title send is logged. A process that
-  dies between the commit and the send leaves the reply active (roadmap entry 22).
-- A record the worker does not find was deleted with its chat: skipped, as today.
-- The worker handler runs each queue's use case through `QueueConsumer`, picked by the queue in
-  the records' `eventSourceARN`.
-- Rejected: the send inside the transaction (a delivery before the commit reads no record, and
-  without a job row it cannot tell that from a deleted chat); a job row per message beside the
-  work's own record (a second status for one piece of work).
-
-### Notes
-
-[N:ai] The owner's plan: both queues move to the object form; a `JobRepository` memory layer.
-Visible: the JobConsumer e2e shows onFail before `failed` for a bad body and a defect, not for
-success.
-[N:ai] Today: the job's id is made in `kernel/job/job.sender.ts:37`, the row written and sent at
-`:40-43`; a body that does not decode settles `failed` with nothing else at
-`kernel/job/job.consumer.ts:63-67`; the queues are wired at `apps/worker/worker.handler.ts:25-34`.
-`apps/worker/__tests__/worker.handler.test.ts:27` hand-writes `Layer.mock(JobRepository, …)`,
-the lambda lab's L4 `[D:ai]`: the memory layer replaces it.
-[N:ai] Stop (owner's word, "why we need this id?"): L2.2, `JobSender.send`'s `{ id }`, held
-uncommitted. Deletion audit: without it `make typecheck` passes and no caller passes an id
-(`git grep 'jobs.send('`: `create-user-message.use-case.ts:134`, `:143`); only its own test needs
-it. Its use is L4's: an `onFail(jobId, cause)` for a body that does not decode finds the Run by
-the job's id alone.
-[N:ai] The owner, in the chat: "job should plain as it is, only body jsonb": the job keeps its
-own id, and only its body `{ runId }` ties it to the Run. L2.2 dropped unwritten; a second
-reading (the id taken from the message by the definition) went with it.
-[N:ai] The owner, in the chat: the kernel's jobs wrap the queue but should track no table and
-no statuses; each module keeps its own record of the work (the chat's Runs); "just send after
-commit". Review: every duty of `jobs` already sits on the work's record
-(`generate-assistant-message.use-case.ts:157`, `alreadySettled`, `isStartedReply`, its `onExit`;
-the title's `rename` of an untitled chat only) except telling a delivery before the commit from
-a deleted chat, which the send after the commit removes. The owner's yes: the send after the
-commit, a refused reply send failing the reply with `202`, the jobs gone as this L2 before the
-Runs. L2.1's `onFail` goes with `JobConsumer`.
-[N:ai] The send, as shown to the owner: `create`'s writes commit under `transaction.run` in a
-function of their own, the sends follow; a `QueueError` on the reply's send runs `failReply`, the
-assistant message `failed` (`ReplyFailed`) and the chat `failed` in one transaction, and `create`
-answers it; on the title's, a warning. `failReply` repeats the worker's `settleWith(failChat)`
-pair, about 8 lines, until L4 fails a Run instead. The worker's skip of a missing message
-(`generate-assistant-message.use-case.ts:157`) stays as is: after the commit, missing means
-deleted.
-[N:ai] Pieces planned: L2.5 the send after the commit and `202` with the failed reply (the api
-e2e of a gone queue: `500` -> `202`); L2.6 the decode in `packages/queue`, the worker handler on
-`QueueConsumer`, `JobConsumer` gone; L2.7 the encode in `packages/queue`, `kernel/job` and
-`kernel/data/job` gone, a migration drops `jobs`. Each piece's docs in its commit; the 100-line
-limit counts added lines.
-[N:ai] Order changed at L2.5: `JobSender` turns a refused send into a defect and writes the row
-before it, and `JobConsumer` dies on a job with no row, so the consumer goes first. L2.5 the
-decode in `packages/queue` and `JobConsumer` gone; L2.6 the encode there, `kernel/job` and the
-`jobs` table gone; L2.7 the send after the commit, `202` with the failed reply. Until L2.7 a
-delivery before the commit finds no message and is skipped as a deleted chat, on this branch
-only.
-[N:ai] L2.7 is 130 added lines of code (renames counted as renames), over the 100 of rail 4; the
-callers' switch to `QueueSender` and the moved e2e make most of it.
-[N:ai] L2.7: the journey `a sent message with an upload is answered and titled by the worker`
-timed out once in 9 runs of `make test-e2e` (15 s poll), green alone 3 of 3. I assume the
-delivery before the commit, skipped as a deleted chat; no log confirms it. L2.8 removes that
-path.
-[Q:ai] L2.7: with `jobs` gone, no record keeps a reply's provenance until L4 puts it on the Run
-(`docs/knowledge/ai.md` now says so); the journey's provenance check went with the table. Keep
-the gap on this branch, or log the provenance in the reply's use case until L4 (about 2 lines)?
-[N:ai] The owner, in the chat: keep the gap; L4 puts the provenance on the Run, and the branch
-reaches `main` only after L4.
-[D:ai] L2's review, the hunt, claimed: a client that aborts its `POST` after `store` commits
-(`create-user-message.use-case.ts:175`) interrupts `create` before the send (Bun interrupts the
-handler's fiber on abort, `@effect/platform-bun` 4.0.6 `BunHttpServer.ts:215-218`), so no job is
-sent and `failReply` never runs: the reply and its chat stay `queued`, and every later send to
-the chat answers `409`. Before L2.8 the abort rolled the transaction back. Without the fix a
-closed tab or a client timeout locks a chat for good. Fix: `Effect.uninterruptible` on the sends
-after the commit, about 2 lines.
-[D:ai] L2's review, the hunt, claimed: `create` catches only `QueueError`
-(`create-user-message.use-case.ts:187`). SQS that takes the message and still answers an error
-(a timeout) runs `failReply` after the worker moved the reply to `preparing`; its guarded update
-(`status: [reply.status]`) misses and dies, so the api answers `500` for a reply that is then
-answered. A defect in the send itself leaves the chat busy as above. Without the fix a rare
-timeout shows an error for a message that gets its reply. Proposed: no code in L2, where
-`failReply` is temporary; L4's fail of the Run after a refused send treats a guard miss as the
-worker's.
-[N:ai] The owner, in the chat, "ok": the abort's fix as L2.11; the timeout after delivery waits
-for L4 (its Notes).
-[N:ai] Stop (owner's word, "minimal working code base, without this massive checks"): the
-recovery after the commit. Deletion audit: without `failReply` and its `catchTag`, the api e2e
-`a send whose reply queue is gone answers 202 with the reply failed` fails (1 of 9); without
-`Effect.uninterruptible`, L2.11's case fails; without the title send's log, nothing fails; without
-the worker's log of a refused status, `make typecheck` fails, since a `QueueConsumer` handler has
-no error channel, and the only way past it returns the message to the queue, against L2.6. The
-owner's "ok": the first three go with their two cases, a refused send dies (`500`) and leaves the
-reply queued, as a process that dies does; the worker's log stays. The L4 note on the timeout
-after delivery went with `failReply`.
-
-### Pieces
-
-<[N:ai] L2.1 <what it gives> · visible: <command or link>>
-
-[N:ai] L2.1 `JobConsumer.consume(definition, { handle, onFail })`: onFail before every `failed`,
-not on success; one that dies leaves the job unsettled · visible: `bun --bun vitest run
---project e2e kernel/job/__e2e__/job.consumer.e2e.ts` (11 cases); dropping the onFail call turns
-4 red
-[N:ai] L2.5 `QueueConsumer.consume(definition, handle)` decodes by the definition, logs and
-acknowledges a body that does not decode; the worker handler consumes through it; `JobConsumer`
-and L2.1's `onFail` gone · visible: `bun --bun vitest run --project unit
-packages/queue/__tests__/queue.consumer.test.ts apps/worker/__tests__/worker.handler.test.ts`
-[N:ai] L2.6 (the owner: "failed should not return to queue, failed -> set failed status to run")
-a handler of `QueueConsumer` has no error channel, so its use case settles a failure itself and
-only a defect returns the record; the reply's use case logs a status the model refused · visible:
-the same command, the dying handler's record answered
-[N:ai] L2.7 `QueueSender.send(definition, message)` encodes by the definition, with no `jobId`;
-`QueueSenderOfStage` in `kernel/aws` names the stage's queue; `kernel/job`, `kernel/data/job` and
-the `jobs` table gone (`init` regenerated); the send stays last in the transaction, a refused one
-a defect, until L2.8 · visible: `bun --bun vitest run --project e2e
-kernel/aws/__e2e__/queue.sender.e2e.ts apps/e2e` (2 + 9 cases)
-[N:ai] L2.8 (the owner: a failed transaction keeps no record and answers `500`; a send refused
-after the commit fails the queued reply, with `202`) `create` commits its writes, then sends; a
-reply SQS refuses writes the reply and its chat `failed` (`ReplyFailed`) in one transaction and
-answers it, a refused title job is logged · visible: `bun --bun vitest run --project e2e apps/e2e`
-(9 cases; the gone queue's case `500` -> `202` with the reply failed); `make test-e2e` 9 of 9
-green, the journey's timeout of L2.7 not seen again
-[N:ai] L2.10 (REVIEW) Standards: `queue.sender.e2e.ts` runs its two cases in turn, since the
-second deletes the queue the first reads (`effect-tests.md`); its `??` on the attributes is an
-`UndefinedOr.match` (`effect.md`); the comment on the sends after the commit, which repeats
-`layering.md`, and the clause naming the table `jobs` in `assistant.port.ts` go
-(`comments.md`); `README.md` sends after the commit · visible: `bun --bun vitest run --project
-e2e kernel/aws/__e2e__/queue.sender.e2e.ts` (2 cases)
-[N:ai] L2.11 (REVIEW, the owner's yes to the abort's `[D:ai]`) `create` runs uninterruptible
-whole, not only its sends: an interrupt between the commit and the first send would still slip
-through; an aborted request now stores its message, as one never aborted. The case at the use
-case's seam, since no e2e can stop between the commit and the send: a sender held until
-released, `create` interrupted while it holds, both jobs sent · visible: `bun --bun vitest run
---project unit application/use-cases/__tests__/chat/create-user-message.use-case.test.ts -t
-interrupted`; without `Effect.uninterruptible` it fails 3 of 3 (`expected [] to have a length of
-2`)
-[N:ai] L2.12 (OWNER) `create` commits, then sends, each send `Effect.orDie`; `failReply`, the
-title send's log, `Effect.uninterruptible` and their two cases gone; `decisions.md`,
-`database.md` and `layering.md` say a refused send dies · visible: `bun --bun vitest run
---project e2e apps/e2e` (8 cases)
-
 ### Output
 
-<Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
+No `jobs` table and no `kernel/job`: a job is a queue message. `QueueSender.send(definition,
+message)` encodes by the definition's schema; `QueueConsumer.consume(definition, handle)`
+decodes, and logs and acknowledges a body that does not decode; the worker handler picks the
+queue by the records' `eventSourceARN`. `create` commits its writes, then sends; a refused send
+dies (`500`). A failed handler settles its own record; only a defect returns the message to the
+queue. Until L4, a reply stuck after the commit (a crash, an abort, a refused send) stays queued
+and its chat busy, and no record keeps a reply's provenance; the two gaps are `TODO` comments
+where they happen.
+Visible: `bun --bun vitest run --project e2e apps/e2e kernel/aws/__e2e__/queue.sender.e2e.ts`
+(8 + 2 cases).
 
 ## L3 — The `runs` table and the `Run` model
 
@@ -266,7 +124,8 @@ onFail.
 to `apps/worker/__tests__/worker.handler.test.ts`: the use case no longer fails its own Run,
 the pair `JobConsumer` + `onFail` does.
 [N:ai] L2's new Shape leaves this Shape's first two lines stale: no `onFail`, the use case keeps
-its own `onExit`, and the send runs after the commit (a refused one fails the Run, `202`).
+its own `onExit`, and the send runs after the commit (a refused one dies, `500`, the Run left
+queued: a `TODO`, by the owner's minimal code).
 [N:ai] Docs in this step's commits: `docs/knowledge/glossary.md` (Run, Run status, Active run;
 Message, Message status, Active message, Chat status, Status, Provenance), `database.md`,
 `decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
@@ -319,6 +178,10 @@ Run) and a retry after a failed Run.
 - L1: a message's latest Run is a Drizzle `one` relation with an `orderBy` (one lateral join,
   `{…} | null`); an assistant message's Run a `one` over `messages.run_id`; the two tables import
   each other with `messages.run_id` typed `(): AnyPgColumn`.
+- L2: a job is a queue message, sent after the commit of the record it names; no table tracks
+  it, and the work's own record holds its status and failure.
+- The owner, for this ticket: the code stays minimal; a known gap stays a `TODO` comment where it
+  happens, only the important ones.
 
 ## Numbers
 
