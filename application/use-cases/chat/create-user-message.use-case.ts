@@ -56,7 +56,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     const transaction = yield* Transaction
 
     /** The user's message with the attachments it names bound to it; a bound one is refused first. */
-    const storeUserMessage = Effect.fnUntraced(function* (
+    const createUserMessage = Effect.fnUntraced(function* (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
@@ -82,7 +82,7 @@ export class CreateUserMessageUseCase extends Context.Service<
         .pipe(Effect.tap(ensureChatNotBusy))
 
       // The message, its bind and its Run commit together: a Run that loses the race keeps none.
-      const run = yield* storeUserMessage(userId, chatId, input).pipe(
+      const run = yield* createUserMessage(userId, chatId, input).pipe(
         Effect.flatMap(runService.create),
         transaction.run,
       )

@@ -146,6 +146,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 [N:ai] L3.13 (OWNER) The send composes its writes from the services that own them: `MessageService.create` stores the user's message, `FileAttachmentService.getMany` reads the live, stored attachments and `bind` binds them, `RunService.create` stores the queued Run; `store` keeps the checks and four calls, and a first message is a chat with no Run yet · visible: `make check` (251 unit, 88 e2e)
 [N:ai] L3.14 (OWNER) The send reads as its flow, from the owner's sketch: the checks and the reads, then `storeUserMessage` (the message, its bind and its Run in one transaction), then the sends; the reads leave the transaction, as the writes' guards decide the races · visible: `make check` (251 unit, 88 e2e)
 [N:ai] L3.15 (OWNER) `storeUserMessage(userId, chatId, input)` reads the attachments, refuses a bound one, stores the message and binds them, answering the new `Message`; `create` starts its Run by `runService.create` on the chain, under one `transaction.run` · visible: `make check` (251 unit, 88 e2e)
+[N:ai] L3.16 (OWNER) The owner renamed the step `storeUserMessage` to `createUserMessage` · visible: `make check` (251 unit, 88 e2e)
 
 ### Output
 
@@ -266,3 +267,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L3.12: `TransactionTest` is the identity, so a unit test sees a write that Postgres would
   roll back; the completion writes the Run first, so its lost race leaves no reply in memory
   either (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`).
+- [N:ai] L3.16: `createUserMessage`, a step that stores, against `.claude/rules/naming.md`, which
+  keeps `create<Thing>` for a factory that wires dependencies
+  (`application/use-cases/chat/create-user-message.use-case.ts:59`). The rule or the name changes
+  in the Right step (L6).
