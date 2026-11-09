@@ -6,6 +6,8 @@ import {
   ChatRows,
   MessageRepositoryTest,
   MessageRows,
+  RunRepositoryTest,
+  RunRows,
 } from '#testing/data/chat.test-fake'
 import { FileObjects, FileRepositoryTest } from '#testing/data/file.test-fake'
 import { UserRepositoryTest, UserRows } from '#testing/data/user.test-fake'
@@ -19,6 +21,7 @@ export const RepositoryStackTest = Layer.mergeAll(
   ChatRepositoryTest,
   AttachmentRepositoryTest,
   FileRepositoryTest,
+  RunRepositoryTest,
 ).pipe(
   Layer.provideMerge(MessageRepositoryTest),
   Layer.provideMerge(
@@ -27,6 +30,7 @@ export const RepositoryStackTest = Layer.mergeAll(
       ChatRows.layer,
       MessageRows.layer,
       AttachmentRows.layer,
+      RunRows.layer,
       FileObjects.layer,
     ),
   ),

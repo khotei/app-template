@@ -23,7 +23,9 @@ import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { activeMessageStatuses } from '#kernel/data/chat/message.table'
-import type { RunEntityWhere } from '#kernel/data/chat/run.entity'
+import { RunEntity, type RunEntityWhere } from '#kernel/data/chat/run.entity'
+import { RunRepository } from '#kernel/data/chat/run.repository'
+import { activeRunStatuses } from '#kernel/data/chat/run.table'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
 import {
   deleteRows,
@@ -57,6 +59,14 @@ export class MessageRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, MessageRow>()))
 }
 
+/** The rows `RunRepositoryTest` keeps, by id. */
+export class RunRows extends Context.Service<
+  RunRows,
+  Ref.Ref<HashMap.HashMap<string, RunEntity>>
+>()('@app-template/kernel/data/testing/RunRows') {
+  static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, RunEntity>()))
+}
+
 const newestFirst = Order.flip(Order.mapInput(Order.Date, (chat: ChatRow) => chat.createdAt))
 
 /** Holds while no chat has two rows where `isActive` holds, as a partial unique index keeps it. */
@@ -75,6 +85,11 @@ const holdsOneActivePerChat =
 /** `messages_chat_id_active_index`. */
 const holdsActiveMessageIndex = holdsOneActivePerChat(
   matchesAny<MessageRow>({ author: ['assistant'], status: activeMessageStatuses }),
+)
+
+/** `runs_chat_id_active_index`. */
+const holdsActiveRunIndex = holdsOneActivePerChat(
+  matchesAny<RunEntity>({ status: activeRunStatuses }),
 )
 
 const holdsChatWhere = (where: ChatEntityWhere) => matches<ChatRow>(where)
@@ -114,30 +129,36 @@ const messageDefaults = { error: null } as const
 
 const decodeMessage = Schema.decodeUnknownEffect(MessageRow)
 
-/** The three tables' rows, and one read of them all for a relation or an owner. */
+const runDefaults = { failure: null } as const
+
+const decodeRun = Schema.decodeUnknownEffect(RunEntity)
+
+/** The four tables' rows, and one read of them all for a relation or an owner. */
 const tables = Effect.gen(function* () {
   const chats = yield* ChatRows
   const messages = yield* MessageRows
   const attachments = yield* AttachmentRows
+  const runs = yield* RunRows
 
   const read = Effect.all({
     chats: Ref.get(chats),
     messages: Ref.get(messages),
     attachments: Ref.get(attachments),
+    runs: Ref.get(runs),
   })
-  return { chats, messages, attachments, read }
+  return { chats, messages, attachments, runs, read }
 })
 
 /**
  * Requires the id and the timestamps every caller passes, where Postgres would default the id,
  * and fills the other defaults. Copies the guards the repository's e2e proves: the primary key,
- * the where fields, the set fields, and the cascade from a chat to its messages and, through
- * them, their attachments.
+ * the where fields, the set fields, and the cascade from a chat to its messages and Runs and,
+ * through the messages, their attachments.
  */
 export const ChatRepositoryTest = Layer.effect(
   ChatRepository,
   Effect.gen(function* () {
-    const { chats, messages, attachments, read } = yield* tables
+    const { chats, messages, attachments, runs, read } = yield* tables
 
     const selectMany = (where: ChatEntityWhere) =>
       read.pipe(
@@ -159,10 +180,13 @@ export const ChatRepositoryTest = Layer.effect(
       )
 
     const cascade = (deleted: ReadonlyArray<ChatRow>) =>
-      deleteRows(
-        messages,
-        matchesAny<MessageRow>({ chatId: Arr.map(deleted, Struct.get('id')) }),
-      ).pipe(
+      deleteRows(runs, matchesAny<RunEntity>({ chatId: Arr.map(deleted, Struct.get('id')) })).pipe(
+        Effect.andThen(
+          deleteRows(
+            messages,
+            matchesAny<MessageRow>({ chatId: Arr.map(deleted, Struct.get('id')) }),
+          ),
+        ),
         Effect.flatMap((removed) =>
           deleteRows(
             attachments,
@@ -241,6 +265,45 @@ export const MessageRepositoryTest = Layer.effect(
         ),
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
+    })
+  }),
+)
+
+/**
+ * Requires the id and the timestamps every caller passes, where Postgres would default the id,
+ * and fills `failure`. Copies the guards the repository's e2e proves: the primary key, the where
+ * fields with the owner read through the chat, the set fields, and the partial unique index on
+ * the active Run, which refuses an insert or an update that gives a chat a second one.
+ */
+export const RunRepositoryTest = Layer.effect(
+  RunRepository,
+  Effect.gen(function* () {
+    const { runs, read } = yield* tables
+
+    return RunRepository.of({
+      insert: (run) =>
+        decodeRun({ ...runDefaults, ...run }).pipe(
+          Effect.orDie,
+          Effect.flatMap((row) => insertRow(runs, { row, accepts: holdsActiveRunIndex })),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, `run ${run.id} was not inserted`),
+        ),
+      update: (set, where) =>
+        read.pipe(
+          Effect.flatMap((rows) =>
+            updateRows(runs, {
+              where: holdsChildWhere(rows.chats, where),
+              update: writeSet({ status: true, failure: true, updatedAt: true }, set),
+              accepts: holdsActiveRunIndex,
+            }),
+          ),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),
+        ),
+      selectOne: (where) =>
+        read.pipe(
+          Effect.map((rows) =>
+            pipe(inCreationOrderWhere(rows.runs, holdsChildWhere(rows.chats, where)), Arr.last),
+          ),
+        ),
     })
   }),
 )
