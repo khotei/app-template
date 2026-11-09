@@ -44,12 +44,19 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 
 ## Minimal first
 
-A plan and each of its steps, as a lab step, first build the smallest version that works end to
-end on its main path and reads at once. What that version leaves (an edge case, a hardening, an
-improvement) goes to an open list with its place in the code: a lab's **Open questions**, a plan
-step's findings. A review's finding joins the list too, unless it breaks the main path. You read a
-whole that runs, then pick from the list what earns code, each item on your word; an item you
-never pick costs no code and no review.
+A ticket, as a lab, runs in three passes, each on your word:
+
+1. **Minimal.** The whole feature in its smallest form: it runs end to end, you can try it (a
+   command, a request against `make dev`, a page) and read how it works at once. Complete for the
+   feature, minimal in code: no edge case, no hardening, no optimisation. In a plan it is the
+   first stage.
+2. **Right.** On the running version, with you: its decisions, design, code and architecture are
+   fixed while there is little code to move.
+3. **Hard.** Edge cases, open questions, hardening and optimisations, picked from the open list.
+
+Until the third pass, each such item waits in an open list with its place in the code: a lab's
+**Open questions**, a plan step's findings. A review's finding joins the list too, unless it stops
+the feature from running. An item you never pick costs no code and no review.
 
 ## Plans in stages
 
