@@ -232,15 +232,15 @@ A use case that writes several aggregates commits them together: `Transaction.ru
 the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.withTransaction`), and
 every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. `CreateUserMessageUseCase.create`
-writes the chat's `status`, the user message, the binds and the reply, then sends its jobs, or keeps
-none of them. The guards above then decide every race inside Postgres, with no lock in the process:
-of two sends to one chat the second waits on the chat's row lock and, once the first commits, finds
-the chat `queued`, and of two binds sharing an attachment the second waits on the row the first's
-update holds and, once it commits, finds it bound, so the second misses a row it names and dies. Two
-api processes behave as two fibers. S3 stays outside the transaction: the bytes are kept before the
-bind, so no bound row sits over expiring bytes, and deleted before the commit, so a rollback
-restores rows that a retry still finds. SQS joins none either: the sends come last, so a refused one
-rolls the writes back ([The sends](#the-sends)).
+writes the chat's `status`, the user message, the binds and the reply, or keeps none of them, and
+sends its jobs after the commit. The guards above then decide every race inside Postgres, with no
+lock in the process: of two sends to one chat the second waits on the chat's row lock and, once the
+first commits, finds the chat `queued`, and of two binds sharing an attachment the second waits on
+the row the first's update holds and, once it commits, finds it bound, so the second misses a row it
+names and dies. Two api processes behave as two fibers. S3 stays outside the transaction: the bytes
+are kept before the bind, so no bound row sits over expiring bytes, and deleted before the commit,
+so a rollback restores rows that a retry still finds. SQS joins none either: the sends follow the
+commit ([The sends](#the-sends)).
 
 ## Stuck replies
 
@@ -260,9 +260,13 @@ message, the chat's title) is the one the worker reads
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the message through the
   definition's schema to a JSON string and sends it, with no attribute, to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
-  after its other writes, inside its transaction.
-- **A send SQS refuses is a defect** in the use case, so the transaction rolls back and the api
-  answers its bare `500`, keeping no message.
+  after its transaction commits, so a delivery always finds the record it names.
+- **A reply SQS refuses fails at once:** the use case writes the reply `failed` (`ReplyFailed`)
+  and its chat `failed` in one transaction, and the api answers `202` with it, as the worker
+  would have. A refused title job is logged, and the chat stays untitled. A transaction that
+  fails keeps no row and answers `500`.
+- **A process that dies between the commit and the send** leaves the reply queued and its chat
+  busy ([Stuck replies](#stuck-replies)).
 
 ## Migrations
 

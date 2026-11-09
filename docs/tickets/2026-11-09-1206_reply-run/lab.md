@@ -137,6 +137,12 @@ the same command, the dying handler's record answered
 the `jobs` table gone (`init` regenerated); the send stays last in the transaction, a refused one
 a defect, until L2.8 · visible: `bun --bun vitest run --project e2e
 kernel/aws/__e2e__/queue.sender.e2e.ts apps/e2e` (2 + 9 cases)
+[N:ai] L2.8 (the owner: a failed transaction keeps no record and answers `500`; a send refused
+after the commit fails the queued reply, with `202`) `create` commits its writes, then sends; a
+reply SQS refuses writes the reply and its chat `failed` (`ReplyFailed`) in one transaction and
+answers it, a refused title job is logged · visible: `bun --bun vitest run --project e2e apps/e2e`
+(9 cases; the gone queue's case `500` -> `202` with the reply failed); `make test-e2e` 9 of 9
+green, the journey's timeout of L2.7 not seen again
 
 ### Output
 

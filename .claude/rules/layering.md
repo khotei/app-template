@@ -45,9 +45,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
-- Send a job last in the transaction of the writes it reads,
-  `yield* queue.send(<definition>, job).pipe(Effect.orDie)`: a send SQS refuses rolls the
-  transaction back
+- Send a job after the commit of the writes it reads, so a delivery always finds its record. A
+  send SQS refuses (`QueueError`) fails the work the caller waits on, in a transaction of its
+  own, and the use case answers that failure; a refused send of other work is logged
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: a use case a job runs ends its own work on any outcome but
   success, an interrupt included, and work it finds started was left by a run that died.

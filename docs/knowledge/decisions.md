@@ -545,28 +545,29 @@ and lifecycle; `deployment` reads both.
 A job is a message on its queue, and no table holds it: the work it asks for keeps its own
 record (the assistant message, the chat's title), which the worker reads to run it once, to
 settle a run that died and to record a failure. `QueueSender.send` encodes the job by its
-definition and sends it last in the caller's transaction, so a send SQS refuses is a defect that
-rolls the transaction back: a commit never stands without its job on the queue.
+definition; the caller sends it after its commit, so every delivery finds its record. A reply
+SQS refuses is failed with its chat at once, and the api answers `202` with it; a refused title
+job is logged.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
-  second status for one piece of work. A send inside the transaction needs no relay and no sweep,
-  and a refused send answers the request with a `500` instead of a reply that never comes.
+  second status for one piece of work. The send after the commit needs no relay and no sweep, and
+  a missing record means a deleted chat; a refused reply ends failed, as one the model refused
+  does, so the client shows one path, and a `500` keeps meaning that nothing was stored.
 - **Sources:** the ticket's review of what each reader of `jobs` used it for.
-- **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a
-  second status for one piece of work, written in the same transaction. The send after the commit
-  (`Transaction.afterCommit`): a send SQS refused answered `202` and left the job unsent and its
-  chat `queued` for good. A sweep resending unsent work: a schedule and a route of its own, and a
-  reply up to a minute late. Retries with a delay per attempt: a failed reply the user waits on
-  through every attempt, and code that counts them.
-- **Cost:** SQS may deliver a job before its commit shows the record: the worker finds no
-  message and skips it as a deleted chat's, so the reply stays queued and its chat busy. A commit
-  that fails after the send leaves a job with no record, skipped the same way. No record keeps a
-  reply's provenance. The transaction stays open for the SQS call.
+- **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
+  status for one piece of work, written in the same transaction. The send last inside the
+  transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
+  deleted chat's, leaving the reply queued. A `500` for a refused reply: the message is stored, so a
+  client that sends again posts it twice. A sweep resending unsent work: a schedule and a route of
+  its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply the
+  user waits on through every attempt, and code that counts them.
+- **Cost:** a process that dies between the commit and the send, or a failed write of the
+  refused reply's `failed`, leaves the reply queued and its chat busy (roadmap entry 22). No
+  record keeps a reply's provenance.
 - **Guarded by:** the `QueueSender` e2e; the api e2e of a send whose queue is gone; the
   `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
-- **Revisit when:** a flow does slow work after its first write, which would hold the
-  transaction open; or the logs show replies stuck by a delivery before their commit.
+- **Revisit when:** the logs show replies stuck by a process that died before its send.
 
 ### Guards are configuration
 

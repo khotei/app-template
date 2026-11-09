@@ -1,5 +1,6 @@
 import {
   Array as Arr,
+  Cause,
   Context,
   Crypto,
   DateTime,
@@ -18,6 +19,7 @@ import {
   bindAttachment,
   buildAssistantMessage,
   buildUserMessage,
+  type Chat,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
@@ -27,6 +29,8 @@ import {
   encodeMessage,
   ensureAllStored,
   ensureMessageInput,
+  failChat,
+  failMessage,
   GenerateAssistantMessage,
   GenerateChatTitle,
   LiveAttachmentService,
@@ -44,7 +48,7 @@ import {
   MessageRepository,
 } from '@app-template/kernel/data'
 import { generateId, Transaction } from '@app-template/packages/db'
-import { QueueSender } from '@app-template/packages/queue'
+import { type QueueError, QueueSender } from '@app-template/packages/queue'
 
 export interface CreatedMessages {
   readonly userMessage: Message
@@ -54,7 +58,10 @@ export interface CreatedMessages {
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
   {
-    /** Stores the user's message with a queued reply, binds its attachments and sends its messages. */
+    /**
+     * Stores the user's message with a queued reply and binds its attachments, then sends its
+     * jobs; a reply SQS refuses is answered failed with its chat.
+     */
     readonly create: (
       userId: UserId,
       chatId: ChatId,
@@ -81,7 +88,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const provenance = yield* CurrentReplyProvenance
 
-    const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
+    const store = Effect.fnUntraced(function* (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
@@ -131,28 +138,69 @@ export class CreateUserMessageUseCase extends Context.Service<
         createdAt: at,
       })
       yield* encodeMessage(assistantMessage).pipe(Effect.flatMap(messages.insert))
-      // A send SQS refuses rolls the create back, so a commit never stands without its message.
-      yield* queue
+
+      return {
+        chat: queued,
+        userMessage: new Message({ ...userMessage, attachments: bound }),
+        assistantMessage,
+        isFirstMessage,
+      }
+    }, transaction.run)
+
+    // No run will take a reply whose job SQS refused, so it fails with its chat at once.
+    const failReply = Effect.fnUntraced(
+      function* (chat: Chat, reply: Message, error: QueueError) {
+        const failedAt = yield* DateTime.now
+        const failed = yield* failMessage(reply, {
+          reason: 'ReplyFailed',
+          cause: Cause.pretty(Cause.fail(error)),
+          at: failedAt,
+        })
+        const ended = yield* failChat(chat)
+        yield* encodeMessage(failed).pipe(
+          Effect.flatMap((row) => messages.update(row, { id: reply.id, status: [reply.status] })),
+        )
+        yield* chats.update({ status: ended.status }, { id: chat.id, status: chat.status })
+        return failed
+      },
+      Effect.orDie,
+      transaction.run,
+    )
+
+    const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
+      userId: UserId,
+      chatId: ChatId,
+      input: MessageInput,
+    ) {
+      const stored = yield* store(userId, chatId, input)
+      // The sends follow the commit, so a delivery always finds its record.
+      const assistantMessage = yield* queue
         .send(
           assistantMessageQueue,
           new GenerateAssistantMessage({
             chatId,
-            messageId: assistantMessage.id,
+            messageId: stored.assistantMessage.id,
             provenance: Option.some(provenance),
           }),
         )
-        .pipe(Effect.orDie)
-      if (isFirstMessage) {
+        .pipe(
+          Effect.as(stored.assistantMessage),
+          Effect.catchTag('QueueError', (error) =>
+            failReply(stored.chat, stored.assistantMessage, error),
+          ),
+        )
+      if (stored.isFirstMessage) {
         yield* queue
-          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
-          .pipe(Effect.orDie)
+          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: stored.userMessage.id }))
+          .pipe(
+            Effect.catchTag('QueueError', (error) =>
+              Effect.logWarning('chat title job refused', error),
+            ),
+          )
       }
 
-      return {
-        userMessage: new Message({ ...userMessage, attachments: bound }),
-        assistantMessage,
-      }
-    }, transaction.run)
+      return { userMessage: stored.userMessage, assistantMessage }
+    })
 
     return { create }
   }),

@@ -362,7 +362,7 @@ describe('a write Postgres refuses, through the api', () => {
 
 describe('a send SQS refuses, through the api', () => {
   it.live(
-    'a send whose reply queue is gone answers 500 and keeps no message and no chat change',
+    'a send whose reply queue is gone answers 202 with the reply failed, and fails its chat',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
@@ -370,27 +370,26 @@ describe('a send SQS refuses, through the api', () => {
         const { stage } = yield* AwsConfig
         yield* api.users.ensure()
         const chat = yield* api.chats.create()
-        const created = yield* api.chats.get({ params: { chatId: chat.id } })
         const { QueueUrl } = yield* sqs.getQueueUrl({
           QueueName: buildResourceName(stage, assistantMessageQueue.name),
         })
         yield* sqs.deleteQueue({ QueueUrl })
 
-        const outcome = yield* api.chats
-          .createMessage({
-            params: { chatId: chat.id },
-            payload: { text: 'Hi', attachmentIds: [] },
-          })
-          .pipe(
-            Effect.as('sent'),
-            Effect.catchTag('HttpClientError', (error) =>
-              isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
-            ),
-          )
+        const sent = yield* api.chats.createMessage({
+          params: { chatId: chat.id },
+          payload: { text: 'Hi', attachmentIds: [] },
+        })
+        const reply = yield* api.chats.getMessage({
+          params: { chatId: chat.id, messageId: sent.assistantMessage.id },
+        })
 
-        assert.strictEqual(outcome, 'refused')
-        assert.deepStrictEqual(yield* selectMessages(chat.id), [])
-        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
+        assert.deepStrictEqual(reply, sent.assistantMessage)
+        assert.deepInclude(reply, { status: 'failed' })
+        assert.deepStrictEqual(
+          Option.map(reply.error, ({ reason }) => reason),
+          Option.some('ReplyFailed'),
+        )
+        assert.strictEqual((yield* api.chats.get({ params: { chatId: chat.id } })).status, 'failed')
       }).pipe(Effect.provide(StandTest)),
     30_000,
   )
