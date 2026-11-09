@@ -162,7 +162,7 @@ Using the files of `chat` as the map:
 | contract group | `http-api/chat/chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat`, `buildApiMessage` |
-| worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `AssistantMessageHandler` |
+| worker route: each queue's steps over its use cases | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its `Assistant`, `WorkerLayer` with it; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 

@@ -3,6 +3,10 @@ import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
 
 import { AssistantLlmFromConfig } from '@app-template/application/chat'
+import {
+  GenerateAssistantMessageUseCase,
+  GenerateChatTitleUseCase,
+} from '@app-template/application/use-cases'
 import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, WorkerConfig } from '@app-template/kernel/config'
 import {
@@ -15,12 +19,10 @@ import {
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
-import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
-import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
 import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide([AssistantMessageHandler.layer, ChatTitleHandler.layer]),
+  Layer.provide([GenerateAssistantMessageUseCase.layer, GenerateChatTitleUseCase.layer]),
   Layer.provide(Transaction.layer),
 )
 

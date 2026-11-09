@@ -2,34 +2,39 @@ import { Array as Arr, Effect, Layer, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 import { assistantMessageQueue, chatTitleQueue } from '@app-template/application/chat'
+import {
+  GenerateAssistantMessageUseCase,
+  GenerateChatTitleUseCase,
+} from '@app-template/application/use-cases'
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
 import { JobConsumer } from '@app-template/kernel/job'
 import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
 
-import { AssistantMessageHandler } from '#worker/chat/assistant-message.handler'
-import { ChatTitleHandler } from '#worker/chat/chat-title.handler'
-
 /**
- * `POST /events`: the batch an SQS mapping invokes the worker with, run by the handler of the
- * queue it came from; a batch of a queue with no handler is a defect.
+ * `POST /events`: the batch an SQS mapping invokes the worker with, run by the steps of the queue
+ * it came from; a batch of a queue with none is a defect. A reply's failure fails its message
+ * and chat; a title's leaves the chat untitled, which is harmless.
  */
 export const WorkerHandler = HttpRouter.use(
   Effect.fn(function* (router) {
     const consumer = yield* JobConsumer
     const { stage } = yield* AwsConfig
-    const assistantMessage = yield* AssistantMessageHandler
-    const chatTitle = yield* ChatTitleHandler
+    const assistantMessage = yield* GenerateAssistantMessageUseCase
+    const chatTitle = yield* GenerateChatTitleUseCase
 
     const consumers = {
       [buildResourceName(stage, assistantMessageQueue.name)]: consumer.consume(
         assistantMessageQueue,
-        assistantMessage.handle,
+        {
+          handle: assistantMessage.generate,
+          fail: (job, cause) => assistantMessage.fail(job.messageId, cause),
+        },
       ),
-      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(
-        chatTitleQueue,
-        chatTitle.handle,
-      ),
+      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(chatTitleQueue, {
+        handle: chatTitle.generate,
+        fail: () => Effect.void,
+      }),
     }
 
     yield* router.add(

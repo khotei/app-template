@@ -255,6 +255,12 @@ and unretried", red as `.fails` on today's code · visible: `make test-e2e`, 1 e
 decodes it by the definition's schema, and a body that does not decode fails the job at once,
 unrun, its record acknowledged; `aws.md` and `database.md` say so · visible: `make test-e2e`, the
 e2e of 7a green
+[N:ai] piece 8a (the owner, in the chat: "no retries, if error -> fail"): `JobConsumer.consume`
+takes a queue's steps `{ handle, fail }` and runs a job once: `queued` -> `running` -> `done`, or
+`fail` then `failed` on any other outcome, unretried; a job found `running` was left by a dead
+process and gets `fail` and `failed` unrun. The worker's route wires the use cases' `generate`
+and `fail` itself; `AssistantMessageHandler`, `ChatTitleHandler` and their suites are gone ·
+visible: `make test-e2e`, the `JobConsumer` cases
 
 ### Notes
 

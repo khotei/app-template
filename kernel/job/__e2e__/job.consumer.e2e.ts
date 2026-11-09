@@ -28,14 +28,14 @@ const body = {
   provenance: sampleProvenance,
 }
 
-function buildEvent(receiveCount: number, rawBody = JSON.stringify(body)) {
+function buildEvent(rawBody = JSON.stringify(body)) {
   return {
     Records: [
       {
         messageId: 'a',
         receiptHandle: 'handle-a',
         body: rawBody,
-        attributes: { ApproximateReceiveCount: receiveCount },
+        attributes: { ApproximateReceiveCount: 1 },
         messageAttributes: { jobId: { stringValue: jobId } },
         eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:stage-assistant-message',
       },
@@ -43,92 +43,87 @@ function buildEvent(receiveCount: number, rawBody = JSON.stringify(body)) {
   }
 }
 
-const { maxAttempts } = sampleJobQueue
+const insertJob = (status: 'queued' | 'running' | 'done') =>
+  JobRepository.use((jobs) =>
+    jobs.insert({ id: jobId, queue: sampleJobQueue.name, body, status, createdAt: new Date(0) }),
+  )
+
+const selectStatus = JobRepository.use((jobs) => jobs.selectOne({ id: [jobId] })).pipe(
+  Effect.map(Option.map(Struct.get('status'))),
+)
 
 describe('JobConsumer.consume', () => {
   it.effect.each<{
     readonly name: string
-    readonly status: 'queued' | 'done'
-    readonly receiveCount: number
+    readonly status: 'queued' | 'running' | 'done'
     readonly outcome: Effect.Effect<void, string>
     readonly runs: number
-    readonly settled: 'queued' | 'done' | 'failed'
+    readonly fails: number
+    readonly settled: 'done' | 'failed'
   }>([
     {
       name: 'a handled job',
       status: 'queued',
-      receiveCount: 1,
       outcome: Effect.void,
       runs: 1,
+      fails: 0,
       settled: 'done',
     },
     {
-      name: 'a failed early attempt',
+      name: 'a failed job',
       status: 'queued',
-      receiveCount: 1,
       outcome: Effect.fail('boom'),
       runs: 1,
-      settled: 'queued',
+      fails: 1,
+      settled: 'failed',
     },
     {
-      name: 'a failed last attempt',
-      status: 'queued',
-      receiveCount: maxAttempts,
-      outcome: Effect.fail('boom'),
-      runs: 1,
+      name: 'a job its process left running',
+      status: 'running',
+      outcome: Effect.void,
+      runs: 0,
+      fails: 1,
       settled: 'failed',
     },
     {
       name: 'a redelivered done job',
       status: 'done',
-      receiveCount: 2,
       outcome: Effect.void,
       runs: 0,
+      fails: 0,
       settled: 'done',
     },
   ])(
-    '$name leaves the job $settled after $runs runs',
-    ({ status, receiveCount, outcome, runs, settled }) =>
+    '$name runs $runs times, fails $fails times, ends $settled and is never retried',
+    ({ status, outcome, runs, fails, settled }) =>
       Effect.gen(function* () {
         const consumer = yield* JobConsumer
-        const jobs = yield* JobRepository
         const ran = yield* Ref.make(0)
-        yield* jobs.insert({
-          id: jobId,
-          queue: sampleJobQueue.name,
-          body,
-          status,
-          createdAt: new Date(0),
-        })
+        const failed = yield* Ref.make(0)
+        yield* insertJob(status)
 
-        yield* consumer.consume(sampleJobQueue, () =>
-          Ref.update(ran, (n) => n + 1).pipe(Effect.andThen(outcome)),
-        )(buildEvent(receiveCount))
-        const stored = yield* jobs.selectOne({ id: [jobId] })
+        const response = yield* consumer.consume(sampleJobQueue, {
+          handle: () => Ref.update(ran, (n) => n + 1).pipe(Effect.andThen(outcome)),
+          fail: () => Ref.update(failed, (n) => n + 1),
+        })(buildEvent())
 
+        assert.deepStrictEqual(response, { batchItemFailures: [] })
         assert.strictEqual(yield* Ref.get(ran), runs)
-        assert.deepStrictEqual(Option.map(stored, Struct.get('status')), Option.some(settled))
+        assert.strictEqual(yield* Ref.get(failed), fails)
+        assert.deepStrictEqual(yield* selectStatus, Option.some(settled))
       }).pipe(Effect.provide(JobConsumerTest)),
   )
 
   it.effect('a queued job reads running while its handler runs', () =>
     Effect.gen(function* () {
       const consumer = yield* JobConsumer
-      const jobs = yield* JobRepository
-      yield* jobs.insert({
-        id: jobId,
-        queue: sampleJobQueue.name,
-        body,
-        status: 'queued',
-        createdAt: new Date(0),
-      })
-
       const seen = yield* Ref.make(Option.none<string>())
-      yield* consumer.consume(sampleJobQueue, () =>
-        jobs
-          .selectOne({ id: [jobId] })
-          .pipe(Effect.flatMap((job) => Ref.set(seen, Option.map(job, Struct.get('status'))))),
-      )(buildEvent(1))
+      yield* insertJob('queued')
+
+      yield* consumer.consume(sampleJobQueue, {
+        handle: () => selectStatus.pipe(Effect.flatMap((status) => Ref.set(seen, status))),
+        fail: () => Effect.void,
+      })(buildEvent())
 
       assert.deepStrictEqual(yield* Ref.get(seen), Option.some('running'))
     }).pipe(Effect.provide(JobConsumerTest)),
@@ -137,22 +132,15 @@ describe('JobConsumer.consume', () => {
   it.effect('a job whose body does not decode fails at once, unrun and unretried', () =>
     Effect.gen(function* () {
       const consumer = yield* JobConsumer
-      const jobs = yield* JobRepository
-      yield* jobs.insert({
-        id: jobId,
-        queue: sampleJobQueue.name,
-        body,
-        status: 'queued',
-        createdAt: new Date(0),
-      })
+      yield* insertJob('queued')
 
-      const response = yield* consumer.consume(sampleJobQueue, () => Effect.die('handler ran'))(
-        buildEvent(1, '{"chatId":1}'),
-      )
-      const stored = yield* jobs.selectOne({ id: [jobId] })
+      const response = yield* consumer.consume(sampleJobQueue, {
+        handle: () => Effect.die('handler ran'),
+        fail: () => Effect.die('fail ran'),
+      })(buildEvent('{"chatId":1}'))
 
       assert.deepStrictEqual(response, { batchItemFailures: [] })
-      assert.deepStrictEqual(Option.map(stored, Struct.get('status')), Option.some('failed'))
+      assert.deepStrictEqual(yield* selectStatus, Option.some('failed'))
     }).pipe(Effect.provide(JobConsumerTest)),
   )
 })
