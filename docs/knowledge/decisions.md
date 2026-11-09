@@ -546,8 +546,8 @@ Jobs are the table `jobs` and `JobRepository` in the data layer, each row with i
 (`queued`, `running`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row `queued`
 in the caller's transaction and sends it to SQS at once, after the use case's other writes, so a
 send SQS refuses is a defect that rolls the transaction back: a commit never stands without its
-job on the queue, and a rollback keeps no row. `JobConsumer` runs a job once: `running`, then
-`done`, or `failed` on any other outcome, unretried. "Outbox" names the pattern, not the table.
+job on the queue, and a rollback keeps no row. The worker runs a job on the record of its work,
+never the row. "Outbox" names the pattern, not the table.
 
 - **Why:** a row is a job, the glossary's word, and stays after the send; the table is data like
   any other, the transport the boundary's; a send inside the transaction needs no relay polling

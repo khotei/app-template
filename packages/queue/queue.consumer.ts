@@ -1,9 +1,10 @@
 import { Array as Arr, Context, Effect, Exit, Layer, Option, Schema } from 'effect'
 
+import type { QueueDefinition } from '#queue/queue.model'
+
 const SqsRecord = Schema.Struct({
   messageId: Schema.String,
   body: Schema.String,
-  messageAttributes: Schema.Struct({ jobId: Schema.Struct({ stringValue: Schema.String }) }),
   eventSourceARN: Schema.String,
 })
 
@@ -22,23 +23,33 @@ export class QueueConsumer extends Context.Service<
   QueueConsumer,
   {
     /**
-     * Runs `handle` on each record's body and the `jobs` row it carries, and answers the failed
-     * records: SQS delivers them again until the queue's `maxReceiveCount` dead-letters them.
+     * Runs `handle` on each record's message, decoded by the definition's schema, and answers the
+     * failed records: SQS delivers them again until the queue's `maxReceiveCount` dead-letters
+     * them. A body that does not decode never will, so it is logged and acknowledged, unrun.
      */
-    readonly consume: <E, R>(
-      handle: (body: string, jobId: string) => Effect.Effect<unknown, E, R>,
+    readonly consume: <A, I, E, R>(
+      definition: QueueDefinition<Schema.Codec<A, I>>,
+      handle: (message: A) => Effect.Effect<unknown, E, R>,
     ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
   }
 >()('@app-template/packages/queue/QueueConsumer', {
   make: Effect.gen(function* () {
-    function consume<E, R>(
-      handle: (body: string, jobId: string) => Effect.Effect<unknown, E, R>,
+    function consume<A, I, E, R>(
+      definition: QueueDefinition<Schema.Codec<A, I>>,
+      handle: (message: A) => Effect.Effect<unknown, E, R>,
     ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
+      const decode = Schema.decodeEffect(
+        Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
+      )
+
       function run(record: SqsRecord) {
-        const jobId = record.messageAttributes.jobId.stringValue
-        return handle(record.body, jobId).pipe(
+        return decode(record.body).pipe(
+          Effect.matchEffect({
+            onFailure: (error) => Effect.logError('queue message does not decode', error),
+            onSuccess: handle,
+          }),
           Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
-          Effect.annotateLogs({ jobId }),
+          Effect.annotateLogs({ messageId: record.messageId }),
           Effect.exit,
           Effect.map((exit) =>
             Exit.isSuccess(exit)

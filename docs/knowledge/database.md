@@ -257,32 +257,20 @@ not tell a dead reply from one waiting in a backlog.
 A job is a row of the table `jobs`, written in the transaction of the records that ask for it,
 so a rollback keeps no job and a commit never stands without one
 ([decisions.md › Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer)).
-`JobSender` and `JobConsumer` in `kernel/job` move the row's `status` over `JobRepository`;
-`packages/queue` carries the job on SQS ([aws.md › Queues](aws.md#queues)).
+`JobSender` in `kernel/job` writes the row over `JobRepository`; `packages/queue` carries the job
+on SQS and decodes it for the worker ([aws.md › Queues](aws.md#queues)).
 
 - **`JobSender.send`** encodes the job through its definition's schema to a JSON value
   (`Schema.toCodecJson`), inserts it `queued`, with the definition's `name` as `queue` (the stage
   is added on the way out), then sends the body as a JSON string, the row's id in the message
   attribute `jobId`. A use case sends its jobs after its other writes.
 - **A send SQS refuses is a defect,** so the transaction rolls back and the api answers its bare
-  `500`, keeping no message and no job. SQS may deliver a job before the commit shows its row:
-  the worker reads none, a defect, and SQS delivers it again.
+  `500`, keeping no message and no job.
 - **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
   an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
   string to parse.
-- **`JobConsumer`** marks the row `running` before its handler, then `done` on success or
-  `failed` on any other outcome, an interrupt included; nothing is retried. A job found `running`
-  was left by a run that died, so its handler runs again and decides. It writes only from
-  `queued` or `running`, so a settled job never moves back; a delivery of a settled job is
-  acknowledged without its handler, and a message whose row is missing is a defect that SQS
-  delivers again, then dead-letters.
-  `JobConsumer` decodes the body itself: one that does not decode never will, so its job is
-  `failed` at once, unrun, and its record acknowledged; the body stays in the row.
-  Before each `failed`, a consumer's `onFail` gets the job's id and the cause, uninterruptibly,
-  so the work the job carried is failed first; an `onFail` that dies leaves the job unsettled,
-  and SQS delivers it again.
-- **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
-  settled rows yet.
+- **A row stays `queued`:** the worker reads the record of the job's work, never the row, so
+  `jobs` is only the record of what each job carried. Nothing removes rows yet.
 
 ## Migrations
 

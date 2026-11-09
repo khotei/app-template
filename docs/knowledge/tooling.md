@@ -132,9 +132,9 @@ Which suite runs where:
   `@app-template/packages/aws/testing/e2e` are clients on that MiniStack. Each test provides
   `PgClientTest` from `@app-template/packages/db/testing/e2e`: a fresh database copied from the
   template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS
-  (`FileRepository`'s, `JobSender`'s and `JobConsumer`'s beside `DbTest`, the e2e through the
-  api) provides `AwsTest` from the kernel's `aws` e2e support: a stage of its own on the run's
-  MiniStack, its bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
+  (`FileRepository`'s and `JobSender`'s beside `DbTest`, the e2e through the api) provides
+  `AwsTest` from the kernel's `aws` e2e support: a stage of its own on the run's MiniStack, its
+  bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
   The unit suites run on neither: `FileRepositoryTest` (in `RepositoryStackTest`) and `recordJobs()`
   stand in for S3 and SQS. A test therefore sees only its own rows and resources, even through a
   query that reads a whole table, and files run in parallel. E2e tests need Docker and nothing else:

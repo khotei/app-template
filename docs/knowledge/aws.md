@@ -145,28 +145,28 @@ before the row that binds them and deletes them once the rows are gone.
 
 ## Queues
 
-`QueueSender` and `QueueConsumer` (`packages/queue`) are the two sides of SQS; `JobSender` and
-`JobConsumer` in `kernel/job` wrap them with the job's row in `jobs`
-([database.md › The outbox](database.md#the-outbox)). A definition's queue is
-`buildResourceName(STAGE, definition.name)`.
+`QueueSender` and `QueueConsumer` (`packages/queue`) are the two sides of SQS; `JobSender` in
+`kernel/job` writes the job's row in `jobs` before its send
+([database.md › The outbox](database.md#the-outbox)), and `QueueConsumer` decodes each body by
+its definition's schema. A definition's queue is `buildResourceName(STAGE, definition.name)`.
 
 - **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,
   with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch
   goes to the worker's `POST /events` on the host (`MINISTACK_LAMBDA_PROXY_URL`), the request
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`; a queue with no consumer answers `500`, a deployment bug.
-- **A job runs once.** `JobConsumer` fails a job on any outcome of its handler but success and
-  acknowledges its record; nothing is retried. A job whose body does not decode is failed at once
-  ([database.md › The outbox](database.md#the-outbox)).
-- **Delivery is at-least-once** (the message attribute `jobId`): a delivery of a job already
-  `done` or `failed` is acknowledged without its handler. One found `running` runs its handler
-  again: the reply's use case fails a reply it finds started, so a copy delivered while the first
-  still runs fails a live reply, a rare case accepted.
-- **Only a defect returns to the queue.** A record whose handling dies before its job settles (a
-  row its commit has not shown yet, a process that dies) is answered in `batchItemFailures`, or
-  not answered at all; SQS delivers it again once the queue's visibility timeout, the worker
-  function's 600 s, has passed, and after `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. AWS
-  refuses a mapping on a queue that hides a message less than its function's timeout.
+- **The work's record runs a job once.** A queue's use case reads the record of its work (the
+  assistant message, the chat's title) and skips work already settled; it ends its own work on
+  any outcome but success, an interrupt included. A body that does not decode never will, so it
+  is logged and acknowledged, unrun.
+- **Delivery is at-least-once:** the reply's use case fails a reply it finds started, as the run
+  that started it died, so a copy delivered while the first still runs fails a live reply, a
+  rare case accepted.
+- **A failed record returns to the queue.** A record whose handler fails or dies (a process that
+  dies included) is answered in `batchItemFailures`, or not answered at all; SQS delivers it again
+  once the queue's visibility timeout, the worker function's 600 s, has passed, and after
+  `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. A delivery after the work settled skips it.
+  AWS refuses a mapping on a queue that hides a message less than its function's timeout.
 - **Nothing consumes a dead-letter queue.** A reply's run writes `failed` on any outcome but
   success; one that no run settles stays active
   ([database.md › Stuck replies](database.md#stuck-replies)).
@@ -174,8 +174,7 @@ before the row that binds them and deletes them once the rows are gone.
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 
-`QueueConsumer` calls no SQS, so its suite needs none; `JobConsumer`'s cases run on the e2e
-database with no queue.
+`QueueConsumer` calls no SQS, so its suite needs none.
 
 ## Tests on Docker
 

@@ -100,6 +100,12 @@ e2e of a gone queue: `500` -> `202`); L2.6 the decode in `packages/queue`, the w
 `QueueConsumer`, `JobConsumer` gone; L2.7 the encode in `packages/queue`, `kernel/job` and
 `kernel/data/job` gone, a migration drops `jobs`. Each piece's docs in its commit; the 100-line
 limit counts added lines.
+[N:ai] Order changed at L2.5: `JobSender` turns a refused send into a defect and writes the row
+before it, and `JobConsumer` dies on a job with no row, so the consumer goes first. L2.5 the
+decode in `packages/queue` and `JobConsumer` gone; L2.6 the encode there, `kernel/job` and the
+`jobs` table gone; L2.7 the send after the commit, `202` with the failed reply. Until L2.7 a
+delivery before the commit finds no message and is skipped as a deleted chat, on this branch
+only.
 
 ### Pieces
 
@@ -109,6 +115,10 @@ limit counts added lines.
 not on success; one that dies leaves the job unsettled · visible: `bun --bun vitest run
 --project e2e kernel/job/__e2e__/job.consumer.e2e.ts` (11 cases); dropping the onFail call turns
 4 red
+[N:ai] L2.5 `QueueConsumer.consume(definition, handle)` decodes by the definition, logs and
+acknowledges a body that does not decode; the worker handler consumes through it; `JobConsumer`
+and L2.1's `onFail` gone · visible: `bun --bun vitest run --project unit
+packages/queue/__tests__/queue.consumer.test.ts apps/worker/__tests__/worker.handler.test.ts`
 
 ### Output
 
