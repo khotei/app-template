@@ -11,9 +11,10 @@ is already known of the shape.>
 
 <The only place for a step's status: todo, in progress or done.>
 
-| Step | Goal | Kind | Status |
-|---|---|---|---|
-| L1 | <one goal you can see> | learn \| build | todo |
+| Step | Goal | Pass | Kind | Status |
+|---|---|---|---|---|
+| L1 | <one goal you can see> | minimal \| right \| hard | learn \| build | todo |
+| L<last> | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — <goal>
 
@@ -49,7 +50,8 @@ accepted and how to see it.>
 reworked after the owner saw a piece (the OWNER rounds); stops by signal; claims without a
 source.>
 
-## Open questions
+## Later
 
-<What the minimal version leaves: known gaps, issues, edge cases and improvements, each with its
-path:line or step; one is taken up only on the owner's word, and goes once settled.>
+<The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
+hardening, open questions and optimisations, each with its `path:line` or step and its fate (open,
+done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's word.>

@@ -17,8 +17,7 @@ round and commit-gate lines of `.claude/rules/sdd.md`. The procedures: `/lab`, `
   started from `docs/tickets/_template/lab.md`; its `Flow: lab` line names the cycle.
 - **Map** is the only place for a step's status. A closed step collapses to its Output, the rest
   stays in git. No commit hashes: a round is named by its id.
-- The owner writes in any language, the one exception to docs in English; the agent's lines
-  follow the owner's language.
+- The owner writes in any language (docs are otherwise English); the agent's follow the owner's.
 
 | Part | Writer |
 |---|---|
@@ -26,7 +25,7 @@ round and commit-gate lines of `.claude/rules/sdd.md`. The procedures: `/lab`, `
 | `[Q:ai]`, `[A:ai]`, `[D:ai]`, `[N:ai]`, the Map's statuses | the agent |
 | Output | the agent proposes, the owner accepts |
 | Knowledge | the agent: only an accepted `[D]` or Output, in the commit that settles it |
-| Open questions | the agent and the owner; an item goes once settled |
+| Later | the agent and the owner: the open list of `sdd.md › Gates`, an item with its fate |
 
 The agent never rewrites an owner's line, and reports each write to the file in one chat line.
 
@@ -63,14 +62,15 @@ The agent never rewrites an owner's line, and reports each write to the file in 
 6. **Draft.** A learn step's draft lives in its own worktree on a throwaway branch `wt/<name>`,
    and nothing of it is copied into working code. Only the answer and its proof remain: a
    command, a snippet of at most 20 lines.
-7. **Done is visible:** a command or link the owner can repeat, plus `make check` and
-   `/lab-review`. An edge case seen only on a stub is not fixed.
+7. **Done is visible:** a command or link the owner can repeat (a minimal step's: the play of the
+   whole feature), plus `make check` and `/lab-review`; a case seen only on a stub is not fixed.
 8. **Only on request.** Each move starts on the owner's word; there is no night loop.
 
 ## Steps, tests and commits
 
-- A step `L<n>` has one visible goal and a kind: `learn` ends in knowledge, its Output asking
-  "can you write the signature now?"; `build` ends in accepted code.
+- A step `L<n>` has one visible goal, a pass of `sdd.md` (`minimal`, `right`, `hard`) and a kind:
+  `learn` ends in knowledge, its Output asking "can you write the signature now?"; `build` ends
+  in accepted code.
 - Tests go only in the existing `__tests__/` and `__e2e__/` folders. A contract test written
   before its body is `it.effect.fails` over a body of `Effect.die('todo')`; the piece that writes
   the body removes `.fails`. Every commit is green.

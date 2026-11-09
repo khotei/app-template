@@ -17,8 +17,8 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
 
 ## Disciplines
 
-- **One step.** Implement its goal and files. An unrelated bug or improvement goes under
-  *Out of scope found* in your report.
+- **One step.** Implement its goal and files. An unrelated bug, an improvement, or an edge case,
+  error path or optimisation the step leaves goes under *Later* in your report, as you notice it.
 - **A whole step.** Before code, list from the step and the code each name you introduce with its
   first consumer, and each page or file the step edits that another step also edits. A step that
   does not stand alone, as the Spec pass of `.claude/agents/reviewer.md` defines it, means the
@@ -86,6 +86,6 @@ user's style asks for.
 - **Scope:** each name introduced with its consumer in the step, the doc pages touched, temporary
   code (`none`).
 - **Deviations:** each one, with the reason and the proposed `plan.md` or `architecture.md` edit.
-- **Out of scope found:** if any.
+- **Later:** each item with its `path:line`, for `feature.md › Later`; `none` if none.
 - **Proposed commit message** following `.claude/rules/commits.md`, with `Decision:` paragraphs
   and `Refs: docs/tickets/<ticket>/`.

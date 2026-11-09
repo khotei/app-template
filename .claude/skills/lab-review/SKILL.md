@@ -35,7 +35,9 @@ whole branch, in one round under `.claude/rules/lab.md`. Pick and read the lab a
    - a hunt finding, a Design candidate, or a fix that changes the shape (a signature, a module,
      a type, what a test asserts): a `[D:ai]` in the step's Notes, with its `path:line`, its
      scenario, `shown` or `claimed` as the reviewer marked it, and what the system loses without
-     the fix (rail 2); it waits for the owner. A case seen only on a stub is no fix (rail 7);
+     the fix (rail 2); it waits for the owner. In a `minimal` step, one the feature runs without
+     and `.claude/rules/sdd.md › Gates` may defer is a `Later` line instead. A case seen only on a
+     stub is no fix (rail 7);
    - a finding you reject: one line in the report, with the reason.
 6. **Report** in the chat: the `REVIEW` commit, then each `[D:ai]` as one block (what is wrong,
    what it leads to, the options with their cost, your recommendation, the question), then the

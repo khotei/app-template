@@ -15,13 +15,14 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 
 <The only place for a step's status: todo, in progress or done.>
 
-| Step | Goal | Kind | Status |
-|---|---|---|---|
-| L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | learn | done |
-| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | build | done |
-| L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | build | todo |
-| L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | build | todo |
-| L5 | A chat's messages with their Runs, a Run's state with its assistant message, and a retry after a failed Run, through the api | build | todo |
+| Step | Goal | Pass | Kind | Status |
+|---|---|---|---|---|
+| L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | minimal | learn | done |
+| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
+| L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | minimal | build | todo |
+| L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | minimal | build | todo |
+| L5 | A chat's messages with their Runs, a Run's state with its assistant message, and a retry after a failed Run, through the api | minimal | build | todo |
+| L6 | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — Anthropic and the Drizzle reads
 
@@ -47,7 +48,7 @@ decodes, and logs and acknowledges a body that does not decode; the worker handl
 queue by the records' `eventSourceARN`. `create` commits its writes, then sends; a refused send
 dies (`500`). A failed handler settles its own record; only a defect returns the message to the
 queue. Until L4, a reply stuck after the commit (a crash, an abort, a refused send) stays queued
-and its chat busy, and no record keeps a reply's provenance; the gaps are in Open questions.
+and its chat busy, and no record keeps a reply's provenance; the gaps are in Later.
 Visible: `bun --bun vitest run --project e2e apps/e2e kernel/aws/__e2e__/queue.sender.e2e.ts`
 (8 + 2 cases).
 
@@ -190,7 +191,7 @@ Run) and a retry after a failed Run.
 - L2: a job is a queue message, sent after the commit of the record it names; no table tracks
   it, and the work's own record holds its status and failure.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
-  to Open questions at the end of this file with its `path:line`, never a `TODO` in the code.
+  to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 
 ## Numbers
 
@@ -198,9 +199,11 @@ Run) and a retry after a failed Run.
 reworked after the owner saw a piece (the OWNER rounds); stops by signal; claims without a
 source.>
 
-## Open questions
+## Later
 
-<Known gaps, issues and edge cases, each with its `path:line` or step; an item goes once settled.>
+<The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
+hardening, open questions and optimisations, each with its `path:line` or step and its fate (open,
+done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's word.>
 
 - [N:ai] L2: a refused send, a crash or an aborted request between the commit and the send leaves
   the reply queued and its chat busy for good; the reply's Run has to settle it (L4).

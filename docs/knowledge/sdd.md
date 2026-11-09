@@ -42,21 +42,52 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | A direct task: it fits one session, adds no dependency, moves no module boundary and makes no choice a reviewer could question | no ticket: a `<type>/<slug>` branch, the change and `make check`, one Standards and Spec review, one fix round, a commit; the PR on your word. One that turns out bigger stops and becomes a ticket |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
-## Minimal first
+## Minimal, right, hard
 
-A ticket, as a lab, runs in three passes, each on your word:
+A ticket, as a lab, runs in three passes, each started on your word, so you judge the feature on
+code that runs before anything is built for a case nobody has hit.
 
-1. **Minimal.** The whole feature in its smallest form: it runs end to end, you can try it (a
-   command, a request against `make dev`, a page) and read how it works at once. Complete for the
-   feature, minimal in code: no edge case, no hardening, no optimisation. In a plan it is the
-   first stage.
-2. **Right.** On the running version, with you: its decisions, design, code and architecture are
-   fixed while there is little code to move.
-3. **Hard.** Edge cases, open questions, hardening and optimisations, picked from the open list.
+```mermaid
+graph LR
+  M["Minimal<br/>the whole feature, only what it needs<br/>played from a script"] --> R["Right<br/>decisions, design, architecture<br/>adjusted to the play"]
+  R --> H["Hard<br/>items picked from Later"]
+  L[("Later<br/>edge cases, error paths,<br/>hardening, optimisations")] -.-> H
+  M -. noticed .-> L
+  R -. noticed .-> L
+```
 
-Until the third pass, each such item waits in an open list with its place in the code: a lab's
-**Open questions**, a plan step's findings. A review's finding joins the list too, unless it stops
-the feature from running. An item you never pick costs no code and no review.
+1. **Minimal.** The whole feature with only what it needs to work, cut into vertical slices
+   through every layer it touches; the first is the thinnest one end to end, each later one adds
+   a scenario you can play. It runs, you play it from a script you can repeat (requests against
+   `make dev`, a page), and you read how it works at once. Minimal in code, never in quality:
+   every rule, review and Seam holds, and the design extends without a rewrite. Its code is the
+   feature's, kept and grown, not a prototype thrown away; a throwaway answer to a question is a
+   lab's learn step.
+2. **Right.** On the running version, with you: its decisions, design, code and architecture
+   adjusted to what the play showed, while little code depends on them.
+3. **Hard.** The items of `Later` you pick: edge cases, error paths, hardening, open questions,
+   optimisations.
+
+**`Later` is the one open list**: `feature.md › Later` in a plan, `lab.md › Later` in a lab.
+Whoever notices an item writes it there at once, with its `path:line`: the grilling, the
+implementer's report (its *Later* section), a review's finding the feature runs without, your
+remarks at the play. The last stage of a plan and the last step of a lab is `Later` itself, so
+the list stays in the skeleton and the Map. Before the PR, each item is done, a roadmap entry, or
+dropped on your word.
+
+**Never deferred:** a security hole, a loss of stored data, an irreversible contract (a deployed
+migration, a published API). Each is fixed in the pass that finds it.
+
+How the passes sit in the flow:
+
+| Where | What changes |
+|---|---|
+| `/ticket-feature` | grills the minimal feature; what comes up beyond it goes to `Later` |
+| `/ticket-architecture` | decides what the minimal feature needs and what is irreversible; the rest stays Direction for the Right stage |
+| `/ticket-plan` | stage 1 is the Minimal one, with a `Play:` script; stage 2 is Right, the last is Hard, both cut by `next` after the play |
+| `/ticket-implement` | every pass reviews as before; a finding that fails no `R…` goes to `Later`; the Minimal stage's close ends with the play, where a loop stops |
+| `/ticket-verify` | asks the fate of each `Later` item still open |
+| `/lab` | the Map's Pass column; a minimal step's visible check is the play; each piece adds what it noticed to `Later` |
 
 ## Plans in stages
 

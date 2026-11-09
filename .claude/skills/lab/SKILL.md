@@ -37,8 +37,9 @@ one who writes, and a subagent does not see the chat.
   the Flow line names it in full. Write `lab.md` from `docs/tickets/_template/lab.md` with the
   topic as its title, commit it as `L0.1 Start the lab`, and ask the owner for the Intent.
 - **`step <goal>`:** ask "can you write the signature now?": no makes a `learn` step, yes a
-  `build` step; in a mixed task the unknown parts come first, as learn steps. Add the step's
-  section from the template and its Map row. In an unfamiliar area, find the reference example
+  `build` step; in a mixed task the unknown parts come first, as learn steps. Its pass
+  (`.claude/rules/sdd.md › Gates`) is `minimal` until the minimal feature has been played. Add
+  the step's section from the template and its Map row. In an unfamiliar area, find the reference example
   (the library's docs, `repos/`), run it as is, write how into Reference, and propose the budget;
   the Budget line is written once the owner names it.
 - **`answer`:** every open marker: an owner's marker with no `[A:ai]` or `[N:ai]` under it, a
@@ -57,10 +58,10 @@ one who writes, and a subagent does not see the chat.
   ask the five questions aloud (rail 5); in an unfamiliar area, check the Reference ran and the
   Budget is named (rail 4). Then one piece at a time, each at most 100 lines: its test first (as
   `test` does), the body, `make check`, the round's commit (`.claude/rules/commits.md › A
-  ticket's rounds`), its `[N:ai]` line in Pieces; show the owner the diff and wait for the word
-  before the next. A learn step's draft runs in its own worktree:
-  `git worktree add -b wt/<name> .claude/worktrees/<name> HEAD`, then, inside it,
-  `make worktree N=<n> NAME=<name>`; it never commits onto the ticket branch.
+  ticket's rounds`), its `[N:ai]` line in Pieces, and a `Later` line for each issue it noticed
+  and left; show the owner the diff and wait for the word before the next. A learn step's draft
+  runs in its own worktree: `git worktree add -b wt/<name> .claude/worktrees/<name> HEAD`, then,
+  inside it, `make worktree N=<n> NAME=<name>`; it never commits onto the ticket branch.
 - **`test [L<n>]`:** a test per contract of the step's Shape, at its Seam, in an existing
   `__tests__/` or `__e2e__/` folder, as `it.effect.fails` while the body is `Effect.die('todo')`;
   `make check`, the round's commit and its `[N:ai]` line.
@@ -71,8 +72,8 @@ one who writes, and a subagent does not see the chat.
   `make reset` inside it, `git worktree remove --force`, `git branch -D wt/<name>`.
   Without an id, once every step is `done`, the whole lab: fill Numbers as below, propose which
   Knowledge outlives the lab and moves to `docs/knowledge/`, and commit as the next `L0.<round>`
-  with `OWNER`. The
-  PR waits for the owner's word.
+  with `OWNER`. Each `Later` item still open is a question first: done as a step, a roadmap
+  entry, or dropped. The PR waits for the owner's word.
 - **Free text:** the owner's move, read as the marker it would be, a stop phrase among them.
 
 ## Numbers
