@@ -239,6 +239,10 @@ answers 500 and keeps no message, no chat change and no job" through the api, an
 sends it, a refused send a defect that rolls the transaction back; `idle`, its index,
 `enqueue`, `Transaction.afterCommit` and its fake are gone, `recordJobs()` records at `send`, and
 the migrations restart as one `init` again · visible: `make test-e2e`, the two e2e of 5a green
+[N:ai] piece 5c: `decisions.md › Jobs as a table` (the send after the commit, the sweep and a
+failed reply after a refused send join Rejected), the send line of `layering.md`,
+`database.md › The outbox`, `architecture.md`, the glossary's Outbox, the README's flow and
+Knowledge say the job is sent last in its transaction · visible: `make doc-lint`
 
 ### Notes
 
@@ -357,14 +361,12 @@ empty key stops the worker at start with a `ConfigError`. The e2e give `WorkerPr
 ## Knowledge
 
 - A job's `status` replaces `sentAt` (L1).
-- A job is written `idle` in the use case's transaction and sent after the commit, then set
-  `enqueued` (L1).
-- A job's statuses are `idle`, `queued`, `done`, `failed`: no `in-progress`, since SQS hides a
-  message while the worker runs; `failed` is set once SQS gives up, not at each failed attempt;
-  one pure function beside the table holds the order of the statuses (L1).
-- A schedule resends the jobs left `idle`, since `afterCommit` may drop or fail the send (L1).
-- `QueueSender.send` registers the send after the commit, so a use case cannot forget it (L1).
-- The worker answers SQS through `handleBatch(definition, handle)(event)`, returning
+- A job is written `queued` and sent to SQS last in the use case's transaction; a send SQS
+  refuses rolls it back and the api answers `500`: no `idle`, no sweep, no send after the commit
+  (L2, the owner's variant A).
+- A job's statuses are `queued`, `running`, `done`, `failed`; `failed` is set once the last
+  attempt fails, `queued` again before a retry (L1, L2).
+- The worker answers SQS through `QueueConsumer.consume(definition, handle)(event)`, returning
   `{ batchItemFailures }` (L1).
 
 - dev and prod call only Anthropic; no stub and no `LLM_PROVIDER`; an empty key stops the worker

@@ -156,7 +156,7 @@ _Avoid_: Controller, consumer, processor, endpoint
 
 **Outbox**:
 The pattern by which a use case writes its jobs to the table `jobs`, in the transaction of the
-records they read, and sends them to SQS once it commits.
+records they read, and sends them to SQS before it commits.
 _Avoid_: Event table, queue table
 
 **Job**:

@@ -259,17 +259,17 @@ so a rollback keeps no job and a commit never stands without one
 `packages/queue` carries the job on SQS ([aws.md › Queues](aws.md#queues)).
 
 - **`JobSender.send`** encodes the job through its definition's schema to a JSON value
-  (`Schema.toCodecJson`), inserts it `idle`, with the definition's `name` as `queue` (the stage is
-  added on the way out), and answers the step that sends it; the use case runs that step through
-  `Transaction.afterCommit`. The step sends the body as a JSON string, the row's id in the
-  message attribute `jobId`, then sets the row `queued`.
-- **A send SQS refuses is logged** and leaves the row `idle`; nothing resends it yet, so its
-  chat stays `queued`. The partial index `jobs_idle_created_at_index` holds only those rows.
+  (`Schema.toCodecJson`), inserts it `queued`, with the definition's `name` as `queue` (the stage
+  is added on the way out), then sends the body as a JSON string, the row's id in the message
+  attribute `jobId`. A use case sends its jobs after its other writes.
+- **A send SQS refuses is a defect,** so the transaction rolls back and the api answers its bare
+  `500`, keeping no message and no job. SQS may deliver a job before the commit shows its row:
+  the worker reads none, a defect, and SQS retries it.
 - **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
   an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
   string to parse.
 - **`JobConsumer`** marks the row `running` before its handler, then `done`, `failed` on the last
-  attempt, or `queued` again for the retry. It writes only from `idle`, `queued` or `running`, so
+  attempt, or `queued` again for the retry. It writes only from `queued` or `running`, so
   a settled job never moves back; a delivery of a settled job is acknowledged without its
   handler, and a message whose row is missing is a defect that SQS retries, then dead-letters.
 - **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
