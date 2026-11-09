@@ -115,6 +115,8 @@ path.
 [Q:ai] L2.7: with `jobs` gone, no record keeps a reply's provenance until L4 puts it on the Run
 (`docs/knowledge/ai.md` now says so); the journey's provenance check went with the table. Keep
 the gap on this branch, or log the provenance in the reply's use case until L4 (about 2 lines)?
+[N:ai] The owner, in the chat: keep the gap; L4 puts the provenance on the Run, and the branch
+reaches `main` only after L4.
 
 ### Pieces
 
