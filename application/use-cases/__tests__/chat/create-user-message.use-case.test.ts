@@ -65,6 +65,7 @@ describe('CreateUserMessageUseCase', () => {
         const { userMessage } = run
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
+        assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
         assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
         const bound = new Attachment({
           ...photo,
@@ -86,7 +87,7 @@ describe('CreateUserMessageUseCase', () => {
               attachments: [bound],
             }),
             provenance: replyProvenance,
-            createdAt: sentAt,
+            createdAt: run.createdAt,
           }),
         )
         assertEquals(yield* selectMessages(chat.id), [userMessage])

@@ -1,3 +1,4 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer } from 'effect'
@@ -18,6 +19,7 @@ const MessageServiceTest = MessageService.layer.pipe(
   Layer.provideMerge(Layer.effectDiscard(insertMessage(firstMessage))),
   Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(RepositoryStackTest),
+  Layer.provide(BunCrypto.layer),
 )
 
 const misses: ReadonlyArray<{ readonly name: string; readonly where: MessageWhere }> = [

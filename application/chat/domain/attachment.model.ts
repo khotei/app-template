@@ -119,6 +119,10 @@ export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundErro
   (attachment) => new AttachmentBoundError({ id: attachment.id }),
 )
 
+/** The attachments when no message holds any; else `AttachmentBoundError` naming the first bound. */
+export const ensureAllUnbound = (attachments: ReadonlyArray<Attachment>) =>
+  Effect.forEach(attachments, (attachment) => Effect.succeed(attachment).pipe(ensureUnbound))
+
 /** Binds the attachment to the message and its chat; one a message holds is `AttachmentBoundError`. */
 export const bindAttachment = Effect.fn('bindAttachment')(
   (attachment: Attachment, message: { readonly id: MessageId; readonly chatId: ChatId }) =>
