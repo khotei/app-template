@@ -243,6 +243,9 @@ the migrations restart as one `init` again · visible: `make test-e2e`, the two 
 failed reply after a refused send join Rejected), the send line of `layering.md`,
 `database.md › The outbox`, `architecture.md`, the glossary's Outbox, the README's flow and
 Knowledge say the job is sent last in its transaction · visible: `make doc-lint`
+[N:ai] piece 6 (the owner, in the chat): `JobRepository.selectMany`, the oldest jobs locked
+with `SKIP LOCKED` for the sweep, had no caller but its two e2e: it goes with them, and the update
+cases read the statuses by `selectOne` · visible: `make test-e2e`
 
 ### Notes
 

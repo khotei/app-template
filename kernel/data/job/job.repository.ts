@@ -27,14 +27,6 @@ export class JobRepository extends Context.Service<
     readonly selectOne: (
       where: JobEntityWhere,
     ) => Effect.Effect<Option.Option<typeof JobEntity.Type>>
-    /**
-     * The oldest jobs first, at most `limit`, each locked until the transaction ends; a job
-     * another transaction holds is skipped, so concurrent sweeps share the jobs out.
-     */
-    readonly selectMany: (
-      where: JobEntityWhere,
-      options: { readonly limit: number },
-    ) => Effect.Effect<ReadonlyArray<typeof JobEntity.Type>>
     readonly update: (set: JobEntitySet, where: JobEntityUpdateWhere) => Effect.Effect<void>
   }
 >()('@app-template/kernel/data/job/JobRepository') {
@@ -49,17 +41,6 @@ export class JobRepository extends Context.Service<
         selectOne: Effect.fn('JobRepository.selectOne')(
           (where) =>
             db.select().from(jobs).where(encodeWhere(where)).limit(1).pipe(Effect.map(Arr.head)),
-          orDieWithSqlError,
-        ),
-        selectMany: Effect.fn('JobRepository.selectMany')(
-          (where, { limit }) =>
-            db
-              .select()
-              .from(jobs)
-              .where(encodeWhere(where))
-              .orderBy(jobs.createdAt, jobs.id)
-              .limit(limit)
-              .for('update', { skipLocked: true }),
           orDieWithSqlError,
         ),
         update: Effect.fn('JobRepository.update')(
