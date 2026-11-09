@@ -50,6 +50,12 @@ tool reads it).
 (`packages/llm`)? (b) The Drizzle form for "messages with the latest Run each" and for a
 message's own Run, and whether `message.table.ts` <-> `run.table.ts` importing each other works.
 Output: the answers with a run, snippets <= 20 lines. (the owner's plan)
+  [N:ai] The owner, in the chat: the history sent to the model accepts any order of messages. A
+  user message whose Run failed stays in it, so two `user` messages may follow each other; if
+  Anthropic refuses that, the adapter makes the prompt acceptable. (a) asks what Anthropic and
+  `@effect/ai` do with it, not whether the chat allows it. The prompt is built in
+  `application/chat/infrastructure/assistant.llm.ts:73` (`buildChatPrompt`), each role taken
+  from the author at `:69`; `packages/llm` holds only the client.
 
 ### Pieces
 
