@@ -10,7 +10,6 @@ import {
   GenerateAssistantMessageUseCase,
   GenerateChatTitleUseCase,
 } from '@app-template/application/use-cases'
-import { SQSServiceFromConfig } from '@app-template/kernel/aws'
 import { JobRepository } from '@app-template/kernel/data'
 
 import { WorkerHandler } from '#worker/worker.handler'
@@ -18,9 +17,7 @@ import { WorkerHandler } from '#worker/worker.handler'
 function buildRecord(queue: string, body: unknown) {
   return {
     messageId: 'a',
-    receiptHandle: 'handle-a',
     body: JSON.stringify(body),
-    attributes: { ApproximateReceiveCount: '1' },
     messageAttributes: { jobId: { stringValue: 'a' } },
     eventSourceARN: `arn:aws:sqs:us-east-1:000000000000:${queue}`,
   }
@@ -58,7 +55,6 @@ describe('POST /events', () => {
         titles.layer,
         Layer.mock(GenerateAssistantMessageUseCase, { generate: () => Effect.die('wrong queue') }),
         QueuedJobsTest,
-        SQSServiceFromConfig,
       ]),
       Layer.provide(
         ConfigProvider.layer(

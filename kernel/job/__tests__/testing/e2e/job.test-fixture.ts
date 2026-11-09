@@ -1,4 +1,4 @@
-import { Duration, Schema } from 'effect'
+import { Schema } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
 import type { QueueDefinition } from '@app-template/packages/queue'
@@ -20,8 +20,6 @@ export class SampleJob extends Schema.Class<SampleJob>('SampleJob')({
 export const sampleJobQueue = {
   name: assistantMessage.name,
   schema: SampleJob,
-  maxAttempts: assistantMessage.maxReceiveCount,
-  retryDelay: () => Duration.zero,
 } satisfies QueueDefinition<typeof SampleJob>
 
 export const sampleProvenance = {

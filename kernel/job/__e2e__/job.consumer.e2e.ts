@@ -1,5 +1,4 @@
 import { assert, describe, it } from '@effect/vitest'
-import { SQSService } from '@effect-aws/client-sqs'
 import { Effect, Layer, Option, Ref, Struct } from 'effect'
 
 import { JobRepository } from '@app-template/kernel/data'
@@ -8,14 +7,7 @@ import { DbTest } from '@app-template/kernel/data/testing/e2e'
 import { JobConsumer } from '#kernel/job/job.consumer'
 import { sampleJobQueue, sampleProvenance } from '#testing/job/e2e/job.test-fixture'
 
-// The consumer calls SQS only to delay a failed record's retry, which these tests leave out.
 const JobConsumerTest = JobConsumer.layer.pipe(
-  Layer.provide(
-    Layer.mock(SQSService, {
-      getQueueUrl: () => Effect.succeed({ QueueUrl: 'url', $metadata: {} }),
-      changeMessageVisibility: () => Effect.succeed({ $metadata: {} }),
-    }),
-  ),
   Layer.provideMerge(JobRepository.layer),
   Layer.provideMerge(DbTest),
 )
@@ -33,9 +25,7 @@ function buildEvent(rawBody = JSON.stringify(body)) {
     Records: [
       {
         messageId: 'a',
-        receiptHandle: 'handle-a',
         body: rawBody,
-        attributes: { ApproximateReceiveCount: 1 },
         messageAttributes: { jobId: { stringValue: jobId } },
         eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:stage-assistant-message',
       },

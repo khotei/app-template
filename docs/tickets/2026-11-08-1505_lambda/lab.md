@@ -272,6 +272,11 @@ step and no `JobSteps`: any outcome of `handle` but success sets the job `failed
 worker's route passes each use case's `generate`; `fail` leaves the reply use case's interface,
 its two tests with it, the die case asserting `ReplyFailed` · visible: `make test-e2e`, the
 `JobConsumer` cases
+[N:ai] piece 8d (the owner, in the chat): no retries in `packages/queue`: `retryDelay`,
+`buildDoublingDelay`, `maxAttempts`, `AttemptInfo` and `changeMessageVisibility` are gone, and
+`QueueConsumer` becomes the plain `consumeBatch(handle)(event)`, `handle(body, jobId)`, a failure
+a `batchItemFailures` entry; `JobConsumer` and the worker need no SQS; both queues'
+`maxReceiveCount` is 3 · visible: `make check`, `bunx vitest run --project unit packages/queue`
 
 ### Notes
 

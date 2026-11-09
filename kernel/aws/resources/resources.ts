@@ -17,7 +17,7 @@ export const resources = {
     },
     chatTitle: {
       name: 'chat-title',
-      maxReceiveCount: 5,
+      maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },
   },

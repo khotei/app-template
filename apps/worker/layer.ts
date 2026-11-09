@@ -7,7 +7,7 @@ import {
   GenerateAssistantMessageUseCase,
   GenerateChatTitleUseCase,
 } from '@app-template/application/use-cases'
-import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
+import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, WorkerConfig } from '@app-template/kernel/config'
 import {
   ChatRepository,
@@ -44,7 +44,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
     FileRepository.layer,
     BunCrypto.layer,
   ]),
-  Layer.provide([Db.layer, SQSServiceFromConfig, S3BucketFromConfig]),
+  Layer.provide([Db.layer, S3BucketFromConfig]),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),

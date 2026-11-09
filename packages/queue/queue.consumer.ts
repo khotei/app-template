@@ -1,20 +1,8 @@
-import { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Context, Duration, Effect, Exit, Layer, Option, Schema } from 'effect'
-
-import { QueueClient } from '#queue/queue.client'
-import {
-  type AttemptInfo,
-  buildAttemptInfo,
-  buildQueueName,
-  type Handler,
-  type QueueDefinition,
-} from '#queue/queue.model'
+import { Array as Arr, Effect, Exit, Option, Schema } from 'effect'
 
 const SqsRecord = Schema.Struct({
   messageId: Schema.String,
-  receiptHandle: Schema.String,
   body: Schema.String,
-  attributes: Schema.Struct({ ApproximateReceiveCount: Schema.NumberFromString }),
   messageAttributes: Schema.Struct({ jobId: Schema.Struct({ stringValue: Schema.String }) }),
   eventSourceARN: Schema.String,
 })
@@ -30,76 +18,27 @@ export interface SqsBatchResponse {
   readonly batchItemFailures: ReadonlyArray<{ readonly itemIdentifier: string }>
 }
 
-export class QueueConsumer extends Context.Service<
-  QueueConsumer,
-  {
-    /**
-     * Runs `handle` on each record's body of a batch and answers the failed ones, which stay on
-     * the queue: a failure hides its record for `retryDelay`, or on the last attempt makes it
-     * visible at once for the dead-letter queue.
-     */
-    readonly consume: <E, R>(
-      definition: QueueDefinition<Schema.Top>,
-      handle: Handler<string, E, R>,
-    ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
+/**
+ * Runs `handle` on each record's body and the `jobs` row it carries, and answers the failed
+ * records: SQS delivers them again until the queue's `maxReceiveCount` dead-letters them.
+ */
+export function consumeBatch<E, R>(
+  handle: (body: string, jobId: string) => Effect.Effect<unknown, E, R>,
+): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
+  function run(record: SqsRecord) {
+    const jobId = record.messageAttributes.jobId.stringValue
+    return handle(record.body, jobId).pipe(
+      Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
+      Effect.annotateLogs({ jobId }),
+      Effect.exit,
+      Effect.map((exit) =>
+        Exit.isSuccess(exit) ? Option.none() : Option.some({ itemIdentifier: record.messageId }),
+      ),
+    )
   }
->()('@app-template/packages/queue/QueueConsumer', {
-  make: Effect.gen(function* () {
-    const sqs = yield* SQSService
-    const client = yield* QueueClient
 
-    function consume<E, R>(
-      definition: QueueDefinition<Schema.Top>,
-      handle: Handler<string, E, R>,
-    ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
-      const retry = Effect.fnUntraced(function* (record: SqsRecord, info: AttemptInfo) {
-        const delay = info.isLastAttempt ? 0 : definition.retryDelay(info.attempt)
-        yield* client.getUrl(buildQueueName(record.eventSourceARN)).pipe(
-          Effect.flatMap((url) =>
-            sqs.changeMessageVisibility({
-              QueueUrl: url,
-              ReceiptHandle: record.receiptHandle,
-              VisibilityTimeout: Math.ceil(Duration.toSeconds(delay)),
-            }),
-          ),
-          Effect.tapCause((cause) => Effect.logWarning('queue retry delay failed', cause)),
-          Effect.ignore,
-        )
-        return Option.some({ itemIdentifier: record.messageId })
-      })
-
-      const run = Effect.fnUntraced(
-        function* (record: SqsRecord) {
-          const info = buildAttemptInfo(record.messageAttributes.jobId.stringValue, {
-            receiveCount: record.attributes.ApproximateReceiveCount,
-            maxAttempts: definition.maxAttempts,
-          })
-          const exit = yield* handle(record.body, info).pipe(Effect.exit)
-          if (Exit.isSuccess(exit)) return Option.none()
-
-          yield* info.isLastAttempt
-            ? Effect.logError('queue message dead-lettered', exit.cause)
-            : Effect.logWarning('queue message attempt failed', exit.cause)
-          return yield* retry(record, info)
-        },
-        (effect, record) =>
-          Effect.annotateLogs(effect, {
-            jobId: record.messageAttributes.jobId.stringValue,
-            attempt: `${record.attributes.ApproximateReceiveCount}/${definition.maxAttempts}`,
-          }),
-      )
-
-      return (event) =>
-        Effect.forEach(event.Records, run, { concurrency: 'unbounded' }).pipe(
-          Effect.map((failures) => ({ batchItemFailures: Arr.getSomes(failures) })),
-        )
-    }
-
-    return { consume }
-  }),
-}) {
-  static readonly layer: Layer.Layer<QueueConsumer, never, SQSService> = Layer.effect(
-    this,
-    this.make,
-  ).pipe(Layer.provide(QueueClient.layer))
+  return (event) =>
+    Effect.forEach(event.Records, run, { concurrency: 'unbounded' }).pipe(
+      Effect.map((failures) => ({ batchItemFailures: Arr.getSomes(failures) })),
+    )
 }
