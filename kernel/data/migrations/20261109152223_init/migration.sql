@@ -30,10 +30,8 @@ CREATE TABLE "messages" (
 	"chat_id" uuid NOT NULL,
 	"author" "message_author" NOT NULL,
 	"text" text NOT NULL,
-	"run_id" uuid CONSTRAINT "messages_run_id_unique" UNIQUE,
 	"created_at" timestamp with time zone NOT NULL,
-	CONSTRAINT "messages_id_chat_id_unique" UNIQUE("id","chat_id"),
-	CONSTRAINT "messages_run_id_check" CHECK (("author" = 'assistant') = ("run_id" is not null))
+	CONSTRAINT "messages_id_chat_id_unique" UNIQUE("id","chat_id")
 );
 --> statement-breakpoint
 CREATE TABLE "runs" (
@@ -43,9 +41,11 @@ CREATE TABLE "runs" (
 	"status" "run_status" NOT NULL,
 	"failure" jsonb,
 	"provenance" jsonb NOT NULL,
+	"assistant_message_id" uuid CONSTRAINT "runs_assistant_message_id_unique" UNIQUE,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
-	CONSTRAINT "runs_failure_check" CHECK (("status" = 'failed') = ("failure" is not null))
+	CONSTRAINT "runs_failure_check" CHECK (("status" = 'failed') = ("failure" is not null)),
+	CONSTRAINT "runs_assistant_message_id_check" CHECK (("status" = 'done') = ("assistant_message_id" is not null))
 );
 --> statement-breakpoint
 CREATE TABLE "credentials" (
@@ -71,7 +71,7 @@ ALTER TABLE "attachments" ADD CONSTRAINT "attachments_user_id_users_id_fkey" FOR
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_message_id_chat_id_fk" FOREIGN KEY ("message_id","chat_id") REFERENCES "messages"("id","chat_id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_chat_id_chats_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE;--> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "messages_run_id_runs_id_fkey" FOREIGN KEY ("run_id") REFERENCES "runs"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "runs" ADD CONSTRAINT "runs_chat_id_chats_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "runs" ADD CONSTRAINT "runs_assistant_message_id_messages_id_fkey" FOREIGN KEY ("assistant_message_id") REFERENCES "messages"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "runs" ADD CONSTRAINT "runs_user_message_id_chat_id_fk" FOREIGN KEY ("user_message_id","chat_id") REFERENCES "messages"("id","chat_id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "credentials" ADD CONSTRAINT "credentials_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE;

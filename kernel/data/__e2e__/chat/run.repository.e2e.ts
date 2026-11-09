@@ -29,7 +29,6 @@ const userMessage = {
   chatId,
   author: 'user',
   text: 'Hi',
-  runId: null,
   createdAt,
   attachments: [],
 } satisfies MessageEntity
@@ -39,13 +38,14 @@ type RunRow = typeof RunRow.Type
 
 const run = (
   id: string,
-  fields: Types.Simplify<Partial<Pick<RunRow, 'status' | 'failure'>>> = {},
+  fields: Types.Simplify<Partial<Pick<RunRow, 'status' | 'failure' | 'assistantMessageId'>>> = {},
 ): RunRow => ({
   id,
   chatId,
   userMessageId,
   status: 'queued',
   failure: null,
+  assistantMessageId: null,
   provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
   createdAt,
   updatedAt,
@@ -139,23 +139,24 @@ describe('RunRepository', () => {
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const messages = yield* MessageRepository
-      const done = run('0192d4e0-7b3a-7c00-8000-0000000000a8', { status: 'done' })
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a8')
       const reply = {
         ...userMessage,
         id: '0192d4e0-7b3a-7c00-8000-0000000000a9',
         author: 'assistant',
         text: 'Hello',
-        runId: done.id,
       } satisfies MessageEntity
       yield* insertUserMessage
-      yield* runs.insert(done)
+      yield* runs.insert(queued)
 
       yield* messages.insert(Struct.omit(reply, ['attachments']))
+      const done = { status: 'done', assistantMessageId: reply.id } as const
+      yield* runs.update(done, { id: queued.id, status: ['queued'] })
 
       assertSchemaEquals(
         SelectedRun,
-        yield* runs.selectOne({ id: done.id }),
-        Option.some(read(done, reply)),
+        yield* runs.selectOne({ id: queued.id }),
+        Option.some(read(run(queued.id, done), reply)),
       )
     }).pipe(Effect.provide(RepositoryTest)),
   )

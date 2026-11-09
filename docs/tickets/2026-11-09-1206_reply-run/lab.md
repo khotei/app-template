@@ -147,6 +147,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 [N:ai] L3.14 (OWNER) The send reads as its flow, from the owner's sketch: the checks and the reads, then `storeUserMessage` (the message, its bind and its Run in one transaction), then the sends; the reads leave the transaction, as the writes' guards decide the races · visible: `make check` (251 unit, 88 e2e)
 [N:ai] L3.15 (OWNER) `storeUserMessage(userId, chatId, input)` reads the attachments, refuses a bound one, stores the message and binds them, answering the new `Message`; `create` starts its Run by `runService.create` on the chain, under one `transaction.run` · visible: `make check` (251 unit, 88 e2e)
 [N:ai] L3.16 (OWNER) The owner renamed the step `storeUserMessage` to `createUserMessage` · visible: `make check` (251 unit, 88 e2e)
+[N:ai] L3.17 (OWNER) `runs` in its own `run.table.ts`; the Run names its reply by `assistant_message_id` (`runs_assistant_message_id_check`, `_unique`), `messages` loses `run_id`; e2e for both checks, `runs_failure_check` and the key over the message and its chat · visible: `make check` (251 unit, 90 e2e)
 
 ### Output
 
@@ -256,8 +257,12 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   `.claude/rules/deep-modules.md:61` (a value another table implies is a column the transactions
   move). The owner chose it; the rule or the design changes in the Right step (L6).
 - [N:ai] L3.12: L1's Output said `message.table.ts` and `run.table.ts` import each other; Biome's
-  `noImportCycles` refuses that, so `runs` sits in `kernel/data/chat/message.table.ts`. Correct
-  the L1 line in Knowledge at the lab's close.
+  `noImportCycles` refuses that. Done in L3.17: the Run names its reply
+  (`runs.assistant_message_id`), so only `run.table.ts` imports `message.table.ts`. Correct the
+  L1 line in Knowledge at the lab's close.
+- [N:ai] L3.17: the reply is written before the Run's `done`, which names it, so the memory
+  `TransactionTest` keeps a lost race's reply that Postgres takes back; no e2e runs a worker's lost
+  race (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`).
 - [N:ai] L3.12: a local database migrated with the old `init` needs `make reset && make up`; a job
   body queued before the cut (`messageId`) no longer decodes and is logged and acknowledged
   (`packages/queue/queue.consumer.ts:49`).

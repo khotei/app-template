@@ -4,7 +4,7 @@ import { DateTime, Effect, Option, Schema } from 'effect'
 import { maxTitleLength } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { buildAssistantMessage, Message } from '#chat/domain/message.model'
 import type { Run } from '#chat/domain/run.model'
@@ -48,7 +48,6 @@ describe('MessageFromEntity', () => {
       message: buildAssistantMessage({
         id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000201'),
         chatId: chat.id,
-        runId: RunId.make('0192d4e0-7b3a-7c00-8000-000000000301'),
         text: 'hello',
         createdAt: chat.createdAt,
       }),

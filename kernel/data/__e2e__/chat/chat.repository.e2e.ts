@@ -40,7 +40,6 @@ const question = (id: string, chatId: string): MessageEntity => ({
   chatId,
   author: 'user',
   text: 'Hi',
-  runId: null,
   createdAt,
   attachments: [],
 })
@@ -48,7 +47,10 @@ const question = (id: string, chatId: string): MessageEntity => ({
 const run = (
   id: string,
   answered: MessageEntity,
-  { status = 'queued', seconds = 0 }: Partial<{ status: 'queued' | 'done'; seconds: number }> = {},
+  {
+    status = 'queued',
+    seconds = 0,
+  }: Partial<{ status: 'queued' | 'failed'; seconds: number }> = {},
 ) =>
   ({
     id,
@@ -56,7 +58,11 @@ const run = (
     userMessageId: answered.id,
     status,
     provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
-    failure: null,
+    failure:
+      status === 'failed'
+        ? { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' }
+        : null,
+    assistantMessageId: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
   }) satisfies typeof RunEntityInsert.Type
@@ -149,7 +155,7 @@ describe('ChatRepository', () => {
       const ada = '0192d4e0-7b3a-7c00-8000-000000000010'
       const asked = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
       const first = question('0192d4e0-7b3a-7c00-8000-000000000050', asked.id)
-      const older = run('0192d4e0-7b3a-7c00-8000-000000000060', first, { status: 'done' })
+      const older = run('0192d4e0-7b3a-7c00-8000-000000000060', first, { status: 'failed' })
       const newer = run('0192d4e0-7b3a-7c00-8000-000000000061', first, { seconds: 1 })
       yield* insertUser(ada)
       yield* chats.insert(asked)

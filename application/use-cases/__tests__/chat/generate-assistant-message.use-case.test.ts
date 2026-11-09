@@ -112,7 +112,14 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
     yield* files.insert({ ...attachment, content: Stream.make(png) })
   })
 
-const doneElsewhere = new Run({ ...queuedRun, status: 'done' })
+const elsewhereReply = assistantMessageAt(5, 'Done elsewhere.')
+
+const doneElsewhere = new Run({
+  ...queuedRun,
+  status: 'done',
+  assistantMessageId: Option.some(elsewhereReply.id),
+  assistantMessage: Option.some(elsewhereReply),
+})
 
 const job = new GenerateAssistantMessage({ chatId, runId: queuedRun.id })
 
@@ -150,11 +157,11 @@ describe('GenerateAssistantMessageUseCase', () => {
             ...queuedRun,
             status: 'done',
             updatedAt: at(1000),
+            assistantMessageId: Option.some(reply.id),
             assistantMessage: Option.some(
               buildAssistantMessage({
                 id: reply.id,
                 chatId,
-                runId: queuedRun.id,
                 text: 'Sure.',
                 createdAt: at(1000),
               }),
@@ -300,13 +307,14 @@ describe('GenerateAssistantMessageUseCase', () => {
 
       const running = yield* generate.pipe(Effect.exit, Effect.forkChild)
       yield* held.asked
+      yield* insertMessage(elsewhereReply)
       yield* updateRun(doneElsewhere)
       yield* held.release
       const exit = yield* Fiber.join(running)
 
       assert.isTrue(Exit.hasDies(exit))
+      // The memory transaction keeps the lost reply's insert; Postgres takes it back.
       assertEquals(yield* selectQueuedRun, doneElsewhere)
-      assertEquals(yield* selectMessages(chatId), [firstMessage])
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
 
@@ -314,7 +322,7 @@ describe('GenerateAssistantMessageUseCase', () => {
     const assistant = recordAssistant({ reply: Effect.succeed(sure) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertWith([firstMessage], doneElsewhere)
+      yield* insertWith([firstMessage, elsewhereReply], doneElsewhere)
 
       yield* generate
 

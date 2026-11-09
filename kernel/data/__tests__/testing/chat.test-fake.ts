@@ -22,9 +22,9 @@ import { ChatEntity, type ChatEntityWhere } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
-import { activeRunStatuses } from '#kernel/data/chat/message.table'
 import { RunEntity, type RunEntityWhere } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
+import { activeRunStatuses } from '#kernel/data/chat/run.table'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
 import {
   deleteRows,
@@ -79,31 +79,26 @@ const newestFirst = Order.flip(Order.mapInput(Order.Date, (chat: ChatRow) => cha
 
 const isActiveRun = matchesAny<RunRow>({ status: activeRunStatuses })
 
-/** Holds while no chat has two active Runs, as `runs_chat_id_active_index` keeps it. */
-function holdsActiveRunIndex(runs: HashMap.HashMap<string, RunRow>) {
-  const chatIds = pipe(
-    runs,
-    HashMap.toValues,
-    Arr.filter(isActiveRun),
-    Arr.map(Struct.get('chatId')),
-  )
-  return Arr.dedupe(chatIds).length === chatIds.length
-}
-
 /**
- * Holds while only an assistant message names a Run, and no two name the same one, as
- * `messages_run_id_check` and the unique `run_id` keep it.
+ * Holds while no chat has two active Runs, a Run is done exactly when it names its reply, and no
+ * two name the same one, as `runs_chat_id_active_index`, `runs_assistant_message_id_check` and
+ * `runs_assistant_message_id_unique` keep it.
  */
-function holdsMessageRuns(messages: HashMap.HashMap<string, MessageRow>) {
-  const rows = HashMap.toValues(messages)
-  const runIds = pipe(
+function holdsRunGuards(runs: HashMap.HashMap<string, RunRow>) {
+  const rows = HashMap.toValues(runs)
+  const chatIds = pipe(rows, Arr.filter(isActiveRun), Arr.map(Struct.get('chatId')))
+  const replyIds = pipe(
     rows,
-    Arr.map((row) => Option.fromNullOr(row.runId)),
+    Arr.map((row) => Option.fromNullOr(row.assistantMessageId)),
     Arr.getSomes,
   )
   return (
-    Arr.every(rows, (row) => (row.author === 'assistant') === Predicate.isNotNull(row.runId)) &&
-    Arr.dedupe(runIds).length === runIds.length
+    Arr.dedupe(chatIds).length === chatIds.length &&
+    Arr.dedupe(replyIds).length === replyIds.length &&
+    Arr.every(
+      rows,
+      (row) => (row.status === 'done') === Predicate.isNotNull(row.assistantMessageId),
+    )
   )
 }
 
@@ -156,8 +151,8 @@ const withMessagesOf =
       withAttachmentsOf(rows),
     ),
     assistantMessage: pipe(
-      HashMap.toValues(rows.messages),
-      Arr.findFirst(matches<MessageRow>({ runId: run.id })),
+      Option.fromNullOr(run.assistantMessageId),
+      Option.flatMap((id) => HashMap.get(rows.messages, id)),
       Option.map(withAttachmentsOf(rows)),
       Option.getOrNull,
     ),
@@ -171,11 +166,9 @@ const decodeChat = Schema.decodeUnknownEffect(ChatRow)
 /** The column defaults Postgres fills on an insert that leaves them out. */
 const chatDefaults = { title: null } as const
 
-const messageDefaults = { runId: null } as const
-
 const decodeMessage = Schema.decodeUnknownEffect(MessageRow)
 
-const runDefaults = { failure: null } as const
+const runDefaults = { failure: null, assistantMessageId: null } as const
 
 const decodeRun = Schema.decodeUnknownEffect(RunRow)
 
@@ -270,9 +263,9 @@ export const ChatRepositoryTest = Layer.effect(
 )
 
 /**
- * Requires the id and the timestamps every caller passes, where Postgres would default the id,
- * and fills `runId`. Copies the guards the repository's e2e proves: the primary key, the where
- * fields with the owner read through the chat, and the check and the unique key on `run_id`.
+ * Requires the id and the timestamps every caller passes, where Postgres would default the id.
+ * Copies the guards the repository's e2e proves: the primary key and the where fields with the
+ * owner read through the chat.
  */
 export const MessageRepositoryTest = Layer.effect(
   MessageRepository,
@@ -291,9 +284,9 @@ export const MessageRepositoryTest = Layer.effect(
 
     return MessageRepository.of({
       insert: (message) =>
-        decodeMessage({ ...messageDefaults, ...message }).pipe(
+        decodeMessage(message).pipe(
           Effect.orDie,
-          Effect.flatMap((row) => insertRow(messages, { row, accepts: holdsMessageRuns })),
+          Effect.flatMap((row) => insertRow(messages, { row })),
           orDieUnless(Arr.isReadonlyArrayNonEmpty, `message ${message.id} was not inserted`),
         ),
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
@@ -304,9 +297,9 @@ export const MessageRepositoryTest = Layer.effect(
 
 /**
  * Requires the id and the timestamps every caller passes, where Postgres would default the id,
- * and fills `failure`. Copies the guards the repository's e2e proves: the primary key, the where
- * fields with the owner read through the chat, the set fields, and the partial unique index on
- * the active Run, which refuses an insert or an update that gives a chat a second one.
+ * and fills `failure` and `assistantMessageId`. Copies the guards the repository's e2e proves: the
+ * primary key, the where fields with the owner read through the chat, the set fields, and the
+ * Run's index, check and unique key, which refuse an insert or an update that breaks one.
  */
 export const RunRepositoryTest = Layer.effect(
   RunRepository,
@@ -317,7 +310,7 @@ export const RunRepositoryTest = Layer.effect(
       insert: (run) =>
         decodeRun({ ...runDefaults, ...run }).pipe(
           Effect.orDie,
-          Effect.flatMap((row) => insertRow(runs, { row, accepts: holdsActiveRunIndex })),
+          Effect.flatMap((row) => insertRow(runs, { row, accepts: holdsRunGuards })),
           orDieUnless(Arr.isReadonlyArrayNonEmpty, `run ${run.id} was not inserted`),
         ),
       update: (set, where) =>
@@ -325,8 +318,11 @@ export const RunRepositoryTest = Layer.effect(
           Effect.flatMap((rows) =>
             updateRows(runs, {
               where: holdsRunWhere(rows.chats, where),
-              update: writeSet({ status: true, failure: true, updatedAt: true }, set),
-              accepts: holdsActiveRunIndex,
+              update: writeSet(
+                { status: true, failure: true, assistantMessageId: true, updatedAt: true },
+                set,
+              ),
+              accepts: holdsRunGuards,
             }),
           ),
           orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),

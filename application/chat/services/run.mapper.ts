@@ -13,6 +13,7 @@ export const RunFromEntity = Schema.Struct({
   chatId: ChatId,
   userMessageId: MessageId,
   failure: Schema.OptionFromNullOr(Schema.toEncoded(RunFailure)),
+  assistantMessageId: Schema.OptionFromNullOr(MessageId),
   createdAt: Schema.DateTimeUtcFromDate,
   updatedAt: Schema.DateTimeUtcFromDate,
   // A nested model is laid by its encoded side, since encoding the parent hands it plain fields.

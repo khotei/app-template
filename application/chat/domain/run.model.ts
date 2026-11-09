@@ -34,6 +34,8 @@ export class Run extends Schema.Class<Run>('Run')({
   status: RunStatus,
   failure: Schema.Option(RunFailure),
   provenance: ReplyProvenance,
+  /** The reply's id, none until the Run is done. */
+  assistantMessageId: Schema.Option(MessageId),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
   /** Read with the Run; its writes never touch the messages. */
@@ -50,6 +52,7 @@ export const buildRun = (
     userMessageId: fields.userMessage.id,
     status: 'queued',
     failure: Option.none(),
+    assistantMessageId: Option.none(),
     updatedAt: fields.createdAt,
     assistantMessage: Option.none(),
   })
@@ -76,7 +79,7 @@ const move = Effect.fnUntraced(function* (
   }: {
     readonly to: keyof typeof transitions
     readonly at: DateTime.Utc
-    readonly patch?: Partial<Pick<Run, 'failure' | 'assistantMessage'>>
+    readonly patch?: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>>
   },
 ) {
   if (!transitions[to](run)) {
@@ -97,7 +100,11 @@ export const generateRun = Effect.fn('generateRun')((run: Run, at: DateTime.Utc)
 export type RunCompletion = { readonly reply: Message; readonly at: DateTime.Utc }
 
 export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: RunCompletion) =>
-  move(run, { to: 'done', at, patch: { assistantMessage: Option.some(reply) } }),
+  move(run, {
+    to: 'done',
+    at,
+    patch: { assistantMessageId: Option.some(reply.id), assistantMessage: Option.some(reply) },
+  }),
 )
 
 const failureMessages = {

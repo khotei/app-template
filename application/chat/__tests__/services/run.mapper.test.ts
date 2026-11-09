@@ -17,7 +17,6 @@ const run = new Run({
 const reply = buildAssistantMessage({
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000201'),
   chatId: run.chatId,
-  runId: run.id,
   text: 'Hello',
   createdAt: run.updatedAt,
 })

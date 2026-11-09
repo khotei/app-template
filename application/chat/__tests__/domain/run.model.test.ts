@@ -43,6 +43,7 @@ const queued = new Run({
   status: 'queued',
   failure: Option.none(),
   provenance: new ReplyProvenance({ provider: 'anthropic', model: 'haiku', instructionsHash: 'h' }),
+  assistantMessageId: Option.none(),
   createdAt,
   updatedAt: createdAt,
   userMessage,
@@ -52,7 +53,6 @@ const queued = new Run({
 const reply = buildAssistantMessage({
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
   chatId,
-  runId: queued.id,
   text: 'Hello',
   createdAt: later,
 })

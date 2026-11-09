@@ -3,7 +3,7 @@ import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { MessageEntity, withAttachments } from '#kernel/data/chat/message.entity'
-import { RunFailureJson, RunProvenanceJson, runs } from '#kernel/data/chat/message.table'
+import { RunFailureJson, RunProvenanceJson, runs } from '#kernel/data/chat/run.table'
 
 const refine = { failure: () => RunFailureJson, provenance: () => RunProvenanceJson }
 
@@ -27,7 +27,7 @@ export type RunEntityWhere = Types.Simplify<
 >
 
 export type RunEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<RunEntity, 'status' | 'failure' | 'updatedAt'>>
+  RequireAtLeastOne<Pick<RunEntity, 'status' | 'failure' | 'assistantMessageId' | 'updatedAt'>>
 >
 
 export const withMessages = {

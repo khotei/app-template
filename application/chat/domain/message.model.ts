@@ -1,23 +1,21 @@
-import { Array as Arr, Effect, flow, Option, Schema, String as Str, type Types } from 'effect'
+import { Array as Arr, Effect, flow, Schema, String as Str, type Types } from 'effect'
 
 import { messageAuthors } from '@app-template/kernel/data'
 
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-/** Finished text: a user's as sent, an assistant's as its Run settled it. */
+/** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
 export class Message extends Schema.Class<Message>('Message')({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
   text: Schema.String,
-  /** The Run that wrote an assistant's message; none for a user's. */
-  runId: Schema.Option(RunId),
   createdAt: Schema.DateTimeUtc,
   /** Bound by the send, in upload order; the message's own writes never touch them. */
   attachments: Schema.Array(Attachment),
@@ -30,15 +28,12 @@ export interface MessageInput {
 
 export const buildUserMessage = (
   fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, author: 'user', runId: Option.none(), attachments: [] })
+): Message => new Message({ ...fields, author: 'user', attachments: [] })
 
-/** The reply a done Run writes, `runId` that Run's. */
+/** The reply a done Run writes. */
 export const buildAssistantMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>> & {
-    readonly runId: RunId
-  },
-): Message =>
-  new Message({ ...fields, author: 'assistant', runId: Option.some(fields.runId), attachments: [] })
+  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
+): Message => new Message({ ...fields, author: 'assistant', attachments: [] })
 
 export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
 

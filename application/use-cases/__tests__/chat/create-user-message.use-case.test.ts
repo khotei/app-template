@@ -6,20 +6,24 @@ import {
   Attachment,
   AttachmentBoundError,
   AttachmentNotFoundError,
+  buildAssistantMessage,
   buildRun,
   buildUserMessage,
   Chat,
   ChatBusyError,
   ChatTitle,
+  completeRun,
   GenerateAssistantMessage,
   GenerateChatTitle,
   Message,
+  MessageId,
   type MessageInput,
-  Run,
+  type Run,
   type RunId,
 } from '@app-template/application/chat'
 import {
   chat,
+  insertMessage,
   owner,
   replyProvenance,
   selectAttachments,
@@ -38,8 +42,21 @@ import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.us
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
-/** Settles a Run as done, as the worker would, freeing its chat for the next create. */
-const settle = (run: Run) => updateRun(new Run({ ...run, status: 'done' }))
+/** Settles a Run as done with its reply, as the worker would, freeing its chat for the next create. */
+const settle = (run: Run) =>
+  Effect.gen(function* () {
+    const at = yield* DateTime.now
+    // The Run's id serves its reply too: one reply per Run, so no two collide.
+    const reply = buildAssistantMessage({
+      id: MessageId.make(run.id),
+      chatId: run.chatId,
+      text: 'Sure.',
+      createdAt: at,
+    })
+
+    yield* insertMessage(reply)
+    yield* completeRun(run, { reply, at }).pipe(Effect.flatMap(updateRun))
+  })
 
 const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
@@ -168,7 +185,8 @@ describe('CreateUserMessageUseCase', () => {
           .pipe(Effect.flip)
 
         assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: photo.id }))
-        assert.lengthOf(yield* selectMessages(chat.id), 1)
+        // The first send's message and its reply, and nothing of the refused one.
+        assert.lengthOf(yield* selectMessages(chat.id), 2)
       }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
     },
   )

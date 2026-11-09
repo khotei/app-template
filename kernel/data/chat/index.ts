@@ -15,3 +15,4 @@ export {
   type RunEntityWhere,
 } from '#kernel/data/chat/run.entity'
 export { RunRepository } from '#kernel/data/chat/run.repository'
+export * from '#kernel/data/chat/run.table'

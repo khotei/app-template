@@ -43,7 +43,7 @@ from them.
   `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
   `<table>_<columns>_<predicate>_index` (`runs_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `runs_chat_id_active_index` allows one
-  active Run per chat; its predicate is `activeRun`, exported from `message.table.ts` beside the
+  active Run per chat; its predicate is `activeRun`, exported from `run.table.ts` beside the
   table, with the active statuses listed there. An
   `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
   renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
@@ -182,12 +182,14 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case passes the encoded Run as
   the set, and its id and the stored status to match as the `RunEntityWhere`, so a write whose
   expected status another worker has left, or whose Run is gone, changes nothing and dies; the use
-  case then reads the Run and skips it as settled or deleted. A Run's completion moves it to
-  `done` first and then writes the assistant's message, in one transaction, so a lost race writes
-  no reply.
+  case then reads the Run and skips it as settled or deleted. A Run's completion writes the
+  assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
+  keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
-  finished when sent, an assistant's when its Run writes it. `messages_run_id_check` holds that
-  only an assistant's message names a Run, and `messages_run_id_unique` that a Run has one reply.
+  finished when sent, an assistant's when its Run writes it. The Run names its reply:
+  `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
+  `runs_assistant_message_id_unique` that a reply belongs to one Run. The key sits on `runs`, so
+  `messages` names no Run and the two tables never import each other.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
   `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)

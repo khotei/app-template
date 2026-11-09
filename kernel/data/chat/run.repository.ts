@@ -12,7 +12,6 @@ import {
 } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
-import { activeRun, runs } from '#kernel/data/chat/message.table'
 import {
   RunEntity,
   type RunEntityInsert,
@@ -20,11 +19,13 @@ import {
   type RunEntityWhere,
   withMessages,
 } from '#kernel/data/chat/run.entity'
+import { activeRun, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 
 const encodeSet = buildSet<RunEntitySet, typeof runs>({
   status: identity,
   failure: identity,
+  assistantMessageId: identity,
   updatedAt: identity,
 })
 

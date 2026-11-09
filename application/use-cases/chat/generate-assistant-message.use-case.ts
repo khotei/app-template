@@ -105,18 +105,13 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       function* (generating: Run, { text }: AssistantReply) {
         const at = yield* DateTime.now
         const id = yield* generateId(crypto, MessageId.make)
-        const reply = buildAssistantMessage({
-          id,
-          chatId: generating.chatId,
-          runId: generating.id,
-          text,
-          createdAt: at,
-        })
+        const reply = buildAssistantMessage({ id, chatId: generating.chatId, text, createdAt: at })
         const completed = yield* completeRun(generating, { reply, at })
 
-        // The Run first: a Run another worker settled meanwhile dies here, before the reply.
-        yield* updateRun(completed, generating.status)
+        // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
+        // its update, and the transaction takes the reply back.
         yield* encodeMessage(reply).pipe(Effect.flatMap(messages.insert))
+        yield* updateRun(completed, generating.status)
       },
       // The reply and the Run's `done` land together, or neither does.
       transaction.run,

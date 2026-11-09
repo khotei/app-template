@@ -36,15 +36,9 @@ const historyAt = (n: number) => DateTime.makeUnsafe(n * 1000)
 export const userMessageAt = (n: number, text: string) =>
   buildUserMessage({ id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
-/** The assistant's message at place `n` of `chat`'s history, written by a Run of its own. */
+/** The assistant's message at place `n` of `chat`'s history. */
 export const assistantMessageAt = (n: number, text: string) =>
-  buildAssistantMessage({
-    id: historyId(n),
-    chatId,
-    runId: RunId.make(`0192d4e0-7b3a-7c00-8000-00000000006${n}`),
-    text,
-    createdAt: historyAt(n),
-  })
+  buildAssistantMessage({ id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
 /** The Run a send of `firstMessage` queues. */
 export const queuedRun = buildRun({

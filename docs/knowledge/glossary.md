@@ -24,7 +24,7 @@ _Avoid_: Conversation, thread, dialogue, session
 **Message**:
 One turn in a chat, authored by the user or by the assistant: finished text with zero or more
 attachments, and no status. A user's message is stored when sent; an assistant's message is written
-by the Run that answers, once it is done, and names that Run.
+by the Run that answers, once it is done, and the Run names it.
 _Avoid_: Prompt, reply, completion, turn
 
 **Run**:
