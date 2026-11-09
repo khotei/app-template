@@ -89,6 +89,43 @@ How the passes sit in the flow:
 | `/ticket-verify` | asks the fate of each `Later` item still open |
 | `/lab` | the Map's Pass column; a minimal step's visible check is the play; each piece adds what it noticed to `Later` |
 
+**Where it comes from.** Each part is an established practice:
+
+- The order is Kent Beck's "Make it run. … Make it right." (*Test-Driven Development by Example*,
+  2002, ch. 2), the older "first make it work, then make it right, and, finally, make it fast"
+  (Johnson and Kernighan, *Byte*, 1983, as [c2](https://wiki.c2.com/?MakeItWorkMakeItRightMakeItFast)
+  cites it).
+- The first slice is Alistair Cockburn's walking skeleton, "a tiny implementation of the system
+  that performs a small end-to-end function" and "permanent code, built with production coding
+  habits, regression tests" (*Crystal Clear*, 2004): hence minimal in code, never in quality. It is
+  the tracer bullet of Hunt and Thomas, against a prototype, which is "designed to be thrown away"
+  ([Artima, 2003](https://www.artima.com/articles/tracer-bullets-and-prototypes)); the lab's learn
+  step is the prototype.
+- Slices are vertical: "No slice is just a mockup or UI, a data structure, or test case"
+  (Cockburn and Kniberg, *Elephant Carpaccio*, 2013); "integrating vertically on one small piece
+  of the project instead of chipping away at the horizontal layers"
+  ([*Shape Up*](https://basecamp.com/shapeup), ch. 11).
+- The three passes are Jeff Patton's opening, mid and end game
+  ([*Better Software*, 2009](https://www.jpattonassociates.com/wp-content/uploads/2015/01/patton_story_mapping_bettersw_1109.pdf)).
+- `Later` is the notepad of *Growing Object-Oriented Software, Guided by Tests* (2009, ch. 5):
+  "the feature isn't complete until it can handle its failures—this isn't an excuse not to
+  bother—but we can choose when", and it is "only finished when we've crossed off everything on
+  the list". *Shape Up* marks the same items `~`.
+- Design quality is no speculative feature: YAGNI "does not apply to effort to make the software
+  easier to modify" ([Fowler, 2015](https://martinfowler.com/bliki/Yagni.html)).
+
+**The risks, and what guards them:**
+
+- Deferred work is never done: "All too often, time is never found for this follow up work"
+  ([Foote and Yoder, *Big Ball of Mud*, 1997](http://www.laputan.org/mud/mud.html)); *Shape Up*
+  says of its `~` items, "Usually they never get built". Guard: `Later` is the last stage or step,
+  and no PR opens while an item has no fate.
+- A change to a running system: every source keeps what works today working. Guard: every commit
+  is green, and a step that replaces old behaviour adds the new beside it, switches the callers,
+  then deletes the old ([Parallel Change](https://martinfowler.com/bliki/ParallelChange.html)).
+- The sources differ on error paths: Hunt and Thomas's tracer code carries all its error checking,
+  GOOS lets the failures wait. This flow follows GOOS, but for what is never deferred.
+
 ## Plans in stages
 
 A plan names every step up front but writes the low level of only a few at a time, once the steps
