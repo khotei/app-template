@@ -119,6 +119,10 @@ not on success; one that dies leaves the job unsettled · visible: `bun --bun vi
 acknowledges a body that does not decode; the worker handler consumes through it; `JobConsumer`
 and L2.1's `onFail` gone · visible: `bun --bun vitest run --project unit
 packages/queue/__tests__/queue.consumer.test.ts apps/worker/__tests__/worker.handler.test.ts`
+[N:ai] L2.6 (the owner: "failed should not return to queue, failed -> set failed status to run")
+a handler of `QueueConsumer` has no error channel, so its use case settles a failure itself and
+only a defect returns the record; the reply's use case logs a status the model refused · visible:
+the same command, the dying handler's record answered
 
 ### Output
 

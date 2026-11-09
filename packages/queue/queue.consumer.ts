@@ -24,19 +24,20 @@ export class QueueConsumer extends Context.Service<
   {
     /**
      * Runs `handle` on each record's message, decoded by the definition's schema, and answers the
-     * failed records: SQS delivers them again until the queue's `maxReceiveCount` dead-letters
-     * them. A body that does not decode never will, so it is logged and acknowledged, unrun.
+     * records whose handler died: SQS delivers them again until the queue's `maxReceiveCount`
+     * dead-letters them. A handler has no error channel, so it settles its work's failure itself.
+     * A body that does not decode never will, so it is logged and acknowledged, unrun.
      */
-    readonly consume: <A, I, E, R>(
+    readonly consume: <A, I, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
-      handle: (message: A) => Effect.Effect<unknown, E, R>,
+      handle: (message: A) => Effect.Effect<unknown, never, R>,
     ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
   }
 >()('@app-template/packages/queue/QueueConsumer', {
   make: Effect.gen(function* () {
-    function consume<A, I, E, R>(
+    function consume<A, I, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
-      handle: (message: A) => Effect.Effect<unknown, E, R>,
+      handle: (message: A) => Effect.Effect<unknown, never, R>,
     ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
       const decode = Schema.decodeEffect(
         Schema.fromJsonString(Schema.toCodecJson(definition.schema)),

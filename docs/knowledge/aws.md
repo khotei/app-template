@@ -162,11 +162,12 @@ its definition's schema. A definition's queue is `buildResourceName(STAGE, defin
 - **Delivery is at-least-once:** the reply's use case fails a reply it finds started, as the run
   that started it died, so a copy delivered while the first still runs fails a live reply, a
   rare case accepted.
-- **A failed record returns to the queue.** A record whose handler fails or dies (a process that
-  dies included) is answered in `batchItemFailures`, or not answered at all; SQS delivers it again
-  once the queue's visibility timeout, the worker function's 600 s, has passed, and after
-  `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. A delivery after the work settled skips it.
-  AWS refuses a mapping on a queue that hides a message less than its function's timeout.
+- **Only a defect returns to the queue.** A handler has no error channel: its use case settles
+  its work's failure itself. A record whose handler dies (a process that dies included) is
+  answered in `batchItemFailures`, or not answered at all; SQS delivers it again once the queue's
+  visibility timeout, the worker function's 600 s, has passed, and after `maxReceiveCount`, 3,
+  redrives it to `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping
+  on a queue that hides a message less than its function's timeout.
 - **Nothing consumes a dead-letter queue.** A reply's run writes `failed` on any outcome but
   success; one that no run settles stays active
   ([database.md › Stuck replies](database.md#stuck-replies)).

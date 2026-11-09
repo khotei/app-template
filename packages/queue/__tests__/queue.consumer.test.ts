@@ -14,7 +14,7 @@ function buildRecord(messageId: string, body: string) {
 }
 
 describe('QueueConsumer.consume', () => {
-  it.effect('runs each decoded message and answers only the record whose handler failed', () =>
+  it.effect('runs each decoded message and answers only the record whose handler died', () =>
     Effect.gen(function* () {
       const consumer = yield* QueueConsumer
       const seen = yield* Ref.make<ReadonlyArray<string>>([])
@@ -24,7 +24,7 @@ describe('QueueConsumer.consume', () => {
 
       const response = yield* consumer.consume(pingQueue, ({ ping }) =>
         Ref.update(seen, Arr.append(ping)).pipe(
-          Effect.andThen(ping === 'boom' ? Effect.fail('failed') : Effect.void),
+          Effect.andThen(ping === 'boom' ? Effect.die('boom') : Effect.void),
         ),
       )(event)
 

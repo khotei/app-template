@@ -17,7 +17,6 @@ import {
   type AssistantReply,
   type Attachment,
   buildReplyFailure,
-  type ChatStatusInvalidError,
   completeMessage,
   decodeChat,
   decodeMessage,
@@ -35,7 +34,6 @@ import {
   type MessageFailure,
   type MessageId,
   type MessageStatus,
-  type MessageStatusInvalidError,
   prepareMessage,
 } from '@app-template/application/chat'
 import { ChatRepository, FileRepository, MessageRepository } from '@app-template/kernel/data'
@@ -59,9 +57,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
      * an interrupt included; a settled message is skipped. A message some run already started
      * is failed unrun, as that run has died.
      */
-    readonly generate: (
-      job: GenerateAssistantMessage,
-    ) => Effect.Effect<void, MessageStatusInvalidError | ChatStatusInvalidError>
+    readonly generate: (job: GenerateAssistantMessage) => Effect.Effect<void>
   }
 >()('@app-template/application/use-cases/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
@@ -191,6 +187,11 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
       (job: GenerateAssistantMessage) => selectActive(job.messageId).pipe(Effect.flatMap(answer)),
       Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
+      // A status the model refused means another run moved the message first and settles it, so
+      // the refusal is logged, never returned to the queue.
+      Effect.catch((error) =>
+        Effect.logWarning('assistant reply ended by a refused status', error),
+      ),
     )
 
     return { generate }
