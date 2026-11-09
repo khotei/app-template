@@ -23,7 +23,7 @@ copied and changed.
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
 the assistant answers. The api writes the message and its reply in one transaction, sends the jobs
-to SQS before it commits and answers `202`; SQS invokes the worker through a Lambda function's
+to SQS after it commits and answers `202`; SQS invokes the worker through a Lambda function's
 mapping, and the worker writes the model's whole reply into the message and titles the chat;
 the client polls the message until it is `done` or `failed`. The language model is Anthropic's.
 The browser UI still shows only the health panel.
@@ -37,7 +37,7 @@ sequenceDiagram
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
   A->>S: one transaction: user message, queued assistant message
-  A->>Q: last in the transaction: assistant-message job (+ chat-title job on the first message)
+  A->>Q: after the commit: assistant-message job (+ chat-title job on the first message)
   A-->>W: 202
   Q->>K: a Lambda mapping posts the batch to POST /events
   K->>S: preparing → generating → done with the text | failed

@@ -117,6 +117,21 @@ path.
 the gap on this branch, or log the provenance in the reply's use case until L4 (about 2 lines)?
 [N:ai] The owner, in the chat: keep the gap; L4 puts the provenance on the Run, and the branch
 reaches `main` only after L4.
+[D:ai] L2's review, the hunt, claimed: a client that aborts its `POST` after `store` commits
+(`create-user-message.use-case.ts:175`) interrupts `create` before the send (Bun interrupts the
+handler's fiber on abort, `@effect/platform-bun` 4.0.6 `BunHttpServer.ts:215-218`), so no job is
+sent and `failReply` never runs: the reply and its chat stay `queued`, and every later send to
+the chat answers `409`. Before L2.8 the abort rolled the transaction back. Without the fix a
+closed tab or a client timeout locks a chat for good. Fix: `Effect.uninterruptible` on the sends
+after the commit, about 2 lines.
+[D:ai] L2's review, the hunt, claimed: `create` catches only `QueueError`
+(`create-user-message.use-case.ts:187`). SQS that takes the message and still answers an error
+(a timeout) runs `failReply` after the worker moved the reply to `preparing`; its guarded update
+(`status: [reply.status]`) misses and dies, so the api answers `500` for a reply that is then
+answered. A defect in the send itself leaves the chat busy as above. Without the fix a rare
+timeout shows an error for a message that gets its reply. Proposed: no code in L2, where
+`failReply` is temporary; L4's fail of the Run after a refused send treats a guard miss as the
+worker's.
 
 ### Pieces
 
@@ -145,6 +160,12 @@ reply SQS refuses writes the reply and its chat `failed` (`ReplyFailed`) in one 
 answers it, a refused title job is logged · visible: `bun --bun vitest run --project e2e apps/e2e`
 (9 cases; the gone queue's case `500` -> `202` with the reply failed); `make test-e2e` 9 of 9
 green, the journey's timeout of L2.7 not seen again
+[N:ai] L2.10 (REVIEW) Standards: `queue.sender.e2e.ts` runs its two cases in turn, since the
+second deletes the queue the first reads (`effect-tests.md`); its `??` on the attributes is an
+`UndefinedOr.match` (`effect.md`); the comment on the sends after the commit, which repeats
+`layering.md`, and the clause naming the table `jobs` in `assistant.port.ts` go
+(`comments.md`); `README.md` sends after the commit · visible: `bun --bun vitest run --project
+e2e kernel/aws/__e2e__/queue.sender.e2e.ts` (2 cases)
 
 ### Output
 

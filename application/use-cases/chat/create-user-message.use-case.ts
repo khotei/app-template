@@ -173,7 +173,6 @@ export class CreateUserMessageUseCase extends Context.Service<
       input: MessageInput,
     ) {
       const stored = yield* store(userId, chatId, input)
-      // The sends follow the commit, so a delivery always finds its record.
       const assistantMessage = yield* queue
         .send(
           assistantMessageQueue,

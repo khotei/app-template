@@ -50,14 +50,17 @@ const receive = (waitSeconds: number) =>
     return UndefinedOr.match(Messages, {
       onUndefined: () => [],
       onDefined: Arr.map((message) => ({
-        attributes: Object.keys(message.MessageAttributes ?? {}),
+        attributes: UndefinedOr.match(message.MessageAttributes, {
+          onUndefined: () => [],
+          onDefined: Object.keys,
+        }),
         body: JSON.parse(UndefinedOr.getOrThrow(message.Body)),
       })),
     })
   })
 
 // Live: SQS long-polls in real time.
-describe('QueueSender', () => {
+describe('QueueSender', { concurrent: false }, () => {
   it.live(
     "a sent message reaches the stage's queue as its body alone",
     () =>
