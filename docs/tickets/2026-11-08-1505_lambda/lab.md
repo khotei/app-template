@@ -71,7 +71,7 @@ a Lambda function? MiniStack should handle this locally.
 | Step | Goal | Kind | Status |
 |---|---|---|---|
 | L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
-| L2 | A job moves `queued` -> `running` -> `done` or `failed` in `jobs`; it is sent to SQS last in its transaction, so a send SQS refuses rolls the transaction back | build | in progress |
+| L2 | A job moves `queued` -> `running` -> `done` or `failed` in `jobs`; it is sent to SQS last in its transaction, so a send SQS refuses rolls the transaction back | build | done |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | in progress |
 | L4 | A send stores the user's message and its job; the worker writes the reply; a failed send answers `500` and keeps nothing, and the client shows the error | build | in progress |
 | L5 | dev runs on the real Anthropic; the e2e script the worker's `Assistant`; no stub and no `LLM_PROVIDER` in the app's code | build | done |
@@ -196,200 +196,15 @@ accepted and how to see it.>
 
 ## L2 — Job statuses and the send after the commit
 
-Budget: waits for the owner · Planned pieces: 3 `status` in `jobs` and its pure transitions ·
-4 the job written `idle`, sent by `afterCommit`, set `queued` · 5 the job sent last in its
-transaction: no `idle`, no sweep (the owner, variant A).
+### Output
 
-### Reference
-
-[N:ai] A schedule in MiniStack 1.5.31, run 2026-11-08 by HTTP (no AWS CLI on the machine):
-`AWSEvents.PutRule` `{"Name":"probe-sweep","ScheduleExpression":"rate(1 minute)"}`, then
-`AWSEvents.PutTargets` with the worker function's ARN. MiniStack invoked the function every
-minute, and its proxy posted the event to the worker's `POST /events`, the same path as the SQS
-batches: `{"version":"0","source":"aws.events","detail-type":"Scheduled Event","detail":{},…}`;
-with a target's `Input`, that JSON instead. The rule was deleted after the run.
-
-### Pieces
-
-[N:ai] piece 2a: `JobSender` in `kernel/job` writes a job `idle` in the caller's transaction,
-sends it by `afterCommit` and sets it `queued`; a failed send leaves it `idle`. `jobs` has
-`status` in place of `sentAt` and `job_id`, set by every insert; `JobRelay`, `QueueSenderJobs`,
-`kernel/queue` and `QueueConfig` are gone; the use cases may import `kernel/job` (the owner) ·
-over 100 lines: it turned green only whole · visible: `make test-e2e`, the `JobSender` e2e
-[N:ai] piece 2b: `JobConsumer` in `kernel/job` wraps `QueueConsumer.consume` and settles the
-row: `done` on success, `failed` on the last attempt's failure, no change before; a settled job is
-a redelivery, acknowledged without its handler; `AttemptInfo.jobId` carries the row; no `running`
-status · visible: `make test-e2e`, the `JobConsumer` e2e
-[N:ai] piece 2c (the owner, in the chat): `JobConsumer` marks the job `running` before its
-handler and `queued` again after a failed attempt that is not the last; `running` joins the
-glossary's `Status` as a run in one stage · visible: `make test-e2e`, the `JobConsumer` e2e
-"a queued job reads running while its handler runs"
-[D] `JobSender.send` writes the job's row in the use case's transaction and answers the step that
-sends it to SQS and marks it `queued`; the use case runs that step after the commit,
-`jobs.send(<queue>, job).pipe(Effect.flatMap(transaction.afterCommit))`, through the new
-`Transaction.afterCommit`, so the sender knows no transaction and any failed write, the job's
-included, rolls the whole send back (the owner, in the chat, variant A). Variant B, the whole
-send after the commit, was tried: the e2e `chat.e2e.ts` "a send whose title job is refused…"
-showed it answers 200 and loses the job.
-[N:ai] piece 5a: two e2e, red as `.fails` on today's code: "a send whose reply queue is gone
-answers 500 and keeps no message, no chat change and no job" through the api, and `JobSender`'s
-"a send SQS refuses dies" in place of "leaves the job idle for the sweep"; `apps/e2e` gains
-`@effect-aws/client-sqs` to delete its stage's queue · visible: `make test-e2e`, 2 expected fail
-[N:ai] piece 5b: `JobSender.send` inserts the job `queued` in the caller's transaction, then
-sends it, a refused send a defect that rolls the transaction back; `idle`, its index,
-`enqueue`, `Transaction.afterCommit` and its fake are gone, `recordJobs()` records at `send`, and
-the migrations restart as one `init` again · visible: `make test-e2e`, the two e2e of 5a green
-[N:ai] piece 5c: `decisions.md › Jobs as a table` (the send after the commit, the sweep and a
-failed reply after a refused send join Rejected), the send line of `layering.md`,
-`database.md › The outbox`, `architecture.md`, the glossary's Outbox, the README's flow and
-Knowledge say the job is sent last in its transaction · visible: `make doc-lint`
-[N:ai] piece 6 (the owner, in the chat): `JobRepository.selectMany`, the oldest jobs locked
-with `SKIP LOCKED` for the sweep, had no caller but its two e2e: it goes with them, and the update
-cases read the statuses by `selectOne` · visible: `make test-e2e`
-[N:ai] review (Standards): `kernel/CLAUDE.md` names `job/`, not the deleted `queue/`, as where a
-job is encoded and sent; the `JobSender` e2e reads SQS's optional fields through
-`Effect.fromNullishOr` and `UndefinedOr`, not `??` · visible: `make check`
-[N:ai] piece 7a: the `JobConsumer` e2e "a job whose body does not decode fails at once, unrun
-and unretried", red as `.fails` on today's code · visible: `make test-e2e`, 1 expected fail
-[N:ai] piece 7b: `QueueConsumer` hands each record's body to its handler undecoded; `JobConsumer`
-decodes it by the definition's schema, and a body that does not decode fails the job at once,
-unrun, its record acknowledged; `aws.md` and `database.md` say so · visible: `make test-e2e`, the
-e2e of 7a green
-[N:ai] piece 8a (the owner, in the chat: "no retries, if error -> fail"): `JobConsumer.consume`
-takes a queue's steps `{ handle, fail }` and runs a job once: `queued` -> `running` -> `done`, or
-`fail` then `failed` on any other outcome, unretried; a job found `running` was left by a dead
-process and gets `fail` and `failed` unrun. The worker's route wires the use cases' `generate`
-and `fail` itself; `AssistantMessageHandler`, `ChatTitleHandler` and their suites are gone ·
-visible: `make test-e2e`, the `JobConsumer` cases
-[N:ai] piece 8b (the owner, in the chat: the handler fails its own work, `JobConsumer` the job):
-`GenerateAssistantMessageUseCase.generate` fails its reply and chat with `ReplyFailed` on any
-outcome but success, an interrupt included, and fails unrun a reply it finds `preparing` or
-`generating` (`isStartedReply` in the message model), since the run that took it has died ·
-visible: `make test-unit`, the use case's cases
-[N:ai] piece 8c (the owner, in the chat): `JobConsumer.consume(definition, handle)`, no `fail`
-step and no `JobSteps`: any outcome of `handle` but success sets the job `failed`; a job found
-`running` runs `handle` again, which decides (the reply use case fails a started reply). The
-worker's route passes each use case's `generate`; `fail` leaves the reply use case's interface,
-its two tests with it, the die case asserting `ReplyFailed` · visible: `make test-e2e`, the
-`JobConsumer` cases
-[N:ai] piece 8d (the owner, in the chat): no retries in `packages/queue`: `retryDelay`,
-`buildDoublingDelay`, `maxAttempts`, `AttemptInfo` and `changeMessageVisibility` are gone, and
-`QueueConsumer` becomes the plain `consumeBatch(handle)(event)`, `handle(body, jobId)`, a failure
-a `batchItemFailures` entry; `JobConsumer` and the worker need no SQS; both queues'
-`maxReceiveCount` is 3 · visible: `make check`, `bunx vitest run --project unit packages/queue`
-[N:ai] piece 8e: the docs say a job runs once: `layering.md` (a use case a job runs ends its own
-work), `naming.md`'s `.handler` row, `effect-tests.md`, `aws.md › Queues` (only a defect returns
-to the queue), `database.md › The outbox` and `Stuck replies` (a dead run is failed on
-redelivery), `decisions.md › Jobs as a table` (retries join Rejected, a duplicate joins Cost),
-`ai.md`, `architecture.md`, `tooling.md`; Knowledge · visible: `make doc-lint`
-[N:ai] piece 8f (the owner, in the chat: "make as service with methods"): `consumeBatch` is the
-`QueueConsumer` service again, `consume(handle)(event)` its method and `QueueConsumer.layer`
-needing nothing; `JobConsumer.layer` provides it · visible: `make check`
-[N:ai] review (Standards): the "a job runs once" line of `layering.md` moves from Handlers to
-Use cases; `JobConsumer` logs a body that does not decode by `Effect.tapError` on the decode; its
-comment on a missing row names a rollback past the send too · visible: `make check`
-[N:ai] review (the hunt, the owner's A for both): `JobConsumer` logs a handler's failure cause
-before it settles the job `failed`; the worker's timeout and the queues' visibility timeout are
-600 s, above the slowest reply, so a live reply is no longer failed by its own redelivery ·
-visible: `make check`, `make up` (the queues and the function take 600 s)
-
-### Notes
-
-[D] A job is sent to SQS last in the transaction of the writes it reads, not after the commit: a
-send SQS refuses rolls the transaction back, nothing is kept, and the api answers `500`; no
-`idle`, no sweep (the owner, in the chat, variant A over B, a `failed` reply written after a
-refused send, and C, a sweep of `idle` jobs every minute). Today a refused send answers `202`,
-leaves the job `idle` and the chat `queued` for good, so every next send fails `ChatBusyError`
-(`kernel/job/job.sender.ts:42-44`, `packages/db/db.client.ts:34`).
-
-[N:ai] Shape of piece 5, a draft:
-
-```text
-CreateUserMessageUseCase.create                        (transaction.run)
-  chats.update, messages.insert x2, the binds
-  jobs.send(assistantMessageQueue, ...)   INSERT job (queued), then SendMessage
-  jobs.send(chatTitleQueue, ...)          on the first message
-COMMIT
-SendMessage refused -> defect -> ROLLBACK -> the api's bare 500
-```
-
-- Contract: `JobSender.send(definition, message): Effect<void>` inserts the row `queued` in the
-  caller's transaction, then sends it; a send SQS refuses is a defect.
-- Gone: `idle` in `job_status` and in `JobConsumer`'s unsettled statuses, the index
-  `jobs_idle_created_at_index`, `JobSender`'s `enqueue` and its `Effect<Effect<void>>`,
-  `Transaction.afterCommit` and its fake (the sender was its only caller). The migrations
-  restart as one `init` again, so every local database needs `make reset`.
-- Cost, claimed from the code: SQS may deliver the job before the commit shows its row; the
-  worker reads no row, a defect (`kernel/job/job.consumer.ts:70`), and SQS retries it after
-  `retryDelay(1)`, 1 s, an attempt spent. A commit that fails after the send leaves a job with
-  no row, retried, then dead-lettered.
-- Tests first, at the seams: the api e2e "a send whose queue is gone answers 500 and keeps no
-  message and no job" (the test deletes its stage's queue); the `JobSender` e2e "a send SQS
-  refuses dies and keeps no row" in place of "leaves the job idle for the sweep"; `recordJobs()`
-  records at `send`.
-- Docs in the same round: `decisions.md › Jobs as a table` (the send after the commit joins
-  Rejected), the send line of `layering.md`, `database.md › The outbox`, `aws.md › Queues`, the
-  glossary's Outbox, the README's flow; Knowledge loses the `idle`, sweep and after-commit lines.
-- The web has no chat view yet (the README), so "the client shows the error" is the `ApiClient`
-  failing with the `500`; nothing changes in `apps/web`.
-
-Budget proposed: 120 lines of code and tests, docs apart, in three pieces: 5a the two e2e, red ·
-5b the body · 5c the docs.
-
-[D:ai] A job whose body no longer decodes never settles (`packages/queue/queue.consumer.ts:93`,
-claimed by the hunt): the consumer retries it without calling the handler, so `JobConsumer`'s
-`settle` never runs; after the last attempt SQS dead-letters it and its row stays `queued` for
-good, while Knowledge says `failed` is set once the last attempt fails. Scenario: a job schema
-changed between two deploys. Without the fix the row lies and only a log line shows it. Fix:
-decode inside the effect `JobConsumer` wraps, a change of `QueueConsumer`'s handler shape, about
-10 lines.
-[N:ai] The owner, in the chat: no retry for a body that does not decode, and the decode moves to
-`JobConsumer` (variant A): `QueueConsumer` sits in `packages/queue`, which may not import
-`kernel/data`, so it cannot write the job's `failed`; `JobConsumer` decodes, fails the job at once
-and acknowledges the record.
-[D:ai] A last attempt that dies with its process leaves the job `running` for good
-(`kernel/job/job.consumer.ts:73`, claimed): `onExit` never runs on a Lambda timeout, an out of
-memory or a kill, and no dead-letter consumer exists since L1.9. The same case already leaves
-the reply active (`database.md › Stuck replies`). Options: record it in `decisions.md › Jobs as
-a table` as a known gap, no code; or a dead-letter consumer that marks the row and the reply
-`failed`, about 40 lines and a mapping per dead-letter queue.
-  [N:ai] Since piece 8c a dying process answers no batch, so SQS delivers it again and the job,
-  found `running`, runs its handler, which fails the started reply; only a job whose every
-  delivery dies stays `running` (`database.md › Stuck replies`).
-[D:ai] Two copies of one message delivered at once both run the handler
-(`kernel/job/job.consumer.ts:52-56`, claimed): both read `queued`, both move it `running`; the
-first settles `done`, the second's settle matches no row and dies, so its success counts as a
-failed attempt and, on the last attempt, goes to the dead-letter queue though the job is `done`.
-SQS standard queues deliver at least once, a duplicate at the same instant is rare. Options:
-record it as accepted; or claim with `{ status: ['queued'] }` only, the losing copy acknowledged
-unrun, which needs the previous finding settled first, since a crashed attempt leaves `running`
-and its retry would then never run.
-  [N:ai] Recorded as accepted in `decisions.md › Jobs as a table` (Cost) and `aws.md › Queues`,
-  the owner's "accept and record"; since piece 8c the second copy finds the job `running` and
-  fails a live reply.
-[D:ai] `JobRepository` has no memory layer, so `apps/worker/__tests__/worker.handler.test.ts:28`
-hand-writes `Layer.mock(JobRepository, …)` answering one queued row for every id (Standards,
-judgement; `effect-tests.md`: a further fake only wraps a memory layer). Without the fix the
-worker's unit test cannot show a settled job's redelivery. Fix: a `JobRepository` memory layer
-in `kernel/data`'s test support, about 25 lines, its guard (`status` in the `where`) already
-twinned by the repository's e2e.
-[D:ai] A handler that dies leaves no trace (`kernel/job/job.consumer.ts:72-74`, claimed by the
-hunt): `Effect.exit` takes the cause, the job is settled `failed` and its record acknowledged, so
-`QueueConsumer`'s log never sees it. Scenario: the database drops in the reply use case's
-`selectActive`, before its own `onExit`; the reply stays `queued` and its chat busy (already
-`database.md › Stuck replies`), and no log line says why. Lost since L2.12, when `QueueConsumer`
-stopped seeing a handler's failure. Fix: log the cause before the settle, about 2 lines.
-  [N:ai] The owner, in the chat: A, the log; done in the review round after L2.18.
-[D:ai] A reply longer than 60 s is killed by its own redelivery
-(`kernel/aws/resources/resources.ts:3`, claimed by the hunt): the queue hides a message for the
-worker's timeout, 60 s; past it SQS delivers again, the job found `running` reruns, and the use
-case fails the live `generating` reply; the first run's write then dies and its answer is lost.
-On AWS the function is killed at 60 s instead, so such a reply always fails. A reply has
-`max_tokens: 16_000` (`application/chat/infrastructure/assistant.llm.ts:217`). Options: raise
-the worker's timeout and the visibility together (one constant); or take a job only from
-`queued` and tell a dead run by a lease, which brings back what 8c removed.
-  [N:ai] The owner, in the chat: A, 600 s; done in the review round after L2.18.
-
+A job is written `queued` and sent to SQS last in its use case's transaction; a send SQS refuses
+rolls it back and the api answers `500`. The worker runs a job once: `queued` -> `running` ->
+`done`, else `failed` with its cause logged; a job found `running` runs its handler again, and
+the reply's use case fails a started reply. Only a defect returns to SQS, up to 3 receives; the
+worker's timeout and the queues' visibility timeout are 600 s. Visible: `make check`; in
+`make test-e2e`, the `JobSender` and `JobConsumer` cases and the api e2e of a send whose queue is
+gone.
 
 ## L3 — Switch to queue-2
 
@@ -452,6 +267,14 @@ when the database is the cause?
 use case and carried in the job, with a 404 until the worker writes it, or the chat to poll?
 [Q:ai] Who holds "one reply at a time": the chat's `queued`, set by the use case, which a lost
 job would leave set?
+[D:ai] `JobRepository` has no memory layer, so `apps/worker/__tests__/worker.handler.test.ts:27`
+hand-writes `Layer.mock(JobRepository, …)` answering one queued row for every id (Standards,
+judgement; `effect-tests.md`: a further fake only wraps a memory layer). Without the fix the
+worker's unit test cannot show a settled job's redelivery. Fix: a `JobRepository` memory layer
+in `kernel/data`'s test support, about 25 lines, its guard (`status` in the `where`) already
+twinned by the repository's e2e.
+  [N:ai] Moved from L2 at its close (the owner, in the chat): the worker's test changes here
+  once the worker writes the reply.
 
 ## L5 — No stub in the app's code
 
@@ -475,6 +298,8 @@ empty key stops the worker at start with a `ConfigError`. The e2e give `WorkerPr
 - The worker answers SQS through `JobConsumer.consume(definition, handle)`, over
   `QueueConsumer.consume(handle)(event)` in `packages/queue`, returning `{ batchItemFailures }`; only a
   defect lands there, and SQS redelivers it up to 3 receives (L1, L2).
+- The worker's timeout and the queues' visibility timeout are 600 s, above the slowest reply, so
+  a live reply is never failed by its own redelivery (L2).
 
 - dev and prod call only Anthropic; no stub and no `LLM_PROVIDER`; an empty key stops the worker
   at start (L5).
