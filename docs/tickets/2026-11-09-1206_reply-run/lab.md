@@ -56,6 +56,22 @@ Output: the answers with a run, snippets <= 20 lines. (the owner's plan)
   `@effect/ai` do with it, not whether the chat allows it. The prompt is built in
   `application/chat/infrastructure/assistant.llm.ts:73` (`buildChatPrompt`), each role taken
   from the author at `:69`; `packages/llm` holds only the client.
+  [A:ai] (a) Two `user` messages in a row pass; the adapter needs no change. `@effect/ai-anthropic`
+  4.0.6 folds each run of `user` messages into one `user` turn before the request
+  (`application/node_modules/@effect/ai-anthropic/src/AnthropicLanguageModel.ts:940`,
+  `groupMessages` at `:2998-3003`: a new group only when the role changes), the parts side by
+  side with no separator; the API would take them unfolded too: "Consecutive `user` or
+  `assistant` turns in your request will be combined into a single turn"
+  (https://platform.claude.com/docs/en/api/messages). Run: a scratch script through
+  `AssistantLlmFromConfig` on `claude-haiku-5-5`, the request body logged:
+  ```text
+  system,user,user            -> WIRE [{"role":"user","blocks":["text:My name is Vika.","text:Read the attached file. Reply ","document:text"]}]
+                                 Success "Vika, PERSIMMON"
+  system,user,assistant,user,user -> WIRE [user 41][assistant 41][user "add one", file]
+                                 Success "42 PERSIMMON"
+  raw fetch, two user messages -> HTTP 200
+  ```
+  Not checked: an image part (the fixture is no valid image; the same loop, `:1002-1016`).
 
 ### Pieces
 
