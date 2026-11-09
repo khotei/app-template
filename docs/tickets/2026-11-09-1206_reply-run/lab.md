@@ -68,6 +68,11 @@ the lambda lab's L4 `[D:ai]`: the memory layer replaces it.
 
 <[N:ai] L2.1 <what it gives> · visible: <command or link>>
 
+[N:ai] L2.1 `JobConsumer.consume(definition, { handle, onFail })`: onFail before every `failed`,
+not on success; one that dies leaves the job unsettled · visible: `bun --bun vitest run
+--project e2e kernel/job/__e2e__/job.consumer.e2e.ts` (11 cases); dropping the onFail call turns
+4 red
+
 ### Output
 
 <Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>

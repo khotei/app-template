@@ -25,12 +25,11 @@ export const WorkerHandler = HttpRouter.use(
     const consumers = {
       [buildResourceName(stage, assistantMessageQueue.name)]: consumer.consume(
         assistantMessageQueue,
-        assistantMessage.generate,
+        { handle: assistantMessage.generate },
       ),
-      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(
-        chatTitleQueue,
-        chatTitle.generate,
-      ),
+      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(chatTitleQueue, {
+        handle: chatTitle.generate,
+      }),
     }
 
     yield* router.add(

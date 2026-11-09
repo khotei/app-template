@@ -278,6 +278,9 @@ so a rollback keeps no job and a commit never stands without one
   delivers again, then dead-letters.
   `JobConsumer` decodes the body itself: one that does not decode never will, so its job is
   `failed` at once, unrun, and its record acknowledged; the body stays in the row.
+  Before each `failed`, a consumer's `onFail` gets the job's id and the cause, uninterruptibly,
+  so the work the job carried is failed first; an `onFail` that dies leaves the job unsettled,
+  and SQS delivers it again.
 - **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
   settled rows yet.
 
