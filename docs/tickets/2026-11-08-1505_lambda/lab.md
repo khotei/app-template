@@ -266,6 +266,12 @@ visible: `make test-e2e`, the `JobConsumer` cases
 outcome but success, an interrupt included, and fails unrun a reply it finds `preparing` or
 `generating` (`isStartedReply` in the message model), since the run that took it has died ·
 visible: `make test-unit`, the use case's cases
+[N:ai] piece 8c (the owner, in the chat): `JobConsumer.consume(definition, handle)`, no `fail`
+step and no `JobSteps`: any outcome of `handle` but success sets the job `failed`; a job found
+`running` runs `handle` again, which decides (the reply use case fails a started reply). The
+worker's route passes each use case's `generate`; `fail` leaves the reply use case's interface,
+its two tests with it, the die case asserting `ReplyFailed` · visible: `make test-e2e`, the
+`JobConsumer` cases
 
 ### Notes
 

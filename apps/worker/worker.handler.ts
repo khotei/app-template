@@ -12,9 +12,8 @@ import { JobConsumer } from '@app-template/kernel/job'
 import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
 
 /**
- * `POST /events`: the batch an SQS mapping invokes the worker with, run by the steps of the queue
- * it came from; a batch of a queue with none is a defect. A reply's failure fails its message
- * and chat; a title's leaves the chat untitled, which is harmless.
+ * `POST /events`: the batch an SQS mapping invokes the worker with, run by the use case of the
+ * queue it came from; a batch of a queue with none is a defect.
  */
 export const WorkerHandler = HttpRouter.use(
   Effect.fn(function* (router) {
@@ -26,15 +25,12 @@ export const WorkerHandler = HttpRouter.use(
     const consumers = {
       [buildResourceName(stage, assistantMessageQueue.name)]: consumer.consume(
         assistantMessageQueue,
-        {
-          handle: assistantMessage.generate,
-          fail: (job, cause) => assistantMessage.fail(job.messageId, cause),
-        },
+        assistantMessage.generate,
       ),
-      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(chatTitleQueue, {
-        handle: chatTitle.generate,
-        fail: () => Effect.void,
-      }),
+      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(
+        chatTitleQueue,
+        chatTitle.generate,
+      ),
     }
 
     yield* router.add(

@@ -50,7 +50,7 @@ function recordTitles() {
 }
 
 describe('POST /events', () => {
-  it.effect('runs a batch on the steps of the queue it came from', () => {
+  it.effect('runs a batch on the use case of the queue it came from', () => {
     const titles = recordTitles()
     const events = HttpRouter.serve(WorkerHandler).pipe(
       Layer.provideMerge(BunHttpServer.layerTest),

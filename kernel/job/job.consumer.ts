@@ -1,5 +1,5 @@
 import type { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Cause, Context, Effect, Exit, Layer, Result, Schema } from 'effect'
+import { Array as Arr, Context, Effect, Exit, Layer, Result, Schema } from 'effect'
 
 import type { JobEntity } from '@app-template/kernel/data'
 import { JobRepository } from '@app-template/kernel/data'
@@ -20,27 +20,21 @@ function isSettled(job: Job): boolean {
   return !Arr.contains(unsettledStatuses, job.status)
 }
 
-/** A queue's two steps: the job's work, and what settles it when the work fails. */
-export interface JobSteps<A, E, R> {
-  readonly handle: (job: A) => Effect.Effect<unknown, E, R>
-  readonly fail: (job: A, cause: Cause.Cause<unknown>) => Effect.Effect<unknown, E, R>
-}
-
 export class JobConsumer extends Context.Service<
   JobConsumer,
   {
     /**
-     * `QueueConsumer.consume` that runs each job once: a `queued` job is marked `running`, then
-     * `done` once `handle` succeeds, or `failed` after `fail` on any other outcome, an interrupt
-     * included; no failure is retried. A job found `running` was left by a process that died
-     * mid-work, so it gets `fail` and `failed` without `handle`; a settled job is acknowledged.
+     * `QueueConsumer.consume` that runs each job once: the job is marked `running`, then `done`
+     * once `handle` succeeds, or `failed` on any other outcome, an interrupt included; no failure
+     * is retried, and a settled job is acknowledged. A job found `running` was left by a process
+     * that died mid-work, so `handle` runs again and decides what its work left means.
      *
      * A body that does not decode never will, so its job fails at once, unrun and acknowledged:
      * its body stays in the row.
      */
     readonly consume: <A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
-      steps: JobSteps<A, E, R>,
+      handle: (job: A) => Effect.Effect<unknown, E, R>,
     ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
   }
 >()('@app-template/kernel/job/JobConsumer', {
@@ -54,15 +48,11 @@ export class JobConsumer extends Context.Service<
 
     function consume<A, I, E, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
-      steps: JobSteps<A, E, R>,
+      handle: (job: A) => Effect.Effect<unknown, E, R>,
     ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
       const decode = Schema.decodeEffect(
         Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
       )
-
-      function fail(job: Job, message: A, cause: Cause.Cause<unknown>) {
-        return steps.fail(message, cause).pipe(Effect.andThen(settle(job, 'failed')))
-      }
 
       return consumer.consume(
         definition,
@@ -78,21 +68,13 @@ export class JobConsumer extends Context.Service<
             yield* Effect.logError('job does not decode', decoded.failure)
             return yield* settle(job, 'failed')
           }
-          if (job.status === 'running') {
-            return yield* fail(job, decoded.success, Cause.die('the worker stopped mid-job'))
-          }
 
-          yield* jobs.update({ status: 'running' }, { id: [job.id], status: ['queued'] })
+          yield* jobs.update({ status: 'running' }, { id: [job.id], status: unsettledStatuses })
           // The settle runs uninterruptibly, so a stopping worker waits for it.
           yield* Effect.uninterruptibleMask((restore) =>
-            restore(steps.handle(decoded.success)).pipe(
+            restore(handle(decoded.success)).pipe(
               Effect.exit,
-              Effect.flatMap(
-                Exit.match({
-                  onSuccess: () => settle(job, 'done'),
-                  onFailure: (cause) => fail(job, decoded.success, cause),
-                }),
-              ),
+              Effect.flatMap((exit) => settle(job, Exit.isSuccess(exit) ? 'done' : 'failed')),
             ),
           )
         }),

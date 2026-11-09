@@ -62,14 +62,6 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     readonly generate: (
       job: GenerateAssistantMessage,
     ) => Effect.Effect<void, MessageStatusInvalidError | ChatStatusInvalidError>
-    /**
-     * Fails the message while it is active, with `cause` kept out of the user's sight, and
-     * answers the failed message; a missing or settled one is logged, skipped and answers none.
-     */
-    readonly fail: (
-      messageId: MessageId,
-      cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<Option.Option<Message>, MessageStatusInvalidError | ChatStatusInvalidError>
   }
 >()('@app-template/application/use-cases/chat/GenerateAssistantMessageUseCase', {
   make: Effect.gen(function* () {
@@ -170,17 +162,12 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         Effect.filterOrFail(isActiveMessage, () => new ReplySkipped({ why: 'alreadySettled' })),
       )
 
-    const fail = Effect.fn('GenerateAssistantMessageUseCase.fail')(
+    const fail = Effect.fnUntraced(
       function* (messageId: MessageId, cause: Cause.Cause<unknown>) {
         const active = yield* selectActive(messageId)
-        return yield* settleFailed(active, {
-          reason: 'ReplyFailed',
-          cause: Cause.pretty(cause),
-        }).pipe(Effect.asSome)
+        yield* settleFailed(active, { reason: 'ReplyFailed', cause: Cause.pretty(cause) })
       },
-      Effect.catchTag('ReplySkipped', ({ why }) =>
-        replySkipLogs[why].pipe(Effect.as(Option.none<Message>())),
-      ),
+      Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
     )
 
     const answer = Effect.fnUntraced(function* (active: Message) {
@@ -206,7 +193,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
     )
 
-    return { generate, fail }
+    return { generate }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

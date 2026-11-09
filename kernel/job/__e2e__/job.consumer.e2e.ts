@@ -58,7 +58,6 @@ describe('JobConsumer.consume', () => {
     readonly status: 'queued' | 'running' | 'done'
     readonly outcome: Effect.Effect<void, string>
     readonly runs: number
-    readonly fails: number
     readonly settled: 'done' | 'failed'
   }>([
     {
@@ -66,7 +65,6 @@ describe('JobConsumer.consume', () => {
       status: 'queued',
       outcome: Effect.void,
       runs: 1,
-      fails: 0,
       settled: 'done',
     },
     {
@@ -74,42 +72,36 @@ describe('JobConsumer.consume', () => {
       status: 'queued',
       outcome: Effect.fail('boom'),
       runs: 1,
-      fails: 1,
       settled: 'failed',
     },
     {
       name: 'a job its process left running',
       status: 'running',
       outcome: Effect.void,
-      runs: 0,
-      fails: 1,
-      settled: 'failed',
+      runs: 1,
+      settled: 'done',
     },
     {
       name: 'a redelivered done job',
       status: 'done',
       outcome: Effect.void,
       runs: 0,
-      fails: 0,
       settled: 'done',
     },
   ])(
-    '$name runs $runs times, fails $fails times, ends $settled and is never retried',
-    ({ status, outcome, runs, fails, settled }) =>
+    '$name runs $runs times, ends $settled and is never retried',
+    ({ status, outcome, runs, settled }) =>
       Effect.gen(function* () {
         const consumer = yield* JobConsumer
         const ran = yield* Ref.make(0)
-        const failed = yield* Ref.make(0)
         yield* insertJob(status)
 
-        const response = yield* consumer.consume(sampleJobQueue, {
-          handle: () => Ref.update(ran, (n) => n + 1).pipe(Effect.andThen(outcome)),
-          fail: () => Ref.update(failed, (n) => n + 1),
-        })(buildEvent())
+        const response = yield* consumer.consume(sampleJobQueue, () =>
+          Ref.update(ran, (n) => n + 1).pipe(Effect.andThen(outcome)),
+        )(buildEvent())
 
         assert.deepStrictEqual(response, { batchItemFailures: [] })
         assert.strictEqual(yield* Ref.get(ran), runs)
-        assert.strictEqual(yield* Ref.get(failed), fails)
         assert.deepStrictEqual(yield* selectStatus, Option.some(settled))
       }).pipe(Effect.provide(JobConsumerTest)),
   )
@@ -120,10 +112,9 @@ describe('JobConsumer.consume', () => {
       const seen = yield* Ref.make(Option.none<string>())
       yield* insertJob('queued')
 
-      yield* consumer.consume(sampleJobQueue, {
-        handle: () => selectStatus.pipe(Effect.flatMap((status) => Ref.set(seen, status))),
-        fail: () => Effect.void,
-      })(buildEvent())
+      yield* consumer.consume(sampleJobQueue, () =>
+        selectStatus.pipe(Effect.flatMap((status) => Ref.set(seen, status))),
+      )(buildEvent())
 
       assert.deepStrictEqual(yield* Ref.get(seen), Option.some('running'))
     }).pipe(Effect.provide(JobConsumerTest)),
@@ -134,10 +125,9 @@ describe('JobConsumer.consume', () => {
       const consumer = yield* JobConsumer
       yield* insertJob('queued')
 
-      const response = yield* consumer.consume(sampleJobQueue, {
-        handle: () => Effect.die('handler ran'),
-        fail: () => Effect.die('fail ran'),
-      })(buildEvent('{"chatId":1}'))
+      const response = yield* consumer.consume(sampleJobQueue, () => Effect.die('handler ran'))(
+        buildEvent('{"chatId":1}'),
+      )
 
       assert.deepStrictEqual(response, { batchItemFailures: [] })
       assert.deepStrictEqual(yield* selectStatus, Option.some('failed'))

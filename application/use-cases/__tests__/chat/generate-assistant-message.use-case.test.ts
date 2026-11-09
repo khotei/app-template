@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Cause, DateTime, Effect, Exit, Fiber, Layer, Option, Stream } from 'effect'
+import { DateTime, Effect, Exit, Fiber, Layer, Option, Stream } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -114,9 +114,6 @@ const job = new GenerateAssistantMessage({
 
 const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
 
-const fail = (cause: Cause.Cause<unknown>) =>
-  GenerateAssistantMessageUseCase.use((useCase) => useCase.fail(messageId, cause))
-
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(
     "generate moves the reply through preparing and generating with no text, then completes it with the reply's text in one write, and moves the chat to the completion",
@@ -161,6 +158,7 @@ describe('GenerateAssistantMessageUseCase', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assert.strictEqual(reply.status, 'failed')
+      assert.strictEqual(Option.getOrThrow(reply.error).reason, 'ReplyFailed')
       assert.include(Option.getOrThrow(reply.error).cause, 'provider exploded')
       assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'failed' })))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
@@ -330,48 +328,6 @@ describe('GenerateAssistantMessageUseCase', () => {
 
       assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
-    }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
-  })
-
-  it.live(
-    "fail fails an active reply with the reason, keeping the cause out of the user's message, and moves the chat",
-    () => {
-      const assistant = recordAssistant({})
-      return Effect.gen(function* () {
-        yield* insertMessages([queuedReply])
-
-        const failed = Option.getOrThrow(yield* fail(Cause.die(new Error('provider exploded'))))
-
-        assertEquals(yield* selectMessage(messageId), Option.some(failed))
-        const error = Option.getOrThrow(failed.error)
-        assert.strictEqual(failed.status, 'failed')
-        assert.deepStrictEqual(
-          [error.reason, error.message],
-          ['ReplyFailed', 'The assistant could not reply. Please try again.'],
-        )
-        assert.include(error.cause, 'provider exploded')
-        assert.notInclude(error.message, 'provider exploded')
-        assert.isTrue(DateTime.isGreaterThan(failed.updatedAt, epoch))
-        assertEquals(
-          yield* selectChat(chatId),
-          Option.some(new Chat({ ...chat, status: 'failed' })),
-        )
-      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
-    },
-  )
-
-  it.effect('fail leaves a settled reply and logs the skip', () => {
-    const assistant = recordAssistant({})
-    const { logs, layer: logger } = recordLogs()
-    return Effect.gen(function* () {
-      yield* insertMessages([asCompleted(queuedReply, 'Done.')])
-
-      const failed = yield* fail(Cause.die(new Error('provider exploded')))
-
-      assertEquals(failed, Option.none())
-      assertEquals(yield* selectMessage(messageId), Option.some(asCompleted(queuedReply, 'Done.')))
-      assertEquals(yield* selectChat(chatId), Option.some(queuedChat))
-      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 })
