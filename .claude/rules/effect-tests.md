@@ -17,7 +17,7 @@ Where each kind of test and its support live, and what a test may import:
   support itself (a fake, a test layer).
 - A rule once, at the lowest seam that owns it: a pure domain function before a domain service,
   a domain service before a use case, a use case before a handler. A handler test checks only what
-  its app adds: a status, a cookie, the shape on the wire, the last attempt.
+  its app adds: a status, a cookie, the shape on the wire.
 - Never assert what the code leaves undefined, such as the order of rows with equal timestamps.
 
 ## Unit and e2e

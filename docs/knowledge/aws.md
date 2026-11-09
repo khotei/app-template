@@ -83,7 +83,7 @@ identifier and carrying its logical `name`. Physical names are `buildResourceNam
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | a bucket | its `lifecycle` days | the bucket and its lifecycle rules; the attachments' bucket expires the objects carrying the data layer's `unboundTag` (`unbound=true`) and aborts incomplete multipart uploads. |
-| a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
+| a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with
@@ -100,7 +100,7 @@ queue in place.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/services/<model>.queue.ts`, reading
-   `name` and `maxAttempts` from the entry; for a bucket, `S3BucketFromConfig` reads it from
+   `name` from the entry; for a bucket, `S3BucketFromConfig` reads it from
    `resources.buckets`.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
@@ -145,7 +145,7 @@ before the row that binds them and deletes them once the rows are gone.
 
 ## Queues
 
-`QueueSender` and `QueueConsumer` (`packages/queue`) are the two sides of SQS; `JobSender` and
+`QueueSender` and `consumeBatch` (`packages/queue`) are the two sides of SQS; `JobSender` and
 `JobConsumer` in `kernel/job` wrap them with the job's row in `jobs`
 ([database.md › The outbox](database.md#the-outbox)). A definition's queue is
 `buildResourceName(STAGE, definition.name)`.
@@ -155,27 +155,27 @@ before the row that binds them and deletes them once the rows are gone.
   goes to the worker's `POST /events` on the host (`MINISTACK_LAMBDA_PROXY_URL`), the request
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`; a queue with no consumer answers `500`, a deployment bug.
-- **Delivery is at-least-once** (`AttemptInfo.jobId`): a delivery of a job already `done` or
-  `failed` is acknowledged without its handler, and the handlers skip a settled reply and a
-  titled chat.
-- **An attempt is a delivery.** The attempt number is SQS's `ApproximateReceiveCount`; the last
-  attempt is the definition's `maxAttempts`, the inventory's `maxReceiveCount`. A queue hides a
-  delivered message for the worker function's timeout, 60 s, since AWS refuses a mapping on a
-  queue that hides it less.
-- **A failure stays on the queue.** A record whose handler fails is answered in
-  `batchItemFailures` and hidden for its `retryDelay`; on the last attempt it is made visible at
-  once, so the next receive redrives it to `<queue>-dlq`. A failed visibility change is only
-  logged: the record returns after the queue's own 60 s. A job whose body does not decode is
-  failed at once and its record acknowledged ([database.md › The outbox](database.md#the-outbox)).
-- **Nothing consumes a dead-letter queue.** A reply's last attempt writes `failed` on any outcome
-  but success; a reply that no attempt settles stays active
+- **A job runs once.** `JobConsumer` fails a job on any outcome of its handler but success and
+  acknowledges its record; nothing is retried. A job whose body does not decode is failed at once
+  ([database.md › The outbox](database.md#the-outbox)).
+- **Delivery is at-least-once** (the message attribute `jobId`): a delivery of a job already
+  `done` or `failed` is acknowledged without its handler. One found `running` runs its handler
+  again: the reply's use case fails a reply it finds started, so a copy delivered while the first
+  still runs fails a live reply, a rare case accepted.
+- **Only a defect returns to the queue.** A record whose handling dies before its job settles (a
+  row its commit has not shown yet, a process that dies) is answered in `batchItemFailures`, or
+  not answered at all; SQS delivers it again once the queue's visibility timeout, the worker
+  function's 60 s, has passed, and after `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. AWS
+  refuses a mapping on a queue that hides a message less than its function's timeout.
+- **Nothing consumes a dead-letter queue.** A reply's run writes `failed` on any outcome but
+  success; one that no run settles stays active
   ([database.md › Stuck replies](database.md#stuck-replies)).
 - **AWS differs in one status.** MiniStack counts any non-2xx answer as a failed invoke; Lambda
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 
-The consumer's suite runs over `Layer.mock(SQSService, …)`; a worker handler's calls its `handle`
-with plain `AttemptInfo` values over the memory layers, so the last attempt needs no queue.
+`consumeBatch` is a plain function over an event, so its suite needs no SQS; `JobConsumer`'s cases
+run on the e2e database with no queue.
 
 ## Tests on Docker
 

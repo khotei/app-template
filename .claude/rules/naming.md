@@ -28,7 +28,7 @@ its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<layer>-<model>.service.ts` for one layered over it, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
-| `.handler` | api: one contract group's handlers · worker: `<object>.handler.ts`, one queue's |
+| `.handler` | api: one contract group's handlers · worker: its one route, each queue's use case |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
 | `.table` · `.entity` | a table · `<Name>Entity` with its `Insert`, `Where` and `Set`, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
 | `.mapper` | `<Model>FromEntity`, an entity's codec into a model · api: `buildApi<Model>`, a model handed to its wire shape, one per response model |

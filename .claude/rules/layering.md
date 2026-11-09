@@ -57,9 +57,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   through its `buildApi<Model>` and fails with the domain's errors as they are. It holds no rule
   and imports no repository, `<Model>FromEntity` or data layer: only the process's `layer.ts`
   provides them.
-- A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
-  use case's work, then its failure on the last attempt's cause; the use case never sees the
-  attempt.
+- A job runs once, unretried: a use case a job runs ends its own work on any outcome but
+  success, an interrupt included, and work it finds started was left by a run that died.
 
 ## Concurrency
 

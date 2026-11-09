@@ -188,8 +188,8 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   status, text, error and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case
   passes the encoded message as the set, and its id and the stored status to match as the
   `MessageEntityWhere`, so a write whose expected status another writer has left, or whose
-  message is gone, changes nothing and dies; the job's retry then reads the message and skips it
-  as settled or deleted.
+  message is gone, changes nothing and dies; the use case then reads the message and skips it as
+  settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
   `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
@@ -201,7 +201,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   write nothing. A status move writes the status alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
-    none`, so a rename landing between the two wins and the job dies and retries.
+    none`, so a rename landing between the two wins and the title job dies and fails.
   - The send reads its attachments through `LiveAttachmentService.getMany`, which takes no lock
     and reads no bytes; the send then refuses one whose bytes the store no longer has
     (`AttachmentNotFoundError`) and a bound one (`bindAttachment`), both before its first write;
@@ -244,11 +244,12 @@ finds. SQS is reached only through the table `jobs`, whose rows join it.
 
 ## Stuck replies
 
-A reply that no attempt settles stays active and its chat `queued`, so every next send to the chat
-fails `ChatBusyError`: a killed process, a store failing the last write, or a last attempt the
-function's timeout cuts off leaves it so, and nothing consumes the dead-letter queue
-([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
-not tell a dead reply from one waiting in a backlog.
+A reply that no run settles stays active and its chat `queued`, so every next send to the chat
+fails `ChatBusyError`. A run that dies (a killed process, the function's timeout) is settled by
+the next delivery, which finds the job `running` and the reply started, and fails it; a store
+failing the `failed` write, or a job whose every delivery dies, leaves it so, and nothing
+consumes the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active messages
+exists: by age alone it could not tell a dead reply from one waiting in a backlog.
 
 ## The outbox
 
@@ -264,14 +265,16 @@ so a rollback keeps no job and a commit never stands without one
   attribute `jobId`. A use case sends its jobs after its other writes.
 - **A send SQS refuses is a defect,** so the transaction rolls back and the api answers its bare
   `500`, keeping no message and no job. SQS may deliver a job before the commit shows its row:
-  the worker reads none, a defect, and SQS retries it.
+  the worker reads none, a defect, and SQS delivers it again.
 - **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
   an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
   string to parse.
-- **`JobConsumer`** marks the row `running` before its handler, then `done`, `failed` on the last
-  attempt, or `queued` again for the retry. It writes only from `queued` or `running`, so
-  a settled job never moves back; a delivery of a settled job is acknowledged without its
-  handler, and a message whose row is missing is a defect that SQS retries, then dead-letters.
+- **`JobConsumer`** marks the row `running` before its handler, then `done` on success or
+  `failed` on any other outcome, an interrupt included; nothing is retried. A job found `running`
+  was left by a run that died, so its handler runs again and decides. It writes only from
+  `queued` or `running`, so a settled job never moves back; a delivery of a settled job is
+  acknowledged without its handler, and a message whose row is missing is a defect that SQS
+  delivers again, then dead-letters.
   `JobConsumer` decodes the body itself: one that does not decode never will, so its job is
   `failed` at once, unrun, and its record acknowledged; the body stays in the row.
 - **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes

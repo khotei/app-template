@@ -71,9 +71,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 - **Unit and e2e: only our code is under test.** A unit test runs our domain services, use cases
   and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
-  transaction or the journey on the run's containers; among them is the queue's own suite, which
-  tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's real
-  delays. What each kind checks and how to write it:
+  transaction or the journey on the run's containers. What each kind checks and how to write it:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/` and
   its e2e in `__e2e__/`, at its top, but for the test app `apps/e2e`, which is all e2e; a test
@@ -107,7 +105,7 @@ Which suite runs where:
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; a worker handler over its use case's test layer |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; the worker's route over mocks of its use cases and the job table |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's

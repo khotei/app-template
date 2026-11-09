@@ -58,8 +58,8 @@ The e2e journey runs no language model: its stand gives the worker a scripted `A
 
 `AssistantLlmFromConfig` retries in place what a retry can fix and lets only a final failure out of
 the port, as `AssistantRefusedError` or `AssistantFailedError`; the use cases turn them into a
-`failed` message (`ReplyRefused` or `ReplyFailed`) or an untitled chat. The queue's own retries
-cover crashes only.
+`failed` message (`ReplyRefused` or `ReplyFailed`) or an untitled chat. A job is never retried
+([aws.md › Queues](aws.md#queues)).
 
 | `AiError` reason | Retried |
 |---|---|

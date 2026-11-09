@@ -277,6 +277,11 @@ its two tests with it, the die case asserting `ReplyFailed` · visible: `make te
 `QueueConsumer` becomes the plain `consumeBatch(handle)(event)`, `handle(body, jobId)`, a failure
 a `batchItemFailures` entry; `JobConsumer` and the worker need no SQS; both queues'
 `maxReceiveCount` is 3 · visible: `make check`, `bunx vitest run --project unit packages/queue`
+[N:ai] piece 8e: the docs say a job runs once: `layering.md` (a use case a job runs ends its own
+work), `naming.md`'s `.handler` row, `effect-tests.md`, `aws.md › Queues` (only a defect returns
+to the queue), `database.md › The outbox` and `Stuck replies` (a dead run is failed on
+redelivery), `decisions.md › Jobs as a table` (retries join Rejected, a duplicate joins Cost),
+`ai.md`, `architecture.md`, `tooling.md`; Knowledge · visible: `make doc-lint`
 
 ### Notes
 
@@ -338,6 +343,9 @@ memory or a kill, and no dead-letter consumer exists since L1.9. The same case a
 the reply active (`database.md › Stuck replies`). Options: record it in `decisions.md › Jobs as
 a table` as a known gap, no code; or a dead-letter consumer that marks the row and the reply
 `failed`, about 40 lines and a mapping per dead-letter queue.
+  [N:ai] Since piece 8c a dying process answers no batch, so SQS delivers it again and the job,
+  found `running`, runs its handler, which fails the started reply; only a job whose every
+  delivery dies stays `running` (`database.md › Stuck replies`).
 [D:ai] Two copies of one message delivered at once both run the handler
 (`kernel/job/job.consumer.ts:52-56`, claimed): both read `queued`, both move it `running`; the
 first settles `done`, the second's settle matches no row and dies, so its success counts as a
@@ -346,6 +354,9 @@ SQS standard queues deliver at least once, a duplicate at the same instant is ra
 record it as accepted; or claim with `{ status: ['queued'] }` only, the losing copy acknowledged
 unrun, which needs the previous finding settled first, since a crashed attempt leaves `running`
 and its retry would then never run.
+  [N:ai] Recorded as accepted in `decisions.md › Jobs as a table` (Cost) and `aws.md › Queues`,
+  the owner's "accept and record"; since piece 8c the second copy finds the job `running` and
+  fails a live reply.
 [D:ai] `JobRepository` has no memory layer, so `apps/worker/__tests__/worker.handler.test.ts:28`
 hand-writes `Layer.mock(JobRepository, …)` answering one queued row for every id (Standards,
 judgement; `effect-tests.md`: a further fake only wraps a memory layer). Without the fix the
@@ -430,11 +441,13 @@ empty key stops the worker at start with a `ConfigError`. The e2e give `WorkerPr
 - A job is written `queued` and sent to SQS last in the use case's transaction; a send SQS
   refuses rolls it back and the api answers `500`: no `idle`, no sweep, no send after the commit
   (L2, the owner's variant A).
-- A job's statuses are `queued`, `running`, `done`, `failed`; `failed` is set once the last
-  attempt fails, or at once when its body does not decode, `queued` again before a retry (L1,
-  L2).
-- The worker answers SQS through `QueueConsumer.consume(definition, handle)(event)`, returning
-  `{ batchItemFailures }` (L1).
+- A job's statuses are `queued`, `running`, `done`, `failed` (L1, L2).
+- A job runs once, unretried: any outcome of its handler but success, or a body that does not
+  decode, sets it `failed`; a job found `running` runs its handler again, which decides; each
+  use case fails its own work (L2, the owner: "if error -> fail").
+- The worker answers SQS through `JobConsumer.consume(definition, handle)`, over
+  `consumeBatch(handle)(event)` in `packages/queue`, returning `{ batchItemFailures }`; only a
+  defect lands there, and SQS redelivers it up to 3 receives (L1, L2).
 
 - dev and prod call only Anthropic; no stub and no `LLM_PROVIDER`; an empty key stops the worker
   at start (L5).
