@@ -5,8 +5,8 @@ import { Cookies, HttpClient } from 'effect/http'
 import { CurrentReplyProvenanceTest } from '@app-template/application/chat/testing'
 import { ApiClient } from '@app-template/http-api'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
-import { recordJobs } from '@app-template/kernel/job/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
+import { recordMessages } from '@app-template/packages/queue/testing'
 
 import { ApiHttp } from '#api/layer'
 
@@ -19,7 +19,7 @@ export { ApiLayer } from '#api/layer'
  * the repositories stay in context for arranging what only the worker writes.
  */
 export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([TransactionTest, recordJobs().layer, CurrentReplyProvenanceTest]),
+  Layer.provide([TransactionTest, recordMessages().layer, CurrentReplyProvenanceTest]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(RepositoryStackTest),
   Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),

@@ -9,7 +9,6 @@ import {
   AttachmentId,
   assistantMessageQueue,
   type ChatId,
-  GenerateAssistantMessage,
   type MessageId,
 } from '@app-template/application/chat'
 import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
@@ -54,9 +53,6 @@ const uploadPhoto = ApiClient.use((api) =>
     .pipe(Effect.head),
 )
 
-const selectJobsOf = (chatId: ChatId) =>
-  SqlClient.SqlClient.use((sql) => sql`select queue from jobs where body->>'chatId' = ${chatId}`)
-
 /** The api answers a defect, such as a write Postgres refuses, with a bare `500`. */
 const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
   Option.fromUndefinedOr(error.response).pipe(Option.exists(({ status }) => status === 500))
@@ -84,20 +80,10 @@ const sendRacing = (chatId: ChatId, attachmentIds: ReadonlyArray<AttachmentId>) 
     ),
   )
 
-const ReplyJobRows = Schema.Tuple([
-  Schema.Struct({ body: Schema.toCodecJson(GenerateAssistantMessage) }),
-])
-
-const selectReplyJob = (chatId: ChatId) =>
-  SqlClient.SqlClient.use(
-    (sql) =>
-      sql`select body from jobs where queue = 'assistant-message' and body->>'chatId' = ${chatId}`,
-  ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(ReplyJobRows)))
-
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect(
-      "a sent message with an upload is answered and titled by the worker, its reply job keeps the api's provenance, and its delete removes the object",
+      'a sent message with an upload is answered and titled by the worker, and its delete removes the object',
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -128,10 +114,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             Arr.map(asked.attachments, ({ id }) => id),
             [uploaded.id],
           )
-          const [{ body: replyJob }] = yield* selectReplyJob(chat.id)
-          const provenance = Option.getOrThrow(replyJob.provenance)
-          assert.deepInclude(provenance, { provider: 'anthropic', model: 'e2e-reply' })
-          assert.match(provenance.instructionsHash, /^[0-9a-f]{64}$/)
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* files.selectOne({ id: uploaded.id })
@@ -164,7 +146,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           .pipe(Effect.flip)
 
         const stored = yield* selectMessages(chat.id)
-        const rows = yield* selectJobsOf(chat.id)
 
         assertSchemaEquals(
           AttachmentNotFoundError,
@@ -172,7 +153,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           new AttachmentNotFoundError({ ids: [stale] }),
         )
         assert.deepStrictEqual(stored, [])
-        assert.deepStrictEqual(rows, [])
       }),
     )
 
@@ -257,7 +237,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 // Each case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
 describe('a write Postgres refuses, through the api', () => {
   it.live(
-    'a send whose title job is refused leaves no message, no bind, no chat change and no job',
+    'a send whose reply is refused leaves no message, no bind and no chat change',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
@@ -267,9 +247,9 @@ describe('a write Postgres refuses, through the api', () => {
         const photo = yield* uploadPhoto
         const created = yield* api.chats.get({ params: { chatId: chat.id } })
         const unbound = yield* api.attachments.get({ params: { attachmentId: photo.id } })
-        // The title job is the last write of a chat's first send; all the others precede it.
+        // The reply is the last write of a send; all the others precede it.
         yield* client
-          .unsafe(`ALTER TABLE jobs ADD CONSTRAINT refuse_title CHECK (queue <> 'chat-title')`)
+          .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
           .pipe(Effect.orDie)
 
         const outcome = yield* api.chats
@@ -291,7 +271,6 @@ describe('a write Postgres refuses, through the api', () => {
           unbound,
         )
         assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
-        assert.deepStrictEqual(yield* selectJobsOf(chat.id), [])
       }).pipe(Effect.provide(StandTest)),
     30_000,
   )
@@ -383,7 +362,7 @@ describe('a write Postgres refuses, through the api', () => {
 
 describe('a send SQS refuses, through the api', () => {
   it.live(
-    'a send whose reply queue is gone answers 500 and keeps no message, no chat change and no job',
+    'a send whose reply queue is gone answers 500 and keeps no message and no chat change',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
@@ -412,7 +391,6 @@ describe('a send SQS refuses, through the api', () => {
         assert.strictEqual(outcome, 'refused')
         assert.deepStrictEqual(yield* selectMessages(chat.id), [])
         assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
-        assert.deepStrictEqual(yield* selectJobsOf(chat.id), [])
       }).pipe(Effect.provide(StandTest)),
     30_000,
   )

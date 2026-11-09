@@ -30,7 +30,7 @@ import {
   upload,
 } from '@app-template/application/chat/testing'
 import { ChatRepository, FileRepository } from '@app-template/kernel/data'
-import { recordJobs } from '@app-template/kernel/job/testing'
+import { recordMessages } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatTest } from '#testing/use-cases/chat.test-layer'
@@ -52,7 +52,7 @@ const settle = (message: Message) =>
 
 const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
-  job: new GenerateAssistantMessage({
+  message: new GenerateAssistantMessage({
     chatId: chat.id,
     messageId,
     provenance: Option.some(replyProvenance),
@@ -63,7 +63,7 @@ describe('CreateUserMessageUseCase', () => {
   it.live(
     'create stores the user message with its attachments bound and a queued reply, and queues the chat keeping its title',
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const chats = yield* ChatRepository
         const createUserMessage = yield* CreateUserMessageUseCase
@@ -126,7 +126,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     "the first create queues the reply job with the process's provenance and the title job, a later one the reply only",
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
 
@@ -142,7 +142,7 @@ describe('CreateUserMessageUseCase', () => {
           replyJob(first.assistantMessage.id),
           {
             queue: 'chat-title',
-            job: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessage.id }),
+            message: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessage.id }),
           },
           replyJob(second.assistantMessage.id),
         ])
@@ -151,7 +151,7 @@ describe('CreateUserMessageUseCase', () => {
   )
 
   it.effect('create while a reply runs is ChatBusyError before any message or job', () => {
-    const jobs = recordJobs()
+    const jobs = recordMessages()
     return Effect.gen(function* () {
       const createUserMessage = yield* CreateUserMessageUseCase
       yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
@@ -169,7 +169,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     'create with an attachment bound already is AttachmentBoundError before any message',
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
         const photo = yield* upload(owner)
@@ -192,7 +192,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     "create with another user's attachment is AttachmentNotFoundError before any message or job",
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
         const photo = yield* upload(stranger)
@@ -216,7 +216,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     'create with an attachment whose bytes are gone is AttachmentNotFoundError before any message or bind',
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const files = yield* FileRepository
         const createUserMessage = yield* CreateUserMessageUseCase

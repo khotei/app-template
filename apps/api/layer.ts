@@ -13,7 +13,11 @@ import {
 import { UserService } from '@app-template/application/identity'
 import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
 import { Api } from '@app-template/http-api'
-import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
+import {
+  QueueSenderOfStage,
+  S3BucketFromConfig,
+  SQSServiceFromConfig,
+} from '@app-template/kernel/aws'
 import {
   ApiConfig,
   AwsConfig,
@@ -25,11 +29,9 @@ import {
   ChatRepository,
   Db,
   FileRepository,
-  JobRepository,
   MessageRepository,
   UserRepository,
 } from '@app-template/kernel/data'
-import { JobSender } from '@app-template/kernel/job'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
@@ -63,13 +65,12 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([JobSender.layer, Transaction.layer, CurrentReplyProvenanceFromConfig]),
+  Layer.provide([QueueSenderOfStage, Transaction.layer, CurrentReplyProvenanceFromConfig]),
   Layer.provide([
     UserRepository.layer,
     ChatRepository.layer,
     MessageRepository.layer,
     AttachmentRepository.layer,
-    JobRepository.layer,
     FileRepository.layer,
   ]),
   Layer.provide(Db.layer),

@@ -127,7 +127,7 @@ Both live beside `AssistantLlmFromConfig`: `systemPrompt` and `ReplyAnswer`.
 
 Either change moves the instructions hash, the SHA-256 of the system prompt and the reply
 schema's JSON Schema document, which the api writes into each reply's job as its provenance
-(**Provenance** in [glossary.md](glossary.md)). Operators read it from the table `jobs` to tell
+(**Provenance** in [glossary.md](glossary.md)). No record keeps it yet, so operators cannot tell
 which replies were asked under which instructions.
 
 ## The modules of `effect/ai`

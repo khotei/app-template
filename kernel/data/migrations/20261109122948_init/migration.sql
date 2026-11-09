@@ -1,7 +1,6 @@
 CREATE TYPE "chat_status" AS ENUM('idle', 'queued', 'failed');--> statement-breakpoint
 CREATE TYPE "message_author" AS ENUM('user', 'assistant');--> statement-breakpoint
 CREATE TYPE "message_status" AS ENUM('queued', 'preparing', 'generating', 'done', 'failed');--> statement-breakpoint
-CREATE TYPE "job_status" AS ENUM('queued', 'running', 'done', 'failed');--> statement-breakpoint
 CREATE TYPE "credential_kind" AS ENUM('secret');--> statement-breakpoint
 CREATE TABLE "attachments" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -38,14 +37,6 @@ CREATE TABLE "messages" (
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "messages_id_chat_id_unique" UNIQUE("id","chat_id")
-);
---> statement-breakpoint
-CREATE TABLE "jobs" (
-	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
-	"queue" text NOT NULL,
-	"body" jsonb NOT NULL,
-	"status" "job_status" NOT NULL,
-	"created_at" timestamp with time zone NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "credentials" (

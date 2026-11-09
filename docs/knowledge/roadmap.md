@@ -679,7 +679,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   module's reaction to another's write. `Status` belongs to `chat` (the chat's and the message's
   states); the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for
   a job and "reply in work" for a message. The statuses rewrite
-  [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer), whose
+  [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose
   *Revisit when* names this ticket.
 - **Inherits from `lambda` (2026-11-09).** A reply that never settles leaves its chat `queued`
   for good, so every next send fails `ChatBusyError`: a job whose body no longer decodes is
@@ -917,7 +917,7 @@ For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-code
 ### Queue on SQS or in Postgres
 
 For `jobs` (22) and `aws-deployment` (9), and the record
-[Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer).
+[Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
   the jobs in a Postgres table and replaces our queue: `packages/queue` (`QueueConsumer`,

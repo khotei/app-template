@@ -22,7 +22,7 @@ copied and changed.
 ## ✨ What the example does
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
-the assistant answers. The api writes the message and its jobs in one transaction, sends the jobs
+the assistant answers. The api writes the message and its reply in one transaction, sends the jobs
 to SQS before it commits and answers `202`; SQS invokes the worker through a Lambda function's
 mapping, and the worker writes the model's whole reply into the message and titles the chat;
 the client polls the message until it is `done` or `failed`. The language model is Anthropic's.
@@ -36,7 +36,7 @@ sequenceDiagram
   participant Q as SQS (MiniStack)
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
-  A->>S: one transaction: user message, queued assistant message, jobs
+  A->>S: one transaction: user message, queued assistant message
   A->>Q: last in the transaction: assistant-message job (+ chat-title job on the first message)
   A-->>W: 202
   Q->>K: a Lambda mapping posts the batch to POST /events
@@ -45,7 +45,7 @@ sequenceDiagram
 ```
 
 How the transaction and the jobs work:
-[database.md › The outbox](docs/knowledge/database.md#the-outbox),
+[database.md › The sends](docs/knowledge/database.md#the-sends),
 [aws.md › Queues](docs/knowledge/aws.md#queues).
 
 ## 🚀 Quick start
@@ -127,7 +127,7 @@ server module in the browser's bundle. The rules a change most often breaks:
 - no rule outside the modules
   ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));
 - no lock but a guard in the write ([database.md › Guards](docs/knowledge/database.md#guards));
-- no message without its job ([database.md › The outbox](docs/knowledge/database.md#the-outbox));
+- no message without its job ([database.md › The sends](docs/knowledge/database.md#the-sends));
 - no service in the browser
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
 

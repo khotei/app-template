@@ -18,7 +18,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | Step | Goal | Kind | Status |
 |---|---|---|---|
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | learn | done |
-| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | build | todo |
+| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | build | in progress |
 | L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | build | todo |
 | L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | build | todo |
 | L5 | A chat's messages with their Runs, a Run's state with its assistant message, and a retry after a failed Run, through the api | build | todo |
@@ -106,6 +106,15 @@ decode in `packages/queue` and `JobConsumer` gone; L2.6 the encode there, `kerne
 `jobs` table gone; L2.7 the send after the commit, `202` with the failed reply. Until L2.7 a
 delivery before the commit finds no message and is skipped as a deleted chat, on this branch
 only.
+[N:ai] L2.7 is 130 added lines of code (renames counted as renames), over the 100 of rail 4; the
+callers' switch to `QueueSender` and the moved e2e make most of it.
+[N:ai] L2.7: the journey `a sent message with an upload is answered and titled by the worker`
+timed out once in 9 runs of `make test-e2e` (15 s poll), green alone 3 of 3. I assume the
+delivery before the commit, skipped as a deleted chat; no log confirms it. L2.8 removes that
+path.
+[Q:ai] L2.7: with `jobs` gone, no record keeps a reply's provenance until L4 puts it on the Run
+(`docs/knowledge/ai.md` now says so); the journey's provenance check went with the table. Keep
+the gap on this branch, or log the provenance in the reply's use case until L4 (about 2 lines)?
 
 ### Pieces
 
@@ -123,6 +132,11 @@ packages/queue/__tests__/queue.consumer.test.ts apps/worker/__tests__/worker.han
 a handler of `QueueConsumer` has no error channel, so its use case settles a failure itself and
 only a defect returns the record; the reply's use case logs a status the model refused · visible:
 the same command, the dying handler's record answered
+[N:ai] L2.7 `QueueSender.send(definition, message)` encodes by the definition, with no `jobId`;
+`QueueSenderOfStage` in `kernel/aws` names the stage's queue; `kernel/job`, `kernel/data/job` and
+the `jobs` table gone (`init` regenerated); the send stays last in the transaction, a refused one
+a defect, until L2.8 · visible: `bun --bun vitest run --project e2e
+kernel/aws/__e2e__/queue.sender.e2e.ts apps/e2e` (2 + 9 cases)
 
 ### Output
 

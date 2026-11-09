@@ -42,7 +42,7 @@ _Avoid_: Pending message, current reply
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
 `preparing` and `generating` run it in stages, `running` in one, `done` and `failed` end it.
-Every model with a status picks its subset of `Status` (the chat, the message, the job), and a
+Every model with a status picks its subset of `Status` (the chat, the message), and a
 check on one value reads the shared predicate.
 _Avoid_: State, stage, in progress; a new word for one of the seven
 
@@ -69,7 +69,7 @@ _Avoid_: Bot, AI, agent, model
 **Provenance**:
 Who the api expects to answer a reply and with which instructions: the configured provider and
 reply model and a hash of the system prompt with the reply schema. It travels in the reply's job
-and stays in the table `jobs` once sent; the message never carries it, and the worker may run
+alone, and no record keeps it; the message never carries it, and the worker may run
 another language model while a deploy rolls out. For operators only; no api response carries it.
 _Avoid_: Metadata, model info, source, origin
 
@@ -153,11 +153,6 @@ _Avoid_: Manager, helper, application service, business logic, service layer
 **Handler**:
 The entry point of one request or one job in an app.
 _Avoid_: Controller, consumer, processor, endpoint
-
-**Outbox**:
-The pattern by which a use case writes its jobs to the table `jobs`, in the transaction of the
-records they read, and sends them to SQS before it commits.
-_Avoid_: Event table, queue table
 
 **Job**:
 A message on a queue that asks the worker for one unit of work, shaped by its queue definition.

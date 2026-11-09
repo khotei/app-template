@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "b5081bd4-58f2-41bd-9834-f57e387393a2",
+  "id": "391a74a3-f0a7-47c8-b6ae-802d445f8d6d",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -53,23 +53,6 @@
         "n|enum|public.message_status",
         "e|enum|public.message_status",
         "n|type|public.message_status"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_enum",
-      "statementTarget": [
-        "enum",
-        "public",
-        "job_status"
-      ],
-      "writes": [
-        "s|enum|public.job_status",
-        "n|enum|public.job_status",
-        "e|enum|public.job_status",
-        "n|type|public.job_status"
       ],
       "reads": [
         "n|sch|public"
@@ -151,26 +134,6 @@
         "n|sch|public",
         "n|enum|public.message_author",
         "n|enum|public.message_status"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "jobs"
-      ],
-      "writes": [
-        "s|tbl|public.jobs",
-        "n|tbl|public.jobs",
-        "e|tbl|public.jobs",
-        "n|rel|public.jobs",
-        "n|type|public.jobs",
-        "n|rel|public.jobs_pkey"
-      ],
-      "reads": [
-        "n|sch|public",
-        "n|enum|public.job_status"
       ]
     },
     {
@@ -476,12 +439,6 @@
     },
     {
       "schema": "public",
-      "name": "jobs",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
       "name": "credentials",
       "isRlsEnabled": false,
       "entityType": "tables"
@@ -518,17 +475,6 @@
         "queued",
         "preparing",
         "generating",
-        "done",
-        "failed"
-      ],
-      "entityType": "enums"
-    },
-    {
-      "schema": "public",
-      "name": "job_status",
-      "values": [
-        "queued",
-        "running",
         "done",
         "failed"
       ],
@@ -819,71 +765,6 @@
       "schema": "public",
       "table": "messages",
       "name": "updated_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "uuidv7()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "queue",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "body",
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "status",
-      "type": "job_status",
-      "typeSchema": "public",
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -1230,16 +1111,6 @@
       "schema": "public",
       "table": "messages",
       "name": "messages_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
-      "table": "jobs",
-      "name": "jobs_pkey",
       "columns": [
         "id"
       ],

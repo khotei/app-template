@@ -240,7 +240,7 @@ domain's errors as they are; the web calls it. Nothing of `application/` reaches
 - **Guarded by:** another module reaches chat only through its entry and takes only the names of
   its contract, which review holds (`modules.md`).
 - **If reversed:** a shared `Status` couples every module that reads it to chat's states.
-- **Revisit when:** `jobs` adds statuses: it gets a job vocabulary of its own.
+- **Revisit when:** a second module's model needs a status.
 
 ### Records open, rules called
 
@@ -540,44 +540,33 @@ and lifecycle; `deployment` reads both.
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
 
-### Jobs as a table in the data layer
+### Jobs as queue messages
 
-Jobs are the table `jobs` and `JobRepository` in the data layer, each row with its status
-(`queued`, `running`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row `queued`
-in the caller's transaction and sends it to SQS at once, after the use case's other writes, so a
-send SQS refuses is a defect that rolls the transaction back: a commit never stands without its
-job on the queue, and a rollback keeps no row. The worker runs a job on the record of its work,
-never the row. "Outbox" names the pattern, not the table.
+A job is a message on its queue, and no table holds it: the work it asks for keeps its own
+record (the assistant message, the chat's title), which the worker reads to run it once, to
+settle a run that died and to record a failure. `QueueSender.send` encodes the job by its
+definition and sends it last in the caller's transaction, so a send SQS refuses is a defect that
+rolls the transaction back: a commit never stands without its job on the queue.
 
-- **Why:** a row is a job, the glossary's word, and stays after the send; the table is data like
-  any other, the transport the boundary's; a send inside the transaction needs no relay polling
-  the table and no sweep, and a refused send answers the request with a `500` instead of a reply
-  that never comes.
-- **Sources:** the guide's outbox written "in the same transaction"
-  ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/)).
-- **Rejected:** the send after the commit (`Transaction.afterCommit`): a send SQS refused answered
-  `202` and left the job unsent and its chat `queued` for good. A sweep resending the unsent rows:
-  a schedule and a route of its own, and a reply up to a minute late. Retries with a delay per
-  attempt: a failed reply the user waits on through every attempt, and code that counts them. A
-  failed reply written after a refused send: a second write, which fails too when the database
-  is the cause. The whole send after the commit, row included: a crash between the commit and
-  the row's insert would lose the job. The table named `outbox`: it names the pattern and goes
-  wrong once rows outlive the send. An event ledger: a row is a command for the worker, not a
-  fact others subscribe to. `JobSender` in the data layer: the data would know the queue's job
-  shape. A relay polling the table: a process of its own that Lambda does not keep running. An
-  outbox per module: needed only with a schema per module.
-- **Cost:** SQS may deliver a job before its commit shows the row: the worker reads none, a
-  defect, and SQS delivers it again after its 600 s visibility timeout, one of 3 receives spent.
-  A commit that fails after the send leaves a job with no row, delivered again, then
-  dead-lettered. A copy delivered while the first still runs finds the job `running` and fails
-  a live reply. The transaction stays open for the SQS call; the use cases import a part of the
-  kernel besides the data layer.
-- **Guarded by:** the `kernel/data` and `use-cases` rows of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); the `JobSender` e2e;
-  the api e2e of a send whose queue is gone.
-- **If reversed:** a rename in a migration, or the transport inside the data layer.
+- **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
+  second status for one piece of work. A send inside the transaction needs no relay and no sweep,
+  and a refused send answers the request with a `500` instead of a reply that never comes.
+- **Sources:** the ticket's review of what each reader of `jobs` used it for.
+- **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a
+  second status for one piece of work, written in the same transaction. The send after the commit
+  (`Transaction.afterCommit`): a send SQS refused answered `202` and left the job unsent and its
+  chat `queued` for good. A sweep resending unsent work: a schedule and a route of its own, and a
+  reply up to a minute late. Retries with a delay per attempt: a failed reply the user waits on
+  through every attempt, and code that counts them.
+- **Cost:** SQS may deliver a job before its commit shows the record: the worker finds no
+  message and skips it as a deleted chat's, so the reply stays queued and its chat busy. A commit
+  that fails after the send leaves a job with no record, skipped the same way. No record keeps a
+  reply's provenance. The transaction stays open for the SQS call.
+- **Guarded by:** the `QueueSender` e2e; the api e2e of a send whose queue is gone; the
+  `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
+- **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** a flow does slow work after its first write, which would hold the
-  transaction open; or the logs show many redeliveries of jobs sent before their commit.
+  transaction open; or the logs show replies stuck by a delivery before their commit.
 
 ### Guards are configuration
 

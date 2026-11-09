@@ -11,6 +11,7 @@
     "./testing": "./testing/index.ts",
     "./ui": "./ui/index.ts",
     "./db/testing": "./db/__tests__/testing/index.ts",
+    "./queue/testing": "./queue/__tests__/testing/index.ts",
     "./aws/testing/e2e": "./aws/__tests__/testing/e2e/index.ts",
     "./db/testing/e2e": "./db/__tests__/testing/e2e/index.ts"
   },
@@ -23,6 +24,7 @@
     "#testing/*": "./testing/*.ts",
     "#ui/*": "./ui/*.ts",
     "#testing/db/*": "./db/__tests__/testing/*.ts",
+    "#testing/queue/*": "./queue/__tests__/testing/*.ts",
     "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts",
     "#testing/db/e2e/*": "./db/__tests__/testing/e2e/*.ts"
   },

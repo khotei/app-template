@@ -17,7 +17,7 @@ import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.us
 
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
- * identity transaction; the `JobSender` is the test's, `recordJobs()`.
+ * identity transaction; the `QueueSender` is the test's, `recordMessages()`.
  */
 export const ChatTest = Layer.mergeAll(
   ChatService.layer,

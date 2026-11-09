@@ -43,8 +43,8 @@ import {
   FileRepository,
   MessageRepository,
 } from '@app-template/kernel/data'
-import { JobSender } from '@app-template/kernel/job'
 import { generateId, Transaction } from '@app-template/packages/db'
+import { QueueSender } from '@app-template/packages/queue'
 
 export interface CreatedMessages {
   readonly userMessage: Message
@@ -54,7 +54,7 @@ export interface CreatedMessages {
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
   {
-    /** Stores the user's message with a queued reply, binds its attachments and queues the jobs. */
+    /** Stores the user's message with a queued reply, binds its attachments and sends its messages. */
     readonly create: (
       userId: UserId,
       chatId: ChatId,
@@ -76,7 +76,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     const chatService = yield* ChatService
     const messages = yield* MessageRepository
     const liveAttachments = yield* LiveAttachmentService
-    const jobs = yield* JobSender
+    const queue = yield* QueueSender
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
     const provenance = yield* CurrentReplyProvenance
@@ -131,19 +131,21 @@ export class CreateUserMessageUseCase extends Context.Service<
         createdAt: at,
       })
       yield* encodeMessage(assistantMessage).pipe(Effect.flatMap(messages.insert))
-      yield* jobs.send(
-        assistantMessageQueue,
-        new GenerateAssistantMessage({
-          chatId,
-          messageId: assistantMessage.id,
-          provenance: Option.some(provenance),
-        }),
-      )
-      if (isFirstMessage) {
-        yield* jobs.send(
-          chatTitleQueue,
-          new GenerateChatTitle({ chatId, messageId: userMessage.id }),
+      // A send SQS refuses rolls the create back, so a commit never stands without its message.
+      yield* queue
+        .send(
+          assistantMessageQueue,
+          new GenerateAssistantMessage({
+            chatId,
+            messageId: assistantMessage.id,
+            provenance: Option.some(provenance),
+          }),
         )
+        .pipe(Effect.orDie)
+      if (isFirstMessage) {
+        yield* queue
+          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
+          .pipe(Effect.orDie)
       }
 
       return {

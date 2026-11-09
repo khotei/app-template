@@ -228,49 +228,41 @@ never expired: the price of a delete with no transaction.
 
 ## Transactions
 
-A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable
-of the `Effect.fn` that holds the writes (`Transaction.layer` wraps
-`SqlClient.withTransaction`), and every repository call inside joins the transaction
-through the connection `@effect/sql` keeps in the fiber's context, so no repository takes a
-transaction parameter. `CreateUserMessageUseCase.create` writes the chat's `status`, the user message,
-the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
-Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
-row lock and, once the first commits, finds the chat `queued`, and of two binds sharing an
-attachment the second waits on the row the first's update holds and, once it commits, finds it
-bound, so the second misses a row it names and dies. Two api processes behave as two fibers. S3
-stays outside the transaction: the bytes are kept before the bind, so no bound row sits over
-expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
-finds. SQS is reached only through the table `jobs`, whose rows join it.
+A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable of
+the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.withTransaction`), and
+every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
+fiber's context, so no repository takes a transaction parameter. `CreateUserMessageUseCase.create`
+writes the chat's `status`, the user message, the binds and the reply, then sends its jobs, or keeps
+none of them. The guards above then decide every race inside Postgres, with no lock in the process:
+of two sends to one chat the second waits on the chat's row lock and, once the first commits, finds
+the chat `queued`, and of two binds sharing an attachment the second waits on the row the first's
+update holds and, once it commits, finds it bound, so the second misses a row it names and dies. Two
+api processes behave as two fibers. S3 stays outside the transaction: the bytes are kept before the
+bind, so no bound row sits over expiring bytes, and deleted before the commit, so a rollback
+restores rows that a retry still finds. SQS joins none either: the sends come last, so a refused one
+rolls the writes back ([The sends](#the-sends)).
 
 ## Stuck replies
 
-A reply that no run settles stays active and its chat `queued`, so every next send to the chat
-fails `ChatBusyError`. A run that dies (a killed process, the function's timeout) is settled by
-the next delivery, up to the queue's visibility timeout later, which finds the job `running` and
-the reply started, and fails it; a store failing the `failed` write, or a job whose every
-delivery dies, leaves it so, and nothing consumes the dead-letter queue
-([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
-not tell a dead reply from one waiting in a backlog.
+A reply that no run settles stays active and its chat `queued`, so every next send to the chat fails
+`ChatBusyError`. A run that dies (a killed process, the function's timeout) is settled by the next
+delivery, up to the queue's visibility timeout later, which finds the reply started, and fails it; a
+store failing the `failed` write, or a job whose every delivery dies, leaves it so, and nothing
+consumes the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active messages
+exists: by age alone it could not tell a dead reply from one waiting in a backlog.
 
-## The outbox
+## The sends
 
-A job is a row of the table `jobs`, written in the transaction of the records that ask for it,
-so a rollback keeps no job and a commit never stands without one
-([decisions.md › Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer)).
-`JobSender` in `kernel/job` writes the row over `JobRepository`; `packages/queue` carries the job
-on SQS and decodes it for the worker ([aws.md › Queues](aws.md#queues)).
+A job is a message on its queue, and no table holds it: the record of its work (the assistant
+message, the chat's title) is the one the worker reads
+([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
-- **`JobSender.send`** encodes the job through its definition's schema to a JSON value
-  (`Schema.toCodecJson`), inserts it `queued`, with the definition's `name` as `queue` (the stage
-  is added on the way out), then sends the body as a JSON string, the row's id in the message
-  attribute `jobId`. A use case sends its jobs after its other writes.
-- **A send SQS refuses is a defect,** so the transaction rolls back and the api answers its bare
-  `500`, keeping no message and no job.
-- **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
-  an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
-  string to parse.
-- **A row stays `queued`:** the worker reads the record of the job's work, never the row, so
-  `jobs` is only the record of what each job carried. Nothing removes rows yet.
+- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the message through the
+  definition's schema to a JSON string and sends it, with no attribute, to the definition's queue;
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
+  after its other writes, inside its transaction.
+- **A send SQS refuses is a defect** in the use case, so the transaction rolls back and the api
+  answers its bare `500`, keeping no message.
 
 ## Migrations
 
