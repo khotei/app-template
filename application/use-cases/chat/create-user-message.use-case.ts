@@ -1,7 +1,6 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
 import {
-  type Attachment,
   type AttachmentBoundError,
   type AttachmentNotFoundError,
   assistantMessageQueue,
@@ -56,19 +55,21 @@ export class CreateUserMessageUseCase extends Context.Service<
     const queue = yield* QueueSender
     const transaction = yield* Transaction
 
-    /** The user's message with its attachments bound and the queued Run that answers it, or none. */
+    /** The user's message with the attachments it names bound to it; a bound one is refused first. */
     const storeUserMessage = Effect.fnUntraced(function* (
+      userId: UserId,
       chatId: ChatId,
-      {
-        text,
-        attachments,
-      }: { readonly text: string; readonly attachments: ReadonlyArray<Attachment> },
+      input: MessageInput,
     ) {
+      const requested = yield* fileAttachments
+        .getMany({ id: input.attachmentIds, userId })
+        .pipe(Effect.flatMap(ensureAllUnbound))
+
       // The bind follows the message, since its key to the message is not deferrable.
-      const message = yield* messageService.create({ chatId, text })
-      const bound = yield* fileAttachments.bind(attachments, message)
-      return yield* runService.create(new Message({ ...message, attachments: bound }))
-    }, transaction.run)
+      const message = yield* messageService.create({ chatId, text: input.text })
+      const attachments = yield* fileAttachments.bind(requested, message)
+      return new Message({ ...message, attachments })
+    })
 
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
       userId: UserId,
@@ -79,11 +80,12 @@ export class CreateUserMessageUseCase extends Context.Service<
       const chat = yield* chatService
         .getOne({ id: chatId, userId })
         .pipe(Effect.tap(ensureChatNotBusy))
-      const attachments = yield* fileAttachments
-        .getMany({ id: input.attachmentIds, userId })
-        .pipe(Effect.flatMap(ensureAllUnbound))
 
-      const run = yield* storeUserMessage(chatId, { text: input.text, attachments })
+      // The message, its bind and its Run commit together: a Run that loses the race keeps none.
+      const run = yield* storeUserMessage(userId, chatId, input).pipe(
+        Effect.flatMap(runService.create),
+        transaction.run,
+      )
 
       yield* queue
         .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: run.id }))
