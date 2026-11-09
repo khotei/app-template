@@ -62,7 +62,7 @@ const insertUserMessage = Db.use((db) =>
 )
 
 describe('RunRepository', () => {
-  it.effect.fails(
+  it.effect(
     "selects a Run by id for its owner, as the chat's active one, none for a stranger",
     () =>
       Effect.gen(function* () {
@@ -85,7 +85,7 @@ describe('RunRepository', () => {
       }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect.fails('insert dies on a second active Run in a chat and keeps the first', () =>
+  it.effect('insert dies on a second active Run in a chat and keeps the first', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a5')
@@ -99,27 +99,25 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect.fails(
-    'update moves a Run under its old status, and dies once that no longer holds',
-    () =>
-      Effect.gen(function* () {
-        const runs = yield* RunRepository
-        const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a7')
-        const failure = { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' } as const
-        yield* insertUserMessage
-        yield* runs.insert(queued)
+  it.effect('update moves a Run under its old status, and dies once that no longer holds', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a7')
+      const failure = { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' } as const
+      yield* insertUserMessage
+      yield* runs.insert(queued)
 
-        yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: ['queued'] })
-        const exit = yield* runs
-          .update({ status: 'preparing' }, { id: queued.id, status: ['queued'] })
-          .pipe(Effect.exit)
+      yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: ['queued'] })
+      const exit = yield* runs
+        .update({ status: 'preparing' }, { id: queued.id, status: ['queued'] })
+        .pipe(Effect.exit)
 
-        assert.isTrue(Exit.hasDies(exit))
-        assertSchemaEquals(
-          SelectedRun,
-          yield* runs.selectOne({ id: queued.id }),
-          Option.some(run(queued.id, { status: 'failed', failure })),
-        )
-      }).pipe(Effect.provide(RepositoryTest)),
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(
+        SelectedRun,
+        yield* runs.selectOne({ id: queued.id }),
+        Option.some(run(queued.id, { status: 'failed', failure })),
+      )
+    }).pipe(Effect.provide(RepositoryTest)),
   )
 })

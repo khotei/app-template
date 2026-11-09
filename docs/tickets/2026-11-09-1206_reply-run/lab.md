@@ -129,6 +129,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 
 [N:ai] L3.2 The `runs` table and `RunEntity`, beside today's messages; `init` regenerated · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.entity.e2e.ts` (2 cases)
 [N:ai] L3.3 `RunRepository`'s contract: `insert`, `update`, `selectOne` over `RunEntityWhere`, its e2e as `it.effect.fails` over `Effect.die('todo')`; 185 lines, rail 4 lifted by the owner for this piece · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts` (3 expected fail)
+[N:ai] L3.4 `RunRepository`'s body: `insert` skips a second active Run by the partial index and dies, `update` writes under its `where` and dies on a miss, `selectOne` reads the newest Run; `runs` joins the relations · visible: the same e2e, 3 passed
 
 ### Output
 

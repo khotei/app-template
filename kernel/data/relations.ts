@@ -3,10 +3,11 @@ import { defineRelations } from 'drizzle-orm'
 import { attachments } from '#kernel/data/attachment/attachment.table'
 import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
+import { runs } from '#kernel/data/chat/run.table'
 import { credentials, users } from '#kernel/data/user/user.table'
 
 export const relations = defineRelations(
-  { users, credentials, chats, messages, attachments },
+  { users, credentials, chats, messages, runs, attachments },
   (r) => ({
     users: {
       chats: r.many.chats({ from: r.users.id, to: r.chats.userId }),
