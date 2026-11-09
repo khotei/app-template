@@ -83,6 +83,16 @@ Domain:
 with its memory fake, beside today's model, unused. Visible: `make check`, `make
 migration-check`, the repository's e2e. The message and chat columns go in L4, where nothing
 reads them any more.
+[N:ai] Agent's choices, the owner may overturn: `provenance` is `jsonb not null` (`provider`,
+`model`, `instructionsHash`, the fields of `ReplyProvenance`,
+`application/chat/domain/assistant.port.ts:38`): only the api makes a Run, and it always holds
+`CurrentReplyProvenance`; the job's `Option` exists only for bodies queued before the field
+(`application/chat/services/chat.queue.ts:16`). `RunRepository` has `insert`, `update`,
+`selectOne`, the `where` by `id`, `chatId`, `userId`, `status`; no `selectMany`, since L5 reads a
+message's Runs through the message. The failure reasons, the failure JSON, the transitions table
+and `<Model>StatusInvalidError` are copied under Run names beside the message's; L4 deletes the
+message's. `messages.run_id` waits for L4: its CHECK refuses today's assistant rows, which have no
+Run.
 
 ### Pieces
 
@@ -200,3 +210,9 @@ source.>
   the `onFailure` arm.
 - [N:ai] L2: no record keeps a reply's provenance; only the job's body carries it
   (`application/chat/services/chat.queue.ts:18`). The Run's `provenance` column takes it (L3, L4).
+- [Q:ai] L3: `runs.updated_at` has no reader in the L3-L5 Shapes: a stuck Run is found by
+  `isStartedRun` when the worker takes it, not by its age, and the client polls the status. Drop
+  it, so the transitions take no time? Without it, nobody sees when a Run last moved.
+- [N:ai] L3: the composite FK makes a Run's message belong to its chat, but no key checks that the
+  message is the user's: a Run on an assistant message passes the store. L4's use case builds a
+  Run only from the user message it has just stored; the store stays without that check.
