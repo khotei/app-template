@@ -246,10 +246,11 @@ finds. SQS is reached only through the table `jobs`, whose rows join it.
 
 A reply that no run settles stays active and its chat `queued`, so every next send to the chat
 fails `ChatBusyError`. A run that dies (a killed process, the function's timeout) is settled by
-the next delivery, which finds the job `running` and the reply started, and fails it; a store
-failing the `failed` write, or a job whose every delivery dies, leaves it so, and nothing
-consumes the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active messages
-exists: by age alone it could not tell a dead reply from one waiting in a backlog.
+the next delivery, up to the queue's visibility timeout later, which finds the job `running` and
+the reply started, and fails it; a store failing the `failed` write, or a job whose every
+delivery dies, leaves it so, and nothing consumes the dead-letter queue
+([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
+not tell a dead reply from one waiting in a backlog.
 
 ## The outbox
 

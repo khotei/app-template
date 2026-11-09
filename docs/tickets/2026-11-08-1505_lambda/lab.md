@@ -288,6 +288,10 @@ needing nothing; `JobConsumer.layer` provides it · visible: `make check`
 [N:ai] review (Standards): the "a job runs once" line of `layering.md` moves from Handlers to
 Use cases; `JobConsumer` logs a body that does not decode by `Effect.tapError` on the decode; its
 comment on a missing row names a rollback past the send too · visible: `make check`
+[N:ai] review (the hunt, the owner's A for both): `JobConsumer` logs a handler's failure cause
+before it settles the job `failed`; the worker's timeout and the queues' visibility timeout are
+600 s, above the slowest reply, so a live reply is no longer failed by its own redelivery ·
+visible: `make check`, `make up` (the queues and the function take 600 s)
 
 ### Notes
 
@@ -375,6 +379,7 @@ hunt): `Effect.exit` takes the cause, the job is settled `failed` and its record
 `selectActive`, before its own `onExit`; the reply stays `queued` and its chat busy (already
 `database.md › Stuck replies`), and no log line says why. Lost since L2.12, when `QueueConsumer`
 stopped seeing a handler's failure. Fix: log the cause before the settle, about 2 lines.
+  [N:ai] The owner, in the chat: A, the log; done in the review round after L2.18.
 [D:ai] A reply longer than 60 s is killed by its own redelivery
 (`kernel/aws/resources/resources.ts:3`, claimed by the hunt): the queue hides a message for the
 worker's timeout, 60 s; past it SQS delivers again, the job found `running` reruns, and the use
@@ -383,6 +388,7 @@ On AWS the function is killed at 60 s instead, so such a reply always fails. A r
 `max_tokens: 16_000` (`application/chat/infrastructure/assistant.llm.ts:217`). Options: raise
 the worker's timeout and the visibility together (one constant); or take a job only from
 `queued` and tell a dead run by a lease, which brings back what 8c removed.
+  [N:ai] The owner, in the chat: A, 600 s; done in the review round after L2.18.
 
 
 ## L3 — Switch to queue-2

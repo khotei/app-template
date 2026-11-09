@@ -70,6 +70,7 @@ export class JobConsumer extends Context.Service<
           // The settle runs uninterruptibly, so a stopping worker waits for it.
           yield* Effect.uninterruptibleMask((restore) =>
             restore(handle(decoded.success)).pipe(
+              Effect.tapCause((cause) => Effect.logError('job failed', cause)),
               Effect.exit,
               Effect.flatMap((exit) => settle(job, Exit.isSuccess(exit) ? 'done' : 'failed')),
             ),

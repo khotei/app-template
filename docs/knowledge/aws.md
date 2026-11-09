@@ -165,7 +165,7 @@ before the row that binds them and deletes them once the rows are gone.
 - **Only a defect returns to the queue.** A record whose handling dies before its job settles (a
   row its commit has not shown yet, a process that dies) is answered in `batchItemFailures`, or
   not answered at all; SQS delivers it again once the queue's visibility timeout, the worker
-  function's 60 s, has passed, and after `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. AWS
+  function's 600 s, has passed, and after `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. AWS
   refuses a mapping on a queue that hides a message less than its function's timeout.
 - **Nothing consumes a dead-letter queue.** A reply's run writes `failed` on any outcome but
   success; one that no run settles stays active

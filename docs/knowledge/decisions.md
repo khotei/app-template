@@ -567,7 +567,7 @@ job on the queue, and a rollback keeps no row. `JobConsumer` runs a job once: `r
   shape. A relay polling the table: a process of its own that Lambda does not keep running. An
   outbox per module: needed only with a schema per module.
 - **Cost:** SQS may deliver a job before its commit shows the row: the worker reads none, a
-  defect, and SQS delivers it again after its 60 s visibility timeout, one of 3 receives spent.
+  defect, and SQS delivers it again after its 600 s visibility timeout, one of 3 receives spent.
   A commit that fails after the send leaves a job with no row, delivered again, then
   dead-lettered. A copy delivered while the first still runs finds the job `running` and fails
   a live reply. The transaction stays open for the SQS call; the use cases import a part of the
