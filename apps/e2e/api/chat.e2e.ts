@@ -1,5 +1,4 @@
 import { assert, describe, it, layer } from '@effect/vitest'
-import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Option, Order, Schedule, Schema } from 'effect'
 import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
@@ -7,13 +6,10 @@ import { SqlClient } from 'effect/sql'
 import {
   ActiveMessageStatus,
   AttachmentId,
-  assistantMessageQueue,
   type ChatId,
   type MessageId,
 } from '@app-template/application/chat'
 import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
-import { buildResourceName } from '@app-template/kernel/aws'
-import { AwsConfig } from '@app-template/kernel/config'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
@@ -355,41 +351,6 @@ describe('a write Postgres refuses, through the api', () => {
           bound,
         )
         assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
-      }).pipe(Effect.provide(StandTest)),
-    30_000,
-  )
-})
-
-describe('a send SQS refuses, through the api', () => {
-  it.live(
-    'a send whose reply queue is gone answers 202 with the reply failed, and fails its chat',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const sqs = yield* SQSService
-        const { stage } = yield* AwsConfig
-        yield* api.users.ensure()
-        const chat = yield* api.chats.create()
-        const { QueueUrl } = yield* sqs.getQueueUrl({
-          QueueName: buildResourceName(stage, assistantMessageQueue.name),
-        })
-        yield* sqs.deleteQueue({ QueueUrl })
-
-        const sent = yield* api.chats.createMessage({
-          params: { chatId: chat.id },
-          payload: { text: 'Hi', attachmentIds: [] },
-        })
-        const reply = yield* api.chats.getMessage({
-          params: { chatId: chat.id, messageId: sent.assistantMessage.id },
-        })
-
-        assert.deepStrictEqual(reply, sent.assistantMessage)
-        assert.deepInclude(reply, { status: 'failed' })
-        assert.deepStrictEqual(
-          Option.map(reply.error, ({ reason }) => reason),
-          Option.some('ReplyFailed'),
-        )
-        assert.strictEqual((yield* api.chats.get({ params: { chatId: chat.id } })).status, 'failed')
       }).pipe(Effect.provide(StandTest)),
     30_000,
   )

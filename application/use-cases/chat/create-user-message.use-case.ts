@@ -1,6 +1,5 @@
 import {
   Array as Arr,
-  Cause,
   Context,
   Crypto,
   DateTime,
@@ -19,7 +18,6 @@ import {
   bindAttachment,
   buildAssistantMessage,
   buildUserMessage,
-  type Chat,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
@@ -29,8 +27,6 @@ import {
   encodeMessage,
   ensureAllStored,
   ensureMessageInput,
-  failChat,
-  failMessage,
   GenerateAssistantMessage,
   GenerateChatTitle,
   LiveAttachmentService,
@@ -48,7 +44,7 @@ import {
   MessageRepository,
 } from '@app-template/kernel/data'
 import { generateId, Transaction } from '@app-template/packages/db'
-import { type QueueError, QueueSender } from '@app-template/packages/queue'
+import { QueueSender } from '@app-template/packages/queue'
 
 export interface CreatedMessages {
   readonly userMessage: Message
@@ -147,33 +143,13 @@ export class CreateUserMessageUseCase extends Context.Service<
       }
     }, transaction.run)
 
-    // No run will take a reply whose job SQS refused, so it fails with its chat at once.
-    const failReply = Effect.fnUntraced(
-      function* (chat: Chat, reply: Message, error: QueueError) {
-        const failedAt = yield* DateTime.now
-        const failed = yield* failMessage(reply, {
-          reason: 'ReplyFailed',
-          cause: Cause.pretty(Cause.fail(error)),
-          at: failedAt,
-        })
-        const ended = yield* failChat(chat)
-        yield* encodeMessage(failed).pipe(
-          Effect.flatMap((row) => messages.update(row, { id: reply.id, status: [reply.status] })),
-        )
-        yield* chats.update({ status: ended.status }, { id: chat.id, status: chat.status })
-        return failed
-      },
-      Effect.orDie,
-      transaction.run,
-    )
-
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
     ) {
       const stored = yield* store(userId, chatId, input)
-      const assistantMessage = yield* queue
+      yield* queue
         .send(
           assistantMessageQueue,
           new GenerateAssistantMessage({
@@ -182,24 +158,15 @@ export class CreateUserMessageUseCase extends Context.Service<
             provenance: Option.some(provenance),
           }),
         )
-        .pipe(
-          Effect.as(stored.assistantMessage),
-          Effect.catchTag('QueueError', (error) =>
-            failReply(stored.chat, stored.assistantMessage, error),
-          ),
-        )
+        .pipe(Effect.orDie)
       if (stored.isFirstMessage) {
         yield* queue
           .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: stored.userMessage.id }))
-          .pipe(
-            Effect.catchTag('QueueError', (error) =>
-              Effect.logWarning('chat title job refused', error),
-            ),
-          )
+          .pipe(Effect.orDie)
       }
 
-      return { userMessage: stored.userMessage, assistantMessage }
-    }, Effect.uninterruptible)
+      return { userMessage: stored.userMessage, assistantMessage: stored.assistantMessage }
+    })
 
     return { create }
   }),

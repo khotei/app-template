@@ -545,26 +545,28 @@ and lifecycle; `deployment` reads both.
 A job is a message on its queue, and no table holds it: the work it asks for keeps its own
 record (the assistant message, the chat's title), which the worker reads to run it once, to
 settle a run that died and to record a failure. `QueueSender.send` encodes the job by its
-definition; the caller sends it after its commit, so every delivery finds its record. A reply
-SQS refuses is failed with its chat at once, and the api answers `202` with it; a refused title
-job is logged.
+definition; the caller sends it after its commit, so every delivery finds its record. A send
+SQS refuses dies: the api answers `500`, and the stored reply stays queued.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
-  a missing record means a deleted chat; a refused reply ends failed, as one the model refused
-  does, so the client shows one path, and a `500` keeps meaning that nothing was stored.
+  a missing record means a deleted chat. A reply stuck after the commit has several causes (a
+  process that dies, a client that aborts, a refused send), and the reply's own record settles
+  them on one path, not a patch per cause.
 - **Sources:** the ticket's review of what each reader of `jobs` used it for.
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
-  deleted chat's, leaving the reply queued. A `500` for a refused reply: the message is stored, so a
-  client that sends again posts it twice. A sweep resending unsent work: a schedule and a route of
-  its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply the
-  user waits on through every attempt, and code that counts them.
-- **Cost:** a process that dies between the commit and the send, or a failed write of the
-  refused reply's `failed`, leaves the reply queued and its chat busy (roadmap entry 22). No
-  record keeps a reply's provenance.
-- **Guarded by:** the `QueueSender` e2e; the api e2e of a send whose queue is gone; the
+  deleted chat's, leaving the reply queued. A refused reply failed at once and a send that cannot
+  be interrupted: a patch per cause of a stuck reply, each with its own test. A sweep resending
+  unsent work: a schedule and a route of its own, and a reply up to a minute late. Retries with a
+  delay per attempt: a failed reply the user waits on through every attempt, and code that counts
+  them.
+- **Cost:** a process that dies between the commit and the send, a client that aborts there, or
+  a send SQS refuses leaves the reply queued and its chat busy (roadmap entry 22); a refused send
+  answers `500` for a stored message, so a client that sends again posts it twice. No record
+  keeps a reply's provenance.
+- **Guarded by:** the `QueueSender` e2e; the
   `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.

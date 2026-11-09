@@ -134,6 +134,15 @@ timeout shows an error for a message that gets its reply. Proposed: no code in L
 worker's.
 [N:ai] The owner, in the chat, "ok": the abort's fix as L2.11; the timeout after delivery waits
 for L4 (its Notes).
+[N:ai] Stop (owner's word, "minimal working code base, without this massive checks"): the
+recovery after the commit. Deletion audit: without `failReply` and its `catchTag`, the api e2e
+`a send whose reply queue is gone answers 202 with the reply failed` fails (1 of 9); without
+`Effect.uninterruptible`, L2.11's case fails; without the title send's log, nothing fails; without
+the worker's log of a refused status, `make typecheck` fails, since a `QueueConsumer` handler has
+no error channel, and the only way past it returns the message to the queue, against L2.6. The
+owner's "ok": the first three go with their two cases, a refused send dies (`500`) and leaves the
+reply queued, as a process that dies does; the worker's log stays. The L4 note on the timeout
+after delivery went with `failReply`.
 
 ### Pieces
 
@@ -176,6 +185,10 @@ released, `create` interrupted while it holds, both jobs sent · visible: `bun -
 --project unit application/use-cases/__tests__/chat/create-user-message.use-case.test.ts -t
 interrupted`; without `Effect.uninterruptible` it fails 3 of 3 (`expected [] to have a length of
 2`)
+[N:ai] L2.12 (OWNER) `create` commits, then sends, each send `Effect.orDie`; `failReply`, the
+title send's log, `Effect.uninterruptible` and their two cases gone; `decisions.md`,
+`database.md` and `layering.md` say a refused send dies · visible: `bun --bun vitest run
+--project e2e apps/e2e` (8 cases)
 
 ### Output
 
@@ -258,9 +271,6 @@ its own `onExit`, and the send runs after the commit (a refused one fails the Ru
 Message, Message status, Active message, Chat status, Status, Provenance), `database.md`,
 `decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
 entry 22 ("The message keeps its own status", "A run needs no status of its own").
-[N:ai] From L2's review, accepted by the owner: SQS that takes a reply's job and still answers an
-error runs the fail after the worker moved the Run on; the Run's fail after a refused send treats
-a guard miss as the worker's and answers the stored Run, not `500`.
 
 ### Pieces
 
