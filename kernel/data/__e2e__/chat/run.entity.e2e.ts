@@ -1,13 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schema, type Types } from 'effect'
+import { Effect, Schema, Struct, type Types } from 'effect'
 
 import { flipSqlError } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { chats } from '#kernel/data/chat/chat.table'
-import { messages } from '#kernel/data/chat/message.table'
+import { messages, runs } from '#kernel/data/chat/message.table'
 import { RunEntity } from '#kernel/data/chat/run.entity'
-import { runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -19,10 +18,10 @@ const userId = '0192d4e0-7b3a-7c00-8000-000000000090'
 const chatId = '0192d4e0-7b3a-7c00-8000-000000000091'
 const userMessageId = '0192d4e0-7b3a-7c00-8000-000000000092'
 
-const run = (
-  id: string,
-  fields: Types.Simplify<Partial<Pick<RunEntity, 'status'>>>,
-): RunEntity => ({
+const RunRow = Schema.Struct(Struct.omit(RunEntity.fields, ['userMessage', 'assistantMessage']))
+type RunRow = typeof RunRow.Type
+
+const run = (id: string, fields: Types.Simplify<Partial<Pick<RunRow, 'status'>>>): RunRow => ({
   id,
   chatId,
   userMessageId,
@@ -47,19 +46,17 @@ const insertUserMessage = Db.use((db) =>
           id: userMessageId,
           chatId,
           author: 'user',
-          status: 'done',
           text: 'Hi',
           createdAt,
-          updatedAt,
         }),
       ),
     ),
 )
 
-const insertRun = (row: RunEntity) => Db.use((db) => db.insert(runs).values(row))
+const insertRun = (row: RunRow) => Db.use((db) => db.insert(runs).values(row))
 
 const selectRuns = Db.use((db) => db.select().from(runs).orderBy(runs.id)).pipe(
-  Effect.flatMap(Schema.decodeEffect(Schema.Array(RunEntity))),
+  Effect.flatMap(Schema.decodeEffect(Schema.Array(RunRow))),
 )
 
 describe('runs', () => {
@@ -73,7 +70,7 @@ describe('runs', () => {
       yield* insertRun(queued)
       const selected = yield* selectRuns
 
-      assertSchemaEquals(Schema.Array(RunEntity), selected, [done, queued])
+      assertSchemaEquals(Schema.Array(RunRow), selected, [done, queued])
     }).pipe(Effect.provide(DbTest)),
   )
 

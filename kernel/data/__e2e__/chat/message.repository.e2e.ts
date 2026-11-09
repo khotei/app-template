@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Exit, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -29,30 +29,11 @@ const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seco
     id,
     chatId,
     author: 'user',
-    status: 'done',
     text: 'Hi',
-    error: null,
+    runId: null,
     createdAt: at(seconds),
-    updatedAt: at(seconds),
     attachments: [],
   }) satisfies MessageEntity
-
-const assistantMessage = (
-  id: string,
-  { chatId, seconds = 0 }: { chatId: string; seconds?: number },
-): MessageEntity => ({
-  ...userMessage(id, { chatId, seconds }),
-  author: 'assistant',
-  status: 'queued',
-  text: '',
-})
-
-const completed = (message: MessageEntity, seconds: number): MessageEntity => ({
-  ...message,
-  status: 'done',
-  text: 'Hello',
-  updatedAt: at(seconds),
-})
 
 const attachment = (
   id: string,
@@ -85,7 +66,6 @@ const insertOwnedChats = (chatIds: ReadonlyArray<string>) =>
           id,
           userId,
           title: null,
-          status: 'idle',
           createdAt: new Date(0),
           updatedAt: new Date(0),
         }),
@@ -100,14 +80,18 @@ describe('MessageRepository', () => {
       const chatId = '0192d4e0-7b3a-7c00-8000-000000000040'
       const other = '0192d4e0-7b3a-7c00-8000-000000000041'
       const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000052', { chatId })
-      const reply = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId, seconds: 1 })
+      const followUp = userMessage('0192d4e0-7b3a-7c00-8000-000000000051', { chatId, seconds: 1 })
       yield* insertOwnedChats([chatId, other])
       yield* Effect.forEach(
-        [question, userMessage('0192d4e0-7b3a-7c00-8000-000000000050', { chatId: other }), reply],
+        [
+          question,
+          userMessage('0192d4e0-7b3a-7c00-8000-000000000050', { chatId: other }),
+          followUp,
+        ],
         (each) => messages.insert(each),
       )
 
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [question, reply])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [question, followUp])
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
@@ -144,167 +128,6 @@ describe('MessageRepository', () => {
 
       assertSchemaEquals(SelectedMessage, yield* messages.selectOne({ chatId }), Option.some(first))
       assert.deepStrictEqual(yield* messages.selectOne({ chatId: empty }), Option.none())
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('selects a queued assistant message as active, and none once it completes', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000042'
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000054', { chatId })
-      const active = ['queued', 'preparing', 'generating'] as const
-      yield* insertOwnedChats([chatId])
-      yield* messages.insert(userMessage('0192d4e0-7b3a-7c00-8000-000000000053', { chatId }))
-      yield* messages.insert(queued)
-
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId, status: active }), [queued])
-
-      yield* messages.update(completed(queued, 1), { id: queued.id, status: ['queued'] })
-
-      assert.deepStrictEqual(yield* messages.selectMany({ chatId, status: active }), [])
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('insert refuses a second active reply in a chat and keeps the first', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000044'
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId })
-      const second = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000057', {
-        chatId,
-        seconds: 1,
-      })
-      yield* insertOwnedChats([chatId])
-
-      yield* messages.insert(queued)
-      const exit = yield* messages.insert(second).pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [queued])
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('insert accepts a completed reply beside an active one', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000045'
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000058', { chatId })
-      const done = completed(
-        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', { chatId, seconds: 1 }),
-        2,
-      )
-      yield* insertOwnedChats([chatId])
-
-      yield* Effect.forEach([queued, done], messages.insert)
-
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [queued, done])
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('update from a status the message has left dies and changes nothing', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000049'
-      const generating: MessageEntity = {
-        ...assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005b', { chatId }),
-        status: 'generating',
-        updatedAt: at(2),
-      }
-      yield* insertOwnedChats([chatId])
-      yield* messages.insert(generating)
-
-      const exit = yield* messages
-        .update(completed(generating, 3), { id: generating.id, status: ['preparing'] })
-        .pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(
-        SelectedMessage,
-        yield* messages.selectOne({ id: generating.id }),
-        Option.some(generating),
-      )
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('update rewrites a message in place and never creates one', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000046'
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000059', { chatId })
-      const unknown = assistantMessage('0192d4e0-7b3a-7c00-8000-00000000005a', { chatId })
-      const done = completed(queued, 1)
-      yield* insertOwnedChats([chatId])
-      yield* messages.insert(queued)
-
-      yield* messages.update(done, { id: queued.id, status: ['queued'] })
-      const exit = yield* messages
-        .update(unknown, { id: unknown.id, status: ['queued'] })
-        .pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [done])
-      assert.deepStrictEqual(yield* messages.selectOne({ id: unknown.id }), Option.none())
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('update where the owner differs dies and changes nothing', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-00000000004e'
-      const strangerId = '0192d4e0-7b3a-7c00-8000-000000000011'
-      const queued = assistantMessage('0192d4e0-7b3a-7c00-8000-000000000063', { chatId })
-      yield* insertOwnedChats([chatId])
-      yield* messages.insert(queued)
-
-      const exit = yield* messages
-        .update(completed(queued, 1), { id: queued.id, userId: strangerId })
-        .pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(
-        SelectedMessage,
-        yield* messages.selectOne({ id: queued.id }),
-        Option.some(queued),
-      )
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('selects the active message among the terminal ones, wherever it stands', () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000048'
-      const generating: MessageEntity = {
-        ...assistantMessage('0192d4e0-7b3a-7c00-8000-000000000060', { chatId }),
-        status: 'generating',
-        updatedAt: at(2),
-      }
-      const failed: MessageEntity = {
-        ...assistantMessage('0192d4e0-7b3a-7c00-8000-000000000061', { chatId, seconds: 3 }),
-        status: 'failed',
-        error: {
-          reason: 'ReplyFailed',
-          message: 'The reply failed.',
-          cause: 'provider timeout after 30s',
-        },
-        updatedAt: at(4),
-      }
-      const done = completed(
-        assistantMessage('0192d4e0-7b3a-7c00-8000-000000000062', { chatId, seconds: 5 }),
-        6,
-      )
-      yield* insertOwnedChats([chatId])
-      yield* Effect.forEach([generating, failed, done], messages.insert)
-
-      assertSchemaEquals(
-        Messages,
-        yield* messages.selectMany({ chatId, status: ['queued', 'preparing', 'generating'] }),
-        [generating],
-      )
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [
-        generating,
-        failed,
-        done,
-      ])
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 

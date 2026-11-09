@@ -1,21 +1,10 @@
 import { eq, inArray } from 'drizzle-orm'
 import { QueryBuilder } from 'drizzle-orm/pg-core'
-import {
-  Array as Arr,
-  Context,
-  Effect,
-  identity,
-  Layer,
-  type Option,
-  Schema,
-  UndefinedOr,
-} from 'effect'
+import { Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
 
 import {
-  buildSet,
   buildWhere,
   decodeOptionalRow,
-  orDieUnless,
   orDieWithSqlError,
   skipUndefined,
 } from '@app-template/packages/db'
@@ -25,19 +14,11 @@ import {
   inCreationOrder,
   MessageEntity,
   type MessageEntityInsert,
-  type MessageEntitySet,
   type MessageEntityWhere,
   withAttachments,
 } from '#kernel/data/chat/message.entity'
-import { activeMessage, messages } from '#kernel/data/chat/message.table'
+import { messages } from '#kernel/data/chat/message.table'
 import { Db } from '#kernel/data/db.client'
-
-const encodeSet = buildSet<MessageEntitySet, typeof messages>({
-  status: identity,
-  text: identity,
-  error: identity,
-  updatedAt: identity,
-})
 
 // Built on the table a query names, as a relational query aliases `messages`; `userId` is the
 // owner of the row's chat, so a message of another user's chat reads as absent.
@@ -51,7 +32,6 @@ const encodeWhere = (table: typeof messages) =>
         new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
       ),
     ),
-    status: UndefinedOr.map((statuses) => inArray(table.status, Arr.copy(statuses))),
   })
 
 const select = (where: MessageEntityWhere) =>
@@ -66,13 +46,8 @@ const decodeMessages = Schema.decodeEffect(Schema.Array(MessageEntity))
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
-    /**
-     * Writes the message's own fields, never its attachments; dies when it writes nothing: the
-     * message is active and its chat already has one.
-     */
+    /** Writes the message's own fields, never its attachments; a message is never changed. */
     readonly insert: (message: typeof MessageEntityInsert.Type) => Effect.Effect<void>
-    /** Writes the fields of `set` a message may change where `where` holds; dies when it writes nothing. */
-    readonly update: (set: MessageEntitySet, where: MessageEntityWhere) => Effect.Effect<void>
     /** Returns the first row in creation order where `where` holds. */
     readonly selectOne: (where: MessageEntityWhere) => Effect.Effect<Option.Option<MessageEntity>>
     /** Returns the rows where `where` holds, in creation order, a tie broken by id. */
@@ -84,25 +59,7 @@ export class MessageRepository extends Context.Service<
     Db.useSync((db) =>
       this.of({
         insert: Effect.fn('MessageRepository.insert')(
-          (message) =>
-            db
-              .insert(messages)
-              .values(message)
-              .onConflictDoNothing({ target: messages.chatId, where: activeMessage })
-              .returning({ id: messages.id })
-              .pipe(
-                orDieUnless(Arr.isReadonlyArrayNonEmpty, `message ${message.id} was not inserted`),
-              ),
-          orDieWithSqlError,
-        ),
-        update: Effect.fn('MessageRepository.update')(
-          (set, where) =>
-            db
-              .update(messages)
-              .set(encodeSet(set))
-              .where(encodeWhere(messages)(where))
-              .returning({ id: messages.id })
-              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no message was updated')),
+          (message) => db.insert(messages).values(message),
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('MessageRepository.selectOne')(

@@ -1,9 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Exit, Layer, Option, Schema, type Types } from 'effect'
+import { Effect, Exit, Layer, Option, Schema, Struct, type Types } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { chats } from '#kernel/data/chat/chat.table'
+import type { MessageEntity } from '#kernel/data/chat/message.entity'
+import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { messages } from '#kernel/data/chat/message.table'
 import { RunEntity } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
@@ -11,7 +13,9 @@ import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
 
-const RepositoryTest = RunRepository.layer.pipe(Layer.provideMerge(DbTest))
+const RepositoryTest = Layer.mergeAll(RunRepository.layer, MessageRepository.layer).pipe(
+  Layer.provideMerge(DbTest),
+)
 
 const createdAt = new Date('2026-11-09T00:00:00.123Z')
 const updatedAt = createdAt
@@ -20,10 +24,23 @@ const userId = '0192d4e0-7b3a-7c00-8000-0000000000a0'
 const chatId = '0192d4e0-7b3a-7c00-8000-0000000000a1'
 const userMessageId = '0192d4e0-7b3a-7c00-8000-0000000000a2'
 
+const userMessage = {
+  id: userMessageId,
+  chatId,
+  author: 'user',
+  text: 'Hi',
+  runId: null,
+  createdAt,
+  attachments: [],
+} satisfies MessageEntity
+
+const RunRow = Schema.Struct(Struct.omit(RunEntity.fields, ['userMessage', 'assistantMessage']))
+type RunRow = typeof RunRow.Type
+
 const run = (
   id: string,
-  fields: Types.Simplify<Partial<Pick<RunEntity, 'status' | 'failure'>>> = {},
-): RunEntity => ({
+  fields: Types.Simplify<Partial<Pick<RunRow, 'status' | 'failure'>>> = {},
+): RunRow => ({
   id,
   chatId,
   userMessageId,
@@ -33,6 +50,13 @@ const run = (
   createdAt,
   updatedAt,
   ...fields,
+})
+
+/** `row` as a read nests its messages, the reply none unless given. */
+const read = (row: RunRow, assistantMessage: MessageEntity | null = null): RunEntity => ({
+  ...row,
+  userMessage,
+  assistantMessage,
 })
 
 const SelectedRun = Schema.Option(RunEntity)
@@ -47,17 +71,7 @@ const insertUserMessage = Db.use((db) =>
       Effect.andThen(
         db.insert(chats).values({ id: chatId, userId, title: null, createdAt, updatedAt }),
       ),
-      Effect.andThen(
-        db.insert(messages).values({
-          id: userMessageId,
-          chatId,
-          author: 'user',
-          status: 'done',
-          text: 'Hi',
-          createdAt,
-          updatedAt,
-        }),
-      ),
+      Effect.andThen(db.insert(messages).values(Struct.omit(userMessage, ['attachments']))),
     ),
 )
 
@@ -79,7 +93,7 @@ describe('RunRepository', () => {
         assertSchemaEquals(
           Schema.Array(SelectedRun),
           [owned, inFlight],
-          [Option.some(queued), Option.some(queued)],
+          [Option.some(read(queued)), Option.some(read(queued))],
         )
         assert.deepStrictEqual(foreign, Option.none())
       }).pipe(Effect.provide(RepositoryTest)),
@@ -95,7 +109,7 @@ describe('RunRepository', () => {
       const exit = yield* runs.insert(run('0192d4e0-7b3a-7c00-8000-0000000000a6')).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(SelectedRun, yield* runs.selectOne({ chatId }), Option.some(queued))
+      assertSchemaEquals(SelectedRun, yield* runs.selectOne({ chatId }), Option.some(read(queued)))
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
@@ -116,7 +130,32 @@ describe('RunRepository', () => {
       assertSchemaEquals(
         SelectedRun,
         yield* runs.selectOne({ id: queued.id }),
-        Option.some(run(queued.id, { status: 'failed', failure })),
+        Option.some(read(run(queued.id, { status: 'failed', failure }))),
+      )
+    }).pipe(Effect.provide(RepositoryTest)),
+  )
+
+  it.effect('selectOne nests the message the Run answers and, once written, its reply', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const messages = yield* MessageRepository
+      const done = run('0192d4e0-7b3a-7c00-8000-0000000000a8', { status: 'done' })
+      const reply = {
+        ...userMessage,
+        id: '0192d4e0-7b3a-7c00-8000-0000000000a9',
+        author: 'assistant',
+        text: 'Hello',
+        runId: done.id,
+      } satisfies MessageEntity
+      yield* insertUserMessage
+      yield* runs.insert(done)
+
+      yield* messages.insert(Struct.omit(reply, ['attachments']))
+
+      assertSchemaEquals(
+        SelectedRun,
+        yield* runs.selectOne({ id: done.id }),
+        Option.some(read(done, reply)),
       )
     }).pipe(Effect.provide(RepositoryTest)),
   )

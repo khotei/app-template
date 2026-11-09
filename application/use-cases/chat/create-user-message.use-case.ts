@@ -16,7 +16,7 @@ import {
   type AttachmentNotFoundError,
   assistantMessageQueue,
   bindAttachment,
-  buildAssistantMessage,
+  buildRun,
   buildUserMessage,
   type ChatBusyError,
   type ChatId,
@@ -25,7 +25,9 @@ import {
   CurrentReplyProvenance,
   chatTitleQueue,
   encodeMessage,
+  encodeRun,
   ensureAllStored,
+  ensureChatNotBusy,
   ensureMessageInput,
   GenerateAssistantMessage,
   GenerateChatTitle,
@@ -34,36 +36,32 @@ import {
   MessageId,
   type MessageInput,
   type MessageInputInvalidError,
-  queueChat,
+  type Run,
+  RunId,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import {
   AttachmentRepository,
-  ChatRepository,
   FileRepository,
   MessageRepository,
+  RunRepository,
 } from '@app-template/kernel/data'
 import { generateId, Transaction } from '@app-template/packages/db'
 import { QueueSender } from '@app-template/packages/queue'
-
-export interface CreatedMessages {
-  readonly userMessage: Message
-  readonly assistantMessage: Message
-}
 
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
   {
     /**
-     * Stores the user's message with a queued reply and binds its attachments, then sends its
-     * jobs; a reply SQS refuses is answered failed with its chat.
+     * Stores the user's message with its attachments bound and the queued Run that answers it,
+     * then sends its jobs; a send SQS refuses dies, leaving the Run queued.
      */
     readonly create: (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
     ) => Effect.Effect<
-      CreatedMessages,
+      Run,
       | MessageInputInvalidError
       | ChatNotFoundError
       | ChatBusyError
@@ -73,11 +71,11 @@ export class CreateUserMessageUseCase extends Context.Service<
   }
 >()('@app-template/application/use-cases/chat/CreateUserMessageUseCase', {
   make: Effect.gen(function* () {
-    const chats = yield* ChatRepository
     const attachments = yield* AttachmentRepository
     const files = yield* FileRepository
     const chatService = yield* ChatService
     const messages = yield* MessageRepository
+    const runs = yield* RunRepository
     const liveAttachments = yield* LiveAttachmentService
     const queue = yield* QueueSender
     const transaction = yield* Transaction
@@ -91,7 +89,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     ) {
       const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
-      const queued = yield* queueChat(chat)
+      yield* ensureChatNotBusy(chat)
       const live = yield* liveAttachments.getMany({ id: input.attachmentIds, userId })
       const storedIds = yield* files
         .selectMany({ id: Arr.map(live, Struct.get('id')) })
@@ -110,9 +108,6 @@ export class CreateUserMessageUseCase extends Context.Service<
         bindAttachment(attachment, userMessage),
       )
 
-      // A concurrent create that queued the chat after the read leaves no row where its status
-      // holds, so this write dies: a lost race of two creates at once, rolled back whole.
-      yield* chats.update({ status: queued.status }, { id: chatId, status: chat.status })
       yield* encodeMessage(userMessage).pipe(Effect.flatMap(messages.insert))
       // The bind follows the insert, since its key to the message is not deferrable; a create
       // without files skips it, as the update would die on no rows.
@@ -127,20 +122,14 @@ export class CreateUserMessageUseCase extends Context.Service<
           { id: ids, userId, messageId: null },
         )
       }
-      const assistantMessageId = yield* generateId(crypto, MessageId.make)
-      const assistantMessage = buildAssistantMessage({
-        id: assistantMessageId,
-        chatId,
-        createdAt: at,
-      })
-      yield* encodeMessage(assistantMessage).pipe(Effect.flatMap(messages.insert))
+      const sent = new Message({ ...userMessage, attachments: bound })
+      const runId = yield* generateId(crypto, RunId.make)
+      const run = buildRun({ id: runId, chatId, userMessage: sent, provenance, createdAt: at })
+      // A concurrent create that started a Run after the read leaves this insert short of its row
+      // by the index on the active Run, so it dies: a lost race, rolled back whole.
+      yield* encodeRun(run).pipe(Effect.flatMap(runs.insert))
 
-      return {
-        chat: queued,
-        userMessage: new Message({ ...userMessage, attachments: bound }),
-        assistantMessage,
-        isFirstMessage,
-      }
+      return { run, isFirstMessage }
     }, transaction.run)
 
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
@@ -150,22 +139,18 @@ export class CreateUserMessageUseCase extends Context.Service<
     ) {
       const stored = yield* store(userId, chatId, input)
       yield* queue
-        .send(
-          assistantMessageQueue,
-          new GenerateAssistantMessage({
-            chatId,
-            messageId: stored.assistantMessage.id,
-            provenance: Option.some(provenance),
-          }),
-        )
+        .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: stored.run.id }))
         .pipe(Effect.orDie)
       if (stored.isFirstMessage) {
         yield* queue
-          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: stored.userMessage.id }))
+          .send(
+            chatTitleQueue,
+            new GenerateChatTitle({ chatId, messageId: stored.run.userMessageId }),
+          )
           .pipe(Effect.orDie)
       }
 
-      return { userMessage: stored.userMessage, assistantMessage: stored.assistantMessage }
+      return stored.run
     })
 
     return { create }

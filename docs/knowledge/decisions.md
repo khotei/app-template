@@ -543,10 +543,10 @@ and lifecycle; `deployment` reads both.
 ### Jobs as queue messages
 
 A job is a message on its queue, and no table holds it: the work it asks for keeps its own
-record (the assistant message, the chat's title), which the worker reads to run it once, to
-settle a run that died and to record a failure. `QueueSender.send` encodes the job by its
+record (the Run, the chat's title), which the worker reads to run it once, to settle a Run whose
+worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; the caller sends it after its commit, so every delivery finds its record. A send
-SQS refuses dies: the api answers `500`, and the stored reply stays queued.
+SQS refuses dies: the api answers `500`, and the stored Run stays queued.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -563,9 +563,8 @@ SQS refuses dies: the api answers `500`, and the stored reply stays queued.
   delay per attempt: a failed reply the user waits on through every attempt, and code that counts
   them.
 - **Cost:** a process that dies between the commit and the send, a client that aborts there, or
-  a send SQS refuses leaves the reply queued and its chat busy (roadmap entry 22); a refused send
-  answers `500` for a stored message, so a client that sends again posts it twice. No record
-  keeps a reply's provenance.
+  a send SQS refuses leaves the Run queued and its chat busy (roadmap entry 22); a refused send
+  answers `500` for a stored message, so a client that sends again posts it twice.
 - **Guarded by:** the `QueueSender` e2e; the
   `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.

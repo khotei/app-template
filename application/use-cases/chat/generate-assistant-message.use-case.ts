@@ -2,11 +2,11 @@ import {
   Array as Arr,
   Cause,
   Context,
+  Crypto,
   Data,
   DateTime,
   Effect,
   Exit,
-  flow,
   Layer,
   Option,
   type Types,
@@ -16,28 +16,29 @@ import {
   Assistant,
   type AssistantReply,
   type Attachment,
-  buildReplyFailure,
-  completeMessage,
-  decodeChat,
-  decodeMessage,
+  buildAssistantMessage,
+  buildRunFailure,
+  completeRun,
   decodeMessages,
+  decodeRun,
   encodeMessage,
-  failChat,
-  failMessage,
+  encodeRun,
+  failRun,
   type GenerateAssistantMessage,
-  generateMessage,
+  generateRun,
   type HistoryMessage,
-  idleChat,
-  isActiveMessage,
-  isStartedReply,
+  isActiveRun,
+  isStartedRun,
   type Message,
-  type MessageFailure,
-  type MessageId,
-  type MessageStatus,
-  prepareMessage,
+  MessageId,
+  prepareRun,
+  type Run,
+  type RunFailure,
+  type RunId,
+  type RunStatus,
 } from '@app-template/application/chat'
-import { ChatRepository, FileRepository, MessageRepository } from '@app-template/kernel/data'
-import { Transaction } from '@app-template/packages/db'
+import { FileRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
+import { generateId, Transaction } from '@app-template/packages/db'
 
 type ReplySkip = 'chatDeleted' | 'alreadySettled'
 
@@ -52,10 +53,10 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
   {
     /**
-     * Prepares, generates and completes the message with the reply, or fails it and its chat
-     * with the reason the assistant's error maps to, or with `ReplyFailed` on any other outcome,
-     * an interrupt included; a settled message is skipped. A message some run already started
-     * is failed unrun, as that run has died.
+     * Prepares and generates the Run, then completes it with the assistant's message, or fails
+     * it with the reason the assistant's error maps to, or with `ReplyFailed` on any other
+     * outcome, an interrupt included; a settled Run is skipped. A Run some worker already
+     * started is failed unrun, as that worker has died.
      */
     readonly generate: (job: GenerateAssistantMessage) => Effect.Effect<void>
   }
@@ -63,9 +64,10 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
   make: Effect.gen(function* () {
     const assistant = yield* Assistant
     const files = yield* FileRepository
-    const chats = yield* ChatRepository
     const messages = yield* MessageRepository
+    const runs = yield* RunRepository
     const transaction = yield* Transaction
+    const crypto = yield* Crypto.Crypto
 
     const logMissingFile = (attachment: Attachment) =>
       Effect.logWarning('attachment skipped: file missing').pipe(
@@ -87,90 +89,87 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         Effect.map((found): HistoryMessage => ({ message, attachments: Arr.getSomes(found) })),
       )
 
-    const readHistory = (reply: Message) =>
+    const readHistory = (run: Run) =>
       messages
-        .selectMany({ chatId: reply.chatId, status: ['done'] })
+        .selectMany({ chatId: run.chatId })
         .pipe(
           Effect.flatMap(decodeMessages),
           Effect.flatMap(Effect.forEach(readHistoryMessage)),
-          Effect.annotateLogs({ chatId: reply.chatId, messageId: reply.id }),
+          Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
         )
 
-    const updateMessage = (message: Message, from: MessageStatus) =>
-      encodeMessage(message).pipe(
-        Effect.flatMap((row) => messages.update(row, { id: message.id, status: [from] })),
-      )
+    const updateRun = (run: Run, from: RunStatus) =>
+      encodeRun(run).pipe(Effect.flatMap((row) => runs.update(row, { id: run.id, status: [from] })))
 
-    /** Writes the settled message with its chat's end, `idleChat` or `failChat`, in one transaction. */
-    const settleWith = (end: typeof idleChat) =>
-      Effect.fnUntraced(function* (settled: Message, from: MessageStatus) {
-        yield* updateMessage(settled, from)
-        // The message's write held, so the foreign key still keeps its chat.
-        const chat = yield* chats
-          .selectOne({ id: settled.chatId })
-          .pipe(Effect.flatMap(decodeChat), Effect.flatMap(flow(Effect.fromOption, Effect.orDie)))
-        const ended = yield* end(chat)
-        yield* chats.update({ status: ended.status }, { id: chat.id, status: chat.status })
-        return settled
-      }, transaction.run)
+    const settleCompleted = Effect.fnUntraced(
+      function* (generating: Run, { text }: AssistantReply) {
+        const at = yield* DateTime.now
+        const id = yield* generateId(crypto, MessageId.make)
+        const reply = buildAssistantMessage({
+          id,
+          chatId: generating.chatId,
+          runId: generating.id,
+          text,
+          createdAt: at,
+        })
+        const completed = yield* completeRun(generating, { reply, at })
 
-    const settleCompleted = Effect.fnUntraced(function* (
-      generating: Message,
-      { text }: AssistantReply,
-    ) {
-      const completedAt = yield* DateTime.now
-      const completed = yield* completeMessage(generating, { text, at: completedAt })
-      return yield* settleWith(idleChat)(completed, generating.status)
-    })
+        // The Run first: a Run another worker settled meanwhile dies here, before the reply.
+        yield* updateRun(completed, generating.status)
+        yield* encodeMessage(reply).pipe(Effect.flatMap(messages.insert))
+      },
+      // The reply and the Run's `done` land together, or neither does.
+      transaction.run,
+    )
 
     const settleFailed = Effect.fnUntraced(function* (
-      active: Message,
-      { reason, cause }: Types.Simplify<Pick<MessageFailure, 'reason' | 'cause'>>,
+      active: Run,
+      { reason, cause }: Types.Simplify<Pick<RunFailure, 'reason' | 'cause'>>,
     ) {
-      const failedAt = yield* DateTime.now
-      const failed = yield* failMessage(active, { reason, cause, at: failedAt })
-      return yield* settleWith(failChat)(failed, active.status)
+      const at = yield* DateTime.now
+      const failed = yield* failRun(active, { reason, cause, at })
+      yield* updateRun(failed, active.status)
     })
 
-    const reply = Effect.fnUntraced(function* (taken: Message) {
+    const reply = Effect.fnUntraced(function* (taken: Run) {
       const preparedAt = yield* DateTime.now
-      const prepared = yield* prepareMessage(taken, preparedAt)
-      yield* updateMessage(prepared, taken.status)
+      const prepared = yield* prepareRun(taken, preparedAt)
+      yield* updateRun(prepared, taken.status)
 
       const history = yield* readHistory(prepared)
       const generatingAt = yield* DateTime.now
-      const generating = yield* generateMessage(prepared, generatingAt)
-      yield* updateMessage(generating, prepared.status)
+      const generating = yield* generateRun(prepared, generatingAt)
+      yield* updateRun(generating, prepared.status)
 
       yield* assistant.reply(history).pipe(
         Effect.matchEffect({
           onSuccess: (answer) => settleCompleted(generating, answer),
-          onFailure: (error) => settleFailed(generating, buildReplyFailure(error)),
+          onFailure: (error) => settleFailed(generating, buildRunFailure(error)),
         }),
       )
     })
 
-    // The cascade takes the message with its chat, so a missing one means a deleted chat.
-    const selectActive = (id: MessageId) =>
-      messages.selectOne({ id }).pipe(
-        Effect.flatMap(decodeMessage),
+    // The cascade takes the Run with its chat, so a missing one means a deleted chat.
+    const selectActive = (id: RunId) =>
+      runs.selectOne({ id }).pipe(
+        Effect.flatMap(decodeRun),
         Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chatDeleted' }))),
-        Effect.filterOrFail(isActiveMessage, () => new ReplySkipped({ why: 'alreadySettled' })),
+        Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'alreadySettled' })),
       )
 
     const fail = Effect.fnUntraced(
-      function* (messageId: MessageId, cause: Cause.Cause<unknown>) {
-        const active = yield* selectActive(messageId)
+      function* (runId: RunId, cause: Cause.Cause<unknown>) {
+        const active = yield* selectActive(runId)
         yield* settleFailed(active, { reason: 'ReplyFailed', cause: Cause.pretty(cause) })
       },
       Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
     )
 
-    const answer = Effect.fnUntraced(function* (active: Message) {
-      if (isStartedReply(active)) {
+    const answer = Effect.fnUntraced(function* (active: Run) {
+      if (isStartedRun(active)) {
         return yield* settleFailed(active, {
           reason: 'ReplyFailed',
-          cause: 'the run that started the reply stopped before it ended',
+          cause: 'the worker that started the Run stopped before it ended',
         })
       }
       // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
@@ -185,9 +184,9 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     })
 
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
-      (job: GenerateAssistantMessage) => selectActive(job.messageId).pipe(Effect.flatMap(answer)),
+      (job: GenerateAssistantMessage) => selectActive(job.runId).pipe(Effect.flatMap(answer)),
       Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
-      // A status the model refused means another run moved the message first and settles it, so
+      // A status the model refused means another worker moved the Run first and settles it, so
       // the refusal is logged, never returned to the queue.
       Effect.catch((error) =>
         Effect.logWarning('assistant reply ended by a refused status', error),

@@ -3,30 +3,20 @@ import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { MessageFailureJson, messages } from '#kernel/data/chat/message.table'
-
-const refine = { error: () => MessageFailureJson }
+import { messages } from '#kernel/data/chat/message.table'
 
 /** A message with its attachments, in upload order: every read nests them (`withAttachments`). */
 export const MessageEntity = Schema.Struct({
-  ...createSelectSchema(messages, refine).fields,
+  ...createSelectSchema(messages).fields,
   attachments: Schema.Array(AttachmentEntity),
 })
 export type MessageEntity = typeof MessageEntity.Type
 
-export const MessageEntityInsert = createInsertSchema(messages, refine)
+export const MessageEntityInsert = createInsertSchema(messages)
 
 /** `userId` is the owner of the row's chat, not a column of `messages`. */
 export type MessageEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> &
-    Partial<{
-      readonly userId: string
-      readonly status: ReadonlyArray<MessageEntity['status']>
-    }>
->
-
-export type MessageEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<MessageEntity, 'status' | 'text' | 'error' | 'updatedAt'>>
+  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> & Partial<{ readonly userId: string }>
 >
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const

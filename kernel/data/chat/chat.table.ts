@@ -1,15 +1,11 @@
 import { sql } from 'drizzle-orm'
-import { check, index, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
+import { check, index, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 
 export const maxTitleLength = 120
-
-export const chatStatuses = ['idle', 'queued', 'failed'] as const
-
-export const chatStatus = pgEnum('chat_status', chatStatuses)
 
 export const chats = snakeCase.table(
   'chats',
@@ -19,7 +15,6 @@ export const chats = snakeCase.table(
       .notNull()
       .references(() => users.id),
     title: text(),
-    status: chatStatus().notNull().default('idle'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

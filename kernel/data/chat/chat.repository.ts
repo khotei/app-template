@@ -25,6 +25,7 @@ import {
   type ChatEntityInsert,
   type ChatEntitySet,
   type ChatEntityWhere,
+  withLatestRun,
 } from '#kernel/data/chat/chat.entity'
 import { chats } from '#kernel/data/chat/chat.table'
 import { withAttachments } from '#kernel/data/chat/message.entity'
@@ -32,7 +33,6 @@ import { Db } from '#kernel/data/db.client'
 
 const encodeSet = buildSet<ChatEntitySet, typeof chats>({
   title: identity,
-  status: identity,
   updatedAt: identity,
 })
 
@@ -43,13 +43,12 @@ const encodeWhere = (table: typeof chats) =>
     id: UndefinedOr.map((id) => eq(table.id, id)),
     userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
     title: UndefinedOr.map(eqOrIsNull(table.title)),
-    status: UndefinedOr.map((status) => eq(table.status, status)),
   })
 
 const select = (where: ChatEntityWhere) =>
   ({
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
-    with: withAttachments,
+    with: { ...withAttachments, ...withLatestRun },
   }) as const
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatEntity))

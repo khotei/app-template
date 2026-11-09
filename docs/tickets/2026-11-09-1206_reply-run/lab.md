@@ -126,7 +126,10 @@ Message, Message status, Active message, Chat status, Status, Provenance), `data
 entry 22 ("The message keeps its own status", "A run needs no status of its own").
 
 [Q:ai] Rail 5, question 2 (already in the code?): `.claude/rules/deep-modules.md:61` says a value another table implies is a column the transactions that change it move, not derived on each read; the Shape's `chats` line (`:72`) derives the chat's status from its latest Run. Keep `chats.status`, moved by the send and the worker as today, the busy check and its race guard as they are? Without it: a `latestRun` relation on every chat read, a status derived in the api, and the busy check moved to the Runs.
+[N:ai] The owner's word on the first `[Q:ai]` above: the chat's status is driven from its latest Run, not a column; the agent chose the read: a `latestRun` relation on every chat read (one lateral join) and a pure `buildChatStatus` in the model.
 [Q:ai] Rail 5, question 1 (what breaks if removed?): in L3 no reader needs a message's Run nested (`UserMessage.run`, `AssistantMessage.run`, `:77`); the list that does is L4. Keep one `Message` with `runId: Option<RunId>` in L3, the assistant message reached from its Run (`RunEntity.assistantMessage`, one relational query) for `GET /chats/:chatId/runs/:runId`, and nest the Runs into messages in L4?
+
+[N:ai] The owner's word on the second `[Q:ai]`: one `Message` class with `runId`, no `UserMessage` and `AssistantMessage`; `GET /chats/:chatId/runs/:runId` answers the Run with its user message and its assistant message.
 
 ### Pieces
 
@@ -139,6 +142,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 [N:ai] L3.8 The memory fakes' owner where and one-active-per-chat index check become one function each, `holdsChildWhere` and `holdsOneActivePerChat`, so the Run fake shares them with the message fake · visible: `make test-unit` (276 passed)
 [N:ai] L3.9 `RunRepositoryTest` over `RunRows`, in `RepositoryStackTest`: the primary key, the where with the owner through the chat, the set fields, one active Run per chat, the newest Run first, and a chat's delete takes its Runs; no test of its own (`.claude/rules/effect-tests.md`), a throwaway run of those cases passed and was deleted · visible: the use cases' unit tests once they read Runs
 [N:ai] L3.10 `RunFromEntity` and `encodeRun` in a mapper of their own, `application/chat/services/run.mapper.ts` (the owner's word); `decodeRun` lands with its first caller · visible: `bun --bun vitest run application/chat/__tests__/services/run.mapper.test.ts` (5 passed)
+[N:ai] L3.12 The cut to Runs, rail 4 lifted by the owner (variant B): messages lose `status`, `error`, `updated_at` and gain `run_id`; chats lose `status`, read with their newest Run; a Run nests its user message and its reply; the send stores the user message and its queued Run, the worker moves the Run and writes the reply with its `done`; `POST /chats/:chatId/messages` answers the Run, `GET /chats/:chatId/runs/:runId` reads it; `runs` moved into `message.table.ts`, since the two tables reference each other; `init` regenerated. 63 files, +1872 −1999 (55 without the migration, the OpenAPI snapshot and the docs: +1148 −1514) · visible: `make check` (251 unit, 88 e2e), `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts` (8 passed); the play: `make reset && make up`, `make dev`, then the Notes' play with `runId`
 
 ### Output
 
@@ -232,7 +236,8 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   stays as it was (a queued reply keeps its chat busy). `packages/queue/queue.consumer.ts:49`,
   the `onFailure` arm.
 - [N:ai] L2: no record keeps a reply's provenance; only the job's body carries it
-  (`application/chat/services/chat.queue.ts:18`). The Run's `provenance` column takes it (L3, L4).
+  (`application/chat/services/chat.queue.ts:18`). Done in L3.12: the Run keeps it, the job names
+  only the Run.
 - [Q:ai] L3: `runs.updated_at` has no reader in the L3-L5 Shapes: a stuck Run is found by
   `isStartedRun` when the worker takes it, not by its age, and the client polls the status. Drop
   it, so the transitions take no time? Without it, nobody sees when a Run last moved.
@@ -243,3 +248,18 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] Rail 4 (`.claude/rules/lab.md`): a piece with a repository's e2e cannot stay within 100
   lines, since the test's setup alone takes about 50 (L3.2: 178 lines, L3.3: 185, L3.6: 220 with 126 of test). Count a piece's
   tests apart from its code, as a plan step counts its docs? For the Right step.
+- [N:ai] L3.12: the chat's status is derived on each read from its newest Run, against
+  `.claude/rules/deep-modules.md:61` (a value another table implies is a column the transactions
+  move). The owner chose it; the rule or the design changes in the Right step (L6).
+- [N:ai] L3.12: L1's Output said `message.table.ts` and `run.table.ts` import each other; Biome's
+  `noImportCycles` refuses that, so `runs` sits in `kernel/data/chat/message.table.ts`. Correct
+  the L1 line in Knowledge at the lab's close.
+- [N:ai] L3.12: a local database migrated with the old `init` needs `make reset && make up`; a job
+  body queued before the cut (`messageId`) no longer decodes and is logged and acknowledged
+  (`packages/queue/queue.consumer.ts:49`).
+- [N:ai] L3.12: the memory fakes check no foreign key, so a unit test may store a Run whose user
+  message is missing, or an assistant message whose Run is (`kernel/data/__tests__/testing/chat.test-fake.ts`),
+  as the message fake never checked its chat.
+- [N:ai] L3.12: `TransactionTest` is the identity, so a unit test sees a write that Postgres would
+  roll back; the completion writes the Run first, so its lost race leaves no reply in memory
+  either (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`).

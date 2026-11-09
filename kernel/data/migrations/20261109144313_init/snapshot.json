@@ -2,28 +2,11 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "5925b480-df32-4c08-a8c8-7a0d07fdf294",
+  "id": "8979b56c-ca10-4177-8090-5ba4a442a76e",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
   "footprints": [
-    {
-      "statementType": "create_enum",
-      "statementTarget": [
-        "enum",
-        "public",
-        "chat_status"
-      ],
-      "writes": [
-        "s|enum|public.chat_status",
-        "n|enum|public.chat_status",
-        "e|enum|public.chat_status",
-        "n|type|public.chat_status"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
     {
       "statementType": "create_enum",
       "statementTarget": [
@@ -36,23 +19,6 @@
         "n|enum|public.message_author",
         "e|enum|public.message_author",
         "n|type|public.message_author"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_enum",
-      "statementTarget": [
-        "enum",
-        "public",
-        "message_status"
-      ],
-      "writes": [
-        "s|enum|public.message_status",
-        "n|enum|public.message_status",
-        "e|enum|public.message_status",
-        "n|type|public.message_status"
       ],
       "reads": [
         "n|sch|public"
@@ -127,8 +93,7 @@
         "n|rel|public.chats_pkey"
       ],
       "reads": [
-        "n|sch|public",
-        "n|enum|public.chat_status"
+        "n|sch|public"
       ]
     },
     {
@@ -145,12 +110,12 @@
         "n|rel|public.messages",
         "n|type|public.messages",
         "n|rel|public.messages_pkey",
+        "n|rel|public.messages_run_id_unique",
         "n|rel|public.messages_id_chat_id_unique"
       ],
       "reads": [
         "n|sch|public",
-        "n|enum|public.message_author",
-        "n|enum|public.message_status"
+        "n|enum|public.message_author"
       ]
     },
     {
@@ -322,26 +287,6 @@
       "statementTarget": [
         "index",
         "public",
-        "messages",
-        "messages_chat_id_active_index"
-      ],
-      "writes": [
-        "s|idx|public.messages_chat_id_active_index",
-        "n|idx|public.messages_chat_id_active_index",
-        "e|idx|public.messages_chat_id_active_index",
-        "n|rel|public.messages_chat_id_active_index"
-      ],
-      "reads": [
-        "n|tbl|public.messages",
-        "n|sch|public",
-        "n|col|public.messages.chat_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
         "runs",
         "runs_chat_id_active_index"
       ],
@@ -477,6 +422,29 @@
       "statementTarget": [
         "table",
         "public",
+        "messages"
+      ],
+      "writes": [
+        "s|fk|public.messages.messages_run_id_runs_id_fkey",
+        "n|fk|public.messages.messages_run_id_runs_id_fkey",
+        "e|fk|public.messages.messages_run_id_runs_id_fkey",
+        "n|con|public.messages.messages_run_id_runs_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.messages",
+        "n|sch|public",
+        "n|tbl|public.runs",
+        "n|sch|public",
+        "n|col|public.messages.run_id",
+        "n|col|public.runs.id",
+        "e|uniqueness|public.runs.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
         "runs"
       ],
       "writes": [
@@ -583,32 +551,10 @@
     },
     {
       "schema": "public",
-      "name": "chat_status",
-      "values": [
-        "idle",
-        "queued",
-        "failed"
-      ],
-      "entityType": "enums"
-    },
-    {
-      "schema": "public",
       "name": "message_author",
       "values": [
         "user",
         "assistant"
-      ],
-      "entityType": "enums"
-    },
-    {
-      "schema": "public",
-      "name": "message_status",
-      "values": [
-        "queued",
-        "preparing",
-        "generating",
-        "done",
-        "failed"
       ],
       "entityType": "enums"
     },
@@ -778,19 +724,6 @@
     {
       "schema": "public",
       "table": "chats",
-      "name": "status",
-      "type": "chat_status",
-      "typeSchema": "public",
-      "notNull": true,
-      "dimensions": 0,
-      "default": "'idle'",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "chats",
       "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
@@ -856,19 +789,6 @@
     {
       "schema": "public",
       "table": "messages",
-      "name": "status",
-      "type": "message_status",
-      "typeSchema": "public",
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "messages",
       "name": "text",
       "type": "text",
       "typeSchema": null,
@@ -882,8 +802,8 @@
     {
       "schema": "public",
       "table": "messages",
-      "name": "error",
-      "type": "jsonb",
+      "name": "run_id",
+      "type": "uuid",
       "typeSchema": null,
       "notNull": false,
       "dimensions": 0,
@@ -896,19 +816,6 @@
       "schema": "public",
       "table": "messages",
       "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "messages",
-      "name": "updated_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
       "notNull": true,
@@ -1229,27 +1136,6 @@
     },
     {
       "schema": "public",
-      "table": "messages",
-      "name": "messages_chat_id_active_index",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "chat_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": true,
-      "where": "\"author\" = 'assistant' and \"status\" in ('queued', 'preparing', 'generating')",
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
       "table": "runs",
       "name": "runs_chat_id_active_index",
       "nameExplicit": true,
@@ -1360,6 +1246,23 @@
       ],
       "schemaTo": "public",
       "tableTo": "chats",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "messages",
+      "name": "messages_run_id_runs_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "run_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "runs",
       "columnsTo": [
         "id"
       ],
@@ -1483,6 +1386,17 @@
     {
       "schema": "public",
       "table": "messages",
+      "name": "messages_run_id_unique",
+      "nameExplicit": true,
+      "columns": [
+        "run_id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
+    },
+    {
+      "schema": "public",
+      "table": "messages",
       "name": "messages_id_chat_id_unique",
       "nameExplicit": true,
       "columns": [
@@ -1525,6 +1439,13 @@
       "table": "chats",
       "name": "chats_title_check",
       "value": "\"title\" = btrim(\"title\") and char_length(\"title\") between 1 and 120",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "messages",
+      "name": "messages_run_id_check",
+      "value": "(\"author\" = 'assistant') = (\"run_id\" is not null)",
       "entityType": "checks"
     },
     {

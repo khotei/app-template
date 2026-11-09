@@ -3,20 +3,23 @@ import { DateTime, Effect, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ReplyProvenance } from '#chat/domain/assistant.port'
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { MessageId } from '#chat/domain/chat.id'
+import { buildAssistantMessage } from '#chat/domain/message.model'
 import { Run, RunFailure, RunStatus } from '#chat/domain/run.model'
-import { encodeRun, RunFromEntity } from '#chat/services/run.mapper'
+import { RunFromEntity } from '#chat/services/run.mapper'
+import { queuedRun } from '#testing/chat/chat.test-fixture'
 
 const run = new Run({
-  id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000301'),
-  chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000101'),
-  userMessageId: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000201'),
-  status: 'queued',
-  failure: Option.none(),
-  provenance: new ReplyProvenance({ provider: 'anthropic', model: 'haiku', instructionsHash: 'h' }),
-  createdAt: DateTime.makeUnsafe('2026-11-09T00:00:00.123Z'),
+  ...queuedRun,
   updatedAt: DateTime.makeUnsafe('2026-11-09T00:00:01.456Z'),
+})
+
+const reply = buildAssistantMessage({
+  id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000201'),
+  chatId: run.chatId,
+  runId: run.id,
+  text: 'Hello',
+  createdAt: run.updatedAt,
 })
 
 const failure = new RunFailure({ reason: 'ReplyRefused', message: 'Declined', cause: 'refusal' })
@@ -26,15 +29,18 @@ describe('RunFromEntity', () => {
     RunStatus.literals.map((status) => ({
       status,
       failure: status === 'failed' ? Option.some(failure) : Option.none(),
+      assistantMessage: status === 'done' ? Option.some(reply) : Option.none(),
     })),
-  )('$status: encodes a Run for runs and reads it back', ({ status, failure }) =>
-    Effect.gen(function* () {
-      const written = new Run({ ...run, status, failure })
+  )(
+    '$status: encodes a Run with its messages and reads it back',
+    ({ status, failure, assistantMessage }) =>
+      Effect.gen(function* () {
+        const written = new Run({ ...run, status, failure, assistantMessage })
 
-      const row = yield* encodeRun(written)
-      const read = yield* Schema.decodeUnknownEffect(RunFromEntity)(row)
+        const row = yield* Schema.encodeEffect(RunFromEntity)(written)
+        const read = yield* Schema.decodeUnknownEffect(RunFromEntity)(row)
 
-      assertSchemaEquals(Run, read, written)
-    }),
+        assertSchemaEquals(Run, read, written)
+      }),
   )
 })

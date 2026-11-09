@@ -155,21 +155,21 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`; a queue with no consumer answers `500`, a deployment bug.
 - **The work's record runs a job once.** A queue's use case reads the record of its work (the
-  assistant message, the chat's title) and skips work already settled; it ends its own work on
+  Run, the chat's title) and skips work already settled; it ends its own work on
   any outcome but success, an interrupt included. A body that does not decode never will, so it
   is logged and acknowledged, unrun.
-- **Delivery is at-least-once:** the reply's use case fails a reply it finds started, as the run
-  that started it died, so a copy delivered while the first still runs fails a live reply, a
-  rare case accepted.
+- **Delivery is at-least-once:** the reply's use case fails a Run it finds started, as the worker
+  that started it died, so a copy delivered while the first still runs fails a live Run, a rare
+  case accepted.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles
   its work's failure itself. A record whose handler dies (a process that dies included) is
   answered in `batchItemFailures`, or not answered at all; SQS delivers it again once the queue's
   visibility timeout, the worker function's 600 s, has passed, and after `maxReceiveCount`, 3,
   redrives it to `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping
   on a queue that hides a message less than its function's timeout.
-- **Nothing consumes a dead-letter queue.** A reply's run writes `failed` on any outcome but
-  success; one that no run settles stays active
-  ([database.md › Stuck replies](database.md#stuck-replies)).
+- **Nothing consumes a dead-letter queue.** A Run's worker writes `failed` on any outcome but
+  success; one that no worker settles stays active
+  ([database.md › Stuck Runs](database.md#stuck-runs)).
 - **AWS differs in one status.** MiniStack counts any non-2xx answer as a failed invoke; Lambda
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.

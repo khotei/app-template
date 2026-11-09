@@ -58,11 +58,8 @@ const insertMessage = (id: string) =>
       id,
       chatId,
       author: 'user',
-      status: 'done',
       text: 'Hi',
-      error: null,
       createdAt,
-      updatedAt: createdAt,
     }),
   )
 

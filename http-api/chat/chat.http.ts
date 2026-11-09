@@ -6,7 +6,7 @@ import {
   AttachmentBoundError,
   AttachmentNotFoundError,
 } from '#http-api/attachment/attachment.http'
-import { AttachmentId, ChatId, MessageId, UserId } from '#http-api/shared/ids'
+import { AttachmentId, ChatId, MessageId, RunId, UserId } from '#http-api/shared/ids'
 import * as limits from '#http-api/shared/limits'
 import { Auth } from '#http-api/shared/security'
 
@@ -20,14 +20,8 @@ export type ChatTitle = typeof ChatTitle.Type
 export const ChatStatus = Schema.Literals(['idle', 'queued', 'failed'])
 export type ChatStatus = typeof ChatStatus.Type
 
-export const MessageStatus = Schema.Literals([
-  'queued',
-  'preparing',
-  'generating',
-  'done',
-  'failed',
-])
-export type MessageStatus = typeof MessageStatus.Type
+export const RunStatus = Schema.Literals(['queued', 'preparing', 'generating', 'done', 'failed'])
+export type RunStatus = typeof RunStatus.Type
 
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -43,28 +37,38 @@ export const ApiChat = Schema.Struct({
 })
 export type ApiChat = typeof ApiChat.Type
 
-export const MessageFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
-export type MessageFailureReason = typeof MessageFailureReason.Type
-
-/** Carries the failure's user-facing sentence, never its cause. */
-export const ApiMessageFailure = Schema.Struct({
-  reason: MessageFailureReason,
-  message: Schema.String,
-})
-export type ApiMessageFailure = typeof ApiMessageFailure.Type
-
 export const ApiMessage = Schema.Struct({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
-  status: MessageStatus,
   text: Schema.String,
-  error: Schema.OptionFromNullOr(ApiMessageFailure),
   createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
   attachments: Schema.Array(ApiAttachment),
 })
 export type ApiMessage = typeof ApiMessage.Type
+
+export const RunFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
+export type RunFailureReason = typeof RunFailureReason.Type
+
+/** Carries the failure's user-facing sentence, never its cause. */
+export const ApiRunFailure = Schema.Struct({
+  reason: RunFailureReason,
+  message: Schema.String,
+})
+export type ApiRunFailure = typeof ApiRunFailure.Type
+
+/** The work of answering `userMessage`; `assistantMessage` once it is done. */
+export const ApiRun = Schema.Struct({
+  id: RunId,
+  chatId: ChatId,
+  status: RunStatus,
+  failure: Schema.OptionFromNullOr(ApiRunFailure),
+  createdAt: Schema.DateTimeUtc,
+  updatedAt: Schema.DateTimeUtc,
+  userMessage: ApiMessage,
+  assistantMessage: Schema.OptionFromNullOr(ApiMessage),
+})
+export type ApiRun = typeof ApiRun.Type
 
 export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
   'ChatNotFoundError',
@@ -81,6 +85,12 @@ export class ChatBusyError extends Schema.TaggedError<ChatBusyError>()(
 export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
   'MessageNotFoundError',
   { id: MessageId },
+  { httpApiStatus: 404 },
+) {}
+
+export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()(
+  'RunNotFoundError',
+  { id: RunId },
   { httpApiStatus: 404 },
 ) {}
 
@@ -120,9 +130,7 @@ export class ChatHttp extends HttpApiGroup.make('chats')
           Schema.isMaxLength(limits.attachment.maxFiles),
         ),
       }),
-      success: Schema.Struct({ userMessage: ApiMessage, assistantMessage: ApiMessage }).pipe(
-        HttpApiSchema.status(202),
-      ),
+      success: ApiRun.pipe(HttpApiSchema.status(202)),
       error: [
         MessageInputInvalidError,
         ChatNotFoundError,
@@ -135,6 +143,11 @@ export class ChatHttp extends HttpApiGroup.make('chats')
       params: { ...chatPath, messageId: MessageId },
       success: ApiMessage,
       error: MessageNotFoundError,
+    }),
+    HttpApiEndpoint.get('getRun', '/chats/:chatId/runs/:runId', {
+      params: { ...chatPath, runId: RunId },
+      success: ApiRun,
+      error: RunNotFoundError,
     }),
   )
   .middleware(Auth) {}

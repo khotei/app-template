@@ -1,11 +1,11 @@
-import { Array as Arr, Effect, Struct } from 'effect'
+import { Array as Arr, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { ChatService, MessageService } from '@app-template/application/chat'
+import { ChatService, MessageService, RunService } from '@app-template/application/chat'
 import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
 import { Api, CurrentUser } from '@app-template/http-api'
 
-import { buildApiChat, buildApiMessage } from '#api/chat/chat.mapper'
+import { buildApiChat, buildApiMessage, buildApiRun } from '#api/chat/chat.mapper'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,
@@ -13,6 +13,7 @@ export const ChatHandler = HttpApiBuilder.group(
   Effect.fnUntraced(function* (handlers) {
     const chatService = yield* ChatService
     const messageService = yield* MessageService
+    const runService = yield* RunService
     const createUserMessage = yield* CreateUserMessageUseCase
 
     return handlers
@@ -56,15 +57,10 @@ export const ChatHandler = HttpApiBuilder.group(
       )
       .handle(
         'createMessage',
-        Effect.fn('ChatHandler.createMessage')(
-          function* ({ params, payload }) {
-            const user = yield* CurrentUser
-            return yield* createUserMessage.create(user.id, params.chatId, payload)
-          },
-          Effect.map(
-            Struct.evolve({ userMessage: buildApiMessage, assistantMessage: buildApiMessage }),
-          ),
-        ),
+        Effect.fn('ChatHandler.createMessage')(function* ({ params, payload }) {
+          const user = yield* CurrentUser
+          return yield* createUserMessage.create(user.id, params.chatId, payload)
+        }, Effect.map(buildApiRun)),
       )
       .handle(
         'getMessage',
@@ -76,6 +72,17 @@ export const ChatHandler = HttpApiBuilder.group(
             userId: user.id,
           })
         }, Effect.map(buildApiMessage)),
+      )
+      .handle(
+        'getRun',
+        Effect.fn('ChatHandler.getRun')(function* ({ params }) {
+          const user = yield* CurrentUser
+          return yield* runService.getOne({
+            id: params.runId,
+            chatId: params.chatId,
+            userId: user.id,
+          })
+        }, Effect.map(buildApiRun)),
       )
   }),
 )

@@ -3,12 +3,15 @@ import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
+import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { buildAssistantMessage, buildUserMessage, Message } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   ActiveRunStatus,
   buildRun,
+  buildRunFailure,
   completeRun,
   failRun,
   generateRun,
@@ -24,22 +27,41 @@ const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
 const cause = 'Provider returned 529: overloaded'
 
+const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002')
+
+const userMessage = buildUserMessage({
+  id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
+  chatId,
+  text: 'Hi',
+  createdAt,
+})
+
 const queued = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000001'),
-  chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002'),
-  userMessageId: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
+  chatId,
+  userMessageId: userMessage.id,
   status: 'queued',
   failure: Option.none(),
   provenance: new ReplyProvenance({ provider: 'anthropic', model: 'haiku', instructionsHash: 'h' }),
   createdAt,
   updatedAt: createdAt,
+  userMessage,
+  assistantMessage: Option.none(),
+})
+
+const reply = buildAssistantMessage({
+  id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
+  chatId,
+  runId: queued.id,
+  text: 'Hello',
+  createdAt: later,
 })
 
 const runAt = (status: RunStatus) => new Run({ ...queued, status })
 
 describe('buildRun', () => {
   it.effect('builds a queued Run with no failure, last moved when built', () =>
-    Effect.sync(() => assertSchemaEquals(Run, buildRun({ ...queued }), queued)),
+    Effect.sync(() => assertSchemaEquals(Run, buildRun(queued), queued)),
   )
 })
 
@@ -66,7 +88,11 @@ const moves: ReadonlyArray<{
 }> = [
   { to: 'preparing', from: ActiveRunStatus.literals, move: (run) => prepareRun(run, later) },
   { to: 'generating', from: ['preparing'], move: (run) => generateRun(run, later) },
-  { to: 'done', from: ActiveRunStatus.literals, move: (run) => completeRun(run, later) },
+  {
+    to: 'done',
+    from: ActiveRunStatus.literals,
+    move: (run) => completeRun(run, { reply, at: later }),
+  },
   {
     to: 'failed',
     from: ActiveRunStatus.literals,
@@ -123,5 +149,28 @@ describe.each([
         Option.some(new RunFailure({ reason, message: sentence, cause })),
       )
     }),
+  )
+})
+
+describe('completeRun', () => {
+  it.effect('keeps the reply it settled with', () =>
+    Effect.gen(function* () {
+      const done = yield* completeRun(runAt('generating'), { reply, at: later })
+
+      assertSchemaEquals(Schema.Option(Message), done.assistantMessage, Option.some(reply))
+    }),
+  )
+})
+
+describe('buildRunFailure', () => {
+  it.effect.each([
+    { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
+    { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+  ] as const)(
+    "fails a Run the assistant ended with $error._tag as $reason with the error's cause",
+    ({ error, reason }) =>
+      Effect.sync(() =>
+        assert.deepStrictEqual(buildRunFailure(error), { reason, cause: error.cause }),
+      ),
   )
 })

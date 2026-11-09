@@ -651,8 +651,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     handler deletes the bytes by `FileRepository.delete`. `ChatService.delete` drops its
     attachment read and its bucket call; the memory fake records the job as the trigger does,
     with an e2e twin.
-  - The message keeps its own status, its subset of the shared `Status`: it is the reply's
-    state, which the client polls and the guards read, not the job's.
+  - The Run keeps its own status, its subset of the shared `Status`: it is the work's state,
+    which the client polls and the guards read, not the job's; a message has none since
+    `reply-run`.
   - The relay gets attempts and a dead letter of its own: today a job SQS refuses forever blocks
     its batch and re-sends the jobs before it on every poll.
 - **Why a trigger.** It catches every path in the same statement, including a file a concurrent
@@ -687,7 +688,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   nothing reads the dead-letter queue; or the queue drops its messages (a purge, a replaced queue,
   SQS's retention, 4 days by default and unset in the inventory). Ways out to weigh: the handler
   gets the undecodable body to fail its own work, a consumer of the dead-letter queues, or a sweep
-  of active replies ([database.md › Stuck replies](database.md#stuck-replies)).
+  of active replies ([database.md › Stuck Runs](database.md#stuck-runs)).
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.

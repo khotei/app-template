@@ -4,10 +4,10 @@ import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
 import {
-  ActiveMessageStatus,
+  ActiveRunStatus,
   AttachmentId,
   type ChatId,
-  type MessageId,
+  type RunId,
 } from '@app-template/application/chat'
 import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
@@ -15,7 +15,7 @@ import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
 import { StandTest, scriptedAnswers } from '#testing/stand.test-layer'
 
-const isActiveStatus = Schema.is(ActiveMessageStatus)
+const isActiveStatus = Schema.is(ActiveRunStatus)
 
 const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =>
   self.pipe(
@@ -23,13 +23,10 @@ const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =
     Effect.timeout('15 seconds'),
   )
 
-/** Reads the reply until the worker has settled it, as the browser's polling does. */
-const pollSettledMessage = (chatId: ChatId, messageId: MessageId) =>
+/** Reads the Run until the worker has settled it, as the browser's polling does. */
+const pollSettledRun = (chatId: ChatId, runId: RunId) =>
   ApiClient.use((api) =>
-    poll(
-      api.chats.getMessage({ params: { chatId, messageId } }),
-      (message) => !isActiveStatus(message.status),
-    ),
+    poll(api.chats.getRun({ params: { chatId, runId } }), (run) => !isActiveStatus(run.status)),
   )
 
 const pollTitledChat = (chatId: ChatId) =>
@@ -92,15 +89,16 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             params: { chatId: chat.id },
             payload: { text: 'Hello', attachmentIds: [uploaded.id] },
           })
-          const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
+          const settled = yield* pollSettledRun(chat.id, sent.id)
           const titled = yield* pollTitledChat(chat.id)
 
           const asked = yield* api.chats.getMessage({
             params: { chatId: chat.id, messageId: sent.userMessage.id },
           })
 
-          assert.deepInclude(reply, {
-            status: 'done',
+          assert.strictEqual(settled.status, 'done')
+          assert.deepInclude(Option.getOrThrow(settled.assistantMessage), {
+            author: 'assistant',
             text: scriptedAnswers.reply.text,
             attachments: [],
           })
@@ -159,8 +157,8 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const api = yield* ApiClient
           yield* api.users.ensure()
           const chat = yield* api.chats.create()
-          // The loser reads the chat queued (ChatBusyError) or, having read it idle, dies on the
-          // status move, which the api answers with a bare 500: both roll it back whole.
+          // The loser reads the winner's active Run (ChatBusyError) or, having read none, dies on
+          // the index on the active Run, which the api answers with a bare 500: both roll it back whole.
           const send = api.chats
             .createMessage({
               params: { chatId: chat.id },
@@ -177,7 +175,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const outcomes = yield* Effect.all([send, send], { concurrency: 'unbounded' })
 
           assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
-          assert.strictEqual((yield* selectMessages(chat.id)).length, 2)
+          assert.strictEqual((yield* selectMessages(chat.id)).length, 1)
         }),
     )
 
@@ -233,7 +231,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 // Each case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
 describe('a write Postgres refuses, through the api', () => {
   it.live(
-    'a send whose reply is refused leaves no message, no bind and no chat change',
+    'a send whose Run is refused leaves no message, no bind and no chat change',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
@@ -243,9 +241,9 @@ describe('a write Postgres refuses, through the api', () => {
         const photo = yield* uploadPhoto
         const created = yield* api.chats.get({ params: { chatId: chat.id } })
         const unbound = yield* api.attachments.get({ params: { attachmentId: photo.id } })
-        // The reply is the last write of a send; all the others precede it.
+        // The Run is the last write of a send; all the others precede it.
         yield* client
-          .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
+          .unsafe(`ALTER TABLE runs ADD CONSTRAINT refuse_run CHECK (status <> 'queued')`)
           .pipe(Effect.orDie)
 
         const outcome = yield* api.chats
@@ -272,27 +270,29 @@ describe('a write Postgres refuses, through the api', () => {
   )
 
   it.live(
-    "a reply whose chat's move to idle is refused ends failed with its chat, never done beside a queued chat",
+    'a Run whose reply Postgres refuses ends failed with its chat, never done without its reply',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
         const client = yield* SqlClient.SqlClient
         yield* api.users.ensure()
         const chat = yield* api.chats.create()
-        // `NOT VALID` spares the chat, created idle: the reply's settle is the next move to idle.
+        // The reply is the last write of a completion, after the Run's move to `done`.
         yield* client
-          .unsafe(`ALTER TABLE chats ADD CONSTRAINT refuse_idle CHECK (status <> 'idle') NOT VALID`)
+          .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
           .pipe(Effect.orDie)
 
         const sent = yield* api.chats.createMessage({
           params: { chatId: chat.id },
           payload: { text: 'Hello', attachmentIds: [] },
         })
-        const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
-        const settled = yield* api.chats.get({ params: { chatId: chat.id } })
+        const settled = yield* pollSettledRun(chat.id, sent.id)
+        const failedChat = yield* api.chats.get({ params: { chatId: chat.id } })
 
-        assert.strictEqual(reply.status, 'failed')
         assert.strictEqual(settled.status, 'failed')
+        assert.deepStrictEqual(settled.assistantMessage, Option.none())
+        assert.strictEqual(failedChat.status, 'failed')
+        assert.strictEqual((yield* selectMessages(chat.id)).length, 1)
       }).pipe(Effect.provide(StandTest)),
     60_000,
   )
@@ -311,8 +311,8 @@ describe('a write Postgres refuses, through the api', () => {
           params: { chatId: chat.id },
           payload: { text: 'Look', attachmentIds: [photo.id] },
         })
-        // The worker settles the reply and the title first, so only the delete could move a row.
-        const reply = yield* pollSettledMessage(chat.id, sent.assistantMessage.id)
+        // The worker settles the Run and the title first, so only the delete could move a row.
+        const done = yield* pollSettledRun(chat.id, sent.id)
         const settled = yield* pollTitledChat(chat.id)
         const asked = yield* api.chats.getMessage({
           params: { chatId: chat.id, messageId: sent.userMessage.id },
@@ -341,10 +341,8 @@ describe('a write Postgres refuses, through the api', () => {
           asked,
         )
         assert.deepStrictEqual(
-          yield* api.chats.getMessage({
-            params: { chatId: chat.id, messageId: sent.assistantMessage.id },
-          }),
-          reply,
+          yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } }),
+          done,
         )
         assert.deepStrictEqual(
           yield* api.attachments.get({ params: { attachmentId: photo.id } }),

@@ -9,6 +9,7 @@ import {
   FileAttachmentService,
   LiveAttachmentService,
   MessageService,
+  RunService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
 import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
@@ -30,6 +31,7 @@ import {
   Db,
   FileRepository,
   MessageRepository,
+  RunRepository,
   UserRepository,
 } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
@@ -51,6 +53,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     UserService.layer,
     ChatService.layer,
     MessageService.layer,
+    RunService.layer,
     LiveAttachmentService.layer,
     FileAttachmentService.layer,
     CreateUserMessageUseCase.layer,
@@ -70,6 +73,7 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
     UserRepository.layer,
     ChatRepository.layer,
     MessageRepository.layer,
+    RunRepository.layer,
     AttachmentRepository.layer,
     FileRepository.layer,
   ]),

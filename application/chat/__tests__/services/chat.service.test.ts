@@ -17,17 +17,25 @@ import {
   MediaType,
 } from '#chat/domain/attachment.model'
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { type ChatId, MessageId } from '#chat/domain/chat.id'
+import type { ChatId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
-import { buildAssistantMessage } from '#chat/domain/message.model'
 import { encodeAttachment } from '#chat/services/attachment.mapper'
 import { ChatService } from '#chat/services/chat.service'
-import { chat, firstMessage, owner, stranger, unknownChatId } from '#testing/chat/chat.test-fixture'
+import {
+  chat,
+  firstMessage,
+  owner,
+  queuedRun,
+  stranger,
+  unknownChatId,
+} from '#testing/chat/chat.test-fixture'
 import {
   insertChatLayer,
   insertMessage,
+  insertRun,
   selectChat,
   selectMessages,
+  selectRun,
 } from '#testing/chat/chat.test-layer'
 
 /** The chat services over the memory layers, on fresh rows where `chat` exists. */
@@ -108,13 +116,7 @@ describe('ChatService', () => {
         const attachments = yield* AttachmentRepository
         const files = yield* FileRepository
         yield* insertMessage(firstMessage)
-        yield* insertMessage(
-          buildAssistantMessage({
-            id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
-            chatId: chat.id,
-            createdAt: epoch,
-          }),
-        )
+        yield* insertRun(queuedRun)
         const photo = new Attachment({
           ...buildAttachment({
             id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
@@ -135,6 +137,7 @@ describe('ChatService', () => {
 
         assertEquals(yield* selectChat(chat.id), Option.none())
         assertEquals(yield* selectMessages(chat.id), [])
+        assertEquals(yield* selectRun(queuedRun.id), Option.none())
         assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
         assertEquals(yield* files.selectOne({ id: photo.id }), Option.none())
       }).pipe(Effect.provide(ChatTest)),

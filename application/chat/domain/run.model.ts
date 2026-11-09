@@ -2,8 +2,10 @@ import { type DateTime, Effect, Option, type Predicate, Schema, type Types } fro
 
 import { activeRunStatuses, runFailureReasons, runStatuses } from '@app-template/kernel/data'
 
+import type { AssistantError } from '#chat/domain/assistant.error'
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { Message } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import { hasStatus, isPreparing, Status } from '#chat/domain/status.model'
 
@@ -34,12 +36,23 @@ export class Run extends Schema.Class<Run>('Run')({
   provenance: ReplyProvenance,
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+  /** Read with the Run; its writes never touch the messages. */
+  userMessage: Message,
+  /** The reply, none until the Run is done. */
+  assistantMessage: Schema.Option(Message),
 }) {}
 
 export const buildRun = (
-  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessageId' | 'provenance' | 'createdAt'>>,
+  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'provenance' | 'createdAt'>>,
 ): Run =>
-  new Run({ ...fields, status: 'queued', failure: Option.none(), updatedAt: fields.createdAt })
+  new Run({
+    ...fields,
+    userMessageId: fields.userMessage.id,
+    status: 'queued',
+    failure: Option.none(),
+    updatedAt: fields.createdAt,
+    assistantMessage: Option.none(),
+  })
 
 export const isActiveRun = hasStatus(activeRunStatuses)
 
@@ -63,7 +76,7 @@ const move = Effect.fnUntraced(function* (
   }: {
     readonly to: keyof typeof transitions
     readonly at: DateTime.Utc
-    readonly patch?: Pick<Run, 'failure'>
+    readonly patch?: Partial<Pick<Run, 'failure' | 'assistantMessage'>>
   },
 ) {
   if (!transitions[to](run)) {
@@ -80,8 +93,11 @@ export const generateRun = Effect.fn('generateRun')((run: Run, at: DateTime.Utc)
   move(run, { to: 'generating', at }),
 )
 
-export const completeRun = Effect.fn('completeRun')((run: Run, at: DateTime.Utc) =>
-  move(run, { to: 'done', at }),
+/** The reply a Run settled with and when. */
+export type RunCompletion = { readonly reply: Message; readonly at: DateTime.Utc }
+
+export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: RunCompletion) =>
+  move(run, { to: 'done', at, patch: { assistantMessage: Option.some(reply) } }),
 )
 
 const failureMessages = {
@@ -103,3 +119,15 @@ export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: Ru
     },
   }),
 )
+
+const failureReasons = {
+  AssistantRefusedError: 'ReplyRefused',
+  AssistantFailedError: 'ReplyFailed',
+} as const satisfies Record<AssistantError['_tag'], RunFailureReason>
+
+export const buildRunFailure = (
+  error: AssistantError,
+): Types.Simplify<Pick<RunFailure, 'reason' | 'cause'>> => ({
+  reason: failureReasons[error._tag],
+  cause: error.cause,
+})

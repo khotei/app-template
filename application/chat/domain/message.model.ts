@@ -1,98 +1,44 @@
-import {
-  Array as Arr,
-  type DateTime,
-  Effect,
-  flow,
-  Option,
-  Predicate,
-  Schema,
-  String as Str,
-  type Types,
-} from 'effect'
+import { Array as Arr, Effect, flow, Option, Schema, String as Str, type Types } from 'effect'
 
-import {
-  activeMessageStatuses,
-  messageAuthors,
-  messageFailureReasons,
-  messageStatuses,
-} from '@app-template/kernel/data'
+import { messageAuthors } from '@app-template/kernel/data'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
-import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
-import { hasStatus, isPreparing, Status } from '#chat/domain/status.model'
-
-export const MessageStatus = Status.pick(messageStatuses)
-export type MessageStatus = typeof MessageStatus.Type
-
-export const ActiveMessageStatus = MessageStatus.pick(activeMessageStatuses)
-export type ActiveMessageStatus = typeof ActiveMessageStatus.Type
+import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { MessageInputInvalidError } from '#chat/domain/message.error'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-export const MessageFailureReason = Schema.Literals(messageFailureReasons)
-export type MessageFailureReason = typeof MessageFailureReason.Type
-
-export class MessageFailure extends Schema.Class<MessageFailure>('MessageFailure')({
-  reason: MessageFailureReason,
-  /** A user-facing sentence fixed per reason; it never quotes the cause. */
-  message: Schema.String,
-  /** Diagnostic detail for operators; it never leaves the api. */
-  cause: Schema.String,
-}) {}
-
+/** Finished text: a user's as sent, an assistant's as its Run settled it. */
 export class Message extends Schema.Class<Message>('Message')({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
-  status: MessageStatus,
   text: Schema.String,
-  error: Schema.Option(MessageFailure),
+  /** The Run that wrote an assistant's message; none for a user's. */
+  runId: Schema.Option(RunId),
   createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
   /** Bound by the send, in upload order; the message's own writes never touch them. */
   attachments: Schema.Array(Attachment),
 }) {}
-
-/** An assistant message whose reply is still running; `isActiveMessage` narrows to it. */
-export interface ActiveMessage extends Message {
-  readonly author: 'assistant'
-  readonly status: ActiveMessageStatus
-}
 
 export interface MessageInput {
   readonly text: string
   readonly attachmentIds: ReadonlyArray<AttachmentId>
 }
 
-const buildMessage = (
-  fields: Types.Simplify<
-    Pick<Message, 'id' | 'chatId' | 'author' | 'status' | 'text' | 'createdAt'>
-  >,
-): Message =>
-  new Message({ ...fields, error: Option.none(), updatedAt: fields.createdAt, attachments: [] })
-
 export const buildUserMessage = (
   fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => buildMessage({ ...fields, author: 'user', status: 'done' })
+): Message => new Message({ ...fields, author: 'user', runId: Option.none(), attachments: [] })
 
+/** The reply a done Run writes, `runId` that Run's. */
 export const buildAssistantMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'createdAt'>>,
-): Message => buildMessage({ ...fields, author: 'assistant', status: 'queued', text: '' })
-
-const isActiveShape = Predicate.Struct({
-  author: Schema.is(MessageAuthor.pick(['assistant'])),
-  status: Schema.is(ActiveMessageStatus),
-})
-
-export const isActiveMessage = (message: Message): message is ActiveMessage =>
-  isActiveShape(message)
-
-/** A reply some run already took: found at a run's start, the run that took it has died. */
-export const isStartedReply = hasStatus(['preparing', 'generating'])
+  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>> & {
+    readonly runId: RunId
+  },
+): Message =>
+  new Message({ ...fields, author: 'assistant', runId: Option.some(fields.runId), attachments: [] })
 
 export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
 
@@ -104,79 +50,4 @@ export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (inp
   if (Arr.dedupe(input.attachmentIds).length < input.attachmentIds.length) {
     return yield* new MessageInputInvalidError()
   }
-})
-
-/** Which messages may enter each status; `queued` is only ever built, never entered. */
-const transitions = {
-  preparing: isActiveMessage,
-  generating: Predicate.and(isActiveMessage, isPreparing),
-  done: isActiveMessage,
-  failed: isActiveMessage,
-} as const satisfies Record<Exclude<MessageStatus, 'queued'>, Predicate.Predicate<Message>>
-
-const move = Effect.fnUntraced(function* (
-  message: Message,
-  {
-    to,
-    at,
-    patch,
-  }: {
-    readonly to: keyof typeof transitions
-    readonly at: DateTime.Utc
-    readonly patch?: Types.Simplify<Partial<Pick<Message, 'text' | 'error'>>>
-  },
-) {
-  if (!transitions[to](message)) {
-    return yield* new MessageStatusInvalidError({ id: message.id, from: message.status, to })
-  }
-  return new Message({ ...message, ...patch, status: to, updatedAt: at })
-})
-
-export const prepareMessage = Effect.fn('prepareMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, { to: 'preparing', at, patch: { text: '', error: Option.none() } }),
-)
-
-export const generateMessage = Effect.fn('generateMessage')((message: Message, at: DateTime.Utc) =>
-  move(message, { to: 'generating', at }),
-)
-
-/** The settled text of a reply and when it settled. */
-export type MessageCompletion = { readonly text: string; readonly at: DateTime.Utc }
-
-export const completeMessage = Effect.fn('completeMessage')(
-  (message: Message, { text, at }: MessageCompletion) =>
-    move(message, { to: 'done', at, patch: { text, error: Option.none() } }),
-)
-
-const failureMessages = {
-  ReplyFailed: 'The assistant could not reply. Please try again.',
-  ReplyRefused: 'The assistant declined to answer this message.',
-} as const satisfies Record<MessageFailureReason, string>
-
-/** Why a reply failed and when; the user-facing text comes from `failureMessages`. */
-export type MessageFailureInput = Types.Simplify<
-  Pick<MessageFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc }
->
-
-export const failMessage = Effect.fn('failMessage')(
-  (message: Message, { reason, cause, at }: MessageFailureInput) =>
-    move(message, {
-      to: 'failed',
-      at,
-      patch: {
-        error: Option.some(new MessageFailure({ reason, message: failureMessages[reason], cause })),
-      },
-    }),
-)
-
-const replyFailureReasons = {
-  AssistantRefusedError: 'ReplyRefused',
-  AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<AssistantError['_tag'], MessageFailureReason>
-
-export const buildReplyFailure = (
-  error: AssistantError,
-): Types.Simplify<Pick<MessageFailure, 'reason' | 'cause'>> => ({
-  reason: replyFailureReasons[error._tag],
-  cause: error.cause,
 })

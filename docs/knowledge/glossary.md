@@ -18,37 +18,42 @@ _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not th
 
 **Chat**:
 A conversation between one user and the assistant: an ordered list of messages, with an optional
-title. While the chat has an active message, the user cannot send another.
+title. While the chat has an active Run, the user cannot send another message.
 _Avoid_: Conversation, thread, dialogue, session
 
 **Message**:
-One turn in a chat, authored by the user or by the assistant, with text and zero or more
-attachments. A user's message is complete when sent; an assistant's message is born `queued` and
-moves through the message statuses.
+One turn in a chat, authored by the user or by the assistant: finished text with zero or more
+attachments, and no status. A user's message is stored when sent; an assistant's message is written
+by the Run that answers, once it is done, and names that Run.
 _Avoid_: Prompt, reply, completion, turn
 
-**Message status**:
-Where an assistant message is in its life, its subset of `Status`: `queued` (the chat has asked
-for it), `preparing` (the assistant is reading the chat), `generating` (the assistant is writing;
-the text appears whole when it is done), `done`, or `failed` (the assistant gave up or declined; the
-message carries a reason). The last two are terminal.
+**Run**:
+The work of answering one user message: its status, its failure and its provenance. A send starts
+one, queued; the worker moves it and, once it is done, writes the assistant's message. A retry is
+a new Run of the same message.
+_Avoid_: Job (a queue message that names a Run), task, attempt, reply
+
+**Run status**:
+Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `preparing` (the
+assistant is reading the chat), `generating` (the assistant is writing; the text appears whole
+when it is done), `done`, or `failed` (the assistant gave up or declined; the Run carries a
+reason). The last two are terminal.
 _Avoid_: Stage, state, completed, in-progress, pending, streaming
 
-**Active message**:
-The assistant message of a chat that is not yet terminal (`queued`, `preparing` or `generating`).
-A chat has at most one, and its chat stays `queued` while it runs.
-_Avoid_: Pending message, current reply
+**Active Run**:
+A Run that is not yet terminal (`queued`, `preparing` or `generating`). A chat has at most one.
+_Avoid_: Pending run, current reply
 
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
 `preparing` and `generating` run it in stages, `running` in one, `done` and `failed` end it.
-Every model with a status picks its subset of `Status` (the chat, the message), and a
-check on one value reads the shared predicate.
+Every status picks its subset of `Status` (the Run's, the chat's), and a check on one value
+reads the shared predicate.
 _Avoid_: State, stage, in progress; a new word for one of the seven
 
 **Chat status**:
-`queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`;
-stored on the chat. A send moves it to `queued`, the reply's end to `idle` or `failed`.
+What the chat's newest Run makes of it: `queued` while that Run is active, `failed` after it
+failed, else `idle`, also before the first send. Read with the chat, never stored.
 _Avoid_: Busy, chat state; a value outside its subset (`generating`)
 
 **Title**:
@@ -67,10 +72,10 @@ provider's artefact and is named only at the boundary.
 _Avoid_: Bot, AI, agent, model
 
 **Provenance**:
-Who the api expects to answer a reply and with which instructions: the configured provider and
-reply model and a hash of the system prompt with the reply schema. It travels in the reply's job
-alone, and no record keeps it; the message never carries it, and the worker may run
-another language model while a deploy rolls out. For operators only; no api response carries it.
+Who the api expects to answer a Run and with which instructions: the configured provider and
+reply model and a hash of the system prompt with the reply schema. The Run keeps it, written by
+the send; the worker may run another language model while a deploy rolls out. For operators only;
+no api response carries it.
 _Avoid_: Metadata, model info, source, origin
 
 ## Architecture language

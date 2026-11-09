@@ -5,7 +5,7 @@ import { MessageRepository } from '@app-template/kernel/data'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import type { Message } from '#chat/domain/message.model'
-import { decodeMessage } from '#chat/services/chat.mapper'
+import { decodeMessage } from '#chat/services/message.mapper'
 
 /** The message of the user's chat; one of another user's chat reads as absent. */
 export type MessageWhere = Types.Simplify<

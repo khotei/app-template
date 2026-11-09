@@ -9,7 +9,13 @@ import {
 } from '@app-template/application/use-cases'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, WorkerConfig } from '@app-template/kernel/config'
-import { ChatRepository, Db, FileRepository, MessageRepository } from '@app-template/kernel/data'
+import {
+  ChatRepository,
+  Db,
+  FileRepository,
+  MessageRepository,
+  RunRepository,
+} from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
@@ -34,6 +40,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([
     ChatRepository.layer,
     MessageRepository.layer,
+    RunRepository.layer,
     FileRepository.layer,
     BunCrypto.layer,
   ]),

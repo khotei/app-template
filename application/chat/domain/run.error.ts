@@ -7,3 +7,7 @@ export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidEr
   'RunStatusInvalidError',
   { id: RunId, from: Status, to: Status },
 ) {}
+
+export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('RunNotFoundError', {
+  id: RunId,
+}) {}

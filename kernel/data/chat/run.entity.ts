@@ -1,12 +1,18 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
-import type { Types } from 'effect'
+import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import { RunFailureJson, RunProvenanceJson, runs } from '#kernel/data/chat/run.table'
+import { MessageEntity, withAttachments } from '#kernel/data/chat/message.entity'
+import { RunFailureJson, RunProvenanceJson, runs } from '#kernel/data/chat/message.table'
 
 const refine = { failure: () => RunFailureJson, provenance: () => RunProvenanceJson }
 
-export const RunEntity = createSelectSchema(runs, refine)
+/** A Run with the message it answers and its reply, none until it is done: every read nests them. */
+export const RunEntity = Schema.Struct({
+  ...createSelectSchema(runs, refine).fields,
+  userMessage: MessageEntity,
+  assistantMessage: Schema.NullOr(MessageEntity),
+})
 export type RunEntity = typeof RunEntity.Type
 
 export const RunEntityInsert = createInsertSchema(runs, refine)
@@ -23,3 +29,8 @@ export type RunEntityWhere = Types.Simplify<
 export type RunEntitySet = Types.Simplify<
   RequireAtLeastOne<Pick<RunEntity, 'status' | 'failure' | 'updatedAt'>>
 >
+
+export const withMessages = {
+  userMessage: { with: withAttachments },
+  assistantMessage: { with: withAttachments },
+} as const
