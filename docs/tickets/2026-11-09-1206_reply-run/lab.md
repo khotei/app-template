@@ -131,6 +131,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 [N:ai] L3.3 `RunRepository`'s contract: `insert`, `update`, `selectOne` over `RunEntityWhere`, its e2e as `it.effect.fails` over `Effect.die('todo')`; 185 lines, rail 4 lifted by the owner for this piece · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts` (3 expected fail)
 [N:ai] L3.4 `RunRepository`'s body: `insert` skips a second active Run by the partial index and dies, `update` writes under its `where` and dies on a miss, `selectOne` reads the newest Run; `runs` joins the relations · visible: the same e2e, 3 passed
 [N:ai] L3.5 (OWNER) `encodeWhere` of `RunRepository` and `MessageRepository` at module level, as in the other repositories: the owner's subquery is built by Drizzle's standalone `QueryBuilder`, so it needs no `db` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts kernel/data/__e2e__/chat/message.repository.e2e.ts` (14 passed)
+[N:ai] L3.6 The `Run` model's contract: `Run`, `RunStatus`, `ActiveRunStatus`, `RunFailure`, `RunId`, `RunStatusInvalidError`, and `buildRun`, `isActiveRun`, `isStartedRun`, `prepareRun`, `generateRun`, `completeRun`, `failRun` over bodies of `Effect.die('todo')`; its test checks each move from each status; 220 lines (94 code, 126 test), rail 4 lifted by the owner for this piece · visible: `bun --bun vitest run application/chat/__tests__/domain/run.model.test.ts` (28 expected fail)
 
 ### Output
 
@@ -232,5 +233,5 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   message is the user's: a Run on an assistant message passes the store. L4's use case builds a
   Run only from the user message it has just stored; the store stays without that check.
 - [N:ai] Rail 4 (`.claude/rules/lab.md`): a piece with a repository's e2e cannot stay within 100
-  lines, since the test's setup alone takes about 50 (L3.2: 178 lines, L3.3: 185). Count a piece's
+  lines, since the test's setup alone takes about 50 (L3.2: 178 lines, L3.3: 185, L3.6: 220 with 126 of test). Count a piece's
   tests apart from its code, as a plan step counts its docs? For the Right step.
