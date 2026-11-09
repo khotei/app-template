@@ -246,6 +246,9 @@ Knowledge say the job is sent last in its transaction · visible: `make doc-lint
 [N:ai] piece 6 (the owner, in the chat): `JobRepository.selectMany`, the oldest jobs locked
 with `SKIP LOCKED` for the sweep, had no caller but its two e2e: it goes with them, and the update
 cases read the statuses by `selectOne` · visible: `make test-e2e`
+[N:ai] review (Standards): `kernel/CLAUDE.md` names `job/`, not the deleted `queue/`, as where a
+job is encoded and sent; the `JobSender` e2e reads SQS's optional fields through
+`Effect.fromNullishOr` and `UndefinedOr`, not `??` · visible: `make check`
 
 ### Notes
 
@@ -289,6 +292,34 @@ SendMessage refused -> defect -> ROLLBACK -> the api's bare 500
 
 Budget proposed: 120 lines of code and tests, docs apart, in three pieces: 5a the two e2e, red ·
 5b the body · 5c the docs.
+
+[D:ai] A job whose body no longer decodes never settles (`packages/queue/queue.consumer.ts:93`,
+claimed by the hunt): the consumer retries it without calling the handler, so `JobConsumer`'s
+`settle` never runs; after the last attempt SQS dead-letters it and its row stays `queued` for
+good, while Knowledge says `failed` is set once the last attempt fails. Scenario: a job schema
+changed between two deploys. Without the fix the row lies and only a log line shows it. Fix:
+decode inside the effect `JobConsumer` wraps, a change of `QueueConsumer`'s handler shape, about
+10 lines.
+[D:ai] A last attempt that dies with its process leaves the job `running` for good
+(`kernel/job/job.consumer.ts:73`, claimed): `onExit` never runs on a Lambda timeout, an out of
+memory or a kill, and no dead-letter consumer exists since L1.9. The same case already leaves
+the reply active (`database.md › Stuck replies`). Options: record it in `decisions.md › Jobs as
+a table` as a known gap, no code; or a dead-letter consumer that marks the row and the reply
+`failed`, about 40 lines and a mapping per dead-letter queue.
+[D:ai] Two copies of one message delivered at once both run the handler
+(`kernel/job/job.consumer.ts:52-56`, claimed): both read `queued`, both move it `running`; the
+first settles `done`, the second's settle matches no row and dies, so its success counts as a
+failed attempt and, on the last attempt, goes to the dead-letter queue though the job is `done`.
+SQS standard queues deliver at least once, a duplicate at the same instant is rare. Options:
+record it as accepted; or claim with `{ status: ['queued'] }` only, the losing copy acknowledged
+unrun, which needs the previous finding settled first, since a crashed attempt leaves `running`
+and its retry would then never run.
+[D:ai] `JobRepository` has no memory layer, so `apps/worker/__tests__/worker.handler.test.ts:28`
+hand-writes `Layer.mock(JobRepository, …)` answering one queued row for every id (Standards,
+judgement; `effect-tests.md`: a further fake only wraps a memory layer). Without the fix the
+worker's unit test cannot show a settled job's redelivery. Fix: a `JobRepository` memory layer
+in `kernel/data`'s test support, about 25 lines, its guard (`status` in the `where`) already
+twinned by the repository's e2e.
 
 ## L3 — Switch to queue-2
 

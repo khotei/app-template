@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Effect, Exit, Layer } from 'effect'
+import { Array as Arr, Effect, Exit, Layer, UndefinedOr } from 'effect'
 
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
@@ -41,10 +41,9 @@ const queueUrl = Effect.gen(function* () {
   const { stage } = yield* AwsConfig
   const sqs = yield* SQSService
 
-  const { QueueUrl } = yield* sqs.getQueueUrl({
-    QueueName: buildResourceName(stage, sampleJobQueue.name),
-  })
-  return QueueUrl ?? ''
+  return yield* sqs
+    .getQueueUrl({ QueueName: buildResourceName(stage, sampleJobQueue.name) })
+    .pipe(Effect.flatMap(({ QueueUrl }) => Effect.fromNullishOr(QueueUrl)))
 })
 
 /** The messages on the sample queue within `waitSeconds`, as their job id and JSON body. */
@@ -58,10 +57,13 @@ const receive = (waitSeconds: number) =>
       MessageAttributeNames: ['All'],
       WaitTimeSeconds: waitSeconds,
     })
-    return Arr.map(Messages ?? [], (message) => ({
-      jobId: message.MessageAttributes?.jobId?.StringValue,
-      body: JSON.parse(message.Body ?? ''),
-    }))
+    return UndefinedOr.match(Messages, {
+      onUndefined: () => [],
+      onDefined: Arr.map((message) => ({
+        jobId: message.MessageAttributes?.jobId?.StringValue,
+        body: JSON.parse(UndefinedOr.getOrThrow(message.Body)),
+      })),
+    })
   })
 
 // Live: SQS long-polls in real time.

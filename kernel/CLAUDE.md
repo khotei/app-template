@@ -1,8 +1,8 @@
 # kernel
 
 This app's configuration of its tools (its settings, its resources and the rule that names them,
-the clients built from them, the queue's transport over the data layer's jobs) and its data in
-`data/`. A package takes what is this app's as a parameter (a resource's name reaches the
+the clients built from them, the jobs' send and consumption over the data layer's jobs) and its
+data in `data/`. A package takes what is this app's as a parameter (a resource's name reaches the
 provisioner as a function), and the kernel is the one place that passes it. Where each part sits
 in the rings and what it may import:
 [architecture.md › Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
@@ -17,4 +17,4 @@ in the rings and what it may import:
   JSON column's shape are declared there
   ([why](../docs/knowledge/decisions.md#the-data-at-the-centre)).
 - The data layer stores a job as a row and imports no `queue`: encoding a job and sending it to
-  SQS stay in `queue/`, over the data layer's job repository.
+  SQS stay in `job/`, over the data layer's job repository.
