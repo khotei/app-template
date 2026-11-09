@@ -23,6 +23,7 @@ import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { activeMessageStatuses } from '#kernel/data/chat/message.table'
+import type { RunEntityWhere } from '#kernel/data/chat/run.entity'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
 import {
   deleteRows,
@@ -58,35 +59,49 @@ export class MessageRows extends Context.Service<
 
 const newestFirst = Order.flip(Order.mapInput(Order.Date, (chat: ChatRow) => chat.createdAt))
 
-const isActive = matchesAny<MessageRow>({
-  author: ['assistant'],
-  status: activeMessageStatuses,
-})
+/** Holds while no chat has two rows where `isActive` holds, as a partial unique index keeps it. */
+const holdsOneActivePerChat =
+  <Row extends { readonly chatId: string }>(isActive: Predicate.Predicate<Row>) =>
+  (rows: HashMap.HashMap<string, Row>) => {
+    const chatIds = pipe(
+      rows,
+      HashMap.toValues,
+      Arr.filter(isActive),
+      Arr.map(Struct.get('chatId')),
+    )
+    return Arr.dedupe(chatIds).length === chatIds.length
+  }
 
-/** Holds while no chat has two active messages, as `messages_chat_id_active_index` keeps it. */
-function holdsActiveIndex(messages: HashMap.HashMap<string, MessageRow>) {
-  const chatIds = pipe(
-    messages,
-    HashMap.toValues,
-    Arr.filter(isActive),
-    Arr.map(Struct.get('chatId')),
-  )
-  return Arr.dedupe(chatIds).length === chatIds.length
-}
+/** `messages_chat_id_active_index`. */
+const holdsActiveMessageIndex = holdsOneActivePerChat(
+  matchesAny<MessageRow>({ author: ['assistant'], status: activeMessageStatuses }),
+)
 
 const holdsChatWhere = (where: ChatEntityWhere) => matches<ChatRow>(where)
 
-/** `userId` holds when the message's chat is the user's, as the repository's subquery reads. */
-const holdsMessageWhere = (chats: HashMap.HashMap<string, ChatRow>, where: MessageEntityWhere) =>
+interface ChatRowChild {
+  readonly id: string
+  readonly chatId: string
+  readonly status: string
+}
+
+/**
+ * A message's or a Run's where; `userId` holds when the row's chat is the user's, as the
+ * repositories' subquery reads.
+ */
+const holdsChildWhere = (
+  chats: HashMap.HashMap<string, ChatRow>,
+  where: MessageEntityWhere | RunEntityWhere,
+) =>
   Predicate.and(
-    matches<MessageRow>({ id: where.id, chatId: where.chatId }),
+    matches<ChatRowChild>({ id: where.id, chatId: where.chatId }),
     Predicate.and(
       UndefinedOr.match(where.userId, {
         onUndefined: () => constTrue,
-        onDefined: (userId) => (message: MessageRow) =>
-          HashMap.get(chats, message.chatId).pipe(Option.exists(matches<ChatRow>({ userId }))),
+        onDefined: (userId) => (row: ChatRowChild) =>
+          HashMap.get(chats, row.chatId).pipe(Option.exists(matches<ChatRow>({ userId }))),
       }),
-      matchesAny<MessageRow>({ status: where.status }),
+      matchesAny<ChatRowChild>({ status: where.status }),
     ),
   )
 
@@ -194,7 +209,7 @@ export const MessageRepositoryTest = Layer.effect(
       read.pipe(
         Effect.map((rows) =>
           pipe(
-            inCreationOrderWhere(rows.messages, holdsMessageWhere(rows.chats, where)),
+            inCreationOrderWhere(rows.messages, holdsChildWhere(rows.chats, where)),
             Arr.map((message) => ({
               ...message,
               attachments: inCreationOrderWhere(
@@ -210,16 +225,16 @@ export const MessageRepositoryTest = Layer.effect(
       insert: (message) =>
         decodeMessage({ ...messageDefaults, ...message }).pipe(
           Effect.orDie,
-          Effect.flatMap((row) => insertRow(messages, { row, accepts: holdsActiveIndex })),
+          Effect.flatMap((row) => insertRow(messages, { row, accepts: holdsActiveMessageIndex })),
           orDieUnless(Arr.isReadonlyArrayNonEmpty, `message ${message.id} was not inserted`),
         ),
       update: (set, where) =>
         read.pipe(
           Effect.flatMap((rows) =>
             updateRows(messages, {
-              where: holdsMessageWhere(rows.chats, where),
+              where: holdsChildWhere(rows.chats, where),
               update: writeSet({ status: true, text: true, error: true, updatedAt: true }, set),
-              accepts: holdsActiveIndex,
+              accepts: holdsActiveMessageIndex,
             }),
           ),
           orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no message was updated'),
