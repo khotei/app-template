@@ -231,6 +231,10 @@ sends it to SQS and marks it `queued`; the use case runs that step after the com
 included, rolls the whole send back (the owner, in the chat, variant A). Variant B, the whole
 send after the commit, was tried: the e2e `chat.e2e.ts` "a send whose title job is refused…"
 showed it answers 200 and loses the job.
+[N:ai] piece 5a: two e2e, red as `.fails` on today's code: "a send whose reply queue is gone
+answers 500 and keeps no message, no chat change and no job" through the api, and `JobSender`'s
+"a send SQS refuses dies" in place of "leaves the job idle for the sweep"; `apps/e2e` gains
+`@effect-aws/client-sqs` to delete its stage's queue · visible: `make test-e2e`, 2 expected fail
 
 ### Notes
 

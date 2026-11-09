@@ -1,4 +1,5 @@
 import { assert, describe, it, layer } from '@effect/vitest'
+import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Option, Order, Schedule, Schema } from 'effect'
 import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
@@ -6,11 +7,14 @@ import { SqlClient } from 'effect/sql'
 import {
   ActiveMessageStatus,
   AttachmentId,
+  assistantMessageQueue,
   type ChatId,
   GenerateAssistantMessage,
   type MessageId,
 } from '@app-template/application/chat'
 import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
+import { buildResourceName } from '@app-template/kernel/aws'
+import { AwsConfig } from '@app-template/kernel/config'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
@@ -378,6 +382,43 @@ describe('a write Postgres refuses, through the api', () => {
           bound,
         )
         assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
+      }).pipe(Effect.provide(StandTest)),
+    30_000,
+  )
+})
+
+describe('a send SQS refuses, through the api', () => {
+  it.live.fails(
+    'a send whose reply queue is gone answers 500 and keeps no message, no chat change and no job',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const sqs = yield* SQSService
+        const { stage } = yield* AwsConfig
+        yield* api.users.ensure()
+        const chat = yield* api.chats.create()
+        const created = yield* api.chats.get({ params: { chatId: chat.id } })
+        const { QueueUrl } = yield* sqs.getQueueUrl({
+          QueueName: buildResourceName(stage, assistantMessageQueue.name),
+        })
+        yield* sqs.deleteQueue({ QueueUrl })
+
+        const outcome = yield* api.chats
+          .createMessage({
+            params: { chatId: chat.id },
+            payload: { text: 'Hi', attachmentIds: [] },
+          })
+          .pipe(
+            Effect.as('sent'),
+            Effect.catchTag('HttpClientError', (error) =>
+              isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+            ),
+          )
+
+        assert.strictEqual(outcome, 'refused')
+        assert.deepStrictEqual(yield* selectMessages(chat.id), [])
+        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
+        assert.deepStrictEqual(yield* selectJobsOf(chat.id), [])
       }).pipe(Effect.provide(StandTest)),
     30_000,
   )

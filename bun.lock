@@ -52,6 +52,7 @@
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
         "@app-template/worker": "workspace:*",
+        "@effect-aws/client-sqs": "catalog:effect-aws",
         "@effect/platform-bun": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
         "@effect/vitest": "catalog:effect",

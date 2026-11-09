@@ -1,14 +1,13 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { SQSService } from '@effect-aws/client-sqs'
-import { Array as Arr, Effect, Layer } from 'effect'
+import { Array as Arr, Effect, Exit, Layer } from 'effect'
 
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { Db, JobRepository, jobs } from '@app-template/kernel/data'
 import { DbTest } from '@app-template/kernel/data/testing/e2e'
-import { recordLogs } from '@app-template/packages/testing'
 
 import { JobSender } from '#kernel/job/job.sender'
 import { SampleJob, sampleJobQueue, sampleProvenance } from '#testing/job/e2e/job.test-fixture'
@@ -84,20 +83,15 @@ describe('JobSender', () => {
     30_000,
   )
 
-  it.live('a send SQS refuses leaves the job idle for the sweep and logs a warning', () => {
-    const { logs, layer: recordedLogs } = recordLogs()
-    return Effect.gen(function* () {
+  it.live.fails('a send SQS refuses dies', () =>
+    Effect.gen(function* () {
       const sqs = yield* SQSService
       const url = yield* queueUrl
       yield* sqs.deleteQueue({ QueueUrl: url })
 
-      yield* send
+      const exit = yield* Effect.exit(send)
 
-      assert.deepStrictEqual(
-        Arr.map(yield* selectJobs, ({ status }) => status),
-        ['idle'],
-      )
-      assert.deepStrictEqual(logs, [['Warn', 'job send failed, left for the sweep']])
-    }).pipe(Effect.provide([JobSenderTest, recordedLogs]))
-  })
+      assert.isTrue(Exit.hasDies(exit))
+    }).pipe(Effect.provide(JobSenderTest)),
+  )
 })
