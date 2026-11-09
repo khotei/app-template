@@ -249,6 +249,8 @@ cases read the statuses by `selectOne` · visible: `make test-e2e`
 [N:ai] review (Standards): `kernel/CLAUDE.md` names `job/`, not the deleted `queue/`, as where a
 job is encoded and sent; the `JobSender` e2e reads SQS's optional fields through
 `Effect.fromNullishOr` and `UndefinedOr`, not `??` · visible: `make check`
+[N:ai] piece 7a: the `JobConsumer` e2e "a job whose body does not decode fails at once, unrun
+and unretried", red as `.fails` on today's code · visible: `make test-e2e`, 1 expected fail
 
 ### Notes
 
@@ -300,6 +302,10 @@ good, while Knowledge says `failed` is set once the last attempt fails. Scenario
 changed between two deploys. Without the fix the row lies and only a log line shows it. Fix:
 decode inside the effect `JobConsumer` wraps, a change of `QueueConsumer`'s handler shape, about
 10 lines.
+[N:ai] The owner, in the chat: no retry for a body that does not decode, and the decode moves to
+`JobConsumer` (variant A): `QueueConsumer` sits in `packages/queue`, which may not import
+`kernel/data`, so it cannot write the job's `failed`; `JobConsumer` decodes, fails the job at once
+and acknowledges the record.
 [D:ai] A last attempt that dies with its process leaves the job `running` for good
 (`kernel/job/job.consumer.ts:73`, claimed): `onExit` never runs on a Lambda timeout, an out of
 memory or a kill, and no dead-letter consumer exists since L1.9. The same case already leaves

@@ -28,13 +28,13 @@ const body = {
   provenance: sampleProvenance,
 }
 
-function buildEvent(receiveCount: number) {
+function buildEvent(receiveCount: number, rawBody = JSON.stringify(body)) {
   return {
     Records: [
       {
         messageId: 'a',
         receiptHandle: 'handle-a',
-        body: JSON.stringify(body),
+        body: rawBody,
         attributes: { ApproximateReceiveCount: receiveCount },
         messageAttributes: { jobId: { stringValue: jobId } },
         eventSourceARN: 'arn:aws:sqs:us-east-1:000000000000:stage-assistant-message',
@@ -131,6 +131,28 @@ describe('JobConsumer.consume', () => {
       )(buildEvent(1))
 
       assert.deepStrictEqual(yield* Ref.get(seen), Option.some('running'))
+    }).pipe(Effect.provide(JobConsumerTest)),
+  )
+
+  it.effect.fails('a job whose body does not decode fails at once, unrun and unretried', () =>
+    Effect.gen(function* () {
+      const consumer = yield* JobConsumer
+      const jobs = yield* JobRepository
+      yield* jobs.insert({
+        id: jobId,
+        queue: sampleJobQueue.name,
+        body,
+        status: 'queued',
+        createdAt: new Date(0),
+      })
+
+      const response = yield* consumer.consume(sampleJobQueue, () => Effect.die('handler ran'))(
+        buildEvent(1, '{"chatId":1}'),
+      )
+      const stored = yield* jobs.selectOne({ id: [jobId] })
+
+      assert.deepStrictEqual(response, { batchItemFailures: [] })
+      assert.deepStrictEqual(Option.map(stored, Struct.get('status')), Option.some('failed'))
     }).pipe(Effect.provide(JobConsumerTest)),
   )
 })
