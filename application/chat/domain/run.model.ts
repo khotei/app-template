@@ -1,11 +1,11 @@
-import { type DateTime, Effect, type Predicate, Schema, type Types } from 'effect'
+import { type DateTime, Effect, Option, type Predicate, Schema, type Types } from 'effect'
 
 import { activeRunStatuses, runFailureReasons, runStatuses } from '@app-template/kernel/data'
 
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import type { RunStatusInvalidError } from '#chat/domain/run.error'
-import { Status } from '#chat/domain/status.model'
+import { RunStatusInvalidError } from '#chat/domain/run.error'
+import { hasStatus, isPreparing, Status } from '#chat/domain/status.model'
 
 export const RunStatus = Status.pick(runStatuses)
 export type RunStatus = typeof RunStatus.Type
@@ -37,43 +37,69 @@ export class Run extends Schema.Class<Run>('Run')({
 }) {}
 
 export const buildRun = (
-  _fields: Types.Simplify<
-    Pick<Run, 'id' | 'chatId' | 'userMessageId' | 'provenance' | 'createdAt'>
-  >,
-): Run => {
-  throw new Error('todo')
-}
+  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessageId' | 'provenance' | 'createdAt'>>,
+): Run =>
+  new Run({ ...fields, status: 'queued', failure: Option.none(), updatedAt: fields.createdAt })
 
-export const isActiveRun: Predicate.Predicate<Run> = () => {
-  throw new Error('todo')
-}
+export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run some worker already took: found at a worker's start, the worker that took it has died. */
-export const isStartedRun: Predicate.Predicate<Run> = () => {
-  throw new Error('todo')
-}
+export const isStartedRun = hasStatus(['preparing', 'generating'])
 
-export const prepareRun = (
-  _run: Run,
-  _at: DateTime.Utc,
-): Effect.Effect<Run, RunStatusInvalidError> => Effect.die('todo')
+/** Which Runs may enter each status; `queued` is only ever built, never entered. */
+const transitions = {
+  preparing: isActiveRun,
+  generating: isPreparing,
+  done: isActiveRun,
+  failed: isActiveRun,
+} as const satisfies Record<Exclude<RunStatus, 'queued'>, Predicate.Predicate<Run>>
 
-export const generateRun = (
-  _run: Run,
-  _at: DateTime.Utc,
-): Effect.Effect<Run, RunStatusInvalidError> => Effect.die('todo')
+const move = Effect.fnUntraced(function* (
+  run: Run,
+  {
+    to,
+    at,
+    patch,
+  }: {
+    readonly to: keyof typeof transitions
+    readonly at: DateTime.Utc
+    readonly patch?: Pick<Run, 'failure'>
+  },
+) {
+  if (!transitions[to](run)) {
+    return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
+  }
+  return new Run({ ...run, ...patch, status: to, updatedAt: at })
+})
 
-export const completeRun = (
-  _run: Run,
-  _at: DateTime.Utc,
-): Effect.Effect<Run, RunStatusInvalidError> => Effect.die('todo')
+export const prepareRun = Effect.fn('prepareRun')((run: Run, at: DateTime.Utc) =>
+  move(run, { to: 'preparing', at }),
+)
 
-/** Why a Run failed and when; the user-facing text is fixed per reason. */
+export const generateRun = Effect.fn('generateRun')((run: Run, at: DateTime.Utc) =>
+  move(run, { to: 'generating', at }),
+)
+
+export const completeRun = Effect.fn('completeRun')((run: Run, at: DateTime.Utc) =>
+  move(run, { to: 'done', at }),
+)
+
+const failureMessages = {
+  ReplyFailed: 'The assistant could not reply. Please try again.',
+  ReplyRefused: 'The assistant declined to answer this message.',
+} as const satisfies Record<RunFailureReason, string>
+
+/** Why a Run failed and when; the user-facing text comes from `failureMessages`. */
 export type RunFailureInput = Types.Simplify<
   Pick<RunFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc }
 >
 
-export const failRun = (
-  _run: Run,
-  _input: RunFailureInput,
-): Effect.Effect<Run, RunStatusInvalidError> => Effect.die('todo')
+export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: RunFailureInput) =>
+  move(run, {
+    to: 'failed',
+    at,
+    patch: {
+      failure: Option.some(new RunFailure({ reason, message: failureMessages[reason], cause })),
+    },
+  }),
+)

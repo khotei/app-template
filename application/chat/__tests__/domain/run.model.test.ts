@@ -38,7 +38,7 @@ const queued = new Run({
 const runAt = (status: RunStatus) => new Run({ ...queued, status })
 
 describe('buildRun', () => {
-  it.effect.fails('builds a queued Run with no failure, last moved when built', () =>
+  it.effect('builds a queued Run with no failure, last moved when built', () =>
     Effect.sync(() => assertSchemaEquals(Run, buildRun({ ...queued }), queued)),
   )
 })
@@ -50,7 +50,7 @@ describe.each([
   { status: 'done', active: false, started: false },
   { status: 'failed', active: false, started: false },
 ] as const)('a $status Run', ({ status, active, started }) => {
-  it.effect.fails(`is active: ${active}, started: ${started}`, () =>
+  it.effect(`is active: ${active}, started: ${started}`, () =>
     Effect.sync(() => {
       assert.strictEqual(isActiveRun(runAt(status)), active)
       assert.strictEqual(isStartedRun(runAt(status)), started)
@@ -81,7 +81,7 @@ const cases = Arr.flatMap(moves, ({ to, from, move }) =>
 describe.each(Arr.filter(cases, (move) => move.allowed))(
   'a move from $status to $to',
   ({ to, status, move }) => {
-    it.effect.fails('moves the Run and when it last moved', () =>
+    it.effect('moves the Run and when it last moved', () =>
       Effect.gen(function* () {
         const moved = yield* move(runAt(status))
 
@@ -95,7 +95,7 @@ describe.each(Arr.filter(cases, (move) => move.allowed))(
 describe.each(Arr.filter(cases, (move) => !move.allowed))(
   'a move from $status to $to',
   ({ to, status, move }) => {
-    it.effect.fails('fails RunStatusInvalidError', () =>
+    it.effect('fails RunStatusInvalidError', () =>
       Effect.gen(function* () {
         const error = yield* move(runAt(status)).pipe(Effect.flip)
 
@@ -113,7 +113,7 @@ describe.each([
   { reason: 'ReplyFailed', sentence: 'The assistant could not reply. Please try again.' },
   { reason: 'ReplyRefused', sentence: 'The assistant declined to answer this message.' },
 ] as const)('failRun for $reason', ({ reason, sentence }) => {
-  it.effect.fails('keeps the reason, a sentence of its own and the cause', () =>
+  it.effect('keeps the reason, a sentence of its own and the cause', () =>
     Effect.gen(function* () {
       const failed = yield* failRun(runAt('generating'), { reason, cause, at: later })
 
