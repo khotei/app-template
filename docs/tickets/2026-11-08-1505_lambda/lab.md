@@ -285,6 +285,8 @@ job would leave set?
   (`kernel/job/job.consumer.ts:63-67`), so the reply stays `queued`; every delivery dying (3
   receives of 600 s); or the queue dropping its messages (a purge, a replaced queue, SQS's
   retention, 4 days by default, which `resources.ts` does not set). Each leaves the chat busy.
+  [N:ai] The owner, in the chat: skipped in the lab, left for the roadmap; recorded in entry 22
+  `jobs` as "Inherits from `lambda`".
 [D:ai] `JobRepository` has no memory layer, so `apps/worker/__tests__/worker.handler.test.ts:27`
 hand-writes `Layer.mock(JobRepository, …)` answering one queued row for every id (Standards,
 judgement; `effect-tests.md`: a further fake only wraps a memory layer). Without the fix the

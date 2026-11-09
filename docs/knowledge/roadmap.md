@@ -681,6 +681,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   a job and "reply in work" for a message. The statuses rewrite
   [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer), whose
   *Revisit when* names this ticket.
+- **Inherits from `lambda` (2026-11-09).** A reply that never settles leaves its chat `queued`
+  for good, so every next send fails `ChatBusyError`: a job whose body no longer decodes is
+  failed unrun, so the reply's use case never runs; every delivery of a job dies, 3 receives, and
+  nothing reads the dead-letter queue; or the queue drops its messages (a purge, a replaced queue,
+  SQS's retention, 4 days by default and unset in the inventory). Ways out to weigh: the handler
+  gets the undecodable body to fail its own work, a consumer of the dead-letter queues, or a sweep
+  of active replies ([database.md › Stuck replies](database.md#stuck-replies)).
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.
