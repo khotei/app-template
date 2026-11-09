@@ -282,6 +282,9 @@ work), `naming.md`'s `.handler` row, `effect-tests.md`, `aws.md › Queues` (onl
 to the queue), `database.md › The outbox` and `Stuck replies` (a dead run is failed on
 redelivery), `decisions.md › Jobs as a table` (retries join Rejected, a duplicate joins Cost),
 `ai.md`, `architecture.md`, `tooling.md`; Knowledge · visible: `make doc-lint`
+[N:ai] piece 8f (the owner, in the chat: "make as service with methods"): `consumeBatch` is the
+`QueueConsumer` service again, `consume(handle)(event)` its method and `QueueConsumer.layer`
+needing nothing; `JobConsumer.layer` provides it · visible: `make check`
 
 ### Notes
 
@@ -446,7 +449,7 @@ empty key stops the worker at start with a `ConfigError`. The e2e give `WorkerPr
   decode, sets it `failed`; a job found `running` runs its handler again, which decides; each
   use case fails its own work (L2, the owner: "if error -> fail").
 - The worker answers SQS through `JobConsumer.consume(definition, handle)`, over
-  `consumeBatch(handle)(event)` in `packages/queue`, returning `{ batchItemFailures }`; only a
+  `QueueConsumer.consume(handle)(event)` in `packages/queue`, returning `{ batchItemFailures }`; only a
   defect lands there, and SQS redelivers it up to 3 receives (L1, L2).
 
 - dev and prod call only Anthropic; no stub and no `LLM_PROVIDER`; an empty key stops the worker

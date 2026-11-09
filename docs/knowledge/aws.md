@@ -145,7 +145,7 @@ before the row that binds them and deletes them once the rows are gone.
 
 ## Queues
 
-`QueueSender` and `consumeBatch` (`packages/queue`) are the two sides of SQS; `JobSender` and
+`QueueSender` and `QueueConsumer` (`packages/queue`) are the two sides of SQS; `JobSender` and
 `JobConsumer` in `kernel/job` wrap them with the job's row in `jobs`
 ([database.md › The outbox](database.md#the-outbox)). A definition's queue is
 `buildResourceName(STAGE, definition.name)`.
@@ -174,8 +174,8 @@ before the row that binds them and deletes them once the rows are gone.
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 
-`consumeBatch` is a plain function over an event, so its suite needs no SQS; `JobConsumer`'s cases
-run on the e2e database with no queue.
+`QueueConsumer` calls no SQS, so its suite needs none; `JobConsumer`'s cases run on the e2e
+database with no queue.
 
 ## Tests on Docker
 

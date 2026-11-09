@@ -3,7 +3,7 @@ import { Array as Arr, Context, Effect, Exit, Layer, Result, Schema } from 'effe
 import type { JobEntity } from '@app-template/kernel/data'
 import { JobRepository } from '@app-template/kernel/data'
 import {
-  consumeBatch,
+  QueueConsumer,
   type QueueDefinition,
   type SqsBatchResponse,
   type SqsEvent,
@@ -22,7 +22,7 @@ export class JobConsumer extends Context.Service<
   JobConsumer,
   {
     /**
-     * `consumeBatch` that runs each job once: the job is marked `running`, then `done`
+     * `QueueConsumer.consume` that runs each job once: the job is marked `running`, then `done`
      * once `handle` succeeds, or `failed` on any other outcome, an interrupt included; no failure
      * is retried, and a settled job is acknowledged. A job found `running` was left by a process
      * that died mid-work, so `handle` runs again and decides what its work left means.
@@ -37,6 +37,7 @@ export class JobConsumer extends Context.Service<
   }
 >()('@app-template/kernel/job/JobConsumer', {
   make: Effect.gen(function* () {
+    const consumer = yield* QueueConsumer
     const jobs = yield* JobRepository
 
     function settle(job: Job, status: 'done' | 'failed') {
@@ -51,7 +52,7 @@ export class JobConsumer extends Context.Service<
         Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
       )
 
-      return consumeBatch(
+      return consumer.consume(
         Effect.fnUntraced(function* (body: string, jobId: string) {
           // A message whose row is missing is a defect: SQS delivers it again, as its commit may
           // not have shown the row yet, then dead-letters it.
@@ -83,5 +84,5 @@ export class JobConsumer extends Context.Service<
   static readonly layer: Layer.Layer<JobConsumer, never, JobRepository> = Layer.effect(
     this,
     this.make,
-  )
+  ).pipe(Layer.provide(QueueConsumer.layer))
 }
