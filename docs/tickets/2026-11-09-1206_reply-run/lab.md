@@ -72,6 +72,35 @@ Output: the answers with a run, snippets <= 20 lines. (the owner's plan)
   raw fetch, two user messages -> HTTP 200
   ```
   Not checked: an image part (the fixture is no valid image; the same loop, `:1002-1016`).
+  [A:ai] (b) All three work in `drizzle-orm` 1.0.0-rc.5, run on Postgres in a throwaway
+  worktree (dropped since). A message's latest Run reads as a `one` relation with an `orderBy`:
+  on a `one` Drizzle adds `limit 1` itself (`repos/drizzle/drizzle-orm/src/pg-core/dialect.ts:845`),
+  a `left join lateral` per row, the result `{…} | null`; a `many` takes `limit` too
+  (`relations.ts:682-684`) but answers an array. An assistant message's Run is a `one` over
+  `messages.run_id`. The two tables import each other: the `.references()` callbacks are stored,
+  not called (`pg-core/columns/common.ts:324-330`), so either import order loads; drizzle-kit
+  creates the tables, then adds every FK by `ALTER TABLE`; typecheck needs one side annotated
+  (TS7022 otherwise), as the Drizzle docs say for a self-reference.
+  ```ts
+  // message.table.ts
+  runId: uuid().unique().references((): AnyPgColumn => runs.id),
+  // relations
+  messages: {
+    latestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
+    run: r.one.runs({ from: r.messages.runId, to: r.runs.id }),
+  },
+  // read: a chat's messages, each with its latest Run
+  db.query.messages.findMany({
+    where: { chatId },
+    orderBy: { createdAt: 'asc', id: 'asc' },
+    with: { latestRun: { orderBy: { createdAt: 'desc', id: 'desc' } } },
+  })
+  ```
+  Rows: user `a1` (Runs failed, then done) -> its done Run; user `a2` -> its queued Run;
+  the assistant messages -> `null`. Also tried: a core `leftJoinLateral` (flat rows, attachments
+  read apart) and `DISTINCT ON` (not limited to the chat). A chat delete cascades through both
+  keys; deleting a user message alone fails on `messages.run_id` (`NO ACTION`); no code deletes a
+  single message today (`git grep`).
 
 ### Pieces
 
