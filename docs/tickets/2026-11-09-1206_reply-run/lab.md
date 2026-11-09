@@ -125,6 +125,9 @@ Message, Message status, Active message, Chat status, Status, Provenance), `data
 `decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
 entry 22 ("The message keeps its own status", "A run needs no status of its own").
 
+[Q:ai] Rail 5, question 2 (already in the code?): `.claude/rules/deep-modules.md:61` says a value another table implies is a column the transactions that change it move, not derived on each read; the Shape's `chats` line (`:72`) derives the chat's status from its latest Run. Keep `chats.status`, moved by the send and the worker as today, the busy check and its race guard as they are? Without it: a `latestRun` relation on every chat read, a status derived in the api, and the busy check moved to the Runs.
+[Q:ai] Rail 5, question 1 (what breaks if removed?): in L3 no reader needs a message's Run nested (`UserMessage.run`, `AssistantMessage.run`, `:77`); the list that does is L4. Keep one `Message` with `runId: Option<RunId>` in L3, the assistant message reached from its Run (`RunEntity.assistantMessage`, one relational query) for `GET /chats/:chatId/runs/:runId`, and nest the Runs into messages in L4?
+
 ### Pieces
 
 [N:ai] L3.2 The `runs` table and `RunEntity`, beside today's messages; `init` regenerated · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.entity.e2e.ts` (2 cases)
