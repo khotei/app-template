@@ -55,16 +55,16 @@ export class JobConsumer extends Context.Service<
       return consumer.consume(
         Effect.fnUntraced(function* (body: string, jobId: string) {
           // A message whose row is missing is a defect: SQS delivers it again, as its commit may
-          // not have shown the row yet, then dead-letters it.
+          // not have shown the row yet, then dead-letters it, as after a rollback past the send.
           const job = yield* jobs
             .selectOne({ id: [jobId] })
             .pipe(Effect.flatMap(Effect.fromOption), Effect.orDie)
           if (isSettled(job)) return
-          const decoded = yield* decode(body).pipe(Effect.result)
-          if (Result.isFailure(decoded)) {
-            yield* Effect.logError('job does not decode', decoded.failure)
-            return yield* settle(job, 'failed')
-          }
+          const decoded = yield* decode(body).pipe(
+            Effect.tapError((error) => Effect.logError('job does not decode', error)),
+            Effect.result,
+          )
+          if (Result.isFailure(decoded)) return yield* settle(job, 'failed')
 
           yield* jobs.update({ status: 'running' }, { id: [job.id], status: unsettledStatuses })
           // The settle runs uninterruptibly, so a stopping worker waits for it.
