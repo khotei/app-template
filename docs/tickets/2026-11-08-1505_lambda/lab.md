@@ -295,6 +295,30 @@ in `kernel/data`'s test support, about 25 lines, its guard (`status` in the `whe
 twinned by the repository's e2e.
   [N:ai] Moved from L2 at its close (the owner, in the chat): the worker's test changes here
   once the worker writes the reply.
+[N:ai] The owner, in the chat (2026-11-09), after a review of how agent chats model a reply
+(OpenAI Assistants and Responses, LangGraph, Convex Agent, Open WebUI, LibreChat, Vercel AI SDK):
+the reply becomes a `Run`, the work of answering one user message, and leaves L4 for a lab of its
+own, cut from `main` once this PR merges. Agreed:
+- `runs` in the chat data (`id`, `chat_id`, `user_message_id`, `status` `queued` → `preparing`
+  → `generating` → `done` | `failed`, `failure`, `provenance`), at most one active per chat by a
+  partial unique index; a retry is a new run of the same message.
+- A message is finished text with no status: the api writes the user's with its run and job; only
+  the worker writes the assistant's (`messages.run_id`), with the run's `done`, in one
+  transaction. `UserMessage.run: Option<Run>` (the latest) and `AssistantMessage.run: Run`, read
+  with the message as `attachments` are, never written through it.
+- A job stays delivery (`kernel/job`), a run is chat data; the use case drives the run. The reply
+  job's id is its run's, its body `{ runId }`; `JobConsumer.consume(definition, { handle, onFail })`
+  calls `onFail(jobId, cause)` before a job settles `failed` (a body that does not decode, a
+  defect, an interrupt), and the use case fails the run there. Rejected: generic `jobs` with a
+  jsonb body read as runs (no cascade, the one-active rule and the statuses as JSON expressions,
+  a job's cleanup breaking chat history).
+- `chats.status` goes, read from the latest run; provenance moves from the job to the run; a run
+  whose job dead-letters before `preparing` stays for roadmap entry 22; check that Anthropic takes
+  two `user` messages in a row before the code.
+- API: `POST /chats/:chatId/messages` → `202` the user's message with its run;
+  `GET /chats/:chatId/messages`; `GET /chats/:chatId/runs/:runId` (the assistant message once
+  `done`), polled; `POST /chats/:chatId/runs { userMessageId }` retries.
+- The report: https://claude.ai/artifact/ThsiS3vavFwAEKxzcJg9ff (the owner's, private).
 
 ## L5 — No stub in the app's code
 
