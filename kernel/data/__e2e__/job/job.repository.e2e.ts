@@ -14,7 +14,7 @@ const job = (n: number): typeof JobEntityInsert.Type => ({
   id: jobId(n),
   queue: 'sample',
   body: { n },
-  status: 'idle',
+  status: 'queued',
   createdAt: new Date(`2026-10-18T00:00:0${n}.000Z`),
 })
 
@@ -23,14 +23,14 @@ const insertJobs = (ns: ReadonlyArray<number>) =>
     Effect.forEach(ns, (n) => repository.insert(job(n)), { discard: true }),
   )
 
-const selectIdleIds = (limit: number) =>
-  JobRepository.use((repository) => repository.selectMany({ status: ['idle'] }, { limit })).pipe(
+const selectQueuedIds = (limit: number) =>
+  JobRepository.use((repository) => repository.selectMany({ status: ['queued'] }, { limit })).pipe(
     Effect.map(Arr.map(Struct.get('id'))),
   )
 
 describe('JobRepository', () => {
   // The ids ascend while the creation times descend, so an order by id alone answers 1, 2.
-  it.effect('selects the idle jobs oldest first, at most the limit', () =>
+  it.effect('selects the queued jobs oldest first, at most the limit', () =>
     Effect.gen(function* () {
       const jobs = yield* JobRepository
       yield* Effect.forEach(
@@ -39,7 +39,7 @@ describe('JobRepository', () => {
         { discard: true },
       )
 
-      assert.deepStrictEqual(yield* selectIdleIds(2), [jobId(3), jobId(2)])
+      assert.deepStrictEqual(yield* selectQueuedIds(2), [jobId(3), jobId(2)])
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
@@ -50,14 +50,14 @@ describe('JobRepository', () => {
       const release = yield* Deferred.make<void>()
       yield* insertJobs([1, 2, 3])
 
-      const holder = yield* selectIdleIds(1).pipe(
+      const holder = yield* selectQueuedIds(1).pipe(
         Effect.tap((ids) => Deferred.succeed(held, ids)),
         Effect.tap(() => Deferred.await(release)),
         sql.withTransaction,
         Effect.forkChild,
       )
       const heldIds = yield* Deferred.await(held)
-      const others = yield* sql.withTransaction(selectIdleIds(10))
+      const others = yield* sql.withTransaction(selectQueuedIds(10))
       yield* Deferred.succeed(release, undefined)
       yield* Fiber.join(holder)
 
@@ -66,14 +66,14 @@ describe('JobRepository', () => {
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
-  it.effect('an update sets the status of the jobs it names, which leave the idle', () =>
+  it.effect('an update sets the status of the jobs it names, which leave the queued', () =>
     Effect.gen(function* () {
       const jobs = yield* JobRepository
       yield* insertJobs([1, 2, 3])
 
-      yield* jobs.update({ status: 'queued' }, { id: [jobId(1), jobId(3)], status: ['idle'] })
+      yield* jobs.update({ status: 'running' }, { id: [jobId(1), jobId(3)], status: ['queued'] })
 
-      assert.deepStrictEqual(yield* selectIdleIds(10), [jobId(2)])
+      assert.deepStrictEqual(yield* selectQueuedIds(10), [jobId(2)])
     }).pipe(Effect.provide(JobRepositoryTest)),
   )
 
@@ -82,7 +82,7 @@ describe('JobRepository', () => {
       const jobs = yield* JobRepository
 
       const exit = yield* jobs
-        .update({ status: 'queued' }, { id: [jobId(1)], status: ['idle'] })
+        .update({ status: 'running' }, { id: [jobId(1)], status: ['queued'] })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
@@ -93,10 +93,10 @@ describe('JobRepository', () => {
     Effect.gen(function* () {
       const jobs = yield* JobRepository
       yield* insertJobs([1])
-      yield* jobs.update({ status: 'done' }, { id: [jobId(1)], status: ['idle'] })
+      yield* jobs.update({ status: 'done' }, { id: [jobId(1)], status: ['queued'] })
 
       const exit = yield* jobs
-        .update({ status: 'queued' }, { id: [jobId(1)], status: ['idle'] })
+        .update({ status: 'running' }, { id: [jobId(1)], status: ['queued'] })
         .pipe(Effect.exit)
       const stored = yield* jobs.selectMany({ id: [jobId(1)] }, { limit: 1 })
 

@@ -12,11 +12,8 @@ import {
   type SqsEvent,
 } from '@app-template/packages/queue'
 
-/**
- * The statuses a job leaves for `done` or `failed`, never to come back; `idle` among them, as SQS
- * may deliver a job before its sender marks it `queued`.
- */
-const unsettledStatuses = ['idle', 'queued', 'running'] as const
+/** The statuses a job leaves for `done` or `failed`, never to come back. */
+const unsettledStatuses = ['queued', 'running'] as const
 
 type Job = typeof JobEntity.Type
 

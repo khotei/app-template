@@ -235,6 +235,10 @@ showed it answers 200 and loses the job.
 answers 500 and keeps no message, no chat change and no job" through the api, and `JobSender`'s
 "a send SQS refuses dies" in place of "leaves the job idle for the sweep"; `apps/e2e` gains
 `@effect-aws/client-sqs` to delete its stage's queue · visible: `make test-e2e`, 2 expected fail
+[N:ai] piece 5b: `JobSender.send` inserts the job `queued` in the caller's transaction, then
+sends it, a refused send a defect that rolls the transaction back; `idle`, its index,
+`enqueue`, `Transaction.afterCommit` and its fake are gone, `recordJobs()` records at `send`, and
+the migrations restart as one `init` again · visible: `make test-e2e`, the two e2e of 5a green
 
 ### Notes
 

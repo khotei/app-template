@@ -31,7 +31,7 @@ const body = {
   provenance: { provider: 'anthropic', model: 'claude-sonnet-5-5', instructionsHash: 'a1b2c3' },
 }
 
-const send = JobSender.use((sender) => sender.send(sampleJobQueue, job).pipe(Effect.flatten))
+const send = JobSender.use((sender) => sender.send(sampleJobQueue, job))
 
 const selectJobs = Db.use((db) =>
   db.select({ id: jobs.id, queue: jobs.queue, body: jobs.body, status: jobs.status }).from(jobs),
@@ -83,7 +83,7 @@ describe('JobSender', () => {
     30_000,
   )
 
-  it.live.fails('a send SQS refuses dies', () =>
+  it.live('a send SQS refuses dies', () =>
     Effect.gen(function* () {
       const sqs = yield* SQSService
       const url = yield* queueUrl

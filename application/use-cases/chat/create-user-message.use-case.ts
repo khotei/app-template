@@ -131,20 +131,19 @@ export class CreateUserMessageUseCase extends Context.Service<
         createdAt: at,
       })
       yield* encodeMessage(assistantMessage).pipe(Effect.flatMap(messages.insert))
-      yield* jobs
-        .send(
-          assistantMessageQueue,
-          new GenerateAssistantMessage({
-            chatId,
-            messageId: assistantMessage.id,
-            provenance: Option.some(provenance),
-          }),
-        )
-        .pipe(Effect.flatMap(transaction.afterCommit))
+      yield* jobs.send(
+        assistantMessageQueue,
+        new GenerateAssistantMessage({
+          chatId,
+          messageId: assistantMessage.id,
+          provenance: Option.some(provenance),
+        }),
+      )
       if (isFirstMessage) {
-        yield* jobs
-          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: userMessage.id }))
-          .pipe(Effect.flatMap(transaction.afterCommit))
+        yield* jobs.send(
+          chatTitleQueue,
+          new GenerateChatTitle({ chatId, messageId: userMessage.id }),
+        )
       }
 
       return {

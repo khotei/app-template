@@ -3,24 +3,22 @@ import { Context, Crypto, DateTime, Effect, identity, Layer, Schema } from 'effe
 
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
-import { type JobEntity, JobRepository } from '@app-template/kernel/data'
+import { JobRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
-
-type Job = typeof JobEntity.Type
 
 export class JobSender extends Context.Service<
   JobSender,
   {
     /**
-     * Writes the job as an `idle` row, joining the caller's transaction, and answers the step
-     * that sends it to SQS under the row's id and marks it `queued`: run that step once the row
-     * is committed. A send SQS refuses is logged and leaves the job `idle` for the sweep.
+     * Writes the job as a `queued` row, joining the caller's transaction, then sends it to SQS
+     * under the row's id: call it after the transaction's other writes. A send SQS refuses is a
+     * defect, so the transaction rolls back.
      */
     readonly send: <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
-    ) => Effect.Effect<Effect.Effect<void>>
+    ) => Effect.Effect<void>
   }
 >()('@app-template/kernel/job/JobSender', {
   make: Effect.gen(function* () {
@@ -28,23 +26,6 @@ export class JobSender extends Context.Service<
     const sender = yield* QueueSender
     const crypto = yield* Crypto.Crypto
     const { stage } = yield* AwsConfig
-
-    const enqueue = Effect.fn('JobSender.enqueue')(
-      (job: Job) =>
-        sender
-          .send(buildResourceName(stage, job.queue), {
-            body: JSON.stringify(job.body),
-            jobId: job.id,
-          })
-          .pipe(
-            Effect.andThen(jobs.update({ status: 'queued' }, { id: [job.id], status: ['idle'] })),
-            Effect.tapError((error) =>
-              Effect.logWarning('job send failed, left for the sweep', error),
-            ),
-            Effect.ignore,
-          ),
-      (effect, job) => Effect.annotateLogs(effect, { jobId: job.id }),
-    )
 
     const send = Effect.fn('JobSender.send')(function* <A, I>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
@@ -56,9 +37,10 @@ export class JobSender extends Context.Service<
       const id = yield* generateId(crypto, identity)
       const now = yield* DateTime.nowAsDate
 
-      const job: Job = { id, queue: definition.name, body, status: 'idle', createdAt: now }
-      yield* jobs.insert(job)
-      return enqueue(job)
+      yield* jobs.insert({ id, queue: definition.name, body, status: 'queued', createdAt: now })
+      yield* sender
+        .send(buildResourceName(stage, definition.name), { body: JSON.stringify(body), jobId: id })
+        .pipe(Effect.orDie)
     })
 
     return { send }

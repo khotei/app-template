@@ -1,7 +1,7 @@
 CREATE TYPE "chat_status" AS ENUM('idle', 'queued', 'failed');--> statement-breakpoint
 CREATE TYPE "message_author" AS ENUM('user', 'assistant');--> statement-breakpoint
 CREATE TYPE "message_status" AS ENUM('queued', 'preparing', 'generating', 'done', 'failed');--> statement-breakpoint
-CREATE TYPE "job_status" AS ENUM('idle', 'queued', 'running', 'done', 'failed');--> statement-breakpoint
+CREATE TYPE "job_status" AS ENUM('queued', 'running', 'done', 'failed');--> statement-breakpoint
 CREATE TYPE "credential_kind" AS ENUM('secret');--> statement-breakpoint
 CREATE TABLE "attachments" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -66,7 +66,6 @@ CREATE INDEX "chats_user_id_created_at_index" ON "chats" ("user_id","created_at"
 CREATE INDEX "chats_user_id_updated_at_index" ON "chats" ("user_id","updated_at" DESC);--> statement-breakpoint
 CREATE INDEX "messages_chat_id_created_at_index" ON "messages" ("chat_id","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "messages_chat_id_active_index" ON "messages" ("chat_id") WHERE "author" = 'assistant' and "status" in ('queued', 'preparing', 'generating');--> statement-breakpoint
-CREATE INDEX "jobs_idle_created_at_index" ON "jobs" ("created_at") WHERE "status" = 'idle';--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_message_id_chat_id_fk" FOREIGN KEY ("message_id","chat_id") REFERENCES "messages"("id","chat_id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint

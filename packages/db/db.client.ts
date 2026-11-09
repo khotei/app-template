@@ -29,13 +29,6 @@ export class Transaction extends Context.Service<
   {
     /** Runs `self` in one transaction; its own `SqlError` is a defect. */
     readonly run: <A, E, R>(self: Effect.Effect<A, E, R>) => Effect.Effect<A, E, R>
-    /**
-     * Runs `effect` once the transaction in context commits, never on a rollback; outside a
-     * transaction, at once. A failure of `effect` is logged, never the caller's.
-     */
-    readonly afterCommit: <R>(
-      effect: Effect.Effect<void, never, R>,
-    ) => Effect.Effect<void, never, R>
   }
 >()('@app-template/packages/db/Transaction') {
   static readonly layer = Layer.effect(
@@ -43,7 +36,6 @@ export class Transaction extends Context.Service<
     SqlClient.SqlClient.useSync((sql) =>
       this.of({
         run: (self) => sql.withTransaction(self).pipe(Effect.catchTag('SqlError', Effect.die)),
-        afterCommit: sql.afterCommit,
       }),
     ),
   )
