@@ -1,15 +1,5 @@
 import { SQSService } from '@effect-aws/client-sqs'
-import {
-  Array as Arr,
-  Context,
-  Duration,
-  Effect,
-  Exit,
-  Layer,
-  Option,
-  Result,
-  Schema,
-} from 'effect'
+import { Array as Arr, Context, Duration, Effect, Exit, Layer, Option, Schema } from 'effect'
 
 import { QueueClient } from '#queue/queue.client'
 import {
@@ -44,13 +34,13 @@ export class QueueConsumer extends Context.Service<
   QueueConsumer,
   {
     /**
-     * Runs `handle` on each record of a batch and answers the failed ones, which stay on the
-     * queue: a failure or an undecodable body hides its record for `retryDelay`, or on the last
-     * attempt makes it visible at once for the dead-letter queue.
+     * Runs `handle` on each record's body of a batch and answers the failed ones, which stay on
+     * the queue: a failure hides its record for `retryDelay`, or on the last attempt makes it
+     * visible at once for the dead-letter queue.
      */
-    readonly consume: <A, I, E, R>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      handle: Handler<A, E, R>,
+    readonly consume: <E, R>(
+      definition: QueueDefinition<Schema.Top>,
+      handle: Handler<string, E, R>,
     ) => (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R>
   }
 >()('@app-template/packages/queue/QueueConsumer', {
@@ -58,14 +48,10 @@ export class QueueConsumer extends Context.Service<
     const sqs = yield* SQSService
     const client = yield* QueueClient
 
-    function consume<A, I, E, R>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      handle: Handler<A, E, R>,
+    function consume<E, R>(
+      definition: QueueDefinition<Schema.Top>,
+      handle: Handler<string, E, R>,
     ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
-      const decode = Schema.decodeEffect(
-        Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
-      )
-
       const retry = Effect.fnUntraced(function* (record: SqsRecord, info: AttemptInfo) {
         const delay = info.isLastAttempt ? 0 : definition.retryDelay(info.attempt)
         yield* client.getUrl(buildQueueName(record.eventSourceARN)).pipe(
@@ -88,13 +74,7 @@ export class QueueConsumer extends Context.Service<
             receiveCount: record.attributes.ApproximateReceiveCount,
             maxAttempts: definition.maxAttempts,
           })
-          const decoded = yield* decode(record.body).pipe(Effect.result)
-          if (Result.isFailure(decoded)) {
-            yield* Effect.logError('queue message does not decode', decoded.failure)
-            return yield* retry(record, info)
-          }
-
-          const exit = yield* handle(decoded.success, info).pipe(Effect.exit)
+          const exit = yield* handle(record.body, info).pipe(Effect.exit)
           if (Exit.isSuccess(exit)) return Option.none()
 
           yield* info.isLastAttempt

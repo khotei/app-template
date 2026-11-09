@@ -27,8 +27,8 @@ function buildRecord(messageId: string, { body = '{"text":"ok"}', receiveCount =
 
 type VisibilityChange = Parameters<SQSService['Service']['changeMessageVisibility']>[0]
 
-function failOnBoom(ping: Ping) {
-  return ping.text === 'boom' ? Effect.fail('failed') : Effect.void
+function failOnBoom(body: string) {
+  return body === '{"text":"boom"}' ? Effect.fail('failed') : Effect.void
 }
 
 function recordVisibility() {
@@ -73,18 +73,6 @@ describe('QueueConsumer.consume', () => {
       assert.deepStrictEqual(yield* sqs.changes, [
         { QueueUrl: 'url-stage-pings', ReceiptHandle: 'handle-a', VisibilityTimeout: 0 },
       ])
-    }).pipe(Effect.provide(sqs.layer))
-  })
-
-  it.effect('answers a body that does not decode, without running the handler', () => {
-    const sqs = recordVisibility()
-    const event: SqsEvent = { Records: [buildRecord('a', { body: 'not json' })] }
-    return Effect.gen(function* () {
-      const consumer = yield* QueueConsumer
-
-      const response = yield* consumer.consume(definition, () => Effect.die('handler ran'))(event)
-
-      assert.deepStrictEqual(response, { batchItemFailures: [{ itemIdentifier: 'a' }] })
     }).pipe(Effect.provide(sqs.layer))
   })
 })

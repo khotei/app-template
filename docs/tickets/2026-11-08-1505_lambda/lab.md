@@ -251,6 +251,10 @@ job is encoded and sent; the `JobSender` e2e reads SQS's optional fields through
 `Effect.fromNullishOr` and `UndefinedOr`, not `??` · visible: `make check`
 [N:ai] piece 7a: the `JobConsumer` e2e "a job whose body does not decode fails at once, unrun
 and unretried", red as `.fails` on today's code · visible: `make test-e2e`, 1 expected fail
+[N:ai] piece 7b: `QueueConsumer` hands each record's body to its handler undecoded; `JobConsumer`
+decodes it by the definition's schema, and a body that does not decode fails the job at once,
+unrun, its record acknowledged; `aws.md` and `database.md` say so · visible: `make test-e2e`, the
+e2e of 7a green
 
 ### Notes
 
@@ -405,7 +409,8 @@ empty key stops the worker at start with a `ConfigError`. The e2e give `WorkerPr
   refuses rolls it back and the api answers `500`: no `idle`, no sweep, no send after the commit
   (L2, the owner's variant A).
 - A job's statuses are `queued`, `running`, `done`, `failed`; `failed` is set once the last
-  attempt fails, `queued` again before a retry (L1, L2).
+  attempt fails, or at once when its body does not decode, `queued` again before a retry (L1,
+  L2).
 - The worker answers SQS through `QueueConsumer.consume(definition, handle)(event)`, returning
   `{ batchItemFailures }` (L1).
 

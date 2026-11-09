@@ -134,7 +134,7 @@ describe('JobConsumer.consume', () => {
     }).pipe(Effect.provide(JobConsumerTest)),
   )
 
-  it.effect.fails('a job whose body does not decode fails at once, unrun and unretried', () =>
+  it.effect('a job whose body does not decode fails at once, unrun and unretried', () =>
     Effect.gen(function* () {
       const consumer = yield* JobConsumer
       const jobs = yield* JobRepository

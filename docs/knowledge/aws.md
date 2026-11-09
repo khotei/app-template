@@ -162,10 +162,11 @@ before the row that binds them and deletes them once the rows are gone.
   attempt is the definition's `maxAttempts`, the inventory's `maxReceiveCount`. A queue hides a
   delivered message for the worker function's timeout, 60 s, since AWS refuses a mapping on a
   queue that hides it less.
-- **A failure stays on the queue.** A record whose handler fails, or whose body does not decode,
-  is answered in `batchItemFailures` and hidden for its `retryDelay`; on the last attempt it is
-  made visible at once, so the next receive redrives it to `<queue>-dlq`. A failed visibility
-  change is only logged: the record returns after the queue's own 60 s.
+- **A failure stays on the queue.** A record whose handler fails is answered in
+  `batchItemFailures` and hidden for its `retryDelay`; on the last attempt it is made visible at
+  once, so the next receive redrives it to `<queue>-dlq`. A failed visibility change is only
+  logged: the record returns after the queue's own 60 s. A job whose body does not decode is
+  failed at once and its record acknowledged ([database.md › The outbox](database.md#the-outbox)).
 - **Nothing consumes a dead-letter queue.** A reply's last attempt writes `failed` on any outcome
   but success; a reply that no attempt settles stays active
   ([database.md › Stuck replies](database.md#stuck-replies)).

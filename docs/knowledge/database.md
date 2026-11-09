@@ -272,6 +272,8 @@ so a rollback keeps no job and a commit never stands without one
   attempt, or `queued` again for the retry. It writes only from `queued` or `running`, so
   a settled job never moves back; a delivery of a settled job is acknowledged without its
   handler, and a message whose row is missing is a defect that SQS retries, then dead-letters.
+  `JobConsumer` decodes the body itself: one that does not decode never will, so its job is
+  `failed` at once, unrun, and its record acknowledged; the body stays in the row.
 - **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
   settled rows yet.
 
