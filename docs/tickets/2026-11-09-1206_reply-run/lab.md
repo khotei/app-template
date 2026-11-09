@@ -128,6 +128,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 ### Pieces
 
 [N:ai] L3.2 The `runs` table and `RunEntity`, beside today's messages; `init` regenerated · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.entity.e2e.ts` (2 cases)
+[N:ai] L3.3 `RunRepository`'s contract: `insert`, `update`, `selectOne` over `RunEntityWhere`, its e2e as `it.effect.fails` over `Effect.die('todo')`; 185 lines, rail 4 lifted by the owner for this piece · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts` (3 expected fail)
 
 ### Output
 
@@ -228,3 +229,6 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L3: the composite FK makes a Run's message belong to its chat, but no key checks that the
   message is the user's: a Run on an assistant message passes the store. L4's use case builds a
   Run only from the user message it has just stored; the store stays without that check.
+- [N:ai] Rail 4 (`.claude/rules/lab.md`): a piece with a repository's e2e cannot stay within 100
+  lines, since the test's setup alone takes about 50 (L3.2: 178 lines, L3.3: 185). Count a piece's
+  tests apart from its code, as a plan step counts its docs? For the Right step.
