@@ -18,7 +18,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | Step | Goal | Kind | Status |
 |---|---|---|---|
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | learn | done |
-| L2 | `JobConsumer` calls `onFail` before a job settles `failed`, for a bad body and a defect, not for success; the reply job can take its Run's id | build | todo |
+| L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | build | todo |
 | L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | build | todo |
 | L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | build | todo |
 | L5 | A chat's messages with their Runs, a Run's state with its assistant message, and a retry after a failed Run, through the api | build | todo |
@@ -37,21 +37,30 @@ An assistant message's Run: `r.one.runs` over `messages.run_id`. `message.table.
 L1.3 run on Postgres.
 Can you write the signature now?
 
-## L2 — `onFail` in `JobConsumer`, the job's id from its caller
+## L2 — The jobs go, the send after the commit
 
 Budget: waits for the owner
 
 ### Shape
 
-- A job stays delivery (`kernel/job`, the `jobs` table); a Run is chat data; the use case drives
-  the Run and knows no job; `JobConsumer` drives the job and knows no Run.
-- `JobSender.send(definition, message, { id })`: the reply job's id is its Run's; body `{ runId }`.
-- `JobConsumer.consume(definition, { handle, onFail })`: `onFail(jobId, cause)` runs, inside the
-  uninterruptible settle, before a job settles `failed`: a body that does not decode, a defect or
-  an interrupt in `handle`. The work first, then the job: if onFail's write dies, SQS delivers
-  again and the job is still unsettled.
-- Rejected: generic `jobs` with a jsonb body read as Runs (no cascade, the one-active rule and the
-  statuses as JSON expressions, a job cleanup breaking chat history).
+<A draft by the agent on the owner's yes in the chat, 2026-11-09; the earlier Shape (`onFail`,
+the job's id from its caller) is in git.>
+
+- No `jobs` table, no `JobRepository`, no `kernel/job`: a job is a queue message, and its work
+  keeps its own record (the assistant message's status now, the Run from L4). Running once, a
+  run that died and a failure stay the use case's, on that record, as today.
+- `packages/queue` sends and consumes by a definition: `send(definition, message)` encodes by its
+  schema, `consume(definition, handle)` decodes; the kernel only passes the stage's queue name.
+  No `jobId` attribute. A body that does not decode is logged and acknowledged.
+- The send runs after the commit. A refused reply send fails the assistant message and its chat
+  in one write, and the api answers `202` with it; a refused title send is logged. A process that
+  dies between the commit and the send leaves the reply active (roadmap entry 22).
+- A record the worker does not find was deleted with its chat: skipped, as today.
+- The worker handler runs each queue's use case through `QueueConsumer`, picked by the queue in
+  the records' `eventSourceARN`.
+- Rejected: the send inside the transaction (a delivery before the commit reads no record, and
+  without a job row it cannot tell that from a deleted chat); a job row per message beside the
+  work's own record (a second status for one piece of work).
 
 ### Notes
 
@@ -71,6 +80,14 @@ the job's id alone.
 [N:ai] The owner, in the chat: "job should plain as it is, only body jsonb": the job keeps its
 own id, and only its body `{ runId }` ties it to the Run. L2.2 dropped unwritten; a second
 reading (the id taken from the message by the definition) went with it.
+[N:ai] The owner, in the chat: the kernel's jobs wrap the queue but should track no table and
+no statuses; each module keeps its own record of the work (the chat's Runs); "just send after
+commit". Review: every duty of `jobs` already sits on the work's record
+(`generate-assistant-message.use-case.ts:157`, `alreadySettled`, `isStartedReply`, its `onExit`;
+the title's `rename` of an untitled chat only) except telling a delivery before the commit from
+a deleted chat, which the send after the commit removes. The owner's yes: the send after the
+commit, a refused reply send failing the reply with `202`, the jobs gone as this L2 before the
+Runs. L2.1's `onFail` goes with `JobConsumer`.
 
 ### Pieces
 
@@ -156,6 +173,8 @@ onFail.
 (`application/use-cases/__tests__/chat/generate-assistant-message.use-case.test.ts:151`) moves
 to `apps/worker/__tests__/worker.handler.test.ts`: the use case no longer fails its own Run,
 the pair `JobConsumer` + `onFail` does.
+[N:ai] L2's new Shape leaves this Shape's first two lines stale: no `onFail`, the use case keeps
+its own `onExit`, and the send runs after the commit (a refused one fails the Run, `202`).
 [N:ai] Docs in this step's commits: `docs/knowledge/glossary.md` (Run, Run status, Active run;
 Message, Message status, Active message, Chat status, Status, Provenance), `database.md`,
 `decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
