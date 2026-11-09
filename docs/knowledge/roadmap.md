@@ -387,9 +387,16 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
   the provider's fixed waits; never on AWS.
 - **Inherits from `llm-providers` (2026-10-30).** `deployment/` sets no LLM variables, so a
-  deployed worker and api fail at start: both need `LLM_PROVIDER` and, for `anthropic`,
-  `LLM_REPLY_MODEL`; the worker also `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api
-  never reads the key.
+  deployed worker and api fail at start: both need `LLM_REPLY_MODEL`; the worker also
+  `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api never reads the key.
+- **Inherits from `lambda` (2026-11-08).** Dev runs the worker behind MiniStack's SQS mapping in
+  proxy mode: the code stays on the host. The production build in dev, api and worker as real
+  Lambda functions inside MiniStack (a Bun image with Lambda Web Adapter,
+  `LAMBDA_EXECUTOR=docker`, a Function URL for the api), moved here unbuilt. Two researchers'
+  runs, stopped before their reports and not rechecked: an image function answered through a
+  Function URL with a cold start of 130–180 ms; a partial batch failure worked; the function
+  reaches Postgres only at `host.docker.internal`, not at the `localhost` the RDS endpoint
+  reports; a rebuild to an answer took about 2 s. Pulumi creating these functions was not run.
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
   runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
@@ -524,7 +531,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Scope.** Anthropic's code execution tool with its `docx`, `xlsx`, `pptx`, `pdf` Skills and the
   Files API; uploading a user's file into the container; downloading produced files into S3 as
   attachments of the assistant message; the placeholder syntax; the `pause_turn` continuation;
-  deleting files at Anthropic once copied; the stub producing a file for dev and e2e; audio by a
+  deleting files at Anthropic once copied; the e2e's scripted assistant producing a file; audio by a
   speech-to-text service.
 - **Out of scope.** Providers other than Anthropic.
 - **Open questions for its feature phase.** One container per chat or per reply; which files go
@@ -615,7 +622,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   Billed through AWS Marketplace; the global route has no premium, regional profiles +10%;
   per-token prices were not readable from aws.amazon.com/bedrock/pricing and need the AWS
   calculator. MiniStack 1.5.31 emulates Bedrock Runtime with canned replies that fail a schema
-  and does not emulate the Messages endpoint, so local runs stay on the stub.
+  and does not emulate the Messages endpoint, so local runs call Anthropic.
 - **Status.** Planned.
 
 ### 22. `jobs`
@@ -674,6 +681,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   a job and "reply in work" for a message. The statuses rewrite
   [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer), whose
   *Revisit when* names this ticket.
+- **Inherits from `lambda` (2026-11-09).** A reply that never settles leaves its chat `queued`
+  for good, so every next send fails `ChatBusyError`: a job whose body no longer decodes is
+  failed unrun, so the reply's use case never runs; every delivery of a job dies, 3 receives, and
+  nothing reads the dead-letter queue; or the queue drops its messages (a purge, a replaced queue,
+  SQS's retention, 4 days by default and unset in the inventory). Ways out to weigh: the handler
+  gets the undecodable body to fail its own work, a consumer of the dead-letter queues, or a sweep
+  of active replies ([database.md › Stuck replies](database.md#stuck-replies)).
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.

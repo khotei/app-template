@@ -11,7 +11,6 @@
     "./testing": "./testing/index.ts",
     "./ui": "./ui/index.ts",
     "./db/testing": "./db/__tests__/testing/index.ts",
-    "./queue/testing": "./queue/__tests__/testing/index.ts",
     "./aws/testing/e2e": "./aws/__tests__/testing/e2e/index.ts",
     "./db/testing/e2e": "./db/__tests__/testing/e2e/index.ts"
   },
@@ -24,11 +23,11 @@
     "#testing/*": "./testing/*.ts",
     "#ui/*": "./ui/*.ts",
     "#testing/db/*": "./db/__tests__/testing/*.ts",
-    "#testing/queue/*": "./queue/__tests__/testing/*.ts",
     "#testing/aws/e2e/*": "./aws/__tests__/testing/e2e/*.ts",
     "#testing/db/e2e/*": "./db/__tests__/testing/e2e/*.ts"
   },
   "dependencies": {
+    "@effect-aws/client-lambda": "catalog:effect-aws",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
     "@effect/ai-anthropic": "catalog:effect",

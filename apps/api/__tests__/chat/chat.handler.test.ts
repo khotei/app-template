@@ -73,7 +73,7 @@ describe('chats', () => {
         const api = yield* ApiClient
         const chat = yield* openChat
 
-        const [sent, response] = yield* api.chats.send({
+        const [sent, response] = yield* api.chats.createMessage({
           params: { chatId: chat.id },
           payload: hello,
           responseMode: 'decoded-and-response',
@@ -105,7 +105,7 @@ describe('chats', () => {
       const form = new FormData()
       form.append('files', new File(['png'], 'photo.png', { type: 'image/png' }))
       const uploaded = yield* api.attachments.upload({ payload: form }).pipe(Effect.head)
-      const { userMessage } = yield* api.chats.send({
+      const { userMessage } = yield* api.chats.createMessage({
         params: { chatId: chat.id },
         payload: { text: 'Hello', attachmentIds: [uploaded.id] },
       })
@@ -131,7 +131,7 @@ describe('chats', () => {
     Effect.gen(function* () {
       const api = yield* ApiClient
       const chat = yield* openChat
-      const send = api.chats.send({
+      const send = api.chats.createMessage({
         params: { chatId: chat.id },
         payload: hello,
         responseMode: 'response-only',
@@ -176,7 +176,7 @@ describe('chats', () => {
       const api = yield* ApiClient
       const chat = yield* openChat
       const other = yield* api.chats.create()
-      const { userMessage } = yield* api.chats.send({
+      const { userMessage } = yield* api.chats.createMessage({
         params: { chatId: other.id },
         payload: hello,
       })
@@ -198,7 +198,7 @@ describe('chats', () => {
       const api = yield* ApiClient
       const http = yield* HttpClient.HttpClient
       const chat = yield* openChat
-      const { assistantMessage } = yield* api.chats.send({
+      const { assistantMessage } = yield* api.chats.createMessage({
         params: { chatId: chat.id },
         payload: hello,
       })

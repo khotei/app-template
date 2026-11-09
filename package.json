@@ -44,6 +44,7 @@
       "effect": "4.0.6"
     },
     "effect-aws": {
+      "@effect-aws/client-lambda": "2.0.0",
       "@effect-aws/client-s3": "2.0.0",
       "@effect-aws/client-sqs": "2.0.0"
     },

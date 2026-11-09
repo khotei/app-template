@@ -1,5 +1,5 @@
-import { inArray, isNull } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, Layer, UndefinedOr } from 'effect'
+import { inArray } from 'drizzle-orm'
+import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedOr } from 'effect'
 
 import { buildSet, buildWhere, orDieUnless, orDieWithSqlError } from '@app-template/packages/db'
 
@@ -13,25 +13,20 @@ import type {
 } from '#kernel/data/job/job.entity'
 import { jobs } from '#kernel/data/job/job.table'
 
-const encodeSet = buildSet<JobEntitySet, typeof jobs>({ sentAt: (sentAt) => sentAt })
+const encodeSet = buildSet<JobEntitySet, typeof jobs>({ status: identity })
 
 const encodeWhere = buildWhere<JobEntityWhere>({
   id: UndefinedOr.map((id) => inArray(jobs.id, id)),
-  sentAt: UndefinedOr.map(() => isNull(jobs.sentAt)),
+  status: UndefinedOr.map((status) => inArray(jobs.status, status)),
 })
 
 export class JobRepository extends Context.Service<
   JobRepository,
   {
     readonly insert: (job: typeof JobEntityInsert.Type) => Effect.Effect<void>
-    /**
-     * The oldest jobs first, at most `limit`, each locked until the transaction ends; a job
-     * another transaction holds is skipped, so concurrent relays share the jobs out.
-     */
-    readonly selectMany: (
+    readonly selectOne: (
       where: JobEntityWhere,
-      options: { readonly limit: number },
-    ) => Effect.Effect<ReadonlyArray<typeof JobEntity.Type>>
+    ) => Effect.Effect<Option.Option<typeof JobEntity.Type>>
     readonly update: (set: JobEntitySet, where: JobEntityUpdateWhere) => Effect.Effect<void>
   }
 >()('@app-template/kernel/data/job/JobRepository') {
@@ -43,15 +38,9 @@ export class JobRepository extends Context.Service<
           (job) => db.insert(jobs).values(job),
           orDieWithSqlError,
         ),
-        selectMany: Effect.fn('JobRepository.selectMany')(
-          (where, { limit }) =>
-            db
-              .select()
-              .from(jobs)
-              .where(encodeWhere(where))
-              .orderBy(jobs.createdAt, jobs.id)
-              .limit(limit)
-              .for('update', { skipLocked: true }),
+        selectOne: Effect.fn('JobRepository.selectOne')(
+          (where) =>
+            db.select().from(jobs).where(encodeWhere(where)).limit(1).pipe(Effect.map(Arr.head)),
           orDieWithSqlError,
         ),
         update: Effect.fn('JobRepository.update')(

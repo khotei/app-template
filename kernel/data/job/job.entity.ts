@@ -8,15 +8,17 @@ export const JobEntity = createSelectSchema(jobs)
 
 export const JobEntityInsert = createInsertSchema(jobs)
 
+type JobStatus = (typeof JobEntity.Type)['status']
+
 interface JobFilter {
   readonly id: ReadonlyArray<string>
-  /** Matches the jobs the relay has not sent yet. */
-  readonly sentAt: null
+  /** Matches a job in any of these statuses. */
+  readonly status: ReadonlyArray<JobStatus>
 }
 
 export type JobEntityWhere = Types.Simplify<RequireAtLeastOne<JobFilter>>
 
-/** Names the jobs and finds them unsent, so a write never matches every job nor sets `sentAt` twice. */
+/** Names the jobs and the statuses they leave, so a write never matches every job nor moves one back. */
 export type JobEntityUpdateWhere = JobFilter
 
-export type JobEntitySet = Types.Simplify<RequireAtLeastOne<Pick<typeof JobEntity.Type, 'sentAt'>>>
+export type JobEntitySet = Pick<typeof JobEntity.Type, 'status'>

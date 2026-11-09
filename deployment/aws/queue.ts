@@ -7,7 +7,7 @@ import { buildDeadLetterName } from '@app-template/packages/aws'
 import { buildTags } from '#deployment/shared/tags'
 
 export const createQueues = (provider: aws.Provider, stage: string) =>
-  Object.values(resources.queues).map(({ name, maxReceiveCount }) => {
+  Object.values(resources.queues).map(({ name, maxReceiveCount, visibilityTimeoutSeconds }) => {
     const tags = buildTags(stage)
     const queueName = buildResourceName(stage, name)
     const deadLetter = new aws.sqs.Queue(
@@ -15,10 +15,11 @@ export const createQueues = (provider: aws.Provider, stage: string) =>
       { name: buildDeadLetterName(queueName), tags },
       { provider },
     )
-    return new aws.sqs.Queue(
+    const queue = new aws.sqs.Queue(
       name,
       {
         name: queueName,
+        visibilityTimeoutSeconds,
         redrivePolicy: pulumi.jsonStringify({
           deadLetterTargetArn: deadLetter.arn,
           maxReceiveCount,
@@ -27,4 +28,5 @@ export const createQueues = (provider: aws.Provider, stage: string) =>
       },
       { provider },
     )
+    return { name, queue }
   })

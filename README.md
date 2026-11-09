@@ -22,11 +22,11 @@ copied and changed.
 ## ✨ What the example does
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
-the assistant answers. The api writes the message and its jobs in one transaction and answers
-`202`; the worker relays the jobs to SQS, writes the model's whole reply into the message and
-titles the chat; the client polls the message until it is `done` or `failed`. `LLM_PROVIDER`
-picks the language model: Anthropic, or a stub that needs no key. The browser UI still shows only
-the health panel.
+the assistant answers. The api writes the message and its jobs in one transaction, sends the jobs
+to SQS before it commits and answers `202`; SQS invokes the worker through a Lambda function's
+mapping, and the worker writes the model's whole reply into the message and titles the chat;
+the client polls the message until it is `done` or `failed`. The language model is Anthropic's.
+The browser UI still shows only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -37,15 +37,14 @@ sequenceDiagram
   participant K as apps/worker
   W->>A: POST /chats/:id/messages
   A->>S: one transaction: user message, queued assistant message, jobs
+  A->>Q: last in the transaction: assistant-message job (+ chat-title job on the first message)
   A-->>W: 202
-  K->>S: relay claims the unsent jobs
-  K->>Q: assistant-message job (+ chat-title job on the first message)
-  K->>Q: receive
+  Q->>K: a Lambda mapping posts the batch to POST /events
   K->>S: preparing → generating → done with the text | failed
   W->>A: GET /chats/:id/messages/:messageId (poll)
 ```
 
-How the transaction, the outbox and the relay work:
+How the transaction and the jobs work:
 [database.md › The outbox](docs/knowledge/database.md#the-outbox),
 [aws.md › Queues](docs/knowledge/aws.md#queues).
 
@@ -61,15 +60,15 @@ make up      # MiniStack with Postgres, the bucket and the queues inside it; mig
 make dev     # runs make migrate, then api, worker and web together; needs make up's stand
 ```
 
-`.env` starts with `LLM_PROVIDER="stub"`, which needs no key. `LLM_PROVIDER="anthropic"` also needs
-`ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, which `.env.example` leaves commented
-out; without them the api and the worker fail at start (the web does not read them).
+`.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the models in
+`LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. An empty or missing key stops the worker at start with a
+`ConfigError` naming it; the api reads only `LLM_REPLY_MODEL`, and the web none of them.
 
 | Process | URL | Try |
 |---|---|---|
 | `apps/api` | <http://localhost:3000> | `/health` |
 | `apps/web` | <http://localhost:3001> | the health panel; `/api/*` is proxied to the api |
-| `apps/worker` | — | logs `worker started`, relays the jobs and consumes the queues |
+| `apps/worker` | <http://localhost:3002> | `POST /events`, the batches MiniStack's SQS mappings send |
 
 A whole conversation from the shell, with the cookie kept in a jar:
 

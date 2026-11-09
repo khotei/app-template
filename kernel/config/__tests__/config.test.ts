@@ -1,14 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import {
-  type Config,
-  ConfigProvider,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  References,
-  UndefinedOr,
-} from 'effect'
+import { type Config, ConfigProvider, Effect, Layer, Option, References, UndefinedOr } from 'effect'
 
 import {
   ApiConfig,
@@ -17,9 +8,9 @@ import {
   LlmConfig,
   MinimumLogLevelFromConfig,
   MiniStackConfig,
-  QueueConfig,
   ReplyModelConfig,
   RuntimeConfig,
+  WorkerConfig,
 } from '#kernel/config/config'
 
 const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
@@ -32,33 +23,27 @@ describe('config layers', () => {
     given?: Record<string, string>
   }>([
     { variable: 'API_PORT', layer: ApiConfig.layer },
+    { variable: 'WORKER_PORT', layer: WorkerConfig.layer },
     { variable: 'DATABASE_URL', layer: DatabaseConfig.layer },
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
     { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
-    { variable: 'LLM_PROVIDER', layer: LlmConfig.layer },
-    { variable: 'LLM_PROVIDER', layer: LlmConfig.layer, given: { LLM_PROVIDER: 'openai' } },
     {
       variable: 'ANTHROPIC_API_KEY',
       layer: LlmConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply', LLM_TITLE_MODEL: 'title' },
+      given: { LLM_REPLY_MODEL: 'reply', LLM_TITLE_MODEL: 'title' },
     },
     {
       variable: 'LLM_REPLY_MODEL',
       layer: LlmConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
+      given: { ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
     },
     {
       variable: 'LLM_TITLE_MODEL',
       layer: LlmConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
+      given: { ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
     },
-    { variable: 'LLM_PROVIDER', layer: ReplyModelConfig.layer },
-    {
-      variable: 'LLM_REPLY_MODEL',
-      layer: ReplyModelConfig.layer,
-      given: { LLM_PROVIDER: 'anthropic' },
-    },
+    { variable: 'LLM_REPLY_MODEL', layer: ReplyModelConfig.layer },
   ])(
     'fails with a ConfigError naming a missing or invalid $variable',
     ({ variable, layer, given }) =>
@@ -73,60 +58,15 @@ describe('config layers', () => {
   it.effect('applies the defaults', () =>
     Effect.gen(function* () {
       const { nodeEnv, logLevel } = yield* RuntimeConfig
-      const { lockExpiration, lockRefreshInterval, outboxPollInterval } = yield* QueueConfig
 
-      assert.deepStrictEqual(
-        { nodeEnv, logLevel, lockExpiration, lockRefreshInterval, outboxPollInterval },
-        {
-          nodeEnv: 'development',
-          logLevel: 'Info',
-          lockExpiration: Duration.seconds(15),
-          lockRefreshInterval: Duration.seconds(5),
-          outboxPollInterval: Duration.seconds(1),
-        },
-      )
-    }).pipe(
-      Effect.provide(provideVariables(Layer.mergeAll(RuntimeConfig.layer, QueueConfig.layer), {})),
-    ),
+      assert.deepStrictEqual({ nodeEnv, logLevel }, { nodeEnv: 'development', logLevel: 'Info' })
+    }).pipe(Effect.provide(provideVariables(RuntimeConfig.layer, {}))),
   )
 
-  it.effect('reads the stub provider with no key and no model', () =>
+  it.effect('reads the reply model with no key', () =>
     Effect.gen(function* () {
-      assert.deepStrictEqual(yield* LlmConfig, { provider: 'stub' })
-    }).pipe(Effect.provide(provideVariables(LlmConfig.layer, { LLM_PROVIDER: 'stub' }))),
-  )
-
-  it.effect.each<{
-    given: Record<string, string>
-    read: typeof ReplyModelConfig.Service
-  }>([
-    { given: { LLM_PROVIDER: 'stub' }, read: { provider: 'stub', replyModel: 'stub' } },
-    {
-      given: { LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: 'reply' },
-      read: { provider: 'anthropic', replyModel: 'reply' },
-    },
-  ])('reads the reply model of $given.LLM_PROVIDER with no key', ({ given, read }) =>
-    Effect.gen(function* () {
-      assert.deepStrictEqual(yield* ReplyModelConfig, read)
-    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, given))),
-  )
-
-  it.effect.each([
-    { refresh: '5 seconds', expiration: '5 seconds', printed: '(5s)' },
-    { refresh: '1 minute', expiration: '5 seconds', printed: '(1m)' },
-  ])(
-    'rejects a lock refresh of $refresh against an expiration of $expiration',
-    ({ refresh, expiration, printed }) =>
-      Effect.gen(function* () {
-        const error = yield* provideVariables(QueueConfig.layer, {
-          QUEUE_LOCK_EXPIRATION: expiration,
-          QUEUE_LOCK_REFRESH_INTERVAL: refresh,
-        }).pipe(Layer.build, Effect.flip)
-
-        assert.strictEqual(error._tag, 'QueueLockRefreshIntervalInvalidError')
-        assert.include(error.message, `QUEUE_LOCK_REFRESH_INTERVAL ${printed}`)
-        assert.include(error.message, 'QUEUE_LOCK_EXPIRATION (5s)')
-      }),
+      assert.deepStrictEqual(yield* ReplyModelConfig, { replyModel: 'reply' })
+    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, { LLM_REPLY_MODEL: 'reply' }))),
   )
 
   it.effect.each([

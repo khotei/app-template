@@ -11,18 +11,18 @@ import {
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
+import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
-import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'
 
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
- * identity transaction; the `QueueSender` is the test's, `recordQueue()`.
+ * identity transaction; the `JobSender` is the test's, `recordJobs()`.
  */
 export const ChatTest = Layer.mergeAll(
   ChatService.layer,
   FileAttachmentService.layer,
-  SendMessageUseCase.layer,
+  CreateUserMessageUseCase.layer,
 ).pipe(
   Layer.provide(CurrentReplyProvenanceTest),
   Layer.provideMerge(insertChatLayer(chat)),

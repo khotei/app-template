@@ -175,7 +175,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
   target, where })`), so a second active reply in a chat writes nothing and dies. Any other
   message inserts. The chat's status decides the race first (below), so this index only backs it.
-- **A status move under the status read.** `SendMessageUseCase.send` reads the chat, runs
+- **A status move under the status read.** `CreateUserMessageUseCase.create` reads the chat, runs
   `queueChat` (a `queued` chat is `ChatBusyError`) and moves the status to `queued` `WHERE status
   = <the status it read>` as its first write. Of two sends that both read the chat `idle` at
   once, the second waits on the first's row lock, then matches no row and dies, rolled back
@@ -188,8 +188,8 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   status, text, error and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case
   passes the encoded message as the set, and its id and the stored status to match as the
   `MessageEntityWhere`, so a write whose expected status another writer has left, or whose
-  message is gone, changes nothing and dies; the job's retry then reads the message and skips it
-  as settled or deleted.
+  message is gone, changes nothing and dies; the use case then reads the message and skips it as
+  settled or deleted.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
   `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
@@ -201,7 +201,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   write nothing. A status move writes the status alone, so a title written meanwhile survives it.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
-    none`, so a rename landing between the two wins and the job dies and retries.
+    none`, so a rename landing between the two wins and the title job dies and fails.
   - The send reads its attachments through `LiveAttachmentService.getMany`, which takes no lock
     and reads no bytes; the send then refuses one whose bytes the store no longer has
     (`AttachmentNotFoundError`) and a bound one (`bindAttachment`), both before its first write;
@@ -232,7 +232,7 @@ A use case that writes several aggregates commits them together: `Transaction.ru
 of the `Effect.fn` that holds the writes (`Transaction.layer` wraps
 `SqlClient.withTransaction`), and every repository call inside joins the transaction
 through the connection `@effect/sql` keeps in the fiber's context, so no repository takes a
-transaction parameter. `SendMessageUseCase.send` writes the chat's `status`, the user message,
+transaction parameter. `CreateUserMessageUseCase.create` writes the chat's `status`, the user message,
 the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
 Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
 row lock and, once the first commits, finds the chat `queued`, and of two binds sharing an
@@ -244,43 +244,42 @@ finds. SQS is reached only through the table `jobs`, whose rows join it.
 
 ## Stuck replies
 
-A reply that no attempt settles stays active and its chat `queued`, so every next send to the chat
-fails `ChatBusyError` until the worker fails it from the dead-letter queue
+A reply that no run settles stays active and its chat `queued`, so every next send to the chat
+fails `ChatBusyError`. A run that dies (a killed process, the function's timeout) is settled by
+the next delivery, up to the queue's visibility timeout later, which finds the job `running` and
+the reply started, and fails it; a store failing the `failed` write, or a job whose every
+delivery dies, leaves it so, and nothing consumes the dead-letter queue
 ([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
 not tell a dead reply from one waiting in a backlog.
 
 ## The outbox
 
-A job reaches SQS through the table `jobs`, so it commits or rolls back with the writes that
-enqueue it (the transactional outbox): `apps/api` provides `QueueSenderJobs` as its `QueueSender`
-and never sends to SQS, and `apps/worker` consumes through `QueueConsumerSqs` beside the relay.
-The three live in the kernel's `queue` part over the data layer's `JobRepository`, which
-inserts a job, selects the unsent ones and sets their `sentAt`.
+A job is a row of the table `jobs`, written in the transaction of the records that ask for it,
+so a rollback keeps no job and a commit never stands without one
+([decisions.md › Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer)).
+`JobSender` and `JobConsumer` in `kernel/job` move the row's `status` over `JobRepository`;
+`packages/queue` carries the job on SQS ([aws.md › Queues](aws.md#queues)).
 
-- **`QueueSenderJobs`** is the `QueueSender` whose `send`
-  encodes the job through its definition's schema to a JSON value (`Schema.toCodecJson`) and
-  inserts a row: the definition's `name` as `queue` (the stage is added on the way out), the
-  `jobId` and the value as `body`. The insert joins the caller's `sql.withTransaction`; outside
-  one it commits alone.
-- **`body` is `jsonb`, with no index on it.** No code queries the body: the column holds the
-  value for the relay, and `jsonb` keeps it a value an operator can read by hand
-  (`body->'provenance'->>'model'` on a reply's job) instead of a string to parse. `jsonb` stores
-  keys in its own order, so the string the relay sends is the row's, not the sender's.
-- **`JobRelay`**, a layer the worker provides as `JobRelaySqs`, polls
-  in one transaction: it selects up to 10 rows `WHERE sent_at IS NULL ORDER BY created_at, id`
-  `FOR UPDATE SKIP LOCKED`, sends each over `QueueTransport` to `buildResourceName(STAGE, queue)`
-  with its `jobId` and its `body` as a JSON string (`JSON.stringify`, the form the SQS client
-  sends), sets their `sent_at` and commits. A full batch polls again at once; a shorter one
-  waits `OUTBOX_POLL_INTERVAL` (1 second by default).
-- **A sent row stays,** so `jobs` is the record of what each job carried; the partial index
-  `jobs_unsent_created_at_index` holds only unsent rows, so the poll stays cheap however many
-  sent rows pile up. Nothing removes sent rows yet.
-- **Several relays share the table.** `SKIP LOCKED` hands a row to one relay at a time, and the
-  others take the next rows or none.
-- **A failed batch rolls back,** so its rows stay: the relay logs `outbox relay failed` with
-  the cause and polls again after `OUTBOX_POLL_INTERVAL`. Rows sent before the failure in the
-  same batch are sent again, as is a batch whose commit a crash cuts off: delivery is
-  at-least-once.
+- **`JobSender.send`** encodes the job through its definition's schema to a JSON value
+  (`Schema.toCodecJson`), inserts it `queued`, with the definition's `name` as `queue` (the stage
+  is added on the way out), then sends the body as a JSON string, the row's id in the message
+  attribute `jobId`. A use case sends its jobs after its other writes.
+- **A send SQS refuses is a defect,** so the transaction rolls back and the api answers its bare
+  `500`, keeping no message and no job. SQS may deliver a job before the commit shows its row:
+  the worker reads none, a defect, and SQS delivers it again.
+- **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
+  an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
+  string to parse.
+- **`JobConsumer`** marks the row `running` before its handler, then `done` on success or
+  `failed` on any other outcome, an interrupt included; nothing is retried. A job found `running`
+  was left by a run that died, so its handler runs again and decides. It writes only from
+  `queued` or `running`, so a settled job never moves back; a delivery of a settled job is
+  acknowledged without its handler, and a message whose row is missing is a defect that SQS
+  delivers again, then dead-letters.
+  `JobConsumer` decodes the body itself: one that does not decode never will, so its job is
+  `failed` at once, unrun, and its record acknowledged; the body stays in the row.
+- **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
+  settled rows yet.
 
 ## Migrations
 

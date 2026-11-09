@@ -11,10 +11,15 @@ import {
   MessageService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
-import { SendMessageUseCase } from '@app-template/application/use-cases'
+import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
 import { Api } from '@app-template/http-api'
-import { S3BucketFromConfig } from '@app-template/kernel/aws'
-import { ApiConfig, MinimumLogLevelFromConfig, RuntimeConfig } from '@app-template/kernel/config'
+import { S3BucketFromConfig, SQSServiceFromConfig } from '@app-template/kernel/aws'
+import {
+  ApiConfig,
+  AwsConfig,
+  MinimumLogLevelFromConfig,
+  RuntimeConfig,
+} from '@app-template/kernel/config'
 import {
   AttachmentRepository,
   ChatRepository,
@@ -24,8 +29,8 @@ import {
   MessageRepository,
   UserRepository,
 } from '@app-template/kernel/data'
+import { JobSender } from '@app-template/kernel/job'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
-import { QueueSenderJobs } from '@app-template/kernel/queue'
 import { Transaction } from '@app-template/packages/db'
 
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
@@ -46,7 +51,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     MessageService.layer,
     LiveAttachmentService.layer,
     FileAttachmentService.layer,
-    SendMessageUseCase.layer,
+    CreateUserMessageUseCase.layer,
     RuntimeConfig.layer,
   ]),
 )
@@ -58,7 +63,7 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([QueueSenderJobs, Transaction.layer, CurrentReplyProvenanceFromConfig]),
+  Layer.provide([JobSender.layer, Transaction.layer, CurrentReplyProvenanceFromConfig]),
   Layer.provide([
     UserRepository.layer,
     ChatRepository.layer,
@@ -68,7 +73,7 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
     FileRepository.layer,
   ]),
   Layer.provide(Db.layer),
-  Layer.provide([PgClientFromConfig, S3BucketFromConfig]),
+  Layer.provide([PgClientFromConfig, S3BucketFromConfig, SQSServiceFromConfig, AwsConfig.layer]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
 )

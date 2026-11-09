@@ -356,7 +356,7 @@ no app.
 ### The language model in the kernel
 
 The language-model technology lives in `packages/llm` (the provider builders) and `kernel/llm`
-(the provider chosen by `LlmConfig`); `chat` keeps only `AssistantLlmFromConfig` with its prompts
+(Anthropic's, configured by `LlmConfig`); `chat` keeps only `AssistantLlmFromConfig` with its prompts
 and its purposes, and its test builds the models from `LlmConfig`.
 
 - **Why:** a second provider is added in one place; the test takes the path the app takes.
@@ -542,25 +542,42 @@ and lifecycle; `deployment` reads both.
 
 ### Jobs as a table in the data layer
 
-Jobs are the table `jobs` and `JobRepository` in the data layer; `QueueSenderJobs`,
-`QueueConsumerSqs` and `JobRelaySqs` live in `kernel/queue` over it, composed by layers;
-`QueueSender` stays one service. "Outbox" names the pattern, not the table.
+Jobs are the table `jobs` and `JobRepository` in the data layer, each row with its status
+(`queued`, `running`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row `queued`
+in the caller's transaction and sends it to SQS at once, after the use case's other writes, so a
+send SQS refuses is a defect that rolls the transaction back: a commit never stands without its
+job on the queue, and a rollback keeps no row. `JobConsumer` runs a job once: `running`, then
+`done`, or `failed` on any other outcome, unretried. "Outbox" names the pattern, not the table.
 
-- **Why:** a row is a job, the glossary's word, and stays after the relay sends it; the table is
-  data like any other, the transport the boundary's; one service keeps the use cases unchanged.
+- **Why:** a row is a job, the glossary's word, and stays after the send; the table is data like
+  any other, the transport the boundary's; a send inside the transaction needs no relay polling
+  the table and no sweep, and a refused send answers the request with a `500` instead of a reply
+  that never comes.
 - **Sources:** the guide's outbox written "in the same transaction"
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/)).
-- **Rejected:** the table named `outbox`: it names the pattern and goes wrong once rows outlive
-  the send. An event ledger: a row is a command for the worker, not a fact others subscribe to.
-  `QueueSenderJobs` in the data layer: the data would know the queue's job shape. An outbox per
-  module: needed only with a schema per module.
-- **Cost:** none today.
-- **Guarded by:** the `kernel/data` row of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); the queue's e2e.
+- **Rejected:** the send after the commit (`Transaction.afterCommit`): a send SQS refused answered
+  `202` and left the job unsent and its chat `queued` for good. A sweep resending the unsent rows:
+  a schedule and a route of its own, and a reply up to a minute late. Retries with a delay per
+  attempt: a failed reply the user waits on through every attempt, and code that counts them. A
+  failed reply written after a refused send: a second write, which fails too when the database
+  is the cause. The whole send after the commit, row included: a crash between the commit and
+  the row's insert would lose the job. The table named `outbox`: it names the pattern and goes
+  wrong once rows outlive the send. An event ledger: a row is a command for the worker, not a
+  fact others subscribe to. `JobSender` in the data layer: the data would know the queue's job
+  shape. A relay polling the table: a process of its own that Lambda does not keep running. An
+  outbox per module: needed only with a schema per module.
+- **Cost:** SQS may deliver a job before its commit shows the row: the worker reads none, a
+  defect, and SQS delivers it again after its 600 s visibility timeout, one of 3 receives spent.
+  A commit that fails after the send leaves a job with no row, delivered again, then
+  dead-lettered. A copy delivered while the first still runs finds the job `running` and fails
+  a live reply. The transaction stays open for the SQS call; the use cases import a part of the
+  kernel besides the data layer.
+- **Guarded by:** the `kernel/data` and `use-cases` rows of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); the `JobSender` e2e;
+  the api e2e of a send whose queue is gone.
 - **If reversed:** a rename in a migration, or the transport inside the data layer.
-- **Revisit when:** `jobs` adds the statuses to the same table.
-
-## Guards, tests and history
+- **Revisit when:** a flow does slow work after its first write, which would hold the
+  transaction open; or the logs show many redeliveries of jobs sent before their commit.
 
 ### Guards are configuration
 

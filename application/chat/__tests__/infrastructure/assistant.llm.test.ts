@@ -54,8 +54,8 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** `AssistantLlmFromConfig` over the models `env` configures and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
-function recordProvider(env: Record<string, string>, respond: (body: RequestBody) => Response) {
+/** `AssistantLlmFromConfig` over Anthropic's models and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
+function recordAnthropic(respond: (body: RequestBody) => Response) {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
   >([])
@@ -69,7 +69,13 @@ function recordProvider(env: Record<string, string>, respond: (body: RequestBody
   const layer = AssistantLlmFromConfig.pipe(
     Layer.provide([
       Layer.succeed(HttpClient.HttpClient, httpClient),
-      ConfigProvider.layer(ConfigProvider.fromUnknown(env)),
+      ConfigProvider.layer(
+        ConfigProvider.fromUnknown({
+          ANTHROPIC_API_KEY: 'sk-test-key',
+          LLM_REPLY_MODEL: replyModel,
+          LLM_TITLE_MODEL: titleModel,
+        }),
+      ),
     ]),
   )
   return {
@@ -78,18 +84,6 @@ function recordProvider(env: Record<string, string>, respond: (body: RequestBody
     layer,
   }
 }
-
-/** `recordProvider` over Anthropic's models. */
-const recordAnthropic = (respond: (body: RequestBody) => Response) =>
-  recordProvider(
-    {
-      LLM_PROVIDER: 'anthropic',
-      ANTHROPIC_API_KEY: 'sk-test-key',
-      LLM_REPLY_MODEL: replyModel,
-      LLM_TITLE_MODEL: titleModel,
-    },
-    respond,
-  )
 
 /** A Messages API response whose one text block is `text`. */
 const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn') =>
@@ -466,27 +460,6 @@ describe('AssistantLlmFromConfig', () => {
       assertEquals(yield* bodies, [])
     }).pipe(Effect.provide(layer))
   })
-
-  it.effect('the stub answers a reply and a title that pass their schemas', () => {
-    const { layer } = recordProvider({ LLM_PROVIDER: 'stub' }, () =>
-      assert.fail('the stub sends no request'),
-    )
-    return Effect.gen(function* () {
-      const answers = yield* Effect.all(
-        { reply: reply(hi), title: suggestTitle('Plan a weekend in Lisbon') },
-        { concurrency: 'unbounded' },
-      ).pipe(Effect.forkChild)
-
-      yield* TestClock.adjust('1 second')
-
-      assertEquals(yield* Fiber.join(answers), {
-        reply: new AssistantReply({
-          text: 'This is the development stub answering the whole reply at once.',
-        }),
-        title: Option.some(ChatTitle.make('Stub chat title')),
-      })
-    }).pipe(Effect.provide(layer))
-  })
 })
 
 describe('generateInstructionsHash', () => {
@@ -519,7 +492,7 @@ describe('generateInstructionsHash', () => {
 
 describe('CurrentReplyProvenanceFromConfig', () => {
   it.effect(
-    'names the configured provider and reply model with the instructions hash, and needs no key',
+    'names Anthropic and the configured reply model with the instructions hash, and needs no key',
     () =>
       Effect.gen(function* () {
         const { provider, model, instructionsHash } = yield* CurrentReplyProvenance
@@ -530,9 +503,7 @@ describe('CurrentReplyProvenanceFromConfig', () => {
         Effect.provide(CurrentReplyProvenanceFromConfig),
         Effect.provide([
           BunCrypto.layer,
-          ConfigProvider.layer(
-            ConfigProvider.fromUnknown({ LLM_PROVIDER: 'anthropic', LLM_REPLY_MODEL: replyModel }),
-          ),
+          ConfigProvider.layer(ConfigProvider.fromUnknown({ LLM_REPLY_MODEL: replyModel })),
         ]),
       ),
   )

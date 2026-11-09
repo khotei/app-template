@@ -1,2 +1,2 @@
-/** The whole worker process, clients and all, for the e2e journey that runs it beside the api. */
-export { WorkerLayer } from '#worker/layer'
+/** The worker process, clients and all but its `Assistant`, for the e2e journey that runs it beside the api. */
+export { WorkerProcess } from '#worker/layer'

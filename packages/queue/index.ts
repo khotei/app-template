@@ -1,11 +1,4 @@
-export {
-  type AttemptInfo,
-  buildDeadLetterQueue,
-  buildDoublingDelay,
-  encodeJob,
-  QueueConsumer,
-  type QueueDefinition,
-  QueueSender,
-  worker,
-} from '#queue/queue'
-export { QueueError, QueueTransport } from '#queue/queue.transport'
+export { QueueError } from '#queue/queue.client'
+export { QueueConsumer, type SqsBatchResponse, SqsEvent } from '#queue/queue.consumer'
+export { buildQueueName, type QueueDefinition } from '#queue/queue.model'
+export { type MessageContent, QueueSender } from '#queue/queue.sender'

@@ -83,7 +83,7 @@ identifier and carrying its logical `name`. Physical names are `buildResourceNam
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | a bucket | its `lifecycle` days | the bucket and its lifecycle rules; the attachments' bucket expires the objects carrying the data layer's `unboundTag` (`unbound=true`) and aborts incomplete multipart uploads. |
-| a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` and `maxAttempts` from here, so the two cannot disagree. |
+| a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with
@@ -100,7 +100,7 @@ queue in place.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/services/<model>.queue.ts`, reading
-   `name` and `maxAttempts` from the entry; for a bucket, `S3BucketFromConfig` reads it from
+   `name` from the entry; for a bucket, `S3BucketFromConfig` reads it from
    `resources.buckets`.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
@@ -145,51 +145,37 @@ before the row that binds them and deletes them once the rows are gone.
 
 ## Queues
 
-`QueueConsumer` (`packages/queue`) consumes jobs over `QueueTransport`, four SQS calls
-(`send`, `receive`, `extend`, `delete`); jobs reach SQS only through the outbox relay
-([database.md › The outbox](database.md#the-outbox)). `QueueConsumerSqs` in `kernel/queue` wires it
-for the worker from `QueueConfig` and `AwsConfig`: a definition's queue is
+`QueueSender` and `QueueConsumer` (`packages/queue`) are the two sides of SQS; `JobSender` and
+`JobConsumer` in `kernel/job` wrap them with the job's row in `jobs`
+([database.md › The outbox](database.md#the-outbox)). A definition's queue is
 `buildResourceName(STAGE, definition.name)`.
 
-- **Delivery is at-least-once** (the doc of `QueueDefinition.jobId`): the jobs skip a settled
-  reply and a titled chat.
-- **An attempt is a receive.** A worker long-polls for one message at a time, and the
-  message stays hidden for `QUEUE_LOCK_EXPIRATION`; a heartbeat extends that every
-  `QUEUE_LOCK_REFRESH_INTERVAL` while the handler runs. The attempt number is SQS's
-  `ApproximateReceiveCount`, and the last attempt is the definition's `maxAttempts`, which is the
-  inventory's `maxReceiveCount`.
-- **Every outcome is a visibility**, as the doc of `QueueConsumer.consume` lists them; SQS rounds
-  a retry delay up to whole seconds, and an interrupt (a worker stopping, a handler interrupting
-  itself) spends its attempt.
-- **Redrive is the only way to the dead-letter queue.** The receive after the
-  `maxReceiveCount`-th moves the message to `<queue>-dlq` instead of returning it; the client never
-  sends there itself. A worker that dies mid-attempt leaves its message hidden until the
-  visibility runs out; it then comes back as the next attempt, or goes to the dead-letter queue.
-  A reply's last attempt writes `failed` on any outcome but success, a stopping worker included
-  (the reply's handler in the worker). That write never happens after a killed process, a store
-  failing the write, or a stopped worker's leftover long poll spending the last attempt: the
-  reply stays active with its job in the dead-letter queue, until the handler's
-  `handleDeadLettered` fails it (below).
-- **The worker consumes every dead-letter queue.** Each queue's definition has a twin for
-  `<queue>-dlq`, beside it in the module's `services/`, with `maxAttempts` at
-  `Number.MAX_SAFE_INTEGER` and a retry delay that doubles up to 5 minutes: nothing redrives a
-  dead-letter queue, so a failing handler must never reach a last attempt. The receive count
-  carries over through the redrive (checked on MiniStack), so the first receive there is attempt
-  `maxReceiveCount + 1`. The reply's consumer logs the stuck reply and writes it `failed` with
-  `ReplyFailed`, a cause naming the queue and the attempts, and the chat's `updatedAt`, under the
-  status guard the job uses, so a reply settled meanwhile or a deleted chat is only logged. The
-  title's consumer only logs, since an untitled chat is harmless.
-- **A stopped worker's long poll can outlive it.** Interrupting a receive aborts its HTTP request,
-  but MiniStack keeps the poll open and hides the next message it finds for its visibility
-  timeout; that message returns after `QUEUE_LOCK_EXPIRATION` with an attempt spent.
-- **The worker relays the jobs.** The api writes each job as a row of the table `jobs`
-  ([database.md › The outbox](database.md#the-outbox)), and `JobRelay` in the worker sends
-  the rows to `buildResourceName(STAGE, queue)` over the same `QueueTransport`. A row the relay sent
-  and could not mark sent is sent again, which the at-least-once handlers absorb.
+- **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,
+  with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch
+  goes to the worker's `POST /events` on the host (`MINISTACK_LAMBDA_PROXY_URL`), the request
+  Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
+  records' `eventSourceARN`; a queue with no consumer answers `500`, a deployment bug.
+- **A job runs once.** `JobConsumer` fails a job on any outcome of its handler but success and
+  acknowledges its record; nothing is retried. A job whose body does not decode is failed at once
+  ([database.md › The outbox](database.md#the-outbox)).
+- **Delivery is at-least-once** (the message attribute `jobId`): a delivery of a job already
+  `done` or `failed` is acknowledged without its handler. One found `running` runs its handler
+  again: the reply's use case fails a reply it finds started, so a copy delivered while the first
+  still runs fails a live reply, a rare case accepted.
+- **Only a defect returns to the queue.** A record whose handling dies before its job settles (a
+  row its commit has not shown yet, a process that dies) is answered in `batchItemFailures`, or
+  not answered at all; SQS delivers it again once the queue's visibility timeout, the worker
+  function's 600 s, has passed, and after `maxReceiveCount`, 3, redrives it to `<queue>-dlq`. AWS
+  refuses a mapping on a queue that hides a message less than its function's timeout.
+- **Nothing consumes a dead-letter queue.** A reply's run writes `failed` on any outcome but
+  success; one that no run settles stays active
+  ([database.md › Stuck replies](database.md#stuck-replies)).
+- **AWS differs in one status.** MiniStack counts any non-2xx answer as a failed invoke; Lambda
+  Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
+  function must list `500`.
 
-The queue's own suite checks those rules on MiniStack in real time. A worker handler's suite
-calls its `handle` with plain `AttemptInfo` values over the memory layers, so the last attempt
-and the dead letter need no queue.
+`QueueConsumer` calls no SQS, so its suite needs none; `JobConsumer`'s cases run on the e2e
+database with no queue.
 
 ## Tests on Docker
 
@@ -197,10 +183,10 @@ The e2e run's one MiniStack, and where its harnesses live: [tooling.md › Tests
 `AwsTest` gives each test a stage of its own (`e2e` and eight hex digits),
 provisions the inventory's bucket and queues under it and provides `AwsConfig` over the endpoint
 and that stage, so the kernel's clients build their names as in production; it
-publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The queue's
-own suite provisions its own queues under one such stage for its `layer` block, with
-`provisionQueues(queues, buildName)`, and the `s3` suite creates one bucket, named as a stage is,
-for its `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The Pulumi
+publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The e2e
+through the api add the worker's function and its mappings with `provisionWorker`, its proxy on
+the stand's worker, and the `s3` suite creates one bucket, named as a stage is, for its
+`S3Bucket`. Nothing cleans a stage up: the container goes with the run. The Pulumi
 project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum

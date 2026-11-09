@@ -15,6 +15,7 @@ import {
   ensureMessageInput,
   failMessage,
   generateMessage,
+  isStartedReply,
   Message,
   MessageFailure,
   type MessageStatus,
@@ -103,6 +104,18 @@ const expectStageInvalid = (
       new MessageStatusInvalidError({ id: message.id, from: message.status, to }),
     )
   })
+
+describe('isStartedReply', () => {
+  it.each<{ readonly status: MessageStatus; readonly started: boolean }>([
+    { status: 'queued', started: false },
+    { status: 'preparing', started: true },
+    { status: 'generating', started: true },
+    { status: 'done', started: false },
+    { status: 'failed', started: false },
+  ])('holds for a $status reply: $started', ({ status, started }) => {
+    assert.strictEqual(isStartedReply(assistantAt(status)), started)
+  })
+})
 
 describe('prepareMessage', () => {
   it.effect.each(activeStages)(

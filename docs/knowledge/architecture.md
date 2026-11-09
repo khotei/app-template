@@ -72,7 +72,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `db`, `queue` only | ✗ | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
-| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | `/job` only | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
@@ -121,7 +121,7 @@ import { Effect } from 'effect'                             // external packages
 
 import { buildChat } from '@app-template/application/chat'  // another unit
 
-import { SendMessageUseCase } from '#use-cases/chat/send-message.use-case'  // this unit
+import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'  // this unit
 ```
 
 - **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
@@ -153,17 +153,17 @@ Using the files of `chat` as the map:
 | mapper from an entity to a model | `application/chat/services/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` |
 | queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
-| use case | `application/use-cases/chat/send-message.use-case.ts` | `SendMessageUseCase` |
+| use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts`; `kernel/data/job/job.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket`; `JobRepository` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
-| the queue's transport | `kernel/queue/queue.client.ts`, `job.relay.ts` | the sender, the consumer and the relay ([database.md › The outbox](database.md#the-outbox)) |
+| the jobs over the queue | `kernel/job/job.sender.ts` | `JobSender`: a job's row and its send, last in the caller's transaction |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | contract group | `http-api/chat/chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat`, `buildApiMessage` |
-| worker handler: a queue's consumer over a use case | `apps/worker/chat/assistant-message.handler.ts` | `AssistantMessageHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerLayer`; `main.ts` runs them |
+| worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its `Assistant`, `WorkerLayer` with it; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 
 Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel, and

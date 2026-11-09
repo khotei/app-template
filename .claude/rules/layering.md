@@ -45,8 +45,11 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
-- Enqueue inside the transaction of the writes the job reads, through `QueueSender.send`
-  ([database.md › The outbox](../../docs/knowledge/database.md#the-outbox)).
+- Send a job last in the transaction of the writes it reads, `yield* jobs.send(<queue>, job)`:
+  a send SQS refuses rolls the transaction back
+  ([decisions.md › Jobs as a table](../../docs/knowledge/decisions.md#jobs-as-a-table-in-the-data-layer)).
+- A job runs once, unretried: a use case a job runs ends its own work on any outcome but
+  success, an interrupt included, and work it finds started was left by a run that died.
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 
@@ -56,9 +59,6 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   through its `buildApi<Model>` and fails with the domain's errors as they are. It holds no rule
   and imports no repository, `<Model>FromEntity` or data layer: only the process's `layer.ts`
   provides them.
-- A worker handler owns the queue's policy, the last attempt and the dead letter: it composes the
-  use case's work, then its failure on the last attempt's cause; the use case never sees the
-  attempt.
 
 ## Concurrency
 

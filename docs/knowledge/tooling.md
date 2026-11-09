@@ -71,9 +71,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 - **Unit and e2e: only our code is under test.** A unit test runs our domain services, use cases
   and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
-  transaction or the journey on the run's containers; among them is the queue's own suite, which
-  tests our retry, heartbeat and dead-letter logic and takes most of a run's time with SQS's real
-  delays. What each kind checks and how to write it:
+  transaction or the journey on the run's containers. What each kind checks and how to write it:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/` and
   its e2e in `__e2e__/`, at its top, but for the test app `apps/e2e`, which is all e2e; a test
@@ -107,7 +105,7 @@ Which suite runs where:
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; a worker handler over its use case's test layer |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; the worker's route over mocks of its use cases and the job table |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -134,13 +132,13 @@ Which suite runs where:
   `@app-template/packages/aws/testing/e2e` are clients on that MiniStack. Each test provides
   `PgClientTest` from `@app-template/packages/db/testing/e2e`: a fresh database copied from the
   template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS
-  (`FileRepository`'s, the relay's beside `DbTest`, the e2e through the api) provides `AwsTest`
-  from the kernel's `aws` e2e support: a stage of its own on the run's MiniStack, its bucket and
-  queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)). The unit suites run
-  on neither: `FileRepositoryTest` (in `RepositoryStackTest`) and `recordQueue()` stand in for S3
-  and SQS. A test therefore sees only its own rows and resources, even through a query that reads
-  a whole table, and files run in parallel. E2e tests need Docker and nothing else: no `.env`, no
-  `make up`.
+  (`FileRepository`'s, `JobSender`'s and `JobConsumer`'s beside `DbTest`, the e2e through the
+  api) provides `AwsTest` from the kernel's `aws` e2e support: a stage of its own on the run's
+  MiniStack, its bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
+  The unit suites run on neither: `FileRepositoryTest` (in `RepositoryStackTest`) and `recordJobs()`
+  stand in for S3 and SQS. A test therefore sees only its own rows and resources, even through a
+  query that reads a whole table, and files run in parallel. E2e tests need Docker and nothing else:
+  no `.env`, no `make up`.
 - **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
   itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
   nothing to configure; a unit run starts nothing at all.
@@ -148,14 +146,15 @@ Which suite runs where:
   send over HTTP and reads the reply and the title back once the worker has written them; the use
   cases' races share its stand, and their rollbacks are requests too, each on a stand of its
   own, since it alters the schema to make Postgres refuse a write: `StandTest`, in the test
-  app's support, runs `ApiLayer` and `WorkerLayer`, the apps' layers that their `./testing`
-  re-exports under their own names (a `Test` suffix names a test double alone), in the test's
-  own runtime over a `PgClientTest` database, an `AwsTest` stage and the
-  model stub, under one `ConfigProvider` that names them, so the apps' own adapters and config
-  code are the ones under test. The api takes a free port the layer finds, since `Config.Port`
-  refuses `0`, so two runs share nothing. The apps' SDK clients read credentials from the
-  environment, which the `e2e` project sets to the fixed test pair MiniStack accepts. The journey
-  proves the wiring; every rule keeps its lower seam.
+  app's support, runs `ApiLayer` and `WorkerProcess` (the worker but its `Assistant`), the apps'
+  layers that their `./testing` re-exports under their own names (a `Test` suffix names a test
+  double alone), in the test's own runtime over a `PgClientTest` database, an `AwsTest` stage and
+  the chat module's scripted `Assistant` (`recordAssistant`), under one `ConfigProvider` that
+  names them, so the apps' own adapters and config code are the ones under test, but the
+  assistant's, which its own suite covers ([ai.md](ai.md)). The api takes a free port the layer
+  finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
+  credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
+  accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's block
   opts out, since its tests share one stand and read its table `jobs` whole.
@@ -179,9 +178,9 @@ Which suite runs where:
 
 ## Run and debug
 
-- **Ports.** `API_PORT` (3000) and `WEB_PORT` (3001) come from `.env`, others in a
-  [worktree](#worktrees). The web server proxies `/api/*` to `localhost:${API_PORT}`, so the
-  browser stays same-origin and the api needs no CORS.
+- **Ports.** `API_PORT` (3000), `WEB_PORT` (3001) and `WORKER_PORT` (3002) come from `.env`,
+  others in a [worktree](#worktrees). The web server proxies `/api/*` to
+  `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
 - **Debugging.** `make debug-api` prints an inspector block:
 
@@ -233,13 +232,14 @@ A worktree is a full copy of the environment, so trees run `make up` and `make d
 Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`
 (with the Pulumi state), MiniStack container and database container. It shares only the Pulumi
 provider plugins, the main tree's `.pulumi/`, which never change once installed. Its `.env` is
-the main tree's with four ports and the stage moved, since MiniStack names the database's
+the main tree's with five ports and the stage moved, since MiniStack names the database's
 container and volume after the stage:
 
 | Variable | Value | Main tree | `N=1` |
 |---|---|---|---|
 | `API_PORT` | `3000 + 10N` | 3000 | 3010 |
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
+| `WORKER_PORT` | `3002 + 10N` | 3002 | 3012 |
 | `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
 | `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
 | `STAGE` | `local<N>` | `local` | `local1` |
