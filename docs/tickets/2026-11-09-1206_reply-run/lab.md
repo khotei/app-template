@@ -43,8 +43,8 @@ Budget: waits for the owner
 
 ### Shape
 
-<A draft by the agent on the owner's yes in the chat, 2026-11-09; the earlier Shape (`onFail`,
-the job's id from its caller) is in git.>
+<Drafted by the agent, accepted by the owner in the chat, 2026-11-09; the earlier Shape
+(`onFail`, the job's id from its caller) is in git.>
 
 - No `jobs` table, no `JobRepository`, no `kernel/job`: a job is a queue message, and its work
   keeps its own record (the assistant message's status now, the Run from L4). Running once, a
@@ -88,6 +88,18 @@ the title's `rename` of an untitled chat only) except telling a delivery before 
 a deleted chat, which the send after the commit removes. The owner's yes: the send after the
 commit, a refused reply send failing the reply with `202`, the jobs gone as this L2 before the
 Runs. L2.1's `onFail` goes with `JobConsumer`.
+[N:ai] The send, as shown to the owner: `create`'s writes commit under `transaction.run` in a
+function of their own, the sends follow; a `QueueError` on the reply's send runs `failReply`, the
+assistant message `failed` (`ReplyFailed`) and the chat `failed` in one transaction, and `create`
+answers it; on the title's, a warning. `failReply` repeats the worker's `settleWith(failChat)`
+pair, about 8 lines, until L4 fails a Run instead. The worker's skip of a missing message
+(`generate-assistant-message.use-case.ts:157`) stays as is: after the commit, missing means
+deleted.
+[N:ai] Pieces planned: L2.5 the send after the commit and `202` with the failed reply (the api
+e2e of a gone queue: `500` -> `202`); L2.6 the decode in `packages/queue`, the worker handler on
+`QueueConsumer`, `JobConsumer` gone; L2.7 the encode in `packages/queue`, `kernel/job` and
+`kernel/data/job` gone, a migration drops `jobs`. Each piece's docs in its commit; the 100-line
+limit counts added lines.
 
 ### Pieces
 
