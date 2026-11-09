@@ -71,9 +71,9 @@ a Lambda function? MiniStack should handle this locally.
 | Step | Goal | Kind | Status |
 |---|---|---|---|
 | L1 | MiniStack's SQS mapping invokes the worker's `POST /events` through `queue-2`; a chat reply arrives with no receive loop | build | in progress |
-| L2 | A job moves `idle` -> `queued` -> `done` or `failed` in `jobs`; it is sent after the commit, and a sweep resends a lost send | build | in progress |
+| L2 | A job moves `queued` -> `running` -> `done` or `failed` in `jobs`; it is sent to SQS last in its transaction, so a send SQS refuses rolls the transaction back | build | in progress |
 | L3 | api and worker run on `queue-2`; the old queue, its relay and `sentAt` are gone | build | in progress |
-| L4 | A send stores the user's message and its job; the worker writes the reply; a failed send shows under the user's message, after a reload too, with a retry | build | in progress |
+| L4 | A send stores the user's message and its job; the worker writes the reply; a failed send answers `500` and keeps nothing, and the client shows the error | build | in progress |
 | L5 | dev runs on the real Anthropic; the e2e script the worker's `Assistant`; no stub and no `LLM_PROVIDER` in the app's code | build | done |
 
 ## L1 — SQS invokes the worker in dev
@@ -197,7 +197,8 @@ accepted and how to see it.>
 ## L2 — Job statuses and the send after the commit
 
 Budget: waits for the owner · Planned pieces: 3 `status` in `jobs` and its pure transitions ·
-4 the job written `idle`, sent by `afterCommit`, set `queued` · 5 the sweep of `idle` jobs.
+4 the job written `idle`, sent by `afterCommit`, set `queued` · 5 the job sent last in its
+transaction: no `idle`, no sweep (the owner, variant A).
 
 ### Reference
 
@@ -230,6 +231,49 @@ sends it to SQS and marks it `queued`; the use case runs that step after the com
 included, rolls the whole send back (the owner, in the chat, variant A). Variant B, the whole
 send after the commit, was tried: the e2e `chat.e2e.ts` "a send whose title job is refused…"
 showed it answers 200 and loses the job.
+
+### Notes
+
+[D] A job is sent to SQS last in the transaction of the writes it reads, not after the commit: a
+send SQS refuses rolls the transaction back, nothing is kept, and the api answers `500`; no
+`idle`, no sweep (the owner, in the chat, variant A over B, a `failed` reply written after a
+refused send, and C, a sweep of `idle` jobs every minute). Today a refused send answers `202`,
+leaves the job `idle` and the chat `queued` for good, so every next send fails `ChatBusyError`
+(`kernel/job/job.sender.ts:42-44`, `packages/db/db.client.ts:34`).
+
+[N:ai] Shape of piece 5, a draft:
+
+```text
+CreateUserMessageUseCase.create                        (transaction.run)
+  chats.update, messages.insert x2, the binds
+  jobs.send(assistantMessageQueue, ...)   INSERT job (queued), then SendMessage
+  jobs.send(chatTitleQueue, ...)          on the first message
+COMMIT
+SendMessage refused -> defect -> ROLLBACK -> the api's bare 500
+```
+
+- Contract: `JobSender.send(definition, message): Effect<void>` inserts the row `queued` in the
+  caller's transaction, then sends it; a send SQS refuses is a defect.
+- Gone: `idle` in `job_status` and in `JobConsumer`'s unsettled statuses, the index
+  `jobs_idle_created_at_index`, `JobSender`'s `enqueue` and its `Effect<Effect<void>>`,
+  `Transaction.afterCommit` and its fake (the sender was its only caller). The migrations
+  restart as one `init` again, so every local database needs `make reset`.
+- Cost, claimed from the code: SQS may deliver the job before the commit shows its row; the
+  worker reads no row, a defect (`kernel/job/job.consumer.ts:70`), and SQS retries it after
+  `retryDelay(1)`, 1 s, an attempt spent. A commit that fails after the send leaves a job with
+  no row, retried, then dead-lettered.
+- Tests first, at the seams: the api e2e "a send whose queue is gone answers 500 and keeps no
+  message and no job" (the test deletes its stage's queue); the `JobSender` e2e "a send SQS
+  refuses dies and keeps no row" in place of "leaves the job idle for the sweep"; `recordJobs()`
+  records at `send`.
+- Docs in the same round: `decisions.md › Jobs as a table` (the send after the commit joins
+  Rejected), the send line of `layering.md`, `database.md › The outbox`, `aws.md › Queues`, the
+  glossary's Outbox, the README's flow; Knowledge loses the `idle`, sweep and after-commit lines.
+- The web has no chat view yet (the README), so "the client shows the error" is the `ApiClient`
+  failing with the `500`; nothing changes in `apps/web`.
+
+Budget proposed: 120 lines of code and tests, docs apart, in three pieces: 5a the two e2e, red ·
+5b the body · 5c the docs.
 
 ## L3 — Switch to queue-2
 
