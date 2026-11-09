@@ -260,7 +260,9 @@ message, the chat's title) is the one the worker reads
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the message through the
   definition's schema to a JSON string and sends it, with no attribute, to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
-  after its transaction commits, so a delivery always finds the record it names.
+  after its transaction commits, so a delivery always finds the record it names. The send runs
+  uninterruptible: a client that aborts its request after the commit (Bun interrupts the
+  handler) would otherwise leave the reply queued and its chat busy.
 - **A reply SQS refuses fails at once:** the use case writes the reply `failed` (`ReplyFailed`)
   and its chat `failed` in one transaction, and the api answers `202` with it, as the worker
   would have. A refused title job is logged, and the chat stays untitled. A transaction that

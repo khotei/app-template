@@ -132,6 +132,8 @@ answered. A defect in the send itself leaves the chat busy as above. Without the
 timeout shows an error for a message that gets its reply. Proposed: no code in L2, where
 `failReply` is temporary; L4's fail of the Run after a refused send treats a guard miss as the
 worker's.
+[N:ai] The owner, in the chat, "ok": the abort's fix as L2.11; the timeout after delivery waits
+for L4 (its Notes).
 
 ### Pieces
 
@@ -166,6 +168,14 @@ second deletes the queue the first reads (`effect-tests.md`); its `??` on the at
 `layering.md`, and the clause naming the table `jobs` in `assistant.port.ts` go
 (`comments.md`); `README.md` sends after the commit · visible: `bun --bun vitest run --project
 e2e kernel/aws/__e2e__/queue.sender.e2e.ts` (2 cases)
+[N:ai] L2.11 (REVIEW, the owner's yes to the abort's `[D:ai]`) `create` runs uninterruptible
+whole, not only its sends: an interrupt between the commit and the first send would still slip
+through; an aborted request now stores its message, as one never aborted. The case at the use
+case's seam, since no e2e can stop between the commit and the send: a sender held until
+released, `create` interrupted while it holds, both jobs sent · visible: `bun --bun vitest run
+--project unit application/use-cases/__tests__/chat/create-user-message.use-case.test.ts -t
+interrupted`; without `Effect.uninterruptible` it fails 3 of 3 (`expected [] to have a length of
+2`)
 
 ### Output
 
@@ -248,6 +258,9 @@ its own `onExit`, and the send runs after the commit (a refused one fails the Ru
 Message, Message status, Active message, Chat status, Status, Provenance), `database.md`,
 `decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
 entry 22 ("The message keeps its own status", "A run needs no status of its own").
+[N:ai] From L2's review, accepted by the owner: SQS that takes a reply's job and still answers an
+error runs the fail after the worker moved the Run on; the Run's fail after a refused send treats
+a guard miss as the worker's and answers the stored Run, not `500`.
 
 ### Pieces
 

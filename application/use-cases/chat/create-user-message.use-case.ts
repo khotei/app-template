@@ -199,7 +199,7 @@ export class CreateUserMessageUseCase extends Context.Service<
       }
 
       return { userMessage: stored.userMessage, assistantMessage }
-    })
+    }, Effect.uninterruptible)
 
     return { create }
   }),

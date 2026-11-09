@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
+import { Array as Arr, DateTime, Deferred, Effect, Fiber, Layer, Option, Order } from 'effect'
 
 import {
   Attachment,
@@ -30,6 +30,7 @@ import {
   upload,
 } from '@app-template/application/chat/testing'
 import { ChatRepository, FileRepository } from '@app-template/kernel/data'
+import { QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
@@ -149,6 +150,41 @@ describe('CreateUserMessageUseCase', () => {
       }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
     },
   )
+
+  it.effect('create interrupted after its commit still sends the reply job', () => {
+    const jobs = recordMessages()
+    const sending = Deferred.makeUnsafe<void>()
+    const released = Deferred.makeUnsafe<void>()
+    // Holds each send until `released`, so the test interrupts `create` between commit and send.
+    const heldJobs = Layer.effect(
+      QueueSender,
+      QueueSender.use((sender) =>
+        Effect.succeed(
+          QueueSender.of({
+            send: (definition, message) =>
+              Deferred.succeed(sending, undefined).pipe(
+                Effect.andThen(Deferred.await(released)),
+                Effect.andThen(sender.send(definition, message)),
+              ),
+          }),
+        ),
+      ),
+    ).pipe(Layer.provide(jobs.layer))
+    return Effect.gen(function* () {
+      const createUserMessage = yield* CreateUserMessageUseCase
+
+      const creating = yield* createUserMessage
+        .create(owner, chat.id, ask('Plan a weekend in Lisbon'))
+        .pipe(Effect.forkChild)
+      yield* Deferred.await(sending)
+      const interrupting = yield* Fiber.interrupt(creating).pipe(Effect.forkChild)
+      yield* Effect.yieldNow
+      yield* Deferred.succeed(released, undefined)
+      yield* Fiber.join(interrupting)
+
+      assert.lengthOf(yield* jobs.sent, 2)
+    }).pipe(Effect.provide(Layer.provide(ChatTest, heldJobs)))
+  })
 
   it.effect('create while a reply runs is ChatBusyError before any message or job', () => {
     const jobs = recordMessages()
