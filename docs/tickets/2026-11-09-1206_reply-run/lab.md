@@ -17,7 +17,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 
 | Step | Goal | Kind | Status |
 |---|---|---|---|
-| L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | learn | todo |
+| L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | learn | done |
 | L2 | `JobConsumer` calls `onFail` before a job settles `failed`, for a bad body and a defect, not for success; the reply job can take its Run's id | build | todo |
 | L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | build | todo |
 | L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | build | todo |
@@ -25,91 +25,17 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 
 ## L1 — Anthropic and the Drizzle reads
 
-Budget: waits for the owner
-
-### Shape
-
-<The owner's.>
-
-### Notes
-
-[N:ai] The owner's guide (in the chat, 2026-11-09), for the whole lab. Sources of truth:
-`docs/tickets/2026-11-08-1505_lambda/lab.md` › L4 › Notes (the last `[N:ai]`, 2026-11-09) and
-the owner's report https://claude.ai/artifact/ThsiS3vavFwAEKxzcJg9ff (private; the Artifact
-tool reads it).
-- Settled: `chats.status` goes; provenance moves from the job body to `runs`; a Run whose job
-  dead-letters before `preparing` stays for roadmap entry 22; check that Anthropic accepts two
-  `user` messages in a row (a failed Run, then a new message) before the code.
-- Names: `userMessageId`, `assistantMessage`; the glossary bans "Prompt" and "reply" as words
-  for a Message (`docs/knowledge/glossary.md:28`).
-- No backfill, no legacy shapes: dev only, `make reset` is fine.
-- Out of scope: the web chat UI; SSE streaming (a Run gets a stream route later, the data
-  stays); the dead-letter case; the open L1 and L3 of the lambda lab.
-- Each step is green on its own; docs change in the commit that changes the behaviour.
-[R] (a) Does Anthropic's Messages API accept two `user` messages in a row, in our adapter
-(`packages/llm`)? (b) The Drizzle form for "messages with the latest Run each" and for a
-message's own Run, and whether `message.table.ts` <-> `run.table.ts` importing each other works.
-Output: the answers with a run, snippets <= 20 lines. (the owner's plan)
-  [N:ai] The owner, in the chat: the history sent to the model accepts any order of messages. A
-  user message whose Run failed stays in it, so two `user` messages may follow each other; if
-  Anthropic refuses that, the adapter makes the prompt acceptable. (a) asks what Anthropic and
-  `@effect/ai` do with it, not whether the chat allows it. The prompt is built in
-  `application/chat/infrastructure/assistant.llm.ts:73` (`buildChatPrompt`), each role taken
-  from the author at `:69`; `packages/llm` holds only the client.
-  [A:ai] (a) Two `user` messages in a row pass; the adapter needs no change. `@effect/ai-anthropic`
-  4.0.6 folds each run of `user` messages into one `user` turn before the request
-  (`application/node_modules/@effect/ai-anthropic/src/AnthropicLanguageModel.ts:940`,
-  `groupMessages` at `:2998-3003`: a new group only when the role changes), the parts side by
-  side with no separator; the API would take them unfolded too: "Consecutive `user` or
-  `assistant` turns in your request will be combined into a single turn"
-  (https://platform.claude.com/docs/en/api/messages). Run: a scratch script through
-  `AssistantLlmFromConfig` on `claude-haiku-5-5`, the request body logged:
-  ```text
-  system,user,user            -> WIRE [{"role":"user","blocks":["text:My name is Vika.","text:Read the attached file. Reply ","document:text"]}]
-                                 Success "Vika, PERSIMMON"
-  system,user,assistant,user,user -> WIRE [user 41][assistant 41][user "add one", file]
-                                 Success "42 PERSIMMON"
-  raw fetch, two user messages -> HTTP 200
-  ```
-  Not checked: an image part (the fixture is no valid image; the same loop, `:1002-1016`).
-  [A:ai] (b) All three work in `drizzle-orm` 1.0.0-rc.5, run on Postgres in a throwaway
-  worktree (dropped since). A message's latest Run reads as a `one` relation with an `orderBy`:
-  on a `one` Drizzle adds `limit 1` itself (`repos/drizzle/drizzle-orm/src/pg-core/dialect.ts:845`),
-  a `left join lateral` per row, the result `{…} | null`; a `many` takes `limit` too
-  (`relations.ts:682-684`) but answers an array. An assistant message's Run is a `one` over
-  `messages.run_id`. The two tables import each other: the `.references()` callbacks are stored,
-  not called (`pg-core/columns/common.ts:324-330`), so either import order loads; drizzle-kit
-  creates the tables, then adds every FK by `ALTER TABLE`; typecheck needs one side annotated
-  (TS7022 otherwise), as the Drizzle docs say for a self-reference.
-  ```ts
-  // message.table.ts
-  runId: uuid().unique().references((): AnyPgColumn => runs.id),
-  // relations
-  messages: {
-    latestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
-    run: r.one.runs({ from: r.messages.runId, to: r.runs.id }),
-  },
-  // read: a chat's messages, each with its latest Run
-  db.query.messages.findMany({
-    where: { chatId },
-    orderBy: { createdAt: 'asc', id: 'asc' },
-    with: { latestRun: { orderBy: { createdAt: 'desc', id: 'desc' } } },
-  })
-  ```
-  Rows: user `a1` (Runs failed, then done) -> its done Run; user `a2` -> its queued Run;
-  the assistant messages -> `null`. Also tried: a core `leftJoinLateral` (flat rows, attachments
-  read apart) and `DISTINCT ON` (not limited to the chat). A chat delete cascades through both
-  keys; deleting a user message alone fails on `messages.run_id` (`NO ACTION`); no code deletes a
-  single message today (`git grep`).
-
-### Pieces
-
-<[N:ai] L1.1 <what it gives> · visible: <command or link>>
-
 ### Output
 
-<Proposed by the agent, accepted by the owner. A learn step: the answer and its proof (a command,
-a snippet of at most 20 lines), ending "Can you write the signature now?".>
+(a) Two user messages in a row pass: `@effect/ai-anthropic` 4.0.6 folds them into one user turn,
+and the API combines them anyway. The adapter stays as it is. Proof: a run through
+`AssistantLlmFromConfig` on Haiku, both shapes and a file part, Success.
+(b) A message's latest Run: `r.one.runs({ from: messages.id, to: runs.userMessageId })`, read
+with `{ latestRun: { orderBy: { createdAt: 'desc', id: 'desc' } } }`, one lateral join, `{…} | null`.
+An assistant message's Run: `r.one.runs` over `messages.run_id`. `message.table.ts` and
+`run.table.ts` import each other once `messages.run_id` is typed `(): AnyPgColumn`. Proof: the
+L1.3 run on Postgres.
+Can you write the signature now?
 
 ## L2 — `onFail` in `JobConsumer`, the job's id from its caller
 
@@ -263,6 +189,12 @@ Run) and a retry after a failed Run.
 ## Knowledge
 
 <Only an accepted [D] or Output, written in the commit that settles it.>
+
+- L1: two user messages in a row reach Anthropic as one user turn (`@effect/ai-anthropic` 4.0.6
+  folds them); the chat's history keeps any order of messages, the adapter unchanged.
+- L1: a message's latest Run is a Drizzle `one` relation with an `orderBy` (one lateral join,
+  `{…} | null`); an assistant message's Run a `one` over `messages.run_id`; the two tables import
+  each other with `messages.run_id` typed `(): AnyPgColumn`.
 
 ## Numbers
 
