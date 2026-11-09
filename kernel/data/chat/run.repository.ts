@@ -1,4 +1,5 @@
 import { eq, inArray } from 'drizzle-orm'
+import { QueryBuilder } from 'drizzle-orm/pg-core'
 import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedOr } from 'effect'
 
 import {
@@ -26,6 +27,21 @@ const encodeSet = buildSet<RunEntitySet, typeof runs>({
   updatedAt: identity,
 })
 
+// Built on the table a query names, as a relational query aliases `runs`; `userId` is the owner
+// of the Run's chat, so a Run of another user's chat reads as absent.
+const encodeWhere = (table: typeof runs) =>
+  buildWhere<RunEntityWhere>({
+    id: UndefinedOr.map((id) => eq(table.id, id)),
+    chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
+    userId: UndefinedOr.map((userId) =>
+      inArray(
+        table.chatId,
+        new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
+      ),
+    ),
+    status: UndefinedOr.map((statuses) => inArray(table.status, Arr.copy(statuses))),
+  })
+
 export class RunRepository extends Context.Service<
   RunRepository,
   {
@@ -39,23 +55,8 @@ export class RunRepository extends Context.Service<
 >()('@app-template/kernel/data/chat/RunRepository') {
   static readonly layer = Layer.effect(
     this,
-    Db.useSync((db) => {
-      // Built on the table a query names, as a relational query aliases `runs`; `userId` is the
-      // owner of the Run's chat, so a Run of another user's chat reads as absent.
-      const encodeWhere = (table: typeof runs) =>
-        buildWhere<RunEntityWhere>({
-          id: UndefinedOr.map((id) => eq(table.id, id)),
-          chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
-          userId: UndefinedOr.map((userId) =>
-            inArray(
-              table.chatId,
-              db.select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
-            ),
-          ),
-          status: UndefinedOr.map((statuses) => inArray(table.status, Arr.copy(statuses))),
-        })
-
-      return this.of({
+    Db.useSync((db) =>
+      this.of({
         insert: Effect.fn('RunRepository.insert')(
           (run) =>
             db
@@ -86,7 +87,7 @@ export class RunRepository extends Context.Service<
               .pipe(Effect.flatMap(decodeOptionalRow(RunEntity))),
           orDieWithSqlError,
         ),
-      })
-    }),
+      }),
+    ),
   )
 }

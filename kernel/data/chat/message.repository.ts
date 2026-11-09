@@ -1,4 +1,5 @@
 import { eq, inArray } from 'drizzle-orm'
+import { QueryBuilder } from 'drizzle-orm/pg-core'
 import {
   Array as Arr,
   Context,
@@ -38,6 +39,28 @@ const encodeSet = buildSet<MessageEntitySet, typeof messages>({
   updatedAt: identity,
 })
 
+// Built on the table a query names, as a relational query aliases `messages`; `userId` is the
+// owner of the row's chat, so a message of another user's chat reads as absent.
+const encodeWhere = (table: typeof messages) =>
+  buildWhere<MessageEntityWhere>({
+    id: UndefinedOr.map((id) => eq(table.id, id)),
+    chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
+    userId: UndefinedOr.map((userId) =>
+      inArray(
+        table.chatId,
+        new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
+      ),
+    ),
+    status: UndefinedOr.map((statuses) => inArray(table.status, Arr.copy(statuses))),
+  })
+
+const select = (where: MessageEntityWhere) =>
+  ({
+    where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
+    orderBy: inCreationOrder,
+    with: withAttachments,
+  }) as const
+
 const decodeMessages = Schema.decodeEffect(Schema.Array(MessageEntity))
 
 export class MessageRepository extends Context.Service<
@@ -58,30 +81,8 @@ export class MessageRepository extends Context.Service<
 >()('@app-template/kernel/data/chat/MessageRepository') {
   static readonly layer = Layer.effect(
     this,
-    Db.useSync((db) => {
-      // Built on the table a query names, as a relational query aliases `messages`; `userId` is
-      // the owner of the row's chat, so a message of another user's chat reads as absent.
-      const encodeWhere = (table: typeof messages) =>
-        buildWhere<MessageEntityWhere>({
-          id: UndefinedOr.map((id) => eq(table.id, id)),
-          chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
-          userId: UndefinedOr.map((userId) =>
-            inArray(
-              table.chatId,
-              db.select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
-            ),
-          ),
-          status: UndefinedOr.map((statuses) => inArray(table.status, Arr.copy(statuses))),
-        })
-
-      const select = (where: MessageEntityWhere) =>
-        ({
-          where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
-          orderBy: inCreationOrder,
-          with: withAttachments,
-        }) as const
-
-      return this.of({
+    Db.useSync((db) =>
+      this.of({
         insert: Effect.fn('MessageRepository.insert')(
           (message) =>
             db
@@ -115,7 +116,7 @@ export class MessageRepository extends Context.Service<
           (where) => db.query.messages.findMany(select(where)).pipe(Effect.flatMap(decodeMessages)),
           orDieWithSqlError,
         ),
-      })
-    }),
+      }),
+    ),
   )
 }
