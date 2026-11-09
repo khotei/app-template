@@ -263,10 +263,28 @@ answered; "no need, just split it as planned".
 [Q:ai] Where does a failed send's status live: a status on the user's message (`sent`,
 `failed`), written by a second transaction after the first one rolled back, which fails too
 when the database is the cause?
+  [A] A rolled-back send answers `500` and the client shows the error; the user's message is not
+  stored (the owner, in the chat).
 [Q:ai] What does the api answer for the reply the worker has not written yet: its id, made by the
 use case and carried in the job, with a 404 until the worker writes it, or the chat to poll?
+  [A] The api answers the user's message; the reply could be found by a `parentId` once the worker
+  writes it, a reload showing it late. Or the api keeps creating the reply and answers both, so a
+  reload finds them already there: review both (the owner, in the chat).
+  [A:ai] Recommended: keep the reply created `queued` by the api (today,
+  `create-user-message.use-case.ts:127-141`), answered beside the user's message
+  (`chat.http.ts:122`): any failure then has a row to carry `failed` and its cause. With the worker
+  creating it by `parentId`, a failure before its insert (a body that no longer decodes, every
+  delivery dying) leaves no row, so the client polls for good and has no error to show; it also
+  needs a `parent_id` column, unique against two deliveries, and a read by it. Either way, a
+  reload needs a list of a chat's messages, which no route answers today (`chat.http.ts:97-138`).
 [Q:ai] Who holds "one reply at a time": the chat's `queued`, set by the use case, which a lost
 job would leave set?
+  [A] Why would a job be lost? (the owner, in the chat)
+  [A:ai] "Lost" was imprecise: since L2 a commit never stands without its job. What can happen is
+  a job whose reply never settles: a body that no longer decodes is failed unrun
+  (`kernel/job/job.consumer.ts:63-67`), so the reply stays `queued`; every delivery dying (3
+  receives of 600 s); or the queue dropping its messages (a purge, a replaced queue, SQS's
+  retention, 4 days by default, which `resources.ts` does not set). Each leaves the chat busy.
 [D:ai] `JobRepository` has no memory layer, so `apps/worker/__tests__/worker.handler.test.ts:27`
 hand-writes `Layer.mock(JobRepository, …)` answering one queued row for every id (Standards,
 judgement; `effect-tests.md`: a further fake only wraps a memory layer). Without the fix the
