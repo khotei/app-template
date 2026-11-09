@@ -33,6 +33,11 @@ live in the skills; this file holds the constraints they share. A lab step (`lab
 ## Gates
 
 - **Requirements are EARS** (`WHEN … THE SYSTEM SHALL …`; also `WHILE`, `WHERE`, `IF … THEN`).
+- **Minimal first.** A plan, a step and a lab step build the smallest version that works end to
+  end on its main path and reads at once; edge cases, hardening and improvements wait until it
+  runs. Each goes to an open list with its `path:line` (a lab's Open questions, a step's
+  findings), a review's finding too unless it breaks the main path, and is taken up only on the
+  user's word ([why](../../docs/knowledge/sdd.md#minimal-first)).
 - **Tests sit at the Seams** agreed in `architecture.md`; a step's *Test first* names one.
 - **The heavy review lands on the skeleton and the first stage;** each later stage is checked when
   it is prepared and reviewed when it closes, and steps conform to their stage

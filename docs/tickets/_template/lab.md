@@ -48,3 +48,8 @@ accepted and how to see it.>
 <At the close, from git: time from the intent to the PR; lines against each step's budget; lines
 reworked after the owner saw a piece (the OWNER rounds); stops by signal; claims without a
 source.>
+
+## Open questions
+
+<What the minimal version leaves: known gaps, issues, edge cases and improvements, each with its
+path:line or step; one is taken up only on the owner's word, and goes once settled.>

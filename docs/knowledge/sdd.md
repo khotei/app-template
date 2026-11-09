@@ -42,6 +42,15 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | A direct task: it fits one session, adds no dependency, moves no module boundary and makes no choice a reviewer could question | no ticket: a `<type>/<slug>` branch, the change and `make check`, one Standards and Spec review, one fix round, a commit; the PR on your word. One that turns out bigger stops and becomes a ticket |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
+## Minimal first
+
+A plan and each of its steps, as a lab step, first build the smallest version that works end to
+end on its main path and reads at once. What that version leaves (an edge case, a hardening, an
+improvement) goes to an open list with its place in the code: a lab's **Open questions**, a plan
+step's findings. A review's finding joins the list too, unless it breaks the main path. You read a
+whole that runs, then pick from the list what earns code, each item on your word; an item you
+never pick costs no code and no review.
+
 ## Plans in stages
 
 A plan names every step up front but writes the low level of only a few at a time, once the steps

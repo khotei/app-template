@@ -26,6 +26,7 @@ round and commit-gate lines of `.claude/rules/sdd.md`. The procedures: `/lab`, `
 | `[Q:ai]`, `[A:ai]`, `[D:ai]`, `[N:ai]`, the Map's statuses | the agent |
 | Output | the agent proposes, the owner accepts |
 | Knowledge | the agent: only an accepted `[D]` or Output, in the commit that settles it |
+| Open questions | the agent and the owner; an item goes once settled |
 
 The agent never rewrites an owner's line, and reports each write to the file in one chat line.
 
