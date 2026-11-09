@@ -63,6 +63,14 @@ success.
 `kernel/job/job.consumer.ts:63-67`; the queues are wired at `apps/worker/worker.handler.ts:25-34`.
 `apps/worker/__tests__/worker.handler.test.ts:27` hand-writes `Layer.mock(JobRepository, …)`,
 the lambda lab's L4 `[D:ai]`: the memory layer replaces it.
+[N:ai] Stop (owner's word, "why we need this id?"): L2.2, `JobSender.send`'s `{ id }`, held
+uncommitted. Deletion audit: without it `make typecheck` passes and no caller passes an id
+(`git grep 'jobs.send('`: `create-user-message.use-case.ts:134`, `:143`); only its own test needs
+it. Its use is L4's: an `onFail(jobId, cause)` for a body that does not decode finds the Run by
+the job's id alone.
+[N:ai] The owner, in the chat: "job should plain as it is, only body jsonb": the job keeps its
+own id, and only its body `{ runId }` ties it to the Run. L2.2 dropped unwritten; a second
+reading (the id taken from the message by the definition) went with it.
 
 ### Pieces
 
