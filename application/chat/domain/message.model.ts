@@ -22,7 +22,7 @@ import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError, MessageStatusInvalidError } from '#chat/domain/message.error'
-import { isPreparing, Status } from '#chat/domain/status.model'
+import { hasStatus, isPreparing, Status } from '#chat/domain/status.model'
 
 export const MessageStatus = Status.pick(messageStatuses)
 export type MessageStatus = typeof MessageStatus.Type
@@ -90,6 +90,9 @@ const isActiveShape = Predicate.Struct({
 
 export const isActiveMessage = (message: Message): message is ActiveMessage =>
   isActiveShape(message)
+
+/** A reply some run already took: found at a run's start, the run that took it has died. */
+export const isStartedReply = hasStatus(['preparing', 'generating'])
 
 export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
 

@@ -5,6 +5,7 @@ import {
   Data,
   DateTime,
   Effect,
+  Exit,
   flow,
   Layer,
   Option,
@@ -29,6 +30,7 @@ import {
   type HistoryMessage,
   idleChat,
   isActiveMessage,
+  isStartedReply,
   type Message,
   type MessageFailure,
   type MessageId,
@@ -53,7 +55,9 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
   {
     /**
      * Prepares, generates and completes the message with the reply, or fails it and its chat
-     * with the reason the assistant's error maps to; a settled message is skipped.
+     * with the reason the assistant's error maps to, or with `ReplyFailed` on any other outcome,
+     * an interrupt included; a settled message is skipped. A message some run already started
+     * is failed unrun, as that run has died.
      */
     readonly generate: (
       job: GenerateAssistantMessage,
@@ -166,11 +170,6 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         Effect.filterOrFail(isActiveMessage, () => new ReplySkipped({ why: 'alreadySettled' })),
       )
 
-    const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
-      (job: GenerateAssistantMessage) => selectActive(job.messageId).pipe(Effect.flatMap(reply)),
-      Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
-    )
-
     const fail = Effect.fn('GenerateAssistantMessageUseCase.fail')(
       function* (messageId: MessageId, cause: Cause.Cause<unknown>) {
         const active = yield* selectActive(messageId)
@@ -182,6 +181,29 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       Effect.catchTag('ReplySkipped', ({ why }) =>
         replySkipLogs[why].pipe(Effect.as(Option.none<Message>())),
       ),
+    )
+
+    const answer = Effect.fnUntraced(function* (active: Message) {
+      if (isStartedReply(active)) {
+        return yield* settleFailed(active, {
+          reason: 'ReplyFailed',
+          cause: 'the run that started the reply stopped before it ended',
+        })
+      }
+      // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
+      yield* reply(active).pipe(
+        Effect.onExit(
+          Exit.match({
+            onSuccess: () => Effect.void,
+            onFailure: (cause) => fail(active.id, cause),
+          }),
+        ),
+      )
+    })
+
+    const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
+      (job: GenerateAssistantMessage) => selectActive(job.messageId).pipe(Effect.flatMap(answer)),
+      Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
     )
 
     return { generate, fail }

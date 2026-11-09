@@ -261,6 +261,11 @@ takes a queue's steps `{ handle, fail }` and runs a job once: `queued` -> `runni
 process and gets `fail` and `failed` unrun. The worker's route wires the use cases' `generate`
 and `fail` itself; `AssistantMessageHandler`, `ChatTitleHandler` and their suites are gone ·
 visible: `make test-e2e`, the `JobConsumer` cases
+[N:ai] piece 8b (the owner, in the chat: the handler fails its own work, `JobConsumer` the job):
+`GenerateAssistantMessageUseCase.generate` fails its reply and chat with `ReplyFailed` on any
+outcome but success, an interrupt included, and fails unrun a reply it finds `preparing` or
+`generating` (`isStartedReply` in the message model), since the run that took it has died ·
+visible: `make test-unit`, the use case's cases
 
 ### Notes
 

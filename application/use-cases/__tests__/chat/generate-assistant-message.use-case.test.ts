@@ -151,20 +151,44 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
   )
 
-  it.effect('generate dies with the assistant and leaves the reply generating with no text', () => {
+  it.effect('generate dies with the assistant and fails the reply and its chat first', () => {
     const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
     return Effect.gen(function* () {
       yield* insertMessages([queuedReply])
 
       const exit = yield* generate.pipe(Effect.exit)
+      const reply = Option.getOrThrow(yield* selectMessage(messageId))
 
       assert.isTrue(Exit.hasDies(exit))
-      assertEquals(
-        yield* selectMessage(messageId),
-        Option.some(new Message({ ...queuedReply, status: 'generating' })),
-      )
+      assert.strictEqual(reply.status, 'failed')
+      assert.include(Option.getOrThrow(reply.error).cause, 'provider exploded')
+      assertEquals(yield* selectChat(chatId), Option.some(new Chat({ ...chat, status: 'failed' })))
     }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
   })
+
+  it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
+    'generate fails a $status reply a dead run left, without asking the assistant',
+    ({ status }) => {
+      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      return Effect.gen(function* () {
+        yield* insertMessages([new Message({ ...queuedReply, status })])
+
+        yield* generate
+        const reply = Option.getOrThrow(yield* selectMessage(messageId))
+
+        assert.strictEqual(reply.status, 'failed')
+        assert.deepStrictEqual(
+          Option.map(reply.error, ({ reason }) => reason),
+          Option.some('ReplyFailed'),
+        )
+        assertEquals(yield* assistant.calls, [])
+        assertEquals(
+          yield* selectChat(chatId),
+          Option.some(new Chat({ ...chat, status: 'failed' })),
+        )
+      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+    },
+  )
 
   it.effect.each([
     {
