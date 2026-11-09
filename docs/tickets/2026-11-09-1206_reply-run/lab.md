@@ -19,10 +19,11 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 |---|---|---|---|---|
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | minimal | learn | done |
 | L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
-| L3 | The `runs` table, the `Run` model and `RunRepository` exist beside today's model, unused | minimal | build | todo |
-| L4 | A send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; messages and chats lose their status | minimal | build | todo |
-| L5 | A chat's messages with their Runs, a Run's state with its assistant message, and a retry after a failed Run, through the api | minimal | build | todo |
-| L6 | Later: the items of the open list the owner picks | hard | build | todo |
+| L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | in progress |
+| L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | todo |
+| L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | todo |
+| L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
+| L7 | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — Anthropic and the Drizzle reads
 
@@ -52,7 +53,7 @@ and its chat busy, and no record keeps a reply's provenance; the gaps are in Lat
 Visible: `bun --bun vitest run --project e2e apps/e2e kernel/aws/__e2e__/queue.sender.e2e.ts`
 (8 + 2 cases).
 
-## L3 — The `runs` table and the `Run` model
+## L3 — The thinnest slice: a send answered through a Run
 
 Budget: waits for the owner
 
@@ -78,37 +79,7 @@ Domain:
   are (`kernel/data/chat/message.repository.ts:81`, `with: withAttachments`), never written
   through it; a Run changes only through `RunRepository` with the old status in the `where`.
 
-### Notes
-
-[N:ai] The owner's plan: the `runs` table, the `Run` model with its transitions, `RunRepository`
-with its memory fake, beside today's model, unused. Visible: `make check`, `make
-migration-check`, the repository's e2e. The message and chat columns go in L4, where nothing
-reads them any more.
-[N:ai] Agent's choices, the owner may overturn: `provenance` is `jsonb not null` (`provider`,
-`model`, `instructionsHash`, the fields of `ReplyProvenance`,
-`application/chat/domain/assistant.port.ts:38`): only the api makes a Run, and it always holds
-`CurrentReplyProvenance`; the job's `Option` exists only for bodies queued before the field
-(`application/chat/services/chat.queue.ts:16`). `RunRepository` has `insert`, `update`,
-`selectOne`, the `where` by `id`, `chatId`, `userId`, `status`; no `selectMany`, since L5 reads a
-message's Runs through the message. The failure reasons, the failure JSON, the transitions table
-and `<Model>StatusInvalidError` are copied under Run names beside the message's; L4 deletes the
-message's. `messages.run_id` waits for L4: its CHECK refuses today's assistant rows, which have no
-Run.
-
-### Pieces
-
-<[N:ai] L3.1 <what it gives> · visible: <command or link>>
-
-### Output
-
-<Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
-
-## L4 — The send and the worker on a Run
-
-Budget: waits for the owner
-
-### Shape
-
+Send and worker:
 - `GenerateAssistantMessageUseCase` exposes `generate` (handle) and `fail` (onFail); its own
   `onExit` goes. A model error or refusal is a normal outcome: `handle` writes the Run failed and
   the job ends `done`. `done` writes the assistant message and the Run's `done` in one transaction.
@@ -116,13 +87,26 @@ Budget: waits for the owner
 - Busy: the use case reads the active Run and answers 409; the index catches two sends at once,
   the loser rolls back whole, as today.
 
+API (`http-api/chat/chat.http.ts`):
+- `GET /chats/:chatId/runs/:runId` -> the Run; `assistantMessage` once `done`. The client polls.
+- `GET /chats/:chatId` keeps its shape; its status is derived. `failure.cause` never leaves the api.
+
 ### Notes
 
-[N:ai] The owner's plan: the user message + Run + job `{ runId }` with the Run's id; the worker
-drives the Run, writes the assistant message on done, fails it in onFail; messages lose status,
-chats lose status; provenance on the Run; createMessage answers the user message with its Run.
-Visible: the api e2e of a send answered, refused and failed through a Run; the worker test of
-onFail.
+[N:ai] The owner's word in L0.5: the steps are vertical slices. This one is the thinnest path end
+to end and holds the old L3 (the `runs` table, the `Run` model, `RunRepository` with its memory
+fake), the old L4 (the send and the worker on a Run) and the read of one Run from the old L5.
+Visible: the play below, the api e2e of a send answered and failed through a Run, `make check`.
+[N:ai] Play: `make up`, `make dev`, then `POST /chats/:chatId/messages` -> 202 with its Run
+queued; `GET /chats/:chatId/runs/:runId` until `done`, with its assistant message.
+[N:ai] Agent's choices, the owner may overturn: `provenance` is `jsonb not null` (`provider`,
+`model`, `instructionsHash`, the fields of `ReplyProvenance`,
+`application/chat/domain/assistant.port.ts:38`): only the api makes a Run, and it always holds
+`CurrentReplyProvenance`; the job's `Option` exists only for bodies queued before the field
+(`application/chat/services/chat.queue.ts:16`). `RunRepository` has `insert`, `update`,
+`selectOne`, the `where` by `id`, `chatId`, `userId`, `status`; no `selectMany`, since L4 reads a
+message's Runs through the message. The message's failure reasons, failure JSON, transitions and
+`MessageStatusInvalidError` move to the Run in this step.
 [N:ai] Today: `application/use-cases/chat/create-user-message.use-case.ts` queues the chat
 (`queueChat`), stores the user's message, then the queued assistant placeholder and its job
 (`:127-141`), and the title job on the first message (`:142-147`). The worker's use case,
@@ -133,13 +117,38 @@ onFail.
 (`application/use-cases/__tests__/chat/generate-assistant-message.use-case.test.ts:151`) moves
 to `apps/worker/__tests__/worker.handler.test.ts`: the use case no longer fails its own Run,
 the pair `JobConsumer` + `onFail` does.
-[N:ai] L2's new Shape leaves this Shape's first two lines stale: no `onFail`, the use case keeps
-its own `onExit`, and the send runs after the commit (a refused one dies, `500`, the Run left
-queued: a `TODO`, by the owner's minimal code).
+[N:ai] L2's new Shape leaves the first two lines of "Send and worker" stale: no `onFail`, the
+use case keeps its own `onExit`, and the send runs after the commit (a refused one dies, `500`,
+the Run left queued: an item of Later).
 [N:ai] Docs in this step's commits: `docs/knowledge/glossary.md` (Run, Run status, Active run;
 Message, Message status, Active message, Chat status, Status, Provenance), `database.md`,
 `decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
 entry 22 ("The message keeps its own status", "A run needs no status of its own").
+
+### Pieces
+
+<[N:ai] L3.2 <what it gives> · visible: <command or link>>
+
+### Output
+
+<Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
+
+## L4 — A chat's messages with their Runs
+
+Budget: waits for the owner
+
+### Shape
+
+API (`http-api/chat/chat.http.ts`):
+- `GET /chats/:chatId/messages` -> messages in `created_at, id` order; a user message carries its
+  latest Run, an assistant message its Run. One query: a lateral join for the latest Run.
+
+### Notes
+
+[N:ai] Visible: the api e2e of a reload mid-Run: the list shows the active Run.
+[N:ai] Today: no route lists a chat's messages; `createMessage` answers
+`{ userMessage, assistantMessage }` with `202`, and `getMessage` reads one
+(`http-api/chat/chat.http.ts:115-138`).
 
 ### Pieces
 
@@ -149,27 +158,19 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 
 <Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
 
-## L5 — The reads and the retry
+## L5 — The retry, then the play
 
 Budget: waits for the owner
 
 ### Shape
 
 API (`http-api/chat/chat.http.ts`):
-- `GET /chats/:chatId/messages` -> messages in `created_at, id` order; a user message carries its
-  latest Run, an assistant message its Run. One query: a lateral join for the latest Run.
-- `GET /chats/:chatId/runs/:runId` -> the Run; `assistantMessage` once `done`. The client polls.
 - `POST /chats/:chatId/runs { userMessageId }` -> 202 a new Run; 409 unless it is the chat's last
   user message, its latest Run failed and no Run is active.
-- `GET /chats/:chatId` keeps its shape; its status is derived. `failure.cause` never leaves the api.
 
 ### Notes
 
-[N:ai] The owner's plan. Visible: api e2e, including a reload mid-Run (the list shows the active
-Run) and a retry after a failed Run.
-[N:ai] Today: no route lists a chat's messages; `createMessage` answers
-`{ userMessage, assistantMessage }` with `202`, and `getMessage` reads one
-(`http-api/chat/chat.http.ts:115-138`).
+[N:ai] Visible: the api e2e of a retry after a failed Run; then the owner plays the whole feature.
 
 ### Pieces
 
@@ -178,6 +179,14 @@ Run) and a retry after a failed Run.
 ### Output
 
 <Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
+
+## L6 — Right
+
+<What the play and the reviews of L3-L5 change in the decisions, design and architecture.>
+
+## L7 — Later
+
+<The items of Later the owner picks.>
 
 ## Knowledge
 
