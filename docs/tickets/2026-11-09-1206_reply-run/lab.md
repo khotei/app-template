@@ -127,7 +127,7 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 
 ### Pieces
 
-<[N:ai] L3.2 <what it gives> · visible: <command or link>>
+[N:ai] L3.2 The `runs` table and `RunEntity`, beside today's messages; `init` regenerated · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.entity.e2e.ts` (2 cases)
 
 ### Output
 
