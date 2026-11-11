@@ -33,12 +33,6 @@ export const withAttachments = { attachments: { orderBy: inCreationOrder } } as 
 /** The two relations a read fills; `MessageEntityFromRead` keeps the one the author has. */
 export const withRun = { latestRun: { orderBy: newestFirst }, replyOf: true } as const
 
-/** The relation that holds a message's Run: a user's its newest, a reply's the one that wrote it. */
-const runOf = {
-  user: 'latestRun',
-  assistant: 'replyOf',
-} as const satisfies Record<MessageColumns['author'], keyof typeof withRun>
-
 /** What a read returns before the pick: both relations. */
 const MessageRead = Schema.Struct({
   ...MessageColumns.fields,
@@ -47,12 +41,15 @@ const MessageRead = Schema.Struct({
   replyOf: Schema.NullOr(RunColumns),
 })
 
-/** Decodes a read into the entity: the author names the relation that holds the Run. */
+/**
+ * Decodes a read into the entity: a user's message has its newest Run, a reply the one that wrote
+ * it; the entity's decoder drops `latestRun` and `replyOf`.
+ */
 export const MessageEntityFromRead = MessageRead.pipe(
   Schema.decodeTo(MessageEntity, {
-    decode: SchemaGetter.transform(({ latestRun, replyOf, ...message }) => ({
-      ...message,
-      run: { latestRun, replyOf }[runOf[message.author]],
+    decode: SchemaGetter.transform((read) => ({
+      ...read,
+      run: { user: read.latestRun, assistant: read.replyOf }[read.author],
     })),
     encode: SchemaGetter.forbiddenEncoding,
   }),

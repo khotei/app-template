@@ -166,6 +166,7 @@ chat's title beside a Run reads the chat by `run.chatId`.
 [N:ai] L3.25 A message reads with its Run: `messages.latestRun` (a user's newest, ordered `newestFirst`) and `messages.replyOf` (the Run that wrote a reply); a read fills both, and `MessageEntityFromRead`, a codec in the entity file, keeps the one the author has · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
 [N:ai] L3.26 `Message.run` is `Option<RunFields>`, read with the message and never written; the e2e proves the pick on both authors, and the use cases' tests read each message back with its Run · visible: the same e2e, `make check`
 [N:ai] L3.27 Docs: `database.md` (the Columns in the table files, the entity one level deep, the read codec, the Fields codecs of the writes, `with` over top-level relations only), the glossary (read codec, `Fields`), `deep-modules.md` (a neighbour's Columns and a model's Fields are no second shape) · visible: `make doc-lint`
+[N:ai] L3.28 (OWNER) The read codec indexes the two read values by the author, and the entity's decoder drops `latestRun` and `replyOf`, so the table of relation names and the destructuring go · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
 
 ### Output
 
