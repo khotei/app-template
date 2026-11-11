@@ -59,8 +59,8 @@ export class ChatHttp extends HttpApiGroup.make('chats')
         AttachmentBoundError,
       ],
     }),
-    HttpApiEndpoint.post('retryRun', '/chats/:chatId/messages/:messageId/runs', {
-      params: { ...chatPath, messageId: MessageId },
+    HttpApiEndpoint.post('retryRun', '/chats/:chatId/messages/:userMessageId/runs', {
+      params: { ...chatPath, userMessageId: MessageId },
       success: ApiRun.pipe(HttpApiSchema.status(202)),
       error: [MessageNotFoundError, ChatNotFoundError, ChatBusyError, RunNotRetryableError],
     }),

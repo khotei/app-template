@@ -98,7 +98,7 @@ describe('chats', () => {
         yield* refuseRun(failed.id)
 
         const [retried, response] = yield* api.chats.retryRun({
-          params: { chatId: chat.id, messageId: failed.userMessage.id },
+          params: { chatId: chat.id, userMessageId: failed.userMessage.id },
           responseMode: 'decoded-and-response',
         })
 
@@ -235,7 +235,7 @@ describe('chats', () => {
       assertSchemaEquals(
         MessageNotFoundError,
         message,
-        new MessageNotFoundError({ id: run.userMessage.id }),
+        new MessageNotFoundError({ id: run.userMessage.id, author: Option.none() }),
       )
       assertSchemaEquals(RunNotFoundError, elsewhere, new RunNotFoundError({ id: run.id }))
     }).pipe(Effect.provide(ApiTest)),

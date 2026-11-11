@@ -23,7 +23,8 @@ export const MessageEntityInsert = createInsertSchema(messages)
 
 /** `userId` is the owner of the row's chat, not a column of `messages`. */
 export type MessageEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> & Partial<{ readonly userId: string }>
+  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> &
+    Partial<Pick<MessageEntity, 'author'> & { readonly userId: string }>
 >
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const

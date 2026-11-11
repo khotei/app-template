@@ -127,6 +127,9 @@ const holdsChildWhere = (
     }),
   )
 
+const holdsMessageWhere = (chats: HashMap.HashMap<string, ChatRow>, where: MessageEntityWhere) =>
+  Predicate.and(holdsChildWhere(chats, where), matches<MessageRow>({ author: where.author }))
+
 const holdsRunWhere = (chats: HashMap.HashMap<string, ChatRow>, where: RunEntityWhere) =>
   Predicate.and(holdsChildWhere(chats, where), matchesAny<RunRow>({ status: where.status }))
 
@@ -290,7 +293,7 @@ export const MessageRepositoryTest = Layer.effect(
       read.pipe(
         Effect.flatMap((rows) =>
           Effect.forEach(
-            inCreationOrderWhere(rows.messages, holdsChildWhere(rows.chats, where)),
+            inCreationOrderWhere(rows.messages, holdsMessageWhere(rows.chats, where)),
             readMessage(rows),
           ),
         ),

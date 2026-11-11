@@ -136,6 +136,11 @@ is a proposal until the owner makes it `[D]`.
   - [N:ai] The owner, in the chat: yes. Done in L6.2.
 - [N:ai] The owner, in the chat, on 4: `runs.updated_at` stays, since it shows when the status
   or the reply was last set.
+- [N:ai] The owner, in the chat: nothing on the wire says the retry's id is the user message's;
+  an assistant's id answered `409 RunNotRetryableError` with that id as `userMessageId`. The
+  owner chose B: the path names `:userMessageId`, and the retry reads the message with
+  `author: 'user'`, so an assistant's id is `404 MessageNotFoundError { id, author: 'user' }`.
+  Done in L6.8.
 - [D:ai] To L7, as edge cases and error paths: the title lost after a failed first Run, the two
   retry races, `MessageService.getMany`'s two queries, the memory fakes' missing keys and
   `TransactionTest`, the `--hot` route `404`.
@@ -147,6 +152,11 @@ is a proposal until the owner makes it `[D]`.
   apps/api/__tests__/chat/chat.handler.test.ts` (no `cause` on the Run's and the message's wire)
 - [N:ai] L6.6 `README.md › What the example does` tells the Run flow: the send answers its Run,
   the worker moves it, the poll, the reload and the retry · visible: the README's sequence diagram
+- [N:ai] L6.8 the retry's path names `:userMessageId`; `MessageNotFoundError` carries the
+  `author` its read asked for (`null` when none), and the retry asks for `'user'`, so an
+  assistant's id is `404 { id, author: 'user' }`; a message's `where` takes `author` · visible:
+  `bun --bun vitest run --project unit application/use-cases/__tests__/chat/retry-run.use-case.test.ts
+  application/chat/__tests__/services/message.service.test.ts`, `make api-check`
 - [N:ai] L6.7 review: the README's shell walkthrough polls the Run, then reads the chat's messages
   (`README.md:84`, hunt, shown); the lab skill names rail 4 instead of restating it
   (`.claude/skills/lab/SKILL.md:59`); the record of the chat's status cites the lab, not its rounds
@@ -279,3 +289,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   read gives the 404 (`application/chat/services/message.service.ts:58`). A domain service opens
   no transaction (`.claude/rules/layering.md`); one query that reads the chat with its messages
   would close it. Open.
+- [N:ai] L6.8: the e2e "of two concurrent sends to one chat, one is stored and the other is
+  refused, keeping nothing" failed once in `make check` with 2 messages for 1, then passed in
+  three runs of its file and the next `make check` (`apps/e2e/api/chat.e2e.ts:205`). I assume the
+  worker answered the stored send before the count, so its reply was the second message. Open.

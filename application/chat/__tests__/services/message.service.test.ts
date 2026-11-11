@@ -1,7 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -30,6 +30,10 @@ const misses: ReadonlyArray<{ readonly name: string; readonly where: MessageWher
     where: { id: firstMessage.id, chatId: unknownChatId, userId: owner },
   },
   { name: 'an unknown', where: { id: unknownMessageId, chatId: chat.id, userId: owner } },
+  {
+    name: "a user's asked as an assistant's",
+    where: { id: firstMessage.id, chatId: chat.id, userId: owner, author: 'assistant' },
+  },
 ]
 
 const chatMisses = [
@@ -54,7 +58,11 @@ describe('MessageService', () => {
 
       const error = yield* service.getOne(where).pipe(Effect.flip)
 
-      assertSchemaEquals(MessageNotFoundError, error, new MessageNotFoundError({ id: where.id }))
+      assertSchemaEquals(
+        MessageNotFoundError,
+        error,
+        new MessageNotFoundError({ id: where.id, author: Option.fromUndefinedOr(where.author) }),
+      )
     }).pipe(Effect.provide(MessageServiceTest)),
   )
 

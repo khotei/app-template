@@ -47,7 +47,12 @@ export class RetryRunUseCase extends Context.Service<
       chatId: ChatId,
       userMessageId: MessageId,
     ) {
-      const userMessage = yield* messageService.getOne({ id: userMessageId, chatId, userId })
+      const userMessage = yield* messageService.getOne({
+        id: userMessageId,
+        chatId,
+        userId,
+        author: 'user',
+      })
       yield* chatService.getOne({ id: chatId, userId }).pipe(
         Effect.tap(ensureChatNotBusy),
         Effect.tap((chat) => ensureRunRetryable(chat.run, userMessage.id)),

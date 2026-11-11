@@ -45,7 +45,7 @@ sequenceDiagram
   Q->>K: a Lambda mapping posts the batch to POST /events
   K->>S: Run preparing → generating → done with the assistant's message | failed
   W->>A: GET /chats/:chatId/runs/:runId (poll), GET /chats/:chatId/messages (reload)
-  W->>A: POST /chats/:chatId/messages/:messageId/runs (retry a failed Run)
+  W->>A: POST /chats/:chatId/messages/:userMessageId/runs (retry a failed Run)
 ```
 
 How the transaction and the jobs work:

@@ -1,16 +1,24 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer } from 'effect'
+import { DateTime, Effect, Layer, Option } from 'effect'
 
 import {
   buildRun,
   ChatBusyError,
   failRun,
   GenerateAssistantMessage,
+  MessageNotFoundError,
   Run,
   type RunId,
 } from '@app-template/application/chat'
-import { chat, owner, replyProvenance, updateRun } from '@app-template/application/chat/testing'
+import {
+  assistantMessageAt,
+  chat,
+  insertMessage,
+  owner,
+  replyProvenance,
+  updateRun,
+} from '@app-template/application/chat/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -72,6 +80,33 @@ describe('RetryRunUseCase', () => {
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
       // The send's reply and title jobs, and none of the retry.
+      assert.lengthOf(yield* jobs.sent, 2)
+    }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+  })
+
+  it.effect("retry of an assistant's message is MessageNotFoundError of a user's message", () => {
+    const jobs = recordMessages()
+    return Effect.gen(function* () {
+      const createUserMessage = yield* CreateUserMessageUseCase
+      const retryRun = yield* RetryRunUseCase
+      const first = yield* createUserMessage.create(owner, chat.id, {
+        text: 'Plan a weekend in Lisbon',
+        attachmentIds: [],
+      })
+      const at = yield* DateTime.now
+      yield* failRun(first, { reason: 'ReplyFailed', cause: 'overloaded', at }).pipe(
+        Effect.flatMap(updateRun),
+      )
+      const reply = assistantMessageAt(1, 'An earlier reply')
+      yield* insertMessage(reply)
+
+      const error = yield* retryRun.retry(owner, chat.id, reply.id).pipe(Effect.flip)
+
+      assertSchemaEquals(
+        MessageNotFoundError,
+        error,
+        new MessageNotFoundError({ id: reply.id, author: Option.some('user') }),
+      )
       assert.lengthOf(yield* jobs.sent, 2)
     }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
   })

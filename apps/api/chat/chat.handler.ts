@@ -77,7 +77,7 @@ export const ChatHandler = HttpApiBuilder.group(
         'retryRun',
         Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
           const user = yield* CurrentUser
-          return yield* retryRun.retry(user.id, params.chatId, params.messageId)
+          return yield* retryRun.retry(user.id, params.chatId, params.userMessageId)
         }, Effect.map(buildApiRun)),
       )
       .handle(

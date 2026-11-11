@@ -12,7 +12,7 @@ import { decodeMessage, decodeMessages, encodeMessage } from '#chat/services/mes
 
 /** The message of the user's chat; one of another user's chat reads as absent. */
 export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id' | 'chatId'> & { readonly userId: UserId }
+  Pick<Message, 'id' | 'chatId'> & Partial<Pick<Message, 'author'>> & { readonly userId: UserId }
 >
 
 export class MessageService extends Context.Service<
@@ -44,12 +44,18 @@ export class MessageService extends Context.Service<
     })
 
     const getOne = Effect.fn('MessageService.getOne')((where: MessageWhere) =>
-      messages
-        .selectOne(where)
-        .pipe(
-          Effect.flatMap(decodeMessage),
-          Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: where.id }))),
+      messages.selectOne(where).pipe(
+        Effect.flatMap(decodeMessage),
+        Effect.flatMap(
+          Effect.fromOption(
+            () =>
+              new MessageNotFoundError({
+                id: where.id,
+                author: Option.fromUndefinedOr(where.author),
+              }),
+          ),
         ),
+      ),
     )
 
     const getMany = Effect.fn('MessageService.getMany')(function* (

@@ -1369,7 +1369,7 @@
         }
       }
     },
-    "/chats/{chatId}/messages/{messageId}/runs": {
+    "/chats/{chatId}/messages/{userMessageId}/runs": {
       "post": {
         "tags": [
           "chats"
@@ -1387,7 +1387,7 @@
             "required": true
           },
           {
-            "name": "messageId",
+            "name": "userMessageId",
             "in": "path",
             "schema": {
               "type": "string",
@@ -2684,11 +2684,26 @@
             "type": "string",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
             "format": "uuid"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "assistant"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
           "_tag",
-          "id"
+          "id",
+          "author"
         ],
         "additionalProperties": false
       },
