@@ -119,6 +119,7 @@ is a proposal until the owner makes it `[D]`.
   `application/chat/services/*.service.ts`), and a use case's step over it; `createUserMessage`
   (`application/use-cases/chat/create-user-message.use-case.ts:59`) keeps its name. The factory
   arm stays: a factory takes dependencies, a write takes the record's fields.
+  - [N:ai] The owner, in the chat: A. Done in L6.4.
 - [D:ai] 3. `buildApiRun` drops its pick of the failure (`apps/api/chat/chat.mapper.ts:20`): the
   wire schema already drops `cause` on encode (L4.1's run of the deletion test).
 - [D:ai] 4. `runs.updated_at` goes, with `ApiRunFields.updatedAt`
@@ -167,6 +168,8 @@ is a proposal until the owner makes it `[D]`.
   model as the domain splits them, the `.http` only the routes (`naming.md › Files`).
 - L5: a retry is a new Run of the user message whose Run is the chat's newest and failed; the
   rule reads the chat's newest Run alone, since only the newest user message ever gets a Run.
+- L6: `create<Thing>` is a factory or a write that stores a new record, a domain service's
+  `create` and a use case's step over it (`naming.md › Symbols`).
 - L6: a lab piece is at most 100 lines of code, its tests counted apart (rail 4).
 - L6: `runs.updated_at` stays: it shows when a Run's status or reply was last set.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
@@ -229,7 +232,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L3.16: `createUserMessage`, a step that stores, against `.claude/rules/naming.md`, which
   keeps `create<Thing>` for a factory that wires dependencies
   (`application/use-cases/chat/create-user-message.use-case.ts:59`). The rule or the name changes
-  in the Right step (L6).
+  in the Right step (L6). Done in L6.4: the rule names the write.
 - [N:ai] L4.1: `buildApiRun` picks `reason` and `message` of the failure by hand, yet the wire
   schema `ApiRunFailure` already drops `cause` on encode: with the pick deleted, `tsc` and the
   handler test that asserts no `cause` on the wire still pass, as they do for `buildApiMessage`,
