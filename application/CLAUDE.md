@@ -17,5 +17,5 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see
   the client: the prompts stay inside the adapter.
-- A `<model>.queue.ts` in `services/` holds only queue definitions; no adapter wraps `send` or
-  `worker`.
+- A `<model>.queue.ts` in `services/` holds only queue definitions; only a `<Job>Sender` in
+  `use-cases/<object>/<object>.sender.ts` wraps `send`, and no adapter wraps the worker.

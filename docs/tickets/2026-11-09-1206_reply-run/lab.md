@@ -176,6 +176,11 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   application/use-cases/__tests__/chat/chat.sender.test.ts`. The queue definitions stay in the
   module: a use case may not import `kernel/aws`, whose inventory names the queues
   (`docs/knowledge/architecture.md › Dependency rules`).
+- [N:ai] L8.4 the retry sends through `AssistantMessageSender`: a reply's job SQS refuses fails
+  the new Run and answers `503 RunNotQueuedError`, as a send does. `decisions.md › Jobs as queue
+  messages`, `layering.md`, `application/CLAUDE.md`, `architecture.md` and `database.md` name
+  the senders; the L2.12 pair leaves `design-examples.md`, its stop reversed (24 lines of code
+  added, 12 gone; no test, the senders' own cover it) · visible: `make check` (268 unit, 94 e2e).
 
 ## Knowledge
 

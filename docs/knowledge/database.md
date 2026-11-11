@@ -267,10 +267,10 @@ commit ([The sends](#the-sends)).
 A Run that no worker settles stays active and its chat `queued`, so every next send to the chat
 fails `ChatBusyError`. A worker that dies (a killed process, the function's timeout) is settled by
 the next delivery, up to the queue's visibility timeout later, which finds the Run started, and
-fails it; a store failing the `failed` write, a refused send after the commit, or a job whose every
-delivery dies, leaves it so, and nothing consumes the dead-letter queue
-([aws.md › Queues](aws.md#queues)). No sweep over active Runs exists: by age alone it could not
-tell a dead Run from one waiting in a backlog.
+fails it; a store failing the `failed` write, a process that dies or a client that aborts between
+the commit and the send, or a job whose every delivery dies, leaves it so, and nothing consumes
+the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active Runs exists: by
+age alone it could not tell a dead Run from one waiting in a backlog.
 
 ## The sends
 
@@ -283,9 +283,11 @@ chat's title) is the one the worker reads
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
-- **A send SQS refuses dies** and answers `500` with the message stored; it, a process that dies
-  between the commit and the send, and a client that aborts there leave the Run queued and its
-  chat busy ([Stuck Runs](#stuck-runs)).
+- **A send SQS refuses** is settled by the job's sender beside the use cases: the reply's fails
+  its Run with `ReplyFailed` and answers `503 RunNotQueuedError`, the message stored and shown
+  failed with its retry; the title's is logged. A process that dies between the commit and the
+  send, or a client that aborts there, leaves the Run queued and its chat busy
+  ([Stuck Runs](#stuck-runs)).
 
 ## Migrations
 

@@ -1621,6 +1621,16 @@
                 }
               }
             }
+          },
+          "503": {
+            "description": "RunNotQueuedError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunNotQueuedErrorEncoded"
+                }
+              }
+            }
           }
         }
       }
@@ -2717,6 +2727,27 @@
         ],
         "additionalProperties": false
       },
+      "RunNotQueuedErrorEncoded": {
+        "type": "object",
+        "properties": {
+          "_tag": {
+            "type": "string",
+            "enum": [
+              "RunNotQueuedError"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "_tag",
+          "id"
+        ],
+        "additionalProperties": false
+      },
       "RunNotRetryableErrorEncoded": {
         "type": "object",
         "properties": {
@@ -2766,27 +2797,6 @@
             "type": "string",
             "enum": [
               "ChatNotFoundError"
-            ]
-          },
-          "id": {
-            "type": "string",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-            "format": "uuid"
-          }
-        },
-        "required": [
-          "_tag",
-          "id"
-        ],
-        "additionalProperties": false
-      },
-      "RunNotQueuedErrorEncoded": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "RunNotQueuedError"
             ]
           },
           "id": {

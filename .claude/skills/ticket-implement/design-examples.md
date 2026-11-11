@@ -194,27 +194,3 @@ const ship = (id: OrderId, at: DateTime.Utc) =>
 
 One pair per fix the owner accepted after a stop in a lab, recorded in that fix's commit: a before
 → after on an `Order` and one line why.
-
-**A record stuck after the commit: one path, not a patch per cause.** A send after the commit
-can be lost by a crash, an aborted request or a refused send; the owner cut the recovery written
-for two of them, since the record's own state settles every cause on one path.
-
-```ts
-// before: a recovery per cause, each with its own test
-const place = Effect.fn('OrderService.place')(function* (input: OrderInput) {
-  const order = yield* store(input)
-  return yield* queue.send(fulfilmentQueue, new Fulfil({ orderId: order.id })).pipe(
-    Effect.as(order),
-    Effect.catchTag('QueueError', (error) => failOrder(order, error)),
-  )
-}, Effect.uninterruptible)
-```
-
-```ts
-// after: a refused send dies; the order's state settles what any cause leaves
-const place = Effect.fn('OrderService.place')(function* (input: OrderInput) {
-  const order = yield* store(input)
-  yield* queue.send(fulfilmentQueue, new Fulfil({ orderId: order.id })).pipe(Effect.orDie)
-  return order
-})
-```

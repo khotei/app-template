@@ -1,30 +1,29 @@
 import { Context, Effect, Layer } from 'effect'
 
 import {
-  assistantMessageQueue,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
   ChatService,
   ensureChatNotBusy,
   ensureRunRetryable,
-  GenerateAssistantMessage,
   type MessageId,
   type MessageNotFoundError,
   MessageService,
   type Run,
+  type RunNotQueuedError,
   type RunNotRetryableError,
   RunService,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
-import { QueueSender } from '@app-template/packages/queue'
+
+import { AssistantMessageSender } from '#use-cases/chat/chat.sender'
 
 export class RetryRunUseCase extends Context.Service<
   RetryRunUseCase,
   {
     /**
-     * Stores a new queued Run of the user's message after its failed one, then sends its job; a
-     * send SQS refuses dies, leaving the Run queued.
+     * Stores a new queued Run of the user's message after its failed one, then sends its job.
      */
     readonly retry: (
       userId: UserId,
@@ -32,7 +31,11 @@ export class RetryRunUseCase extends Context.Service<
       userMessageId: MessageId,
     ) => Effect.Effect<
       Run,
-      MessageNotFoundError | ChatNotFoundError | ChatBusyError | RunNotRetryableError
+      | MessageNotFoundError
+      | ChatNotFoundError
+      | ChatBusyError
+      | RunNotRetryableError
+      | RunNotQueuedError
     >
   }
 >()('@app-template/application/use-cases/chat/RetryRunUseCase', {
@@ -40,7 +43,7 @@ export class RetryRunUseCase extends Context.Service<
     const chatService = yield* ChatService
     const messageService = yield* MessageService
     const runService = yield* RunService
-    const queue = yield* QueueSender
+    const replySender = yield* AssistantMessageSender
 
     const retry = Effect.fn('RetryRunUseCase.retry')(function* (
       userId: UserId,
@@ -59,9 +62,7 @@ export class RetryRunUseCase extends Context.Service<
       )
 
       const run = yield* runService.create(userMessage)
-      yield* queue
-        .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: run.id }))
-        .pipe(Effect.orDie)
+      yield* replySender.send(run)
       return run
     })
 
@@ -69,6 +70,11 @@ export class RetryRunUseCase extends Context.Service<
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
+    Layer.provide([
+      AssistantMessageSender.layer,
+      ChatService.layer,
+      MessageService.layer,
+      RunService.layer,
+    ]),
   )
 }
