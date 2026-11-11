@@ -122,6 +122,7 @@ is a proposal until the owner makes it `[D]`.
   - [N:ai] The owner, in the chat: A. Done in L6.4.
 - [D:ai] 3. `buildApiRun` drops its pick of the failure (`apps/api/chat/chat.mapper.ts:20`): the
   wire schema already drops `cause` on encode (L4.1's run of the deletion test).
+  - [N:ai] The owner, in the chat: ok. Done in L6.5.
 - [D:ai] 4. `runs.updated_at` goes, with `ApiRunFields.updatedAt`
   (`http-api/chat/api-run-fields.model.ts:25`): no code reads it (`git grep updatedAt` over
   `apps`, `application/use-cases`, `http-api` finds only the wire field), and no client yet. Lost:
@@ -137,6 +138,12 @@ is a proposal until the owner makes it `[D]`.
 - [D:ai] To L7, as edge cases and error paths: the title lost after a failed first Run, the two
   retry races, `MessageService.getMany`'s two queries, the memory fakes' missing keys and
   `TransactionTest`, the `--hot` route `404`.
+
+### Pieces
+
+- [N:ai] L6.5 `buildApiRun` hands the Run as it is, as `buildApiUser` does; the wire schema drops
+  the failure's `cause` · visible: `bun --bun vitest run --project unit
+  apps/api/__tests__/chat/chat.handler.test.ts` (no `cause` on the Run's and the message's wire)
 
 ## L7 — Later
 
@@ -236,7 +243,8 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L4.1: `buildApiRun` picks `reason` and `message` of the failure by hand, yet the wire
   schema `ApiRunFailure` already drops `cause` on encode: with the pick deleted, `tsc` and the
   handler test that asserts no `cause` on the wire still pass, as they do for `buildApiMessage`,
-  which L4.1 left without it (`apps/api/chat/chat.mapper.ts:20`). Drop the pick in L6?
+  which L4.1 left without it (`apps/api/chat/chat.mapper.ts:20`). Drop the pick in L6? Done in
+  L6.5.
 - [N:ai] L4.1: `README.md:22-49` still tells the pre-Run flow (a queued assistant message, a poll
   of `GET /chats/:id/messages/:messageId`); since L3 a send answers its Run, and a reload reads
   `GET /chats/:chatId/messages`.

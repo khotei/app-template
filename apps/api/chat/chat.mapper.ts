@@ -1,4 +1,4 @@
-import { Array as Arr, Option, Struct } from 'effect'
+import { Array as Arr, Struct } from 'effect'
 
 import { buildChatStatus, type Chat, type Message, type Run } from '@app-template/application/chat'
 import type { ApiChat, ApiMessage, ApiRun } from '@app-template/http-api'
@@ -15,6 +15,4 @@ export const buildApiChat = (chat: Chat): ApiChat => ({
 export const buildApiMessage = (message: Message): ApiMessage =>
   Struct.evolve(message, { attachments })
 
-export const buildApiRun = (run: Run): ApiRun =>
-  // The cause is for operators; it never leaves the api.
-  Struct.evolve(run, { failure: Option.map(Struct.pick(['reason', 'message'])) })
+export const buildApiRun = (run: Run): ApiRun => run
