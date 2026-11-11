@@ -81,8 +81,10 @@ curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello","attachmentIds":[]}'
-# repeat while the assistant message is queued, preparing or generating: its text arrives whole
-curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
+# repeat while the Run is queued, preparing or generating: its assistantMessage arrives whole
+curl -s -b jar localhost:3000/chats/<chatId>/runs/<runId>
+# the reload: the chat's messages, each with its Run
+curl -s -b jar localhost:3000/chats/<chatId>/messages
 ```
 
 `make down` stops the stand and keeps its data; `make reset` removes it whole. When `make up`

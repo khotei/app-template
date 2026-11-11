@@ -147,6 +147,10 @@ is a proposal until the owner makes it `[D]`.
   apps/api/__tests__/chat/chat.handler.test.ts` (no `cause` on the Run's and the message's wire)
 - [N:ai] L6.6 `README.md › What the example does` tells the Run flow: the send answers its Run,
   the worker moves it, the poll, the reload and the retry · visible: the README's sequence diagram
+- [N:ai] L6.7 review: the README's shell walkthrough polls the Run, then reads the chat's messages
+  (`README.md:84`, hunt, shown); the lab skill names rail 4 instead of restating it
+  (`.claude/skills/lab/SKILL.md:59`); the record of the chat's status cites the lab, not its rounds
+  (`docs/knowledge/decisions.md › Status from the newest Run`)
 
 ## L7 — Later
 

@@ -506,8 +506,8 @@ pass-through`).
   move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
   since the read nests the Run, and one pure function serves the api and the rules
   (`ensureChatNotBusy`); a client derives it the same way from the Run it reads.
-- **Sources:** the owner's choice in the reply-run lab, L3 and L6
-  (`docs/tickets/2026-11-09-1206_reply-run/lab.md`).
+- **Sources:** the owner's choice, in the Knowledge of
+  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
 - **Rejected:** a `chats.status` column moved by every Run move: six writes and a drift to keep a
   value that one row already gives.
 - **Cost:** a query over chats by status joins each chat's newest Run, and a read that needs the
