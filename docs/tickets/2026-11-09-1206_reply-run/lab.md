@@ -126,6 +126,14 @@ none), the README's sequence diagram; `make check` (265 unit, 94 e2e).
   errors (`application/**/*.error.ts`) and their contract twins (`http-api/**/*.error.ts`);
   `RunStatusInvalidError { id, from, to }` names its context, while `MessageInputInvalidError`,
   `UserUnknownError`, `AttachmentTooLargeError` and `AttachmentTypeUnsupportedError` carry none.
+- [N:ai] L7 start: the owner skipped the step for now, before its kind was chosen. The survey
+  then: `MessageInputInvalidError` covers two reasons alike (`application/chat/domain/message.model.ts:51`,
+  `:55`); `AttachmentTooLargeError` names neither the limit nor the file or body
+  (`apps/api/attachment/attachment.handler.ts:30`); `AttachmentTypeUnsupportedError` not the type
+  sent (`:50`); `RunNotRetryableError` not why; `ChatBusyError` not the Run in work; the
+  assistant's errors only `error.message` (`application/chat/infrastructure/assistant.llm.ts:159`);
+  `UserUnknownError` stays empty, so no secret reaches a reply or a log. Unchecked: what of an
+  error's fields reaches the api's and the worker's logs and spans, a run to make first.
 
 ## L8 — Later
 
