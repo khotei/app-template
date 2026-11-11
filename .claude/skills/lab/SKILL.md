@@ -56,12 +56,13 @@ one who writes, and a subagent does not see the chat.
 - **`implement [L<n>]`:** the step named, else the Map's step in progress. It needs the owner's
   Shape or contract; without one, ask, or draft the Shape on a `[DO]`. Before the first piece,
   ask the five questions aloud (rail 5); in an unfamiliar area, check the Reference ran and the
-  Budget is named (rail 4). Then one piece at a time, each at most 100 lines: its test first (as
-  `test` does), the body, `make check`, the round's commit (`.claude/rules/commits.md › A
-  ticket's rounds`), its `[N:ai]` line in Pieces, and a `Later` line for each issue it noticed
-  and left; show the owner the diff and wait for the word before the next. A learn step's draft
-  runs in its own worktree: `git worktree add -b wt/<name> .claude/worktrees/<name> HEAD`, then,
-  inside it, `make worktree N=<n> NAME=<name>`; it never commits onto the ticket branch.
+  Budget is named (rail 4). Then one piece at a time, each at most 100 lines, its tests apart:
+  its test first (as `test` does), the body, `make check`, the round's commit
+  (`.claude/rules/commits.md › A ticket's rounds`), its `[N:ai]` line in Pieces, and a `Later`
+  line for each issue it noticed and left; show the owner the diff and wait for the word before
+  the next. A learn step's draft runs in its own worktree: `git worktree add -b wt/<name>
+  .claude/worktrees/<name> HEAD`, then, inside it, `make worktree N=<n> NAME=<name>`; it never
+  commits onto the ticket branch.
 - **`test [L<n>]`:** a test per contract of the step's Shape, at its Seam, in an existing
   `__tests__/` or `__e2e__/` folder, as `it.effect.fails` while the body is `Effect.die('todo')`;
   `make check`, the round's commit and its `[N:ai]` line.

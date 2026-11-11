@@ -52,9 +52,9 @@ The agent never rewrites an owner's line, and reports each write to the file in 
    the candidate, run, show what broke. The agent stops itself on Beck's three signals: something
    not asked for, the same thing fixed twice, a test weakened. Two failed fixes go back to the
    intent.
-4. **Volume.** A piece is at most 100 lines, and the owner sees it. In an unfamiliar area, where
-   the owner cannot yet write the signature, code is built only once the reference example ran
-   as is and a budget "reference + N lines" is named; an overrun stops and asks.
+4. **Volume.** A piece is at most 100 lines, its tests apart, and the owner sees it. Where the
+   owner cannot yet write the signature, an unfamiliar area, code is built only once the
+   reference example ran as is and a budget "reference + N lines" is named; an overrun stops.
 5. **Lesson at the decision point.** At every Shape, read
    `.claude/skills/ticket-implement/design-examples.md` and ask its five questions aloud; one that
    fails becomes a `[Q:ai]`. When the owner accepts the fix after a stop, record its before →

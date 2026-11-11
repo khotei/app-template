@@ -128,6 +128,9 @@ is a proposal until the owner makes it `[D]`.
 - [D:ai] 6. Rail 4 (`.claude/rules/lab.md:55`) counts a piece's tests apart from its code, as a
   plan step counts its docs: a piece with a repository's e2e passed 100 lines in each of L3.2,
   L3.3 and L3.6 on the test's setup alone.
+  - [N:ai] The owner, in the chat: yes. Done in L6.2.
+- [N:ai] The owner, in the chat, on 4: `runs.updated_at` stays, since it shows when the status
+  or the reply was last set.
 - [D:ai] To L7, as edge cases and error paths: the title lost after a failed first Run, the two
   retry races, `MessageService.getMany`'s two queries, the memory fakes' missing keys and
   `TransactionTest`, the `--hot` route `404`.
@@ -161,6 +164,8 @@ is a proposal until the owner makes it `[D]`.
   model as the domain splits them, the `.http` only the routes (`naming.md › Files`).
 - L5: a retry is a new Run of the user message whose Run is the chat's newest and failed; the
   rule reads the chat's newest Run alone, since only the newest user message ever gets a Run.
+- L6: a lab piece is at most 100 lines of code, its tests counted apart (rail 4).
+- L6: `runs.updated_at` stays: it shows when a Run's status or reply was last set.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
   to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 
@@ -188,7 +193,8 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   only the Run.
 - [Q:ai] L3: `runs.updated_at` has no reader in the L3-L5 Shapes: a stuck Run is found by
   `isStartedRun` when the worker takes it, not by its age, and the client polls the status. Drop
-  it, so the transitions take no time? Without it, nobody sees when a Run last moved.
+  it, so the transitions take no time? Without it, nobody sees when a Run last moved. Kept, on
+  the owner's word in L6: it shows when the status or the reply was last set.
 - [N:ai] L3: the composite FK makes a Run's message belong to its chat, but no key checks that the
   message is the user's: a Run on an assistant message passes the store. L4's use case builds a
   Run only from the user message it has just stored; the store stays without that check.
@@ -196,7 +202,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   Done: only `run.model.ts:102` keeps them (`git grep failureMessages`).
 - [N:ai] Rail 4 (`.claude/rules/lab.md`): a piece with a repository's e2e cannot stay within 100
   lines, since the test's setup alone takes about 50 (L3.2: 178 lines, L3.3: 185, L3.6: 220 with 126 of test). Count a piece's
-  tests apart from its code, as a plan step counts its docs? For the Right step.
+  tests apart from its code, as a plan step counts its docs? For the Right step. Done in L6.2.
 - [N:ai] L3.12: the chat's status is derived on each read from its newest Run, against
   `.claude/rules/deep-modules.md:61` (a value another table implies is a column the transactions
   move). The owner chose it; the rule or the design changes in the Right step (L6).
