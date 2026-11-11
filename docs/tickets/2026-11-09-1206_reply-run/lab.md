@@ -21,7 +21,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
 | L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
-| L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | in progress |
+| L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
 | L7 | Later: the items of the open list the owner picks | hard | build | todo |
 
@@ -86,142 +86,15 @@ e2e apps/e2e` (after the reply: both messages with the done Run), `make api-chec
 
 ## L5 — The retry, then the play
 
-Budget: waits for the owner
-
-### Shape
-
-API (`http-api/chat/chat.http.ts`):
-- `POST /chats/:chatId/messages/:messageId/runs` -> 202 a new Run; 404 for an unknown message;
-  409 unless it is the chat's last user message, its latest Run failed and no Run is active.
-
-### Notes
-
-[N:ai] Visible: the api e2e of a retry after a failed Run; then the owner plays the whole feature.
-[N:ai] The contract file is `http-api/chat/api-chat.http.ts` since L4.3.
-[N:ai] Names, on the owner's word: `RetryRunUseCase` in
-`application/use-cases/chat/retry-run.use-case.ts`, its method `retry` (span
-`'RetryRunUseCase.retry'`), the endpoint `retryRun`, the rule `ensureRunRetryable` in
-`application/chat/domain/run.model.ts`. The glossary's words: "a retry is a new Run of the same
-message"; `reply` and `attempt` are on its Avoid list.
-[N:ai] A retry writes no message: one new queued Run of the stored user message, through
-`RunService.create` (it takes the process's provenance, `application/chat/services/run.service.ts:31`),
-committed, then the job the send already sends, `GenerateAssistantMessage { chatId, runId }`
-(`application/chat/services/chat.queue.ts:11`). The worker stays as it is: it reads the Run by
-`runId`. The failed Run stays as the past try; it has no reply, so the history the model sees
-skips it (I assume, from the code; no test shows it yet).
-[N:ai] The 409s: an active Run is the send's `ChatBusyError`; the message not the chat's last
-user message, or its latest Run not `failed`, is one new `RunNotRetryableError` (proposed; its
-fields settle in the Shape at implement).
-[N:ai] Open for the five questions at implement: how the use case knows the message is the
-chat's last user message (the whole `MessageService.getMany`, or a narrower read), and what
-`ensureRunRetryable` takes.
-[N:ai] Budget: rail 4 asks one only in an unfamiliar area; L5 repeats the send's flow, so none
-is needed. I assume about 80 lines of code and 80 of tests, in 3-4 pieces.
-[N:ai] Not in L5, on the owner's word: a Run stuck `queued` (a refused send, an api crash between
-the commit and the send) keeps its chat busy, and the retry refuses it too; L7 takes it (Later).
-[N:ai] The pieces, proposed: (1) `ensureRunRetryable` and `RunNotRetryableError`, the rule's
-unit tests; (2) `RetryRunUseCase.retry`: the chat not busy, the message and its latest Run, the
-rule, `RunService.create` in a transaction, the send, its unit test; (3) the contract's
-`retryRun` with the error's twin, the handler, its test and `make api-snapshot`, the e2e of a
-retry after a failed Run; (4) the owner's play of the whole feature.
-
-[N:ai] The play, to repeat as is (the api on `API_PORT=3000` of `.env`; a shell's variable wins
-over `--env-file`, checked: `FOO=shell bun --env-file=<FOO=file> -e …` prints `shell`):
-
-```sh
-# first stop a running `make dev`: its api serves the routes it started with
-make reset && make up
-make dev-api                                      # terminal 1
-ANTHROPIC_API_KEY=invalid make dev-worker         # terminal 2: every Run fails, 401
-# terminal 3
-api=http://localhost:3000; jar=$(mktemp)
-curl -s -c $jar -X POST $api/users | jq
-chat=$(curl -s -b $jar -X POST $api/chats | jq -r .id)
-sent=$(curl -s -b $jar -X POST $api/chats/$chat/messages -H 'content-type: application/json' \
-  -d '{"text":"Plan a weekend in Lisbon","attachmentIds":[]}')
-echo $sent | jq                                   # 202, status queued
-run=$(echo $sent | jq -r .id); message=$(echo $sent | jq -r .userMessage.id)
-curl -s -b $jar $api/chats/$chat/runs/$run | jq   # repeat: queued, preparing, failed
-curl -s -b $jar $api/chats/$chat | jq .status     # "failed"
-# terminal 2: Ctrl-C, then `make dev-worker`, with the key of .env
-retried=$(curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs | jq -r .id)  # 202
-curl -s -b $jar $api/chats/$chat/runs/$retried | jq   # repeat: until done, with its reply
-curl -s -b $jar $api/chats/$chat/runs/$run | jq .status  # the first stays "failed"
-curl -s -b $jar $api/chats/$chat/messages | jq     # the reload: your message, then the reply
-curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs | jq  # 409 RunNotRetryableError
-```
-
-On the way: the title job fails with the bad key too, so the chat keeps no title. The bad key
-fails a reply at once, unretried: `Assistant.reply` through `AssistantLlmFromConfig` with
-`ANTHROPIC_API_KEY=invalid` gave `AssistantFailedError` (`InvalidKey … authentication_error`)
-in 0.4 s, as `AuthenticationError.isRetryable` is `false`
-(`repos/effect/packages/effect/src/ai/AiError.ts:658`).
-
-[D:ai] L5 review (Standards, hunt): the handler test "a retry of a message whose Run is not the
-newest failed one is 409 RunNotRetryableError" (`apps/api/__tests__/chat/chat.handler.test.ts:113`)
-repeats the rule `run.model.test.ts` covers, needs two sends, and so needs the clock to order
-them: `it.live` leaves a tie when both Runs fall in one millisecond, since a UUIDv7 holds only the
-millisecond and random bits (`effect/src/Crypto.ts:331`; shown: 0 failures in 20 runs, the tie
-itself unshown); `TestClock.adjust` is barred outside a test of a delay (`effect-tests.md`).
-Proposed: delete the test. Lost without it: a run of the 409 mapping, which `http-api/openapi.json`
-already pins through `make api-check`; the rule stays tested in `run.model.test.ts`.
-[N:ai] The owner's yes in the chat: the test goes in L5.11.
-
-[N:ai] The play, run by the agent on the owner's word, on a fresh `make reset && make up`, the
-api and the worker as `make dev-api` and `make dev-worker`: a send with the bad key answered 202
-queued, its Run went `preparing`, `generating`, `failed` (`ReplyFailed`, the sentence, no cause)
-within a second, the chat `failed`, the reload the message with that Run. With the worker back on
-the key of `.env`, the retry answered 202 queued; a second retry and a new send at once were
-409 `ChatBusyError`; the retried Run was `done` in 2 s with its reply, the first stayed `failed`,
-the chat `idle`, and the reload listed the message and the reply, both with the retried Run. A
-retry after `done`, of the reply's id, or of the first message after a second exchange was 409
-`RunNotRetryableError`; another user's retry 404 `MessageNotFoundError`. The follow-up's reply
-used the first reply as history. A send with an image in a new chat was `done` and titled.
-
-### Pieces
-
-<[N:ai] L5.1 <what it gives> · visible: <command or link>>
-
-[N:ai] L5.3 `ensureRunRetryable(newest, userMessageId)` and `RunNotRetryableError
-{ userMessageId }`: a retry takes the chat's newest Run when it failed and answers the message;
-no Run, a Run not failed, or one of another message is refused. It takes `chat.run`, not the
-chat's messages: only the newest user message ever gets a Run, so the newest Run's message is the
-chat's last user message, and the use case needs no `MessageService.getMany`.
-· visible: `bun --bun vitest run --project unit application/chat/__tests__/domain/run.model.test.ts`
-
-[N:ai] L5.4 `RetryRunUseCase.retry(userId, chatId, userMessageId)`: reads the message (its
-`MessageNotFoundError` first), then the chat through `ensureChatNotBusy` and `ensureRunRetryable`,
-stores one queued Run of the message with `RunService.create` and sends `GenerateAssistantMessage`;
-no transaction, since its one write is one insert. The Shape's route is the owner's
-`POST /chats/:chatId/messages/:messageId/runs` since this round. 72 lines of code and 80 of test:
-over rail 4's 100 once tests count, as the open Later item on rail 4 says.
-· visible: `bun --bun vitest run --project unit application/use-cases/__tests__/chat/retry-run.use-case.test.ts`
-
-[N:ai] L5.5 `retryRun`, `POST /chats/:chatId/messages/:messageId/runs` -> 202 `ApiRun`, with
-the contract's twin `RunNotRetryableError` (409) beside `MessageNotFoundError`, `ChatNotFoundError`
-and `ChatBusyError`; the handler and `RetryRunUseCase.layer` in `apps/api/layer.ts`. The e2e
-fails a Run (a check refuses the reply), drops the check, retries, and the reload lists the user
-message and its reply, both with the retried Run. 28 lines of code, 91 of test, 267 of the
-generated `openapi.json`.
-· visible: `bun --bun vitest run --project e2e apps/e2e` (the retry case),
-`bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`, `make api-check`
-
-[N:ai] L5.10 (REVIEW, Standards) `ensureRunRetryable` states `Effect.fn.Return<void,
-RunNotRetryableError>`, as `effect-services.md › Functions` asks of a function another unit
-composes (`ensureChatNotBusy` lacks it too, outside this range); the `it.live` comment of the
-handler test wraps at 100.
-
-[N:ai] L5.9 The handler test of `RunNotRetryableError` failed about one run in three: under
-`it.effect`'s TestClock both Runs stand at 0, and their UUIDv7 ids differ only in random bits, so
-which reads as the chat's newest is random. It runs `it.live` now: 0 failures in 30 runs, 2 in 6
-before.
-
-[N:ai] L5.11 (OWNER) The handler test of `RunNotRetryableError` goes, as the `[D:ai]` of the
-review proposed; the 409 stays pinned by `http-api/openapi.json`, the rule by `run.model.test.ts`.
-
 ### Output
 
-<Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
+`POST /chats/:chatId/messages/:messageId/runs` answers 202 with a new queued Run of the message
+when the chat's newest Run failed and answers it; a Run not failed or of another message is 409
+`RunNotRetryableError`, a Run in work 409 `ChatBusyError`, an unknown or another user's message
+404 `MessageNotFoundError`. The failed Run stays as the past try, and the model's history skips
+it. Visible: the play in L5's Notes, kept in git (a bad key fails the Run, the retry is done with
+its reply, the reload lists both messages with the retried Run), the e2e "a retry after a failed
+Run is answered by the worker…", `make check` (263 unit, 93 e2e).
 
 ## L6 — Right
 
@@ -254,6 +127,8 @@ review proposed; the 409 stays pinned by `http-api/openapi.json`, the rule by `r
   itself is, never an empty list.
 - L4: a contract group's files are `api-<name>.<role>.ts`, one `.model` and one `.error` per
   model as the domain splits them, the `.http` only the routes (`naming.md › Files`).
+- L5: a retry is a new Run of the user message whose Run is the chat's newest and failed; the
+  rule reads the chat's newest Run alone, since only the newest user message ever gets a Run.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
   to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 
