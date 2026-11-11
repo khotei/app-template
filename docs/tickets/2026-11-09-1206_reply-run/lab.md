@@ -103,6 +103,10 @@ name with its domain twin: `api-chat.http.ts`, `api-attachment.http.ts`, `api-he
 `api-user.http.ts`; `naming.md › Files` states it. Next, on the owner's word: `api-<model>.model.ts`
 (L4.4), `api-<model>.error.ts` (L4.5) out of `api-chat.http.ts`, the same for attachment (L4.6).
 · visible: `ls http-api/*/`.
+[N:ai] L4.4 (owner's word) the chat group's wire shapes leave `api-chat.http.ts` for
+`api-chat.model.ts`, `api-message.model.ts`, `api-run.model.ts` and `api-run-fields.model.ts`,
+as the domain splits them; the wire is unchanged (`make api-check` passes on the old snapshot).
+· visible: `ls http-api/chat/`, `make api-check`.
 
 ### Output
 

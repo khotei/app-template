@@ -25,7 +25,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 
 | Suffix | Role |
 |---|---|
-| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors; the contract declares its own in its `.http` files, under the domain's export names |
+| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors; the contract declares its own beside its `.http`, under the domain's export names |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<layer>-<model>.service.ts` for one layered over it, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
