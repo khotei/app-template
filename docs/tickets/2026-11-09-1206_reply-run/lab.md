@@ -112,6 +112,8 @@ is a proposal until the owner makes it `[D]`.
   the Run's status, written by each of its five moves in the Run's transaction; the derived one
   costs no query, since `Chat { run }` is already read (L3). Lost without the column: a query
   over chats by status needs the join.
+  - [N:ai] The owner, in the chat: A; the models use the function, and the web can derive the
+    status the same way. Done in L6.3.
 - [D:ai] 2. `naming.md` gains the verb the code already uses: `create`, a domain service's write
   that stores a new record (`ChatService.create`, `MessageService.create`, `RunService.create`,
   `application/chat/services/*.service.ts`), and a use case's step over it; `createUserMessage`
@@ -156,8 +158,9 @@ is a proposal until the owner makes it `[D]`.
   file keeps the one its author has.
 - L3: the Run names its reply (`runs.assistant_message_id`, unique, set exactly when `done`), so
   only `run.table.ts` imports `message.table.ts`, and a retry is a new Run of the same message.
-- L3: a chat's status is read from its newest Run, not a column: the owner's choice, against
-  `.claude/rules/deep-modules.md`; the rule or the design changes in L6.
+- L3, L6: a chat's status is read from its newest Run, not a column; `deep-modules.md` lets a
+  model function derive a value from the one row its read already nests
+  (`decisions.md › Status from the newest Run`).
 - L4: a list of another user's chat, or an unknown one, is `404 ChatNotFoundError`, as the chat
   itself is, never an empty list.
 - L4: a contract group's files are `api-<name>.<role>.ts`, one `.model` and one `.error` per
@@ -205,7 +208,8 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   tests apart from its code, as a plan step counts its docs? For the Right step. Done in L6.2.
 - [N:ai] L3.12: the chat's status is derived on each read from its newest Run, against
   `.claude/rules/deep-modules.md:61` (a value another table implies is a column the transactions
-  move). The owner chose it; the rule or the design changes in the Right step (L6).
+  move). The owner chose it; the rule or the design changes in the Right step (L6). Done in L6.3: the
+  rule narrowed, with its record.
 - [N:ai] L3.12: L1's Output said `message.table.ts` and `run.table.ts` import each other; Biome's
   `noImportCycles` refuses that. Done in L3.17: the Run names its reply
   (`runs.assistant_message_id`), so only `run.table.ts` imports `message.table.ts`. Correct the

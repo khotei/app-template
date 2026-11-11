@@ -61,6 +61,7 @@ return shipped                                           // the value built: no 
   `where` or `set` are one, taking them from the caller, with arguments as narrow as it uses.
 - A copy per model is one function over the varying part (an id maker given the brand).
 - A value another table implies is a column the transactions that change it move, not derived on
-  each read.
+  each read; one a model function derives from the one row its read already nests stays derived
+  ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
 - Plumbing is a pipeable, never `if (…) return yield* Effect.die(…)`; an import cycle is broken by
   widening a type, never by a new file.
