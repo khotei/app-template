@@ -9,7 +9,6 @@ import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildAssistantMessage, buildUserMessage, Message } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import {
-  ActiveRunStatus,
   buildRun,
   buildRunFailure,
   completeRun,
@@ -19,9 +18,8 @@ import {
   isStartedRun,
   prepareRun,
   Run,
-  RunFailure,
-  RunStatus,
 } from '#chat/domain/run.model'
+import { ActiveRunStatus, RunFailure, RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
@@ -146,7 +144,7 @@ describe.each([
       assertSchemaEquals(
         Schema.Option(RunFailure),
         failed.failure,
-        Option.some(new RunFailure({ reason, message: sentence, cause })),
+        Option.some({ reason, message: sentence, cause }),
       )
     }),
   )

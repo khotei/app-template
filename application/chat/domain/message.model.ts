@@ -10,13 +10,19 @@ import { MessageInputInvalidError } from '#chat/domain/message.error'
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-/** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
-export class Message extends Schema.Class<Message>('Message')({
+/** A message's own fields: what a Run nests of it. */
+export const MessageFields = Schema.Struct({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
+  /** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
   text: Schema.String,
   createdAt: Schema.DateTimeUtc,
+})
+export type MessageFields = typeof MessageFields.Type
+
+export class Message extends Schema.Class<Message>('Message')({
+  ...MessageFields.fields,
   /** Bound by the send, in upload order; the message's own writes never touch them. */
   attachments: Schema.Array(Attachment),
 }) {}

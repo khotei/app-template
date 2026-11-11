@@ -5,7 +5,8 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { MessageId } from '#chat/domain/chat.id'
 import { buildAssistantMessage } from '#chat/domain/message.model'
-import { Run, RunFailure, RunStatus } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
+import { type RunFailure, RunStatus } from '#chat/domain/run-fields.model'
 import { RunFromEntity } from '#chat/services/run.mapper'
 import { queuedRun } from '#testing/chat/chat.test-fixture'
 
@@ -21,7 +22,7 @@ const reply = buildAssistantMessage({
   createdAt: run.updatedAt,
 })
 
-const failure = new RunFailure({ reason: 'ReplyRefused', message: 'Declined', cause: 'refusal' })
+const failure: RunFailure = { reason: 'ReplyRefused', message: 'Declined', cause: 'refusal' }
 
 describe('RunFromEntity', () => {
   it.effect.each(

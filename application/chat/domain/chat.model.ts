@@ -6,7 +6,8 @@ import { maxTitleLength } from '@app-template/kernel/data'
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.id'
-import { Run, type RunStatus } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
+import type { RunStatus } from '#chat/domain/run-fields.model'
 import { Status } from '#chat/domain/status.model'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
@@ -21,16 +22,22 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-export class Chat extends Schema.Class<Chat>('Chat')({
+/** A chat's own fields: what a Run nests of it. */
+export const ChatFields = Schema.Struct({
   id: ChatId,
   userId: UserId,
-  title: Schema.Option(ChatTitle),
+  title: Schema.Option(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+})
+export type ChatFields = typeof ChatFields.Type
+
+export class Chat extends Schema.Class<Chat>('Chat')({
+  ...ChatFields.fields,
   /** Bound to the chat's messages, in upload order; the chat's own writes never touch them. */
   attachments: Schema.Array(Attachment),
   /** The newest Run, read with the chat; none before its first send. */
-  latestRun: Schema.Option(Run),
+  latestRun: Schema.Option(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 /** What a chat's newest Run makes of it; a chat no send has reached yet is `idle`. */
@@ -59,11 +66,4 @@ export const renameChat = (
 
 export const buildChat = (
   fields: Types.Simplify<Pick<Chat, 'id' | 'userId' | 'createdAt'>>,
-): Chat =>
-  new Chat({
-    ...fields,
-    title: Option.none(),
-    updatedAt: fields.createdAt,
-    attachments: [],
-    latestRun: Option.none(),
-  })
+): Chat => new Chat({ ...fields, updatedAt: fields.createdAt, attachments: [] })

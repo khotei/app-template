@@ -1,61 +1,30 @@
 import { type DateTime, Effect, Option, type Predicate, Schema, type Types } from 'effect'
 
-import { activeRunStatuses, runFailureReasons, runStatuses } from '@app-template/kernel/data'
+import { activeRunStatuses } from '@app-template/kernel/data'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
-import { ReplyProvenance } from '#chat/domain/assistant.port'
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { Message } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
-import { hasStatus, isPreparing, Status } from '#chat/domain/status.model'
-
-export const RunStatus = Status.pick(runStatuses)
-export type RunStatus = typeof RunStatus.Type
-
-export const ActiveRunStatus = RunStatus.pick(activeRunStatuses)
-export type ActiveRunStatus = typeof ActiveRunStatus.Type
-
-export const RunFailureReason = Schema.Literals(runFailureReasons)
-export type RunFailureReason = typeof RunFailureReason.Type
-
-export class RunFailure extends Schema.Class<RunFailure>('RunFailure')({
-  reason: RunFailureReason,
-  /** A user-facing sentence fixed per reason; it never quotes the cause. */
-  message: Schema.String,
-  /** Diagnostic detail for operators; it never leaves the api. */
-  cause: Schema.String,
-}) {}
+import {
+  type RunFailure,
+  type RunFailureReason,
+  RunFields,
+  type RunStatus,
+} from '#chat/domain/run-fields.model'
+import { hasStatus, isPreparing } from '#chat/domain/status.model'
 
 /** The work of answering one user message; a retry is a new Run of the same message. */
 export class Run extends Schema.Class<Run>('Run')({
-  id: RunId,
-  chatId: ChatId,
-  userMessageId: MessageId,
-  status: RunStatus,
-  failure: Schema.Option(RunFailure),
-  provenance: ReplyProvenance,
-  /** The reply's id, none until the Run is done. */
-  assistantMessageId: Schema.Option(MessageId),
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
+  ...RunFields.fields,
   /** Read with the Run; its writes never touch the messages. */
   userMessage: Message,
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.Option(Message),
+  assistantMessage: Schema.Option(Message).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 export const buildRun = (
   fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'provenance' | 'createdAt'>>,
-): Run =>
-  new Run({
-    ...fields,
-    userMessageId: fields.userMessage.id,
-    status: 'queued',
-    failure: Option.none(),
-    assistantMessageId: Option.none(),
-    updatedAt: fields.createdAt,
-    assistantMessage: Option.none(),
-  })
+): Run => new Run({ ...fields, userMessageId: fields.userMessage.id, updatedAt: fields.createdAt })
 
 export const isActiveRun = hasStatus(activeRunStatuses)
 
@@ -121,9 +90,7 @@ export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: Ru
   move(run, {
     to: 'failed',
     at,
-    patch: {
-      failure: Option.some(new RunFailure({ reason, message: failureMessages[reason], cause })),
-    },
+    patch: { failure: Option.some({ reason, message: failureMessages[reason], cause }) },
   }),
 )
 

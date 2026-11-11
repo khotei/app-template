@@ -4,7 +4,8 @@ import { RunEntity, RunEntityInsert } from '@app-template/kernel/data'
 import { decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import { Run, RunFailure } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
+import { RunFailure } from '#chat/domain/run-fields.model'
 import { MessageFromEntity } from '#chat/services/message.mapper'
 
 export const RunFromEntity = Schema.Struct({
@@ -12,7 +13,7 @@ export const RunFromEntity = Schema.Struct({
   id: RunId,
   chatId: ChatId,
   userMessageId: MessageId,
-  failure: Schema.OptionFromNullOr(Schema.toEncoded(RunFailure)),
+  failure: Schema.OptionFromNullOr(RunFailure),
   assistantMessageId: Schema.OptionFromNullOr(MessageId),
   createdAt: Schema.DateTimeUtcFromDate,
   updatedAt: Schema.DateTimeUtcFromDate,

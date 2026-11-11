@@ -12,7 +12,8 @@ import {
   ensureChatNotBusy,
   renameChat,
 } from '#chat/domain/chat.model'
-import { Run, type RunStatus } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
+import type { RunStatus } from '#chat/domain/run-fields.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
 const chatAt = (status: RunStatus) =>
