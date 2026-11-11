@@ -6,6 +6,7 @@ import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
+import { RunFields } from '#chat/domain/run-fields.model'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -25,6 +26,8 @@ export class Message extends Schema.Class<Message>('Message')({
   ...MessageFields.fields,
   /** Bound by the send, in upload order; the message's own writes never touch them. */
   attachments: Schema.Array(Attachment),
+  /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
+  run: Schema.Option(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 export interface MessageInput {

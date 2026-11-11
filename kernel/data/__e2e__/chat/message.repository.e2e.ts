@@ -8,15 +8,19 @@ import { attachments } from '#kernel/data/attachment/attachment.table'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
+import type { RunEntityInsert } from '#kernel/data/chat/run.entity'
+import { RunRepository } from '#kernel/data/chat/run.repository'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
 
 type AttachmentRow = typeof AttachmentEntity.Type
 
-const RepositoriesTest = Layer.mergeAll(ChatRepository.layer, MessageRepository.layer).pipe(
-  Layer.provideMerge(DbTest),
-)
+const RepositoriesTest = Layer.mergeAll(
+  ChatRepository.layer,
+  MessageRepository.layer,
+  RunRepository.layer,
+).pipe(Layer.provideMerge(DbTest))
 
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
 
@@ -48,6 +52,31 @@ const attachment = (
   size: 1024,
   createdAt: at(seconds),
 })
+
+const run = (
+  id: string,
+  answered: MessageEntity,
+  {
+    status = 'queued',
+    seconds = 0,
+  }: Partial<{ status: 'queued' | 'failed'; seconds: number }> = {},
+) =>
+  ({
+    id,
+    chatId: answered.chatId,
+    userMessageId: answered.id,
+    status,
+    provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
+    failure: (
+      {
+        queued: null,
+        failed: { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' },
+      } as const
+    )[status],
+    assistantMessageId: null,
+    createdAt: at(seconds),
+    updatedAt: at(seconds),
+  }) satisfies typeof RunEntityInsert.Type
 
 const Messages = Schema.Array(MessageEntity)
 
@@ -129,6 +158,35 @@ describe('MessageRepository', () => {
       assertSchemaEquals(SelectedMessage, yield* messages.selectOne({ chatId }), Option.some(first))
       assert.deepStrictEqual(yield* messages.selectOne({ chatId: empty }), Option.none())
     }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
+  it.effect(
+    "reads a user's message with the newest Run that answers it, a reply with the Run that wrote it",
+    () =>
+      Effect.gen(function* () {
+        const messages = yield* MessageRepository
+        const runs = yield* RunRepository
+        const chatId = '0192d4e0-7b3a-7c00-8000-000000000048'
+        const question = userMessage('0192d4e0-7b3a-7c00-8000-000000000060', { chatId })
+        const reply = {
+          ...userMessage('0192d4e0-7b3a-7c00-8000-000000000061', { chatId, seconds: 2 }),
+          author: 'assistant',
+          text: 'Hello',
+        } satisfies MessageEntity
+        const failed = run('0192d4e0-7b3a-7c00-8000-000000000070', question, { status: 'failed' })
+        const retry = run('0192d4e0-7b3a-7c00-8000-000000000071', question, { seconds: 1 })
+        const done = { ...retry, status: 'done', assistantMessageId: reply.id } as const
+        yield* insertOwnedChats([chatId])
+        yield* messages.insert(question)
+        yield* Effect.forEach([failed, retry], runs.insert)
+        yield* messages.insert(reply)
+        yield* runs.update(done, { id: retry.id, status: ['queued'] })
+
+        assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [
+          { ...question, run: done },
+          { ...reply, run: done },
+        ])
+      }).pipe(Effect.provide(RepositoriesTest)),
   )
 
   it.effect('reads a message back with its attachments in upload order, not the order sent', () =>

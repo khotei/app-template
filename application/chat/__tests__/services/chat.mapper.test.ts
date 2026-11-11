@@ -53,7 +53,11 @@ describe('MessageFromEntity', () => {
   ])('encodes a message by $name for messages and reads it back', ({ message }) =>
     Effect.gen(function* () {
       const row = yield* encodeMessage(message)
-      const read = yield* Schema.decodeUnknownEffect(MessageFromEntity)({ ...row, attachments: [] })
+      const read = yield* Schema.decodeUnknownEffect(MessageFromEntity)({
+        ...row,
+        attachments: [],
+        run: null,
+      })
 
       assertSchemaEquals(Message, read, message)
     }),

@@ -108,7 +108,7 @@ describe('CreateUserMessageUseCase', () => {
           }),
         )
         assertEquals(yield* selectMessages(chat.id), [
-          new Message({ ...userMessage, attachments: [bound] }),
+          new Message({ ...userMessage, attachments: [bound], run: Option.some(run) }),
         ])
         assertEquals(yield* selectAttachments([photo.id]), [bound])
         assertEquals(

@@ -69,6 +69,9 @@ const lastRun = buildRun({
   createdAt: attachmentsOnly.createdAt,
 })
 
+/** `lastRun` as the history reads it: prepared, at the test clock's start. */
+const preparing = new Run({ ...lastRun, status: 'preparing', updatedAt: epoch })
+
 const image = (
   id: string,
   { name, boundTo }: { readonly name: string; readonly boundTo: MessageId },
@@ -169,9 +172,10 @@ describe('GenerateAssistantMessageUseCase', () => {
             ),
           }),
         )
+        // Each message reads with the Run: the question's newest, the reply's own.
         assertEquals(yield* selectMessages(chatId), [
-          firstMessage,
-          new Message({ ...reply, attachments: [] }),
+          new Message({ ...firstMessage, run: Option.some(done) }),
+          new Message({ ...reply, attachments: [], run: Option.some(done) }),
         ])
         assert.deepStrictEqual(logs, [])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
@@ -237,7 +241,9 @@ describe('GenerateAssistantMessageUseCase', () => {
           { status: 'failed', failure: Option.some({ reason, cause: error.cause }) },
         )
         assert.strictEqual((yield* assistant.calls).length, 1)
-        assertEquals(yield* selectMessages(chatId), [firstMessage])
+        assertEquals(yield* selectMessages(chatId), [
+          new Message({ ...firstMessage, run: Option.some(run) }),
+        ])
       }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
     },
   )
@@ -264,7 +270,11 @@ describe('GenerateAssistantMessageUseCase', () => {
               { message: aPhoto, attachments: [] },
               { message: andAgain, attachments: [] },
               {
-                message: new Message({ ...attachmentsOnly, attachments: [sketch] }),
+                message: new Message({
+                  ...attachmentsOnly,
+                  attachments: [sketch],
+                  run: Option.some(preparing),
+                }),
                 attachments: [{ attachment: sketch, bytes: png }],
               },
             ],
@@ -290,7 +300,11 @@ describe('GenerateAssistantMessageUseCase', () => {
             method: 'reply',
             history: [
               {
-                message: new Message({ ...attachmentsOnly, attachments: [sketch] }),
+                message: new Message({
+                  ...attachmentsOnly,
+                  attachments: [sketch],
+                  run: Option.some(preparing),
+                }),
                 attachments: [],
               },
             ],
