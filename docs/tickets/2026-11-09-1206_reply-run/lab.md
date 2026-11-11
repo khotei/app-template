@@ -154,7 +154,8 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 
 - [N:ai] L2: a refused send, a crash or an aborted request between the commit and the send leaves
   the reply queued and its chat busy for good; the reply's Run has to settle it (L4).
-  `application/use-cases/chat/create-user-message.use-case.ts:152`, the `queue.send`.
+  `application/use-cases/chat/create-user-message.use-case.ts:152`, the `queue.send`. L4 left
+  it, and L5's retry refuses such a chat too (a Run is active): L7, on the owner's word.
 - [N:ai] L2: a queue body that does not decode is logged and acknowledged, so the work it named
   stays as it was (a queued reply keeps its chat busy). `packages/queue/queue.consumer.ts:49`,
   the `onFailure` arm.
