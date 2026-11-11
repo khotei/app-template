@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from 'effect'
+import { Cause, Context, DateTime, Effect, Layer, Option } from 'effect'
 
 import {
   type AttachmentBoundError,
@@ -9,10 +9,12 @@ import {
   type ChatNotFoundError,
   ChatService,
   chatTitleQueue,
+  encodeRun,
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
   FileAttachmentService,
+  failRun,
   GenerateAssistantMessage,
   GenerateChatTitle,
   Message,
@@ -20,18 +22,21 @@ import {
   type MessageInputInvalidError,
   MessageService,
   type Run,
+  RunNotQueuedError,
   RunService,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
+import { RunRepository } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
-import { QueueSender } from '@app-template/packages/queue'
+import { type QueueError, QueueSender } from '@app-template/packages/queue'
 
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
   {
     /**
      * Stores the user's message with its attachments bound and the queued Run that answers it,
-     * then sends its jobs; a send SQS refuses dies, leaving the Run queued.
+     * then sends its jobs: a reply's job SQS refuses fails the Run, `RunNotQueuedError`; a
+     * title's is logged.
      */
     readonly create: (
       userId: UserId,
@@ -44,6 +49,7 @@ export class CreateUserMessageUseCase extends Context.Service<
       | ChatBusyError
       | AttachmentNotFoundError
       | AttachmentBoundError
+      | RunNotQueuedError
     >
   }
 >()('@app-template/application/use-cases/chat/CreateUserMessageUseCase', {
@@ -52,6 +58,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     const fileAttachments = yield* FileAttachmentService
     const messageService = yield* MessageService
     const runService = yield* RunService
+    const runs = yield* RunRepository
     const queue = yield* QueueSender
     const transaction = yield* Transaction
 
@@ -69,6 +76,20 @@ export class CreateUserMessageUseCase extends Context.Service<
       const message = yield* messageService.create({ chatId, text: input.text })
       const attachments = yield* fileAttachments.bind(requested, message)
       return new Message({ ...message, attachments })
+    })
+
+    /** Fails the Run whose job SQS refused, so its message shows the failure and takes a retry. */
+    const failUnsent = Effect.fnUntraced(function* (run: Run, error: QueueError) {
+      const at = yield* DateTime.now
+      const failed = yield* failRun(run, {
+        reason: 'ReplyFailed',
+        cause: Cause.pretty(Cause.fail(error)),
+        at,
+      }).pipe(Effect.orDie)
+      yield* encodeRun(failed).pipe(
+        Effect.flatMap((row) => runs.update(row, { id: run.id, status: ['queued'] })),
+      )
+      return yield* new RunNotQueuedError({ id: run.id })
     })
 
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
@@ -89,12 +110,16 @@ export class CreateUserMessageUseCase extends Context.Service<
 
       yield* queue
         .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: run.id }))
-        .pipe(Effect.orDie)
+        .pipe(Effect.catchTag('QueueError', (error) => failUnsent(run, error)))
       // Every user message starts a Run, so a chat with none had no message before this one.
       if (Option.isNone(chat.run)) {
         yield* queue
           .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: run.userMessage.id }))
-          .pipe(Effect.orDie)
+          .pipe(
+            Effect.catchTag('QueueError', (error) =>
+              Effect.logError('chat title not queued', error),
+            ),
+          )
       }
       return run
     })

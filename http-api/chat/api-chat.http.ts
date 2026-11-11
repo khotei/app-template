@@ -9,7 +9,11 @@ import { ChatBusyError, ChatNotFoundError } from '#http-api/chat/api-chat.error'
 import { ApiChat, ChatTitle } from '#http-api/chat/api-chat.model'
 import { MessageInputInvalidError, MessageNotFoundError } from '#http-api/chat/api-message.error'
 import { ApiMessage } from '#http-api/chat/api-message.model'
-import { RunNotFoundError, RunNotRetryableError } from '#http-api/chat/api-run.error'
+import {
+  RunNotFoundError,
+  RunNotQueuedError,
+  RunNotRetryableError,
+} from '#http-api/chat/api-run.error'
 import { ApiRun } from '#http-api/chat/api-run.model'
 import { AttachmentId, ChatId, MessageId, RunId } from '#http-api/shared/ids'
 import * as limits from '#http-api/shared/limits'
@@ -57,6 +61,7 @@ export class ChatHttp extends HttpApiGroup.make('chats')
         ChatBusyError,
         AttachmentNotFoundError,
         AttachmentBoundError,
+        RunNotQueuedError,
       ],
     }),
     HttpApiEndpoint.post('retryRun', '/chats/:chatId/messages/:userMessageId/runs', {

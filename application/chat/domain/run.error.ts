@@ -16,3 +16,8 @@ export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableErro
   'RunNotRetryableError',
   { userMessageId: MessageId },
 ) {}
+
+export class RunNotQueuedError extends Schema.TaggedError<RunNotQueuedError>()(
+  'RunNotQueuedError',
+  { id: RunId },
+) {}

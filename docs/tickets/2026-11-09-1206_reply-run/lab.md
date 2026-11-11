@@ -160,7 +160,14 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
 - [N:ai] The first piece rewrites `decisions.md › Jobs as queue messages` (it rejects "a refused
   reply failed at once"), `layering.md`'s "a send SQS refuses dies" and `database.md › Stuck
   Runs`, and drops the L2.12 pair of `design-examples.md › The owner's stops`, whose stop the
-  owner reversed.
+  owner reversed. Moved to the retry's piece, so the record changes once both sends fail a Run.
+
+### Pieces
+
+- [N:ai] L8.2 a reply's job SQS refuses in `create` fails the Run with `ReplyFailed` and answers
+  `503 RunNotQueuedError { id }`; a title's is logged, and the send answers its queued Run
+  (47 lines of code, 60 of test) · visible: `bun --bun vitest run --project unit
+  application/use-cases/__tests__/chat/create-user-message.use-case.test.ts`
 
 ## Knowledge
 
@@ -292,3 +299,11 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   refused, keeping nothing" failed once in `make check` with 2 messages for 1, then passed in
   three runs of its file and the next `make check` (`apps/e2e/api/chat.e2e.ts:205`). I assume the
   worker answered the stored send before the count, so its reply was the second message. Open.
+- [N:ai] L8.2: a reply's job SQS refuses sends no title job either, so a first send refused this
+  way leaves its chat untitled, as the L5 play's title gap does
+  (`application/use-cases/chat/create-user-message.use-case.ts`, the `chatTitleQueue` send). Open.
+- [N:ai] L8.2: `failUnsent` lives in `create`, and the retry needs the same; the worker's
+  `settleFailed` makes a third copy of "fail the Run under its status"
+  (`application/use-cases/chat/generate-assistant-message.use-case.ts:120`). No folder holds a
+  function shared by use cases (`docs/knowledge/architecture.md › A use case`). For the retry's
+  piece.

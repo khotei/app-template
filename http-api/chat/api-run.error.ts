@@ -13,3 +13,9 @@ export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableErro
   { userMessageId: MessageId },
   { httpApiStatus: 409 },
 ) {}
+
+export class RunNotQueuedError extends Schema.TaggedError<RunNotQueuedError>()(
+  'RunNotQueuedError',
+  { id: RunId },
+  { httpApiStatus: 503 },
+) {}
