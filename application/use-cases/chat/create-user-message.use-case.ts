@@ -83,7 +83,7 @@ export class CreateUserMessageUseCase extends Context.Service<
 
       // The message, its bind and its Run commit together: a Run that loses the race keeps none.
       const run = yield* createUserMessage(userId, chatId, input).pipe(
-        Effect.flatMap(runService.create),
+        Effect.flatMap((message) => runService.create(chat, message)),
         transaction.run,
       )
 
@@ -93,7 +93,7 @@ export class CreateUserMessageUseCase extends Context.Service<
       // Every user message starts a Run, so a chat with none had no message before this one.
       if (Option.isNone(chat.run)) {
         yield* queue
-          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: run.userMessageId }))
+          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: run.userMessage.id }))
           .pipe(Effect.orDie)
       }
       return run

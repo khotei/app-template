@@ -93,7 +93,7 @@ describe('CreateUserMessageUseCase', () => {
           run,
           buildRun({
             id: run.id,
-            chatId: chat.id,
+            chat: { ...chat, title: Option.some(ChatTitle.make('Trip')) },
             userMessage: new Message({
               ...buildUserMessage({
                 id: userMessage.id,

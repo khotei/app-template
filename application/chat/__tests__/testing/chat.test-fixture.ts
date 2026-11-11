@@ -43,7 +43,7 @@ export const assistantMessageAt = (n: number, text: string) =>
 /** The Run a send of `firstMessage` queues. */
 export const queuedRun = buildRun({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
-  chatId,
+  chat,
   userMessage: firstMessage,
   provenance: replyProvenance,
   createdAt: epoch,

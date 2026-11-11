@@ -3,6 +3,7 @@ import { type DateTime, Effect, Option, type Predicate, Schema, type Types } fro
 import { activeRunStatuses } from '@app-template/kernel/data'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
+import { ChatFields } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import {
@@ -13,18 +14,27 @@ import {
 } from '#chat/domain/run-fields.model'
 import { hasStatus, isPreparing } from '#chat/domain/status.model'
 
-/** The work of answering one user message; a retry is a new Run of the same message. */
+/**
+ * The work of answering one user message; a retry is a new Run of the same message. Read with
+ * its chat and its messages; its writes never touch them.
+ */
 export class Run extends Schema.Class<Run>('Run')({
   ...RunFields.fields,
-  /** Read with the Run; its writes never touch the messages. */
+  chat: ChatFields,
   userMessage: Message,
   /** The reply, none until the Run is done. */
   assistantMessage: Schema.Option(Message).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 export const buildRun = (
-  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'provenance' | 'createdAt'>>,
-): Run => new Run({ ...fields, userMessageId: fields.userMessage.id, updatedAt: fields.createdAt })
+  fields: Types.Simplify<Pick<Run, 'id' | 'chat' | 'userMessage' | 'provenance' | 'createdAt'>>,
+): Run =>
+  new Run({
+    ...fields,
+    chatId: fields.chat.id,
+    userMessageId: fields.userMessage.id,
+    updatedAt: fields.createdAt,
+  })
 
 export const isActiveRun = hasStatus(activeRunStatuses)
 

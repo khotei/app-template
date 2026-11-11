@@ -3,7 +3,7 @@ import { Effect, Exit, Layer, Option, Schema, Struct, type Types } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { chats } from '#kernel/data/chat/chat.table'
+import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
 import type { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { messages } from '#kernel/data/chat/message.table'
@@ -24,6 +24,8 @@ const updatedAt = createdAt
 const userId = '0192d4e0-7b3a-7c00-8000-0000000000a0'
 const chatId = '0192d4e0-7b3a-7c00-8000-0000000000a1'
 const userMessageId = '0192d4e0-7b3a-7c00-8000-0000000000a2'
+
+const chat = { id: chatId, userId, title: null, createdAt, updatedAt } satisfies ChatColumns
 
 const userMessage = {
   id: userMessageId,
@@ -52,9 +54,10 @@ const run = (
   ...fields,
 })
 
-/** `row` as a read nests its messages, the reply none unless given. */
+/** `row` as a read nests its chat and its messages, the reply none unless given. */
 const read = (row: RunRow, assistantMessage: MessageEntity | null = null): RunEntity => ({
   ...row,
+  chat,
   userMessage,
   assistantMessage,
 })
@@ -68,9 +71,7 @@ const insertUserMessage = Db.use((db) =>
     .insert(users)
     .values({ id: userId, createdAt: new Date(0) })
     .pipe(
-      Effect.andThen(
-        db.insert(chats).values({ id: chatId, userId, title: null, createdAt, updatedAt }),
-      ),
+      Effect.andThen(db.insert(chats).values(chat)),
       Effect.andThen(db.insert(messages).values(Struct.omit(userMessage, ['attachments']))),
     ),
 )
@@ -135,29 +136,31 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('selectOne nests the message the Run answers and, once written, its reply', () =>
-    Effect.gen(function* () {
-      const runs = yield* RunRepository
-      const messages = yield* MessageRepository
-      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a8')
-      const reply = {
-        ...userMessage,
-        id: '0192d4e0-7b3a-7c00-8000-0000000000a9',
-        author: 'assistant',
-        text: 'Hello',
-      } satisfies MessageEntity
-      yield* insertUserMessage
-      yield* runs.insert(queued)
+  it.effect(
+    'selectOne nests the chat, the message the Run answers and, once written, its reply',
+    () =>
+      Effect.gen(function* () {
+        const runs = yield* RunRepository
+        const messages = yield* MessageRepository
+        const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a8')
+        const reply = {
+          ...userMessage,
+          id: '0192d4e0-7b3a-7c00-8000-0000000000a9',
+          author: 'assistant',
+          text: 'Hello',
+        } satisfies MessageEntity
+        yield* insertUserMessage
+        yield* runs.insert(queued)
 
-      yield* messages.insert(Struct.omit(reply, ['attachments']))
-      const done = { status: 'done', assistantMessageId: reply.id } as const
-      yield* runs.update(done, { id: queued.id, status: ['queued'] })
+        yield* messages.insert(Struct.omit(reply, ['attachments']))
+        const done = { status: 'done', assistantMessageId: reply.id } as const
+        yield* runs.update(done, { id: queued.id, status: ['queued'] })
 
-      assertSchemaEquals(
-        SelectedRun,
-        yield* runs.selectOne({ id: queued.id }),
-        Option.some(read(run(queued.id, done), reply)),
-      )
-    }).pipe(Effect.provide(RepositoryTest)),
+        assertSchemaEquals(
+          SelectedRun,
+          yield* runs.selectOne({ id: queued.id }),
+          Option.some(read(run(queued.id, done), reply)),
+        )
+      }).pipe(Effect.provide(RepositoryTest)),
   )
 })

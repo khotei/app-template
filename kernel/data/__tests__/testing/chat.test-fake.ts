@@ -137,11 +137,12 @@ const withAttachmentsOf =
     ),
   })
 
-/** The Run with its messages, as `withMessages` nests them; its foreign key keeps the first. */
+/** The Run with its chat and its messages, as `withChatAndMessages` nests them; the keys keep them. */
 const withMessagesOf =
   (rows: Tables) =>
   (run: RunRow): RunEntity => ({
     ...run,
+    chat: pipe(HashMap.get(rows.chats, run.chatId), Option.getOrThrow),
     userMessage: pipe(
       HashMap.get(rows.messages, run.userMessageId),
       Option.getOrThrow,

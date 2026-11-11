@@ -161,6 +161,7 @@ chat's title beside a Run reads the chat by `run.chatId`.
 [N:ai] L3.20 `RunFields`, `MessageFields` and `ChatFields` hold each model's own fields and the classes spread them; `status` and every `Option` field take a constructor default, so the builders list none; `RunFields` sits in `run-fields.model.ts`, since `noImportCycles` refuses the Run and the message nesting each other in one file · visible: `make check`
 [N:ai] L3.21 `RunFieldsFromColumns`, `MessageFieldsFromColumns` and `ChatFieldsFromColumns` lay each model's own fields over its columns; the writes encode through them, since a write holds a model's own fields only; `run-fields.mapper.ts`, the same cut as the models · visible: `make check`
 [N:ai] L3.22 The chat nests its newest Run flat: `ChatEntity.run` is the Run's columns, read `with: { run: { orderBy: newestFirst } }`, and `Chat.run` is `Option<RunFields>`; relation, field and `with` all named `run` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/chat.repository.e2e.ts`
+[N:ai] L3.23 The Run nests its chat: `RunEntity.chat` (`runs.chat`, `optional: false`), `Run.chat` is `ChatFields`; `RunService.create(chat, userMessage)` builds the Run from what the send holds, so the value built equals the value read back · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts`
 
 ### Output
 

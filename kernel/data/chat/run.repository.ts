@@ -13,11 +13,12 @@ import {
 
 import { chats } from '#kernel/data/chat/chat.table'
 import {
+  newestFirst,
   RunEntity,
   type RunEntityInsert,
   type RunEntitySet,
   type RunEntityWhere,
-  withMessages,
+  withChatAndMessages,
 } from '#kernel/data/chat/run.entity'
 import { activeRun, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
@@ -84,8 +85,8 @@ export class RunRepository extends Context.Service<
             db.query.runs
               .findFirst({
                 where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
-                orderBy: { createdAt: 'desc', id: 'desc' },
-                with: withMessages,
+                orderBy: newestFirst,
+                with: withChatAndMessages,
               })
               .pipe(Effect.flatMap(decodeOptionalRow(RunEntity))),
           orDieWithSqlError,
