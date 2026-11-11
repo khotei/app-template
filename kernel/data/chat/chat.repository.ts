@@ -25,7 +25,7 @@ import {
   type ChatEntityInsert,
   type ChatEntitySet,
   type ChatEntityWhere,
-  withLatestRun,
+  withRun,
 } from '#kernel/data/chat/chat.entity'
 import { chats } from '#kernel/data/chat/chat.table'
 import { withAttachments } from '#kernel/data/chat/message.entity'
@@ -48,7 +48,7 @@ const encodeWhere = (table: typeof chats) =>
 const select = (where: ChatEntityWhere) =>
   ({
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
-    with: { ...withAttachments, ...withLatestRun },
+    with: { ...withAttachments, ...withRun },
   }) as const
 
 const decodeChats = Schema.decodeEffect(Schema.Array(ChatEntity))

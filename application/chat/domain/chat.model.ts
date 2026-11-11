@@ -6,8 +6,7 @@ import { maxTitleLength } from '@app-template/kernel/data'
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.id'
-import { Run } from '#chat/domain/run.model'
-import type { RunStatus } from '#chat/domain/run-fields.model'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { Status } from '#chat/domain/status.model'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
@@ -36,8 +35,8 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   ...ChatFields.fields,
   /** Bound to the chat's messages, in upload order; the chat's own writes never touch them. */
   attachments: Schema.Array(Attachment),
-  /** The newest Run, read with the chat; none before its first send. */
-  latestRun: Schema.Option(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  /** The newest Run, flat, read with the chat and never written; none before its first send. */
+  run: Schema.Option(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 /** What a chat's newest Run makes of it; a chat no send has reached yet is `idle`. */
@@ -50,7 +49,7 @@ const chatStatuses = {
 } as const satisfies Record<RunStatus, ChatStatus>
 
 export const buildChatStatus = (chat: Chat): ChatStatus =>
-  Option.match(chat.latestRun, { onNone: () => 'idle', onSome: (run) => chatStatuses[run.status] })
+  Option.match(chat.run, { onNone: () => 'idle', onSome: (run) => chatStatuses[run.status] })
 
 /** A send takes a chat with no Run in work; one with a Run in work is `ChatBusyError`. */
 export const ensureChatNotBusy = Effect.fn('ensureChatNotBusy')(function* (chat: Chat) {

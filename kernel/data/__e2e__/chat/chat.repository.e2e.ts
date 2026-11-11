@@ -32,7 +32,7 @@ const chat = (id: string, userId: string): ChatEntity => ({
   createdAt,
   updatedAt: createdAt,
   attachments: [],
-  latestRun: null,
+  run: null,
 })
 
 const question = (id: string, chatId: string): MessageEntity => ({
@@ -147,7 +147,7 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect('selects a chat with its newest Run and the message it answers', () =>
+  it.effect('selects a chat with its newest Run, flat', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const messages = yield* MessageRepository
@@ -165,10 +165,7 @@ describe('ChatRepository', () => {
       assertSchemaEquals(
         SelectedChat,
         yield* chats.selectOne({ id: asked.id }),
-        Option.some({
-          ...asked,
-          latestRun: { ...newer, userMessage: first, assistantMessage: null },
-        }),
+        Option.some({ ...asked, run: newer }),
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )

@@ -28,6 +28,8 @@ export type RunEntitySet = Types.Simplify<
   RequireAtLeastOne<Pick<RunEntity, 'status' | 'failure' | 'assistantMessageId' | 'updatedAt'>>
 >
 
+export const newestFirst = { createdAt: 'desc', id: 'desc' } as const
+
 export const withMessages = {
   userMessage: { with: withAttachments },
   assistantMessage: { with: withAttachments },

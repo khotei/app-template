@@ -16,8 +16,8 @@ export const relations = defineRelations(
     chats: {
       messages: r.many.messages({ from: r.chats.id, to: r.messages.chatId }),
       attachments: r.many.attachments({ from: r.chats.id, to: r.attachments.chatId }),
-      // One of many, so a read orders it (`withLatestRun`): one lateral join.
-      latestRun: r.one.runs({ from: r.chats.id, to: r.runs.chatId }),
+      // One of many, so a read orders it (`withRun` in `chat.entity.ts`): one lateral join.
+      run: r.one.runs({ from: r.chats.id, to: r.runs.chatId }),
     },
     messages: {
       chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),

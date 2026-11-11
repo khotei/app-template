@@ -91,7 +91,7 @@ export class CreateUserMessageUseCase extends Context.Service<
         .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: run.id }))
         .pipe(Effect.orDie)
       // Every user message starts a Run, so a chat with none had no message before this one.
-      if (Option.isNone(chat.latestRun)) {
+      if (Option.isNone(chat.run)) {
         yield* queue
           .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: run.userMessageId }))
           .pipe(Effect.orDie)

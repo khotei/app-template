@@ -12,12 +12,11 @@ import {
   ensureChatNotBusy,
   renameChat,
 } from '#chat/domain/chat.model'
-import { Run } from '#chat/domain/run.model'
 import type { RunStatus } from '#chat/domain/run-fields.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
 const chatAt = (status: RunStatus) =>
-  new Chat({ ...chat, latestRun: Option.some(new Run({ ...queuedRun, status })) })
+  new Chat({ ...chat, run: Option.some({ ...queuedRun, status }) })
 
 describe('buildChatStatus', () => {
   it('reads a chat no send has reached as idle', () => {

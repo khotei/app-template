@@ -18,7 +18,7 @@ import { constTrue } from 'effect/Function'
 import { orDieUnless } from '@app-template/packages/db'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import type { ChatEntityWhere } from '#kernel/data/chat/chat.entity'
+import type { ChatEntity, ChatEntityWhere } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
 import type { MessageEntity, MessageEntityWhere } from '#kernel/data/chat/message.entity'
@@ -155,6 +155,12 @@ const withMessagesOf =
     ),
   })
 
+/** The newest Run where `where` holds, as a `one` relation ordered `newestFirst` reads it. */
+const newestRunWhere = (
+  runs: HashMap.HashMap<string, RunRow>,
+  where: Predicate.Predicate<RunRow>,
+) => pipe(inCreationOrderWhere(runs, where), Arr.last)
+
 const runsWhere = (rows: Tables, where: Predicate.Predicate<RunRow>) =>
   pipe(inCreationOrderWhere(rows.runs, where), Arr.map(withMessagesOf(rows)))
 
@@ -204,18 +210,19 @@ export const ChatRepositoryTest = Layer.effect(
             HashMap.filter(holdsChatWhere(where)),
             HashMap.toValues,
             Arr.sort(newestFirst),
-            Arr.map((chat) => ({
-              ...chat,
-              attachments: inCreationOrderWhere(
-                rows.attachments,
-                matches<AttachmentEntity>({ chatId: chat.id }),
-              ),
-              latestRun: pipe(
-                runsWhere(rows, matches<RunRow>({ chatId: chat.id })),
-                Arr.last,
-                Option.getOrNull,
-              ),
-            })),
+            Arr.map(
+              (chat): ChatEntity => ({
+                ...chat,
+                attachments: inCreationOrderWhere(
+                  rows.attachments,
+                  matches<AttachmentEntity>({ chatId: chat.id }),
+                ),
+                run: pipe(
+                  newestRunWhere(rows.runs, matches<RunRow>({ chatId: chat.id })),
+                  Option.getOrNull,
+                ),
+              }),
+            ),
           ),
         ),
       )

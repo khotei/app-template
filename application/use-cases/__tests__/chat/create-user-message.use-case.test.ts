@@ -116,7 +116,7 @@ describe('CreateUserMessageUseCase', () => {
               ...chat,
               title: Option.some(ChatTitle.make('Trip')),
               attachments: [bound],
-              latestRun: Option.some(run),
+              run: Option.some(run),
             }),
           ),
         )

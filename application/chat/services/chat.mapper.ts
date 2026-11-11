@@ -7,7 +7,7 @@ import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template
 import { ChatId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { AttachmentFromEntity } from '#chat/services/attachment.mapper'
-import { RunFromEntity } from '#chat/services/run.mapper'
+import { RunFieldsFromColumns } from '#chat/services/run-fields.mapper'
 
 export const ChatFieldsFromColumns = Schema.Struct({
   ...ChatColumns.fields,
@@ -22,7 +22,7 @@ export const ChatFromEntity = Schema.Struct({
   ...ChatFieldsFromColumns.fields,
   // A nested class is laid by its encoded side, since encoding the parent hands it plain fields.
   attachments: Schema.Array(AttachmentFromEntity.from),
-  latestRun: Schema.OptionFromNullOr(RunFromEntity.from),
+  run: Schema.OptionFromNullOr(RunFieldsFromColumns),
 }).pipe(Schema.decodeTo(Chat))
 
 /** Encodes a chat's own fields as its row; its attachments and Run are read, never written. */
