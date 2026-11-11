@@ -4,7 +4,7 @@ import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 import {
   AttachmentBoundError,
   AttachmentNotFoundError,
-} from '#http-api/attachment/api-attachment.http'
+} from '#http-api/attachment/api-attachment.error'
 import { ChatBusyError, ChatNotFoundError } from '#http-api/chat/api-chat.error'
 import { ApiChat, ChatTitle } from '#http-api/chat/api-chat.model'
 import { MessageInputInvalidError, MessageNotFoundError } from '#http-api/chat/api-message.error'

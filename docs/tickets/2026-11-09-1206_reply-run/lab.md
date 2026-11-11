@@ -111,6 +111,11 @@ as the domain splits them; the wire is unchanged (`make api-check` passes on the
 `api-chat.error.ts`, `api-message.error.ts` and `api-run.error.ts`, as the domain splits them;
 the `.http` keeps only the routes, and the wire is unchanged. · visible: `ls http-api/chat/`,
 `make api-check`.
+[N:ai] L4.6 (owner's word) the attachment group splits the same way: `api-attachment.model.ts`,
+`api-attachment.error.ts`, the `.http` only the routes; `AttachmentTooLargeError` and
+`AttachmentTypeUnsupportedError`, wire-only and the upload's alone, move there from
+`shared/errors.ts`, which keeps `RequestInvalidError` for every group. · visible:
+`ls http-api/attachment/`, `make api-check`.
 
 ### Output
 

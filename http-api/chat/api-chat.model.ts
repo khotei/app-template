@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { ApiAttachment } from '#http-api/attachment/api-attachment.http'
+import { ApiAttachment } from '#http-api/attachment/api-attachment.model'
 import { ChatId, UserId } from '#http-api/shared/ids'
 import * as limits from '#http-api/shared/limits'
 

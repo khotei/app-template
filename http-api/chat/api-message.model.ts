@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { ApiAttachment } from '#http-api/attachment/api-attachment.http'
+import { ApiAttachment } from '#http-api/attachment/api-attachment.model'
 import { ApiRunFields } from '#http-api/chat/api-run-fields.model'
 import { ChatId, MessageId } from '#http-api/shared/ids'
 

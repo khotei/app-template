@@ -12,15 +12,3 @@ export class RequestInvalidError extends Schema.TaggedError<RequestInvalidError>
   { issues: Schema.Array(RequestIssue) },
   { httpApiStatus: 400 },
 ) {}
-
-export class AttachmentTooLargeError extends Schema.TaggedError<AttachmentTooLargeError>()(
-  'AttachmentTooLargeError',
-  {},
-  { httpApiStatus: 413 },
-) {}
-
-export class AttachmentTypeUnsupportedError extends Schema.TaggedError<AttachmentTypeUnsupportedError>()(
-  'AttachmentTypeUnsupportedError',
-  {},
-  { httpApiStatus: 415 },
-) {}
