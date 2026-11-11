@@ -159,6 +159,7 @@ chat's title beside a Run reads the chat by `run.chatId`.
 [N:ai] L3.17 (OWNER) `runs` in its own `run.table.ts`; the Run names its reply by `assistant_message_id` (`runs_assistant_message_id_check`, `_unique`), `messages` loses `run_id`; e2e for both checks, `runs_failure_check` and the key over the message and its chat · visible: `make check` (251 unit, 90 e2e)
 [N:ai] L3.19 `RunColumns`, `MessageColumns` and `ChatColumns` (`createSelectSchema`) move from the entity files to the table files, which form a DAG, so an entity nests a neighbour's columns without an import cycle; no shape changes · visible: `make check`
 [N:ai] L3.20 `RunFields`, `MessageFields` and `ChatFields` hold each model's own fields and the classes spread them; `status` and every `Option` field take a constructor default, so the builders list none; `RunFields` sits in `run-fields.model.ts`, since `noImportCycles` refuses the Run and the message nesting each other in one file · visible: `make check`
+[N:ai] L3.21 `RunFieldsFromColumns`, `MessageFieldsFromColumns` and `ChatFieldsFromColumns` lay each model's own fields over its columns; the writes encode through them, since a write holds a model's own fields only; `run-fields.mapper.ts`, the same cut as the models · visible: `make check`
 
 ### Output
 
