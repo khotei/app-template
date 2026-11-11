@@ -22,7 +22,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
-| L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | in progress |
+| L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | done |
 | L7 | Errors with context: what each error carries, and where more of it would help the client, the log or the operator | right | — | todo |
 | L8 | Later: the items of the open list the owner picks | hard | build | todo |
 
@@ -99,75 +99,22 @@ Run is answered by the worker…", `make check` (263 unit, 93 e2e).
 
 ## L6 — Right
 
-<What the play and the reviews of L3-L5 change in the decisions, design and architecture.>
+### Output
 
-### Notes
-
-The candidates from Later that the play and the reviews left for the Right step; each `[D:ai]`
-is a proposal until the owner makes it `[D]`.
-
-- [D:ai] 1. The chat's status stays derived from its newest Run (`buildChatStatus`,
-  `application/chat/domain/chat.model.ts:51`), and the rule narrows: a value read from the one
-  row a read already nests is derived, not a column (`.claude/rules/deep-modules.md:63`, with
-  its record in `docs/knowledge/decisions.md`). A `chats.status` column would be a second copy of
-  the Run's status, written by each of its moves in the Run's transaction; the derived one
-  costs no query, since `Chat { run }` is already read (L3). Lost without the column: a query
-  over chats by status needs the join.
-  - [N:ai] The owner, in the chat: A; the models use the function, and the web can derive the
-    status the same way. Done in L6.3.
-- [D:ai] 2. `naming.md` gains the verb the code already uses: `create`, a domain service's write
-  that stores a new record (`ChatService.create`, `MessageService.create`, `RunService.create`,
-  `application/chat/services/*.service.ts`), and a use case's step over it; `createUserMessage`
-  (`application/use-cases/chat/create-user-message.use-case.ts:59`) keeps its name. The factory
-  arm stays: a factory takes dependencies, a write takes the record's fields.
-  - [N:ai] The owner, in the chat: A. Done in L6.4.
-- [D:ai] 3. `buildApiRun` drops its pick of the failure (`apps/api/chat/chat.mapper.ts:20`): the
-  wire schema already drops `cause` on encode (L4.1's run of the deletion test).
-  - [N:ai] The owner, in the chat: ok. Done in L6.5.
-- [D:ai] 4. `runs.updated_at` goes, with `ApiRunFields.updatedAt`
-  (`http-api/chat/api-run-fields.model.ts:25`): no code reads it (`git grep updatedAt` over
-  `apps`, `application/use-cases`, `http-api` finds only the wire field), and no client yet. Lost:
-  the time a Run last moved; a stuck Run (L8) would want it back, or its own column.
-- [D:ai] 5. `README.md:26-49` tells the Run flow: a send answers its Run, the worker moves it,
-  a reload reads `GET /chats/:chatId/messages`, a failed Run takes a retry.
-  - [N:ai] The owner, in the chat: ok. Done in L6.6.
-- [D:ai] 6. Rail 4 (`.claude/rules/lab.md:55`) counts a piece's tests apart from its code, as a
-  plan step counts its docs: a piece with a repository's e2e passed 100 lines in each of L3.2,
-  L3.3 and L3.6 on the test's setup alone.
-  - [N:ai] The owner, in the chat: yes. Done in L6.2.
-- [N:ai] The owner, in the chat, on 4: `runs.updated_at` stays, since it shows when the status
-  or the reply was last set.
-- [N:ai] The owner, in the chat: nothing on the wire says the retry's id is the user message's;
-  an assistant's id answered `409 RunNotRetryableError` with that id as `userMessageId`. The
-  owner chose B: the path names `:userMessageId`, and the retry reads the message with
-  `author: 'user'`, so an assistant's id is `404 MessageNotFoundError { id, author: 'user' }`.
-  Done in L6.8.
-- [D:ai] To L8, as edge cases and error paths: the title lost after a failed first Run, the two
-  retry races, `MessageService.getMany`'s two queries, the memory fakes' missing keys and
-  `TransactionTest`, the `--hot` route `404`.
-
-### Pieces
-
-- [N:ai] L6.5 `buildApiRun` hands the Run as it is, as `buildApiUser` does; the wire schema drops
-  the failure's `cause` · visible: `bun --bun vitest run --project unit
-  apps/api/__tests__/chat/chat.handler.test.ts` (no `cause` on the Run's and the message's wire)
-- [N:ai] L6.6 `README.md › What the example does` tells the Run flow: the send answers its Run,
-  the worker moves it, the poll, the reload and the retry · visible: the README's sequence diagram
-- [N:ai] L6.8 the retry's path names `:userMessageId`; `MessageNotFoundError` carries the
-  `author` its read asked for (`null` when none), and the retry asks for `'user'`, so an
-  assistant's id is `404 { id, author: 'user' }`; a message's `where` takes `author` · visible:
-  `bun --bun vitest run --project unit application/use-cases/__tests__/chat/retry-run.use-case.test.ts
-  application/chat/__tests__/services/message.service.test.ts`, `make api-check`
-- [N:ai] L6.10 review: a repository e2e for the `author` filter the memory fake copies
-  (`kernel/data/__e2e__/chat/message.repository.e2e.ts`, Standards and hunt); rail 4 says "tests
-  counted apart" and "stops and asks" again (`.claude/rules/lab.md:55`); `create<Thing>`
-  names what each meaning takes (`.claude/rules/naming.md:48`); the record of the chat's status
-  counts no moves (`docs/knowledge/decisions.md › Status from the newest Run`); Knowledge keeps
-  L6.8's choice
-- [N:ai] L6.7 review: the README's shell walkthrough polls the Run, then reads the chat's messages
-  (`README.md:84`, hunt, shown); the lab skill names rail 4 instead of restating it
-  (`.claude/skills/lab/SKILL.md:59`); the record of the chat's status cites the lab, not its rounds
-  (`docs/knowledge/decisions.md › Status from the newest Run`)
+The chat's status stays derived from its newest Run, and `deep-modules.md` lets a model function
+derive a value from the one row its read already nests (`decisions.md › Status from the newest
+Run`). `naming.md`'s `create<Thing>` names a write that stores a new record beside a factory;
+rail 4 counts a piece's tests apart. `buildApiRun` hands the Run as it is, and the wire schema
+drops the failure's `cause`. `runs.updated_at` stays. The retry's path names `:userMessageId`
+and reads the message with `author: 'user'`: an assistant's id is `404 MessageNotFoundError
+{ id, author: 'user' }`, the error carrying the `author` its read asked for (`null` when none).
+`README.md › What the example does` tells the Run flow and polls the Run. The race, title and
+fake gaps the reviews found stay in Later for L8.
+Visible: `bun --bun vitest run --project unit
+application/use-cases/__tests__/chat/retry-run.use-case.test.ts
+apps/api/__tests__/chat/chat.handler.test.ts`, `bun --bun vitest run --project e2e apps/e2e
+kernel/data/__e2e__/chat/message.repository.e2e.ts` (an assistant's id asked as a user's is
+none), the README's sequence diagram; `make check` (265 unit, 94 e2e).
 
 ## L7 — Errors with context
 
