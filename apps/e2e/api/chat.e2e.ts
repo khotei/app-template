@@ -124,6 +124,34 @@ describe('the journey over both app layers', { concurrent: false }, () => {
       30_000,
     )
 
+    it.effect(
+      "a reload after the reply lists the chat's two messages with the Run that answered",
+      () =>
+        Effect.gen(function* () {
+          const api = yield* ApiClient
+          yield* api.users.ensure()
+          const chat = yield* api.chats.create()
+          const sent = yield* api.chats.createMessage({
+            params: { chatId: chat.id },
+            payload: { text: 'Hello', attachmentIds: [] },
+          })
+          yield* pollSettledRun(chat.id, sent.id)
+
+          const reloaded = yield* api.chats.listMessages({ params: { chatId: chat.id } })
+
+          assert.deepStrictEqual(
+            Arr.map(reloaded, ({ author, run }) => [
+              author,
+              Option.map(run, ({ id, status }) => ({ id, status })),
+            ]),
+            [
+              ['user', Option.some({ id: sent.id, status: 'done' })],
+              ['assistant', Option.some({ id: sent.id, status: 'done' })],
+            ],
+          )
+        }),
+    )
+
     it.effect('a send with a stale attachment id keeps no message and no job', () =>
       Effect.gen(function* () {
         const api = yield* ApiClient

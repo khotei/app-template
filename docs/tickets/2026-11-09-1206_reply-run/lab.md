@@ -20,7 +20,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | minimal | learn | done |
 | L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
 | L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
-| L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | todo |
+| L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | in progress |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | todo |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
 | L7 | Later: the items of the open list the owner picks | hard | build | todo |
@@ -88,7 +88,12 @@ API (`http-api/chat/chat.http.ts`):
 
 ### Pieces
 
-<[N:ai] L4.1 <what it gives> · visible: <command or link>>
+[N:ai] L4.1 `GET /chats/:chatId/messages` lists the chat's messages in creation order, each with
+its Run (`ApiMessage.run`, the new `ApiRunFields`: a Run without its messages), over the read L3
+left in `MessageRepository.selectMany`; another user's chat lists none. `getMessage` carries the
+Run too. · visible: `bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`
+(mid-Run: the queued Run, then the failure without its cause) and
+`bun --bun vitest run --project e2e apps/e2e` (after the reply: both messages with the done Run).
 
 ### Output
 
@@ -200,3 +205,10 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   keeps `create<Thing>` for a factory that wires dependencies
   (`application/use-cases/chat/create-user-message.use-case.ts:59`). The rule or the name changes
   in the Right step (L6).
+- [N:ai] L4.1: `buildApiRun` picks `reason` and `message` of the failure by hand, yet the wire
+  schema `ApiRunFailure` already drops `cause` on encode: with the pick deleted, `tsc` and the
+  handler test that asserts no `cause` on the wire still pass, as they do for `buildApiMessage`,
+  which L4.1 left without it (`apps/api/chat/chat.mapper.ts:20`). Drop the pick in L6?
+- [N:ai] L4.1: `README.md:22-49` still tells the pre-Run flow (a queued assistant message, a poll
+  of `GET /chats/:id/messages/:messageId`); since L3 a send answers its Run, and a reload reads
+  `GET /chats/:chatId/messages`.

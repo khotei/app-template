@@ -85,6 +85,31 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
+  it.effect(
+    'GET /chats/:chatId/messages lists a message with its Run mid-Run, then its failure without the cause',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
+        const chat = yield* openChat
+        const run = yield* api.chats.createMessage({ params: { chatId: chat.id }, payload: hello })
+
+        const reloaded = yield* api.chats
+          .listMessages({ params: { chatId: chat.id } })
+          .pipe(Effect.head)
+        yield* refuseRun(run.id)
+        const wire = yield* http
+          .get(`/chats/${chat.id}/messages`)
+          .pipe(Effect.flatMap((response) => response.json))
+
+        assert.deepInclude(reloaded, { id: run.userMessage.id, author: 'user' })
+        assert.deepInclude(Option.getOrThrow(reloaded.run), { id: run.id, status: 'queued' })
+        assert.nestedPropertyVal(wire, '[0].run.status', 'failed')
+        assert.nestedPropertyVal(wire, '[0].run.failure.reason', 'ReplyRefused')
+        assert.notNestedProperty(wire, '[0].run.failure.cause')
+      }).pipe(Effect.provide(ApiTest)),
+  )
+
   it.effect('a chat and its message carry a sent attachment on the wire', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient

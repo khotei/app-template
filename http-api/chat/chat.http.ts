@@ -47,12 +47,6 @@ export const ApiMessageFields = Schema.Struct({
 })
 export type ApiMessageFields = typeof ApiMessageFields.Type
 
-export const ApiMessage = Schema.Struct({
-  ...ApiMessageFields.fields,
-  attachments: Schema.Array(ApiAttachment),
-})
-export type ApiMessage = typeof ApiMessage.Type
-
 export const RunFailureReason = Schema.Literals(['ReplyFailed', 'ReplyRefused'])
 export type RunFailureReason = typeof RunFailureReason.Type
 
@@ -63,14 +57,28 @@ export const ApiRunFailure = Schema.Struct({
 })
 export type ApiRunFailure = typeof ApiRunFailure.Type
 
-/** The work of answering `userMessage`; `assistantMessage` once it is done. Neither carries attachments. */
-export const ApiRun = Schema.Struct({
+/** A Run's own fields, as a message carries its Run. */
+export const ApiRunFields = Schema.Struct({
   id: RunId,
   chatId: ChatId,
   status: RunStatus,
   failure: Schema.OptionFromNullOr(ApiRunFailure),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
+})
+export type ApiRunFields = typeof ApiRunFields.Type
+
+/** A user's message with its newest Run, a reply with the Run that wrote it. */
+export const ApiMessage = Schema.Struct({
+  ...ApiMessageFields.fields,
+  attachments: Schema.Array(ApiAttachment),
+  run: Schema.OptionFromNullOr(ApiRunFields),
+})
+export type ApiMessage = typeof ApiMessage.Type
+
+/** The work of answering `userMessage`; `assistantMessage` once it is done. Neither carries attachments. */
+export const ApiRun = Schema.Struct({
+  ...ApiRunFields.fields,
   userMessage: ApiMessageFields,
   assistantMessage: Schema.OptionFromNullOr(ApiMessageFields),
 })
@@ -127,6 +135,10 @@ export class ChatHttp extends HttpApiGroup.make('chats')
       params: chatPath,
       success: HttpApiSchema.NoContent,
       error: ChatNotFoundError,
+    }),
+    HttpApiEndpoint.get('listMessages', '/chats/:chatId/messages', {
+      params: chatPath,
+      success: Schema.Array(ApiMessage),
     }),
     HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
       params: chatPath,

@@ -56,6 +56,16 @@ export const ChatHandler = HttpApiBuilder.group(
         }),
       )
       .handle(
+        'listMessages',
+        Effect.fn('ChatHandler.listMessages')(
+          function* ({ params }) {
+            const user = yield* CurrentUser
+            return yield* messageService.getMany({ chatId: params.chatId, userId: user.id })
+          },
+          Effect.map(Arr.map(buildApiMessage)),
+        ),
+      )
+      .handle(
         'createMessage',
         Effect.fn('ChatHandler.createMessage')(function* ({ params, payload }) {
           const user = yield* CurrentUser

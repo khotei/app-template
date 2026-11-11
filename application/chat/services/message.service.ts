@@ -7,7 +7,7 @@ import { generateId } from '@app-template/packages/db'
 import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { buildUserMessage, type Message } from '#chat/domain/message.model'
-import { decodeMessage, encodeMessage } from '#chat/services/message.mapper'
+import { decodeMessage, decodeMessages, encodeMessage } from '#chat/services/message.mapper'
 
 /** The message of the user's chat; one of another user's chat reads as absent. */
 export type MessageWhere = Types.Simplify<
@@ -20,6 +20,10 @@ export class MessageService extends Context.Service<
     /** Stores the user's message as sent, with no attachments: a bind adds them. */
     readonly create: (fields: Pick<Message, 'chatId' | 'text'>) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
+    /** The messages of the user's chat in creation order; none for another user's chat. */
+    readonly getMany: (
+      where: Types.Simplify<Omit<MessageWhere, 'id'>>,
+    ) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
@@ -47,7 +51,12 @@ export class MessageService extends Context.Service<
         ),
     )
 
-    return { create, getOne }
+    const getMany = Effect.fn('MessageService.getMany')(
+      (where: Types.Simplify<Omit<MessageWhere, 'id'>>) =>
+        messages.selectMany(where).pipe(Effect.flatMap(decodeMessages)),
+    )
+
+    return { create, getOne, getMany }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
