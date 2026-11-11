@@ -129,6 +129,7 @@ retry after a failed Run; (4) the owner's play of the whole feature.
 over `--env-file`, checked: `FOO=shell bun --env-file=<FOO=file> -e …` prints `shell`):
 
 ```sh
+# first stop a running `make dev`: its api serves the routes it started with
 make reset && make up
 make dev-api                                      # terminal 1
 ANTHROPIC_API_KEY=invalid make dev-worker         # terminal 2: every Run fails, 401
@@ -150,7 +151,11 @@ curl -s -b $jar $api/chats/$chat/messages | jq     # the reload: your message, t
 curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs | jq  # 409 RunNotRetryableError
 ```
 
-On the way: the title job fails with the bad key too, so the chat keeps no title.
+On the way: the title job fails with the bad key too, so the chat keeps no title. The bad key
+fails a reply at once, unretried: `Assistant.reply` through `AssistantLlmFromConfig` with
+`ANTHROPIC_API_KEY=invalid` gave `AssistantFailedError` (`InvalidKey … authentication_error`)
+in 0.4 s, as `AuthenticationError.isRetryable` is `false`
+(`repos/effect/packages/effect/src/ai/AiError.ts:658`).
 
 ### Pieces
 
@@ -280,6 +285,10 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L4.1: `README.md:22-49` still tells the pre-Run flow (a queued assistant message, a poll
   of `GET /chats/:id/messages/:messageId`); since L3 a send answers its Run, and a reload reads
   `GET /chats/:chatId/messages`.
+- [N:ai] L5: a `make dev` started before a new route answers it `404` with no body, a cookie or
+  not, until a restart: the api started at 10:19 answered `POST …/messages/:messageId/runs` with
+  `404`, one started after L5.5 with `401`, `409` and `404` as the contract says
+  (`apps/api/package.json:13`, `--hot`; I assume `--hot` keeps the server built at start). Open.
 - [N:ai] L4 review: `MessageService.getMany` checks the chat, then reads its messages in a second
   query; a delete between the two answers `200 []`, not `404 ChatNotFoundError`, and the next
   read gives the 404 (`application/chat/services/message.service.ts:58`). A domain service opens
