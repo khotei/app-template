@@ -165,6 +165,7 @@ millisecond and random bits (`effect/src/Crypto.ts:331`; shown: 0 failures in 20
 itself unshown); `TestClock.adjust` is barred outside a test of a delay (`effect-tests.md`).
 Proposed: delete the test. Lost without it: a run of the 409 mapping, which `http-api/openapi.json`
 already pins through `make api-check`; the rule stays tested in `run.model.test.ts`.
+[N:ai] The owner's yes in the chat: the test goes in L5.11.
 
 ### Pieces
 
@@ -203,6 +204,9 @@ handler test wraps at 100.
 `it.effect`'s TestClock both Runs stand at 0, and their UUIDv7 ids differ only in random bits, so
 which reads as the chat's newest is random. It runs `it.live` now: 0 failures in 30 runs, 2 in 6
 before.
+
+[N:ai] L5.11 (OWNER) The handler test of `RunNotRetryableError` goes, as the `[D:ai]` of the
+review proposed; the 409 stays pinned by `http-api/openapi.json`, the rule by `run.model.test.ts`.
 
 ### Output
 

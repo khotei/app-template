@@ -11,7 +11,6 @@ import {
   MessageNotFoundError,
   type RunId,
   RunNotFoundError,
-  RunNotRetryableError,
   UserUnknownError,
 } from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -106,37 +105,6 @@ describe('chats', () => {
         assert.strictEqual(response.status, 202)
         assert.strictEqual(retried.status, 'queued')
         assert.deepStrictEqual(retried.userMessage, failed.userMessage)
-      }).pipe(Effect.provide(ApiTest)),
-  )
-
-  // Live, so the second Run is the newer: under the TestClock both stand at 0, and the order of
-  // their ids is random.
-  it.live(
-    'a retry of a message whose Run is not the newest failed one is 409 RunNotRetryableError',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const chat = yield* openChat
-        const first = yield* api.chats.createMessage({
-          params: { chatId: chat.id },
-          payload: hello,
-        })
-        yield* refuseRun(first.id)
-        const second = yield* api.chats.createMessage({
-          params: { chatId: chat.id },
-          payload: hello,
-        })
-        yield* refuseRun(second.id)
-
-        const error = yield* api.chats
-          .retryRun({ params: { chatId: chat.id, messageId: first.userMessage.id } })
-          .pipe(Effect.flip)
-
-        assertSchemaEquals(
-          RunNotRetryableError,
-          error,
-          new RunNotRetryableError({ userMessageId: first.userMessage.id }),
-        )
       }).pipe(Effect.provide(ApiTest)),
   )
 
