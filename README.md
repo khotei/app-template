@@ -22,11 +22,14 @@ copied and changed.
 ## ✨ What the example does
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
-the assistant answers. The api writes the message and its reply in one transaction, sends the jobs
-to SQS after it commits and answers `202`; SQS invokes the worker through a Lambda function's
-mapping, and the worker writes the model's whole reply into the message and titles the chat;
-the client polls the message until it is `done` or `failed`. The language model is Anthropic's.
-The browser UI still shows only the health panel.
+the assistant answers. A user's message starts a Run, the work of answering it: the api writes the
+message and its queued Run in one transaction, sends the jobs to SQS after it commits and answers
+`202` with the Run. SQS invokes the worker through a Lambda function's mapping; the worker moves
+the Run through `preparing` and `generating`, then writes the assistant's message and the Run's
+`done` in one transaction, or the Run's `failed` with its reason, and titles the chat. The client
+polls the Run, reads the chat's messages with their Runs after a reload, and retries a failed Run
+as a new Run of the same message. The language model is Anthropic's. The browser UI still shows
+only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -35,13 +38,14 @@ sequenceDiagram
   participant S as Postgres
   participant Q as SQS (MiniStack)
   participant K as apps/worker
-  W->>A: POST /chats/:id/messages
-  A->>S: one transaction: user message, queued assistant message
-  A->>Q: after the commit: assistant-message job (+ chat-title job on the first message)
-  A-->>W: 202
+  W->>A: POST /chats/:chatId/messages
+  A->>S: one transaction: the user's message, its queued Run
+  A->>Q: after the commit: the reply's job (+ the title's on the chat's first message)
+  A-->>W: 202 with the Run
   Q->>K: a Lambda mapping posts the batch to POST /events
-  K->>S: preparing → generating → done with the text | failed
-  W->>A: GET /chats/:id/messages/:messageId (poll)
+  K->>S: Run preparing → generating → done with the assistant's message | failed
+  W->>A: GET /chats/:chatId/runs/:runId (poll), GET /chats/:chatId/messages (reload)
+  W->>A: POST /chats/:chatId/messages/:messageId/runs (retry a failed Run)
 ```
 
 How the transaction and the jobs work:

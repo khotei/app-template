@@ -129,6 +129,7 @@ is a proposal until the owner makes it `[D]`.
   the time a Run last moved; a stuck Run (L7) would want it back, or its own column.
 - [D:ai] 5. `README.md:26-49` tells the Run flow: a send answers its Run, the worker moves it,
   a reload reads `GET /chats/:chatId/messages`, a failed Run takes a retry.
+  - [N:ai] The owner, in the chat: ok. Done in L6.6.
 - [D:ai] 6. Rail 4 (`.claude/rules/lab.md:55`) counts a piece's tests apart from its code, as a
   plan step counts its docs: a piece with a repository's e2e passed 100 lines in each of L3.2,
   L3.3 and L3.6 on the test's setup alone.
@@ -144,6 +145,8 @@ is a proposal until the owner makes it `[D]`.
 - [N:ai] L6.5 `buildApiRun` hands the Run as it is, as `buildApiUser` does; the wire schema drops
   the failure's `cause` · visible: `bun --bun vitest run --project unit
   apps/api/__tests__/chat/chat.handler.test.ts` (no `cause` on the Run's and the message's wire)
+- [N:ai] L6.6 `README.md › What the example does` tells the Run flow: the send answers its Run,
+  the worker moves it, the poll, the reload and the retry · visible: the README's sequence diagram
 
 ## L7 — Later
 
@@ -247,7 +250,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   L6.5.
 - [N:ai] L4.1: `README.md:22-49` still tells the pre-Run flow (a queued assistant message, a poll
   of `GET /chats/:id/messages/:messageId`); since L3 a send answers its Run, and a reload reads
-  `GET /chats/:chatId/messages`.
+  `GET /chats/:chatId/messages`. Done in L6.6.
 - [N:ai] L5 review (hunt, claimed): a retry checks the chat's newest Run, then inserts; a send of
   a newer message whose Run commits and fails between the two lets the insert pass the active-Run
   index, so the older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
