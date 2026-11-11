@@ -167,6 +167,17 @@ Proposed: delete the test. Lost without it: a run of the 409 mapping, which `htt
 already pins through `make api-check`; the rule stays tested in `run.model.test.ts`.
 [N:ai] The owner's yes in the chat: the test goes in L5.11.
 
+[N:ai] The play, run by the agent on the owner's word, on a fresh `make reset && make up`, the
+api and the worker as `make dev-api` and `make dev-worker`: a send with the bad key answered 202
+queued, its Run went `preparing`, `generating`, `failed` (`ReplyFailed`, the sentence, no cause)
+within a second, the chat `failed`, the reload the message with that Run. With the worker back on
+the key of `.env`, the retry answered 202 queued; a second retry and a new send at once were
+409 `ChatBusyError`; the retried Run was `done` in 2 s with its reply, the first stayed `failed`,
+the chat `idle`, and the reload listed the message and the reply, both with the retried Run. A
+retry after `done`, of the reply's id, or of the first message after a second exchange was 409
+`RunNotRetryableError`; another user's retry 404 `MessageNotFoundError`. The follow-up's reply
+used the first reply as history. A send with an image in a new chat was `done` and titled.
+
 ### Pieces
 
 <[N:ai] L5.1 <what it gives> · visible: <command or link>>
@@ -317,6 +328,11 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   `ensureChatNotBusy`; the active-Run index refuses the second insert, which dies, so the client
   gets a bare `500`, not `409 ChatBusyError` (`kernel/data/chat/run.repository.ts:68`,
   `application/chat/services/run.service.ts:21`). The send has the same; a retry button invites it.
+  Open.
+- [N:ai] L5 play: a chat whose first Run failed keeps no title for good when the title job failed
+  too (the bad key fails both): the retry sends only the reply's job, and a later send sends the
+  title's only for a chat with no Run (`application/use-cases/chat/create-user-message.use-case.ts:94`,
+  `Option.isNone(chat.run)`). Seen in the play: `title: null` after the retried Run was `done`.
   Open.
 - [N:ai] L5: a `make dev` started before a new route answers it `404` with no body, a cookie or
   not, until a restart: the api started at 10:19 answered `POST …/messages/:messageId/runs` with
