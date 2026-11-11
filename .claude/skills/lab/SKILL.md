@@ -73,8 +73,8 @@ one who writes, and a subagent does not see the chat.
   `make reset` inside it, `git worktree remove --force`, `git branch -D wt/<name>`.
   Without an id, once every step is `done`, the whole lab: fill Numbers as below, propose which
   Knowledge outlives the lab and moves to `docs/knowledge/`, and commit as the next `L0.<round>`
-  with `OWNER`. Each `Later` item still open is a question first: done as a step, a roadmap
-  entry, or dropped. The PR waits for the owner's word.
+  with `OWNER`. Each `Later` item still open is a question first: done as a step, moved to
+  the roadmap's `Later`, or dropped. The PR waits for the owner's word.
 - **Free text:** the owner's move, read as the marker it would be, a stop phrase among them.
 
 ## Numbers

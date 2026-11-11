@@ -54,4 +54,4 @@ source.>
 
 <The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
 hardening, open questions and optimisations, each with its `path:line` or step and its fate (open,
-done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's word.>
+done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on the owner's word.>

@@ -24,7 +24,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | done |
 | L7 | Errors with context: what each error carries, and where more of it would help the client, the log or the operator | right | — | todo |
-| L8 | Later: the items of the open list the owner picks | hard | build | todo |
+| L8 | Later: the items of the open list the owner picks | hard | build | in progress |
 
 ## L1 — Anthropic and the Drizzle reads
 
@@ -137,7 +137,30 @@ none), the README's sequence diagram; `make check` (265 unit, 94 e2e).
 
 ## L8 — Later
 
-<The items of Later the owner picks.>
+### Shape
+
+Drafted by the agent, accepted by the owner in the chat ("ok"):
+
+- The reply's send in `create` and `retry`: on `QueueError`, one `failUnsent(run, error)` for
+  both, `failRun` with `ReplyFailed` and the send's error as its `cause`, `runs.update` under
+  `queued`, then `RunNotQueuedError { id }`, `503` at the wire. A reload shows the message with
+  its failed Run, and the retry takes it.
+- The title's refused send is logged; the send answers as it would.
+- The worker stays: a handler's failure already fails its Run
+  (`application/use-cases/chat/generate-assistant-message.use-case.ts:142`, `:172`).
+- What no `catch` reaches (an api that dies or a client that aborts between the commit and the
+  send, a body that does not decode, a dead letter) is in `docs/knowledge/roadmap.md › Later`.
+
+### Notes
+
+- [N:ai] The owner, in the chat: "let's don't play with time": no rule by a Run's age. Catch the
+  send's error, answer an error and fail the Run, the same on the worker; the errors in the
+  middle, where SQS is, go to the roadmap, into one element for whatever any ticket's `Later`
+  leaves unresolved (`roadmap.md › Later`, now in `sdd.md › Gates` and the skills).
+- [N:ai] The first piece rewrites `decisions.md › Jobs as queue messages` (it rejects "a refused
+  reply failed at once"), `layering.md`'s "a send SQS refuses dies" and `database.md › Stuck
+  Runs`, and drops the L2.12 pair of `design-examples.md › The owner's stops`, whose stop the
+  owner reversed.
 
 ## Knowledge
 
@@ -189,10 +212,11 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L2: a refused send, a crash or an aborted request between the commit and the send leaves
   the reply queued and its chat busy for good; the reply's Run has to settle it (L4).
   `application/use-cases/chat/create-user-message.use-case.ts:152`, the `queue.send`. L4 left
-  it, and L5's retry refuses such a chat too (a Run is active): L8, on the owner's word.
+  it, and L5's retry refuses such a chat too (a Run is active): L8, on the owner's word. A
+  refused send: in L8. A crash or an abort: moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L2: a queue body that does not decode is logged and acknowledged, so the work it named
   stays as it was (a queued reply keeps its chat busy). `packages/queue/queue.consumer.ts:49`,
-  the `onFailure` arm.
+  the `onFailure` arm. Moved: `roadmap.md › Later › From lambda-processes` holds it.
 - [N:ai] L2: no record keeps a reply's provenance; only the job's body carries it
   (`application/chat/services/chat.queue.ts:18`). Done in L3.12: the Run keeps it, the job names
   only the Run.

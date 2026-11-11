@@ -682,13 +682,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   a job and "reply in work" for a message. The statuses rewrite
   [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose
   *Revisit when* names this ticket.
-- **Inherits from `lambda` (2026-11-09).** A reply that never settles leaves its chat `queued`
-  for good, so every next send fails `ChatBusyError`: a job whose body no longer decodes is
-  failed unrun, so the reply's use case never runs; every delivery of a job dies, 3 receives, and
-  nothing reads the dead-letter queue; or the queue drops its messages (a purge, a replaced queue,
-  SQS's retention, 4 days by default and unset in the inventory). Ways out to weigh: the handler
-  gets the undecodable body to fail its own work, a consumer of the dead-letter queues, or a sweep
-  of active replies ([database.md › Stuck Runs](database.md#stuck-runs)).
+- **Inherits from `lambda` (2026-11-09) and `reply-run` (2026-11-11).** The Runs no worker
+  settles: [Later › From `lambda-processes`](#from-lambda-processes) and
+  [› From `reply-run`](#from-reply-run).
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.
@@ -857,6 +853,33 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Number.** 28 is `lambda-processes`, on its own branch; it is the first ticket to use stages.
 - **Status.** In progress:
   [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md).
+
+## Later
+
+What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
+questions. One section per ticket; each item says what goes wrong, with its `path:line`, why it
+was left, and the ways out to weigh. A ticket that takes an item moves it into its own `Later`
+and deletes it here.
+
+### From `lambda-processes`
+
+- (2026-11-09) A reply that never settles leaves its chat `queued` for good, so every next send
+  fails `ChatBusyError`: a job whose body no longer decodes is failed unrun, so the reply's use
+  case never runs; every delivery of a job dies, 3 receives, and nothing reads the dead-letter
+  queue; or the queue drops its messages (a purge, a replaced queue, SQS's retention, 4 days by
+  default and unset in the inventory). Ways out to weigh: the handler gets the undecodable body
+  to fail its own work, a consumer of the dead-letter queues, or a sweep of active replies
+  ([database.md › Stuck Runs](database.md#stuck-runs)).
+
+### From `reply-run`
+
+- (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies or the client
+  aborts the request between the commit and the reply's send (the `queue.send` of
+  `application/use-cases/chat/create-user-message.use-case.ts` and
+  `application/use-cases/chat/retry-run.use-case.ts`): a send SQS refuses fails the Run, but no
+  handler runs in a dead process or past an interrupt. Ways out to weigh: a send that cannot be
+  interrupted (the abort only), the job ledger of entry 22, a sweep of active Runs. The owner
+  refused a rule by a Run's age.
 
 ## Ideas to weigh
 

@@ -72,8 +72,8 @@ graph LR
 Whoever notices an item writes it there at once, with its `path:line`: the grilling, the
 implementer's report (its *Later* section), a review's finding the feature runs without, your
 remarks at the play. The last stage of a plan and the last step of a lab is `Later` itself, so
-the list stays in the skeleton and the Map. Before the PR, each item is done, a roadmap entry, or
-dropped on your word.
+the list stays in the skeleton and the Map. Before the PR, each item is done, moved to
+[roadmap.md › Later](roadmap.md#later), or dropped on your word.
 
 **Never deferred:** a security hole, a loss of stored data, an irreversible contract (a deployed
 migration, a published API). Each is fixed in the pass that finds it.

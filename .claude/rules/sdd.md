@@ -43,7 +43,7 @@ live in the skills; this file holds the constraints they share. A lab step (`lab
   with its `path:line`, a review's finding too unless the feature does not run without it. The
   last stage or step of a plan or lab is `Later` itself, so the list stays in sight. Never
   deferred: a security hole, a loss of stored data, an irreversible contract. Before the PR each
-  item is done, a roadmap entry, or dropped on the user's word
+  item is done, moved to the roadmap's `Later`, or dropped on the user's word
   ([why](../../docs/knowledge/sdd.md#minimal-right-hard)).
 - **Tests sit at the Seams** agreed in `architecture.md`; a step's *Test first* names one.
 - **The heavy review lands on the skeleton and the first stage;** each later stage is checked when

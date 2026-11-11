@@ -58,7 +58,7 @@ those go to `plan.md › Files`, and a check below may name a command.>
 <The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
 hardening, open questions and optimisations, one line each with its source (the grilling, a step's
 finding, the play) and, once known, its `path:line`. A Hard stage takes an item on the user's
-word; before the PR each is done, a roadmap entry, or dropped.>
+word; before the PR each is done, moved to the roadmap's `Later`, or dropped.>
 
 - <item> — <source> — <fate: open | done in S<n> | roadmap <entry> | dropped: <why>>
 
