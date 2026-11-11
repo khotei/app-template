@@ -45,7 +45,7 @@ const isFailedRun = hasStatus(['failed'])
 export const ensureRunRetryable = Effect.fn('ensureRunRetryable')(function* (
   newest: Option.Option<RunFields>,
   userMessageId: MessageId,
-) {
+): Effect.fn.Return<void, RunNotRetryableError> {
   const answers = (run: RunFields) => run.userMessageId === userMessageId
   if (!Option.exists(newest, Predicate.and(isFailedRun, answers))) {
     return yield* new RunNotRetryableError({ userMessageId })

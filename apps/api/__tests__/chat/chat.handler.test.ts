@@ -109,7 +109,8 @@ describe('chats', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
-  // Live, so the second Run is the newer: under the TestClock both stand at 0 and the order is random.
+  // Live, so the second Run is the newer: under the TestClock both stand at 0, and the order of
+  // their ids is random.
   it.live(
     'a retry of a message whose Run is not the newest failed one is 409 RunNotRetryableError',
     () =>

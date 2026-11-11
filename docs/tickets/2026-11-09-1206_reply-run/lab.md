@@ -157,6 +157,15 @@ fails a reply at once, unretried: `Assistant.reply` through `AssistantLlmFromCon
 in 0.4 s, as `AuthenticationError.isRetryable` is `false`
 (`repos/effect/packages/effect/src/ai/AiError.ts:658`).
 
+[D:ai] L5 review (Standards, hunt): the handler test "a retry of a message whose Run is not the
+newest failed one is 409 RunNotRetryableError" (`apps/api/__tests__/chat/chat.handler.test.ts:113`)
+repeats the rule `run.model.test.ts` covers, needs two sends, and so needs the clock to order
+them: `it.live` leaves a tie when both Runs fall in one millisecond, since a UUIDv7 holds only the
+millisecond and random bits (`effect/src/Crypto.ts:331`; shown: 0 failures in 20 runs, the tie
+itself unshown); `TestClock.adjust` is barred outside a test of a delay (`effect-tests.md`).
+Proposed: delete the test. Lost without it: a run of the 409 mapping, which `http-api/openapi.json`
+already pins through `make api-check`; the rule stays tested in `run.model.test.ts`.
+
 ### Pieces
 
 <[N:ai] L5.1 <what it gives> · visible: <command or link>>
@@ -184,6 +193,11 @@ message and its reply, both with the retried Run. 28 lines of code, 91 of test, 
 generated `openapi.json`.
 · visible: `bun --bun vitest run --project e2e apps/e2e` (the retry case),
 `bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`, `make api-check`
+
+[N:ai] L5.10 (REVIEW, Standards) `ensureRunRetryable` states `Effect.fn.Return<void,
+RunNotRetryableError>`, as `effect-services.md › Functions` asks of a function another unit
+composes (`ensureChatNotBusy` lacks it too, outside this range); the `it.live` comment of the
+handler test wraps at 100.
 
 [N:ai] L5.9 The handler test of `RunNotRetryableError` failed about one run in three: under
 `it.effect`'s TestClock both Runs stand at 0, and their UUIDv7 ids differ only in random bits, so
@@ -290,6 +304,16 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L4.1: `README.md:22-49` still tells the pre-Run flow (a queued assistant message, a poll
   of `GET /chats/:id/messages/:messageId`); since L3 a send answers its Run, and a reload reads
   `GET /chats/:chatId/messages`.
+- [N:ai] L5 review (hunt, claimed): a retry checks the chat's newest Run, then inserts; a send of
+  a newer message whose Run commits and fails between the two lets the insert pass the active-Run
+  index, so the older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
+  (`application/use-cases/chat/retry-run.use-case.ts:51`, the read; `:56`, the insert). It needs a
+  send and a retry at once and a failure within the gap. Open.
+- [N:ai] L5 review (hunt, claimed): two retries of one failed Run (a double click) both pass
+  `ensureChatNotBusy`; the active-Run index refuses the second insert, which dies, so the client
+  gets a bare `500`, not `409 ChatBusyError` (`kernel/data/chat/run.repository.ts:68`,
+  `application/chat/services/run.service.ts:21`). The send has the same; a retry button invites it.
+  Open.
 - [N:ai] L5: a `make dev` started before a new route answers it `404` with no body, a cookie or
   not, until a restart: the api started at 10:19 answered `POST …/messages/:messageId/runs` with
   `404`, one started after L5.5 with `401`, `409` and `404` as the contract says
