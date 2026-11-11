@@ -1,9 +1,9 @@
-import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
+import { createInsertSchema } from 'drizzle-orm/effect-schema'
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { chats } from '#kernel/data/chat/chat.table'
+import { ChatColumns, chats } from '#kernel/data/chat/chat.table'
 import { RunEntity, withMessages } from '#kernel/data/chat/run.entity'
 
 /**
@@ -11,7 +11,7 @@ import { RunEntity, withMessages } from '#kernel/data/chat/run.entity'
  * every read nests them (`withAttachments` in `message.entity.ts`, `withLatestRun`).
  */
 export const ChatEntity = Schema.Struct({
-  ...createSelectSchema(chats).fields,
+  ...ChatColumns.fields,
   attachments: Schema.Array(AttachmentEntity),
   latestRun: Schema.NullOr(RunEntity),
 })

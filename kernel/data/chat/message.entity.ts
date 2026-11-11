@@ -1,13 +1,13 @@
-import { createInsertSchema, createSelectSchema } from 'drizzle-orm/effect-schema'
+import { createInsertSchema } from 'drizzle-orm/effect-schema'
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { messages } from '#kernel/data/chat/message.table'
+import { MessageColumns, messages } from '#kernel/data/chat/message.table'
 
 /** A message with its attachments, in upload order: every read nests them (`withAttachments`). */
 export const MessageEntity = Schema.Struct({
-  ...createSelectSchema(messages).fields,
+  ...MessageColumns.fields,
   attachments: Schema.Array(AttachmentEntity),
 })
 export type MessageEntity = typeof MessageEntity.Type

@@ -1,4 +1,5 @@
 import { inArray, type SQL, sql } from 'drizzle-orm'
+import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import {
   check,
   foreignKey,
@@ -82,3 +83,13 @@ export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
  * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
  */
 export const activeRun: SQL = sql`${inArray(runs.status, activeRunStatuses)}`.inlineParams()
+
+/** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
+export const runJsonColumns = {
+  failure: () => RunFailureJson,
+  provenance: () => RunProvenanceJson,
+}
+
+/** The columns of a Run, as the entities of its neighbours nest them. */
+export const RunColumns = createSelectSchema(runs, runJsonColumns)
+export type RunColumns = typeof RunColumns.Type

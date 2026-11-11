@@ -1,13 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schema, Struct, type Types } from 'effect'
+import { Effect, Schema, type Types } from 'effect'
 
 import { flipSqlError } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
-import { RunEntity } from '#kernel/data/chat/run.entity'
-import { runs } from '#kernel/data/chat/run.table'
+import { RunColumns, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -21,8 +20,7 @@ const userMessageId = '0192d4e0-7b3a-7c00-8000-000000000092'
 const otherChatId = '0192d4e0-7b3a-7c00-8000-00000000009a'
 const replyId = '0192d4e0-7b3a-7c00-8000-00000000009b'
 
-const RunRow = Schema.Struct(Struct.omit(RunEntity.fields, ['userMessage', 'assistantMessage']))
-type RunRow = typeof RunRow.Type
+type RunRow = RunColumns
 
 const run = (
   id: string,
@@ -66,7 +64,7 @@ const insertMessages = Db.use((db) =>
 const insertRun = (row: RunRow) => Db.use((db) => db.insert(runs).values(row))
 
 const selectRuns = Db.use((db) => db.select().from(runs).orderBy(runs.id)).pipe(
-  Effect.flatMap(Schema.decodeEffect(Schema.Array(RunRow))),
+  Effect.flatMap(Schema.decodeEffect(Schema.Array(RunColumns))),
 )
 
 describe('runs', () => {
@@ -83,7 +81,7 @@ describe('runs', () => {
       yield* insertRun(queued)
       const selected = yield* selectRuns
 
-      assertSchemaEquals(Schema.Array(RunRow), selected, [done, queued])
+      assertSchemaEquals(Schema.Array(RunColumns), selected, [done, queued])
     }).pipe(Effect.provide(DbTest)),
   )
 

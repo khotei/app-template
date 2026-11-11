@@ -1,3 +1,4 @@
+import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import { index, pgEnum, snakeCase, text, unique, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from '@app-template/packages/db'
@@ -25,3 +26,7 @@ export const messages = snakeCase.table(
     unique('messages_id_chat_id_unique').on(table.id, table.chatId),
   ],
 )
+
+/** The columns of a message, as the entities of its neighbours nest them. */
+export const MessageColumns = createSelectSchema(messages)
+export type MessageColumns = typeof MessageColumns.Type

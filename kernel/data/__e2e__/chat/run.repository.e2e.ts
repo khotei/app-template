@@ -9,6 +9,7 @@ import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { messages } from '#kernel/data/chat/message.table'
 import { RunEntity } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
+import type { RunColumns } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -33,8 +34,7 @@ const userMessage = {
   attachments: [],
 } satisfies MessageEntity
 
-const RunRow = Schema.Struct(Struct.omit(RunEntity.fields, ['userMessage', 'assistantMessage']))
-type RunRow = typeof RunRow.Type
+type RunRow = RunColumns
 
 const run = (
   id: string,

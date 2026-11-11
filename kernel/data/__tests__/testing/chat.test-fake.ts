@@ -18,13 +18,15 @@ import { constTrue } from 'effect/Function'
 import { orDieUnless } from '@app-template/packages/db'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { ChatEntity, type ChatEntityWhere } from '#kernel/data/chat/chat.entity'
+import type { ChatEntityWhere } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
-import { MessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
+import { ChatColumns } from '#kernel/data/chat/chat.table'
+import type { MessageEntity, MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
-import { RunEntity, type RunEntityWhere } from '#kernel/data/chat/run.entity'
+import { MessageColumns } from '#kernel/data/chat/message.table'
+import type { RunEntity, RunEntityWhere } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
-import { activeRunStatuses } from '#kernel/data/chat/run.table'
+import { activeRunStatuses, RunColumns } from '#kernel/data/chat/run.table'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
 import {
   deleteRows,
@@ -36,14 +38,9 @@ import {
   writeSet,
 } from '#testing/data/rows.test-util'
 
-const ChatRow = Schema.Struct(Struct.omit(ChatEntity.fields, ['attachments', 'latestRun']))
-type ChatRow = typeof ChatRow.Type
-
-const MessageRow = Schema.Struct(Struct.omit(MessageEntity.fields, ['attachments']))
-type MessageRow = typeof MessageRow.Type
-
-const RunRow = Schema.Struct(Struct.omit(RunEntity.fields, ['userMessage', 'assistantMessage']))
-type RunRow = typeof RunRow.Type
+type ChatRow = ChatColumns
+type MessageRow = MessageColumns
+type RunRow = RunColumns
 
 /** The rows `ChatRepositoryTest` keeps, by id, without their attachments and Runs. */
 export class ChatRows extends Context.Service<
@@ -161,16 +158,16 @@ const withMessagesOf =
 const runsWhere = (rows: Tables, where: Predicate.Predicate<RunRow>) =>
   pipe(inCreationOrderWhere(rows.runs, where), Arr.map(withMessagesOf(rows)))
 
-const decodeChat = Schema.decodeUnknownEffect(ChatRow)
+const decodeChat = Schema.decodeUnknownEffect(ChatColumns)
 
 /** The column defaults Postgres fills on an insert that leaves them out. */
 const chatDefaults = { title: null } as const
 
-const decodeMessage = Schema.decodeUnknownEffect(MessageRow)
+const decodeMessage = Schema.decodeUnknownEffect(MessageColumns)
 
 const runDefaults = { failure: null, assistantMessageId: null } as const
 
-const decodeRun = Schema.decodeUnknownEffect(RunRow)
+const decodeRun = Schema.decodeUnknownEffect(RunColumns)
 
 /** The four tables' rows, and one read of them all for a relation or an owner. */
 const tables = Effect.gen(function* () {
