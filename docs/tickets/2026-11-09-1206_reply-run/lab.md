@@ -98,6 +98,11 @@ Run too. · visible: `bun --bun vitest run --project unit apps/api/__tests__/cha
 ChatNotFoundError`, not as an empty list: `MessageService.getMany` reads the owner's chat before
 its messages. · visible: the same handler test file (the 404 case covers `/chats/:chatId` and its
 `/messages`).
+[N:ai] L4.3 (owner's word) the contract groups' files take the `api-` prefix, so none shares a
+name with its domain twin: `api-chat.http.ts`, `api-attachment.http.ts`, `api-health.http.ts`,
+`api-user.http.ts`; `naming.md › Files` states it. Next, on the owner's word: `api-<model>.model.ts`
+(L4.4), `api-<model>.error.ts` (L4.5) out of `api-chat.http.ts`, the same for attachment (L4.6).
+· visible: `ls http-api/*/`.
 
 ### Output
 

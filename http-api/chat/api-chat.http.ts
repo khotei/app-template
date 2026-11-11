@@ -5,7 +5,7 @@ import {
   ApiAttachment,
   AttachmentBoundError,
   AttachmentNotFoundError,
-} from '#http-api/attachment/attachment.http'
+} from '#http-api/attachment/api-attachment.http'
 import { AttachmentId, ChatId, MessageId, RunId, UserId } from '#http-api/shared/ids'
 import * as limits from '#http-api/shared/limits'
 import { Auth } from '#http-api/shared/security'

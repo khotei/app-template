@@ -18,9 +18,10 @@ paths:
 
 ## Files
 
-`kebab-case`, `<name>.<role>.ts`, one role suffix, `<name>` singular like its folder; a file with
-no role keeps a bare name (`layer.ts`), a tool's file the name its tool reads. Where a test and
-its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
+`kebab-case`, `<name>.<role>.ts`, one role suffix, `<name>` singular like its folder; a file of
+a contract group `api-<name>.<role>.ts`, so it never shares a name with its domain twin; a file
+with no role keeps a bare name (`layer.ts`), a tool's file the name its tool reads. Where a test
+and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 
 | Suffix | Role |
 |---|---|

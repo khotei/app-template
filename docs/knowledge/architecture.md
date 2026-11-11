@@ -158,7 +158,7 @@ Using the files of `chat` as the map:
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
-| contract group | `http-api/chat/chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
+| contract group | `http-api/chat/api-chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat`, `buildApiMessage` |
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
@@ -252,7 +252,7 @@ model's.
 5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous
    work is a queue definition in the module's `services/` and a handler in `apps/worker/`
    ([database.md › The sends](database.md#the-sends)).
-6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts`, with the entity's
+6. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, with the entity's
    wire shape, ids and errors as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
    `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
    added before it; its handler in `apps/api/<entity>/` and its mappers in
