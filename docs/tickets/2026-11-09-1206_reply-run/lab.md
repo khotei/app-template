@@ -130,6 +130,15 @@ entry 22 ("The message keeps its own status", "A run needs no status of its own"
 [Q:ai] Rail 5, question 1 (what breaks if removed?): in L3 no reader needs a message's Run nested (`UserMessage.run`, `AssistantMessage.run`, `:77`); the list that does is L4. Keep one `Message` with `runId: Option<RunId>` in L3, the assistant message reached from its Run (`RunEntity.assistantMessage`, one relational query) for `GET /chats/:chatId/runs/:runId`, and nest the Runs into messages in L4?
 
 [N:ai] The owner's word on the second `[Q:ai]`: one `Message` class with `runId`, no `UserMessage` and `AssistantMessage`; `GET /chats/:chatId/runs/:runId` answers the Run with its user message and its assistant message.
+[R] One level of nesting each way (`nesting-plan.md`: Run with its chat and messages, Chat and
+Message with their `run`), the smallest clean implementation on Drizzle rc.5 and Effect 4, with
+options and their code; the draft in `.claude/worktrees/reply-run-L3-nesting`.
+[Q:ai] Rail 5, question 1 (what breaks if removed?), on the nesting draft: `Run.chat` has no
+reader outside its build and the tests: `RunService.create` builds it, `ApiRun` leaves it off the
+wire, and no Shape of L4-L5 reads it. `Message.run` has no reader in L3 either, but L4's list
+reads it. Drop `Run.chat` (the `runs.chat` relation, `ChatColumns` in `RunEntity`, `buildRun`
+back to `chatId`) and keep `Message.run` for L4? Without `Run.chat`, a reader that needs the
+chat's title beside a Run reads the chat by `run.chatId`.
 
 ### Pieces
 
