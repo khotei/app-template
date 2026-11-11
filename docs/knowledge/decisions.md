@@ -508,8 +508,8 @@ pass-through`).
   (`ensureChatNotBusy`); a client derives it the same way from the Run it reads.
 - **Sources:** the owner's choice, in the Knowledge of
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
-- **Rejected:** a `chats.status` column moved by every Run move: six writes and a drift to keep a
-  value that one row already gives.
+- **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
+  keep a value that one row already gives.
 - **Cost:** a query over chats by status joins each chat's newest Run, and a read that needs the
   status has to nest that Run.
 - **Guarded by:** review, by `deep-modules.md`; nothing mechanical.

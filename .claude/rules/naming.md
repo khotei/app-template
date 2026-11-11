@@ -45,8 +45,8 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
   `<Verb><Object>UseCase`, `<Model>Service` (`<Layer><Model>Service` layered over it) or, for one
   operation of no model, that operation.
 - Functions are verb-first, and the verb marks the kind of work:
-  - `create<Thing>`: a factory that wires dependencies, or a write that stores a new record (a
-    domain service's `create`, a use case's step over it), told apart by what it takes;
+  - `create<Thing>`: a factory that takes dependencies and wires them, or a write that takes a
+    new record's fields and stores it (a domain service's `create`, a use case's step over it);
   - `layer<Variant>`: a static building one variant of a service's `Layer`; a `Layer` that runs
     work is named for it;
   - `build` / `ensure`: a pure function that derives a value or guards an invariant; a pure

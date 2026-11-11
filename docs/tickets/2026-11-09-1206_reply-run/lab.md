@@ -110,7 +110,7 @@ is a proposal until the owner makes it `[D]`.
   `application/chat/domain/chat.model.ts:51`), and the rule narrows: a value read from the one
   row a read already nests is derived, not a column (`.claude/rules/deep-modules.md:63`, with
   its record in `docs/knowledge/decisions.md`). A `chats.status` column would be a second copy of
-  the Run's status, written by each of its five moves in the Run's transaction; the derived one
+  the Run's status, written by each of its moves in the Run's transaction; the derived one
   costs no query, since `Chat { run }` is already read (L3). Lost without the column: a query
   over chats by status needs the join.
   - [N:ai] The owner, in the chat: A; the models use the function, and the web can derive the
@@ -158,6 +158,12 @@ is a proposal until the owner makes it `[D]`.
   assistant's id is `404 { id, author: 'user' }`; a message's `where` takes `author` · visible:
   `bun --bun vitest run --project unit application/use-cases/__tests__/chat/retry-run.use-case.test.ts
   application/chat/__tests__/services/message.service.test.ts`, `make api-check`
+- [N:ai] L6.10 review: a repository e2e for the `author` filter the memory fake copies
+  (`kernel/data/__e2e__/chat/message.repository.e2e.ts`, Standards and hunt); rail 4 says "tests
+  counted apart" and "stops and asks" again (`.claude/rules/lab.md:55`); `create<Thing>`
+  names what each meaning takes (`.claude/rules/naming.md:48`); the record of the chat's status
+  counts no moves (`docs/knowledge/decisions.md › Status from the newest Run`); Knowledge keeps
+  L6.8's choice
 - [N:ai] L6.7 review: the README's shell walkthrough polls the Run, then reads the chat's messages
   (`README.md:84`, hunt, shown); the lab skill names rail 4 instead of restating it
   (`.claude/skills/lab/SKILL.md:59`); the record of the chat's status cites the lab, not its rounds
@@ -208,6 +214,8 @@ is a proposal until the owner makes it `[D]`.
   `create` and a use case's step over it (`naming.md › Symbols`).
 - L6: a lab piece is at most 100 lines of code, its tests counted apart (rail 4).
 - L6: `runs.updated_at` stays: it shows when a Run's status or reply was last set.
+- L6: a retry names the user message it answers (`:userMessageId`) and reads it with
+  `author: 'user'`, so an assistant's id is `404 MessageNotFoundError { id, author: 'user' }`.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
   to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 

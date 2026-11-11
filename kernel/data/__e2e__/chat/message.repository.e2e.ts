@@ -143,6 +143,22 @@ describe('MessageRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
+  it.effect("selectOne by author reads a user's message asked as an assistant's as none", () =>
+    Effect.gen(function* () {
+      const messages = yield* MessageRepository
+      const chatId = '0192d4e0-7b3a-7c00-8000-00000000004e'
+      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005b', { chatId })
+      yield* insertOwnedChats([chatId])
+      yield* messages.insert(question)
+
+      const asUser = yield* messages.selectOne({ id: question.id, author: 'user' })
+      const asAssistant = yield* messages.selectOne({ id: question.id, author: 'assistant' })
+
+      assertSchemaEquals(SelectedMessage, asUser, Option.some(question))
+      assert.deepStrictEqual(asAssistant, Option.none())
+    }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
   it.effect("selectOne by chatId reads the chat's first message, none for an empty chat", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
