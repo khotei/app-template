@@ -21,7 +21,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
 | L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
-| L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | todo |
+| L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | in progress |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
 | L7 | Later: the items of the open list the owner picks | hard | build | todo |
 
@@ -184,6 +184,11 @@ message and its reply, both with the retried Run. 28 lines of code, 91 of test, 
 generated `openapi.json`.
 · visible: `bun --bun vitest run --project e2e apps/e2e` (the retry case),
 `bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`, `make api-check`
+
+[N:ai] L5.9 The handler test of `RunNotRetryableError` failed about one run in three: under
+`it.effect`'s TestClock both Runs stand at 0, and their UUIDv7 ids differ only in random bits, so
+which reads as the chat's newest is random. It runs `it.live` now: 0 failures in 30 runs, 2 in 6
+before.
 
 ### Output
 
