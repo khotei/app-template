@@ -8,7 +8,7 @@ import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assist
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildChat } from '#chat/domain/chat.model'
-import { buildAssistantMessage, buildUserMessage, Message } from '#chat/domain/message.model'
+import { buildAssistantMessage, buildUserMessage, MessageFields } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
@@ -162,7 +162,7 @@ describe('completeRun', () => {
     Effect.gen(function* () {
       const done = yield* completeRun(runAt('generating'), { reply, at: later })
 
-      assertSchemaEquals(Schema.Option(Message), done.assistantMessage, Option.some(reply))
+      assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
     }),
   )
 })

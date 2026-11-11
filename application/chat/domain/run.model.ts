@@ -4,7 +4,7 @@ import { activeRunStatuses } from '@app-template/kernel/data'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
 import { ChatFields } from '#chat/domain/chat.model'
-import { Message } from '#chat/domain/message.model'
+import { MessageFields } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   type RunFailure,
@@ -16,14 +16,16 @@ import { hasStatus, isPreparing } from '#chat/domain/status.model'
 
 /**
  * The work of answering one user message; a retry is a new Run of the same message. Read with
- * its chat and its messages; its writes never touch them.
+ * its chat and its messages, flat; its writes never touch them.
  */
 export class Run extends Schema.Class<Run>('Run')({
   ...RunFields.fields,
   chat: ChatFields,
-  userMessage: Message,
+  userMessage: MessageFields,
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.Option(Message).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  assistantMessage: Schema.Option(MessageFields).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
 }) {}
 
 export const buildRun = (
@@ -76,7 +78,7 @@ export const generateRun = Effect.fn('generateRun')((run: Run, at: DateTime.Utc)
 )
 
 /** The reply a Run settled with and when. */
-export type RunCompletion = { readonly reply: Message; readonly at: DateTime.Utc }
+export type RunCompletion = { readonly reply: MessageFields; readonly at: DateTime.Utc }
 
 export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: RunCompletion) =>
   move(run, {

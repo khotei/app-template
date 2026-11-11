@@ -80,12 +80,7 @@ describe('chats', () => {
 
       assert.strictEqual(response.status, 202)
       assert.deepInclude(sent, { chatId: chat.id, status: 'queued' })
-      assert.deepInclude(sent.userMessage, {
-        chatId: chat.id,
-        author: 'user',
-        text: 'Hello',
-        attachments: [],
-      })
+      assert.deepInclude(sent.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
       assert.deepStrictEqual(sent.assistantMessage, Option.none())
     }).pipe(Effect.provide(ApiTest)),
   )

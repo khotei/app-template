@@ -1,12 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Exit, Layer, Option, Schema, Struct, type Types } from 'effect'
+import { Effect, Exit, Layer, Option, Schema, type Types } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
-import type { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
-import { messages } from '#kernel/data/chat/message.table'
+import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
 import { RunEntity } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
 import type { RunColumns } from '#kernel/data/chat/run.table'
@@ -33,8 +32,7 @@ const userMessage = {
   author: 'user',
   text: 'Hi',
   createdAt,
-  attachments: [],
-} satisfies MessageEntity
+} satisfies MessageColumns
 
 type RunRow = RunColumns
 
@@ -55,7 +53,7 @@ const run = (
 })
 
 /** `row` as a read nests its chat and its messages, the reply none unless given. */
-const read = (row: RunRow, assistantMessage: MessageEntity | null = null): RunEntity => ({
+const read = (row: RunRow, assistantMessage: MessageColumns | null = null): RunEntity => ({
   ...row,
   chat,
   userMessage,
@@ -72,7 +70,7 @@ const insertUserMessage = Db.use((db) =>
     .values({ id: userId, createdAt: new Date(0) })
     .pipe(
       Effect.andThen(db.insert(chats).values(chat)),
-      Effect.andThen(db.insert(messages).values(Struct.omit(userMessage, ['attachments']))),
+      Effect.andThen(db.insert(messages).values(userMessage)),
     ),
 )
 
@@ -148,11 +146,11 @@ describe('RunRepository', () => {
           id: '0192d4e0-7b3a-7c00-8000-0000000000a9',
           author: 'assistant',
           text: 'Hello',
-        } satisfies MessageEntity
+        } satisfies MessageColumns
         yield* insertUserMessage
         yield* runs.insert(queued)
 
-        yield* messages.insert(Struct.omit(reply, ['attachments']))
+        yield* messages.insert(reply)
         const done = { status: 'done', assistantMessageId: reply.id } as const
         yield* runs.update(done, { id: queued.id, status: ['queued'] })
 

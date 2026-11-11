@@ -169,7 +169,10 @@ describe('GenerateAssistantMessageUseCase', () => {
             ),
           }),
         )
-        assertEquals(yield* selectMessages(chatId), [firstMessage, reply])
+        assertEquals(yield* selectMessages(chatId), [
+          firstMessage,
+          new Message({ ...reply, attachments: [] }),
+        ])
         assert.deepStrictEqual(logs, [])
       }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
     },

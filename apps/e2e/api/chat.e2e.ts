@@ -100,7 +100,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           assert.deepInclude(Option.getOrThrow(settled.assistantMessage), {
             author: 'assistant',
             text: scriptedAnswers.reply.text,
-            attachments: [],
           })
           assert.deepStrictEqual(titled.title, Option.some<string>(scriptedAnswers.title))
           assert.strictEqual(titled.status, 'idle')

@@ -10,7 +10,7 @@ import { buildAssistantMessage, Message } from '#chat/domain/message.model'
 import type { RunFields } from '#chat/domain/run-fields.model'
 import { ChatFromEntity } from '#chat/services/chat.mapper'
 import { encodeMessage, MessageFromEntity } from '#chat/services/message.mapper'
-import { owner, queuedRun } from '#testing/chat/chat.test-fixture'
+import { firstMessage, owner, queuedRun } from '#testing/chat/chat.test-fixture'
 
 const chat = new Chat({
   id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000101'),
@@ -40,7 +40,7 @@ describe('ChatFromEntity', () => {
 
 describe('MessageFromEntity', () => {
   it.effect.each([
-    { name: 'the user', message: queuedRun.userMessage },
+    { name: 'the user', message: firstMessage },
     {
       name: 'the assistant',
       message: buildAssistantMessage({

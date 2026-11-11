@@ -107,7 +107,9 @@ describe('CreateUserMessageUseCase', () => {
             createdAt: run.createdAt,
           }),
         )
-        assertEquals(yield* selectMessages(chat.id), [userMessage])
+        assertEquals(yield* selectMessages(chat.id), [
+          new Message({ ...userMessage, attachments: [bound] }),
+        ])
         assertEquals(yield* selectAttachments([photo.id]), [bound])
         assertEquals(
           yield* selectChat(chat.id),

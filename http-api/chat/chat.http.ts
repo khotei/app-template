@@ -37,12 +37,18 @@ export const ApiChat = Schema.Struct({
 })
 export type ApiChat = typeof ApiChat.Type
 
-export const ApiMessage = Schema.Struct({
+/** A message's own fields, as a Run carries its messages. */
+export const ApiMessageFields = Schema.Struct({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
   text: Schema.String,
   createdAt: Schema.DateTimeUtc,
+})
+export type ApiMessageFields = typeof ApiMessageFields.Type
+
+export const ApiMessage = Schema.Struct({
+  ...ApiMessageFields.fields,
   attachments: Schema.Array(ApiAttachment),
 })
 export type ApiMessage = typeof ApiMessage.Type
@@ -57,7 +63,7 @@ export const ApiRunFailure = Schema.Struct({
 })
 export type ApiRunFailure = typeof ApiRunFailure.Type
 
-/** The work of answering `userMessage`; `assistantMessage` once it is done. */
+/** The work of answering `userMessage`; `assistantMessage` once it is done. Neither carries attachments. */
 export const ApiRun = Schema.Struct({
   id: RunId,
   chatId: ChatId,
@@ -65,8 +71,8 @@ export const ApiRun = Schema.Struct({
   failure: Schema.OptionFromNullOr(ApiRunFailure),
   createdAt: Schema.DateTimeUtc,
   updatedAt: Schema.DateTimeUtc,
-  userMessage: ApiMessage,
-  assistantMessage: Schema.OptionFromNullOr(ApiMessage),
+  userMessage: ApiMessageFields,
+  assistantMessage: Schema.OptionFromNullOr(ApiMessageFields),
 })
 export type ApiRun = typeof ApiRun.Type
 

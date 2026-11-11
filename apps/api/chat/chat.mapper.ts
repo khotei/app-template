@@ -16,9 +16,5 @@ export const buildApiMessage = (message: Message): ApiMessage =>
   Struct.evolve(message, { attachments })
 
 export const buildApiRun = (run: Run): ApiRun =>
-  Struct.evolve(run, {
-    // The cause is for operators; it never leaves the api.
-    failure: Option.map(Struct.pick(['reason', 'message'])),
-    userMessage: buildApiMessage,
-    assistantMessage: Option.map(buildApiMessage),
-  })
+  // The cause is for operators; it never leaves the api.
+  Struct.evolve(run, { failure: Option.map(Struct.pick(['reason', 'message'])) })

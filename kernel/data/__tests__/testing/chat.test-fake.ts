@@ -138,20 +138,15 @@ const withAttachmentsOf =
   })
 
 /** The Run with its chat and its messages, as `withChatAndMessages` nests them; the keys keep them. */
-const withMessagesOf =
+const readRun =
   (rows: Tables) =>
   (run: RunRow): RunEntity => ({
     ...run,
     chat: pipe(HashMap.get(rows.chats, run.chatId), Option.getOrThrow),
-    userMessage: pipe(
-      HashMap.get(rows.messages, run.userMessageId),
-      Option.getOrThrow,
-      withAttachmentsOf(rows),
-    ),
+    userMessage: pipe(HashMap.get(rows.messages, run.userMessageId), Option.getOrThrow),
     assistantMessage: pipe(
       Option.fromNullOr(run.assistantMessageId),
       Option.flatMap((id) => HashMap.get(rows.messages, id)),
-      Option.map(withAttachmentsOf(rows)),
       Option.getOrNull,
     ),
   })
@@ -161,9 +156,6 @@ const newestRunWhere = (
   runs: HashMap.HashMap<string, RunRow>,
   where: Predicate.Predicate<RunRow>,
 ) => pipe(inCreationOrderWhere(runs, where), Arr.last)
-
-const runsWhere = (rows: Tables, where: Predicate.Predicate<RunRow>) =>
-  pipe(inCreationOrderWhere(rows.runs, where), Arr.map(withMessagesOf(rows)))
 
 const decodeChat = Schema.decodeUnknownEffect(ChatColumns)
 
@@ -334,7 +326,12 @@ export const RunRepositoryTest = Layer.effect(
         ),
       selectOne: (where) =>
         read.pipe(
-          Effect.map((rows) => pipe(runsWhere(rows, holdsRunWhere(rows.chats, where)), Arr.last)),
+          Effect.map((rows) =>
+            pipe(
+              newestRunWhere(rows.runs, holdsRunWhere(rows.chats, where)),
+              Option.map(readRun(rows)),
+            ),
+          ),
         ),
     })
   }),

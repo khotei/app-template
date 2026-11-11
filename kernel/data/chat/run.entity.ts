@@ -3,18 +3,18 @@ import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { ChatColumns } from '#kernel/data/chat/chat.table'
-import { MessageEntity, withAttachments } from '#kernel/data/chat/message.entity'
+import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns, runJsonColumns, runs } from '#kernel/data/chat/run.table'
 
 /**
  * A Run with its chat, the message it answers and its reply, none until it is done: every read
- * nests them (`withChatAndMessages`).
+ * nests them (`withChatAndMessages`), flat, without their attachments.
  */
 export const RunEntity = Schema.Struct({
   ...RunColumns.fields,
   chat: ChatColumns,
-  userMessage: MessageEntity,
-  assistantMessage: Schema.NullOr(MessageEntity),
+  userMessage: MessageColumns,
+  assistantMessage: Schema.NullOr(MessageColumns),
 })
 export type RunEntity = typeof RunEntity.Type
 
@@ -37,6 +37,6 @@ export const newestFirst = { createdAt: 'desc', id: 'desc' } as const
 
 export const withChatAndMessages = {
   chat: true,
-  userMessage: { with: withAttachments },
-  assistantMessage: { with: withAttachments },
+  userMessage: true,
+  assistantMessage: true,
 } as const
