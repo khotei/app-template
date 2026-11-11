@@ -19,7 +19,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 |---|---|---|---|---|
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | minimal | learn | done |
 | L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
-| L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | in progress |
+| L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | todo |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | todo |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
@@ -55,128 +55,19 @@ Visible: `bun --bun vitest run --project e2e apps/e2e kernel/aws/__e2e__/queue.s
 
 ## L3 — The thinnest slice: a send answered through a Run
 
-Budget: waits for the owner
-
-### Shape
-
-Data (chat data, `kernel/data/chat/`; domain in `application/chat/domain/`):
-- `runs`: id, chat_id (FK chats, on delete cascade), user_message_id, status
-  (`queued` -> `preparing` -> `generating` -> `done` | `failed`), failure (jsonb, only when
-  failed: reason `ReplyFailed` | `ReplyRefused`, message, cause), provenance, created_at,
-  updated_at. FK (user_message_id, chat_id) -> messages (id, chat_id), the pattern of
-  `kernel/data/attachment/attachment.table.ts:40-44`. Partial unique index on chat_id where the
-  status is active (one active Run per chat, the trick of `messages_chat_id_active_index` today).
-  CHECK (status = 'failed') = (failure is not null). Index (user_message_id, created_at).
-- `messages`: id, chat_id, author, text, run_id (FK runs, unique), created_at. Drop status,
-  error, updated_at. CHECK (author = 'assistant') = (run_id is not null).
-- `chats`: drop status; "busy" and "failed" are read from the latest Run.
-
-Domain:
-- `Run` (`run.model.ts`) takes the transitions now in `message.model.ts` (prepare, generate,
-  complete, fail, `isStartedReply`) under Run names; a retry is a new Run of the same message.
-- `UserMessage { …, attachments, run: Option<Run> }` (the latest Run) and
-  `AssistantMessage { …, run: Run }` (always done). Both read with the message, as `attachments`
-  are (`kernel/data/chat/message.repository.ts:81`, `with: withAttachments`), never written
-  through it; a Run changes only through `RunRepository` with the old status in the `where`.
-
-Send and worker:
-- `GenerateAssistantMessageUseCase` exposes `generate` (handle) and `fail` (onFail); its own
-  `onExit` goes. A model error or refusal is a normal outcome: `handle` writes the Run failed and
-  the job ends `done`. `done` writes the assistant message and the Run's `done` in one transaction.
-- `POST /chats/:chatId/messages` -> 202, the user's message with its Run (queued); 409 busy.
-- Busy: the use case reads the active Run and answers 409; the index catches two sends at once,
-  the loser rolls back whole, as today.
-
-API (`http-api/chat/chat.http.ts`):
-- `GET /chats/:chatId/runs/:runId` -> the Run; `assistantMessage` once `done`. The client polls.
-- `GET /chats/:chatId` keeps its shape; its status is derived. `failure.cause` never leaves the api.
-
-### Notes
-
-[N:ai] The owner's word in L0.5: the steps are vertical slices. This one is the thinnest path end
-to end and holds the old L3 (the `runs` table, the `Run` model, `RunRepository` with its memory
-fake), the old L4 (the send and the worker on a Run) and the read of one Run from the old L5.
-Visible: the play below, the api e2e of a send answered and failed through a Run, `make check`.
-[N:ai] Play: `make up`, `make dev`, then `POST /chats/:chatId/messages` -> 202 with its Run
-queued; `GET /chats/:chatId/runs/:runId` until `done`, with its assistant message.
-[N:ai] Agent's choices, the owner may overturn: `provenance` is `jsonb not null` (`provider`,
-`model`, `instructionsHash`, the fields of `ReplyProvenance`,
-`application/chat/domain/assistant.port.ts:38`): only the api makes a Run, and it always holds
-`CurrentReplyProvenance`; the job's `Option` exists only for bodies queued before the field
-(`application/chat/services/chat.queue.ts:16`). `RunRepository` has `insert`, `update`,
-`selectOne`, the `where` by `id`, `chatId`, `userId`, `status`; no `selectMany`, since L4 reads a
-message's Runs through the message. The message's failure reasons, failure JSON, transitions and
-`MessageStatusInvalidError` move to the Run in this step.
-[N:ai] Today: `application/use-cases/chat/create-user-message.use-case.ts` queues the chat
-(`queueChat`), stores the user's message, then the queued assistant placeholder and its job
-(`:127-141`), and the title job on the first message (`:142-147`). The worker's use case,
-`generate-assistant-message.use-case.ts`, holds `settleWith`, the history read (`:96`),
-`isStartedReply` and `onExit` -> `fail`. The job's body carries provenance:
-`application/chat/services/chat.queue.ts:11`.
-[N:ai] The test `generate dies with the assistant and fails the reply and its chat first`
-(`application/use-cases/__tests__/chat/generate-assistant-message.use-case.test.ts:151`) moves
-to `apps/worker/__tests__/worker.handler.test.ts`: the use case no longer fails its own Run,
-the pair `JobConsumer` + `onFail` does.
-[N:ai] L2's new Shape leaves the first two lines of "Send and worker" stale: no `onFail`, the
-use case keeps its own `onExit`, and the send runs after the commit (a refused one dies, `500`,
-the Run left queued: an item of Later).
-[N:ai] Docs in this step's commits: `docs/knowledge/glossary.md` (Run, Run status, Active run;
-Message, Message status, Active message, Chat status, Status, Provenance), `database.md`,
-`decisions.md` › "Jobs as a table in the data layer" (onFail, the job's id), `roadmap.md`
-entry 22 ("The message keeps its own status", "A run needs no status of its own").
-
-[Q:ai] Rail 5, question 2 (already in the code?): `.claude/rules/deep-modules.md:61` says a value another table implies is a column the transactions that change it move, not derived on each read; the Shape's `chats` line (`:72`) derives the chat's status from its latest Run. Keep `chats.status`, moved by the send and the worker as today, the busy check and its race guard as they are? Without it: a `latestRun` relation on every chat read, a status derived in the api, and the busy check moved to the Runs.
-[N:ai] The owner's word on the first `[Q:ai]` above: the chat's status is driven from its latest Run, not a column; the agent chose the read: a `latestRun` relation on every chat read (one lateral join) and a pure `buildChatStatus` in the model.
-[Q:ai] Rail 5, question 1 (what breaks if removed?): in L3 no reader needs a message's Run nested (`UserMessage.run`, `AssistantMessage.run`, `:77`); the list that does is L4. Keep one `Message` with `runId: Option<RunId>` in L3, the assistant message reached from its Run (`RunEntity.assistantMessage`, one relational query) for `GET /chats/:chatId/runs/:runId`, and nest the Runs into messages in L4?
-
-[N:ai] The owner's word on the second `[Q:ai]`: one `Message` class with `runId`, no `UserMessage` and `AssistantMessage`; `GET /chats/:chatId/runs/:runId` answers the Run with its user message and its assistant message.
-[R] One level of nesting each way (`nesting-plan.md`: Run with its chat and messages, Chat and
-Message with their `run`), the smallest clean implementation on Drizzle rc.5 and Effect 4, with
-options and their code; the draft in `.claude/worktrees/reply-run-L3-nesting`.
-[Q:ai] Rail 5, question 1 (what breaks if removed?), on the nesting draft: `Run.chat` has no
-reader outside its build and the tests: `RunService.create` builds it, `ApiRun` leaves it off the
-wire, and no Shape of L4-L5 reads it. `Message.run` has no reader in L3 either, but L4's list
-reads it. Drop `Run.chat` (the `runs.chat` relation, `ChatColumns` in `RunEntity`, `buildRun`
-back to `chatId`) and keep `Message.run` for L4? Without `Run.chat`, a reader that needs the
-chat's title beside a Run reads the chat by `run.chatId`.
-[N:ai] The owner's word on that `[Q:ai]`: drop `Run.chat`, keep `Message.run` for L4; done in L3.29.
-
-### Pieces
-
-[N:ai] L3.2 The `runs` table and `RunEntity`, beside today's messages; `init` regenerated · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.entity.e2e.ts` (2 cases)
-[N:ai] L3.3 `RunRepository`'s contract: `insert`, `update`, `selectOne` over `RunEntityWhere`, its e2e as `it.effect.fails` over `Effect.die('todo')`; 185 lines, rail 4 lifted by the owner for this piece · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts` (3 expected fail)
-[N:ai] L3.4 `RunRepository`'s body: `insert` skips a second active Run by the partial index and dies, `update` writes under its `where` and dies on a miss, `selectOne` reads the newest Run; `runs` joins the relations · visible: the same e2e, 3 passed
-[N:ai] L3.5 (OWNER) `encodeWhere` of `RunRepository` and `MessageRepository` at module level, as in the other repositories: the owner's subquery is built by Drizzle's standalone `QueryBuilder`, so it needs no `db` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts kernel/data/__e2e__/chat/message.repository.e2e.ts` (14 passed)
-[N:ai] L3.6 The `Run` model's contract: `Run`, `RunStatus`, `ActiveRunStatus`, `RunFailure`, `RunId`, `RunStatusInvalidError`, and `buildRun`, `isActiveRun`, `isStartedRun`, `prepareRun`, `generateRun`, `completeRun`, `failRun` over bodies of `Effect.die('todo')`; its test checks each move from each status; 220 lines (94 code, 126 test), rail 4 lifted by the owner for this piece · visible: `bun --bun vitest run application/chat/__tests__/domain/run.model.test.ts` (28 expected fail)
-[N:ai] L3.7 The `Run` model's body: `buildRun` builds a queued Run, `isActiveRun` and `isStartedRun` read the status, the four moves go through one `transitions` table and `failRun` takes its sentence from `failureMessages` · visible: the same test, 28 passed
-[N:ai] L3.8 The memory fakes' owner where and one-active-per-chat index check become one function each, `holdsChildWhere` and `holdsOneActivePerChat`, so the Run fake shares them with the message fake · visible: `make test-unit` (276 passed)
-[N:ai] L3.9 `RunRepositoryTest` over `RunRows`, in `RepositoryStackTest`: the primary key, the where with the owner through the chat, the set fields, one active Run per chat, the newest Run first, and a chat's delete takes its Runs; no test of its own (`.claude/rules/effect-tests.md`), a throwaway run of those cases passed and was deleted · visible: the use cases' unit tests once they read Runs
-[N:ai] L3.10 `RunFromEntity` and `encodeRun` in a mapper of their own, `application/chat/services/run.mapper.ts` (the owner's word); `decodeRun` lands with its first caller · visible: `bun --bun vitest run application/chat/__tests__/services/run.mapper.test.ts` (5 passed)
-[N:ai] L3.12 The cut to Runs, rail 4 lifted by the owner (variant B): messages lose `status`, `error`, `updated_at` and gain `run_id`; chats lose `status`, read with their newest Run; a Run nests its user message and its reply; the send stores the user message and its queued Run, the worker moves the Run and writes the reply with its `done`; `POST /chats/:chatId/messages` answers the Run, `GET /chats/:chatId/runs/:runId` reads it; `runs` moved into `message.table.ts`, since the two tables reference each other; `init` regenerated. 63 files, +1872 −1999 (55 without the migration, the OpenAPI snapshot and the docs: +1148 −1514) · visible: `make check` (251 unit, 88 e2e), `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts` (8 passed); the play: `make reset && make up`, `make dev`, then the Notes' play with `runId`
-[N:ai] L3.13 (OWNER) The send composes its writes from the services that own them: `MessageService.create` stores the user's message, `FileAttachmentService.getMany` reads the live, stored attachments and `bind` binds them, `RunService.create` stores the queued Run; `store` keeps the checks and four calls, and a first message is a chat with no Run yet · visible: `make check` (251 unit, 88 e2e)
-[N:ai] L3.14 (OWNER) The send reads as its flow, from the owner's sketch: the checks and the reads, then `storeUserMessage` (the message, its bind and its Run in one transaction), then the sends; the reads leave the transaction, as the writes' guards decide the races · visible: `make check` (251 unit, 88 e2e)
-[N:ai] L3.15 (OWNER) `storeUserMessage(userId, chatId, input)` reads the attachments, refuses a bound one, stores the message and binds them, answering the new `Message`; `create` starts its Run by `runService.create` on the chain, under one `transaction.run` · visible: `make check` (251 unit, 88 e2e)
-[N:ai] L3.16 (OWNER) The owner renamed the step `storeUserMessage` to `createUserMessage` · visible: `make check` (251 unit, 88 e2e)
-[N:ai] L3.17 (OWNER) `runs` in its own `run.table.ts`; the Run names its reply by `assistant_message_id` (`runs_assistant_message_id_check`, `_unique`), `messages` loses `run_id`; e2e for both checks, `runs_failure_check` and the key over the message and its chat · visible: `make check` (251 unit, 90 e2e)
-[N:ai] L3.19 `RunColumns`, `MessageColumns` and `ChatColumns` (`createSelectSchema`) move from the entity files to the table files, which form a DAG, so an entity nests a neighbour's columns without an import cycle; no shape changes · visible: `make check`
-[N:ai] L3.20 `RunFields`, `MessageFields` and `ChatFields` hold each model's own fields and the classes spread them; `status` and every `Option` field take a constructor default, so the builders list none; `RunFields` sits in `run-fields.model.ts`, since `noImportCycles` refuses the Run and the message nesting each other in one file · visible: `make check`
-[N:ai] L3.21 `RunFieldsFromColumns`, `MessageFieldsFromColumns` and `ChatFieldsFromColumns` lay each model's own fields over its columns; the writes encode through them, since a write holds a model's own fields only; `run-fields.mapper.ts`, the same cut as the models · visible: `make check`
-[N:ai] L3.22 The chat nests its newest Run flat: `ChatEntity.run` is the Run's columns, read `with: { run: { orderBy: newestFirst } }`, and `Chat.run` is `Option<RunFields>`; relation, field and `with` all named `run` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/chat.repository.e2e.ts`
-[N:ai] L3.23 The Run nests its chat: `RunEntity.chat` (`runs.chat`, `optional: false`), `Run.chat` is `ChatFields`; `RunService.create(chat, userMessage)` builds the Run from what the send holds, so the value built equals the value read back · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts`
-[N:ai] L3.24 The Run nests its messages flat: `RunEntity.userMessage` and `assistantMessage` are the messages' columns, read `with: withChatAndMessages`, no relation nested; `ApiRun` carries them as `ApiMessageFields`, without attachments; the OpenAPI snapshot loses the nested message shapes · visible: `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts`
-[N:ai] L3.25 A message reads with its Run: `messages.latestRun` (a user's newest, ordered `newestFirst`) and `messages.replyOf` (the Run that wrote a reply); a read fills both, and `MessageEntityFromRead`, a codec in the entity file, keeps the one the author has · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
-[N:ai] L3.26 `Message.run` is `Option<RunFields>`, read with the message and never written; the e2e proves the pick on both authors, and the use cases' tests read each message back with its Run · visible: the same e2e, `make check`
-[N:ai] L3.27 Docs: `database.md` (the Columns in the table files, the entity one level deep, the read codec, the Fields codecs of the writes, `with` over top-level relations only), the glossary (read codec, `Fields`), `deep-modules.md` (a neighbour's Columns and a model's Fields are no second shape) · visible: `make doc-lint`
-[N:ai] L3.28 (OWNER) The read codec indexes the two read values by the author, and the entity's decoder drops `latestRun` and `replyOf`, so the table of relation names and the destructuring go · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
-[N:ai] L3.29 (OWNER) The Run no longer nests its chat: the `runs.chat` relation, `RunEntity.chat` and `Run.chat` go, `buildRun` takes `chatId` again and `RunService.create` only the user's message; `withChatAndMessages` is `withMessages` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts`, `make check` (251 unit, 91 e2e)
-[N:ai] L3.30 (REVIEW) Standards: the patch type of the Run's `move` is wrapped in `Types.Simplify` (`.claude/rules/effect.md`) · visible: `make check`
-[N:ai] L3.30 (REVIEW) Standards: `MessageEntityFromRead` leaves the kernel's entry, since only files of the kernel import it, by their own path (`.claude/rules/deep-modules.md › The tests`, Caller) · visible: `make check`
-[N:ai] L3.30 (REVIEW) Standards: the cases of the Run model's test run as `it.effect.each`, not a `describe.each` around one `it.effect` (`.claude/rules/effect-tests.md › Writing a test`) · visible: `bun --bun vitest run application/chat/__tests__/domain/run.model.test.ts` (31 passed)
-[N:ai] L3.30 (REVIEW) Hunt: the memory fake copies `runs_failure_check`, so a unit test can no longer store a failed Run without its failure, or a failure on a Run that is not failed (`.claude/rules/effect-tests.md › Unit and e2e`) · visible: `make test-unit`
-
 ### Output
 
-<Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
+A send stores the user's message and its queued Run in one transaction and answers `202` with
+the Run; the worker moves the Run through `preparing` and `generating`, then writes the reply and
+the Run's `done` in one transaction, or the Run's `failed` with its reason.
+`GET /chats/:chatId/runs/:runId` reads the Run with its user message and its reply. Messages and
+chats lose their status: a chat's is read from its newest Run. Every read nests its neighbours
+one level deep, as their `<Name>Columns`: `Run { userMessage, assistantMessage }`,
+`Chat { run }`, `Message { run }` (a user's newest Run, a reply's own). The Run names its reply
+(`runs.assistant_message_id`), so a retry is a new Run of the same message.
+Visible: `make reset && make up`, `make dev`, `POST /users`, `POST /chats`,
+`POST /chats/:chatId/messages` -> 202 queued, `GET /chats/:chatId/runs/:runId` until `done` with
+its assistant message; `make check` (251 unit, 91 e2e).
 
 ## L4 — A chat's messages with their Runs
 
@@ -244,6 +135,14 @@ API (`http-api/chat/chat.http.ts`):
   each other with `messages.run_id` typed `(): AnyPgColumn`.
 - L2: a job is a queue message, sent after the commit of the record it names; no table tracks
   it, and the work's own record holds its status and failure.
+- L3: every read nests its neighbours one level deep, as their `<Name>Columns`, through
+  top-level relations only; a model's `<Model>Fields` is what a neighbour nests of it. A
+  message's Run is read through two relations (`latestRun`, `replyOf`), and a codec in the entity
+  file keeps the one its author has.
+- L3: the Run names its reply (`runs.assistant_message_id`, unique, set exactly when `done`), so
+  only `run.table.ts` imports `message.table.ts`, and a retry is a new Run of the same message.
+- L3: a chat's status is read from its newest Run, not a column: the owner's choice, against
+  `.claude/rules/deep-modules.md`; the rule or the design changes in L6.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
   to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 
