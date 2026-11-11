@@ -78,8 +78,9 @@ const newestFirst = Order.flip(Order.mapInput(Order.Date, (chat: ChatRow) => cha
 const isActiveRun = matchesAny<RunRow>({ status: activeRunStatuses })
 
 /**
- * Holds while no chat has two active Runs, a Run is done exactly when it names its reply, and no
- * two name the same one, as `runs_chat_id_active_index`, `runs_assistant_message_id_check` and
+ * Holds while no chat has two active Runs, a Run is done exactly when it names its reply and
+ * failed exactly when it holds a failure, and no two name the same reply, as
+ * `runs_chat_id_active_index`, `runs_assistant_message_id_check`, `runs_failure_check` and
  * `runs_assistant_message_id_unique` keep it.
  */
 function holdsRunGuards(runs: HashMap.HashMap<string, RunRow>) {
@@ -95,7 +96,9 @@ function holdsRunGuards(runs: HashMap.HashMap<string, RunRow>) {
     Arr.dedupe(replyIds).length === replyIds.length &&
     Arr.every(
       rows,
-      (row) => (row.status === 'done') === Predicate.isNotNull(row.assistantMessageId),
+      (row) =>
+        (row.status === 'done') === Predicate.isNotNull(row.assistantMessageId) &&
+        (row.status === 'failed') === Predicate.isNotNull(row.failure),
     )
   )
 }

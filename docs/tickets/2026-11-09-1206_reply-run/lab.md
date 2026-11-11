@@ -169,6 +169,10 @@ chat's title beside a Run reads the chat by `run.chatId`.
 [N:ai] L3.27 Docs: `database.md` (the Columns in the table files, the entity one level deep, the read codec, the Fields codecs of the writes, `with` over top-level relations only), the glossary (read codec, `Fields`), `deep-modules.md` (a neighbour's Columns and a model's Fields are no second shape) · visible: `make doc-lint`
 [N:ai] L3.28 (OWNER) The read codec indexes the two read values by the author, and the entity's decoder drops `latestRun` and `replyOf`, so the table of relation names and the destructuring go · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
 [N:ai] L3.29 (OWNER) The Run no longer nests its chat: the `runs.chat` relation, `RunEntity.chat` and `Run.chat` go, `buildRun` takes `chatId` again and `RunService.create` only the user's message; `withChatAndMessages` is `withMessages` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts`, `make check` (251 unit, 91 e2e)
+[N:ai] L3.30 (REVIEW) Standards: the patch type of the Run's `move` is wrapped in `Types.Simplify` (`.claude/rules/effect.md`) · visible: `make check`
+[N:ai] L3.30 (REVIEW) Standards: `MessageEntityFromRead` leaves the kernel's entry, since only files of the kernel import it, by their own path (`.claude/rules/deep-modules.md › The tests`, Caller) · visible: `make check`
+[N:ai] L3.30 (REVIEW) Standards: the cases of the Run model's test run as `it.effect.each`, not a `describe.each` around one `it.effect` (`.claude/rules/effect-tests.md › Writing a test`) · visible: `bun --bun vitest run application/chat/__tests__/domain/run.model.test.ts` (31 passed)
+[N:ai] L3.30 (REVIEW) Hunt: the memory fake copies `runs_failure_check`, so a unit test can no longer store a failed Run without its failure, or a failure on a Run that is not failed (`.claude/rules/effect-tests.md › Unit and e2e`) · visible: `make test-unit`
 
 ### Output
 

@@ -63,20 +63,18 @@ describe('buildRun', () => {
   )
 })
 
-describe.each([
+it.effect.each([
   { status: 'queued', active: true, started: false },
   { status: 'preparing', active: true, started: true },
   { status: 'generating', active: true, started: true },
   { status: 'done', active: false, started: false },
   { status: 'failed', active: false, started: false },
-] as const)('a $status Run', ({ status, active, started }) => {
-  it.effect(`is active: ${active}, started: ${started}`, () =>
-    Effect.sync(() => {
-      assert.strictEqual(isActiveRun(runAt(status)), active)
-      assert.strictEqual(isStartedRun(runAt(status)), started)
-    }),
-  )
-})
+] as const)('a $status Run is active: $active, started: $started', ({ status, active, started }) =>
+  Effect.sync(() => {
+    assert.strictEqual(isActiveRun(runAt(status)), active)
+    assert.strictEqual(isStartedRun(runAt(status)), started)
+  }),
+)
 
 /** Each move and the statuses it leaves from; it refuses every other one. */
 const moves: ReadonlyArray<{
@@ -102,42 +100,37 @@ const cases = Arr.flatMap(moves, ({ to, from, move }) =>
   Arr.map(RunStatus.literals, (status) => ({ to, status, move, allowed: from.includes(status) })),
 )
 
-describe.each(Arr.filter(cases, (move) => move.allowed))(
-  'a move from $status to $to',
-  ({ to, status, move }) => {
-    it.effect('moves the Run and when it last moved', () =>
-      Effect.gen(function* () {
-        const moved = yield* move(runAt(status))
+it.effect.each(Arr.filter(cases, (move) => move.allowed))(
+  'a move from $status to $to moves the Run and when it last moved',
+  ({ to, status, move }) =>
+    Effect.gen(function* () {
+      const moved = yield* move(runAt(status))
 
-        assert.strictEqual(moved.status, to)
-        assert.strictEqual(moved.updatedAt, later)
-      }),
-    )
-  },
+      assert.strictEqual(moved.status, to)
+      assert.strictEqual(moved.updatedAt, later)
+    }),
 )
 
-describe.each(Arr.filter(cases, (move) => !move.allowed))(
-  'a move from $status to $to',
-  ({ to, status, move }) => {
-    it.effect('fails RunStatusInvalidError', () =>
-      Effect.gen(function* () {
-        const error = yield* move(runAt(status)).pipe(Effect.flip)
+it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
+  'a move from $status to $to fails RunStatusInvalidError',
+  ({ to, status, move }) =>
+    Effect.gen(function* () {
+      const error = yield* move(runAt(status)).pipe(Effect.flip)
 
-        assertSchemaEquals(
-          RunStatusInvalidError,
-          error,
-          new RunStatusInvalidError({ id: queued.id, from: status, to }),
-        )
-      }),
-    )
-  },
+      assertSchemaEquals(
+        RunStatusInvalidError,
+        error,
+        new RunStatusInvalidError({ id: queued.id, from: status, to }),
+      )
+    }),
 )
 
-describe.each([
+it.effect.each([
   { reason: 'ReplyFailed', sentence: 'The assistant could not reply. Please try again.' },
   { reason: 'ReplyRefused', sentence: 'The assistant declined to answer this message.' },
-] as const)('failRun for $reason', ({ reason, sentence }) => {
-  it.effect('keeps the reason, a sentence of its own and the cause', () =>
+] as const)(
+  'failRun for $reason keeps the reason, a sentence of its own and the cause',
+  ({ reason, sentence }) =>
     Effect.gen(function* () {
       const failed = yield* failRun(runAt('generating'), { reason, cause, at: later })
 
@@ -147,8 +140,7 @@ describe.each([
         Option.some({ reason, message: sentence, cause }),
       )
     }),
-  )
-})
+)
 
 describe('completeRun', () => {
   it.effect('keeps the reply it settled with', () =>

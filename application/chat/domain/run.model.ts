@@ -52,7 +52,9 @@ const move = Effect.fnUntraced(function* (
   }: {
     readonly to: keyof typeof transitions
     readonly at: DateTime.Utc
-    readonly patch?: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>>
+    readonly patch?: Types.Simplify<
+      Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>>
+    >
   },
 ) {
   if (!transitions[to](run)) {
