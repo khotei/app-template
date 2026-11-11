@@ -91,8 +91,8 @@ Budget: waits for the owner
 ### Shape
 
 API (`http-api/chat/chat.http.ts`):
-- `POST /chats/:chatId/runs { userMessageId }` -> 202 a new Run; 409 unless it is the chat's last
-  user message, its latest Run failed and no Run is active.
+- `POST /chats/:chatId/messages/:messageId/runs` -> 202 a new Run; 404 for an unknown message;
+  409 unless it is the chat's last user message, its latest Run failed and no Run is active.
 
 ### Notes
 
@@ -135,6 +135,14 @@ no Run, a Run not failed, or one of another message is refused. It takes `chat.r
 chat's messages: only the newest user message ever gets a Run, so the newest Run's message is the
 chat's last user message, and the use case needs no `MessageService.getMany`.
 · visible: `bun --bun vitest run --project unit application/chat/__tests__/domain/run.model.test.ts`
+
+[N:ai] L5.4 `RetryRunUseCase.retry(userId, chatId, userMessageId)`: reads the message (its
+`MessageNotFoundError` first), then the chat through `ensureChatNotBusy` and `ensureRunRetryable`,
+stores one queued Run of the message with `RunService.create` and sends `GenerateAssistantMessage`;
+no transaction, since its one write is one insert. The Shape's route is the owner's
+`POST /chats/:chatId/messages/:messageId/runs` since this round. 72 lines of code and 80 of test:
+over rail 4's 100 once tests count, as the open Later item on rail 4 says.
+· visible: `bun --bun vitest run --project unit application/use-cases/__tests__/chat/retry-run.use-case.test.ts`
 
 ### Output
 
