@@ -23,7 +23,8 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | in progress |
-| L7 | Later: the items of the open list the owner picks | hard | build | todo |
+| L7 | Errors with context: what each error carries, and where more of it would help the client, the log or the operator | right | — | todo |
+| L8 | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — Anthropic and the Drizzle reads
 
@@ -126,7 +127,7 @@ is a proposal until the owner makes it `[D]`.
 - [D:ai] 4. `runs.updated_at` goes, with `ApiRunFields.updatedAt`
   (`http-api/chat/api-run-fields.model.ts:25`): no code reads it (`git grep updatedAt` over
   `apps`, `application/use-cases`, `http-api` finds only the wire field), and no client yet. Lost:
-  the time a Run last moved; a stuck Run (L7) would want it back, or its own column.
+  the time a Run last moved; a stuck Run (L8) would want it back, or its own column.
 - [D:ai] 5. `README.md:26-49` tells the Run flow: a send answers its Run, the worker moves it,
   a reload reads `GET /chats/:chatId/messages`, a failed Run takes a retry.
   - [N:ai] The owner, in the chat: ok. Done in L6.6.
@@ -141,7 +142,7 @@ is a proposal until the owner makes it `[D]`.
   owner chose B: the path names `:userMessageId`, and the retry reads the message with
   `author: 'user'`, so an assistant's id is `404 MessageNotFoundError { id, author: 'user' }`.
   Done in L6.8.
-- [D:ai] To L7, as edge cases and error paths: the title lost after a failed first Run, the two
+- [D:ai] To L8, as edge cases and error paths: the title lost after a failed first Run, the two
   retry races, `MessageService.getMany`'s two queries, the memory fakes' missing keys and
   `TransactionTest`, the `--hot` route `404`.
 
@@ -162,7 +163,18 @@ is a proposal until the owner makes it `[D]`.
   (`.claude/skills/lab/SKILL.md:59`); the record of the chat's status cites the lab, not its rounds
   (`docs/knowledge/decisions.md › Status from the newest Run`)
 
-## L7 — Later
+## L7 — Errors with context
+
+### Notes
+
+- [N:ai] The owner, in the chat, during L6: look at the error classes and review where more
+  information and context inside them would help; kept as an intention, to look at later. The
+  kind waits for the step's start ("can you write the signature now?"). Seen in L6.8: 13 domain
+  errors (`application/**/*.error.ts`) and their contract twins (`http-api/**/*.error.ts`);
+  `RunStatusInvalidError { id, from, to }` names its context, while `MessageInputInvalidError`,
+  `UserUnknownError`, `AttachmentTooLargeError` and `AttachmentTypeUnsupportedError` carry none.
+
+## L8 — Later
 
 <The items of Later the owner picks.>
 
@@ -214,7 +226,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L2: a refused send, a crash or an aborted request between the commit and the send leaves
   the reply queued and its chat busy for good; the reply's Run has to settle it (L4).
   `application/use-cases/chat/create-user-message.use-case.ts:152`, the `queue.send`. L4 left
-  it, and L5's retry refuses such a chat too (a Run is active): L7, on the owner's word.
+  it, and L5's retry refuses such a chat too (a Run is active): L8, on the owner's word.
 - [N:ai] L2: a queue body that does not decode is logged and acknowledged, so the work it named
   stays as it was (a queued reply keeps its chat busy). `packages/queue/queue.consumer.ts:49`,
   the `onFailure` arm.
