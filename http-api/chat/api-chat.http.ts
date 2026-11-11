@@ -5,42 +5,15 @@ import {
   AttachmentBoundError,
   AttachmentNotFoundError,
 } from '#http-api/attachment/api-attachment.http'
+import { ChatBusyError, ChatNotFoundError } from '#http-api/chat/api-chat.error'
 import { ApiChat, ChatTitle } from '#http-api/chat/api-chat.model'
+import { MessageInputInvalidError, MessageNotFoundError } from '#http-api/chat/api-message.error'
 import { ApiMessage } from '#http-api/chat/api-message.model'
+import { RunNotFoundError } from '#http-api/chat/api-run.error'
 import { ApiRun } from '#http-api/chat/api-run.model'
 import { AttachmentId, ChatId, MessageId, RunId } from '#http-api/shared/ids'
 import * as limits from '#http-api/shared/limits'
 import { Auth } from '#http-api/shared/security'
-
-export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
-  'ChatNotFoundError',
-  { id: ChatId },
-  { httpApiStatus: 404 },
-) {}
-
-export class ChatBusyError extends Schema.TaggedError<ChatBusyError>()(
-  'ChatBusyError',
-  { id: ChatId },
-  { httpApiStatus: 409 },
-) {}
-
-export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
-  'MessageNotFoundError',
-  { id: MessageId },
-  { httpApiStatus: 404 },
-) {}
-
-export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()(
-  'RunNotFoundError',
-  { id: RunId },
-  { httpApiStatus: 404 },
-) {}
-
-export class MessageInputInvalidError extends Schema.TaggedError<MessageInputInvalidError>()(
-  'MessageInputInvalidError',
-  {},
-  { httpApiStatus: 400 },
-) {}
 
 const chatPath = { chatId: ChatId }
 

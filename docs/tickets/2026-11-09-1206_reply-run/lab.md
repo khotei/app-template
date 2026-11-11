@@ -107,6 +107,10 @@ name with its domain twin: `api-chat.http.ts`, `api-attachment.http.ts`, `api-he
 `api-chat.model.ts`, `api-message.model.ts`, `api-run.model.ts` and `api-run-fields.model.ts`,
 as the domain splits them; the wire is unchanged (`make api-check` passes on the old snapshot).
 · visible: `ls http-api/chat/`, `make api-check`.
+[N:ai] L4.5 (owner's word) the chat group's errors leave `api-chat.http.ts` for
+`api-chat.error.ts`, `api-message.error.ts` and `api-run.error.ts`, as the domain splits them;
+the `.http` keeps only the routes, and the wire is unchanged. · visible: `ls http-api/chat/`,
+`make api-check`.
 
 ### Output
 
