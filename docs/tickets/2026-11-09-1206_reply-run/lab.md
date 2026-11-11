@@ -142,18 +142,15 @@ echo $sent | jq                                   # 202, status queued
 run=$(echo $sent | jq -r .id); message=$(echo $sent | jq -r .userMessage.id)
 curl -s -b $jar $api/chats/$chat/runs/$run | jq   # repeat: queued, preparing, failed
 curl -s -b $jar $api/chats/$chat | jq .status     # "failed"
-curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs -w '%{http_code}\n'  # 202
-# terminal 2: Ctrl-C, then `make dev-worker` with the key of .env; the retried Run stayed queued
-retried=$(curl -s -b $jar $api/chats/$chat/messages | jq -r '.[0].run.id')
+# terminal 2: Ctrl-C, then `make dev-worker`, with the key of .env
+retried=$(curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs | jq -r .id)  # 202
 curl -s -b $jar $api/chats/$chat/runs/$retried | jq   # repeat: until done, with its reply
 curl -s -b $jar $api/chats/$chat/runs/$run | jq .status  # the first stays "failed"
 curl -s -b $jar $api/chats/$chat/messages | jq     # the reload: your message, then the reply
 curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs | jq  # 409 RunNotRetryableError
 ```
 
-Wrong on the way: the retry of the first Run while the worker is down queues a job the restarted
-worker takes only if SQS still holds it (I assume MiniStack keeps it until the mapping delivers);
-the title job fails with the bad key too, so the chat keeps no title.
+On the way: the title job fails with the bad key too, so the chat keeps no title.
 
 ### Pieces
 
