@@ -22,6 +22,10 @@ export const relations = defineRelations(
     messages: {
       chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),
       attachments: r.many.attachments({ from: r.messages.id, to: r.attachments.messageId }),
+      // A user's message: the newest of the Runs that answer it, ordered by `withRun`.
+      latestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
+      // An assistant's message: the Run that wrote it.
+      replyOf: r.one.runs({ from: r.messages.id, to: r.runs.assistantMessageId }),
     },
     runs: {
       chat: r.one.chats({ from: r.runs.chatId, to: r.chats.id, optional: false }),

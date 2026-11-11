@@ -42,6 +42,7 @@ const question = (id: string, chatId: string): MessageEntity => ({
   text: 'Hi',
   createdAt,
   attachments: [],
+  run: null,
 })
 
 const run = (
@@ -182,7 +183,7 @@ describe('ChatRepository', () => {
       yield* insertUser(cy)
       yield* Effect.forEach([kept, deleted], chats.insert)
       yield* Effect.forEach([keptQuestion, deletedQuestion], (each) =>
-        messages.insert(Struct.omit(each, ['attachments'])),
+        messages.insert(Struct.omit(each, ['attachments', 'run'])),
       )
 
       yield* chats.delete({ id: deleted.id, userId: cy })

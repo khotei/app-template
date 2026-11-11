@@ -2,6 +2,7 @@ import {
   Array as Arr,
   Context,
   Effect,
+  flow,
   HashMap,
   Layer,
   Option,
@@ -21,7 +22,7 @@ import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity
 import type { ChatEntity, ChatEntityWhere } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
-import type { MessageEntity, MessageEntityWhere } from '#kernel/data/chat/message.entity'
+import { MessageEntityFromRead, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import type { RunEntity, RunEntityWhere } from '#kernel/data/chat/run.entity'
@@ -126,16 +127,36 @@ const holdsChildWhere = (
 const holdsRunWhere = (chats: HashMap.HashMap<string, ChatRow>, where: RunEntityWhere) =>
   Predicate.and(holdsChildWhere(chats, where), matchesAny<RunRow>({ status: where.status }))
 
-/** The message with its attachments, as `withAttachments` nests them. */
-const withAttachmentsOf =
-  (rows: Tables) =>
-  (message: MessageRow): MessageEntity => ({
-    ...message,
-    attachments: inCreationOrderWhere(
-      rows.attachments,
-      matches<AttachmentEntity>({ messageId: message.id }),
-    ),
-  })
+/** The newest Run where `where` holds, as a `one` relation ordered `newestFirst` reads it. */
+const newestRunWhere = (
+  runs: HashMap.HashMap<string, RunRow>,
+  where: Predicate.Predicate<RunRow>,
+) => pipe(inCreationOrderWhere(runs, where), Arr.last)
+
+/**
+ * The message with its attachments and both of its Run relations, as `withAttachments` and
+ * `withRun` read them; `MessageEntityFromRead` keeps the Run its author has.
+ */
+const readMessage = (rows: Tables) =>
+  flow(
+    (message: MessageRow) => ({
+      ...message,
+      attachments: inCreationOrderWhere(
+        rows.attachments,
+        matches<AttachmentEntity>({ messageId: message.id }),
+      ),
+      latestRun: pipe(
+        newestRunWhere(rows.runs, matches<RunRow>({ userMessageId: message.id })),
+        Option.getOrNull,
+      ),
+      replyOf: pipe(
+        newestRunWhere(rows.runs, matches<RunRow>({ assistantMessageId: message.id })),
+        Option.getOrNull,
+      ),
+    }),
+    Schema.decodeEffect(MessageEntityFromRead),
+    Effect.orDie,
+  )
 
 /** The Run with its chat and its messages, as `withChatAndMessages` nests them; the keys keep them. */
 const readRun =
@@ -150,12 +171,6 @@ const readRun =
       Option.getOrNull,
     ),
   })
-
-/** The newest Run where `where` holds, as a `one` relation ordered `newestFirst` reads it. */
-const newestRunWhere = (
-  runs: HashMap.HashMap<string, RunRow>,
-  where: Predicate.Predicate<RunRow>,
-) => pipe(inCreationOrderWhere(runs, where), Arr.last)
 
 const decodeChat = Schema.decodeUnknownEffect(ChatColumns)
 
@@ -271,10 +286,10 @@ export const MessageRepositoryTest = Layer.effect(
 
     const selectMany = (where: MessageEntityWhere) =>
       read.pipe(
-        Effect.map((rows) =>
-          pipe(
+        Effect.flatMap((rows) =>
+          Effect.forEach(
             inCreationOrderWhere(rows.messages, holdsChildWhere(rows.chats, where)),
-            Arr.map(withAttachmentsOf(rows)),
+            readMessage(rows),
           ),
         ),
       )

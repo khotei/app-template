@@ -32,6 +32,7 @@ const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seco
     text: 'Hi',
     createdAt: at(seconds),
     attachments: [],
+    run: null,
   }) satisfies MessageEntity
 
 const attachment = (

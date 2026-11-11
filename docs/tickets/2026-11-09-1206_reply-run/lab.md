@@ -163,6 +163,7 @@ chat's title beside a Run reads the chat by `run.chatId`.
 [N:ai] L3.22 The chat nests its newest Run flat: `ChatEntity.run` is the Run's columns, read `with: { run: { orderBy: newestFirst } }`, and `Chat.run` is `Option<RunFields>`; relation, field and `with` all named `run` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/chat.repository.e2e.ts`
 [N:ai] L3.23 The Run nests its chat: `RunEntity.chat` (`runs.chat`, `optional: false`), `Run.chat` is `ChatFields`; `RunService.create(chat, userMessage)` builds the Run from what the send holds, so the value built equals the value read back · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts`
 [N:ai] L3.24 The Run nests its messages flat: `RunEntity.userMessage` and `assistantMessage` are the messages' columns, read `with: withChatAndMessages`, no relation nested; `ApiRun` carries them as `ApiMessageFields`, without attachments; the OpenAPI snapshot loses the nested message shapes · visible: `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts`
+[N:ai] L3.25 A message reads with its Run: `messages.latestRun` (a user's newest, ordered `newestFirst`) and `messages.replyOf` (the Run that wrote a reply); a read fills both, and `MessageEntityFromRead`, a codec in the entity file, keeps the one the author has · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
 
 ### Output
 

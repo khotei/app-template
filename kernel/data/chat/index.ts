@@ -3,6 +3,7 @@ export { ChatRepository } from '#kernel/data/chat/chat.repository'
 export * from '#kernel/data/chat/chat.table'
 export {
   MessageEntity,
+  MessageEntityFromRead,
   MessageEntityInsert,
   type MessageEntityWhere,
 } from '#kernel/data/chat/message.entity'

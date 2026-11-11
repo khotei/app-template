@@ -12,10 +12,12 @@ import {
 import { chats } from '#kernel/data/chat/chat.table'
 import {
   inCreationOrder,
-  MessageEntity,
+  type MessageEntity,
+  MessageEntityFromRead,
   type MessageEntityInsert,
   type MessageEntityWhere,
   withAttachments,
+  withRun,
 } from '#kernel/data/chat/message.entity'
 import { messages } from '#kernel/data/chat/message.table'
 import { Db } from '#kernel/data/db.client'
@@ -38,10 +40,10 @@ const select = (where: MessageEntityWhere) =>
   ({
     where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
     orderBy: inCreationOrder,
-    with: withAttachments,
+    with: { ...withAttachments, ...withRun },
   }) as const
 
-const decodeMessages = Schema.decodeEffect(Schema.Array(MessageEntity))
+const decodeMessages = Schema.decodeEffect(Schema.Array(MessageEntityFromRead))
 
 export class MessageRepository extends Context.Service<
   MessageRepository,
@@ -66,7 +68,7 @@ export class MessageRepository extends Context.Service<
           (where) =>
             db.query.messages
               .findFirst(select(where))
-              .pipe(Effect.flatMap(decodeOptionalRow(MessageEntity))),
+              .pipe(Effect.flatMap(decodeOptionalRow(MessageEntityFromRead))),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('MessageRepository.selectMany')(
