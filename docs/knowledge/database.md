@@ -137,8 +137,8 @@ const rows = yield* db.query.messages.findMany({
 ```
 
 Every repository reads its entity `with` the top-level relations its entity nests, in one
-relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`, `Run.chat` and
-`Message.run` are model fields another table holds, read and never written by their own writes.
+relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`, `Run.userMessage`
+and `Message.run` are model fields another table holds, read and never written by their own writes.
 A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy:
 newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
 aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never

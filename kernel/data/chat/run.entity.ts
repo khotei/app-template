@@ -2,17 +2,15 @@ import { createInsertSchema } from 'drizzle-orm/effect-schema'
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import { ChatColumns } from '#kernel/data/chat/chat.table'
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns, runJsonColumns, runs } from '#kernel/data/chat/run.table'
 
 /**
- * A Run with its chat, the message it answers and its reply, none until it is done: every read
- * nests them (`withChatAndMessages`), flat, without their attachments.
+ * A Run with the message it answers and its reply, none until it is done: every read nests them
+ * (`withMessages`), flat, without their attachments.
  */
 export const RunEntity = Schema.Struct({
   ...RunColumns.fields,
-  chat: ChatColumns,
   userMessage: MessageColumns,
   assistantMessage: Schema.NullOr(MessageColumns),
 })
@@ -35,8 +33,4 @@ export type RunEntitySet = Types.Simplify<
 
 export const newestFirst = { createdAt: 'desc', id: 'desc' } as const
 
-export const withChatAndMessages = {
-  chat: true,
-  userMessage: true,
-  assistantMessage: true,
-} as const
+export const withMessages = { userMessage: true, assistantMessage: true } as const

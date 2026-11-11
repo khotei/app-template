@@ -139,6 +139,7 @@ wire, and no Shape of L4-L5 reads it. `Message.run` has no reader in L3 either, 
 reads it. Drop `Run.chat` (the `runs.chat` relation, `ChatColumns` in `RunEntity`, `buildRun`
 back to `chatId`) and keep `Message.run` for L4? Without `Run.chat`, a reader that needs the
 chat's title beside a Run reads the chat by `run.chatId`.
+[N:ai] The owner's word on that `[Q:ai]`: drop `Run.chat`, keep `Message.run` for L4; done in L3.29.
 
 ### Pieces
 
@@ -167,6 +168,7 @@ chat's title beside a Run reads the chat by `run.chatId`.
 [N:ai] L3.26 `Message.run` is `Option<RunFields>`, read with the message and never written; the e2e proves the pick on both authors, and the use cases' tests read each message back with its Run · visible: the same e2e, `make check`
 [N:ai] L3.27 Docs: `database.md` (the Columns in the table files, the entity one level deep, the read codec, the Fields codecs of the writes, `with` over top-level relations only), the glossary (read codec, `Fields`), `deep-modules.md` (a neighbour's Columns and a model's Fields are no second shape) · visible: `make doc-lint`
 [N:ai] L3.28 (OWNER) The read codec indexes the two read values by the author, and the entity's decoder drops `latestRun` and `replyOf`, so the table of relation names and the destructuring go · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/message.repository.e2e.ts`
+[N:ai] L3.29 (OWNER) The Run no longer nests its chat: the `runs.chat` relation, `RunEntity.chat` and `Run.chat` go, `buildRun` takes `chatId` again and `RunService.create` only the user's message; `withChatAndMessages` is `withMessages` · visible: `bun --bun vitest run --project e2e kernel/data/__e2e__/chat/run.repository.e2e.ts`, `make check` (251 unit, 91 e2e)
 
 ### Output
 

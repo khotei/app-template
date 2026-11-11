@@ -1,13 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
-import { UserId } from '@app-template/application/identity'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import { buildChat } from '#chat/domain/chat.model'
 import { buildAssistantMessage, buildUserMessage, MessageFields } from '#chat/domain/message.model'
 import { RunStatusInvalidError } from '#chat/domain/run.error'
 import {
@@ -27,22 +25,18 @@ const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
 const cause = 'Provider returned 529: overloaded'
 
-const chat = buildChat({
-  id: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002'),
-  userId: UserId.make('0192d4e0-7b3a-7c00-8000-000000000005'),
-  createdAt,
-})
+const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002')
 
 const userMessage = buildUserMessage({
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
-  chatId: chat.id,
+  chatId,
   text: 'Hi',
   createdAt,
 })
 
 const queued = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000001'),
-  chatId: chat.id,
+  chatId,
   userMessageId: userMessage.id,
   status: 'queued',
   failure: Option.none(),
@@ -50,14 +44,13 @@ const queued = new Run({
   assistantMessageId: Option.none(),
   createdAt,
   updatedAt: createdAt,
-  chat,
   userMessage,
   assistantMessage: Option.none(),
 })
 
 const reply = buildAssistantMessage({
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
-  chatId: chat.id,
+  chatId,
   text: 'Hello',
   createdAt: later,
 })

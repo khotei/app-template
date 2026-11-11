@@ -158,12 +158,11 @@ const readMessage = (rows: Tables) =>
     Effect.orDie,
   )
 
-/** The Run with its chat and its messages, as `withChatAndMessages` nests them; the keys keep them. */
+/** The Run with its messages, as `withMessages` nests them; the keys keep them. */
 const readRun =
   (rows: Tables) =>
   (run: RunRow): RunEntity => ({
     ...run,
-    chat: pipe(HashMap.get(rows.chats, run.chatId), Option.getOrThrow),
     userMessage: pipe(HashMap.get(rows.messages, run.userMessageId), Option.getOrThrow),
     assistantMessage: pipe(
       Option.fromNullOr(run.assistantMessageId),

@@ -24,7 +24,6 @@ import {
 import {
   type AssistantCallHold,
   assistantMessageAt,
-  chat,
   chatId,
   deleteChat,
   firstMessage,
@@ -63,7 +62,7 @@ const history = [whatIsThis, aPhoto, andAgain, attachmentsOnly]
 /** The queued Run of the history's last message. */
 const lastRun = buildRun({
   id: queuedRun.id,
-  chat,
+  chatId,
   userMessage: attachmentsOnly,
   provenance: replyProvenance,
   createdAt: attachmentsOnly.createdAt,

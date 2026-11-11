@@ -83,7 +83,7 @@ export class CreateUserMessageUseCase extends Context.Service<
 
       // The message, its bind and its Run commit together: a Run that loses the race keeps none.
       const run = yield* createUserMessage(userId, chatId, input).pipe(
-        Effect.flatMap((message) => runService.create(chat, message)),
+        Effect.flatMap(runService.create),
         transaction.run,
       )
 
