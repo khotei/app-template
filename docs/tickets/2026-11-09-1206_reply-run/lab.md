@@ -22,7 +22,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
-| L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
+| L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | in progress |
 | L7 | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — Anthropic and the Drizzle reads
@@ -100,6 +100,38 @@ Run is answered by the worker…", `make check` (263 unit, 93 e2e).
 
 <What the play and the reviews of L3-L5 change in the decisions, design and architecture.>
 
+### Notes
+
+The candidates from Later that the play and the reviews left for the Right step; each `[D:ai]`
+is a proposal until the owner makes it `[D]`.
+
+- [D:ai] 1. The chat's status stays derived from its newest Run (`buildChatStatus`,
+  `application/chat/domain/chat.model.ts:51`), and the rule narrows: a value read from the one
+  row a read already nests is derived, not a column (`.claude/rules/deep-modules.md:63`, with
+  its record in `docs/knowledge/decisions.md`). A `chats.status` column would be a second copy of
+  the Run's status, written by each of its five moves in the Run's transaction; the derived one
+  costs no query, since `Chat { run }` is already read (L3). Lost without the column: a query
+  over chats by status needs the join.
+- [D:ai] 2. `naming.md` gains the verb the code already uses: `create`, a domain service's write
+  that stores a new record (`ChatService.create`, `MessageService.create`, `RunService.create`,
+  `application/chat/services/*.service.ts`), and a use case's step over it; `createUserMessage`
+  (`application/use-cases/chat/create-user-message.use-case.ts:59`) keeps its name. The factory
+  arm stays: a factory takes dependencies, a write takes the record's fields.
+- [D:ai] 3. `buildApiRun` drops its pick of the failure (`apps/api/chat/chat.mapper.ts:20`): the
+  wire schema already drops `cause` on encode (L4.1's run of the deletion test).
+- [D:ai] 4. `runs.updated_at` goes, with `ApiRunFields.updatedAt`
+  (`http-api/chat/api-run-fields.model.ts:25`): no code reads it (`git grep updatedAt` over
+  `apps`, `application/use-cases`, `http-api` finds only the wire field), and no client yet. Lost:
+  the time a Run last moved; a stuck Run (L7) would want it back, or its own column.
+- [D:ai] 5. `README.md:26-49` tells the Run flow: a send answers its Run, the worker moves it,
+  a reload reads `GET /chats/:chatId/messages`, a failed Run takes a retry.
+- [D:ai] 6. Rail 4 (`.claude/rules/lab.md:55`) counts a piece's tests apart from its code, as a
+  plan step counts its docs: a piece with a repository's e2e passed 100 lines in each of L3.2,
+  L3.3 and L3.6 on the test's setup alone.
+- [D:ai] To L7, as edge cases and error paths: the title lost after a failed first Run, the two
+  retry races, `MessageService.getMany`'s two queries, the memory fakes' missing keys and
+  `TransactionTest`, the `--hot` route `404`.
+
 ## L7 — Later
 
 <The items of Later the owner picks.>
@@ -161,6 +193,7 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
   message is the user's: a Run on an assistant message passes the store. L4's use case builds a
   Run only from the user message it has just stored; the store stays without that check.
 - [N:ai] L3: until the use cases switch to Runs, the failure sentences sit twice, in `failureMessages` of `application/chat/domain/run.model.ts` and of `message.model.ts`; the switch deletes the message's copy with its failure and transitions.
+  Done: only `run.model.ts:102` keeps them (`git grep failureMessages`).
 - [N:ai] Rail 4 (`.claude/rules/lab.md`): a piece with a repository's e2e cannot stay within 100
   lines, since the test's setup alone takes about 50 (L3.2: 178 lines, L3.3: 185, L3.6: 220 with 126 of test). Count a piece's
   tests apart from its code, as a plan step counts its docs? For the Right step.
