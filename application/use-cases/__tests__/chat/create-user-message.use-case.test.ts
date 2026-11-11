@@ -20,7 +20,6 @@ import {
   type MessageInput,
   type Run,
   type RunId,
-  RunNotQueuedError,
 } from '@app-template/application/chat'
 import {
   chat,
@@ -35,9 +34,8 @@ import {
   upload,
 } from '@app-template/application/chat/testing'
 import { ChatRepository, FileRepository } from '@app-template/kernel/data'
-import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { assertSchemaEquals, epoch, isUuidV7, recordLogs } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatTest } from '#testing/use-cases/chat.test-layer'
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
@@ -64,24 +62,6 @@ const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
   message: new GenerateAssistantMessage({ chatId: chat.id, runId }),
 })
-
-/** A `QueueSender` that records each message, as `recordMessages` does, but SQS refuses `queue`'s. */
-function refuseQueue(queue: string) {
-  const jobs = recordMessages()
-  const layer = Layer.effect(
-    QueueSender,
-    Effect.gen(function* () {
-      const recording = yield* QueueSender
-      return QueueSender.of({
-        send: (definition, message) =>
-          definition.name === queue
-            ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
-            : recording.send(definition, message),
-      })
-    }),
-  ).pipe(Layer.provide(jobs.layer))
-  return { sent: jobs.sent, layer }
-}
 
 describe('CreateUserMessageUseCase', () => {
   it.live(
@@ -172,45 +152,6 @@ describe('CreateUserMessageUseCase', () => {
       }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
     },
   )
-
-  it.effect(
-    'create whose reply job SQS refuses fails its Run with ReplyFailed and is RunNotQueuedError, sending no title job',
-    () => {
-      const jobs = refuseQueue('assistant-message')
-      return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
-
-        const error = yield* createUserMessage
-          .create(owner, chat.id, ask('Plan a weekend in Lisbon'))
-          .pipe(Effect.flip)
-
-        const stored = yield* selectChat(chat.id)
-        const run = stored.pipe(
-          Option.flatMap(({ run }) => run),
-          Option.getOrThrow,
-        )
-        assertSchemaEquals(RunNotQueuedError, error, new RunNotQueuedError({ id: run.id }))
-        assert.strictEqual(run.status, 'failed')
-        assert.strictEqual(Option.getOrThrow(run.failure).reason, 'ReplyFailed')
-        assert.include(Option.getOrThrow(run.failure).cause, 'SQS is unavailable')
-        assertEquals(yield* jobs.sent, [])
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
-    },
-  )
-
-  it.effect('create whose title job SQS refuses logs it and answers the queued Run', () => {
-    const jobs = refuseQueue('chat-title')
-    const { logs, layer: logger } = recordLogs()
-    return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-
-      const run = yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
-
-      assert.strictEqual(run.status, 'queued')
-      assertEquals(yield* jobs.sent, [replyJob(run.id)])
-      assert.deepStrictEqual(logs, [['Error', 'chat title not queued']])
-    }).pipe(Effect.provide([Layer.provide(ChatTest, jobs.layer), logger]))
-  })
 
   it.effect('create while a Run is in work is ChatBusyError before any message or job', () => {
     const jobs = recordMessages()

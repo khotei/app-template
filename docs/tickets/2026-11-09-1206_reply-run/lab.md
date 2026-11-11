@@ -168,6 +168,14 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   `503 RunNotQueuedError { id }`; a title's is logged, and the send answers its queued Run
   (47 lines of code, 60 of test) · visible: `bun --bun vitest run --project unit
   application/use-cases/__tests__/chat/create-user-message.use-case.test.ts`
+- [N:ai] L8.3 the owner's word: the senders are services at the use cases' level,
+  `AssistantMessageSender.send(run)` and `ChatTitleSender.send(message)` in
+  `application/use-cases/chat/chat.sender.ts`; `create` calls them, the behaviour unchanged, the
+  refusal tests move to the senders (96 lines of code added, 38 gone; 66 of test added, 60
+  gone) · visible: `bun --bun vitest run --project unit
+  application/use-cases/__tests__/chat/chat.sender.test.ts`. The queue definitions stay in the
+  module: a use case may not import `kernel/aws`, whose inventory names the queues
+  (`docs/knowledge/architecture.md › Dependency rules`).
 
 ## Knowledge
 
@@ -305,5 +313,5 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L8.2: `failUnsent` lives in `create`, and the retry needs the same; the worker's
   `settleFailed` makes a third copy of "fail the Run under its status"
   (`application/use-cases/chat/generate-assistant-message.use-case.ts:120`). No folder holds a
-  function shared by use cases (`docs/knowledge/architecture.md › A use case`). For the retry's
-  piece.
+  function shared by use cases (`docs/knowledge/architecture.md › A use case`). Done in L8.3:
+  the senders hold it; the worker's `settleFailed` stays, its reason and source status its own.

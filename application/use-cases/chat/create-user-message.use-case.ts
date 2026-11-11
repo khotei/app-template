@@ -1,42 +1,35 @@
-import { Cause, Context, DateTime, Effect, Layer, Option } from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 
 import {
   type AttachmentBoundError,
   type AttachmentNotFoundError,
-  assistantMessageQueue,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
   ChatService,
-  chatTitleQueue,
-  encodeRun,
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
   FileAttachmentService,
-  failRun,
-  GenerateAssistantMessage,
-  GenerateChatTitle,
   Message,
   type MessageInput,
   type MessageInputInvalidError,
   MessageService,
   type Run,
-  RunNotQueuedError,
+  type RunNotQueuedError,
   RunService,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
-import { RunRepository } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
-import { type QueueError, QueueSender } from '@app-template/packages/queue'
+
+import { AssistantMessageSender, ChatTitleSender } from '#use-cases/chat/chat.sender'
 
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
   {
     /**
      * Stores the user's message with its attachments bound and the queued Run that answers it,
-     * then sends its jobs: a reply's job SQS refuses fails the Run, `RunNotQueuedError`; a
-     * title's is logged.
+     * then sends its jobs.
      */
     readonly create: (
       userId: UserId,
@@ -58,8 +51,8 @@ export class CreateUserMessageUseCase extends Context.Service<
     const fileAttachments = yield* FileAttachmentService
     const messageService = yield* MessageService
     const runService = yield* RunService
-    const runs = yield* RunRepository
-    const queue = yield* QueueSender
+    const replySender = yield* AssistantMessageSender
+    const titleSender = yield* ChatTitleSender
     const transaction = yield* Transaction
 
     /** The user's message with the attachments it names bound to it; a bound one is refused first. */
@@ -78,20 +71,6 @@ export class CreateUserMessageUseCase extends Context.Service<
       return new Message({ ...message, attachments })
     })
 
-    /** Fails the Run whose job SQS refused, so its message shows the failure and takes a retry. */
-    const failUnsent = Effect.fnUntraced(function* (run: Run, error: QueueError) {
-      const at = yield* DateTime.now
-      const failed = yield* failRun(run, {
-        reason: 'ReplyFailed',
-        cause: Cause.pretty(Cause.fail(error)),
-        at,
-      }).pipe(Effect.orDie)
-      yield* encodeRun(failed).pipe(
-        Effect.flatMap((row) => runs.update(row, { id: run.id, status: ['queued'] })),
-      )
-      return yield* new RunNotQueuedError({ id: run.id })
-    })
-
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
       userId: UserId,
       chatId: ChatId,
@@ -108,18 +87,10 @@ export class CreateUserMessageUseCase extends Context.Service<
         transaction.run,
       )
 
-      yield* queue
-        .send(assistantMessageQueue, new GenerateAssistantMessage({ chatId, runId: run.id }))
-        .pipe(Effect.catchTag('QueueError', (error) => failUnsent(run, error)))
+      yield* replySender.send(run)
       // Every user message starts a Run, so a chat with none had no message before this one.
       if (Option.isNone(chat.run)) {
-        yield* queue
-          .send(chatTitleQueue, new GenerateChatTitle({ chatId, messageId: run.userMessage.id }))
-          .pipe(
-            Effect.catchTag('QueueError', (error) =>
-              Effect.logError('chat title not queued', error),
-            ),
-          )
+        yield* titleSender.send(run.userMessage)
       }
       return run
     })
@@ -129,7 +100,9 @@ export class CreateUserMessageUseCase extends Context.Service<
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
     Layer.provide([
+      AssistantMessageSender.layer,
       ChatService.layer,
+      ChatTitleSender.layer,
       FileAttachmentService.layer,
       MessageService.layer,
       RunService.layer,
