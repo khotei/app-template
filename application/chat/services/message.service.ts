@@ -21,7 +21,6 @@ export class MessageService extends Context.Service<
     /** Stores the user's message as sent, with no attachments: a bind adds them. */
     readonly create: (fields: Pick<Message, 'chatId' | 'text'>) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
-    /** The messages of the user's chat in creation order. */
     readonly getMany: (
       where: Types.Simplify<Omit<MessageWhere, 'id'>>,
     ) => Effect.Effect<ReadonlyArray<Message>, ChatNotFoundError>

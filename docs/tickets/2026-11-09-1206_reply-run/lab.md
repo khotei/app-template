@@ -116,6 +116,9 @@ the `.http` keeps only the routes, and the wire is unchanged. · visible: `ls ht
 `AttachmentTypeUnsupportedError`, wire-only and the upload's alone, move there from
 `shared/errors.ts`, which keeps `RequestInvalidError` for every group. · visible:
 `ls http-api/attachment/`, `make api-check`.
+[N:ai] L4.7 (review) `MessageService.getMany` loses its TSDoc, which restated the
+repository's order (`.claude/rules/comments.md`); `architecture.md`'s contract-group row names
+one `api-<model>.model.ts` and `api-<model>.error.ts` per model. · visible: `make check`.
 
 ### Output
 
@@ -234,3 +237,8 @@ done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's wo
 - [N:ai] L4.1: `README.md:22-49` still tells the pre-Run flow (a queued assistant message, a poll
   of `GET /chats/:id/messages/:messageId`); since L3 a send answers its Run, and a reload reads
   `GET /chats/:chatId/messages`.
+- [N:ai] L4 review: `MessageService.getMany` checks the chat, then reads its messages in a second
+  query; a delete between the two answers `200 []`, not `404 ChatNotFoundError`, and the next
+  read gives the 404 (`application/chat/services/message.service.ts:58`). A domain service opens
+  no transaction (`.claude/rules/layering.md`); one query that reads the chat with its messages
+  would close it. Open.
