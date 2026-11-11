@@ -12,12 +12,14 @@ an `Effect`, never a promise.
 
 ## Schema and entity files
 
-The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts` and its
-entities, the schemas read from it, in `<name>.entity.ts`; what each may import:
-[kernel/CLAUDE.md](../../kernel/CLAUDE.md). Since a table imports no entity,
-`ChatEntity` and `MessageEntity` nest `AttachmentEntity` without a cycle. The tables are the one
-declaration of the schema: the migrations are generated from them and the entities derived
-from them.
+The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts`, with its
+columns' schema `<Name>Columns` (`createSelectSchema(<table>)`), and its entities, the schemas
+read from it, in `<name>.entity.ts`; what each may import: [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
+The tables form a DAG and import no entity, so an entity nests a neighbour's `<Name>Columns`
+from the table file without a cycle: `RunEntity` nests `ChatColumns` and `MessageColumns`, and
+`ChatEntity` and `MessageEntity` nest `RunColumns`, where the entities would import each other.
+The tables are the one declaration of the schema: the migrations are generated from them and
+the entities derived from them.
 
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
   `camelCase` keys in code (`createdAt`) become `snake_case` columns (`created_at`) with no name
@@ -65,39 +67,55 @@ from them.
 
 ## Entities and mappers
 
-An entity file derives its schemas from the table with `createSelectSchema` and
-`createInsertSchema` from `drizzle-orm/effect-schema`, in the data layer's own types (`string`,
-`string | null`, `Date`), beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and
-writes filter and change by. An entity is the shape every read returns, so a chat's and a
-message's nest their attachments:
+An entity file lays its entity over the table's `<Name>Columns`, in the data layer's own types
+(`string`, `string | null`, `Date`), with `createInsertSchema` from `drizzle-orm/effect-schema`
+for its `Insert`, beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and writes
+filter and change by. An entity is the shape every read returns, one level deep: a chat's and a
+message's nest their attachments and their Run's columns, a Run's its chat's and its messages'
+columns, and the nested columns nest nothing:
 
 ```ts
 export const ChatEntity = Schema.Struct({
-  ...createSelectSchema(chats).fields,
+  ...ChatColumns.fields,
   attachments: Schema.Array(AttachmentEntity),
+  run: Schema.NullOr(RunColumns),
 })
 ```
 
+Where a read's shape is not the entity's, the entity file holds the codec from the one to the
+other: a message's Run comes from two relations, the newest that answers a user's message and
+the one that wrote an assistant's, so `MessageEntityFromRead` keeps the one its author has and
+the repository decodes every read with it.
+
 A mapper, `<model>.mapper.ts` in the module's `services/`, lays the model's schemas over the
-entity's fields and pipes the struct into the model; services and tests decode and encode
-with it:
+columns as `<Model>FieldsFromColumns`, the codec of the model's own fields, and nests the
+neighbours' codecs into `<Model>FromEntity`, piped into the model; services and tests decode
+with the second and encode with the first, since a write holds the model's own fields only:
 
 ```ts
-export const UserFromEntity = Schema.Struct({
-  ...UserEntity.fields,
-  id: UserId,
+export const ChatFieldsFromColumns = Schema.Struct({
+  ...ChatColumns.fields,
+  id: ChatId,
+  title: Schema.OptionFromNullOr(ChatTitle),
   createdAt: Schema.DateTimeUtcFromDate,
-}).pipe(Schema.decodeTo(User))
+  updatedAt: Schema.DateTimeUtcFromDate,
+})
+export const ChatFromEntity = Schema.Struct({
+  ...ChatFieldsFromColumns.fields,
+  attachments: Schema.Array(AttachmentFromEntity.from),
+  run: Schema.OptionFromNullOr(RunFieldsFromColumns),
+}).pipe(Schema.decodeTo(Chat))
+export const encodeChat = encodeRowWith(ChatFieldsFromColumns, ChatEntityInsert)
 ```
 
 - A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
   makes it optional, so a nullable column is laid as `Schema.OptionFromNullOr(…)`. A refinement
   given as a function (`{ error: () => MessageFailureJson }`) keeps the column's `NullOr`.
-- A model nested in another (an attachment in a chat, the failure in a message) is laid by its
-  encoded side, `AttachmentFromEntity.from` or `Schema.toEncoded(MessageFailure)`; why: the
-  comment above `ChatFromEntity`.
-- A service writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
-  which cuts the nested attachments and checks the row. A value already in the data layer's
+- A model class nested in another (an attachment in a chat) is laid by its encoded side,
+  `AttachmentFromEntity.from`, since encoding the parent hands it plain fields; a nested
+  `Schema.Struct` codec (`RunFieldsFromColumns`) is laid as is.
+- A service writes a model encoded through its `<Model>FieldsFromColumns` and decoded with
+  `<Name>EntityInsert`, which checks the row. A value already in the data layer's
   types (brands, literals) is passed as is: `UserRepository.insert` takes the credential with
   no mapper and writes `{ hash, kind, userId }`, the user's id from the row it inserted.
 - A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
@@ -118,11 +136,13 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-`ChatRepository` and `MessageRepository` read a chat or a message `with` its attachments, in one
-relational query: `Chat.attachments` and `Message.attachments` are the model fields another
-table holds, read and never written by their own writes, since the send binds them. A
-relational query aliases its table, so the chat's `where` is built on the table the query hands
-to `RAW`, never on the `chats` constant.
+Every repository reads its entity `with` the top-level relations its entity nests, in one
+relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`, `Run.chat` and
+`Message.run` are model fields another table holds, read and never written by their own writes.
+A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy:
+newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
+aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never
+on the `chats` constant.
 
 ## Repositories
 

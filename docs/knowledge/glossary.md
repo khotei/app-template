@@ -87,7 +87,9 @@ word has one meaning here; the `_Avoid_` lists name the synonyms the sources use
 **Entity**:
 A record as the data layer reads and writes it, derived from its table in the data layer's own
 types (`ChatEntity`, with its `Insert`, `Where` and `Set`): the one shape every read of its store
-returns. Never a model; a module's mapper turns it into one.
+returns, nesting a neighbour's `<Name>Columns` one level deep. Where a read's shape differs, the
+entity file's `<Name>EntityFromRead` codec turns the read into it. Never a model; a module's
+mapper turns it into one.
 _Avoid_: Model, row type, record class, DTO
 
 **Data layer**:
@@ -135,7 +137,9 @@ _Avoid_: Entity group, root, aggregate root
 
 **Model**:
 The `Schema.Class` of a domain concept as its module sees it, with its pure operations (`Chat`,
-`Message`). Not the language model, which keeps both words.
+`Message`). Its `<Model>Fields` is the `Schema.Struct` of its own fields, the model's supertype,
+which another model nests of it (`Chat.run: Option<RunFields>`). Not the language model, which
+keeps both words.
 _Avoid_: Entity, DTO, row
 
 **Port**:
