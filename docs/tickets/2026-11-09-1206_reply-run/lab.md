@@ -20,7 +20,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L1 | Anthropic's answer to two `user` messages in a row, and the Drizzle reads of a message's Runs, each shown by a run | minimal | learn | done |
 | L2 | No `jobs` table and no `kernel/job`: a use case sends after its commit, a refused reply send fails the reply, the worker consumes through `packages/queue` | minimal | build | done |
 | L3 | The thinnest slice end to end: a send stores the user's message, its Run and the job; the worker drives the Run and writes the assistant's message; the api reads one Run; messages and chats lose their status | minimal | build | done |
-| L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | in progress |
+| L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | todo |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | todo |
 | L7 | Later: the items of the open list the owner picks | hard | build | todo |
@@ -71,58 +71,18 @@ its assistant message; `make check` (251 unit, 91 e2e).
 
 ## L4 — A chat's messages with their Runs
 
-Budget: waits for the owner
-
-### Shape
-
-API (`http-api/chat/chat.http.ts`):
-- `GET /chats/:chatId/messages` -> messages in `created_at, id` order; a user message carries its
-  latest Run, an assistant message its Run. One query: a lateral join for the latest Run.
-
-### Notes
-
-[N:ai] Visible: the api e2e of a reload mid-Run: the list shows the active Run.
-[N:ai] Today: no route lists a chat's messages; `createMessage` answers
-`{ userMessage, assistantMessage }` with `202`, and `getMessage` reads one
-(`http-api/chat/chat.http.ts:115-138`).
-
-### Pieces
-
-[N:ai] L4.1 `GET /chats/:chatId/messages` lists the chat's messages in creation order, each with
-its Run (`ApiMessage.run`, the new `ApiRunFields`: a Run without its messages), over the read L3
-left in `MessageRepository.selectMany`; another user's chat lists none. `getMessage` carries the
-Run too. · visible: `bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`
-(mid-Run: the queued Run, then the failure without its cause) and
-`bun --bun vitest run --project e2e apps/e2e` (after the reply: both messages with the done Run).
-[N:ai] L4.2 (owner's word) another user's chat, or an unknown one, lists as `404
-ChatNotFoundError`, not as an empty list: `MessageService.getMany` reads the owner's chat before
-its messages. · visible: the same handler test file (the 404 case covers `/chats/:chatId` and its
-`/messages`).
-[N:ai] L4.3 (owner's word) the contract groups' files take the `api-` prefix, so none shares a
-name with its domain twin: `api-chat.http.ts`, `api-attachment.http.ts`, `api-health.http.ts`,
-`api-user.http.ts`; `naming.md › Files` states it. Next, on the owner's word: `api-<model>.model.ts`
-(L4.4), `api-<model>.error.ts` (L4.5) out of `api-chat.http.ts`, the same for attachment (L4.6).
-· visible: `ls http-api/*/`.
-[N:ai] L4.4 (owner's word) the chat group's wire shapes leave `api-chat.http.ts` for
-`api-chat.model.ts`, `api-message.model.ts`, `api-run.model.ts` and `api-run-fields.model.ts`,
-as the domain splits them; the wire is unchanged (`make api-check` passes on the old snapshot).
-· visible: `ls http-api/chat/`, `make api-check`.
-[N:ai] L4.5 (owner's word) the chat group's errors leave `api-chat.http.ts` for
-`api-chat.error.ts`, `api-message.error.ts` and `api-run.error.ts`, as the domain splits them;
-the `.http` keeps only the routes, and the wire is unchanged. · visible: `ls http-api/chat/`,
-`make api-check`.
-[N:ai] L4.6 (owner's word) the attachment group splits the same way: `api-attachment.model.ts`,
-`api-attachment.error.ts`, the `.http` only the routes; `AttachmentTooLargeError` and
-`AttachmentTypeUnsupportedError`, wire-only and the upload's alone, move there from
-`shared/errors.ts`, which keeps `RequestInvalidError` for every group. · visible:
-`ls http-api/attachment/`, `make api-check`.
-[N:ai] L4.7 (review) `MessageService.getMany` loses its TSDoc, which restated the
-repository's order (`.claude/rules/comments.md`); `architecture.md`'s contract-group row names
-one `api-<model>.model.ts` and `api-<model>.error.ts` per model. · visible: `make check`.
-
 ### Output
 
-<Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>
+`GET /chats/:chatId/messages` lists the chat's messages in `created_at, id` order, each with its
+Run: a user message its newest Run, a reply the Run that wrote it (`ApiMessage.run`, a Run
+without its messages as `ApiRunFields`); `getMessage` carries the Run too. Another user's chat,
+or an unknown one, is `404 ChatNotFoundError`, not an empty list. The contract's files take the
+`api-` prefix and split by model as the domain does: `api-<model>.http.ts` keeps only the routes,
+`api-<model>.model.ts` the wire shapes, `api-<model>.error.ts` the errors; the wire is unchanged.
+Visible: `bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`
+(mid-Run: the queued Run, then the failure without its cause), `bun --bun vitest run --project
+e2e apps/e2e` (after the reply: both messages with the done Run), `make api-check`; `make check`
+(254 unit, 92 e2e).
 
 ## L5 — The retry, then the play
 
@@ -173,6 +133,10 @@ API (`http-api/chat/chat.http.ts`):
   only `run.table.ts` imports `message.table.ts`, and a retry is a new Run of the same message.
 - L3: a chat's status is read from its newest Run, not a column: the owner's choice, against
   `.claude/rules/deep-modules.md`; the rule or the design changes in L6.
+- L4: a list of another user's chat, or an unknown one, is `404 ChatNotFoundError`, as the chat
+  itself is, never an empty list.
+- L4: a contract group's files are `api-<name>.<role>.ts`, one `.model` and one `.error` per
+  model as the domain splits them, the `.http` only the routes (`naming.md › Files`).
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
   to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 
