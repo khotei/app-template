@@ -11,6 +11,7 @@ import {
   MessageNotFoundError,
   type RunId,
   RunNotFoundError,
+  RunNotRetryableError,
   UserUnknownError,
 } from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -83,6 +84,58 @@ describe('chats', () => {
       assert.deepInclude(sent.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
       assert.deepStrictEqual(sent.assistantMessage, Option.none())
     }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect(
+    'POST /chats/:chatId/messages/:messageId/runs after a failed Run is 202 with a queued Run',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const chat = yield* openChat
+        const failed = yield* api.chats.createMessage({
+          params: { chatId: chat.id },
+          payload: hello,
+        })
+        yield* refuseRun(failed.id)
+
+        const [retried, response] = yield* api.chats.retryRun({
+          params: { chatId: chat.id, messageId: failed.userMessage.id },
+          responseMode: 'decoded-and-response',
+        })
+
+        assert.strictEqual(response.status, 202)
+        assert.strictEqual(retried.status, 'queued')
+        assert.deepStrictEqual(retried.userMessage, failed.userMessage)
+      }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect(
+    'a retry of a message whose Run is not the newest failed one is 409 RunNotRetryableError',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const chat = yield* openChat
+        const first = yield* api.chats.createMessage({
+          params: { chatId: chat.id },
+          payload: hello,
+        })
+        yield* refuseRun(first.id)
+        const second = yield* api.chats.createMessage({
+          params: { chatId: chat.id },
+          payload: hello,
+        })
+        yield* refuseRun(second.id)
+
+        const error = yield* api.chats
+          .retryRun({ params: { chatId: chat.id, messageId: first.userMessage.id } })
+          .pipe(Effect.flip)
+
+        assertSchemaEquals(
+          RunNotRetryableError,
+          error,
+          new RunNotRetryableError({ userMessageId: first.userMessage.id }),
+        )
+      }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect(

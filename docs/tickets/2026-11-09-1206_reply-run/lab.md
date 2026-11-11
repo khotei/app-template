@@ -144,6 +144,15 @@ no transaction, since its one write is one insert. The Shape's route is the owne
 over rail 4's 100 once tests count, as the open Later item on rail 4 says.
 · visible: `bun --bun vitest run --project unit application/use-cases/__tests__/chat/retry-run.use-case.test.ts`
 
+[N:ai] L5.5 `retryRun`, `POST /chats/:chatId/messages/:messageId/runs` -> 202 `ApiRun`, with
+the contract's twin `RunNotRetryableError` (409) beside `MessageNotFoundError`, `ChatNotFoundError`
+and `ChatBusyError`; the handler and `RetryRunUseCase.layer` in `apps/api/layer.ts`. The e2e
+fails a Run (a check refuses the reply), drops the check, retries, and the reload lists the user
+message and its reply, both with the retried Run. 28 lines of code, 91 of test, 267 of the
+generated `openapi.json`.
+· visible: `bun --bun vitest run --project e2e apps/e2e` (the retry case),
+`bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`, `make api-check`
+
 ### Output
 
 <Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>

@@ -325,6 +325,44 @@ describe('a write Postgres refuses, through the api', () => {
   )
 
   it.live(
+    'a retry after a failed Run is answered by the worker, and a reload shows the reply',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const client = yield* SqlClient.SqlClient
+        yield* api.users.ensure()
+        const chat = yield* api.chats.create()
+        yield* client
+          .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
+          .pipe(Effect.orDie)
+        const sent = yield* api.chats.createMessage({
+          params: { chatId: chat.id },
+          payload: { text: 'Hello', attachmentIds: [] },
+        })
+        yield* pollSettledRun(chat.id, sent.id)
+        yield* client.unsafe('ALTER TABLE messages DROP CONSTRAINT refuse_reply').pipe(Effect.orDie)
+
+        const retried = yield* api.chats.retryRun({
+          params: { chatId: chat.id, messageId: sent.userMessage.id },
+        })
+        const settled = yield* pollSettledRun(chat.id, retried.id)
+        const failed = yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } })
+        const reloaded = yield* api.chats.listMessages({ params: { chatId: chat.id } })
+
+        assert.strictEqual(settled.status, 'done')
+        assert.strictEqual(failed.status, 'failed')
+        assert.deepStrictEqual(
+          Arr.map(reloaded, ({ author, run }) => [author, Option.map(run, ({ id }) => id)]),
+          [
+            ['user', Option.some(retried.id)],
+            ['assistant', Option.some(retried.id)],
+          ],
+        )
+      }).pipe(Effect.provide(StandTest)),
+    60_000,
+  )
+
+  it.live(
     'a refused chat delete keeps every row and the bytes',
     () =>
       Effect.gen(function* () {

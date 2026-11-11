@@ -2,7 +2,7 @@ import { Array as Arr, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService, RunService } from '@app-template/application/chat'
-import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
+import { CreateUserMessageUseCase, RetryRunUseCase } from '@app-template/application/use-cases'
 import { Api, CurrentUser } from '@app-template/http-api'
 
 import { buildApiChat, buildApiMessage, buildApiRun } from '#api/chat/chat.mapper'
@@ -15,6 +15,7 @@ export const ChatHandler = HttpApiBuilder.group(
     const messageService = yield* MessageService
     const runService = yield* RunService
     const createUserMessage = yield* CreateUserMessageUseCase
+    const retryRun = yield* RetryRunUseCase
 
     return handlers
       .handle(
@@ -70,6 +71,13 @@ export const ChatHandler = HttpApiBuilder.group(
         Effect.fn('ChatHandler.createMessage')(function* ({ params, payload }) {
           const user = yield* CurrentUser
           return yield* createUserMessage.create(user.id, params.chatId, payload)
+        }, Effect.map(buildApiRun)),
+      )
+      .handle(
+        'retryRun',
+        Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
+          const user = yield* CurrentUser
+          return yield* retryRun.retry(user.id, params.chatId, params.messageId)
         }, Effect.map(buildApiRun)),
       )
       .handle(

@@ -12,7 +12,7 @@ import {
   RunService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
-import { CreateUserMessageUseCase } from '@app-template/application/use-cases'
+import { CreateUserMessageUseCase, RetryRunUseCase } from '@app-template/application/use-cases'
 import { Api } from '@app-template/http-api'
 import {
   QueueSenderOfStage,
@@ -57,6 +57,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     LiveAttachmentService.layer,
     FileAttachmentService.layer,
     CreateUserMessageUseCase.layer,
+    RetryRunUseCase.layer,
     RuntimeConfig.layer,
   ]),
 )
