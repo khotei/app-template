@@ -94,6 +94,10 @@ left in `MessageRepository.selectMany`; another user's chat lists none. `getMess
 Run too. · visible: `bun --bun vitest run --project unit apps/api/__tests__/chat/chat.handler.test.ts`
 (mid-Run: the queued Run, then the failure without its cause) and
 `bun --bun vitest run --project e2e apps/e2e` (after the reply: both messages with the done Run).
+[N:ai] L4.2 (owner's word) another user's chat, or an unknown one, lists as `404
+ChatNotFoundError`, not as an empty list: `MessageService.getMany` reads the owner's chat before
+its messages. · visible: the same handler test file (the 404 case covers `/chats/:chatId` and its
+`/messages`).
 
 ### Output
 

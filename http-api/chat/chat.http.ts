@@ -139,6 +139,7 @@ export class ChatHttp extends HttpApiGroup.make('chats')
     HttpApiEndpoint.get('listMessages', '/chats/:chatId/messages', {
       params: chatPath,
       success: Schema.Array(ApiMessage),
+      error: ChatNotFoundError,
     }),
     HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
       params: chatPath,

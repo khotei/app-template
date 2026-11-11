@@ -165,23 +165,34 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect("another user's chat is 404 ChatNotFoundError, as if it did not exist", () =>
-    Effect.gen(function* () {
-      const chat = yield* Effect.provide(openChat, layerApiClient())
-      const [stranger, http] = yield* Effect.zip(ApiClient, HttpClient.HttpClient).pipe(
-        Effect.provide(layerApiClient()),
-      )
-      yield* stranger.users.ensure()
+  it.effect(
+    "another user's chat and its messages are 404 ChatNotFoundError, as if it did not exist",
+    () =>
+      Effect.gen(function* () {
+        const chat = yield* Effect.provide(openChat, layerApiClient())
+        const [stranger, http] = yield* Effect.zip(ApiClient, HttpClient.HttpClient).pipe(
+          Effect.provide(layerApiClient()),
+        )
+        yield* stranger.users.ensure()
 
-      const response = yield* http.get(`/chats/${chat.id}`)
+        const responses = yield* Effect.forEach(
+          [`/chats/${chat.id}`, `/chats/${chat.id}/messages`],
+          (url) => http.get(url),
+        )
 
-      assert.strictEqual(response.status, 404)
-      assertSchemaEquals(
-        ChatNotFoundError,
-        yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError))),
-        new ChatNotFoundError({ id: chat.id }),
-      )
-    }).pipe(Effect.provide(ApiServerTest)),
+        yield* Effect.forEach(responses, (response) =>
+          Effect.gen(function* () {
+            assert.strictEqual(response.status, 404)
+            assertSchemaEquals(
+              ChatNotFoundError,
+              yield* response.json.pipe(
+                Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError)),
+              ),
+              new ChatNotFoundError({ id: chat.id }),
+            )
+          }),
+        )
+      }).pipe(Effect.provide(ApiServerTest)),
   )
 
   it.effect("another chat's message or Run is 404 MessageNotFoundError or RunNotFoundError", () =>
