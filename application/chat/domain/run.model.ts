@@ -1,10 +1,11 @@
-import { type DateTime, Effect, Option, type Predicate, Schema, type Types } from 'effect'
+import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
+import type { MessageId } from '#chat/domain/chat.id'
 import { MessageFields } from '#chat/domain/message.model'
-import { RunStatusInvalidError } from '#chat/domain/run.error'
+import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   type RunFailure,
   type RunFailureReason,
@@ -34,6 +35,22 @@ export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run some worker already took: found at a worker's start, the worker that took it has died. */
 export const isStartedRun = hasStatus(['preparing', 'generating'])
+
+const isFailedRun = hasStatus(['failed'])
+
+/**
+ * A retry takes the chat's newest Run when it failed and answers `userMessageId`: only the newest
+ * user message ever gets a Run, so the newest Run's message is the chat's last user message.
+ */
+export const ensureRunRetryable = Effect.fn('ensureRunRetryable')(function* (
+  newest: Option.Option<RunFields>,
+  userMessageId: MessageId,
+) {
+  const answers = (run: RunFields) => run.userMessageId === userMessageId
+  if (!Option.exists(newest, Predicate.and(isFailedRun, answers))) {
+    return yield* new RunNotRetryableError({ userMessageId })
+  }
+})
 
 /** Which Runs may enter each status; `queued` is only ever built, never entered. */
 const transitions = {

@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { RunId } from '#chat/domain/chat.id'
+import { MessageId, RunId } from '#chat/domain/chat.id'
 import { Status } from '#chat/domain/status.model'
 
 export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidError>()(
@@ -11,3 +11,8 @@ export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidEr
 export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('RunNotFoundError', {
   id: RunId,
 }) {}
+
+export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableError>()(
+  'RunNotRetryableError',
+  { userMessageId: MessageId },
+) {}

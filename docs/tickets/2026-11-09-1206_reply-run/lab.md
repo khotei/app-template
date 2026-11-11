@@ -129,6 +129,13 @@ retry after a failed Run; (4) the owner's play of the whole feature.
 
 <[N:ai] L5.1 <what it gives> · visible: <command or link>>
 
+[N:ai] L5.3 `ensureRunRetryable(newest, userMessageId)` and `RunNotRetryableError
+{ userMessageId }`: a retry takes the chat's newest Run when it failed and answers the message;
+no Run, a Run not failed, or one of another message is refused. It takes `chat.run`, not the
+chat's messages: only the newest user message ever gets a Run, so the newest Run's message is the
+chat's last user message, and the use case needs no `MessageService.getMany`.
+· visible: `bun --bun vitest run --project unit application/chat/__tests__/domain/run.model.test.ts`
+
 ### Output
 
 <Proposed by the agent, accepted by the owner. A build step: the code accepted and how to see it.>

@@ -7,11 +7,12 @@ import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assist
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildAssistantMessage, buildUserMessage, MessageFields } from '#chat/domain/message.model'
-import { RunStatusInvalidError } from '#chat/domain/run.error'
+import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
   buildRunFailure,
   completeRun,
+  ensureRunRetryable,
   failRun,
   generateRun,
   isActiveRun,
@@ -162,5 +163,31 @@ describe('buildRunFailure', () => {
       Effect.sync(() =>
         assert.deepStrictEqual(buildRunFailure(error), { reason, cause: error.cause }),
       ),
+  )
+})
+
+describe('ensureRunRetryable', () => {
+  it.effect('takes a failed newest Run of the message', () =>
+    ensureRunRetryable(Option.some(runAt('failed')), userMessage.id),
+  )
+
+  it.effect.each([
+    { name: 'no Run', newest: Option.none() },
+    { name: 'a done Run', newest: Option.some(runAt('done')) },
+    { name: 'a queued Run', newest: Option.some(runAt('queued')) },
+    {
+      name: 'a failed Run of another message',
+      newest: Option.some(new Run({ ...runAt('failed'), userMessageId: reply.id })),
+    },
+  ])('refuses $name with RunNotRetryableError', ({ newest }) =>
+    Effect.gen(function* () {
+      const error = yield* ensureRunRetryable(newest, userMessage.id).pipe(Effect.flip)
+
+      assertSchemaEquals(
+        RunNotRetryableError,
+        error,
+        new RunNotRetryableError({ userMessageId: userMessage.id }),
+      )
+    }),
   )
 })
