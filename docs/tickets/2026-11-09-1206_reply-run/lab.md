@@ -97,6 +97,33 @@ API (`http-api/chat/chat.http.ts`):
 ### Notes
 
 [N:ai] Visible: the api e2e of a retry after a failed Run; then the owner plays the whole feature.
+[N:ai] The contract file is `http-api/chat/api-chat.http.ts` since L4.3.
+[N:ai] Names, on the owner's word: `RetryRunUseCase` in
+`application/use-cases/chat/retry-run.use-case.ts`, its method `retry` (span
+`'RetryRunUseCase.retry'`), the endpoint `retryRun`, the rule `ensureRunRetryable` in
+`application/chat/domain/run.model.ts`. The glossary's words: "a retry is a new Run of the same
+message"; `reply` and `attempt` are on its Avoid list.
+[N:ai] A retry writes no message: one new queued Run of the stored user message, through
+`RunService.create` (it takes the process's provenance, `application/chat/services/run.service.ts:31`),
+committed, then the job the send already sends, `GenerateAssistantMessage { chatId, runId }`
+(`application/chat/services/chat.queue.ts:11`). The worker stays as it is: it reads the Run by
+`runId`. The failed Run stays as the past try; it has no reply, so the history the model sees
+skips it (I assume, from the code; no test shows it yet).
+[N:ai] The 409s: an active Run is the send's `ChatBusyError`; the message not the chat's last
+user message, or its latest Run not `failed`, is one new `RunNotRetryableError` (proposed; its
+fields settle in the Shape at implement).
+[N:ai] Open for the five questions at implement: how the use case knows the message is the
+chat's last user message (the whole `MessageService.getMany`, or a narrower read), and what
+`ensureRunRetryable` takes.
+[N:ai] Budget: rail 4 asks one only in an unfamiliar area; L5 repeats the send's flow, so none
+is needed. I assume about 80 lines of code and 80 of tests, in 3-4 pieces.
+[N:ai] Not in L5, on the owner's word: a Run stuck `queued` (a refused send, an api crash between
+the commit and the send) keeps its chat busy, and the retry refuses it too; L7 takes it (Later).
+[N:ai] The pieces, proposed: (1) `ensureRunRetryable` and `RunNotRetryableError`, the rule's
+unit tests; (2) `RetryRunUseCase.retry`: the chat not busy, the message and its latest Run, the
+rule, `RunService.create` in a transaction, the send, its unit test; (3) the contract's
+`retryRun` with the error's twin, the handler, its test and `make api-snapshot`, the e2e of a
+retry after a failed Run; (4) the owner's play of the whole feature.
 
 ### Pieces
 
