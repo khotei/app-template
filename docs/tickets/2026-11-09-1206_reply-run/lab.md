@@ -125,6 +125,36 @@ rule, `RunService.create` in a transaction, the send, its unit test; (3) the con
 `retryRun` with the error's twin, the handler, its test and `make api-snapshot`, the e2e of a
 retry after a failed Run; (4) the owner's play of the whole feature.
 
+[N:ai] The play, to repeat as is (the api on `API_PORT=3000` of `.env`; a shell's variable wins
+over `--env-file`, checked: `FOO=shell bun --env-file=<FOO=file> -e …` prints `shell`):
+
+```sh
+make reset && make up
+make dev-api                                      # terminal 1
+ANTHROPIC_API_KEY=invalid make dev-worker         # terminal 2: every Run fails, 401
+# terminal 3
+api=http://localhost:3000; jar=$(mktemp)
+curl -s -c $jar -X POST $api/users | jq
+chat=$(curl -s -b $jar -X POST $api/chats | jq -r .id)
+sent=$(curl -s -b $jar -X POST $api/chats/$chat/messages -H 'content-type: application/json' \
+  -d '{"text":"Plan a weekend in Lisbon","attachmentIds":[]}')
+echo $sent | jq                                   # 202, status queued
+run=$(echo $sent | jq -r .id); message=$(echo $sent | jq -r .userMessage.id)
+curl -s -b $jar $api/chats/$chat/runs/$run | jq   # repeat: queued, preparing, failed
+curl -s -b $jar $api/chats/$chat | jq .status     # "failed"
+curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs -w '%{http_code}\n'  # 202
+# terminal 2: Ctrl-C, then `make dev-worker` with the key of .env; the retried Run stayed queued
+retried=$(curl -s -b $jar $api/chats/$chat/messages | jq -r '.[0].run.id')
+curl -s -b $jar $api/chats/$chat/runs/$retried | jq   # repeat: until done, with its reply
+curl -s -b $jar $api/chats/$chat/runs/$run | jq .status  # the first stays "failed"
+curl -s -b $jar $api/chats/$chat/messages | jq     # the reload: your message, then the reply
+curl -s -b $jar -X POST $api/chats/$chat/messages/$message/runs | jq  # 409 RunNotRetryableError
+```
+
+Wrong on the way: the retry of the first Run while the worker is down queues a job the restarted
+worker takes only if SQS still holds it (I assume MiniStack keeps it until the mapping delivers);
+the title job fails with the bad key too, so the chat keeps no title.
+
 ### Pieces
 
 <[N:ai] L5.1 <what it gives> · visible: <command or link>>
