@@ -16,17 +16,60 @@ Flow: lab · Worktree: —
 
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | Что видно из коробки: трасса одного запроса api в Grafana через `Otlp.layerFromConfig`, без кода в модулях | minimal | learn | todo |
-| L2 | Перенос трассы api → SQS → worker: что дают Effect и AWS SDK без ручного кода | minimal | learn | todo |
+| L1 | Что видно из коробки: трасса одного запроса api в Grafana через `Otlp.layerFromConfig`, без кода в модулях | minimal | learn | in progress |
+| L2 | Перенос трассы api → SQS → worker: что дают Effect и AWS SDK без ручного кода | minimal | learn | in progress |
 | L3 | Локально и AWS одним конфигом: куда OTLP шлёт в AWS и что меняется только в переменных | minimal | learn | todo |
 | L4 | Паттерны интеграции: логи с trace id, LLM-вызовы, ошибки — из docs и `repos/effect` | minimal | learn | todo |
 | L<last> | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — Что видно из коробки
 
-Reference: <the example, and how it was run as is> · Budget: reference + <N> lines
+Reference: `repos/effect/ai-docs/src/08_observability/20_otlp-tracing.ts`, запущен как есть (две
+правки: `BunRuntime` вместо `NodeRuntime`, которого нет в node_modules, и порт 4328 этого
+worktree) против `docker run -d --name app-template-telemetry-4328 -p 3013:3000 -p 4328:4318
+grafana/otel-lgtm:0.40.0`: трасса `checkout-api` в Tempo, логи в Loki
+(`curl -u admin:admin 'localhost:3013/api/datasources/proxy/uid/tempo/api/search?tags=service.name%3Dcheckout-api'`).
+Budget: reference + <N> lines
 
 ### Notes
+
+[N:ai] Прогон 2026-11-13 в draft-worktree `wt/telemetry-minimal-L1-otlp`
+(`/Users/v/lab/app-template/.claude/worktrees/telemetry-minimal-L1-otlp`, N=1: api 3010, worker
+3012, MiniStack 4576, OTLP 4328, Grafana 3013). Правка в приложении — только `layer.ts` каждого
+процесса, по 5 строк: `Otlp.layerFromConfig({ resource: { serviceName } })` с
+`OtlpSerialization.layerProtobuf` и `FetchHttpClient.layer`; переменные — те, что уже лежат в
+`.env` (`OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_{TRACES,LOGS,METRICS}_EXPORTER=otlp`). Одно
+сообщение чата по README-скрипту дало трассу `7fba1ad71368defaffa79a56717b3d5d`, 80 спанов, корень
+api `POST` 45 мс, целиком 136 с (ждала LLM).
+  - Видно из коробки, без строки в модулях: server span с `http.route`, `url.path`,
+    `http.response.status_code`, `client.address`; каждый `Effect.fn('<Service>.<method>')` —
+    handler → use case → сервисы → репозитории (`ChatHandler.createMessage`,
+    `CreateUserMessageUseCase.create`, `RunService.create`, `MessageRepository.insert`, …) и
+    чистые проверки (`ensureChatNotBusy`); `sql.transaction` и каждый statement как `postgres` с
+    `db.query.text`, `db.namespace`; `drizzle.operation`; `QueueSender.send` → `QueueClient.getUrl`;
+    в worker — `GenerateAssistantMessageUseCase.generate` → `Assistant.reply` →
+    `LanguageModel.generateObject` с `gen_ai.provider.name`, `gen_ai.request.model`,
+    `gen_ai.response.id`, `gen_ai.usage.input_tokens=301`, `output_tokens=18`,
+    `finish_reasons`, под ним HTTP-клиентский `POST https://api.anthropic.com/v1/messages` с
+    `http.response.status_code`.
+  - Ошибки видны сами: четыре `LanguageModel.generateObject` со `STATUS_CODE_ERROR`, событие
+    `exception` с `exception.type=effect/ai/AiError/AiError`, сообщением
+    `AnthropicClient.createMessage: TransportError: A network error occurred` и стеком; два вызова
+    висели 75 с и 55 с до ошибки, третья попытка прошла за 3 с — поэтому ответ шёл 136 с.
+  - Логи: каждая строка в Loki несёт `trace_id`, `span_id`, `service_name`, `effect_fiberId`,
+    аннотации (`http_method`, `http_url`, `http_status`) и `severity_text`; выборка
+    `{service_name=~"api|worker"} | trace_id="<id>"` отдаёт строки одной трассы (в этой — только
+    `sql`-строки и `Sent HTTP response`). Консольный логгер остался (`mergeWithExisting` по
+    умолчанию `true`, `OtlpLogger.ts:139`).
+  - Метрики: приложение не экспортирует ни одной (`OTEL_METRICS_EXPORTER=otlp` даёт только
+    `target_info`). Зато Tempo в `otel-lgtm` сам считает по спанам
+    `traces_spanmetrics_calls_total` и `traces_spanmetrics_latency_bucket` по `service`,
+    `span_name`, `status_code` (api GET 32, POST 3), и `traces_service_graph_*`; измерения `route`
+    и `http status` в нём по умолчанию не включены — конфиг Tempo, не код.
+  - Шум: имя server span — только метод (`POST`, `GET`), маршрут лишь в атрибуте; каждый опрос
+    `GET /chats/…/messages` — отдельная трасса (32 за прогон); `POST /events` worker'а — своя
+    трасса на 135 с рядом с трассой запроса.
+  Пробы: `.data/ref/otlp-tracing.ts` в draft-worktree, `scratchpad/trace.json`.
 
 ### Output
 
@@ -103,6 +146,18 @@ relay шлёт в SQS, worker за Lambda SQS mapping): что из этого �
     span'ами, пришедшими спустя минуты; работает ли `instrumentation-aws-sdk` под Bun (не нужно
     для дизайна). Если вернётся outbox (roadmap 22, `jobs`), `traceparent` придётся хранить в
     строке.
+  [N:ai] Прогон 2026-11-13 в том же draft-worktree, дизайн из `[A:ai]` в 3 файлах (~27 строк с
+  пробами): три открытых вопроса закрыты запуском через MiniStack 1.5.31, без AWS.
+  - `messageAttributes.traceparent.stringValue` доходит до `POST /events`: в логе worker
+    `traceparent: "00-7fba1ad7…-4c163aece391bc5f-01"` (assistant-message) и `…-c86c90913aaa7447-01`
+    (chat-title) — два span'а `QueueSender.send` одного запроса.
+  - Child склеивается: Tempo отдаёт одну трассу с корнем api `POST` (45 мс) и под
+    `QueueSender.send` — `assistant-message process` (136 с) → use case → `Assistant.reply` →
+    LLM → SQL; `rootServiceName=api`. Поздние span'ы (через 2 минуты после корня) Tempo
+    присоединил при чтении.
+  - `Effect.serviceOption(OtlpExporter.Flusher)` в реальном графе `WorkerLayer` поверх
+    `Otlp.layerFromConfig` — `Some` (лог `flusher present {present: true}` на оба батча), cast не
+    нужен; `flush` с `Effect.timeoutOption('1 second')` отработал.
   [D:ai] Child: parent из `traceparent` сообщения, так одна трасса на сообщение пользователя —
   то, что просит Intent; link не даёт перехода из запроса в job. Цена: трасса длиной с ожидание в
   очереди и повтором доставки внутри.
@@ -192,6 +247,20 @@ source.>
 
 ## Later
 
-<The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
-hardening, open questions and optimisations, each with its `path:line` or step and its fate (open,
-done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on the owner's word.>
+- Порты телеметрии на worktree: `worktree.sh` двигает только API/WEB/WORKER/AWS/RDS и STAGE,
+  `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT` остаются общими с основным деревом; в прогоне
+  L1 выставлены руками (4328, 3013). Контейнер `otel-lgtm` на worktree — в Pulumi как
+  MiniStack (reference: `git show feat/observability:deployment/local/telemetry.ts`). Fate: open.
+- Два LLM-вызова висели 75 с и 55 с до `TransportError` и ушли на повтор; что это — таймаут
+  клиента, сеть или политика повторов `AssistantLlmFromConfig` — не смотрел. Fate: open.
+- Шум трасс: опрос `GET /chats/…/messages` и `/health` — трасса на каждый; `POST /events`
+  worker'а — одиночная трасса рядом с трассой запроса (`HttpMiddleware.layerTracerDisabledForUrls`
+  или семплирование). Fate: open.
+- Метрики по маршруту и статусу: Tempo span metrics считают по `span_name` и `status_code`;
+  измерения `http.route`/`http.response.status_code` — конфиг metrics-generator в `otel-lgtm`.
+  Fate: open.
+- Shutdown в Lambda: финальный flush экспортёра 3 с против окна 2 с (`OTEL_EXPORTER_OTLP_*_TIMEOUT`
+  или `shutdownTimeout`), и flush до ответа на `POST /events`. Проверяется только на AWS.
+  Fate: open.
+- Приёмники AWS с bearer-ключом: ничего не отправлялось в живой AWS (включение Transaction
+  Search, IAM API-ключи, log group). Fate: open, ждёт слова owner — стоит денег и секрета.
