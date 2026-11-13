@@ -198,6 +198,9 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   `Error`, `assistant message not queued` with `chatId` and `runId`, `chat title not queued`
   with `chatId` and `messageId` (8 lines of code added, 3 gone; 10 of test added, 4 gone) · visible: `bun --bun vitest run
   --project unit application/use-cases/__tests__/chat/chat.sender.test.ts`.
+- [N:ai] L8.10 the e2e "of two concurrent sends to one chat…" counts only the user's messages: the
+  stand's worker may store the winner's reply before the count (2 lines of test changed) ·
+  visible: `make test-e2e`.
 
 ## Knowledge
 
@@ -329,7 +332,8 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
 - [N:ai] L6.8: the e2e "of two concurrent sends to one chat, one is stored and the other is
   refused, keeping nothing" failed once in `make check` with 2 messages for 1, then passed in
   three runs of its file and the next `make check` (`apps/e2e/api/chat.e2e.ts:205`). I assume the
-  worker answered the stored send before the count, so its reply was the second message. Open.
+  worker answered the stored send before the count, so its reply was the second message. Done
+  in L8.10: the race counts only the user's messages.
 - [N:ai] L8.2: a reply's job SQS refuses sends no title job either, so a first send refused this
   way leaves its chat untitled, as the L5 play's title gap does
   (`application/use-cases/chat/create-user-message.use-case.ts`, the `chatTitleQueue` send).

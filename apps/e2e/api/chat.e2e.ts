@@ -51,7 +51,7 @@ const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
   Option.fromUndefinedOr(error.response).pipe(Option.exists(({ status }) => status === 500))
 
 const selectMessages = (chatId: ChatId) =>
-  SqlClient.SqlClient.use((sql) => sql`select id from messages where chat_id = ${chatId}`)
+  SqlClient.SqlClient.use((sql) => sql`select id, author from messages where chat_id = ${chatId}`)
 
 const selectAttachmentChat = (id: AttachmentId) =>
   SqlClient.SqlClient.use(
@@ -200,9 +200,14 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             )
 
           const outcomes = yield* Effect.all([send, send], { concurrency: 'unbounded' })
+          const messages = yield* selectMessages(chat.id)
 
           assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
-          assert.strictEqual((yield* selectMessages(chat.id)).length, 1)
+          // The worker may answer the stored send before this count, so only the user's count.
+          assert.lengthOf(
+            Arr.filter(messages, ({ author }) => author === 'user'),
+            1,
+          )
         }),
     )
 
