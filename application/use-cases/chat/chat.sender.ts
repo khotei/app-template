@@ -18,8 +18,8 @@ export class AssistantMessageSender extends Context.Service<
   AssistantMessageSender,
   {
     /**
-     * Sends the job that answers the Run; one SQS refuses fails the Run, so its message offers a
-     * retry, and is `RunNotQueuedError`.
+     * Sends the job that answers the Run; one SQS refuses is logged, fails the Run, so its message
+     * offers a retry, and is `RunNotQueuedError`.
      */
     readonly send: (run: Run) => Effect.Effect<void, RunNotQueuedError>
   }
@@ -48,7 +48,11 @@ export class AssistantMessageSender extends Context.Service<
           assistantMessageQueue,
           new GenerateAssistantMessage({ chatId: run.chatId, runId: run.id }),
         )
-        .pipe(Effect.catchTag('QueueError', (error) => failUnsent(run, error))),
+        .pipe(
+          Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
+          Effect.catchTag('QueueError', (error) => failUnsent(run, error)),
+          Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
+        ),
     )
 
     return { send }
@@ -76,6 +80,7 @@ export class ChatTitleSender extends Context.Service<
         .pipe(
           Effect.tapError((error) => Effect.logError('chat title not queued', error)),
           Effect.catchTag('QueueError', () => Effect.void),
+          Effect.annotateLogs({ chatId: message.chatId, messageId: message.id }),
         ),
     )
 

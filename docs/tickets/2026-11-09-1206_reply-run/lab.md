@@ -161,7 +161,8 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   reply failed at once"), `layering.md`'s "a send SQS refuses dies" and `database.md › Stuck
   Runs`, and drops the L2.12 pair of `design-examples.md › The owner's stops`, whose stop the
   owner reversed. Moved to the retry's piece, so the record changes once both sends fail a Run.
-- [D:ai] L8 review, the hunt (claimed): a refused send leaves too little in the log.
+- [N:ai] Accepted by the owner ("ok"), done in L8.7. L8 review, the hunt (claimed): a refused
+  send left too little in the log.
   `application/use-cases/chat/chat.sender.ts:76` logs `chat title not queued` without the chat's
   or the message's id, so the operator cannot tell which chat stays untitled;
   `chat.sender.ts:42` logs nothing, so an SQS outage shows only as the server's `Sent HTTP
@@ -193,6 +194,10 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   (`effect-style.md › Errors and logs`); `layering.md` says a sender settles a refused send on the
   work's record when it has one, else in the log; the fate "roadmap Later" in the feature
   template and this lab's `Later` intro.
+- [N:ai] L8.7 the owner's yes to the review's `[D:ai]`: both senders log a send SQS refuses at
+  `Error`, `assistant message not queued` with `chatId` and `runId`, `chat title not queued`
+  with `chatId` and `messageId` (8 lines of code added, 3 gone; 10 of test added, 4 gone) · visible: `bun --bun vitest run
+  --project unit application/use-cases/__tests__/chat/chat.sender.test.ts`.
 
 ## Knowledge
 

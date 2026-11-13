@@ -27,6 +27,7 @@ const SenderTest = Layer.provide(ChatSenderTest, RefusingQueueTest)
 
 describe('AssistantMessageSender', () => {
   it.effect('a send SQS refuses fails the Run with ReplyFailed and is RunNotQueuedError', () => {
+    const { logs, layer: logger } = recordLogs('chatId', 'runId')
     return Effect.gen(function* () {
       const sender = yield* AssistantMessageSender
       yield* insertMessage(firstMessage)
@@ -39,19 +40,24 @@ describe('AssistantMessageSender', () => {
       assert.strictEqual(run.status, 'failed')
       assert.strictEqual(Option.getOrThrow(run.failure).reason, 'ReplyFailed')
       assert.include(Option.getOrThrow(run.failure).cause, 'SQS is unavailable')
-    }).pipe(Effect.provide(SenderTest))
+      assert.deepStrictEqual(logs, [
+        ['Error', 'assistant message not queued', queuedRun.chatId, queuedRun.id],
+      ])
+    }).pipe(Effect.provide([SenderTest, logger]))
   })
 })
 
 describe('ChatTitleSender', () => {
-  it.effect('a send SQS refuses is logged', () => {
-    const { logs, layer: logger } = recordLogs()
+  it.effect('a send SQS refuses is logged with its chat and message', () => {
+    const { logs, layer: logger } = recordLogs('chatId', 'messageId')
     return Effect.gen(function* () {
       const sender = yield* ChatTitleSender
 
       yield* sender.send(firstMessage)
 
-      assert.deepStrictEqual(logs, [['Error', 'chat title not queued']])
+      assert.deepStrictEqual(logs, [
+        ['Error', 'chat title not queued', firstMessage.chatId, firstMessage.id],
+      ])
     }).pipe(Effect.provide([SenderTest, logger]))
   })
 })
