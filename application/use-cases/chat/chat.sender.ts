@@ -74,7 +74,8 @@ export class ChatTitleSender extends Context.Service<
           new GenerateChatTitle({ chatId: message.chatId, messageId: message.id }),
         )
         .pipe(
-          Effect.catchTag('QueueError', (error) => Effect.logError('chat title not queued', error)),
+          Effect.tapError((error) => Effect.logError('chat title not queued', error)),
+          Effect.catchTag('QueueError', () => Effect.void),
         ),
     )
 

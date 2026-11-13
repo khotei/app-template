@@ -60,7 +60,7 @@ hardening, open questions and optimisations, one line each with its source (the 
 finding, the play) and, once known, its `path:line`. A Hard stage takes an item on the user's
 word; before the PR each is done, moved to the roadmap's `Later`, or dropped.>
 
-- <item> — <source> — <fate: open | done in S<n> | roadmap <entry> | dropped: <why>>
+- <item> — <source> — <fate: open | done in S<n> | roadmap Later | dropped: <why>>
 
 ## Open questions
 

@@ -161,6 +161,14 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   reply failed at once"), `layering.md`'s "a send SQS refuses dies" and `database.md › Stuck
   Runs`, and drops the L2.12 pair of `design-examples.md › The owner's stops`, whose stop the
   owner reversed. Moved to the retry's piece, so the record changes once both sends fail a Run.
+- [D:ai] L8 review, the hunt (claimed): a refused send leaves too little in the log.
+  `application/use-cases/chat/chat.sender.ts:76` logs `chat title not queued` without the chat's
+  or the message's id, so the operator cannot tell which chat stays untitled;
+  `chat.sender.ts:42` logs nothing, so an SQS outage shows only as the server's `Sent HTTP
+  response` lines with status 503 (`repos/effect/packages/effect/src/http/HttpMiddleware.ts:249`),
+  its SQS cause only in the Run's stored `failure.cause`. Lost without the fix: which chat, and
+  why SQS refused, from the log alone. Proposal: `Effect.annotateLogs` with the ids on both, and
+  an `Effect.tapError` logging `assistant reply not queued` before `failUnsent`.
 
 ### Pieces
 
@@ -181,6 +189,10 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   messages`, `layering.md`, `application/CLAUDE.md`, `architecture.md` and `database.md` name
   the senders; the L2.12 pair leaves `design-examples.md`, its stop reversed (24 lines of code
   added, 12 gone; no test, the senders' own cover it) · visible: `make check` (268 unit, 94 e2e).
+- [N:ai] L8.5 (REVIEW) `ChatTitleSender` logs in `tapError` and recovers in `catchTag`
+  (`effect-style.md › Errors and logs`); `layering.md` says a sender settles a refused send on the
+  work's record when it has one, else in the log; the fate "roadmap Later" in the feature
+  template and this lab's `Later` intro.
 
 ## Knowledge
 
@@ -227,7 +239,7 @@ source.>
 
 <The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
 hardening, open questions and optimisations, each with its `path:line` or step and its fate (open,
-done in L<n>, a roadmap entry, dropped); a hard step takes one on the owner's word.>
+done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on the owner's word.>
 
 - [N:ai] L2: a refused send, a crash or an aborted request between the commit and the send leaves
   the reply queued and its chat busy for good; the reply's Run has to settle it (L4).
