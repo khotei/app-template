@@ -24,7 +24,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | done |
 | L7 | Errors with context: what each error carries, and where more of it would help the client, the log or the operator | right | — | todo |
-| L8 | Later: the items of the open list the owner picks | hard | build | in progress |
+| L8 | Later: the items of the open list the owner picks | hard | build | done |
 
 ## L1 — Anthropic and the Drizzle reads
 
@@ -137,76 +137,16 @@ none), the README's sequence diagram; `make check` (265 unit, 94 e2e).
 
 ## L8 — Later
 
-### Shape
+### Output
 
-Drafted by the agent, accepted by the owner in the chat ("ok"):
-
-- The reply's send in `create` and `retry`: on `QueueError`, one `failUnsent(run, error)` for
-  both, `failRun` with `ReplyFailed` and the send's error as its `cause`, `runs.update` under
-  `queued`, then `RunNotQueuedError { id }`, `503` at the wire. A reload shows the message with
-  its failed Run, and the retry takes it.
-- The title's refused send is logged; the send answers as it would.
-- The worker stays: a handler's failure already fails its Run
-  (`application/use-cases/chat/generate-assistant-message.use-case.ts:142`, `:172`).
-- What no `catch` reaches (an api that dies or a client that aborts between the commit and the
-  send, a body that does not decode, a dead letter) is in `docs/knowledge/roadmap.md › Later`.
-
-### Notes
-
-- [N:ai] The owner, in the chat: "let's don't play with time": no rule by a Run's age. Catch the
-  send's error, answer an error and fail the Run, the same on the worker; the errors in the
-  middle, where SQS is, go to the roadmap, into one element for whatever any ticket's `Later`
-  leaves unresolved (`roadmap.md › Later`, now in `sdd.md › Gates` and the skills).
-- [N:ai] The first piece rewrites `decisions.md › Jobs as queue messages` (it rejects "a refused
-  reply failed at once"), `layering.md`'s "a send SQS refuses dies" and `database.md › Stuck
-  Runs`, and drops the L2.12 pair of `design-examples.md › The owner's stops`, whose stop the
-  owner reversed. Moved to the retry's piece, so the record changes once both sends fail a Run.
-- [N:ai] Accepted by the owner ("ok"), done in L8.7. L8 review, the hunt (claimed): a refused
-  send left too little in the log.
-  `application/use-cases/chat/chat.sender.ts:76` logs `chat title not queued` without the chat's
-  or the message's id, so the operator cannot tell which chat stays untitled;
-  `chat.sender.ts:42` logs nothing, so an SQS outage shows only as the server's `Sent HTTP
-  response` lines with status 503 (`repos/effect/packages/effect/src/http/HttpMiddleware.ts:249`),
-  its SQS cause only in the Run's stored `failure.cause`. Lost without the fix: which chat, and
-  why SQS refused, from the log alone. Proposal: `Effect.annotateLogs` with the ids on both, and
-  an `Effect.tapError` logging `assistant reply not queued` before `failUnsent`.
-
-### Pieces
-
-- [N:ai] L8.2 a reply's job SQS refuses in `create` fails the Run with `ReplyFailed` and answers
-  `503 RunNotQueuedError { id }`; a title's is logged, and the send answers its queued Run
-  (47 lines of code, 60 of test) · visible: `bun --bun vitest run --project unit
-  application/use-cases/__tests__/chat/create-user-message.use-case.test.ts`
-- [N:ai] L8.3 the owner's word: the senders are services at the use cases' level,
-  `AssistantMessageSender.send(run)` and `ChatTitleSender.send(message)` in
-  `application/use-cases/chat/chat.sender.ts`; `create` calls them, the behaviour unchanged, the
-  refusal tests move to the senders (96 lines of code added, 38 gone; 66 of test added, 60
-  gone) · visible: `bun --bun vitest run --project unit
-  application/use-cases/__tests__/chat/chat.sender.test.ts`. The queue definitions stay in the
-  module: a use case may not import `kernel/aws`, whose inventory names the queues
-  (`docs/knowledge/architecture.md › Dependency rules`).
-- [N:ai] L8.4 the retry sends through `AssistantMessageSender`: a reply's job SQS refuses fails
-  the new Run and answers `503 RunNotQueuedError`, as a send does. `decisions.md › Jobs as queue
-  messages`, `layering.md`, `application/CLAUDE.md`, `architecture.md` and `database.md` name
-  the senders; the L2.12 pair leaves `design-examples.md`, its stop reversed (24 lines of code
-  added, 12 gone; no test, the senders' own cover it) · visible: `make check` (268 unit, 94 e2e).
-- [N:ai] L8.5 (REVIEW) `ChatTitleSender` logs in `tapError` and recovers in `catchTag`
-  (`effect-style.md › Errors and logs`); `layering.md` says a sender settles a refused send on the
-  work's record when it has one, else in the log; the fate "roadmap Later" in the feature
-  template and this lab's `Later` intro.
-- [N:ai] L8.7 the owner's yes to the review's `[D:ai]`: both senders log a send SQS refuses at
-  `Error`, `assistant message not queued` with `chatId` and `runId`, `chat title not queued`
-  with `chatId` and `messageId` (8 lines of code added, 3 gone; 10 of test added, 4 gone) ·
-  visible: `bun --bun vitest run --project unit
-  application/use-cases/__tests__/chat/chat.sender.test.ts`.
-- [N:ai] L8.10 the e2e "of two concurrent sends to one chat…" counts only the user's messages: the
-  stand's worker may store the winner's reply before the count (2 lines of test changed) ·
-  visible: `make test-e2e`.
-- [N:ai] L8.11 the owner's yes: the retry and send race, `getMany` on a delete and the memory
-  fakes' gaps move to `roadmap.md › Later › From reply-run`; the `make dev` 404 is dropped, not
-  reproduced (a route added to a running `make dev-api` answered `200`).
-- [N:ai] L8.13 (REVIEW) of L8.7–L8.12: the reply sender's TSDoc drops "is logged" (`comments.md`:
-  the log is no contract a caller acts on); the L8.7 note rewrapped. The hunt found nothing.
+A reply's job SQS refuses, in a send or a retry, fails its Run with `ReplyFailed` and answers
+`503 RunNotQueuedError { id }`: a reload shows the message failed, with its retry.
+`AssistantMessageSender` and `ChatTitleSender` (`application/use-cases/chat/chat.sender.ts`)
+settle a refused send, the reply's on its Run, the title's in the log, and log it with the job's
+ids. What no catch reaches, and what the lab's Later left, is in
+`roadmap.md › Later › From reply-run`. The title gaps and the `make dev` 404 are dropped, and a
+lost Run race keeps its `500`. Visible: `bun --bun vitest run --project unit
+application/use-cases/__tests__/chat/chat.sender.test.ts`, `make check` (268 unit, 94 e2e).
 
 ## Knowledge
 
@@ -240,6 +180,11 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
 - L6: `runs.updated_at` stays: it shows when a Run's status or reply was last set.
 - L6: a retry names the user message it answers (`:userMessageId`) and reads it with
   `author: 'user'`, so an assistant's id is `404 MessageNotFoundError { id, author: 'user' }`.
+- L8: a send SQS refuses is settled in the job's `<Job>Sender` beside the use cases: on the
+  work's record when it has one (the reply's Run fails, `503 RunNotQueuedError`), else in the log,
+  each with the job's ids.
+- L8: what a ticket's `Later` leaves unresolved moves to `roadmap.md › Later`, one section per
+  ticket.
 - The owner, for this ticket: the code stays minimal; a known gap, an issue or an edge case goes
   to Later at the end of this file with its `path:line`, never a `TODO` in the code.
 
