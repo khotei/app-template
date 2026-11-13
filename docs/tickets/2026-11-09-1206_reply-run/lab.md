@@ -310,7 +310,8 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
   too (the bad key fails both): the retry sends only the reply's job, and a later send sends the
   title's only for a chat with no Run (`application/use-cases/chat/create-user-message.use-case.ts:94`,
   `Option.isNone(chat.run)`). Seen in the play: `title: null` after the retried Run was `done`.
-  Open.
+  Dropped: the owner, "let's skip title, if it down there will be default": an untitled chat
+  shows a default name.
 - [N:ai] L5: a `make dev` started before a new route answers it `404` with no body, a cookie or
   not, until a restart: the api started at 10:19 answered `POST …/messages/:messageId/runs` with
   `404`, one started after L5.5 with `401`, `409` and `404` as the contract says
@@ -326,7 +327,8 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
   worker answered the stored send before the count, so its reply was the second message. Open.
 - [N:ai] L8.2: a reply's job SQS refuses sends no title job either, so a first send refused this
   way leaves its chat untitled, as the L5 play's title gap does
-  (`application/use-cases/chat/create-user-message.use-case.ts`, the `chatTitleQueue` send). Open.
+  (`application/use-cases/chat/create-user-message.use-case.ts`, the `chatTitleQueue` send).
+  Dropped with the L5 play's title gap: an untitled chat shows a default name.
 - [N:ai] L8.2: `failUnsent` lives in `create`, and the retry needs the same; the worker's
   `settleFailed` makes a third copy of "fail the Run under its status"
   (`application/use-cases/chat/generate-assistant-message.use-case.ts:120`). No folder holds a
