@@ -23,7 +23,7 @@ writes the assistant's message. No web UI in this lab: the api and its e2e show 
 | L4 | A chat's messages with their Runs, as a reload shows them | minimal | build | done |
 | L5 | A retry after a failed Run, then the play of the whole feature | minimal | build | done |
 | L6 | Right: the decisions, design and architecture the play and the reviews change | right | build | done |
-| L7 | Errors with context: what each error carries, and where more of it would help the client, the log or the operator | right | — | todo |
+| L7 | Errors with context: what each error carries, and where more of it would help the client, the log or the operator | right | — | skipped |
 | L8 | Later: the items of the open list the owner picks | hard | build | done |
 
 ## L1 — Anthropic and the Drizzle reads
@@ -118,22 +118,10 @@ none), the README's sequence diagram; `make check` (265 unit, 94 e2e).
 
 ## L7 — Errors with context
 
-### Notes
+### Output
 
-- [N:ai] The owner, in the chat, during L6: look at the error classes and review where more
-  information and context inside them would help; kept as an intention, to look at later. The
-  kind waits for the step's start ("can you write the signature now?"). Seen in L6.8: 13 domain
-  errors (`application/**/*.error.ts`) and their contract twins (`http-api/**/*.error.ts`);
-  `RunStatusInvalidError { id, from, to }` names its context, while `MessageInputInvalidError`,
-  `UserUnknownError`, `AttachmentTooLargeError` and `AttachmentTypeUnsupportedError` carry none.
-- [N:ai] L7 start: the owner skipped the step for now, before its kind was chosen. The survey
-  then: `MessageInputInvalidError` covers two reasons alike (`application/chat/domain/message.model.ts:51`,
-  `:55`); `AttachmentTooLargeError` names neither the limit nor the file or body
-  (`apps/api/attachment/attachment.handler.ts:30`); `AttachmentTypeUnsupportedError` not the type
-  sent (`:50`); `RunNotRetryableError` not why; `ChatBusyError` not the Run in work; the
-  assistant's errors only `error.message` (`application/chat/infrastructure/assistant.llm.ts:159`);
-  `UserUnknownError` stays empty, so no secret reaches a reply or a log. Unchecked: what of an
-  error's fields reaches the api's and the worker's logs and spans, a run to make first.
+Not run: the owner skipped it at its start (L7.1), before its kind was chosen. Its survey, which
+errors carry no context, moved to `roadmap.md › Later › From reply-run`.
 
 ## L8 — Later
 
@@ -155,8 +143,9 @@ application/use-cases/__tests__/chat/chat.sender.test.ts`, `make check` (268 uni
 - L1: two user messages in a row reach Anthropic as one user turn (`@effect/ai-anthropic` 4.0.6
   folds them); the chat's history keeps any order of messages, the adapter unchanged.
 - L1: a message's latest Run is a Drizzle `one` relation with an `orderBy` (one lateral join,
-  `{…} | null`); an assistant message's Run a `one` over `messages.run_id`; the two tables import
-  each other with `messages.run_id` typed `(): AnyPgColumn`.
+  `{…} | null`); an assistant message's Run a `one` over `runs.assistant_message_id`, so only
+  `run.table.ts` imports `message.table.ts` (corrected at the close: L3.17 moved the key to the
+  Run, since Biome's `noImportCycles` refuses two tables importing each other).
 - L2: a job is a queue message, sent after the commit of the record it names; no table tracks
   it, and the work's own record holds its status and failure.
 - L3: every read nests its neighbours one level deep, as their `<Name>Columns`, through
@@ -193,6 +182,22 @@ application/use-cases/__tests__/chat/chat.sender.test.ts`, `make check` (268 uni
 <At the close, from git: time from the intent to the PR; lines against each step's budget; lines
 reworked after the owner saw a piece (the OWNER rounds); stops by signal; claims without a
 source.>
+
+- **Time:** 4 days 2 h 53 min, from `L0.1` (2026-11-09 12:06 +0200, `git log --grep='L0.1 '`)
+  to PR #29 (2026-11-13 12:59 UTC, `gh pr view 29 --json createdAt`).
+- **Rounds:** 105 commits on the branch (`git log --oneline main..HEAD`), 52 of them `OWNER` and
+  9 `REVIEW`. By step (the subject search of `commits.md`): L0 9, L1 4, L2 14, L3 31, L4 8,
+  L5 13, L6 11, L7 1, L8 14.
+- **Lines against budget:** no step named a budget. Code and tests changed by each step's
+  rounds, without docs, `openapi.json` and the migration (`git show --numstat` over its
+  rounds): L2 +491 −1012, L3 +3231 −2559, L4 +381 −209, L5 +323 −43, L6 +101 −25,
+  L8 +322 −129.
+- **Rework:** the `OWNER` rounds outside `docs/tickets/`: L0 +293 −64 (the toolkit), L2 +77
+  −161, L3 +645 −631, L4 +309 −208, L5 +0 −32, L6 +140 −36, L8 +258 −130.
+- **Stops by signal:** 2, both the owner's word (`git log -p` of this file, `[N:ai] Stop (`):
+  "minimal working code base, without this massive checks" and "why we need this id?" (L2.2).
+- **Claims without a source:** 5 "I assume" claims in this file's history; one refuted by a run
+  (the `--hot` 404, L8.11), one fixed on its own reading (the e2e count, L8.10).
 
 ## Later
 

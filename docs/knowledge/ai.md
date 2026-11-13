@@ -23,8 +23,10 @@ graph LR
   K --> A["AnthropicLanguageModel<br/>AnthropicClient · HttpClient"]
 ```
 
-1. `reply` turns the chat's `done` messages into a `Prompt`: the fixed system prompt first, then
-   each user turn as its text and files, each assistant turn as its text. `suggestTitle` sends
+1. `reply` turns the chat's messages into a `Prompt`: the fixed system prompt first, then
+   each user turn as its text and files, each assistant turn as its text. A failed Run leaves no
+   reply, so two user turns may follow each other: `@effect/ai-anthropic` folds them into one,
+   and the Messages API takes either shape. `suggestTitle` sends
    the title instruction and the opening message.
 2. It calls `generateObject` on its purpose's model with the answer schema (`ReplyAnswer`,
    `TitleAnswer`). Nothing streams: the answer arrives whole.

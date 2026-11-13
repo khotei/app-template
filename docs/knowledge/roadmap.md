@@ -909,6 +909,14 @@ and deletes it here.
   race of a completion (`application/use-cases/chat/generate-assistant-message.use-case.ts`,
   `settleCompleted`). Ways out to weigh: the fakes copy the foreign keys, a `TransactionTest` that
   restores the rows on a failure, an e2e of the completion's race.
+- (2026-11-13) Errors without context: `MessageInputInvalidError` covers two reasons alike
+  (`application/chat/domain/message.model.ts:51`, `:55`), `AttachmentTooLargeError` names neither
+  the limit nor the file (`apps/api/attachment/attachment.handler.ts:30`),
+  `AttachmentTypeUnsupportedError` not the type sent (`:50`), `RunNotRetryableError` not why,
+  `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
+  (`application/chat/infrastructure/assistant.llm.ts:159`); `UserUnknownError` stays empty, so no
+  secret reaches a reply or a log. Left: the lab's step for it was skipped. First check, by a
+  run, which of an error's fields reach the api's and the worker's logs and spans.
 
 ## Ideas to weigh
 
