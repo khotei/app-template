@@ -310,7 +310,7 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
   `ensureChatNotBusy`; the active-Run index refuses the second insert, which dies, so the client
   gets a bare `500`, not `409 ChatBusyError` (`kernel/data/chat/run.repository.ts:68`,
   `application/chat/services/run.service.ts:21`). The send has the same; a retry button invites it.
-  Open.
+  Moved to `roadmap.md › Later › From reply-run`: the owner, "let it be 500 for now".
 - [N:ai] L5 play: a chat whose first Run failed keeps no title for good when the title job failed
   too (the bad key fails both): the retry sends only the reply's job, and a later send sends the
   title's only for a chat with no Run (`application/use-cases/chat/create-user-message.use-case.ts:94`,
