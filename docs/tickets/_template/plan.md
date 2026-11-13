@@ -9,17 +9,25 @@ ticket's state without reading the steps. A stage holds three steps; one of one,
 its reason in its heading. A row's Status is updated in the step's last round; `git log` holds the
 step's commits.>
 
-### Stage 1 — <the outcome it delivers> · completes R1
+### Stage 1 — Minimal: <the feature in its smallest form> · completes R1
+
+Play: <the script that plays the whole feature, e.g. requests against `make dev`>
 
 | Step | Delivers | Serves | Size | Status |
 |---|---|---|---|---|
 | S1 | <the step's outcome, in a few words> | R1, D1 | ~200, docs ~50 | todo |
 
-### Stage 2 — <the outcome it delivers> (four steps: <reason>) · completes R2
+### Stage 2 — Right: <what the play and the review change> (four steps: <reason>) · completes R2
 
 | Step | Delivers | Serves | Size | Status |
 |---|---|---|---|---|
 | S4 | <the step's outcome, in a few words> | R2 | ~150 | todo |
+
+### Stage 3 — Hard: the open list · completes <R… a Later item became>
+
+| Step | Delivers | Serves | Size | Status |
+|---|---|---|---|---|
+| S7 | the items of `feature.md › Later` the user picks | Later | — | todo |
 
 ## How to run this plan
 
@@ -62,6 +70,12 @@ id; then the names, signatures and files the stage fixes; then each choice it ma
 - **Status:** todo
 - **Findings:** <written when the step commits: every finding its review raised, one line each>
   - <pass> — accepted, fixed in S<n>.2 | accepted, open | rejected: <why> — <the finding, one line>
+
+### Play
+
+<The Minimal stage only, written at its close: the script run and its output, then each remark of
+the user with its fate: a Right stage row, a `feature.md › Later` item, or a fix of the step that
+broke the play.>
 
 ### Stage review
 

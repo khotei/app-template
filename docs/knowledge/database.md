@@ -12,12 +12,14 @@ an `Effect`, never a promise.
 
 ## Schema and entity files
 
-The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts` and its
-entities, the schemas read from it, in `<name>.entity.ts`; what each may import:
-[kernel/CLAUDE.md](../../kernel/CLAUDE.md). Since a table imports no entity,
-`ChatEntity` and `MessageEntity` nest `AttachmentEntity` without a cycle. The tables are the one
-declaration of the schema: the migrations are generated from them and the entities derived
-from them.
+The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts`, with its
+columns' schema `<Name>Columns` (`createSelectSchema(<table>)`), and its entities, the schemas
+read from it, in `<name>.entity.ts`; what each may import: [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
+The tables form a DAG and import no entity, so an entity nests a neighbour's `<Name>Columns`
+from the table file without a cycle: `RunEntity` nests `ChatColumns` and `MessageColumns`, and
+`ChatEntity` and `MessageEntity` nest `RunColumns`, where the entities would import each other.
+The tables are the one declaration of the schema: the migrations are generated from them and
+the entities derived from them.
 
 - **Names.** A table is declared with `snakeCase.table` from `drizzle-orm/pg-core`, so the
   `camelCase` keys in code (`createdAt`) become `snake_case` columns (`created_at`) with no name
@@ -28,8 +30,8 @@ from them.
   `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
   hand-written SQL, and needs Postgres 18 or later.
 - **Enums and checks state the data layer's own values.** An enum takes its values from a tuple
-  the table exports (`messageStatuses = ['queued', …] as const`, then
-  `pgEnum('message_status', messageStatuses)`), and a check declares its own pattern or limit
+  the table exports (`runStatuses = ['queued', …] as const`, then
+  `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
   `attachments_media_type_check` the one `MediaType` checks with, matched with `~*` for its `i`
   flag; `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
@@ -41,10 +43,10 @@ from them.
   refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
   `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
   `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
-  `<table>_<columns>_<predicate>_index` (`messages_chat_id_active_index`).
-- **A rule across rows is a partial unique index.** `messages_chat_id_active_index` allows one
-  active assistant message per chat; its predicate is `activeMessage`, exported from
-  `message.table.ts` beside the table, with the active statuses listed there. An
+  `<table>_<columns>_<predicate>_index` (`runs_chat_id_active_index`).
+- **A rule across rows is a partial unique index.** `runs_chat_id_active_index` allows one
+  active Run per chat; its predicate is `activeRun`, exported from `run.table.ts` beside the
+  table, with the active statuses listed there. An
   `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
   renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
   statement to after five runs, cannot prove the index predicate from bound parameters.
@@ -65,39 +67,55 @@ from them.
 
 ## Entities and mappers
 
-An entity file derives its schemas from the table with `createSelectSchema` and
-`createInsertSchema` from `drizzle-orm/effect-schema`, in the data layer's own types (`string`,
-`string | null`, `Date`), beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and
-writes filter and change by. An entity is the shape every read returns, so a chat's and a
-message's nest their attachments:
+An entity file lays its entity over the table's `<Name>Columns`, in the data layer's own types
+(`string`, `string | null`, `Date`), with `createInsertSchema` from `drizzle-orm/effect-schema`
+for its `Insert`, beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and writes
+filter and change by. An entity is the shape every read returns, one level deep: a chat's and a
+message's nest their attachments and their Run's columns, a Run's its chat's and its messages'
+columns, and the nested columns nest nothing:
 
 ```ts
 export const ChatEntity = Schema.Struct({
-  ...createSelectSchema(chats).fields,
+  ...ChatColumns.fields,
   attachments: Schema.Array(AttachmentEntity),
+  run: Schema.NullOr(RunColumns),
 })
 ```
 
+Where a read's shape is not the entity's, the entity file holds the codec from the one to the
+other: a message's Run comes from two relations, the newest that answers a user's message and
+the one that wrote an assistant's, so `MessageEntityFromRead` keeps the one its author has and
+the repository decodes every read with it.
+
 A mapper, `<model>.mapper.ts` in the module's `services/`, lays the model's schemas over the
-entity's fields and pipes the struct into the model; services and tests decode and encode
-with it:
+columns as `<Model>FieldsFromColumns`, the codec of the model's own fields, and nests the
+neighbours' codecs into `<Model>FromEntity`, piped into the model; services and tests decode
+with the second and encode with the first, since a write holds the model's own fields only:
 
 ```ts
-export const UserFromEntity = Schema.Struct({
-  ...UserEntity.fields,
-  id: UserId,
+export const ChatFieldsFromColumns = Schema.Struct({
+  ...ChatColumns.fields,
+  id: ChatId,
+  title: Schema.OptionFromNullOr(ChatTitle),
   createdAt: Schema.DateTimeUtcFromDate,
-}).pipe(Schema.decodeTo(User))
+  updatedAt: Schema.DateTimeUtcFromDate,
+})
+export const ChatFromEntity = Schema.Struct({
+  ...ChatFieldsFromColumns.fields,
+  attachments: Schema.Array(AttachmentFromEntity.from),
+  run: Schema.OptionFromNullOr(RunFieldsFromColumns),
+}).pipe(Schema.decodeTo(Chat))
+export const encodeChat = encodeRowWith(ChatFieldsFromColumns, ChatEntityInsert)
 ```
 
 - A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
   makes it optional, so a nullable column is laid as `Schema.OptionFromNullOr(…)`. A refinement
   given as a function (`{ error: () => MessageFailureJson }`) keeps the column's `NullOr`.
-- A model nested in another (an attachment in a chat, the failure in a message) is laid by its
-  encoded side, `AttachmentFromEntity.from` or `Schema.toEncoded(MessageFailure)`; why: the
-  comment above `ChatFromEntity`.
-- A service writes a model encoded through its mapper and decoded with `<Name>EntityInsert`,
-  which cuts the nested attachments and checks the row. A value already in the data layer's
+- A model class nested in another (an attachment in a chat) is laid by its encoded side,
+  `AttachmentFromEntity.from`, since encoding the parent hands it plain fields; a nested
+  `Schema.Struct` codec (`RunFieldsFromColumns`) is laid as is.
+- A service writes a model encoded through its `<Model>FieldsFromColumns` and decoded with
+  `<Name>EntityInsert`, which checks the row. A value already in the data layer's
   types (brands, literals) is passed as is: `UserRepository.insert` takes the credential with
   no mapper and writes `{ hash, kind, userId }`, the user's id from the row it inserted.
 - A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
@@ -118,11 +136,13 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-`ChatRepository` and `MessageRepository` read a chat or a message `with` its attachments, in one
-relational query: `Chat.attachments` and `Message.attachments` are the model fields another
-table holds, read and never written by their own writes, since the send binds them. A
-relational query aliases its table, so the chat's `where` is built on the table the query hands
-to `RAW`, never on the `chats` constant.
+Every repository reads its entity `with` the top-level relations its entity nests, in one
+relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`, `Run.userMessage`
+and `Message.run` are model fields another table holds, read and never written by their own writes.
+A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy:
+newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
+aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never
+on the `chats` constant.
 
 ## Repositories
 
@@ -171,25 +191,25 @@ A rule that two writers could break between a read and a write is held by the da
 statement that writes. The caller checks the rule first, so a write the guard refuses only lost
 a race: every repository's `insert`, `update` and `delete` dies when it touches no row:
 
-- **Insert under a partial unique index.** `MessageRepository.insert` adds `ON CONFLICT
-  (chat_id) WHERE <activeMessage> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({
-  target, where })`), so a second active reply in a chat writes nothing and dies. Any other
-  message inserts. The chat's status decides the race first (below), so this index only backs it.
-- **A status move under the status read.** `CreateUserMessageUseCase.create` reads the chat, runs
-  `queueChat` (a `queued` chat is `ChatBusyError`) and moves the status to `queued` `WHERE status
-  = <the status it read>` as its first write. Of two sends that both read the chat `idle` at
-  once, the second waits on the first's row lock, then matches no row and dies, rolled back
-  whole: a lost race of that narrow window answers 500, any later send reads `queued` and
-  answers 409. The reply's end (`settle` in `GenerateAssistantMessageUseCase`) moves it by
-  `idleChat` or `failChat` the same way, in the transaction that settles the message, so the
-  chat's status and its active message move together; a path that ends a reply anywhere else
-  must move the chat too, or the chat stays `queued`.
-- **Update under a `where`.** `MessageRepository.update(set, where)` writes the message's
-  status, text, error and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case
-  passes the encoded message as the set, and its id and the stored status to match as the
-  `MessageEntityWhere`, so a write whose expected status another writer has left, or whose
-  message is gone, changes nothing and dies; the use case then reads the message and skips it as
-  settled or deleted.
+- **Insert under a partial unique index.** `RunRepository.insert` adds `ON CONFLICT (chat_id)
+  WHERE <activeRun> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({ target, where })`),
+  so a second active Run in a chat writes nothing and dies. `CreateUserMessageUseCase.create`
+  reads the chat with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
+  `ChatBusyError`, 409); of two sends that both read none at once, the second's Run insert, its
+  last write, dies on the index, rolled back whole with its message and binds: a lost race of
+  that narrow window answers 500.
+- **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
+  and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case passes the encoded Run as
+  the set, and its id and the stored status to match as the `RunEntityWhere`, so a write whose
+  expected status another worker has left, or whose Run is gone, changes nothing and dies; the use
+  case then reads the Run and skips it as settled or deleted. A Run's completion writes the
+  assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
+  keeps no reply.
+- **A message is never changed.** `MessageRepository` has no `update`: a user's message is
+  finished when sent, an assistant's when its Run writes it. The Run names its reply:
+  `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
+  `runs_assistant_message_id_unique` that a reply belongs to one Run. The key sits on `runs`, so
+  `messages` names no Run and the two tables never import each other.
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
   `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
@@ -198,28 +218,28 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
   `IS NULL`). The repository maps each side through `buildSet` and `buildWhere` (above); a
   service encodes the changed model through its mapper and writes the set's fields from the row,
   and `encodeChatWhere` turns the `Option` of a chat's `where` into `null`. Both die when they
-  write nothing. A status move writes the status alone, so a title written meanwhile survives it.
+  write nothing.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the title job dies and fails.
-  - The send reads its attachments through `LiveAttachmentService.getMany`, which takes no lock
-    and reads no bytes; the send then refuses one whose bytes the store no longer has
-    (`AttachmentNotFoundError`) and a bound one (`bindAttachment`), both before its first write;
-    once its message is stored, it writes the bind itself, the files first, then the
-    attachments' rows `where` `messageId` is still `none`, a write that dies unless it binds
-    every row it names. Of two sends sharing a file, the loser either reads it bound and fails
-    `AttachmentBoundError` (409) or, having read it free, finds that row taken under the guard
-    and dies (500), rolled back whole with the files only it named; an attachment its owner
-    deletes between the read and the write fails the send the same way. A send without files
-    skips the write, which would die on no rows.
+  - The send reads its attachments through `FileAttachmentService.getMany`, which takes no lock
+    and reads no bytes, and refuses one whose bytes the store no longer has
+    (`AttachmentNotFoundError`); the send then refuses a bound one (`ensureAllUnbound`), both
+    before its first write; once its message is stored, `FileAttachmentService.bind` writes the
+    bind, the files first, then the attachments' rows `where` `messageId` is still `none`, a
+    write that dies unless it binds every row it names. Of two sends sharing a file, the loser
+    either reads it bound and fails `AttachmentBoundError` (409) or, having read it free, finds
+    that row taken under the guard and dies (500), rolled back whole with the files only it
+    named; an attachment its owner deletes between the read and the write fails the send the
+    same way. A send without files skips the write, which would die on no rows.
   - `FileAttachmentService.delete` checks the attachment live and unbound, then deletes it
     through `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and
     the bytes after the row, so a send binding it in between makes the delete die and keeps the
     bytes. `AttachmentService.delete` deletes many attachments by the full `where` it is given,
     then their bytes in one call, so without the guard it removes bound ones too.
 
-`ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages
-and their attachments go by the cascade, and `RETURNING` answers only the chat's row.
+`ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages,
+their attachments and its Runs go by the cascade, and `RETURNING` answers only the chat's row.
 `ChatService.delete` therefore reads the chat with its attachments to name `ChatNotFoundError`,
 then deletes the chat, then the bytes, through
 `FileRepository.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
@@ -228,58 +248,46 @@ never expired: the price of a delete with no transaction.
 
 ## Transactions
 
-A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable
-of the `Effect.fn` that holds the writes (`Transaction.layer` wraps
-`SqlClient.withTransaction`), and every repository call inside joins the transaction
-through the connection `@effect/sql` keeps in the fiber's context, so no repository takes a
-transaction parameter. `CreateUserMessageUseCase.create` writes the chat's `status`, the user message,
-the binds, the reply and its jobs, or none of them. The guards above then decide every race inside
-Postgres, with no lock in the process: of two sends to one chat the second waits on the chat's
-row lock and, once the first commits, finds the chat `queued`, and of two binds sharing an
-attachment the second waits on the row the first's update holds and, once it commits, finds it
-bound, so the second misses a row it names and dies. Two api processes behave as two fibers. S3
-stays outside the transaction: the bytes are kept before the bind, so no bound row sits over
-expiring bytes, and deleted before the commit, so a rollback restores rows that a retry still
-finds. SQS is reached only through the table `jobs`, whose rows join it.
+A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable of
+the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.withTransaction`), and
+every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
+fiber's context, so no repository takes a transaction parameter. `CreateUserMessageUseCase.create`
+writes the user message, the binds and the Run, or keeps none of them, and sends its jobs after the
+commit. The guards above then decide every race inside Postgres, with no lock in the process: of
+two sends to one chat the second's Run insert waits on the index entry the first holds and, once
+the first commits, finds an active Run, and of two binds sharing an attachment the second waits on
+the row the first's update holds and, once it commits, finds it bound, so the second misses a row it
+names and dies. Two api processes behave as two fibers. S3 stays outside the transaction: the bytes
+are kept before the bind, so no bound row sits over expiring bytes, and deleted before the commit,
+so a rollback restores rows that a retry still finds. SQS joins none either: the sends follow the
+commit ([The sends](#the-sends)).
 
-## Stuck replies
+## Stuck Runs
 
-A reply that no run settles stays active and its chat `queued`, so every next send to the chat
-fails `ChatBusyError`. A run that dies (a killed process, the function's timeout) is settled by
-the next delivery, up to the queue's visibility timeout later, which finds the job `running` and
-the reply started, and fails it; a store failing the `failed` write, or a job whose every
-delivery dies, leaves it so, and nothing consumes the dead-letter queue
-([aws.md › Queues](aws.md#queues)). No sweep over active messages exists: by age alone it could
-not tell a dead reply from one waiting in a backlog.
+A Run that no worker settles stays active and its chat `queued`, so every next send to the chat
+fails `ChatBusyError`. A worker that dies (a killed process, the function's timeout) is settled by
+the next delivery, up to the queue's visibility timeout later, which finds the Run started, and
+fails it; a store failing the `failed` write, a process that dies or a client that aborts between
+the commit and the send, or a job whose every delivery dies, leaves it so, and nothing consumes
+the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active Runs exists: by
+age alone it could not tell a dead Run from one waiting in a backlog.
 
-## The outbox
+## The sends
 
-A job is a row of the table `jobs`, written in the transaction of the records that ask for it,
-so a rollback keeps no job and a commit never stands without one
-([decisions.md › Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer)).
-`JobSender` and `JobConsumer` in `kernel/job` move the row's `status` over `JobRepository`;
-`packages/queue` carries the job on SQS ([aws.md › Queues](aws.md#queues)).
+A job is a message on its queue, and no table holds it: the record of its work (the Run, the
+chat's title) is the one the worker reads
+([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
-- **`JobSender.send`** encodes the job through its definition's schema to a JSON value
-  (`Schema.toCodecJson`), inserts it `queued`, with the definition's `name` as `queue` (the stage
-  is added on the way out), then sends the body as a JSON string, the row's id in the message
-  attribute `jobId`. A use case sends its jobs after its other writes.
-- **A send SQS refuses is a defect,** so the transaction rolls back and the api answers its bare
-  `500`, keeping no message and no job. SQS may deliver a job before the commit shows its row:
-  the worker reads none, a defect, and SQS delivers it again.
-- **`body` is `jsonb`, with no index on it.** No code queries the body: `jsonb` keeps it a value
-  an operator can read by hand (`body->'provenance'->>'model'` on a reply's job) instead of a
-  string to parse.
-- **`JobConsumer`** marks the row `running` before its handler, then `done` on success or
-  `failed` on any other outcome, an interrupt included; nothing is retried. A job found `running`
-  was left by a run that died, so its handler runs again and decides. It writes only from
-  `queued` or `running`, so a settled job never moves back; a delivery of a settled job is
-  acknowledged without its handler, and a message whose row is missing is a defect that SQS
-  delivers again, then dead-letters.
-  `JobConsumer` decodes the body itself: one that does not decode never will, so its job is
-  `failed` at once, unrun, and its record acknowledged; the body stays in the row.
-- **A settled row stays,** so `jobs` is the record of what each job carried. Nothing removes
-  settled rows yet.
+- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the message through the
+  definition's schema to a JSON string and sends it, with no attribute, to the definition's queue;
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
+  after its transaction commits, so a delivery always finds the record it names. A transaction
+  that fails keeps no row and answers `500`.
+- **A send SQS refuses** is settled by the job's sender beside the use cases, which logs it with
+  the job's ids: the reply's also fails its Run with `ReplyFailed` and answers
+  `503 RunNotQueuedError`, the message stored and shown failed with its retry. A process that
+  dies between the commit and the send, or a client that aborts there, leaves the Run queued and
+  its chat busy ([Stuck Runs](#stuck-runs)).
 
 ## Migrations
 

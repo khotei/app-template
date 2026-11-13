@@ -4,54 +4,54 @@ import { DateTime, Effect, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatBusyError, ChatStatusInvalidError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle, failChat, idleChat, queueChat, renameChat } from '#chat/domain/chat.model'
-import { chat } from '#testing/chat/chat.test-fixture'
+import { ChatBusyError } from '#chat/domain/chat.error'
+import {
+  buildChatStatus,
+  Chat,
+  ChatTitle,
+  ensureChatNotBusy,
+  renameChat,
+} from '#chat/domain/chat.model'
+import type { RunStatus } from '#chat/domain/run-fields.model'
+import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
-describe('queueChat', () => {
-  it.effect.each([{ from: 'idle' }, { from: 'failed' }] as const)(
-    'queues a chat that is $from',
-    ({ from }) =>
-      Effect.gen(function* () {
-        const queued = yield* queueChat(new Chat({ ...chat, status: from }))
+const chatAt = (status: RunStatus) =>
+  new Chat({ ...chat, run: Option.some({ ...queuedRun, status }) })
 
-        assertEquals(queued, new Chat({ ...chat, status: 'queued' }))
-      }),
-  )
+describe('buildChatStatus', () => {
+  it('reads a chat no send has reached as idle', () => {
+    assert.strictEqual(buildChatStatus(chat), 'idle')
+  })
 
-  it.effect('refuses a queued chat with ChatBusyError', () =>
-    Effect.gen(function* () {
-      const error = yield* queueChat(new Chat({ ...chat, status: 'queued' })).pipe(Effect.flip)
-
-      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-    }),
+  it.each([
+    { status: 'queued', chatStatus: 'queued' },
+    { status: 'preparing', chatStatus: 'queued' },
+    { status: 'generating', chatStatus: 'queued' },
+    { status: 'done', chatStatus: 'idle' },
+    { status: 'failed', chatStatus: 'failed' },
+  ] as const)(
+    'reads a chat whose newest Run is $status as $chatStatus',
+    ({ status, chatStatus }) => {
+      assert.strictEqual(buildChatStatus(chatAt(status)), chatStatus)
+    },
   )
 })
 
-describe('idleChat and failChat', () => {
-  it.effect.each([
-    { name: 'idleChat', end: idleChat, to: 'idle' },
-    { name: 'failChat', end: failChat, to: 'failed' },
-  ] as const)('$name ends a queued chat as $to', ({ end, to }) =>
-    Effect.gen(function* () {
-      const ended = yield* end(new Chat({ ...chat, status: 'queued' }))
-
-      assertEquals(ended, new Chat({ ...chat, status: to }))
-    }),
+describe('ensureChatNotBusy', () => {
+  it.effect.each([{ status: 'done' }, { status: 'failed' }] as const)(
+    'takes a chat whose newest Run is $status',
+    ({ status }) => ensureChatNotBusy(chatAt(status)),
   )
 
   it.effect.each([
-    { name: 'idleChat', end: idleChat, from: 'idle', to: 'idle' },
-    { name: 'failChat', end: failChat, from: 'failed', to: 'failed' },
-  ] as const)('$name refuses a chat that is $from', ({ end, from, to }) =>
+    { status: 'queued' },
+    { status: 'preparing' },
+    { status: 'generating' },
+  ] as const)('refuses a chat whose newest Run is $status with ChatBusyError', ({ status }) =>
     Effect.gen(function* () {
-      const error = yield* end(new Chat({ ...chat, status: from })).pipe(Effect.flip)
+      const error = yield* ensureChatNotBusy(chatAt(status)).pipe(Effect.flip)
 
-      assertSchemaEquals(
-        ChatStatusInvalidError,
-        error,
-        new ChatStatusInvalidError({ id: chat.id, from, to }),
-      )
+      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
     }),
   )
 })

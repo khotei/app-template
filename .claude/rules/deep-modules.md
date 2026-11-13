@@ -39,8 +39,10 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A write answers `void` and dies where it misses a row it names: the caller checked the rule, so
   a miss is a lost race. An object store's writes are idempotent and never die on a missing
   object; a write that measures what it stores answers the measure.
-- One shape per entity: a related entity is a field the same relational query fills, and never
-  becomes a second type (`<Name>EntityWith<Thing>`); an option never changes the answer's type.
+- One shape per entity: a related entity is a field the same relational query fills, one level
+  deep as the neighbour's `<Name>Columns`, and never becomes a second type
+  (`<Name>EntityWith<Thing>`); an option never changes the answer's type. A model's
+  `<Model>Fields` supertype, what a neighbour nests of it, is no second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read. The field mappers and a relational query's alias:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
@@ -59,6 +61,7 @@ return shipped                                           // the value built: no 
   `where` or `set` are one, taking them from the caller, with arguments as narrow as it uses.
 - A copy per model is one function over the varying part (an id maker given the brand).
 - A value another table implies is a column the transactions that change it move, not derived on
-  each read.
+  each read; one a model function derives from the one row its read already nests stays derived
+  ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
 - Plumbing is a pipeable, never `if (…) return yield* Effect.die(…)`; an import cycle is broken by
   widening a type, never by a new file.

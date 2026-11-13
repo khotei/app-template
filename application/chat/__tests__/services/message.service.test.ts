@@ -1,10 +1,12 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
+import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { MessageService, type MessageWhere } from '#chat/services/message.service'
@@ -18,6 +20,7 @@ const MessageServiceTest = MessageService.layer.pipe(
   Layer.provideMerge(Layer.effectDiscard(insertMessage(firstMessage))),
   Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(RepositoryStackTest),
+  Layer.provide(BunCrypto.layer),
 )
 
 const misses: ReadonlyArray<{ readonly name: string; readonly where: MessageWhere }> = [
@@ -27,6 +30,15 @@ const misses: ReadonlyArray<{ readonly name: string; readonly where: MessageWher
     where: { id: firstMessage.id, chatId: unknownChatId, userId: owner },
   },
   { name: 'an unknown', where: { id: unknownMessageId, chatId: chat.id, userId: owner } },
+  {
+    name: "a user's asked as an assistant's",
+    where: { id: firstMessage.id, chatId: chat.id, userId: owner, author: 'assistant' },
+  },
+]
+
+const chatMisses = [
+  { name: "another user's", where: { chatId: chat.id, userId: stranger } },
+  { name: 'an unknown', where: { chatId: unknownChatId, userId: owner } },
 ]
 
 describe('MessageService', () => {
@@ -46,7 +58,21 @@ describe('MessageService', () => {
 
       const error = yield* service.getOne(where).pipe(Effect.flip)
 
-      assertSchemaEquals(MessageNotFoundError, error, new MessageNotFoundError({ id: where.id }))
+      assertSchemaEquals(
+        MessageNotFoundError,
+        error,
+        new MessageNotFoundError({ id: where.id, author: Option.fromUndefinedOr(where.author) }),
+      )
+    }).pipe(Effect.provide(MessageServiceTest)),
+  )
+
+  it.effect.each(chatMisses)('getMany of $name chat is ChatNotFoundError', ({ where }) =>
+    Effect.gen(function* () {
+      const service = yield* MessageService
+
+      const error = yield* service.getMany(where).pipe(Effect.flip)
+
+      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: where.chatId }))
     }).pipe(Effect.provide(MessageServiceTest)),
   )
 })

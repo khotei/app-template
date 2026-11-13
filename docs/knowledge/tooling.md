@@ -105,7 +105,7 @@ Which suite runs where:
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; the worker's route over mocks of its use cases and the job table |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) with the memory layers in place of the repositories and ports; the worker's route over mocks of its use cases |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -132,10 +132,10 @@ Which suite runs where:
   `@app-template/packages/aws/testing/e2e` are clients on that MiniStack. Each test provides
   `PgClientTest` from `@app-template/packages/db/testing/e2e`: a fresh database copied from the
   template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS
-  (`FileRepository`'s, `JobSender`'s and `JobConsumer`'s beside `DbTest`, the e2e through the
-  api) provides `AwsTest` from the kernel's `aws` e2e support: a stage of its own on the run's
-  MiniStack, its bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
-  The unit suites run on neither: `FileRepositoryTest` (in `RepositoryStackTest`) and `recordJobs()`
+  (`FileRepository`'s beside `DbTest`, `QueueSender`'s, the e2e through the api) provides
+  `AwsTest` from the kernel's `aws` e2e support: a stage of its own on the run's MiniStack, its
+  bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
+  The unit suites run on neither: `FileRepositoryTest` (in `RepositoryStackTest`) and `recordMessages()`
   stand in for S3 and SQS. A test therefore sees only its own rows and resources, even through a
   query that reads a whole table, and files run in parallel. E2e tests need Docker and nothing else:
   no `.env`, no `make up`.
@@ -157,7 +157,7 @@ Which suite runs where:
   accepts. The journey proves the wiring; every rule keeps its lower seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's block
-  opts out, since its tests share one stand and read its table `jobs` whole.
+  opts out, since its tests share one stand.
 - **Time.** `it.effect` provides a fresh `TestClock` per test, so time stands still unless the
   test moves it; `it.live` runs on the real clock. `@effect/vitest`'s `layer(…)` instead builds
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its

@@ -1,15 +1,12 @@
 import { sql } from 'drizzle-orm'
-import { check, index, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
+import { createSelectSchema } from 'drizzle-orm/effect-schema'
+import { check, index, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 
 export const maxTitleLength = 120
-
-export const chatStatuses = ['idle', 'queued', 'failed'] as const
-
-export const chatStatus = pgEnum('chat_status', chatStatuses)
 
 export const chats = snakeCase.table(
   'chats',
@@ -19,7 +16,6 @@ export const chats = snakeCase.table(
       .notNull()
       .references(() => users.id),
     title: text(),
-    status: chatStatus().notNull().default('idle'),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -32,3 +28,7 @@ export const chats = snakeCase.table(
     index('chats_user_id_updated_at_index').on(table.userId, table.updatedAt.desc().nullsFirst()),
   ],
 )
+
+/** The columns of a chat, as the entities of its neighbours nest them. */
+export const ChatColumns = createSelectSchema(chats)
+export type ChatColumns = typeof ChatColumns.Type

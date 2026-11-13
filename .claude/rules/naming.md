@@ -18,13 +18,14 @@ paths:
 
 ## Files
 
-`kebab-case`, `<name>.<role>.ts`, one role suffix, `<name>` singular like its folder; a file with
-no role keeps a bare name (`layer.ts`), a tool's file the name its tool reads. Where a test and
-its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
+`kebab-case`, `<name>.<role>.ts`, one role suffix, `<name>` singular like its folder; a file of
+a contract group `api-<name>.<role>.ts`, so it never shares a name with its domain twin; a file
+with no role keeps a bare name (`layer.ts`), a tool's file the name its tool reads. Where a test
+and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 
 | Suffix | Role |
 |---|---|
-| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors; the contract declares its own in its `.http` files, under the domain's export names |
+| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors; the contract declares its own beside its `.http`, under the domain's export names |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<layer>-<model>.service.ts` for one layered over it, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
@@ -44,7 +45,8 @@ its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
   `<Verb><Object>UseCase`, `<Model>Service` (`<Layer><Model>Service` layered over it) or, for one
   operation of no model, that operation.
 - Functions are verb-first, and the verb marks the kind of work:
-  - `create<Thing>`: a factory that wires dependencies;
+  - `create<Thing>`: a factory that takes dependencies and wires them, or a write that takes a
+    new record's fields and stores it (a domain service's `create`, a use case's step over it);
   - `layer<Variant>`: a static building one variant of a service's `Layer`; a `Layer` that runs
     work is named for it;
   - `build` / `ensure`: a pure function that derives a value or guards an invariant; a pure

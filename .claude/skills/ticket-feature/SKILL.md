@@ -40,13 +40,15 @@ repository holds no `GLOSSARY.md`, `GLOSSARY-MAP.md`, `CONTEXT.md` or `docs/adr/
    step. With neither, stop and ask the user, as phase 1 does. The command and its failing
    output go into `feature.md › Reproduction`.
 3. Call the Skill tool with `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`,
-   then grill the user until the frontier is empty. Every fact question goes to the `researcher`
-   agent on `opus high`; the user answers only decisions. Resolved terms go into the glossary as
-   they settle.
+   then grill the user until the frontier of the minimal feature is empty: the whole feature in
+   its smallest form (`.claude/rules/sdd.md › Gates`). An edge case, a hardening, an open question
+   or an optimisation that comes up is a line of `Later`, not grilled now, unless the rule never
+   defers it. Every fact question goes to the `researcher` agent on `opus high`; the user answers
+   only decisions. Resolved terms go into the glossary as they settle.
 4. Write `feature.md`: problem, goal, context, scope, out of scope, requirements `R1…` in EARS
    (`WHEN … THE SYSTEM SHALL …`, `WHILE`, `WHERE`, `IF … THEN`) that name behaviour, not paths
    or code names, one acceptance check per requirement that names none either (a command,
-   request or observation and its expected result), and open questions, each with its
+   request or observation and its expected result), `Later`, and open questions, each with its
    options and a recommendation; the facts the `researcher` confirmed go into Context. A bug's
    requirement takes the Reproduction's command as its acceptance check. If the slug has a
    roadmap entry, set the roadmap entry's status to a link to the ticket folder.

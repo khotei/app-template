@@ -13,8 +13,8 @@ import {
   ChatRepository,
   Db,
   FileRepository,
-  JobRepository,
   MessageRepository,
+  RunRepository,
 } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
@@ -40,7 +40,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([
     ChatRepository.layer,
     MessageRepository.layer,
-    JobRepository.layer,
+    RunRepository.layer,
     FileRepository.layer,
     BunCrypto.layer,
   ]),

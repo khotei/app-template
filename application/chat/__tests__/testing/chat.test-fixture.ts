@@ -3,9 +3,11 @@ import { DateTime } from 'effect'
 import { UserId } from '@app-template/application/identity'
 import { epoch } from '@app-template/packages/testing'
 
-import { ChatId, MessageId } from '#chat/domain/chat.id'
-import { buildChat, Chat } from '#chat/domain/chat.model'
-import { buildAssistantMessage, buildUserMessage, Message } from '#chat/domain/message.model'
+import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { buildChat } from '#chat/domain/chat.model'
+import { buildAssistantMessage, buildUserMessage } from '#chat/domain/message.model'
+import { buildRun } from '#chat/domain/run.model'
+import { replyProvenance } from '#testing/chat/assistant.test-fake'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
@@ -16,9 +18,6 @@ export const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
 
 /** An untitled chat of `owner`, created at `epoch`, so a later write shows as a moved `updatedAt`. */
 export const chat = buildChat({ id: chatId, userId: owner, createdAt: epoch })
-
-/** `chat` with its reply in work, as a send leaves it. */
-export const queuedChat = new Chat({ ...chat, status: 'queued' })
 
 /** The first message of `chat`, the one its title job reads. */
 export const firstMessage = buildUserMessage({
@@ -38,9 +37,14 @@ export const userMessageAt = (n: number, text: string) =>
   buildUserMessage({ id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
 /** The assistant's message at place `n` of `chat`'s history. */
-export const assistantMessageAt = (n: number) =>
-  buildAssistantMessage({ id: historyId(n), chatId, createdAt: historyAt(n) })
+export const assistantMessageAt = (n: number, text: string) =>
+  buildAssistantMessage({ id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
-/** `message` as a reply settled with `text` is stored. */
-export const asCompleted = (message: Message, text: string) =>
-  new Message({ ...message, status: 'done', text })
+/** The Run a send of `firstMessage` queues. */
+export const queuedRun = buildRun({
+  id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
+  chatId,
+  userMessage: firstMessage,
+  provenance: replyProvenance,
+  createdAt: epoch,
+})

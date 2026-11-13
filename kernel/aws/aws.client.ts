@@ -3,6 +3,7 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { type Config, Layer, Option } from 'effect'
 
 import { AwsConfig } from '@app-template/kernel/config'
+import { QueueSender } from '@app-template/packages/queue'
 import { S3Bucket } from '@app-template/packages/s3'
 
 import { buildResourceName } from '#kernel/aws/resources/naming'
@@ -37,3 +38,9 @@ export const S3BucketOfStage: Layer.Layer<S3Bucket, never, S3Service | AwsConfig
 export const S3BucketFromConfig: Layer.Layer<S3Bucket, Config.ConfigError> = S3BucketOfStage.pipe(
   Layer.provide([S3ServiceFromConfig, AwsConfig.layer]),
 )
+
+/** `QueueSender` on the queues of the stage in `AwsConfig`, over the `SQSService` in context. */
+export const QueueSenderOfStage: Layer.Layer<QueueSender, never, SQSService | AwsConfig> =
+  Layer.unwrap(
+    AwsConfig.useSync(({ stage }) => QueueSender.layer((name) => buildResourceName(stage, name))),
+  )

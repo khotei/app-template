@@ -8,8 +8,7 @@ import {
 } from '@app-template/application/use-cases'
 import { buildResourceName } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
-import { JobConsumer } from '@app-template/kernel/job'
-import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
+import { buildQueueName, QueueConsumer, SqsEvent } from '@app-template/packages/queue'
 
 /**
  * `POST /events`: the batch an SQS mapping invokes the worker with, run by the use case of the
@@ -17,7 +16,7 @@ import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
  */
 export const WorkerHandler = HttpRouter.use(
   Effect.fn(function* (router) {
-    const consumer = yield* JobConsumer
+    const consumer = yield* QueueConsumer
     const { stage } = yield* AwsConfig
     const assistantMessage = yield* GenerateAssistantMessageUseCase
     const chatTitle = yield* GenerateChatTitleUseCase
@@ -50,4 +49,4 @@ export const WorkerHandler = HttpRouter.use(
       }),
     )
   }),
-).pipe(Layer.provide([JobConsumer.layer, AwsConfig.layer]))
+).pipe(Layer.provide([QueueConsumer.layer, AwsConfig.layer]))

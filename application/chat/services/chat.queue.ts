@@ -3,19 +3,16 @@ import { Schema } from 'effect'
 import { resources } from '@app-template/kernel/aws'
 import type { QueueDefinition } from '@app-template/packages/queue'
 
-import { ReplyProvenance } from '#chat/domain/assistant.port'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 
 const { assistantMessage, chatTitle } = resources.queues
 
+/** `runId` is the Run the worker drives; the Run holds what it answers and its provenance. */
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
 )({
   chatId: ChatId,
-  messageId: MessageId,
-  // Optional on decode: a job queued before the field existed must still reach the worker, or its
-  // chat stays queued behind a body no attempt decodes.
-  provenance: Schema.OptionFromOptionalKey(ReplyProvenance),
+  runId: RunId,
 }) {}
 
 export const assistantMessageQueue = {

@@ -8,13 +8,20 @@ import type { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   type Attachment,
+  bindAttachment,
   buildAttachment,
+  ensureAllStored,
   ensureFound,
   ensureUnbound,
   FileSize,
 } from '#chat/domain/attachment.model'
+import type { Message } from '#chat/domain/message.model'
 import { encodeAttachment } from '#chat/services/attachment.mapper'
-import { AttachmentService, type AttachmentWhere } from '#chat/services/attachment.service'
+import {
+  type AttachmentGetManyWhere,
+  AttachmentService,
+  type AttachmentWhere,
+} from '#chat/services/attachment.service'
 import { LiveAttachmentService } from '#chat/services/live-attachment.service'
 
 export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fileName'> {
@@ -34,6 +41,21 @@ export class FileAttachmentService extends Context.Service<
       uploads: Stream.Stream<AttachmentUpload<E>, E>,
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly download: (where: AttachmentWhere) => Effect.Effect<URL, AttachmentNotFoundError>
+    /**
+     * The user's live attachments whose bytes the store still holds, in creation order; one
+     * `AttachmentNotFoundError` names every id that is not.
+     */
+    readonly getMany: (
+      where: AttachmentGetManyWhere,
+    ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
+    /**
+     * Binds the attachments to the stored message and its chat, the bytes first; dies when a
+     * send bound one since it was read.
+     */
+    readonly bind: (
+      attachments: ReadonlyArray<Attachment>,
+      message: Message,
+    ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentBoundError>
     /** Removes the user's live attachment and its bytes while no message holds it. */
     readonly delete: (
       where: AttachmentWhere,
@@ -102,13 +124,45 @@ export class FileAttachmentService extends Context.Service<
         .pipe(Effect.flatMap(ensureFound(id)), Effect.map(Struct.get('url')))
     })
 
+    const getMany = Effect.fn('FileAttachmentService.getMany')(function* (
+      where: AttachmentGetManyWhere,
+    ) {
+      const found = yield* live.getMany(where)
+      const storedIds = yield* files
+        .selectMany({ id: Arr.map(found, Struct.get('id')) })
+        .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
+      return yield* ensureAllStored(where.id, storedIds)(found)
+    })
+
+    const bind = Effect.fn('FileAttachmentService.bind')(function* (
+      requested: ReadonlyArray<Attachment>,
+      message: Message,
+    ) {
+      const bound = yield* Effect.forEach(requested, (attachment) =>
+        bindAttachment(attachment, message),
+      )
+      // A message without files skips the writes, as the update would die on no rows.
+      if (Arr.isReadonlyArrayEmpty(bound)) return bound
+
+      const ids = Arr.map(bound, Struct.get('id'))
+      // The files first: unbound bytes expire, so a crash must never leave a bound row over them.
+      yield* files.update({ bound: true }, { id: ids })
+      // `messageId: null` is the race's guard: a send that bound any of them since the read
+      // leaves this write short of a row it names, so it dies and the send rolls back whole.
+      yield* attachments.update(
+        { messageId: message.id, chatId: message.chatId },
+        { id: ids, messageId: null },
+      )
+      return bound
+    })
+
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
       yield* live.getOne(where).pipe(ensureUnbound)
       // A send that binds it after the check makes this die, so its bytes stay.
       yield* records.delete({ id: [where.id], userId: where.userId, messageId: null })
     })
 
-    return { upload, download, delete: remove }
+    return { upload, download, getMany, bind, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(

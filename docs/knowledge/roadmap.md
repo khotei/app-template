@@ -651,8 +651,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     handler deletes the bytes by `FileRepository.delete`. `ChatService.delete` drops its
     attachment read and its bucket call; the memory fake records the job as the trigger does,
     with an e2e twin.
-  - The message keeps its own status, its subset of the shared `Status`: it is the reply's
-    state, which the client polls and the guards read, not the job's.
+  - The Run keeps its own status, its subset of the shared `Status`: it is the work's state,
+    which the client polls and the guards read, not the job's; a message has none since
+    `reply-run`.
   - The relay gets attempts and a dead letter of its own: today a job SQS refuses forever blocks
     its batch and re-sends the jobs before it on every poll.
 - **Why a trigger.** It catches every path in the same statement, including a file a concurrent
@@ -679,15 +680,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   module's reaction to another's write. `Status` belongs to `chat` (the chat's and the message's
   states); the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for
   a job and "reply in work" for a message. The statuses rewrite
-  [Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer), whose
+  [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose
   *Revisit when* names this ticket.
-- **Inherits from `lambda` (2026-11-09).** A reply that never settles leaves its chat `queued`
-  for good, so every next send fails `ChatBusyError`: a job whose body no longer decodes is
-  failed unrun, so the reply's use case never runs; every delivery of a job dies, 3 receives, and
-  nothing reads the dead-letter queue; or the queue drops its messages (a purge, a replaced queue,
-  SQS's retention, 4 days by default and unset in the inventory). Ways out to weigh: the handler
-  gets the undecodable body to fail its own work, a consumer of the dead-letter queues, or a sweep
-  of active replies ([database.md › Stuck replies](database.md#stuck-replies)).
+- **Inherits from `lambda` (2026-11-09) and `reply-run` (2026-11-11).** The Runs no worker
+  settles: [Later › From `lambda-processes`](#from-lambda-processes) and
+  [› From `reply-run`](#from-reply-run).
 - **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
   metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
   `DeleteObjects` takes 1000 keys a request.
@@ -857,6 +854,70 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Status.** In progress:
   [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md).
 
+## Later
+
+What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
+questions. One section per ticket; each item says what goes wrong, with its `path:line`, why it
+was left, and the ways out to weigh. A ticket that takes an item moves it into its own `Later`
+and deletes it here.
+
+### From `lambda-processes`
+
+- (2026-11-09) A reply that never settles leaves its chat `queued` for good, so every next send
+  fails `ChatBusyError`: a job whose body no longer decodes is failed unrun, so the reply's use
+  case never runs; every delivery of a job dies, 3 receives, and nothing reads the dead-letter
+  queue; or the queue drops its messages (a purge, a replaced queue, SQS's retention, 4 days by
+  default and unset in the inventory). Ways out to weigh: the handler gets the undecodable body
+  to fail its own work, a consumer of the dead-letter queues, or a sweep of active replies
+  ([database.md › Stuck Runs](database.md#stuck-runs)).
+
+### From `reply-run`
+
+- (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies or the client
+  aborts the request between the commit and the reply's send (the `queue.send` of
+  `application/use-cases/chat/create-user-message.use-case.ts` and
+  `application/use-cases/chat/retry-run.use-case.ts`): a send SQS refuses fails the Run, but no
+  handler runs in a dead process or past an interrupt. Ways out to weigh: a send that cannot be
+  interrupted (the abort only), the job ledger of entry 22, a sweep of active Runs. The owner
+  refused a rule by a Run's age.
+- (2026-11-13) Two sends or two retries of one chat that arrive within the few milliseconds between
+  the check and the insert (two tabs, a client that resends) both pass `ensureChatNotBusy`; the
+  active Run's index refuses the second insert, which dies, so the client gets a bare `500`, not
+  `409 ChatBusyError`; a double click, its second request arriving after the first Run is stored,
+  already gets the `409` (`kernel/data/chat/run.repository.ts:68`,
+  `application/chat/services/run.service.ts:40`). Left: a lost race dies by
+  [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
+  weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
+  `ChatBusyError` (an exception to `deep-modules.md`'s "a write dies where it misses"), or a
+  `SELECT … FOR UPDATE` on the chat before the check.
+- (2026-11-13) A retry reads the chat's newest Run, then inserts its own; a send of a newer
+  message whose Run commits and fails between the two lets the insert pass the active Run's index,
+  so an older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
+  (`application/use-cases/chat/retry-run.use-case.ts`, the chat's read and `runService.create`).
+  Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
+  milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
+  chat's newest, or a row lock on the chat before the check.
+- (2026-11-13) `MessageService.getMany` checks the chat, then reads its messages in a second
+  query, so a delete between the two answers `200 []`, not `404 ChatNotFoundError`; the next read
+  gives the `404` (`application/chat/services/message.service.ts:58`). Left: a domain service
+  opens no transaction ([layering.md](../../.claude/rules/layering.md)). Way out: one query that
+  reads the chat with its messages.
+- (2026-11-13) The memory fakes miss what Postgres refuses or takes back, so a unit test passes
+  where the database would not: they check no foreign key (a Run whose user message is missing,
+  an assistant message whose Run is), and `TransactionTest` is the identity, so a lost race's
+  writes stay (`kernel/data/__tests__/testing/chat.test-fake.ts`). No e2e runs a worker's lost
+  race of a completion (`application/use-cases/chat/generate-assistant-message.use-case.ts`,
+  `settleCompleted`). Ways out to weigh: the fakes copy the foreign keys, a `TransactionTest` that
+  restores the rows on a failure, an e2e of the completion's race.
+- (2026-11-13) Errors without context: `MessageInputInvalidError` covers two reasons alike
+  (`application/chat/domain/message.model.ts:51`, `:55`), `AttachmentTooLargeError` names neither
+  the limit nor the file (`apps/api/attachment/attachment.handler.ts:30`),
+  `AttachmentTypeUnsupportedError` not the type sent (`:50`), `RunNotRetryableError` not why,
+  `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
+  (`application/chat/infrastructure/assistant.llm.ts:159`); `UserUnknownError` stays empty, so no
+  secret reaches a reply or a log. Left: the lab's step for it was skipped. First check, by a
+  run, which of an error's fields reach the api's and the worker's logs and spans.
+
 ## Ideas to weigh
 
 Options raised outside a ticket, **not decided**: the plan above stands until a ticket's feature
@@ -917,7 +978,7 @@ For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-code
 ### Queue on SQS or in Postgres
 
 For `jobs` (22) and `aws-deployment` (9), and the record
-[Jobs as a table in the data layer](decisions.md#jobs-as-a-table-in-the-data-layer).
+[Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
   the jobs in a Postgres table and replaces our queue: `packages/queue` (`QueueConsumer`,

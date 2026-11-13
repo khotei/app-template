@@ -36,12 +36,7 @@ import {
   CurrentReplyProvenanceFromConfig,
   generateInstructionsHash,
 } from '#chat/infrastructure/assistant.llm'
-import {
-  asCompleted,
-  assistantMessageAt,
-  owner,
-  userMessageAt,
-} from '#testing/chat/chat.test-fixture'
+import { assistantMessageAt, owner, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -213,7 +208,7 @@ describe('AssistantLlmFromConfig', () => {
             message: userMessageAt(1, 'What is this?'),
             attachments: [{ attachment: photo, bytes: png }],
           },
-          { message: asCompleted(assistantMessageAt(2), 'A photo.'), attachments: [] },
+          { message: assistantMessageAt(2, 'A photo.'), attachments: [] },
           { message: userMessageAt(3, ''), attachments: [{ attachment: sketch, bytes: png }] },
         ])
         yield* reply(hi)

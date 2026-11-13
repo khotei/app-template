@@ -22,11 +22,14 @@ copied and changed.
 ## ✨ What the example does
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages with attachments, and
-the assistant answers. The api writes the message and its jobs in one transaction, sends the jobs
-to SQS before it commits and answers `202`; SQS invokes the worker through a Lambda function's
-mapping, and the worker writes the model's whole reply into the message and titles the chat;
-the client polls the message until it is `done` or `failed`. The language model is Anthropic's.
-The browser UI still shows only the health panel.
+the assistant answers. A user's message starts a Run, the work of answering it: the api writes the
+message and its queued Run in one transaction, sends the jobs to SQS after it commits and answers
+`202` with the Run. SQS invokes the worker through a Lambda function's mapping; the worker moves
+the Run through `preparing` and `generating`, then writes the assistant's message and the Run's
+`done` in one transaction, or the Run's `failed` with its reason, and titles the chat. The client
+polls the Run, reads the chat's messages with their Runs after a reload, and retries a failed Run
+as a new Run of the same message. The language model is Anthropic's. The browser UI still shows
+only the health panel.
 
 ```mermaid
 sequenceDiagram
@@ -35,17 +38,18 @@ sequenceDiagram
   participant S as Postgres
   participant Q as SQS (MiniStack)
   participant K as apps/worker
-  W->>A: POST /chats/:id/messages
-  A->>S: one transaction: user message, queued assistant message, jobs
-  A->>Q: last in the transaction: assistant-message job (+ chat-title job on the first message)
-  A-->>W: 202
+  W->>A: POST /chats/:chatId/messages
+  A->>S: one transaction: the user's message, its queued Run
+  A->>Q: after the commit: the reply's job (+ the title's on the chat's first message)
+  A-->>W: 202 with the Run
   Q->>K: a Lambda mapping posts the batch to POST /events
-  K->>S: preparing → generating → done with the text | failed
-  W->>A: GET /chats/:id/messages/:messageId (poll)
+  K->>S: Run preparing → generating → done with the assistant's message | failed
+  W->>A: GET /chats/:chatId/runs/:runId (poll), GET /chats/:chatId/messages (reload)
+  W->>A: POST /chats/:chatId/messages/:userMessageId/runs (retry a failed Run)
 ```
 
 How the transaction and the jobs work:
-[database.md › The outbox](docs/knowledge/database.md#the-outbox),
+[database.md › The sends](docs/knowledge/database.md#the-sends),
 [aws.md › Queues](docs/knowledge/aws.md#queues).
 
 ## 🚀 Quick start
@@ -77,8 +81,10 @@ curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello","attachmentIds":[]}'
-# repeat while the assistant message is queued, preparing or generating: its text arrives whole
-curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
+# repeat while the Run is queued, preparing or generating: its assistantMessage arrives whole
+curl -s -b jar localhost:3000/chats/<chatId>/runs/<runId>
+# the reload: the chat's messages, each with its Run
+curl -s -b jar localhost:3000/chats/<chatId>/messages
 ```
 
 `make down` stops the stand and keeps its data; `make reset` removes it whole. When `make up`
@@ -127,7 +133,7 @@ server module in the browser's bundle. The rules a change most often breaks:
 - no rule outside the modules
   ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));
 - no lock but a guard in the write ([database.md › Guards](docs/knowledge/database.md#guards));
-- no message without its job ([database.md › The outbox](docs/knowledge/database.md#the-outbox));
+- no message without its job ([database.md › The sends](docs/knowledge/database.md#the-sends));
 - no service in the browser
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
 

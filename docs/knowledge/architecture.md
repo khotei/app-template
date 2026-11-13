@@ -16,7 +16,7 @@ Every dependency points inward, from the boundary to the behaviour to the data:
 
 - **The data**, `kernel/data`, the one source of truth over every store: `Db` over every table and
   relation, the migrations, and a repository per store in the data layer's own types, the
-  attachments' objects and the jobs among them. It takes its clients from the context.
+  attachments' objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
   that reach outside; its `services/` the domain services, the mappers
@@ -72,7 +72,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `db`, `queue` only | ✗ | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
-| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | `/job` only | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
@@ -154,12 +154,12 @@ Using the files of `chat` as the map:
 | queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
+| job sender: sends a job and settles a send SQS refuses | `application/use-cases/chat/chat.sender.ts` | `AssistantMessageSender`, `ChatTitleSender` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
-| repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts`; `kernel/data/job/job.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket`; `JobRepository` |
+| repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
-| the jobs over the queue | `kernel/job/job.sender.ts` | `JobSender`: a job's row and its send, last in the caller's transaction |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
-| contract group | `http-api/chat/chat.http.ts`; the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
+| contract group | `http-api/chat/api-chat.http.ts`, the wire shapes and errors in one `api-<model>.model.ts` and `api-<model>.error.ts` per model (`api-chat.model.ts`, `api-message.error.ts`); the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat`, `buildApiMessage` |
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
@@ -252,9 +252,10 @@ model's.
    The layers' barrels re-export the new files.
 5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous
    work is a queue definition in the module's `services/` and a handler in `apps/worker/`
-   ([database.md › The outbox](database.md#the-outbox)).
-6. **The boundary.** A contract group in `http-api/<entity>/<entity>.http.ts`, with the entity's
-   wire shape, ids and errors as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
+   ([database.md › The sends](database.md#the-sends)).
+6. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape
+   in `api-<entity>.model.ts`, its errors in `api-<entity>.error.ts` and its ids in
+   `http-api/shared/ids.ts`, as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
    `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
    added before it; its handler in `apps/api/<entity>/` and its mappers in
    `apps/api/<entity>/<entity>.mapper.ts`, the handler added to `ApiRoutes` and its services to

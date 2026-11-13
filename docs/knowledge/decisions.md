@@ -240,7 +240,7 @@ domain's errors as they are; the web calls it. Nothing of `application/` reaches
 - **Guarded by:** another module reaches chat only through its entry and takes only the names of
   its contract, which review holds (`modules.md`).
 - **If reversed:** a shared `Status` couples every module that reads it to chat's states.
-- **Revisit when:** `jobs` adds statuses: it gets a job vocabulary of its own.
+- **Revisit when:** a second module's model needs a status.
 
 ### Records open, rules called
 
@@ -494,6 +494,30 @@ asked.
   back still answers creation order.
 - **Revisit when:** a client needs its attachments in an order it chooses.
 
+### Status from the newest Run
+
+A chat has no status column: the chat model's `buildChatStatus` derives it from the chat's newest
+Run, which every read of a chat nests. Any other value another table implies is a column the
+transactions that change it move (`.claude/rules/deep-modules.md › Composition over
+pass-through`).
+
+- **Why:** the Run holds the status already; a column would be its second copy, written by each
+  of the Run's moves (its creation, a retry, `preparing`, `generating`, `done`, `failed`) in that
+  move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
+  since the read nests the Run, and one pure function serves the api and the rules
+  (`ensureChatNotBusy`); a client derives it the same way from the Run it reads.
+- **Sources:** the owner's choice, in the Knowledge of
+  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
+- **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
+  keep a value that one row already gives.
+- **Cost:** a query over chats by status joins each chat's newest Run, and a read that needs the
+  status has to nest that Run.
+- **Guarded by:** review, by `deep-modules.md`; nothing mechanical.
+- **If reversed:** a migration adds the column, each Run move writes it in its transaction, and
+  `buildChatStatus` moves from the reads to the writes.
+- **Revisit when:** a read lists or filters chats by status, or reads a chat's status without its
+  Run.
+
 ### Clients from the context
 
 The data layer takes its clients from the context: `Db` needs `PgClient` and `FileRepository`
@@ -540,44 +564,39 @@ and lifecycle; `deployment` reads both.
   `infrastructure/`, and a second module needing files imports chat.
 - **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
 
-### Jobs as a table in the data layer
+### Jobs as queue messages
 
-Jobs are the table `jobs` and `JobRepository` in the data layer, each row with its status
-(`queued`, `running`, `done`, `failed`); `JobSender.send` in `kernel/job` writes the row `queued`
-in the caller's transaction and sends it to SQS at once, after the use case's other writes, so a
-send SQS refuses is a defect that rolls the transaction back: a commit never stands without its
-job on the queue, and a rollback keeps no row. `JobConsumer` runs a job once: `running`, then
-`done`, or `failed` on any other outcome, unretried. "Outbox" names the pattern, not the table.
+A job is a message on its queue, and no table holds it: the work it asks for keeps its own
+record (the Run, the chat's title), which the worker reads to run it once, to settle a Run whose
+worker died and to record a failure. `QueueSender.send` encodes the job by its
+definition; a use case sends it after its commit, through the job's sender beside the use cases,
+so every delivery finds its record. A send SQS refuses settles that record in the sender: the
+reply's fails its Run, which the api answers `503 RunNotQueuedError`, and the title's is logged.
 
-- **Why:** a row is a job, the glossary's word, and stays after the send; the table is data like
-  any other, the transport the boundary's; a send inside the transaction needs no relay polling
-  the table and no sweep, and a refused send answers the request with a `500` instead of a reply
-  that never comes.
-- **Sources:** the guide's outbox written "in the same transaction"
-  ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/)).
-- **Rejected:** the send after the commit (`Transaction.afterCommit`): a send SQS refused answered
-  `202` and left the job unsent and its chat `queued` for good. A sweep resending the unsent rows:
-  a schedule and a route of its own, and a reply up to a minute late. Retries with a delay per
-  attempt: a failed reply the user waits on through every attempt, and code that counts them. A
-  failed reply written after a refused send: a second write, which fails too when the database
-  is the cause. The whole send after the commit, row included: a crash between the commit and
-  the row's insert would lose the job. The table named `outbox`: it names the pattern and goes
-  wrong once rows outlive the send. An event ledger: a row is a command for the worker, not a
-  fact others subscribe to. `JobSender` in the data layer: the data would know the queue's job
-  shape. A relay polling the table: a process of its own that Lambda does not keep running. An
-  outbox per module: needed only with a schema per module.
-- **Cost:** SQS may deliver a job before its commit shows the row: the worker reads none, a
-  defect, and SQS delivers it again after its 600 s visibility timeout, one of 3 receives spent.
-  A commit that fails after the send leaves a job with no row, delivered again, then
-  dead-lettered. A copy delivered while the first still runs finds the job `running` and fails
-  a live reply. The transaction stays open for the SQS call; the use cases import a part of the
-  kernel besides the data layer.
-- **Guarded by:** the `kernel/data` and `use-cases` rows of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); the `JobSender` e2e;
-  the api e2e of a send whose queue is gone.
-- **If reversed:** a rename in a migration, or the transport inside the data layer.
-- **Revisit when:** a flow does slow work after its first write, which would hold the
-  transaction open; or the logs show many redeliveries of jobs sent before their commit.
+- **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
+  second status for one piece of work. The send after the commit needs no relay and no sweep, and
+  a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
+  handler can catch, so its Run fails at once and the user sees the failure with its retry; a
+  sender per job keeps that settlement out of every use case that sends it, and the use cases'
+  level already holds the queue and a status write through the repository.
+- **Sources:** the ticket's review of what each reader of `jobs` used it for.
+- **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
+  status for one piece of work, written in the same transaction. The send last inside the
+  transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
+  deleted chat's, leaving the reply queued. A send that cannot be interrupted: it covers a
+  client's abort only. A stuck Run that a retry may take after an age: a rule by time, and a Run
+  that reads queued while it is lost. The sender in the module beside the definitions: a domain
+  service would see the queue, and a send could run inside a transaction. A sweep resending
+  unsent work: a schedule and a route of its own, and a reply up to a minute late. Retries with a
+  delay per attempt: a failed reply the user waits on through every attempt, and code that counts
+  them.
+- **Cost:** a process that dies between the commit and the send, or a client that aborts there,
+  leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
+  send answers `503` for a stored message, which a reload shows with its failed Run.
+- **Guarded by:** the `QueueSender` e2e; the senders' unit tests; the
+  `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
+- **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
+- **Revisit when:** the logs show replies stuck by a process that died before its send.
 
 ### Guards are configuration
 

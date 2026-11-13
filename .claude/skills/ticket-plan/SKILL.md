@@ -22,6 +22,14 @@ stop `next` on it, saying so.
    a step adds (a name, a type, a page) is used by that step's own code or test; no step leaves
    scaffolding a later step rewrites or removes, and a page or rule is written in the one step
    where its behaviour is complete. Lockfiles and snapshots are excluded from its size.
+   **Cut by pass** (`.claude/rules/sdd.md › Gates`): stage 1 is the Minimal one, the whole
+   feature in vertical slices, the first the thinnest end to end, each later one adding a
+   scenario the user can play; its heading's `Play:` line is the script that plays the whole
+   feature (requests against `make dev`, a page). Its code is the feature's, kept and grown, not
+   scaffolding, and as well designed as any. Stage 2 is the Right one and the last the Hard one,
+   each one skeleton row whose source is the play, the Minimal stage's review or
+   `feature.md › Later`, cut by `next` once stage 1 has been played; the Hard row is `Later`
+   itself, so the list stays in the skeleton.
    Group the steps, in order, into **stages** of three; a stage of one, two or four states its
    reason in its heading. Each stage delivers one outcome and completes the requirements whose
    last step it holds. A ticket whose steps fit one stage is one stage, prepared at once, and has

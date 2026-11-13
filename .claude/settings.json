@@ -9,6 +9,7 @@
       "Grep",
       "WebSearch",
       "WebFetch",
+      "Bash(npm view *)",
 
       "Bash(make *)",
       "Bash(bun *)",
@@ -107,7 +108,19 @@
       "Bash(git clean*)",
       "Bash(git stash clear*)"
     ],
-    "deny": ["Bash(sudo *)", "Bash(npm *)", "Bash(yarn *)", "Bash(pnpm *)"]
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(npm install*)",
+      "Bash(npm i *)",
+      "Bash(npm ci*)",
+      "Bash(npm add*)",
+      "Bash(npm update*)",
+      "Bash(npm uninstall*)",
+      "Bash(npm link*)",
+      "Bash(npm publish*)",
+      "Bash(yarn *)",
+      "Bash(pnpm *)"
+    ]
   },
   "extraKnownMarketplaces": {
     "app-template": { "source": { "source": "directory", "path": "./.misc/claude" } }

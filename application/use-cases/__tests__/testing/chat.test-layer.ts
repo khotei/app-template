@@ -6,23 +6,25 @@ import {
   CurrentReplyProvenanceTest,
   chat,
   insertChatLayer,
-  queuedChat,
 } from '@app-template/application/chat/testing'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
+import { AssistantMessageSender, ChatTitleSender } from '#use-cases/chat/chat.sender'
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
+import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
 
 /**
  * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
- * identity transaction; the `JobSender` is the test's, `recordJobs()`.
+ * identity transaction; the `QueueSender` is the test's, `recordMessages()`.
  */
 export const ChatTest = Layer.mergeAll(
   ChatService.layer,
   FileAttachmentService.layer,
   CreateUserMessageUseCase.layer,
+  RetryRunUseCase.layer,
 ).pipe(
   Layer.provide(CurrentReplyProvenanceTest),
   Layer.provideMerge(insertChatLayer(chat)),
@@ -41,11 +43,18 @@ export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
 )
 
 /**
- * The reply use case over the memory layers, on fresh rows where `queuedChat` exists, the attachments'
+ * The reply use case over the memory layers, on fresh rows where `chat` exists, the attachments'
  * bytes in memory and the identity transaction; the `Assistant` is the test's, `recordAssistant()`.
  */
 export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
-  Layer.provideMerge(insertChatLayer(queuedChat)),
+  Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(Layer.merge(RepositoryStackTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),
+)
+
+/** The chat's job senders over the memory layers, on fresh rows where `chat` exists; the
+ * `QueueSender` is the test's. */
+export const ChatSenderTest = Layer.merge(AssistantMessageSender.layer, ChatTitleSender.layer).pipe(
+  Layer.provideMerge(insertChatLayer(chat)),
+  Layer.provideMerge(RepositoryStackTest),
 )

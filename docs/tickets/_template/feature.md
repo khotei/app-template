@@ -53,6 +53,15 @@ those go to `plan.md › Files`, and a check below may name a command.>
 |---|---|
 | R1 | <command, request or observation that shows it, with the expected result> |
 
+## Later
+
+<The open list (`.claude/rules/sdd.md › Gates`): what the minimal feature leaves, edge cases,
+hardening, open questions and optimisations, one line each with its source (the grilling, a step's
+finding, the play) and, once known, its `path:line`. A Hard stage takes an item on the user's
+word; before the PR each is done, moved to the roadmap's `Later`, or dropped.>
+
+- <item> — <source> — <fate: open | done in S<n> | roadmap Later | dropped: <why>>
+
 ## Open questions
 
 <For `/ticket-architecture`, such as an ADR candidate from `domain-modeling`. Ask it so "yes"

@@ -42,6 +42,90 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | A direct task: it fits one session, adds no dependency, moves no module boundary and makes no choice a reviewer could question | no ticket: a `<type>/<slug>` branch, the change and `make check`, one Standards and Spec review, one fix round, a commit; the PR on your word. One that turns out bigger stops and becomes a ticket |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
+## Minimal, right, hard
+
+A ticket, as a lab, runs in three passes, each started on your word, so you judge the feature on
+code that runs before anything is built for a case nobody has hit.
+
+```mermaid
+graph LR
+  M["Minimal<br/>the whole feature, only what it needs<br/>played from a script"] --> R["Right<br/>decisions, design, architecture<br/>adjusted to the play"]
+  R --> H["Hard<br/>items picked from Later"]
+  L[("Later<br/>edge cases, error paths,<br/>hardening, optimisations")] -.-> H
+  M -. noticed .-> L
+  R -. noticed .-> L
+```
+
+1. **Minimal.** The whole feature with only what it needs to work, cut into vertical slices
+   through every layer it touches; the first is the thinnest one end to end, each later one adds
+   a scenario you can play. It runs, you play it from a script you can repeat (requests against
+   `make dev`, a page), and you read how it works at once. Minimal in code, never in quality:
+   every rule, review and Seam holds, and the design extends without a rewrite. Its code is the
+   feature's, kept and grown, not a prototype thrown away; a throwaway answer to a question is a
+   lab's learn step.
+2. **Right.** On the running version, with you: its decisions, design, code and architecture
+   adjusted to what the play showed, while little code depends on them.
+3. **Hard.** The items of `Later` you pick: edge cases, error paths, hardening, open questions,
+   optimisations.
+
+**`Later` is the one open list**: `feature.md › Later` in a plan, `lab.md › Later` in a lab.
+Whoever notices an item writes it there at once, with its `path:line`: the grilling, the
+implementer's report (its *Later* section), a review's finding the feature runs without, your
+remarks at the play. The last stage of a plan and the last step of a lab is `Later` itself, so
+the list stays in the skeleton and the Map. Before the PR, each item is done, moved to
+[roadmap.md › Later](roadmap.md#later), or dropped on your word.
+
+**Never deferred:** a security hole, a loss of stored data, an irreversible contract (a deployed
+migration, a published API). Each is fixed in the pass that finds it.
+
+How the passes sit in the flow:
+
+| Where | What changes |
+|---|---|
+| `/ticket-feature` | grills the minimal feature; what comes up beyond it goes to `Later` |
+| `/ticket-architecture` | decides what the minimal feature needs and what is irreversible; the rest stays Direction for the Right stage |
+| `/ticket-plan` | stage 1 is the Minimal one, with a `Play:` script; stage 2 is Right, the last is Hard, both cut by `next` after the play |
+| `/ticket-implement` | every pass reviews as before; a finding that fails no `R…` goes to `Later`; the Minimal stage's close ends with the play, where a loop stops |
+| `/ticket-verify` | asks the fate of each `Later` item still open |
+| `/lab` | the Map's Pass column; a minimal step's visible check is the play; each piece adds what it noticed to `Later` |
+
+**Where it comes from.** Each part is an established practice:
+
+- The order is Kent Beck's "Make it run. … Make it right." (*Test-Driven Development by Example*,
+  2002, ch. 2), the older "first make it work, then make it right, and, finally, make it fast"
+  (Johnson and Kernighan, *Byte*, 1983, as [c2](https://wiki.c2.com/?MakeItWorkMakeItRightMakeItFast)
+  cites it).
+- The first slice is Alistair Cockburn's walking skeleton, "a tiny implementation of the system
+  that performs a small end-to-end function" and "permanent code, built with production coding
+  habits, regression tests" (*Crystal Clear*, 2004): hence minimal in code, never in quality. It is
+  the tracer bullet of Hunt and Thomas, against a prototype, which is "designed to be thrown away"
+  ([Artima, 2003](https://www.artima.com/articles/tracer-bullets-and-prototypes)); the lab's learn
+  step is the prototype.
+- Slices are vertical: "No slice is just a mockup or UI, a data structure, or test case"
+  (Cockburn and Kniberg, *Elephant Carpaccio*, 2013); "integrating vertically on one small piece
+  of the project instead of chipping away at the horizontal layers"
+  ([*Shape Up*](https://basecamp.com/shapeup), ch. 11).
+- The three passes are Jeff Patton's opening, mid and end game
+  ([*Better Software*, 2009](https://www.jpattonassociates.com/wp-content/uploads/2015/01/patton_story_mapping_bettersw_1109.pdf)).
+- `Later` is the notepad of *Growing Object-Oriented Software, Guided by Tests* (2009, ch. 5):
+  "the feature isn't complete until it can handle its failures—this isn't an excuse not to
+  bother—but we can choose when", and it is "only finished when we've crossed off everything on
+  the list". *Shape Up* marks the same items `~`.
+- Design quality is no speculative feature: YAGNI "does not apply to effort to make the software
+  easier to modify" ([Fowler, 2015](https://martinfowler.com/bliki/Yagni.html)).
+
+**The risks, and what guards them:**
+
+- Deferred work is never done: "All too often, time is never found for this follow up work"
+  ([Foote and Yoder, *Big Ball of Mud*, 1997](http://www.laputan.org/mud/mud.html)); *Shape Up*
+  says of its `~` items, "Usually they never get built". Guard: `Later` is the last stage or step,
+  and no PR opens while an item has no fate.
+- A change to a running system: every source keeps what works today working. Guard: every commit
+  is green, and a step that replaces old behaviour adds the new beside it, switches the callers,
+  then deletes the old ([Parallel Change](https://martinfowler.com/bliki/ParallelChange.html)).
+- The sources differ on error paths: Hunt and Thomas's tracer code carries all its error checking,
+  GOOS lets the failures wait. This flow follows GOOS, but for what is never deferred.
+
 ## Plans in stages
 
 A plan names every step up front but writes the low level of only a few at a time, once the steps
@@ -131,6 +215,7 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` round per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | `make-check.sh`, through `implementer` | `verification.md`, a stage's `VERIFY` rounds |
 | `/lab` | — | `researcher` (one per `[R]`, in the background; a second on the same question at a key fork in an unfamiliar area); no `implementer`, since your stop must reach the one who writes; a learn step's draft runs in its own worktree on `wt/<name>`, a lab's own worktree stays on the ticket branch, both set up by `make worktree` (`KEEP=1` for the second) | `researcher`: `opus high` | — | `lab.md`, the lab's rounds, a pair in `design-examples.md` after a stop; at the close, what moves to `docs/knowledge/` |
 | `/lab-review` | — | `reviewer` (Standards and the hunt in parallel; Design only on `design`); it picks and reads the lab as `/lab` does, from `/lab`'s file | Standards: `sonnet medium`; the hunt and Design: `opus high` | — | your edits as an `OWNER` round, one `REVIEW` round, `[D:ai]` lines in `lab.md` |
+| `/review-brief` | — | — | — | — | nothing: a brief in the chat before you review a range |
 | `implementer` | `tdd`, preloaded | — | the spawn's | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
 | `reviewer` | one pass: Standards, Spec, Design or the hunt, and at a stage's close Standards and Design over its diff, Design also against `architecture.md`, the skeleton and the stage design; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | the spawn's | — | nothing: read-only |
 | `verifier` | — | — | the spawn's | — | nothing: read-only |
@@ -153,6 +238,7 @@ graph LR
     verify["/ticket-verify"]
     lab["/lab"]
     labreview["/lab-review"]
+    brief["/review-brief"]
     researcher([researcher])
     implementer([implementer])
     reviewer([reviewer])

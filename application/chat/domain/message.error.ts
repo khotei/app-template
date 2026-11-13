@@ -1,19 +1,15 @@
 import { Schema } from 'effect'
 
+import { messageAuthors } from '@app-template/kernel/data'
+
 import { MessageId } from '#chat/domain/chat.id'
-import { Status } from '#chat/domain/status.model'
 
 export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
   'MessageNotFoundError',
-  { id: MessageId },
+  { id: MessageId, author: Schema.OptionFromNullOr(Schema.Literals(messageAuthors)) },
 ) {}
 
 export class MessageInputInvalidError extends Schema.TaggedError<MessageInputInvalidError>()(
   'MessageInputInvalidError',
   {},
-) {}
-
-export class MessageStatusInvalidError extends Schema.TaggedError<MessageStatusInvalidError>()(
-  'MessageStatusInvalidError',
-  { id: MessageId, from: Status, to: Status },
 ) {}

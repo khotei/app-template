@@ -1,36 +1,40 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Order } from 'effect'
+import { DateTime, Effect, Layer, Option } from 'effect'
 
 import {
   Attachment,
   AttachmentBoundError,
   AttachmentNotFoundError,
   buildAssistantMessage,
+  buildRun,
   buildUserMessage,
   Chat,
   ChatBusyError,
   ChatTitle,
-  completeMessage,
+  completeRun,
   GenerateAssistantMessage,
   GenerateChatTitle,
   Message,
-  type MessageId,
+  MessageId,
   type MessageInput,
+  type Run,
+  type RunId,
 } from '@app-template/application/chat'
 import {
   chat,
+  insertMessage,
   owner,
   replyProvenance,
   selectAttachments,
   selectChat,
   selectMessages,
   stranger,
-  updateMessage,
+  updateRun,
   upload,
 } from '@app-template/application/chat/testing'
 import { ChatRepository, FileRepository } from '@app-template/kernel/data'
-import { recordJobs } from '@app-template/kernel/job/testing'
+import { recordMessages } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatTest } from '#testing/use-cases/chat.test-layer'
@@ -38,54 +42,58 @@ import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.us
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
-/** Completes an assistant message as the worker would, freeing its chat for the next create. */
-const settle = (message: Message) =>
+/** Settles a Run as done with its reply, as the worker would, freeing its chat for the next create. */
+const settle = (run: Run) =>
   Effect.gen(function* () {
-    const chats = yield* ChatRepository
     const at = yield* DateTime.now
+    // The Run's id serves its reply too: one reply per Run, so no two collide.
+    const reply = buildAssistantMessage({
+      id: MessageId.make(run.id),
+      chatId: run.chatId,
+      text: 'Sure.',
+      createdAt: at,
+    })
 
-    const completed = yield* completeMessage(message, { text: 'Sure.', at })
-    yield* updateMessage(completed)
-    yield* chats.update({ status: 'idle' }, { id: message.chatId, status: 'queued' })
-    return completed
+    yield* insertMessage(reply)
+    yield* completeRun(run, { reply, at }).pipe(Effect.flatMap(updateRun))
   })
 
-const replyJob = (messageId: MessageId) => ({
+const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
-  job: new GenerateAssistantMessage({
-    chatId: chat.id,
-    messageId,
-    provenance: Option.some(replyProvenance),
-  }),
+  message: new GenerateAssistantMessage({ chatId: chat.id, runId }),
 })
 
 describe('CreateUserMessageUseCase', () => {
   it.live(
-    'create stores the user message with its attachments bound and a queued reply, and queues the chat keeping its title',
+    'create stores the user message with its attachments bound and its queued Run, keeping the title',
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const chats = yield* ChatRepository
         const createUserMessage = yield* CreateUserMessageUseCase
         const photo = yield* upload(owner)
         yield* chats.update({ title: 'Trip' }, { id: chat.id })
 
-        const { userMessage, assistantMessage } = yield* createUserMessage.create(owner, chat.id, {
+        const run = yield* createUserMessage.create(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
           attachmentIds: [photo.id],
         })
 
+        const { userMessage } = run
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
-        assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(assistantMessage.id))
+        assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
+        assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
         const bound = new Attachment({
           ...photo,
           messageId: Option.some(userMessage.id),
           chatId: Option.some(chat.id),
         })
         assertEquals(
-          { userMessage, assistantMessage },
-          {
+          run,
+          buildRun({
+            id: run.id,
+            chatId: chat.id,
             userMessage: new Message({
               ...buildUserMessage({
                 id: userMessage.id,
@@ -95,18 +103,13 @@ describe('CreateUserMessageUseCase', () => {
               }),
               attachments: [bound],
             }),
-            assistantMessage: buildAssistantMessage({
-              id: assistantMessage.id,
-              chatId: chat.id,
-              createdAt: sentAt,
-            }),
-          },
+            provenance: replyProvenance,
+            createdAt: run.createdAt,
+          }),
         )
-        const stored = yield* selectMessages(chat.id)
-        assertEquals(
-          stored,
-          Arr.sortWith([userMessage, assistantMessage], (message) => message.id, Order.String),
-        )
+        assertEquals(yield* selectMessages(chat.id), [
+          new Message({ ...userMessage, attachments: [bound], run: Option.some(run) }),
+        ])
         assertEquals(yield* selectAttachments([photo.id]), [bound])
         assertEquals(
           yield* selectChat(chat.id),
@@ -114,8 +117,8 @@ describe('CreateUserMessageUseCase', () => {
             new Chat({
               ...chat,
               title: Option.some(ChatTitle.make('Trip')),
-              status: 'queued',
               attachments: [bound],
+              run: Option.some(run),
             }),
           ),
         )
@@ -126,7 +129,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     "the first create queues the reply job with the process's provenance and the title job, a later one the reply only",
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
 
@@ -135,23 +138,23 @@ describe('CreateUserMessageUseCase', () => {
           chat.id,
           ask('Plan a weekend in Lisbon'),
         )
-        yield* settle(first.assistantMessage)
+        yield* settle(first)
         const second = yield* createUserMessage.create(owner, chat.id, ask('And in Porto?'))
 
         assertEquals(yield* jobs.sent, [
-          replyJob(first.assistantMessage.id),
+          replyJob(first.id),
           {
             queue: 'chat-title',
-            job: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessage.id }),
+            message: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessageId }),
           },
-          replyJob(second.assistantMessage.id),
+          replyJob(second.id),
         ])
       }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
     },
   )
 
-  it.effect('create while a reply runs is ChatBusyError before any message or job', () => {
-    const jobs = recordJobs()
+  it.effect('create while a Run is in work is ChatBusyError before any message or job', () => {
+    const jobs = recordMessages()
     return Effect.gen(function* () {
       const createUserMessage = yield* CreateUserMessageUseCase
       yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
@@ -161,7 +164,7 @@ describe('CreateUserMessageUseCase', () => {
         .pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-      assert.lengthOf(yield* selectMessages(chat.id), 2)
+      assert.lengthOf(yield* selectMessages(chat.id), 1)
       assert.lengthOf(yield* jobs.sent, 2)
     }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
   })
@@ -169,7 +172,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     'create with an attachment bound already is AttachmentBoundError before any message',
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
         const photo = yield* upload(owner)
@@ -177,13 +180,14 @@ describe('CreateUserMessageUseCase', () => {
           text: 'Look',
           attachmentIds: [photo.id],
         })
-        yield* settle(first.assistantMessage)
+        yield* settle(first)
 
         const error = yield* createUserMessage
           .create(owner, chat.id, { text: 'Again', attachmentIds: [photo.id] })
           .pipe(Effect.flip)
 
         assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: photo.id }))
+        // The first send's message and its reply, and nothing of the refused one.
         assert.lengthOf(yield* selectMessages(chat.id), 2)
       }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
     },
@@ -192,7 +196,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     "create with another user's attachment is AttachmentNotFoundError before any message or job",
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
         const photo = yield* upload(stranger)
@@ -216,7 +220,7 @@ describe('CreateUserMessageUseCase', () => {
   it.effect(
     'create with an attachment whose bytes are gone is AttachmentNotFoundError before any message or bind',
     () => {
-      const jobs = recordJobs()
+      const jobs = recordMessages()
       return Effect.gen(function* () {
         const files = yield* FileRepository
         const createUserMessage = yield* CreateUserMessageUseCase

@@ -2,14 +2,15 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Order, Schema } from 'effect'
 import { HttpClient } from 'effect/http'
 
-import { failMessage } from '@app-template/application/chat'
-import { selectMessage, updateMessage } from '@app-template/application/chat/testing'
+import { failRun } from '@app-template/application/chat'
+import { selectRun, updateRun } from '@app-template/application/chat/testing'
 import {
   ApiClient,
   ChatBusyError,
   ChatNotFoundError,
-  type MessageId,
   MessageNotFoundError,
+  type RunId,
+  RunNotFoundError,
   UserUnknownError,
 } from '@app-template/http-api'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -21,15 +22,15 @@ const hello = { text: 'Hello', attachmentIds: [] }
 /** Registers the jar's user and opens an empty chat of theirs. */
 const openChat = ApiClient.use((api) => api.users.ensure().pipe(Effect.andThen(api.chats.create())))
 
-/** Settles a reply as the worker does once the assistant refuses. */
-const refuseReply = (id: MessageId) =>
+/** Settles a Run as the worker does once the assistant refuses. */
+const refuseRun = (id: RunId) =>
   Effect.gen(function* () {
-    const reply = yield* selectMessage(id).pipe(Effect.flatMap(Effect.fromOption))
-    yield* updateMessage(
-      yield* failMessage(reply, {
+    const run = yield* selectRun(id).pipe(Effect.flatMap(Effect.fromOption))
+    yield* updateRun(
+      yield* failRun(run, {
         reason: 'ReplyRefused',
         cause: 'stop_reason refusal',
-        at: reply.updatedAt,
+        at: run.updatedAt,
       }),
     )
   }).pipe(Effect.orDie)
@@ -66,34 +67,69 @@ describe('chats', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
+  it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const chat = yield* openChat
+
+      const [sent, response] = yield* api.chats.createMessage({
+        params: { chatId: chat.id },
+        payload: hello,
+        responseMode: 'decoded-and-response',
+      })
+
+      assert.strictEqual(response.status, 202)
+      assert.deepInclude(sent, { chatId: chat.id, status: 'queued' })
+      assert.deepInclude(sent.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
+      assert.deepStrictEqual(sent.assistantMessage, Option.none())
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
   it.effect(
-    'POST /chats/:chatId/messages is 202 with a completed user message and a queued reply',
+    'POST /chats/:chatId/messages/:messageId/runs after a failed Run is 202 with a queued Run',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
         const chat = yield* openChat
-
-        const [sent, response] = yield* api.chats.createMessage({
+        const failed = yield* api.chats.createMessage({
           params: { chatId: chat.id },
           payload: hello,
+        })
+        yield* refuseRun(failed.id)
+
+        const [retried, response] = yield* api.chats.retryRun({
+          params: { chatId: chat.id, userMessageId: failed.userMessage.id },
           responseMode: 'decoded-and-response',
         })
 
         assert.strictEqual(response.status, 202)
-        assert.deepInclude(sent.userMessage, {
-          chatId: chat.id,
-          author: 'user',
-          status: 'done',
-          text: 'Hello',
-          attachments: [],
-        })
-        assert.deepInclude(sent.assistantMessage, {
-          chatId: chat.id,
-          author: 'assistant',
-          status: 'queued',
-          text: '',
-          attachments: [],
-        })
+        assert.strictEqual(retried.status, 'queued')
+        assert.deepStrictEqual(retried.userMessage, failed.userMessage)
+      }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect(
+    'GET /chats/:chatId/messages lists a message with its Run mid-Run, then its failure without the cause',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
+        const chat = yield* openChat
+        const run = yield* api.chats.createMessage({ params: { chatId: chat.id }, payload: hello })
+
+        const reloaded = yield* api.chats
+          .listMessages({ params: { chatId: chat.id } })
+          .pipe(Effect.head)
+        yield* refuseRun(run.id)
+        const wire = yield* http
+          .get(`/chats/${chat.id}/messages`)
+          .pipe(Effect.flatMap((response) => response.json))
+
+        assert.deepInclude(reloaded, { id: run.userMessage.id, author: 'user' })
+        assert.deepInclude(Option.getOrThrow(reloaded.run), { id: run.id, status: 'queued' })
+        assert.nestedPropertyVal(wire, '[0].run.status', 'failed')
+        assert.nestedPropertyVal(wire, '[0].run.failure.reason', 'ReplyRefused')
+        assert.notNestedProperty(wire, '[0].run.failure.cause')
       }).pipe(Effect.provide(ApiTest)),
   )
 
@@ -152,65 +188,84 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect("another user's chat is 404 ChatNotFoundError, as if it did not exist", () =>
-    Effect.gen(function* () {
-      const chat = yield* Effect.provide(openChat, layerApiClient())
-      const [stranger, http] = yield* Effect.zip(ApiClient, HttpClient.HttpClient).pipe(
-        Effect.provide(layerApiClient()),
-      )
-      yield* stranger.users.ensure()
+  it.effect(
+    "another user's chat and its messages are 404 ChatNotFoundError, as if it did not exist",
+    () =>
+      Effect.gen(function* () {
+        const chat = yield* Effect.provide(openChat, layerApiClient())
+        const [stranger, http] = yield* Effect.zip(ApiClient, HttpClient.HttpClient).pipe(
+          Effect.provide(layerApiClient()),
+        )
+        yield* stranger.users.ensure()
 
-      const response = yield* http.get(`/chats/${chat.id}`)
+        const responses = yield* Effect.forEach(
+          [`/chats/${chat.id}`, `/chats/${chat.id}/messages`],
+          (url) => http.get(url),
+        )
 
-      assert.strictEqual(response.status, 404)
-      assertSchemaEquals(
-        ChatNotFoundError,
-        yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError))),
-        new ChatNotFoundError({ id: chat.id }),
-      )
-    }).pipe(Effect.provide(ApiServerTest)),
+        yield* Effect.forEach(responses, (response) =>
+          Effect.gen(function* () {
+            assert.strictEqual(response.status, 404)
+            assertSchemaEquals(
+              ChatNotFoundError,
+              yield* response.json.pipe(
+                Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError)),
+              ),
+              new ChatNotFoundError({ id: chat.id }),
+            )
+          }),
+        )
+      }).pipe(Effect.provide(ApiServerTest)),
   )
 
-  it.effect("another chat's message or an unknown one is 404 MessageNotFoundError", () =>
+  it.effect("another chat's message or Run is 404 MessageNotFoundError or RunNotFoundError", () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
       const chat = yield* openChat
       const other = yield* api.chats.create()
-      const { userMessage } = yield* api.chats.createMessage({
-        params: { chatId: other.id },
-        payload: hello,
-      })
+      const run = yield* api.chats.createMessage({ params: { chatId: other.id }, payload: hello })
 
+      const message = yield* api.chats
+        .getMessage({ params: { chatId: chat.id, messageId: run.userMessage.id } })
+        .pipe(Effect.flip)
       const elsewhere = yield* api.chats
-        .getMessage({ params: { chatId: chat.id, messageId: userMessage.id } })
+        .getRun({ params: { chatId: chat.id, runId: run.id } })
         .pipe(Effect.flip)
 
       assertSchemaEquals(
         MessageNotFoundError,
-        elsewhere,
-        new MessageNotFoundError({ id: userMessage.id }),
+        message,
+        new MessageNotFoundError({ id: run.userMessage.id, author: Option.none() }),
       )
+      assertSchemaEquals(RunNotFoundError, elsewhere, new RunNotFoundError({ id: run.id }))
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect('a refused reply carries its reason and message on the wire, never its cause', () =>
-    Effect.gen(function* () {
-      const api = yield* ApiClient
-      const http = yield* HttpClient.HttpClient
-      const chat = yield* openChat
-      const { assistantMessage } = yield* api.chats.createMessage({
-        params: { chatId: chat.id },
-        payload: hello,
-      })
-      yield* refuseReply(assistantMessage.id)
+  it.effect(
+    'a refused Run carries its reason and message on the wire, never its cause or provenance',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
+        const chat = yield* openChat
+        const run = yield* api.chats.createMessage({ params: { chatId: chat.id }, payload: hello })
+        yield* refuseRun(run.id)
 
-      const wire = yield* http
-        .get(`/chats/${chat.id}/messages/${assistantMessage.id}`)
-        .pipe(Effect.flatMap((response) => response.json))
+        const [wire, chatWire] = yield* Effect.forEach(
+          [`/chats/${chat.id}/runs/${run.id}`, `/chats/${chat.id}`],
+          (url) => http.get(url).pipe(Effect.flatMap((response) => response.json)),
+        )
 
-      assert.deepNestedInclude(wire, { status: 'failed', 'error.reason': 'ReplyRefused' })
-      assert.nestedProperty(wire, 'error.message')
-      assert.notNestedProperty(wire, 'error.cause')
-    }).pipe(Effect.provide(ApiTest)),
+        assert.deepNestedInclude(wire, {
+          status: 'failed',
+          'failure.reason': 'ReplyRefused',
+          assistantMessage: null,
+        })
+        assert.nestedProperty(wire, 'failure.message')
+        assert.notNestedProperty(wire, 'failure.cause')
+        assert.notProperty(wire, 'provenance')
+        assert.deepInclude(chatWire, { status: 'failed' })
+        assert.notProperty(chatWire, 'latestRun')
+      }).pipe(Effect.provide(ApiTest)),
   )
 })

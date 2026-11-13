@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { eq } from 'drizzle-orm'
-import { Effect, Exit, Layer, Option, Schema } from 'effect'
+import { Effect, Exit, Layer, Option, Schema, Struct } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -9,13 +9,17 @@ import { ChatEntity } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
+import type { RunEntityInsert } from '#kernel/data/chat/run.entity'
+import { RunRepository } from '#kernel/data/chat/run.repository'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
 
-const RepositoriesTest = Layer.mergeAll(ChatRepository.layer, MessageRepository.layer).pipe(
-  Layer.provideMerge(DbTest),
-)
+const RepositoriesTest = Layer.mergeAll(
+  ChatRepository.layer,
+  MessageRepository.layer,
+  RunRepository.layer,
+).pipe(Layer.provideMerge(DbTest))
 
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
 
@@ -25,23 +29,44 @@ const chat = (id: string, userId: string): ChatEntity => ({
   id,
   userId,
   title: null,
-  status: 'idle',
   createdAt,
   updatedAt: createdAt,
   attachments: [],
+  run: null,
 })
 
 const question = (id: string, chatId: string): MessageEntity => ({
   id,
   chatId,
   author: 'user',
-  status: 'done',
   text: 'Hi',
-  error: null,
   createdAt,
-  updatedAt: createdAt,
   attachments: [],
+  run: null,
 })
+
+const run = (
+  id: string,
+  answered: MessageEntity,
+  {
+    status = 'queued',
+    seconds = 0,
+  }: Partial<{ status: 'queued' | 'failed'; seconds: number }> = {},
+) =>
+  ({
+    id,
+    chatId: answered.chatId,
+    userMessageId: answered.id,
+    status,
+    provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
+    failure:
+      status === 'failed'
+        ? { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' }
+        : null,
+    assistantMessageId: null,
+    createdAt: at(seconds),
+    updatedAt: at(seconds),
+  }) satisfies typeof RunEntityInsert.Type
 
 const insertUser = (id: string) =>
   Db.use((db) => db.insert(users).values({ id, createdAt: new Date(0) }))
@@ -123,23 +148,25 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect('update where the status still holds moves it once; the second write dies', () =>
+  it.effect('selects a chat with its newest Run, flat', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
+      const messages = yield* MessageRepository
+      const runs = yield* RunRepository
       const ada = '0192d4e0-7b3a-7c00-8000-000000000010'
-      const idle = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
+      const asked = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
+      const first = question('0192d4e0-7b3a-7c00-8000-000000000050', asked.id)
+      const older = run('0192d4e0-7b3a-7c00-8000-000000000060', first, { status: 'failed' })
+      const newer = run('0192d4e0-7b3a-7c00-8000-000000000061', first, { seconds: 1 })
       yield* insertUser(ada)
-      yield* chats.insert(idle)
+      yield* chats.insert(asked)
+      yield* messages.insert(first)
+      yield* Effect.forEach([newer, older], runs.insert)
 
-      const queue = chats.update({ status: 'queued' }, { id: idle.id, status: 'idle' })
-      yield* queue
-      const exit = yield* queue.pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
       assertSchemaEquals(
         SelectedChat,
-        yield* chats.selectOne({ id: idle.id }),
-        Option.some({ ...idle, status: 'queued' as const }),
+        yield* chats.selectOne({ id: asked.id }),
+        Option.some({ ...asked, run: newer }),
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )
@@ -152,20 +179,17 @@ describe('ChatRepository', () => {
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
       const keptQuestion = question('0192d4e0-7b3a-7c00-8000-000000000050', kept.id)
-      const deletedReply: MessageEntity = {
-        ...question('0192d4e0-7b3a-7c00-8000-000000000051', deleted.id),
-        author: 'assistant',
-        status: 'queued',
-        text: '',
-      }
+      const deletedQuestion = question('0192d4e0-7b3a-7c00-8000-000000000051', deleted.id)
       yield* insertUser(cy)
       yield* Effect.forEach([kept, deleted], chats.insert)
-      yield* Effect.forEach([keptQuestion, deletedReply], messages.insert)
+      yield* Effect.forEach([keptQuestion, deletedQuestion], (each) =>
+        messages.insert(Struct.omit(each, ['attachments', 'run'])),
+      )
 
       yield* chats.delete({ id: deleted.id, userId: cy })
 
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
-      assert.deepStrictEqual(yield* messages.selectOne({ id: deletedReply.id }), Option.none())
+      assert.deepStrictEqual(yield* messages.selectOne({ id: deletedQuestion.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
       assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: kept.id }), [keptQuestion])
     }).pipe(Effect.provide(RepositoriesTest)),

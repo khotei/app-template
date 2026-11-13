@@ -1,161 +1,111 @@
-import {
-  Array as Arr,
-  Context,
-  Crypto,
-  DateTime,
-  Effect,
-  Layer,
-  Option,
-  pipe,
-  Struct,
-} from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 
 import {
   type AttachmentBoundError,
-  AttachmentId,
   type AttachmentNotFoundError,
-  assistantMessageQueue,
-  bindAttachment,
-  buildAssistantMessage,
-  buildUserMessage,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
   ChatService,
-  CurrentReplyProvenance,
-  chatTitleQueue,
-  encodeMessage,
-  ensureAllStored,
+  ensureAllUnbound,
+  ensureChatNotBusy,
   ensureMessageInput,
-  GenerateAssistantMessage,
-  GenerateChatTitle,
-  LiveAttachmentService,
+  FileAttachmentService,
   Message,
-  MessageId,
   type MessageInput,
   type MessageInputInvalidError,
-  queueChat,
+  MessageService,
+  type Run,
+  type RunNotQueuedError,
+  RunService,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
-import {
-  AttachmentRepository,
-  ChatRepository,
-  FileRepository,
-  MessageRepository,
-} from '@app-template/kernel/data'
-import { JobSender } from '@app-template/kernel/job'
-import { generateId, Transaction } from '@app-template/packages/db'
+import { Transaction } from '@app-template/packages/db'
 
-export interface CreatedMessages {
-  readonly userMessage: Message
-  readonly assistantMessage: Message
-}
+import { AssistantMessageSender, ChatTitleSender } from '#use-cases/chat/chat.sender'
 
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
   {
-    /** Stores the user's message with a queued reply, binds its attachments and queues the jobs. */
+    /**
+     * Stores the user's message with its attachments bound and the queued Run that answers it,
+     * then sends its jobs.
+     */
     readonly create: (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
     ) => Effect.Effect<
-      CreatedMessages,
+      Run,
       | MessageInputInvalidError
       | ChatNotFoundError
       | ChatBusyError
       | AttachmentNotFoundError
       | AttachmentBoundError
+      | RunNotQueuedError
     >
   }
 >()('@app-template/application/use-cases/chat/CreateUserMessageUseCase', {
   make: Effect.gen(function* () {
-    const chats = yield* ChatRepository
-    const attachments = yield* AttachmentRepository
-    const files = yield* FileRepository
     const chatService = yield* ChatService
-    const messages = yield* MessageRepository
-    const liveAttachments = yield* LiveAttachmentService
-    const jobs = yield* JobSender
+    const fileAttachments = yield* FileAttachmentService
+    const messageService = yield* MessageService
+    const runService = yield* RunService
+    const replySender = yield* AssistantMessageSender
+    const titleSender = yield* ChatTitleSender
     const transaction = yield* Transaction
-    const crypto = yield* Crypto.Crypto
-    const provenance = yield* CurrentReplyProvenance
+
+    /** The user's message with the attachments it names bound to it; a bound one is refused first. */
+    const createUserMessage = Effect.fnUntraced(function* (
+      userId: UserId,
+      chatId: ChatId,
+      input: MessageInput,
+    ) {
+      const requested = yield* fileAttachments
+        .getMany({ id: input.attachmentIds, userId })
+        .pipe(Effect.flatMap(ensureAllUnbound))
+
+      // The bind follows the message, since its key to the message is not deferrable.
+      const message = yield* messageService.create({ chatId, text: input.text })
+      const attachments = yield* fileAttachments.bind(requested, message)
+      return new Message({ ...message, attachments })
+    })
 
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (
       userId: UserId,
       chatId: ChatId,
       input: MessageInput,
     ) {
-      const chat = yield* chatService.getOne({ id: chatId, userId })
       yield* ensureMessageInput(input)
-      const queued = yield* queueChat(chat)
-      const live = yield* liveAttachments.getMany({ id: input.attachmentIds, userId })
-      const storedIds = yield* files
-        .selectMany({ id: Arr.map(live, Struct.get('id')) })
-        .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
-      const requested = yield* pipe(live, ensureAllStored(input.attachmentIds, storedIds))
-      const isFirstMessage = yield* messages.selectOne({ chatId }).pipe(Effect.map(Option.isNone))
-      const at = yield* DateTime.now
-      const userMessageId = yield* generateId(crypto, MessageId.make)
-      const userMessage = buildUserMessage({
-        id: userMessageId,
-        chatId,
-        text: input.text,
-        createdAt: at,
-      })
-      const bound = yield* Effect.forEach(requested, (attachment) =>
-        bindAttachment(attachment, userMessage),
+      const chat = yield* chatService
+        .getOne({ id: chatId, userId })
+        .pipe(Effect.tap(ensureChatNotBusy))
+
+      // The message, its bind and its Run commit together: a Run that loses the race keeps none.
+      const run = yield* createUserMessage(userId, chatId, input).pipe(
+        Effect.flatMap(runService.create),
+        transaction.run,
       )
 
-      // A concurrent create that queued the chat after the read leaves no row where its status
-      // holds, so this write dies: a lost race of two creates at once, rolled back whole.
-      yield* chats.update({ status: queued.status }, { id: chatId, status: chat.status })
-      yield* encodeMessage(userMessage).pipe(Effect.flatMap(messages.insert))
-      // The bind follows the insert, since its key to the message is not deferrable; a create
-      // without files skips it, as the update would die on no rows.
-      if (Arr.isReadonlyArrayNonEmpty(bound)) {
-        const ids = Arr.map(bound, Struct.get('id'))
-        // The files first: unbound bytes expire, so a crash must never leave a bound row over them.
-        yield* files.update({ bound: true }, { id: ids })
-        // `messageId: null` is the race's guard: a create that bound any of them since the read
-        // leaves this write short of a row it names, so it dies and the create rolls back whole.
-        yield* attachments.update(
-          { messageId: userMessage.id, chatId },
-          { id: ids, userId, messageId: null },
-        )
+      yield* replySender.send(run)
+      // Every user message starts a Run, so a chat with none had no message before this one.
+      if (Option.isNone(chat.run)) {
+        yield* titleSender.send(run.userMessage)
       }
-      const assistantMessageId = yield* generateId(crypto, MessageId.make)
-      const assistantMessage = buildAssistantMessage({
-        id: assistantMessageId,
-        chatId,
-        createdAt: at,
-      })
-      yield* encodeMessage(assistantMessage).pipe(Effect.flatMap(messages.insert))
-      yield* jobs.send(
-        assistantMessageQueue,
-        new GenerateAssistantMessage({
-          chatId,
-          messageId: assistantMessage.id,
-          provenance: Option.some(provenance),
-        }),
-      )
-      if (isFirstMessage) {
-        yield* jobs.send(
-          chatTitleQueue,
-          new GenerateChatTitle({ chatId, messageId: userMessage.id }),
-        )
-      }
-
-      return {
-        userMessage: new Message({ ...userMessage, attachments: bound }),
-        assistantMessage,
-      }
-    }, transaction.run)
+      return run
+    })
 
     return { create }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([ChatService.layer, LiveAttachmentService.layer]),
+    Layer.provide([
+      AssistantMessageSender.layer,
+      ChatService.layer,
+      ChatTitleSender.layer,
+      FileAttachmentService.layer,
+      MessageService.layer,
+      RunService.layer,
+    ]),
   )
 }

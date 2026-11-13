@@ -14,3 +14,6 @@ export type MessageId = typeof MessageId.Type
 
 export const AttachmentId = buildIdSchema('AttachmentId')
 export type AttachmentId = typeof AttachmentId.Type
+
+export const RunId = buildIdSchema('RunId')
+export type RunId = typeof RunId.Type

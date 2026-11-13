@@ -44,9 +44,11 @@ its section below says. Gates: `.claude/rules/sdd.md`.
    and what it cost (rounds, time, a wrong result), and proposes one line in a named skill or
    rule, or a mechanical check (a Biome rule, a test, a hook) when the mistake is mechanical;
    never in a `CLAUDE.md`. Apply a lesson only on the user's OK.
-4. **Present** the verdict, the simplifications and the lessons. Accepted fixes become new
-   `plan.md` steps for `/ticket-implement`; on a ticket that changes only `.claude/` or `docs/`,
-   they land without a second `/ticket-verify` unless one changes what a requirement asks
+4. **Present** the verdict, the simplifications and the lessons, then each `feature.md › Later`
+   item still `open`, each a question: done as a step, moved to the roadmap's `Later`, or
+   dropped. Accepted fixes become new `plan.md` steps for `/ticket-implement`; on a ticket that
+   changes only `.claude/` or `docs/`, they land without a second `/ticket-verify` unless one
+   changes what a requirement asks
    ([the cycles](../../../docs/knowledge/sdd.md#when-to-run-which-cycle)). On `pass` and the
    user's agreement, propose the PR (`.claude/rules/pull-requests.md`).
 

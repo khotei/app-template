@@ -11,8 +11,9 @@ whose skill says how the run ends.
 
 The ticket folder and the stage `<n>` to prepare. Read `feature.md`, `architecture.md`, the
 plan's **Status** (the skeleton) and, of each closed stage, its `### Stage design`, its
-`### Stage review` and its `verification.md › Stage <k>` section where one was run, with the code
-as it stands. That is the base: look only at the stage ahead, and review only that stage.
+`### Stage review`, its `### Play` and its `verification.md › Stage <k>` section where one was
+run, with `feature.md › Later` and the code as it stands. That is the base: look only at the
+stage ahead, and review only that stage.
 
 ## Does
 
