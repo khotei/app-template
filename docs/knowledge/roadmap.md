@@ -890,6 +890,25 @@ and deletes it here.
   weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
   `ChatBusyError` (an exception to `deep-modules.md`'s "a write dies where it misses"), or a
   `SELECT … FOR UPDATE` on the chat before the check.
+- (2026-11-13) A retry reads the chat's newest Run, then inserts its own; a send of a newer
+  message whose Run commits and fails between the two lets the insert pass the active Run's index,
+  so an older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
+  (`application/use-cases/chat/retry-run.use-case.ts`, the chat's read and `runService.create`).
+  Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
+  milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
+  chat's newest, or a row lock on the chat before the check.
+- (2026-11-13) `MessageService.getMany` checks the chat, then reads its messages in a second
+  query, so a delete between the two answers `200 []`, not `404 ChatNotFoundError`; the next read
+  gives the `404` (`application/chat/services/message.service.ts:58`). Left: a domain service
+  opens no transaction ([layering.md](../../.claude/rules/layering.md)). Way out: one query that
+  reads the chat with its messages.
+- (2026-11-13) The memory fakes miss what Postgres refuses or takes back, so a unit test passes
+  where the database would not: they check no foreign key (a Run whose user message is missing,
+  an assistant message whose Run is), and `TransactionTest` is the identity, so a lost race's
+  writes stay (`kernel/data/__tests__/testing/chat.test-fake.ts`). No e2e runs a worker's lost
+  race of a completion (`application/use-cases/chat/generate-assistant-message.use-case.ts`,
+  `settleCompleted`). Ways out to weigh: the fakes copy the foreign keys, a `TransactionTest` that
+  restores the rows on a failure, an e2e of the completion's race.
 
 ## Ideas to weigh
 

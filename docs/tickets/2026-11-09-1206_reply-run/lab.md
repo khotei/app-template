@@ -201,6 +201,9 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
 - [N:ai] L8.10 the e2e "of two concurrent sends to one chat…" counts only the user's messages: the
   stand's worker may store the winner's reply before the count (2 lines of test changed) ·
   visible: `make test-e2e`.
+- [N:ai] L8.11 the owner's yes: the retry and send race, `getMany` on a delete and the memory
+  fakes' gaps move to `roadmap.md › Later › From reply-run`; the `make dev` 404 is dropped, not
+  reproduced (a route added to a running `make dev-api` answered `200`).
 
 ## Knowledge
 
@@ -283,15 +286,17 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
 - [N:ai] L3.17: the reply is written before the Run's `done`, which names it, so the memory
   `TransactionTest` keeps a lost race's reply that Postgres takes back; no e2e runs a worker's lost
   race (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`).
+  Moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L3.12: a local database migrated with the old `init` needs `make reset && make up`; a job
   body queued before the cut (`messageId`) no longer decodes and is logged and acknowledged
   (`packages/queue/queue.consumer.ts:49`).
 - [N:ai] L3.12: the memory fakes check no foreign key, so a unit test may store a Run whose user
   message is missing, or an assistant message whose Run is (`kernel/data/__tests__/testing/chat.test-fake.ts`),
-  as the message fake never checked its chat.
+  as the message fake never checked its chat. Moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L3.12: `TransactionTest` is the identity, so a unit test sees a write that Postgres would
   roll back; the completion writes the Run first, so its lost race leaves no reply in memory
   either (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`).
+  Moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L3.16: `createUserMessage`, a step that stores, against `.claude/rules/naming.md`, which
   keeps `create<Thing>` for a factory that wires dependencies
   (`application/use-cases/chat/create-user-message.use-case.ts:59`). The rule or the name changes
@@ -308,7 +313,8 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
   a newer message whose Run commits and fails between the two lets the insert pass the active-Run
   index, so the older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
   (`application/use-cases/chat/retry-run.use-case.ts:51`, the read; `:56`, the insert). It needs a
-  send and a retry at once and a failure within the gap. Open.
+  send and a retry at once and a failure within the gap.
+  Moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L5 review (hunt, claimed): two retries of one failed Run (a double click) both pass
   `ensureChatNotBusy`; the active-Run index refuses the second insert, which dies, so the client
   gets a bare `500`, not `409 ChatBusyError` (`kernel/data/chat/run.repository.ts:68`,
@@ -323,12 +329,14 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
 - [N:ai] L5: a `make dev` started before a new route answers it `404` with no body, a cookie or
   not, until a restart: the api started at 10:19 answered `POST …/messages/:messageId/runs` with
   `404`, one started after L5.5 with `401`, `409` and `404` as the contract says
-  (`apps/api/package.json:13`, `--hot`; I assume `--hot` keeps the server built at start). Open.
+  (`apps/api/package.json:13`, `--hot`; I assume `--hot` keeps the server built at start).
+  Dropped in L8.11, not reproduced: a `make dev-api` started at 14:44 answered a route added
+  while it ran with `200`, and `404` once the route was removed.
 - [N:ai] L4 review: `MessageService.getMany` checks the chat, then reads its messages in a second
   query; a delete between the two answers `200 []`, not `404 ChatNotFoundError`, and the next
   read gives the 404 (`application/chat/services/message.service.ts:58`). A domain service opens
   no transaction (`.claude/rules/layering.md`); one query that reads the chat with its messages
-  would close it. Open.
+  would close it. Moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L6.8: the e2e "of two concurrent sends to one chat, one is stored and the other is
   refused, keeping nothing" failed once in `make check` with 2 messages for 1, then passed in
   three runs of its file and the next `make check` (`apps/e2e/api/chat.e2e.ts:205`). I assume the
