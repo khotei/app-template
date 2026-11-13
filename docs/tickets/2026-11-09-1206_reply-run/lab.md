@@ -196,14 +196,17 @@ Drafted by the agent, accepted by the owner in the chat ("ok"):
   template and this lab's `Later` intro.
 - [N:ai] L8.7 the owner's yes to the review's `[D:ai]`: both senders log a send SQS refuses at
   `Error`, `assistant message not queued` with `chatId` and `runId`, `chat title not queued`
-  with `chatId` and `messageId` (8 lines of code added, 3 gone; 10 of test added, 4 gone) · visible: `bun --bun vitest run
-  --project unit application/use-cases/__tests__/chat/chat.sender.test.ts`.
+  with `chatId` and `messageId` (8 lines of code added, 3 gone; 10 of test added, 4 gone) ·
+  visible: `bun --bun vitest run --project unit
+  application/use-cases/__tests__/chat/chat.sender.test.ts`.
 - [N:ai] L8.10 the e2e "of two concurrent sends to one chat…" counts only the user's messages: the
   stand's worker may store the winner's reply before the count (2 lines of test changed) ·
   visible: `make test-e2e`.
 - [N:ai] L8.11 the owner's yes: the retry and send race, `getMany` on a delete and the memory
   fakes' gaps move to `roadmap.md › Later › From reply-run`; the `make dev` 404 is dropped, not
   reproduced (a route added to a running `make dev-api` answered `200`).
+- [N:ai] L8.13 (REVIEW) of L8.7–L8.12: the reply sender's TSDoc drops "is logged" (`comments.md`:
+  the log is no contract a caller acts on); the L8.7 note rewrapped. The hunt found nothing.
 
 ## Knowledge
 

@@ -18,8 +18,8 @@ export class AssistantMessageSender extends Context.Service<
   AssistantMessageSender,
   {
     /**
-     * Sends the job that answers the Run; one SQS refuses is logged, fails the Run, so its message
-     * offers a retry, and is `RunNotQueuedError`.
+     * Sends the job that answers the Run; one SQS refuses fails the Run, so its message offers a
+     * retry, and is `RunNotQueuedError`.
      */
     readonly send: (run: Run) => Effect.Effect<void, RunNotQueuedError>
   }
