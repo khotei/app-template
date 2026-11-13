@@ -270,6 +270,9 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
 - [N:ai] L3: the composite FK makes a Run's message belong to its chat, but no key checks that the
   message is the user's: a Run on an assistant message passes the store. L4's use case builds a
   Run only from the user message it has just stored; the store stays without that check.
+  Dropped in L8.12, the owner's yes: no race can break it, its one writer, `RunService.create`,
+  takes a user message from both callers (the retry reads `author: 'user'`), and a check in
+  the store would cost a column on every Run.
 - [N:ai] L3: until the use cases switch to Runs, the failure sentences sit twice, in `failureMessages` of `application/chat/domain/run.model.ts` and of `message.model.ts`; the switch deletes the message's copy with its failure and transitions.
   Done: only `run.model.ts:102` keeps them (`git grep failureMessages`).
 - [N:ai] Rail 4 (`.claude/rules/lab.md`): a piece with a repository's e2e cannot stay within 100
@@ -289,7 +292,8 @@ done in L<n>, moved to the roadmap's `Later`, dropped); a hard step takes one on
   Moved to `roadmap.md › Later › From reply-run`.
 - [N:ai] L3.12: a local database migrated with the old `init` needs `make reset && make up`; a job
   body queued before the cut (`messageId`) no longer decodes and is logged and acknowledged
-  (`packages/queue/queue.consumer.ts:49`).
+  (`packages/queue/queue.consumer.ts:49`). Dropped in L8.12, the owner's yes: a one-off cost of the
+  cut, told in PR #29's merge danger; no deployed stack exists.
 - [N:ai] L3.12: the memory fakes check no foreign key, so a unit test may store a Run whose user
   message is missing, or an assistant message whose Run is (`kernel/data/__tests__/testing/chat.test-fake.ts`),
   as the message fake never checked its chat. Moved to `roadmap.md › Later › From reply-run`.
