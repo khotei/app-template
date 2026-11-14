@@ -179,6 +179,15 @@ assistant-message` worker'а с `LanguageModel.generateObject`.
   66 span'ов, один корень api `POST` 320 мс; под `QueueSender.send` — `process assistant-message`
   worker'а (2190 мс) с `GenerateAssistantMessageUseCase.generate`, SQL и
   `LanguageModel.generateObject`, и `process chat-title` под вторым `QueueSender.send`.
+- [N:ai] L5.5 (REVIEW) Standards: образ `otel-lgtm` переехал в `kernel/config/telemetry.ts`
+  рядом с `ministackImage` (`packages/CLAUDE.md:3-4`: закреплённые образы — в kernel).
+- [N:ai] L5.5 (REVIEW) Standards: TSDoc на деструктуризации в `deployment/local/telemetry.ts`
+  стал одной `//`-строкой у `name` — зачем имя по порту OTLP и связь с `NAME_TELEMETRY`
+  (`comments.md`).
+- [N:ai] L5.5 (REVIEW) Standards: `deployment/CLAUDE.md:3` называет и контейнер телеметрии.
+- [N:ai] L5.5 (REVIEW) Hunt: `observability.md › Where to look` — пустая Grafana при запущенных
+  приложениях значит, что контейнер не работает: упавший экспорт выключает экспортёр на 60 с и
+  пишет об этом только на `Debug` (`effect/src/observability/OtlpExporter.ts:233-237`).
 
 ### Output
 
@@ -220,7 +229,15 @@ source.>
   случайный порт, приложения шлют мимо; у MiniStack на это есть отказ (`ministack.ts`), здесь нет.
   Fate: open.
 - `Otlp.layerFromConfig` читает `OTEL_*` своим `Config`, мимо слоёв `kernel/config`
-  (`.claude/rules/tooling.md`); так решено в Knowledge, но правило этого не говорит. Fate: open.
+  (`.claude/rules/tooling.md`); так решено в Knowledge, но правило этого не говорит. С L5.3
+  `OTEL_EXPORTER_OTLP_ENDPOINT` читают двое: Effect и `TelemetryConfig` (`kernel/config/config.ts`,
+  для Pulumi). Варианты: строка-исключение в `tooling.md` или один читатель (ревью L5, Standards).
+  Fate: open.
+- Атрибут `traceparent` без `stringValue` (тип `Binary` от чужого отправителя) не проходит схему
+  `SqsEvent` (`packages/queue/queue.consumer.ts:12`): `POST /events` отвергает весь пакет, и
+  каждая его запись, верные тоже, доставляется заново до DLQ. Сейчас недостижимо: `QueueSender`
+  пишет только `String`. Исправление — `stringValue: Schema.optionalKey(Schema.String)`
+  (ревью L5, hunt, claimed). Fate: open.
 
 - Порты телеметрии на worktree: `worktree.sh` двигает только API/WEB/WORKER/AWS/RDS и STAGE,
   `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT` остаются общими с основным деревом; в прогоне

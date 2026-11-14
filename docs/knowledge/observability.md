@@ -25,7 +25,8 @@ ports follow the tree's `N` ([tooling.md › Worktrees](tooling.md#worktrees)). 
 → Tempo for traces (TraceQL `{ resource.service.name = "api" }`), Loki for logs
 (`{service_name="api"}`); a log line links to its trace by `trace_id`. Tempo's search lists a
 trace a while after it ends (within two minutes on the local stand), while a trace opened by its
-id answers at once. The backend keeps its data
+id answers at once. An empty Grafana with the apps running means the container is down: a failed
+export turns its exporter off for 60 s and says so only at `Debug` level. The backend keeps its data
 inside the container, so `make down` followed by `make up`, which replaces the container, starts
 it empty.
 

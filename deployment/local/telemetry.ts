@@ -1,18 +1,12 @@
 import * as docker from '@pulumi/docker'
 
 import { projectName } from '@app-template/kernel/aws'
+import { telemetryImage } from '@app-template/kernel/config'
 
 import { settings } from '#deployment/local/settings'
 
-const telemetryImage =
-  'grafana/otel-lgtm:0.40.0@sha256:72e05804790e6e0d8c0b70a6d5ff1f721ef7b203463374631e99aa3429bd0cf6'
 const grafanaInternalPort = 3000
 const otlpInternalPort = 4318
-/**
- * The host ports are `GRAFANA_PORT` and the one in `OTEL_EXPORTER_OTLP_ENDPOINT`, and the container
- * is named after the latter, so a worktree's backend runs beside the main tree's. The Makefile
- * rebuilds the name (`NAME_TELEMETRY`); change both together.
- */
 const { otlpEndpoint, grafanaPort } = settings.telemetry
 const otlpPort = Number(otlpEndpoint.port)
 
@@ -24,6 +18,8 @@ const remoteImage = new docker.RemoteImage('telemetry-image', {
 export const telemetry = new docker.Container(
   'telemetry',
   {
+    // Named after the OTLP port, so each tree's backend runs beside the others'; the Makefile
+    // rebuilds the name (`NAME_TELEMETRY`), so change both together.
     name: `${projectName}-telemetry-${otlpPort}`,
     image: remoteImage.imageId,
     ports: [
