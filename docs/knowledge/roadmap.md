@@ -401,6 +401,18 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   Function URL with a cold start of 130–180 ms; a partial batch failure worked; the function
   reaches Postgres only at `host.docker.internal`, not at the `localhost` the RDS endpoint
   reports; a rebuild to an answer took about 2 s. Pulumi creating these functions was not run.
+- **Inherits from `telemetry-minimal` (2026-11-14).** Two things only AWS can show, researched
+  there with sources (`docs/tickets/2026-11-07-0944_telemetry-minimal/lab.md`, L3 and L6 Notes):
+  the OTLP receivers (X-Ray traces, CloudWatch Logs and CloudWatch metrics take OTLP/HTTP directly
+  with an `Authorization: Bearer <API key>` header; the switch from the local backend is the
+  per-signal `OTEL_EXPORTER_OTLP_<SIGNAL>_{ENDPOINT,HEADERS}` variables, no code; Transaction
+  Search, the keys and the log group must exist first; nothing was sent to a real account), and
+  getting an invocation's telemetry out before Lambda freezes (Effect's exporter batches on an
+  interval and the server span closes after the response; the reliable patterns are a flush
+  before the response in the worker's `POST /events`, which `OtlpExporter.Flusher` gives in three
+  lines, a flush after it held by an `INVOKE`-registered process, or the Collector extension
+  copied into the image, since no ADOT layer exists for `provided.al2023`; the shutdown window is
+  2 s with LWA, below the exporter's 3 s default).
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
   runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)

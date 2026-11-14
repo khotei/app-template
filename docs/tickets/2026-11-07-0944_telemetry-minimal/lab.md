@@ -329,9 +329,8 @@ Reference: L2 (`[A:ai]` обоих researcher, прогон через MiniStack
   под `POST /events`. Не `Effect.linkSpans` (вешает link на каждый вложенный span).
 - Тест в `packages/queue/__tests__/`: запись с `traceparent` даёт span с тем `traceId`
   (`Effect.currentSpan` внутри `handle`); запись без — своим.
-- `apps/worker/worker.handler.ts` `POST /events`: после `consume` —
-  `Effect.serviceOption(OtlpExporter.Flusher)` и `flush` с `Effect.timeoutOption('1 second')`
-  (см. `[A:ai]` в Notes, вариант A; добавлено по `[D:ai]`, подтвердите).
+- Не в этом шаге: flush перед ответом `POST /events` в Lambda — в roadmap `aws-deployment` (9)
+  по слову owner 2026-11-14 вместе с живой проверкой AWS.
 - Проверка (visible): README-скрипт одного сообщения; в Tempo одна трасса с корнем api `POST`
   и `assistant-message process` worker'а под `QueueSender.send`.
 
@@ -390,6 +389,9 @@ Web Adapter в container image на `provided.al2023`: все практичес
 
 - Каждый входящий HTTP-запрос — корень трассы, и это не глушится: `POST /events` worker'а и
   опросы остаются отдельными трассами, их отсеивают в UI (owner, 2026-11-14).
+- Всё, что проверяется только на AWS, — flush телеметрии из Lambda и приёмники AWS с
+  bearer-ключом — делает тикет `aws-deployment` (9), не этот; здесь экспорт работает по
+  интервалу, как локально (owner, 2026-11-14).
 
 ## Numbers
 
@@ -413,7 +415,7 @@ source.>
   измерения `http.route`/`http.response.status_code` — конфиг metrics-generator в `otel-lgtm`.
   Fate: open.
 - Shutdown в Lambda: финальный flush экспортёра 3 с против окна 2 с (`OTEL_EXPORTER_OTLP_*_TIMEOUT`
-  или `shutdownTimeout`), и flush до ответа на `POST /events`. Проверяется только на AWS.
-  Fate: open.
+  или `shutdownTimeout`), и flush до ответа на `POST /events`; варианты — `[A:ai]` в L6 Notes.
+  Fate: moved to roadmap `aws-deployment` (9), owner 2026-11-14.
 - Приёмники AWS с bearer-ключом: ничего не отправлялось в живой AWS (включение Transaction
-  Search, IAM API-ключи, log group). Fate: open, ждёт слова owner — стоит денег и секрета.
+  Search, IAM API-ключи, log group). Fate: moved to roadmap `aws-deployment` (9), owner 2026-11-14.
