@@ -16,11 +16,18 @@ Flow: lab · Worktree: —
 
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | Что видно из коробки: трасса одного запроса api в Grafana через `Otlp.layerFromConfig`, без кода в модулях | minimal | learn | in progress |
-| L2 | Перенос трассы api → SQS → worker: что дают Effect и AWS SDK без ручного кода | minimal | learn | in progress |
-| L3 | Локально и AWS одним конфигом: куда OTLP шлёт в AWS и что меняется только в переменных | minimal | learn | todo |
-| L4 | Паттерны интеграции: логи с trace id, LLM-вызовы, ошибки — из docs и `repos/effect` | minimal | learn | todo |
-| L<last> | Later: the items of the open list the owner picks | hard | build | todo |
+| L1 | Что видно из коробки: трасса одного запроса api в Grafana через `Otlp.layerFromConfig`, без кода в модулях | minimal | learn | in progress — Output предложен, ждёт «да» |
+| L2 | Перенос трассы api → SQS → worker: что дают Effect и AWS SDK без ручного кода | minimal | learn | in progress — Output и `[D]` child предложены, ждут «да» |
+| L3 | Локально и AWS одним конфигом: куда OTLP шлёт в AWS и что меняется только в переменных | minimal | learn | in progress — Output предложен; AWS не запускался |
+| L4 | Паттерны интеграции: логи с trace id, LLM-вызовы, ошибки — из docs и `repos/effect` | minimal | learn | todo — большей частью закрыт прогоном L1, см. его Notes |
+| L5 | Экспорт из коробки: `Otlp` layer в api и worker, `otel-lgtm` на worktree через `make up`, порты от N | minimal | build | todo |
+| L6 | Одна трасса через SQS: `traceparent` в сообщении, span на запись в consumer, тест | minimal | build | todo |
+| L7 | Later: the items of the open list the owner picks | hard | build | todo |
+
+Запуск сборки в новом окне: `/lab implement L5` в основном дереве на ветке `feat/telemetry-minimal`;
+draft-worktree `wt/telemetry-minimal-L1-otlp` — только reference, его код не копируется, после L5
+и L6 он удаляется (`close L1`). Контейнеры `app-template-telemetry-4328` (Grafana
+http://localhost:3013) и MiniStack 4576 оставлены поднятыми для проверки.
 
 ## L1 — Что видно из коробки
 
@@ -72,6 +79,18 @@ api `POST` 45 мс, целиком 136 с (ждала LLM).
   Пробы: `.data/ref/otlp-tracing.ts` в draft-worktree, `scratchpad/trace.json`.
 
 ### Output
+
+[N:ai] Предложение. Пять строк в `layer.ts` каждого процесса и переменные `OTEL_*` дают трассу
+запроса целиком внутри процесса: server span, каждый `Effect.fn('<Service>.<method>')`, каждый
+SQL-statement с текстом, `LanguageModel.*` с `gen_ai.*` и HTTP-вызов к провайдеру, ошибки с
+`exception`; логи с `trace_id`; метрик от приложения нет, по спанам их считает Tempo. Доказательство:
+```ts
+// apps/api/layer.ts, последний Layer.provide
+Otlp.layerFromConfig({ resource: { serviceName: 'api' } }).pipe(
+  Layer.provide([OtlpSerialization.layerProtobuf, FetchHttpClient.layer]),
+)
+```
+и трасса `7fba1ad7…` в Tempo на 3013 (80 спанов). Подпись написать можно → L5.
 
 ## L2 — Перенос трассы api → SQS → worker
 
@@ -165,6 +184,22 @@ relay шлёт в SQS, worker за Lambda SQS mapping): что из этого �
 
 ### Output
 
+[N:ai] Предложение. Через SQS контекст не несёт никто; одна трасса api → worker стоит ~15 строк в
+`packages/queue`: отправитель кладёт `traceparent` текущего span'а в `MessageAttributes`, consumer
+открывает span на каждую запись с этим parent (child). Доказательство: прогон через MiniStack,
+трасса `7fba1ad7…` с корнем api `POST` и `assistant-message process` worker'а под
+`QueueSender.send`:
+```ts
+// packages/queue/queue.sender.ts, в send
+const span = yield* Effect.currentSpan.pipe(Effect.orDie)
+const { traceparent } = HttpTraceContext.toHeaders(span)
+// … MessageAttributes: { traceparent: { DataType: 'String', StringValue: traceparent } }
+// packages/queue/queue.consumer.ts, в run
+const parent = HttpTraceContext.w3c(Headers.fromInput({ traceparent }))
+Effect.withSpan(`${definition.name} process`, { kind: 'consumer', parent: Option.getOrUndefined(parent) })
+```
+Подпись написать можно → L6.
+
 ## L3 — Локально и AWS одним конфигом
 
 Reference: <the example, and how it was run as is> · Budget: reference + <N> lines
@@ -227,11 +262,81 @@ Reference: <the example, and how it was run as is> · Budget: reference + <N> li
 
 ### Output
 
+[N:ai] Предложение. Локально — один контейнер `grafana/otel-lgtm` (OTLP `:4318`, Grafana
+`:3000`, связки трасса ↔ лог готовы; проверено прогоном L1). В AWS — X-Ray, CloudWatch Logs и
+CloudWatch metrics принимают OTLP/HTTP напрямую с `Authorization: Bearer <API key>`; переход —
+шесть переменных `OTEL_EXPORTER_OTLP_{TRACES,LOGS,METRICS}_{ENDPOINT,HEADERS}`, кода ноль (по
+документации AWS и `otlpEnv.ts:13-28`; живой AWS не запускался — Later). Это конфиг, не код.
+
 ## L4 — Паттерны интеграции
 
-Reference: <the example, and how it was run as is> · Budget: reference + <N> lines
+Reference: прогон L1 · Budget: —
 
 ### Notes
+
+[N:ai] Закрыт прогоном L1 в той мере, в какой нужен для сборки: логи с trace id, LLM-вызовы с
+`gen_ai.*` и ошибки с `exception` приходят без кода. Остальное — чем аннотировать span'ы
+(`Effect.annotateCurrentSpan`), что логировать в use case, семплирование — вопросы шага `right`
+после того, как L5 и L6 сыграны.
+
+### Output
+
+## L5 — Экспорт из коробки
+
+Reference: L1 (`20_otlp-tracing.ts` как есть, `otel-lgtm` 0.40.0, прогон одного сообщения) ·
+Budget: reference + 60 lines — предложено, подтвердите или назовите своё
+
+### Shape
+
+[D:ai] Черновик, правьте:
+- `kernel/telemetry/telemetry.ts`: `TelemetryFromConfig(serviceName: 'api' | 'worker')` —
+  `Otlp.layerFromConfig({ resource: { serviceName } })` с `OtlpSerialization.layerProtobuf` и
+  `FetchHttpClient.layer`; stage в ресурс через `OTEL_RESOURCE_ATTRIBUTES` из `.env`, не из кода.
+  Без переменных `OTEL_<SIGNAL>_EXPORTER` слой молчит (`otlpEnv.ts:33-36`) — unit-тесты без
+  контейнера как сейчас. `apps/api/layer.ts`, `apps/worker/layer.ts`: один `Layer.provide`.
+- `deployment/local/telemetry.ts`: контейнер `grafana/otel-lgtm` (pinned digest) с именем
+  `app-template-telemetry-<OTLP port>`, порты из `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT`,
+  поднимается только когда endpoint задан (reference: `git show
+  feat/observability:deployment/local/telemetry.ts`); `make reset` убирает его (`NAME_TELEMETRY`
+  в Makefile рядом с `NAME_MINISTACK`). Конфиг портов — `TelemetryConfig` в `kernel/config`.
+- `.claude/skills/ticket-implement/worktree.sh`: порт OTLP `4318 + 10N`, `GRAFANA_PORT`
+  `3003 + 10N` (основное дерево сейчас держит `GRAFANA_PORT=3002` = `WORKER_PORT` — коллизия,
+  базу сменить на 3003). `.env.example`: блок `OTEL_*`, по умолчанию закомментирован.
+- `docs/knowledge/observability.md` (новый, короткий: как смотреть трассу, что видно, как
+  переключить на AWS) и строка в `tooling.md › Worktrees`.
+- Проверка (visible): `make up` печатает ссылку на Grafana; README-скрипт одного сообщения; в
+  Tempo трасса с server span, сервисами, SQL, `LanguageModel.generateObject`.
+
+### Notes
+
+### Pieces
+
+### Output
+
+## L6 — Одна трасса через SQS
+
+Reference: L2 (`[A:ai]` обоих researcher, прогон через MiniStack) · Budget: reference + 30 lines
+— предложено, подтвердите или назовите своё
+
+### Shape
+
+[D:ai] Черновик, правьте:
+- `packages/queue/queue.sender.ts` `send`: `traceparent` текущего span'а (`Effect.currentSpan`,
+  `HttpTraceContext.toHeaders`) как `MessageAttributes.traceparent` (`DataType: 'String'`).
+- `packages/queue/queue.consumer.ts`: `SqsRecord.messageAttributes` optional
+  `Record<string, { stringValue?: string }>`; в `run` — `Effect.withSpan('<queue> process',
+  { kind: 'consumer', parent })`, parent из `HttpTraceContext.w3c`; без атрибута — обычный span
+  под `POST /events`. Не `Effect.linkSpans` (вешает link на каждый вложенный span).
+- Тест в `packages/queue/__tests__/`: запись с `traceparent` даёт span с тем `traceId`
+  (`Effect.currentSpan` внутри `handle`); запись без — своим.
+- Не в этом шаге (Later): flush перед ответом `POST /events` в Lambda; тишина `POST /events`
+  как отдельной трассы.
+- Проверка (visible): README-скрипт одного сообщения; в Tempo одна трасса с корнем api `POST`
+  и `assistant-message process` worker'а под `QueueSender.send`.
+
+### Notes
+
+### Pieces
 
 ### Output
 
