@@ -15,7 +15,7 @@ MAIN_TREE := $(shell dirname "$$(git rev-parse --path-format=absolute --git-comm
 PULUMI = PULUMI_HOME=$(MAIN_TREE)/.pulumi PULUMI_BACKEND_URL=file://$(CURDIR)/.data/pulumi \
   PULUMI_CONFIG_PASSPHRASE= pulumi -C deployment/local
 PROJECT := $(shell sed -n 's/^name: //p' deployment/local/Pulumi.yaml)
-MINISTACK_URN = urn:pulumi:local::$(PROJECT)::docker:index/container:Container::ministack
+CONTAINER_URNS = urn:pulumi:local::$(PROJECT)::docker:index/container:Container::*
 
 # A switch of the AWS provider's own test harness that skips its fixed waits; VCR_PATH only has to
 # be non-empty, nothing is recorded or replayed. Local stack only: docs/knowledge/aws.md.
@@ -26,6 +26,8 @@ EXPORT_ENV = set -a && . ./.env && set +a
 # The pair of the container name in deployment/local/ministack.ts; a stack output would not do,
 # since `make reset` deletes the state.
 NAME_MINISTACK = ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
+# The pair of the container name in deployment/local/telemetry.ts, for the same reason.
+NAME_TELEMETRY = telemetry=app-template-telemetry-$$(echo "$$OTEL_EXPORTER_OTLP_ENDPOINT" | sed -E 's/.*:([0-9]+).*/\1/')
 # The pair of the identifier in deployment/aws/database.ts, for the same reason.
 NAME_DATABASE = database=app-template-$$STAGE-database
 DRIZZLE_CONFIG = kernel/data/drizzle.config.ts
@@ -47,22 +49,24 @@ stack: ## Create the tree's Pulumi file backend and select or create the local s
 	@mkdir -p .data/pulumi
 	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
 
-# Refreshes the MiniStack container alone, once it is in the state: docs/knowledge/aws.md.
-up: stack ## Start MiniStack, create the database, bucket and queues in it, migrate
-	if $(PULUMI) stack export | grep -qF '$(MINISTACK_URN)'; then \
-		$(PULUMI) refresh --yes --skip-preview --target '$(MINISTACK_URN)'; fi
+# Refreshes the containers alone: docs/knowledge/aws.md. A wildcard target, unlike a full URN,
+# passes on a stack that holds none yet.
+up: stack ## Start MiniStack and the telemetry backend, create the database, bucket and queues, migrate
+	$(PULUMI) refresh --yes --skip-preview --target '$(CONTAINER_URNS)'
 	$(EXPORT_ENV) && $(FAST_PROVIDER) $(PULUMI) up --yes --skip-preview
 	$(PULUMI) stack output --shell > .env.pulumi
 	$(MAKE) migrate
+	@$(EXPORT_ENV) && echo "Grafana: http://localhost:$$GRAFANA_PORT (admin/admin)"
 
-down: ## Stop MiniStack, which stops the database's container; every resource keeps its data
-	$(EXPORT_ENV) && $(NAME_MINISTACK) && docker ps -q --filter "name=^$$ministack$$" | xargs -r docker stop
+down: ## Stop MiniStack, which stops the database's container, and the telemetry backend; every resource keeps its data
+	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_TELEMETRY) && \
+		docker ps -q --filter "name=^$$ministack$$" --filter "name=^$$telemetry$$" | xargs -r docker stop
 
 # A killed MiniStack leaves the database's container running; why no destroy runs:
 # docs/knowledge/aws.md.
-reset: ## Remove MiniStack, the database's container and volume, the tree's MCP containers, .data/
-	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_DATABASE) && \
-		docker rm -f "$$ministack" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") \
+reset: ## Remove MiniStack, the database's container and volume, the telemetry backend, the tree's MCP containers, .data/
+	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_TELEMETRY) && $(NAME_DATABASE) && \
+		docker rm -f "$$ministack" "$$telemetry" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") \
 			$$(docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)") && \
 		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi

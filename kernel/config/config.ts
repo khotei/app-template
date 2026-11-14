@@ -61,6 +61,20 @@ export class MiniStackConfig extends Context.Service<
   )
 }
 
+/** The local stand only: where the telemetry backend takes OTLP and serves Grafana. */
+export class TelemetryConfig extends Context.Service<
+  TelemetryConfig,
+  { readonly otlpEndpoint: URL; readonly grafanaPort: number }
+>()('@app-template/kernel/config/TelemetryConfig') {
+  static readonly layer = Layer.effect(
+    this,
+    Config.all({
+      otlpEndpoint: Config.URL('OTEL_EXPORTER_OTLP_ENDPOINT'),
+      grafanaPort: Config.Port('GRAFANA_PORT'),
+    }),
+  )
+}
+
 const nodeEnvs = ['development', 'test', 'production'] as const
 
 export class RuntimeConfig extends Context.Service<

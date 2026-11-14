@@ -10,6 +10,7 @@ import {
   MiniStackConfig,
   ReplyModelConfig,
   RuntimeConfig,
+  TelemetryConfig,
   WorkerConfig,
 } from '#kernel/config/config'
 
@@ -28,6 +29,16 @@ describe('config layers', () => {
     { variable: 'AWS_REGION', layer: AwsConfig.layer },
     { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
     { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
+    {
+      variable: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+      layer: TelemetryConfig.layer,
+      given: { GRAFANA_PORT: '3003' },
+    },
+    {
+      variable: 'GRAFANA_PORT',
+      layer: TelemetryConfig.layer,
+      given: { OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318' },
+    },
     {
       variable: 'ANTHROPIC_API_KEY',
       layer: LlmConfig.layer,

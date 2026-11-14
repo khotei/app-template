@@ -144,6 +144,9 @@ assistant-message` worker'а с `LanguageModel.generateObject`.
   для него появится, если `aws-deployment` добавит общий flush); контейнер поднимается всегда,
   без `Option` (вопрос 1: ветка лишняя, Intent — телеметрия в каждом worktree). Порядок pieces:
   экспорт → трасса через SQS → контейнер на worktree и docs.
+- [N:ai] Stop (бюджет, rail 4): код шага ~138 строк против «reference + 90» — L5.1 12, L5.2 30,
+  L5.3 100 (из них 40 — `telemetry.ts` из reference `feat/observability`, 15 — перенос строк
+  Biome в `settings.ts`). Жду слова владельца: принять или резать.
 
 ### Pieces
 
@@ -160,6 +163,21 @@ assistant-message` worker'а с `LanguageModel.generateObject`.
   (`/opt/ministack/ministack/services/lambda_svc.py:7538` в контейнере). 30 строк кода, тесты:
   unit consumer'а (свой `traceId` и чужой), e2e отправителя (`traceparent` с `traceId` теста),
   запись теста worker'а получила `messageAttributes: {}`. `make check` зелёный.
+- [N:ai] L5.3 Контейнер на worktree: `TelemetryConfig` (endpoint OTLP, `GRAFANA_PORT`) в
+  `kernel/config` с двумя строками в таблице его теста (написаны вместе с кодом, красными не
+  видел); `deployment/local/telemetry.ts` из `feat/observability` без `Option`; Makefile:
+  `NAME_TELEMETRY`, refresh всех контейнеров по wildcard URN, `down` и `reset` берут и
+  телеметрию, `make up` печатает ссылку на Grafana; `worktree.sh`: OTLP `4318 + 10N`, Grafana
+  `3003 + 10N`; `.env.example` с блоком `OTEL_*`; `.env` владельца: `GRAFANA_PORT` 3002 → 3003;
+  `docs/knowledge/observability.md`, строки в `tooling.md › Worktrees` и `aws.md`. Прогон: `make
+  up` создал `app-template-telemetry-4318` за 30 с и напечатал `Grafana: http://localhost:3003`;
+  `make down` → `make up` заменил оба остановленных контейнера; sed `worktree.sh` на копии `.env`
+  для N=1 дал 4328 и 3013, его проверки прошли. 100 строк кода, бюджет шага превышен (Notes).
+- [N:ai] Visible check L5: api и worker с `.env`, скрипт README (`POST /users`, `/chats`,
+  `/chats/<id>/messages`, опрос Run до `done`, 2,5 с) → трасса `c9bc53a547f022835bb2798c5658f6f3`:
+  66 span'ов, один корень api `POST` 320 мс; под `QueueSender.send` — `process assistant-message`
+  worker'а (2190 мс) с `GenerateAssistantMessageUseCase.generate`, SQL и
+  `LanguageModel.generateObject`, и `process chat-title` под вторым `QueueSender.send`.
 
 ### Output
 
@@ -193,6 +211,12 @@ source.>
   нет. Fate: open.
 - Поиск Tempo по тегу (`/api/search?tags=service.name%3Dapi` и TraceQL) не нашёл свежую трассу
   через ~20 с, по id она есть (прогон L5.1); проверить на visible check, не задержка ли индекса.
+  Fate: done in L5.3 — задержка индекса: та же трасса нашлась поиском через ~2 мин; строка в
+  `observability.md › Where to look`.
+- Первый `QueueSender.send` api: `QueueClient.getUrl` 281 мс из 288 (трасса visible check L5),
+  второй — 3 мс; похоже на холодный запрос к MiniStack, не смотрел. Fate: open.
+- Endpoint OTLP без порта даёт `Number('')` = 0 в `deployment/local/telemetry.ts`: Docker выдаст
+  случайный порт, приложения шлют мимо; у MiniStack на это есть отказ (`ministack.ts`), здесь нет.
   Fate: open.
 - `Otlp.layerFromConfig` читает `OTEL_*` своим `Config`, мимо слоёв `kernel/config`
   (`.claude/rules/tooling.md`); так решено в Knowledge, но правило этого не говорит. Fate: open.
