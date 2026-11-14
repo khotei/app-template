@@ -103,21 +103,20 @@ Reference: L1 и L2 (`20_otlp-tracing.ts` как есть, `otel-lgtm` 0.40.0, �
 [D:ai] Черновик, правьте. Одна поставка, три группы, каждая — своя piece:
 
 Экспорт:
-- `kernel/telemetry/telemetry.ts`: `TelemetryFromConfig(serviceName: 'api' | 'worker')` —
+- `apps/api/layer.ts`, `apps/worker/layer.ts`: последний `Layer.provide` —
   `Otlp.layerFromConfig({ resource: { serviceName } })` с `OtlpSerialization.layerProtobuf` и
-  `FetchHttpClient.layer`; stage в ресурс через `OTEL_RESOURCE_ATTRIBUTES` из `.env`, не из кода.
-  Без переменных `OTEL_<SIGNAL>_EXPORTER` слой молчит (`otlpEnv.ts:33-36`) — unit-тесты без
-  контейнера как сейчас. `apps/api/layer.ts`, `apps/worker/layer.ts`: один `Layer.provide`.
+  `FetchHttpClient.layer`, без своего workspace; stage в ресурс через `OTEL_RESOURCE_ATTRIBUTES`
+  из `.env`, не из кода. Без переменных `OTEL_<SIGNAL>_EXPORTER` слой молчит (`otlpEnv.ts:33-36`).
 
 Контейнер на worktree:
 - `deployment/local/telemetry.ts`: контейнер `grafana/otel-lgtm` (pinned digest) с именем
   `app-template-telemetry-<OTLP port>`, порты из `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT`,
-  поднимается только когда endpoint задан (reference: `git show
-  feat/observability:deployment/local/telemetry.ts`); `make reset` убирает его (`NAME_TELEMETRY`
+  поднимается всегда (reference: `git show feat/observability:deployment/local/telemetry.ts`,
+  без его `Option`); `make reset` убирает его (`NAME_TELEMETRY`
   в Makefile рядом с `NAME_MINISTACK`). Конфиг портов — `TelemetryConfig` в `kernel/config`.
 - `.claude/skills/ticket-implement/worktree.sh`: порт OTLP `4318 + 10N`, `GRAFANA_PORT`
   `3003 + 10N` (основное дерево сейчас держит `GRAFANA_PORT=3002` = `WORKER_PORT` — коллизия,
-  базу сменить на 3003). `.env.example`: блок `OTEL_*`, по умолчанию закомментирован.
+  базу сменить на 3003). `.env.example`: блок `OTEL_*`, включён.
 - `docs/knowledge/observability.md` (новый, короткий: как смотреть трассу, что видно, как
   переключить на AWS) и строка в `tooling.md › Worktrees`.
 
@@ -140,7 +139,18 @@ process` worker'а с `LanguageModel.generateObject`.
 
 ### Notes
 
+- [N:ai] Shape принят (owner, 2026-11-14) с двумя правками по пяти вопросам: экспорт тремя
+  строками в `layer.ts`, без `kernel/telemetry` (вопрос 1: workspace дороже двух копий; причина
+  для него появится, если `aws-deployment` добавит общий flush); контейнер поднимается всегда,
+  без `Option` (вопрос 1: ветка лишняя, Intent — телеметрия в каждом worktree). Порядок pieces:
+  экспорт → трасса через SQS → контейнер на worktree и docs.
+
 ### Pieces
+
+- [N:ai] L5.1 Экспорт из api и worker: 12 строк в двух `layer.ts`, теста нет — контракт виден
+  только прогоном. Прогон: `otel-lgtm` 0.40.0 вручную (Grafana `:3003`, OTLP `:4318`), api через
+  `bun --env-file=../../.env --env-file=../../.env.pulumi main.ts`, `GET /health` → лог в Loki с
+  `trace_id`, по этому id Tempo отдаёт трассу с `service.name=api`. `make check` зелёный.
 
 ### Output
 
@@ -168,6 +178,15 @@ reworked after the owner saw a piece (the OWNER rounds); stops by signal; claims
 source.>
 
 ## Later
+
+- e2e-стенд собирает `ApiLayer` (`apps/e2e/testing/stand.test-layer.ts:57`), а `bun` грузит
+  `.env`: при заданных `OTEL_*` e2e шлёт трассы api в Grafana дерева, worker (`WorkerProcess`) —
+  нет. Fate: open.
+- Поиск Tempo по тегу (`/api/search?tags=service.name%3Dapi` и TraceQL) не нашёл свежую трассу
+  через ~20 с, по id она есть (прогон L5.1); проверить на visible check, не задержка ли индекса.
+  Fate: open.
+- `Otlp.layerFromConfig` читает `OTEL_*` своим `Config`, мимо слоёв `kernel/config`
+  (`.claude/rules/tooling.md`); так решено в Knowledge, но правило этого не говорит. Fate: open.
 
 - Порты телеметрии на worktree: `worktree.sh` двигает только API/WEB/WORKER/AWS/RDS и STAGE,
   `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT` остаются общими с основным деревом; в прогоне
