@@ -137,7 +137,9 @@ source.>
 
 - e2e-стенд собирает `ApiLayer` (`apps/e2e/testing/stand.test-layer.ts:57`), а `bun` грузит
   `.env`: при заданных `OTEL_*` e2e шлёт трассы api в Grafana дерева, worker (`WorkerProcess`) —
-  нет. Fate: open.
+  нет. Fate: dropped — неверно: стенд заменяет весь источник конфига
+  (`ConfigProvider.layer(provider)`, `apps/e2e/testing/stand.test-layer.ts:83`), `OTEL_*` в нём
+  нет, и `Otlp.layerFromConfig` в e2e ничего не шлёт (ревью L5, hunt).
 - Поиск Tempo по тегу (`/api/search?tags=service.name%3Dapi` и TraceQL) не нашёл свежую трассу
   через ~20 с, по id она есть (прогон L5.1); проверить на visible check, не задержка ли индекса.
   Fate: done in L5.3 — задержка индекса: та же трасса нашлась поиском через ~2 мин; строка в
