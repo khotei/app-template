@@ -96,7 +96,7 @@ OTLP/HTTP напрямую с `Authorization: Bearer <API key>`; переход 
 
 Reference: L1 и L2 (`20_otlp-tracing.ts` как есть, `otel-lgtm` 0.40.0, прогон одного сообщения
 через MiniStack) · Budget: reference + 90 lines (owner: любой, одна минимальная поставка;
-назван агентом)
+назван агентом) → reference + 140 lines (owner 2026-11-14, после остановки по бюджету)
 
 ### Shape
 
@@ -147,6 +147,7 @@ assistant-message` worker'а с `LanguageModel.generateObject`.
 - [N:ai] Stop (бюджет, rail 4): код шага ~138 строк против «reference + 90» — L5.1 12, L5.2 30,
   L5.3 100 (из них 40 — `telemetry.ts` из reference `feat/observability`, 15 — перенос строк
   Biome в `settings.ts`). Жду слова владельца: принять или резать.
+- [N:ai] Владелец принял перерасход (2026-11-14): Budget L5 — reference + 140 lines.
 
 ### Pieces
 
