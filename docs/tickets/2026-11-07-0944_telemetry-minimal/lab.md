@@ -20,10 +20,9 @@ Flow: lab · Worktree: —
 | L2 | Перенос трассы api → SQS → worker: что дают Effect и AWS SDK без ручного кода | minimal | learn | done |
 | L3 | Локально и AWS одним конфигом: куда OTLP шлёт в AWS и что меняется только в переменных | minimal | learn | done |
 | L4 | Паттерны интеграции: логи с trace id, LLM-вызовы, ошибки — из docs и `repos/effect` | minimal | learn | done (в L1) |
-| L5 | Одна минимальная поставка: экспорт из api и worker, `otel-lgtm` на worktree, одна трасса через SQS | minimal | build | todo |
+| L5 | Одна минимальная поставка: экспорт из api и worker, `otel-lgtm` на worktree, одна трасса через SQS | minimal | build | done |
 | L6 | Later: the items of the open list the owner picks | hard | build | todo |
 
-Запуск сборки в новом окне: `/lab implement L5` в основном дереве на ветке `feat/telemetry-minimal`.
 Draft-worktree L1 удалён при закрытии; его код не копируется, reference — строка Reference L1.
 
 ## L1 — Что видно из коробки
@@ -94,102 +93,15 @@ OTLP/HTTP напрямую с `Authorization: Bearer <API key>`; переход 
 
 ## L5 — Одна минимальная поставка
 
-Reference: L1 и L2 (`20_otlp-tracing.ts` как есть, `otel-lgtm` 0.40.0, прогон одного сообщения
-через MiniStack) · Budget: reference + 90 lines (owner: любой, одна минимальная поставка;
-назван агентом) → reference + 140 lines (owner 2026-11-14, после остановки по бюджету)
-
-### Shape
-
-[D:ai] Черновик, правьте. Одна поставка, три группы, каждая — своя piece:
-
-Экспорт:
-- `apps/api/layer.ts`, `apps/worker/layer.ts`: последний `Layer.provide` —
-  `Otlp.layerFromConfig({ resource: { serviceName } })` с `OtlpSerialization.layerProtobuf` и
-  `FetchHttpClient.layer`, без своего workspace; stage в ресурс через `OTEL_RESOURCE_ATTRIBUTES`
-  из `.env`, не из кода. Без переменных `OTEL_<SIGNAL>_EXPORTER` слой молчит (`otlpEnv.ts:33-36`).
-
-Контейнер на worktree:
-- `deployment/local/telemetry.ts`: контейнер `grafana/otel-lgtm` (pinned digest) с именем
-  `app-template-telemetry-<OTLP port>`, порты из `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT`,
-  поднимается всегда (reference: `git show feat/observability:deployment/local/telemetry.ts`,
-  без его `Option`); `make reset` убирает его (`NAME_TELEMETRY`
-  в Makefile рядом с `NAME_MINISTACK`). Конфиг портов — `TelemetryConfig` в `kernel/config`.
-- `.claude/skills/ticket-implement/worktree.sh`: порт OTLP `4318 + 10N`, `GRAFANA_PORT`
-  `3003 + 10N` (основное дерево сейчас держит `GRAFANA_PORT=3002` = `WORKER_PORT` — коллизия,
-  базу сменить на 3003). `.env.example`: блок `OTEL_*`, включён.
-- `docs/knowledge/observability.md` (новый, короткий: как смотреть трассу, что видно, как
-  переключить на AWS) и строка в `tooling.md › Worktrees`.
-
-Трасса через SQS:
-- `packages/queue/queue.sender.ts` `send`: `traceparent` текущего span'а (`Effect.currentSpan`,
-  `HttpTraceContext.toHeaders`) как `MessageAttributes.traceparent` (`DataType: 'String'`).
-- `packages/queue/queue.consumer.ts`: `SqsRecord.messageAttributes` optional
-  `Record<string, { stringValue?: string }>`; в `run` — `Effect.withSpan('process <queue>',
-  { kind: 'consumer', parent })`, parent из `HttpTraceContext.w3c`; без атрибута — обычный span
-  под `POST /events`. Не `Effect.linkSpans` (вешает link на каждый вложенный span).
-- Тест в `packages/queue/__tests__/`: запись с `traceparent` даёт span с тем `traceId`
-  (`Effect.currentSpan` внутри `handle`); запись без — своим.
-
-Не в этой поставке: flush перед ответом `POST /events` в Lambda и живой AWS — roadmap
-`aws-deployment` (9), owner 2026-11-14.
-
-Проверка (visible): `make up` печатает ссылку на Grafana; README-скрипт одного сообщения; в Tempo
-одна трасса с корнем api `POST`, под ним сервисы, SQL, `QueueSender.send` и `process
-assistant-message` worker'а с `LanguageModel.generateObject`.
-
-### Notes
-
-- [N:ai] Shape принят (owner, 2026-11-14) с двумя правками по пяти вопросам: экспорт тремя
-  строками в `layer.ts`, без `kernel/telemetry` (вопрос 1: workspace дороже двух копий; причина
-  для него появится, если `aws-deployment` добавит общий flush); контейнер поднимается всегда,
-  без `Option` (вопрос 1: ветка лишняя, Intent — телеметрия в каждом worktree). Порядок pieces:
-  экспорт → трасса через SQS → контейнер на worktree и docs.
-- [N:ai] Stop (бюджет, rail 4): код шага ~138 строк против «reference + 90» — L5.1 12, L5.2 30,
-  L5.3 100 (из них 40 — `telemetry.ts` из reference `feat/observability`, 15 — перенос строк
-  Biome в `settings.ts`). Жду слова владельца: принять или резать.
-- [N:ai] Владелец принял перерасход (2026-11-14): Budget L5 — reference + 140 lines.
-
-### Pieces
-
-- [N:ai] L5.1 Экспорт из api и worker: 12 строк в двух `layer.ts`, теста нет — контракт виден
-  только прогоном. Прогон: `otel-lgtm` 0.40.0 вручную (Grafana `:3003`, OTLP `:4318`), api через
-  `bun --env-file=../../.env --env-file=../../.env.pulumi main.ts`, `GET /health` → лог в Loki с
-  `trace_id`, по этому id Tempo отдаёт трассу с `service.name=api`. `make check` зелёный.
-- [N:ai] L5.2 Трасса через SQS: `QueueSender.send` кладёт `traceparent` своего span'а в
-  `MessageAttributes`; `QueueConsumer` читает `messageAttributes.traceparent` и открывает
-  `process <queue>` (kind `consumer`) с этим parent, без атрибута — под текущим span'ом. Имя по
-  OTel semconv: `{messaging.operation.name} {destination}`, parent-child разрешён для одного
-  сообщения (opentelemetry.io/docs/specs/semconv/messaging/messaging-spans). `messageAttributes`
-  обязателен: AWS и MiniStack шлют его всегда, пустым без атрибутов
-  (`/opt/ministack/ministack/services/lambda_svc.py:7538` в контейнере). 30 строк кода, тесты:
-  unit consumer'а (свой `traceId` и чужой), e2e отправителя (`traceparent` с `traceId` теста),
-  запись теста worker'а получила `messageAttributes: {}`. `make check` зелёный.
-- [N:ai] L5.3 Контейнер на worktree: `TelemetryConfig` (endpoint OTLP, `GRAFANA_PORT`) в
-  `kernel/config` с двумя строками в таблице его теста (написаны вместе с кодом, красными не
-  видел); `deployment/local/telemetry.ts` из `feat/observability` без `Option`; Makefile:
-  `NAME_TELEMETRY`, refresh всех контейнеров по wildcard URN, `down` и `reset` берут и
-  телеметрию, `make up` печатает ссылку на Grafana; `worktree.sh`: OTLP `4318 + 10N`, Grafana
-  `3003 + 10N`; `.env.example` с блоком `OTEL_*`; `.env` владельца: `GRAFANA_PORT` 3002 → 3003;
-  `docs/knowledge/observability.md`, строки в `tooling.md › Worktrees` и `aws.md`. Прогон: `make
-  up` создал `app-template-telemetry-4318` за 30 с и напечатал `Grafana: http://localhost:3003`;
-  `make down` → `make up` заменил оба остановленных контейнера; sed `worktree.sh` на копии `.env`
-  для N=1 дал 4328 и 3013, его проверки прошли. 100 строк кода, бюджет шага превышен (Notes).
-- [N:ai] Visible check L5: api и worker с `.env`, скрипт README (`POST /users`, `/chats`,
-  `/chats/<id>/messages`, опрос Run до `done`, 2,5 с) → трасса `c9bc53a547f022835bb2798c5658f6f3`:
-  66 span'ов, один корень api `POST` 320 мс; под `QueueSender.send` — `process assistant-message`
-  worker'а (2190 мс) с `GenerateAssistantMessageUseCase.generate`, SQL и
-  `LanguageModel.generateObject`, и `process chat-title` под вторым `QueueSender.send`.
-- [N:ai] L5.5 (REVIEW) Standards: образ `otel-lgtm` переехал в `kernel/config/telemetry.ts`
-  рядом с `ministackImage` (`packages/CLAUDE.md:3-4`: закреплённые образы — в kernel).
-- [N:ai] L5.5 (REVIEW) Standards: TSDoc на деструктуризации в `deployment/local/telemetry.ts`
-  стал одной `//`-строкой у `name` — зачем имя по порту OTLP и связь с `NAME_TELEMETRY`
-  (`comments.md`).
-- [N:ai] L5.5 (REVIEW) Standards: `deployment/CLAUDE.md:3` называет и контейнер телеметрии.
-- [N:ai] L5.5 (REVIEW) Hunt: `observability.md › Where to look` — пустая Grafana при запущенных
-  приложениях значит, что контейнер не работает: упавший экспорт выключает экспортёр на 60 с и
-  пишет об этом только на `Debug` (`effect/src/observability/OtlpExporter.ts:233-237`).
-
 ### Output
+
+Каждое сообщение пользователя — одна трасса в Grafana своего worktree: api `POST` → сервисы и
+SQL → `QueueSender.send` → `process <queue>` worker'а → `LanguageModel.generateObject`, логи api и
+worker внутри неё. Код: три строки `Otlp.layerFromConfig` в `layer.ts` каждого процесса;
+`traceparent` через `MessageAttributes` в `packages/queue`; контейнер `grafana/otel-lgtm` в
+`make up` с портами по `N`. Как увидеть: `make up` (печатает ссылку на Grafana), `make dev`,
+скрипт README, затем Tempo → `{ resource.service.name = "api" && name = "POST" }`. Описание:
+`docs/knowledge/observability.md`.
 
 ## Knowledge
 
@@ -205,6 +117,13 @@ assistant-message` worker'а с `LanguageModel.generateObject`.
 - Экспорт — `Otlp.layerFromConfig` в `layer.ts` процесса и переменные `OTEL_*`; в модулях, use
   cases, сервисах и репозиториях телеметрии нет: спаны дают `Effect.fn('<Service>.<method>')`,
   HTTP-сервер, `SqlClient`, `LanguageModel`, логи несут `trace_id` сами (L1, L4).
+- Экспорт — три строки в `layer.ts` каждого процесса, без своего workspace: workspace окупится,
+  когда появится общая логика, например flush в Lambda из `aws-deployment` (owner, 2026-11-14;
+  L5).
+- Бэкенд `grafana/otel-lgtm` поднимает `make up` всегда, без переключателя, по контейнеру на
+  worktree: OTLP `4318 + 10N`, Grafana `3003 + 10N` (owner, 2026-11-14; L5).
+- Span обработки называется `process <queue>`, kind `consumer`, по OTel semconv
+  `{messaging.operation.name} {destination}` (L5).
 - Переход локально → AWS — только переменные окружения, по сигналу: endpoint и `HEADERS` с
   bearer-ключом (L3; подтверждение на живом AWS — в `aws-deployment`).
 
