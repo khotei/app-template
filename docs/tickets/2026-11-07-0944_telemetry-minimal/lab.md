@@ -329,7 +329,9 @@ Reference: L2 (`[A:ai]` обоих researcher, прогон через MiniStack
   под `POST /events`. Не `Effect.linkSpans` (вешает link на каждый вложенный span).
 - Тест в `packages/queue/__tests__/`: запись с `traceparent` даёт span с тем `traceId`
   (`Effect.currentSpan` внутри `handle`); запись без — своим.
-- Не в этом шаге (Later): flush перед ответом `POST /events` в Lambda.
+- `apps/worker/worker.handler.ts` `POST /events`: после `consume` —
+  `Effect.serviceOption(OtlpExporter.Flusher)` и `flush` с `Effect.timeoutOption('1 second')`
+  (см. `[A:ai]` в Notes, вариант A; добавлено по `[D:ai]`, подтвердите).
 - Проверка (visible): README-скрипт одного сообщения; в Tempo одна трасса с корнем api `POST`
   и `assistant-message process` worker'а под `QueueSender.send`.
 
@@ -340,6 +342,45 @@ Web Adapter в container image на `provided.al2023`: все практичес
 вызов, collector как extension в образе, настройка экспортёра, Telemetry API, режимы LWA, что
 советует AWS для SQS-воркеров и как делают Powertools/Datadog/Honeycomb), цена каждого в коде и
 задержке. Researcher (opus high) отправлен 2026-11-14.
+  [A:ai] Настройкой экспортёра надёжности не добиться: server span закрывается уже после отдачи
+  ответа (`HttpMiddleware.ts:303-361`, `HttpEffect.ts:107-114`), а LWA 1.1.0 регистрируется как
+  extension без событий (`lib.rs:1224-1273`), так что после ответа среду ничто не держит. Три
+  надёжных схемы; ничего не запускалось на AWS, источники — спецификация OTel, исходники
+  инструментаций, LWA, collector-extension, Datadog, документация AWS.
+  - **A. Flush до ответа** — так делают официальные OTel-инструментации Lambda: JS
+    `_endInvocationSpanAndFlush` ждёт `Promise.all(flushers)` без таймаута
+    (`instrumentation.ts:807-843`), Python — таймаут 30 с, Java — 1 с; спецификация: «ForceFlush …
+    for FaaS providers that may suspend the process» (`trace/sdk.md:1100-1102`). У нас — 3–10
+    строк в `POST /events` (`Flusher.flush` + `Effect.timeoutOption`, Flusher в графе есть).
+    Цена: один OTLP-раунд до ответа — для SQS-воркера её платит только billed duration, для api её
+    ждал бы пользователь («hundreds of milliseconds», Collector README). Теряется: сам server span
+    до следующего вызова; при провале экспорта буфер сбрасывается и экспортёр молчит 60 с
+    (`OtlpExporter.ts:233-238`).
+  - **B. Flush после ответа через in-process extension** (паттерн lambda-otel-lite): процесс
+    регистрируется на `INVOKE`, после ответа ждёт закрытия server span, flush, `next`. 40–70
+    строк, 0 задержки для вызывающего, billed duration растёт на flush. Не проверено, что Lambda
+    примет регистрацию от Bun рядом с LWA.
+  - **C. Runtime API proxy LWA** (`AWS_LWA_LAMBDA_RUNTIME_API_PROXY`, `lib.rs:1493-1505`):
+    удерживать `GET /invocation/next` до конца flush. 60–100 строк, не запускалось.
+  - **D. OTel Collector extension внутри образа**: ADOT-слоя для `provided.al2023` нет, но
+    содержимое слоя копируется в образ (`/opt/extensions/collector`, 54 МБ arm64, слой 0.24.0);
+    приложение шлёт в `localhost:4318`, collector ждёт `platform.runtimeDone`, досылает и зовёт
+    `next` (`manager.go:72-77, 157-180`). Окно shutdown не меняется — LWA уже внешний extension,
+    2000 мс. Цена: cold start (единственная цифра — ~180–200 мс, отчёт 2022), память, образ;
+    приложению всё равно нужен A или B до ответа — collector приложение не ждёт.
+  - **E. Только настройка** (`OTEL_BSP_SCHEDULE_DELAY`, `…_MAX_EXPORT_BATCH_SIZE`,
+    `OTEL_EXPORTER_OTLP_TIMEOUT ≤ 1500`): 0 строк, но server span теряется всегда, а экспорт в
+    полёте — при заморозке; работает «обычно», не надёжно.
+  - Не подходят: Telemetry API (только для extension), `callbackWaitsForEmptyEventLoop` (Node
+    managed runtime), response streaming и `AWS_LWA_ASYNC_INIT` (времени после ответа не дают).
+    **H. Lambda Managed Instances** — среда не замораживается, 0 строк, но EC2-цена +15 % и без
+    scale to zero. Для SQS AWS советует Active tracing (сегменты платформы, не наши спаны); X-Ray
+    SDK в maintenance с 2026-02-25, AWS сам ведёт к OpenTelemetry. Powertools пишут EMF в stdout;
+    Datadog extension флашит в конце каждого вызова первые 20 вызовов, дальше раз в 20 с.
+  [D:ai] Сейчас — A в worker (3 строки в `POST /events`, в Shape L6, цена только billed
+  duration); api оставить на интервале экспортёра (E) до тикета деплоя, где решить между D и B —
+  там же, где проверяется живой AWS. Отвергнуто сейчас: D — 54 МБ и cold start ради того, что для
+  worker даёт A; B/C — непроверенный код ради api, который в AWS ещё не задеплоен.
 
 ### Pieces
 
