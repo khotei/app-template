@@ -124,7 +124,7 @@ Reference: L1 и L2 (`20_otlp-tracing.ts` как есть, `otel-lgtm` 0.40.0, �
 - `packages/queue/queue.sender.ts` `send`: `traceparent` текущего span'а (`Effect.currentSpan`,
   `HttpTraceContext.toHeaders`) как `MessageAttributes.traceparent` (`DataType: 'String'`).
 - `packages/queue/queue.consumer.ts`: `SqsRecord.messageAttributes` optional
-  `Record<string, { stringValue?: string }>`; в `run` — `Effect.withSpan('<queue> process',
+  `Record<string, { stringValue?: string }>`; в `run` — `Effect.withSpan('process <queue>',
   { kind: 'consumer', parent })`, parent из `HttpTraceContext.w3c`; без атрибута — обычный span
   под `POST /events`. Не `Effect.linkSpans` (вешает link на каждый вложенный span).
 - Тест в `packages/queue/__tests__/`: запись с `traceparent` даёт span с тем `traceId`
@@ -134,8 +134,8 @@ Reference: L1 и L2 (`20_otlp-tracing.ts` как есть, `otel-lgtm` 0.40.0, �
 `aws-deployment` (9), owner 2026-11-14.
 
 Проверка (visible): `make up` печатает ссылку на Grafana; README-скрипт одного сообщения; в Tempo
-одна трасса с корнем api `POST`, под ним сервисы, SQL, `QueueSender.send` и `assistant-message
-process` worker'а с `LanguageModel.generateObject`.
+одна трасса с корнем api `POST`, под ним сервисы, SQL, `QueueSender.send` и `process
+assistant-message` worker'а с `LanguageModel.generateObject`.
 
 ### Notes
 
@@ -151,6 +151,15 @@ process` worker'а с `LanguageModel.generateObject`.
   только прогоном. Прогон: `otel-lgtm` 0.40.0 вручную (Grafana `:3003`, OTLP `:4318`), api через
   `bun --env-file=../../.env --env-file=../../.env.pulumi main.ts`, `GET /health` → лог в Loki с
   `trace_id`, по этому id Tempo отдаёт трассу с `service.name=api`. `make check` зелёный.
+- [N:ai] L5.2 Трасса через SQS: `QueueSender.send` кладёт `traceparent` своего span'а в
+  `MessageAttributes`; `QueueConsumer` читает `messageAttributes.traceparent` и открывает
+  `process <queue>` (kind `consumer`) с этим parent, без атрибута — под текущим span'ом. Имя по
+  OTel semconv: `{messaging.operation.name} {destination}`, parent-child разрешён для одного
+  сообщения (opentelemetry.io/docs/specs/semconv/messaging/messaging-spans). `messageAttributes`
+  обязателен: AWS и MiniStack шлют его всегда, пустым без атрибутов
+  (`/opt/ministack/ministack/services/lambda_svc.py:7538` в контейнере). 30 строк кода, тесты:
+  unit consumer'а (свой `traceId` и чужой), e2e отправителя (`traceparent` с `traceId` теста),
+  запись теста worker'а получила `messageAttributes: {}`. `make check` зелёный.
 
 ### Output
 

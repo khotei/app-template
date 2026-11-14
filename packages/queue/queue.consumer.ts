@@ -1,4 +1,5 @@
 import { Array as Arr, Context, Effect, Exit, Layer, Option, Schema } from 'effect'
+import { Headers, HttpTraceContext } from 'effect/http'
 
 import type { QueueDefinition } from '#queue/queue.model'
 
@@ -6,6 +7,10 @@ const SqsRecord = Schema.Struct({
   messageId: Schema.String,
   body: Schema.String,
   eventSourceARN: Schema.String,
+  /** `traceparent` is the trace `QueueSender` sent the message in. */
+  messageAttributes: Schema.Struct({
+    traceparent: Schema.optionalKey(Schema.Struct({ stringValue: Schema.String })),
+  }),
 })
 
 type SqsRecord = typeof SqsRecord.Type
@@ -26,7 +31,8 @@ export class QueueConsumer extends Context.Service<
      * Runs `handle` on each record's message, decoded by the definition's schema, and answers the
      * records whose handler died: SQS delivers them again until the queue's `maxReceiveCount`
      * dead-letters them. A handler has no error channel, so it settles its work's failure itself.
-     * A body that does not decode never will, so it is logged and acknowledged, unrun.
+     * A body that does not decode never will, so it is logged and acknowledged, unrun. Each
+     * record runs in a span under the one that sent it, else under the current span.
      */
     readonly consume: <A, I, R>(
       definition: QueueDefinition<Schema.Codec<A, I>>,
@@ -44,6 +50,11 @@ export class QueueConsumer extends Context.Service<
       )
 
       function run(record: SqsRecord) {
+        const sender = Option.fromUndefinedOr(record.messageAttributes.traceparent).pipe(
+          Option.flatMap(({ stringValue }) =>
+            HttpTraceContext.w3c(Headers.fromInput({ traceparent: stringValue })),
+          ),
+        )
         return decode(record.body).pipe(
           Effect.matchEffect({
             onFailure: (error) => Effect.logError('queue message does not decode', error),
@@ -51,6 +62,10 @@ export class QueueConsumer extends Context.Service<
           }),
           Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
           Effect.annotateLogs({ messageId: record.messageId }),
+          Effect.withSpan(`process ${definition.name}`, {
+            kind: 'consumer',
+            parent: Option.getOrUndefined(sender),
+          }),
           Effect.exit,
           Effect.map((exit) =>
             Exit.isSuccess(exit)
