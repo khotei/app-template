@@ -9,7 +9,9 @@ const SqsRecord = Schema.Struct({
   eventSourceARN: Schema.String,
   /** `traceparent` is the trace `QueueSender` sent the message in. */
   messageAttributes: Schema.Struct({
-    traceparent: Schema.optionalKey(Schema.Struct({ stringValue: Schema.String })),
+    traceparent: Schema.optionalKey(
+      Schema.Struct({ stringValue: Schema.optionalKey(Schema.String) }),
+    ),
   }),
 })
 

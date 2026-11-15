@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Order, Record as Rec, Ref, Schema } from 'effect'
 
-import { QueueConsumer, type SqsEvent } from '#queue/queue.consumer'
+import { QueueConsumer, SqsEvent } from '#queue/queue.consumer'
 
 const pingQueue = { name: 'pings', schema: Schema.Struct({ ping: Schema.String }) }
 
@@ -62,6 +62,21 @@ describe('QueueConsumer.consume', () => {
       assert.strictEqual(traced, traceId)
       assert.notStrictEqual(untraced, traceId)
     }).pipe(Effect.provide(QueueConsumer.layer)),
+  )
+
+  it.effect('decodes an event whose traceparent attribute holds no string', () =>
+    Effect.gen(function* () {
+      const event = yield* Schema.decodeUnknownEffect(SqsEvent)({
+        Records: [
+          {
+            ...buildRecord('a', '{"ping":"ok"}'),
+            messageAttributes: { traceparent: { dataType: 'Binary', binaryValue: 'AA==' } },
+          },
+        ],
+      })
+
+      assert.strictEqual(event.Records.length, 1)
+    }),
   )
 
   it.effect('acknowledges a body that does not decode, unrun', () =>

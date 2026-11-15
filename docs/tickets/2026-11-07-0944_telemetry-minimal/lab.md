@@ -103,6 +103,22 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
 скрипт README, затем Tempo → `{ resource.service.name = "api" && name = "POST" }`. Описание:
 `docs/knowledge/observability.md`.
 
+## L6 — Later
+
+### Shape
+
+Пункты, которые выбрал владелец (2026-11-15): атрибут `traceparent` не строкой не роняет пакет;
+`OTEL_*`, которые Effect читает сам, — исключение в правиле настроек.
+
+### Notes
+
+### Pieces
+
+- [N:ai] L6.4 `stringValue` атрибута `traceparent` необязателен
+  (`packages/queue/queue.consumer.ts:12`): запись с атрибутом `Binary` декодируется и
+  обрабатывается под текущим span'ом, а не роняет весь пакет `POST /events`. Тест: событие с
+  `traceparent` `{ dataType: 'Binary', binaryValue }` проходит схему `SqsEvent` (был красным).
+
 ## Knowledge
 
 - Каждый входящий HTTP-запрос — корень трассы, и это не глушится: `POST /events` worker'а и
@@ -148,7 +164,8 @@ source.>
   второй — 3 мс; похоже на холодный запрос к MiniStack, не смотрел. Fate: open.
 - Endpoint OTLP без порта даёт `Number('')` = 0 в `deployment/local/telemetry.ts`: Docker выдаст
   случайный порт, приложения шлют мимо; у MiniStack на это есть отказ (`ministack.ts`), здесь нет.
-  Fate: open.
+  Fate: dropped — слово owner 2026-11-15: полный URL с портом — забота разработчика,
+  `make worktree` порт проверяет.
 - `Otlp.layerFromConfig` читает `OTEL_*` своим `Config`, мимо слоёв `kernel/config`
   (`.claude/rules/tooling.md`); так решено в Knowledge, но правило этого не говорит. С L5.3
   `OTEL_EXPORTER_OTLP_ENDPOINT` читают двое: Effect и `TelemetryConfig` (`kernel/config/config.ts`,
@@ -158,7 +175,7 @@ source.>
   `SqsEvent` (`packages/queue/queue.consumer.ts:12`): `POST /events` отвергает весь пакет, и
   каждая его запись, верные тоже, доставляется заново до DLQ. Сейчас недостижимо: `QueueSender`
   пишет только `String`. Исправление — `stringValue: Schema.optionalKey(Schema.String)`
-  (ревью L5, hunt, claimed). Fate: open.
+  (ревью L5, hunt, claimed). Fate: done in L6.4.
 
 - Порты телеметрии на worktree: `worktree.sh` двигает только API/WEB/WORKER/AWS/RDS и STAGE,
   `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT` остаются общими с основным деревом; в прогоне
@@ -171,7 +188,8 @@ source.>
   (`{ resource.service.name = "worker" && name = "POST" }` в TraceQL).
 - Метрики по маршруту и статусу: Tempo span metrics считают по `span_name` и `status_code`;
   измерения `http.route`/`http.response.status_code` — конфиг metrics-generator в `otel-lgtm`.
-  Fate: open.
+  Fate: в roadmap `Later` при закрытии лаборатории (owner 2026-11-15); имя
+  server span'а — только метод (`POST`), поэтому все POST-маршруты сейчас в одной линии.
 - Shutdown в Lambda: финальный flush экспортёра 3 с против окна 2 с (`OTEL_EXPORTER_OTLP_*_TIMEOUT`
   или `shutdownTimeout`), и flush до ответа на `POST /events`; варианты — `[A:ai]` в истории L6
   (`git log -p -- docs/tickets/2026-11-07-0944_telemetry-minimal/lab.md`, раунд L6.2).
