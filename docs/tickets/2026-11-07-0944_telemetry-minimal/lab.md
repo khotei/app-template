@@ -118,6 +118,9 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
   (`packages/queue/queue.consumer.ts:12`): запись с атрибутом `Binary` декодируется и
   обрабатывается под текущим span'ом, а не роняет весь пакет `POST /events`. Тест: событие с
   `traceparent` `{ dataType: 'Binary', binaryValue }` проходит схему `SqsEvent` (был красным).
+- [N:ai] L6.5 `.claude/rules/tooling.md`: настройки читаются только через `kernel/config`, кроме
+  `OTEL_*`, которые `Otlp.layerFromConfig` читает сам; второй читатель endpoint — Pulumi через
+  `TelemetryConfig`, ему нужен только порт.
 
 ## Knowledge
 
@@ -161,7 +164,7 @@ source.>
   Fate: done in L5.3 — задержка индекса: та же трасса нашлась поиском через ~2 мин; строка в
   `observability.md › Where to look`.
 - Первый `QueueSender.send` api: `QueueClient.getUrl` 281 мс из 288 (трасса visible check L5),
-  второй — 3 мс; похоже на холодный запрос к MiniStack, не смотрел. Fate: open.
+  второй — 3 мс; похоже на холодный запрос к MiniStack, не смотрел. Fate: в roadmap `Later` при закрытии лаборатории (owner 2026-11-15).
 - Endpoint OTLP без порта даёт `Number('')` = 0 в `deployment/local/telemetry.ts`: Docker выдаст
   случайный порт, приложения шлют мимо; у MiniStack на это есть отказ (`ministack.ts`), здесь нет.
   Fate: dropped — слово owner 2026-11-15: полный URL с портом — забота разработчика,
@@ -170,7 +173,7 @@ source.>
   (`.claude/rules/tooling.md`); так решено в Knowledge, но правило этого не говорит. С L5.3
   `OTEL_EXPORTER_OTLP_ENDPOINT` читают двое: Effect и `TelemetryConfig` (`kernel/config/config.ts`,
   для Pulumi). Варианты: строка-исключение в `tooling.md` или один читатель (ревью L5, Standards).
-  Fate: open.
+  Fate: done in L6.5 — исключение в `.claude/rules/tooling.md`.
 - Атрибут `traceparent` без `stringValue` (тип `Binary` от чужого отправителя) не проходит схему
   `SqsEvent` (`packages/queue/queue.consumer.ts:12`): `POST /events` отвергает весь пакет, и
   каждая его запись, верные тоже, доставляется заново до DLQ. Сейчас недостижимо: `QueueSender`
@@ -181,7 +184,8 @@ source.>
   `OTEL_EXPORTER_OTLP_ENDPOINT` и `GRAFANA_PORT` остаются общими с основным деревом; в прогоне
   L1 выставлены руками. Fate: done in L5 (Shape, группа «контейнер на worktree»).
 - Два LLM-вызова висели 75 с и 55 с до `TransportError` и ушли на повтор; что это — таймаут
-  клиента, сеть или политика повторов `AssistantLlmFromConfig` — не смотрел. Fate: open.
+  клиента, сеть или политика повторов `AssistantLlmFromConfig` — не смотрел. Fate: dropped — слово owner 2026-11-15: ошибка при обрыве сети ожидаема, повтор есть
+  (`application/chat/infrastructure/assistant.llm.ts:178`).
 - Шум трасс: опрос `GET /chats/…/messages` и `/health` — трасса на каждый; `POST /events`
   worker'а — одиночная трасса рядом с трассой запроса. Fate: оставить как есть — слово owner
   2026-11-14: откуда бы ни дёргали worker, его вызов и лог не теряются; в UI фильтруется
