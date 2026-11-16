@@ -167,6 +167,15 @@ them? (the owner, chat)
 [R] What limits do other companies put on a user's files? Ours should be configured in `.env`
 or in a ts file, easy to change. (the owner, chat)
   [N:ai] Sent to one researcher: the limits of the chat products and their apis.
+[D] The limit per user is use-case or domain level, not the api contract's: the api keeps its
+own limits, and the business verifies against what the user already holds. (the owner, chat)
+  [A:ai] Agreed, and of the two the domain: a use case holds no rule of its own
+  (`docs/knowledge/glossary.md`, Use case), and an upload is one service's method, with no use
+  case above it. The rule is a pure function in the attachment's model over what the user
+  holds and the limit, its number a constant beside it, as `unboundLifetime` is today
+  (`application/chat/domain/attachment.model.ts:54`); the service that uploads reads the
+  user's rows and calls it. `http-api/shared/limits.ts` keeps what one request may carry,
+  checked by the schema before any code runs.
 
 ### Pieces
 
