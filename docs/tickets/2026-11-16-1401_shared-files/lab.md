@@ -335,6 +335,29 @@ owner, chat)
   roadmap's entry 16.
   [N:ai] Rejected, a reviewer's: objects left in the bucket after a reset. `make reset` removes
   MiniStack and `.data` (`Makefile:67`), and no deployed bucket exists.
+[Q] It will be a link: the file is one, attached in different places, and the duplicates can be
+removed, also when the message goes to the AI. Or how does Claude organise files in a chat, a
+message? (the owner, chat)
+  [A:ai] Right, and "one table cannot serve a chat's read" was too strong: it serves it with
+  one dedupe in the read. Claude keeps no file on a chat at all (read 2026-11-16,
+  <https://platform.claude.com/docs/en/manage-claude/compliance-content-data>): each message
+  carries its own, "`files` are the files and text attachments ... the user attached to the
+  message"; files "aren't listed independently", their ids "come from the chat messages
+  endpoint ... or, for project-level uploads, from the project attachments endpoint"; a chat's
+  delete "also deletes the chat's messages and any files attached to those messages". The
+  shared level is the project above the chats, whose attachments serve every chat in it.
+  [D:ai] The duplicates have one cause, a bind to the chat beside the binds to its messages,
+  and Claude's shape has no such bind. Take it out of the minimal feature: an attachment is
+  bound to messages only, in one table; the user's own is reused by a send in any chat; a
+  chat's attachments are the ones uploaded into it, read by the owner mark as the relation
+  reads them today (`kernel/data/relations.ts:18`). The assistant reads every message's files
+  in every reply already
+  (`application/use-cases/chat/generate-assistant-message.use-case.ts:87`), so a file sent once
+  is the chat's context from then on; what goes is a file in the context with no message.
+  With it go `PUT` and `DELETE` under a chat, the chat's read through a bind table, and the
+  chat's delete that could remove a user's bytes: it deletes `chat.attachments`, now the
+  chat's own by construction. This rewrites three settled lines of Knowledge, on the owner's
+  word only.
 
 ### Pieces
 
@@ -391,6 +414,11 @@ source.>
 - An attachment a chat holds and a message of it holds too reaches the assistant twice. Open,
   L2.
 - Make a chat's attachment the user's own ("save to my files"); until then, upload it again.
+  Open.
+- Bind the user's own attachment to a chat with no message, as its context for every reply
+  (`PUT` and `DELETE /chats/:chatId/attachments/:attachmentId`). Open, if the owner takes it
+  out of the minimal feature.
+- One attachment sent in two messages of a chat reaches the assistant twice; send it once.
   Open.
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
