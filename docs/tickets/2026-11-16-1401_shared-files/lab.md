@@ -64,7 +64,7 @@ attachments  id, user_id, chat_id? -> chats (its owner, none for the user's own)
 model     the rules, pure functions over the values passed in
 services  the plain records; the records with their bytes, calling a rule of their own model
 use case  a flow that needs the chat's service too: an upload into a chat, a link, an unlink,
-          the send; it passes what the services read to a rule over both
+          the send; it takes checked data from a service and pipes no rule itself
 handler   one service for the user's own upload, the list, the read, the download, the delete
 ```
 
@@ -268,6 +268,16 @@ the use case gets the data and passes it to the pure functions. (the owner, chat
   [N:ai] In Knowledge. Which of the two, per rule: a rule over its own model's records is
   called inside that model's service, so the method is safe alone (`layering.md:32`); a rule
   over an attachment and a chat is called by the use case, on what the two services read.
+[D] Like `application/chat/services/live-attachment.service.ts`. (the owner, chat)
+  [A:ai] Read as: the service that composes the read with the rule has this file's shape, a
+  thin layer over the plain records whose every read pipes the model's rule
+  (`live-attachment.service.ts:30`), so a use case takes checked data from it and pipes no
+  rule itself. I assume that reading; the owner corrects it if wrong.
+  [D:ai] The file's own rule is the expiry, which went, so its body goes with it; its place
+  takes the new rule over the same two reads: the attachments one chat may use, the user's own
+  and that chat's, any other read as not found. The send's use case and L2's link read
+  through it, in place of the pipe drafted in the use case. The layer's name is the
+  contract's to settle.
 
 ### Pieces
 
