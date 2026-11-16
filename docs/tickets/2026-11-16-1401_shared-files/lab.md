@@ -167,6 +167,21 @@ them? (the owner, chat)
 [R] What limits do other companies put on a user's files? Ours should be configured in `.env`
 or in a ts file, easy to change. (the owner, chat)
   [N:ai] Sent to one researcher: the limits of the chat products and their apis.
+  [A:ai] Four kinds recur (researcher, read 2026-11-16; the ChatGPT page from its archive copy
+  of 2026-09-18, the live one answering 403). A size per file: ChatGPT "512MB per file", Claude
+  "500MB per file" in a chat and "30MB per file" in a project, Gemini "up to 100 MB". A count
+  per scope: Claude "Up to 20 files per chat", Gemini "up to 10" a prompt, ChatGPT 5 to 40 a
+  project by plan. A storage total: ChatGPT "Each end-user is capped at 25GB. Each
+  organization is capped at 100GB", Perplexity "5 GB of total storage" a project, OpenAI's api
+  "up to 2.5 TB" a project, Anthropic's 1 TB an organisation. A rolling upload allowance:
+  ChatGPT "up to 80 files every 3 hours", free users "3 file uploads per day". At the limit
+  Anthropic's api answers "Storage limit exceeded (400)" and "File too large (413)". Sources:
+  <https://web.archive.org/web/20260918172014/https://help.openai.com/en/articles/8555545-file-uploads-faq>,
+  <https://support.claude.com/en/articles/8241126>,
+  <https://support.google.com/gemini/answer/14903178>,
+  <https://www.perplexity.ai/help-center/en/articles/10354807>,
+  <https://platform.claude.com/docs/en/build-with-claude/files>. Not verified: a cap of files
+  per message in ChatGPT, any storage total in Claude's apps.
 [D] The limit per user is use-case or domain level, not the api contract's: the api keeps its
 own limits, and the business verifies against what the user already holds. (the owner, chat)
   [A:ai] Agreed, and of the two the domain: a use case holds no rule of its own
