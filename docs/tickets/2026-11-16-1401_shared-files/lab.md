@@ -15,7 +15,7 @@ a minimal working feature first; edge cases and improvements of little value com
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | An attachment never expires: one left unsent stays readable, and the expiry's code, tag and bucket rule are gone | minimal | build | done |
-| L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | in progress |
+| L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | done |
 | L3 | An upload into a chat stays out of the library and goes with the chat; then the play of the whole feature | minimal | build | todo |
 | L4 | Right: what the play and the reviews change | right | build | todo |
 | L5 | Later: the items of the open list the owner picks, the limit per user first | hard | build | todo |
@@ -38,48 +38,54 @@ answers nothing; `make check`.
 
 ## L2 — The library reused
 
+### Output
+
+The library is reused. `GET /attachments` lists the user's library, the attachments no chat
+holds, in upload order. A send of a library attachment adds to the chat a record of its own,
+bound to the message and naming the library one in `sourceId`; the library attachment stays,
+to be sent again in any chat, and the bytes are stored once, read by `buildFileId`. A send
+refuses an attachment of another chat with `404` and one a message holds with `409`, both
+before the message is stored. A delete of a library attachment answers `409` with `chatIds`
+while a message holds a record sent from it, and goes once those chats are deleted; a send
+that adds a record between the delete's check and its write makes it die on
+`attachments_source_id_fk`, a `500`. A chat's delete keeps the library attachment and its
+bytes.
+
+In code: `source_id` with its check and key; the model's `sourceId`, `isInLibrary`,
+`buildFileId`, `buildAttachmentFrom`, `ensureAllReachableFrom` and `ensureUnused`;
+`AttachmentService.list`; `AttachmentBoundError.chatIds`. `bind`'s update of a chat's own
+attachment has no row to bind until L3's upload into a chat.
+
+See it: `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts -t 'library attachment'`
+(one upload sent to two chats; its delete refused, naming the chat, until the chat is
+deleted); `bun --bun vitest run --project unit
+apps/api/__tests__/attachment/attachment.handler.test.ts -t 'GET /attachments answers'`;
+`make check`.
+
+## L3 — An upload into a chat
+
 ### Shape
 
-Accepted by the owner in the chat, the names proposed by the agent; the contract in code is the
-next move. It serves L1 to L3.
+Carried from L2's Shape, which the owner accepted in the chat, the names proposed by the
+agent: the lines L3 still builds, as they stood there.
 
 An **Attachment** is a file a user uploaded, in the place where it lives: the user's
 **library**, or one chat. The place is set by the upload. A chat's attachment is bound to one
-message by a send, as today. A send of a library attachment leaves it in the library and adds
-to the chat a record of its own, bound to the message, that names the library attachment as its
-source and carries its name, type and size; the bytes are stored once, under the source's id.
+message by a send, as today.
 
 ```text
-POST   /attachments                          upload into the library          (today)
-GET    /attachments                          the library, in upload order     (new, L2)
-GET    /attachments/:attachmentId            any attachment of the user       (today)
-GET    /attachments/:attachmentId/download   302 to the bytes                 (today)
-DELETE /attachments/:attachmentId            409 while a message holds it,    (today, wider in L2)
-                                             or holds one sent from it
 POST   /chats/:chatId/attachments            upload into the chat             (new, L3)
-POST   /chats/:chatId/messages               { text, attachmentIds }          (today)
 ```
 
 ```text
-attachments  + source_id? -> attachments, no cascade: the library attachment it was sent from
-             a message without a chat is refused, as is a source without a message
-             chat_id -> chats, cascading, so an unsent upload goes with its chat
+attachments  chat_id -> chats, cascading, so an unsent upload goes with its chat
 ```
 
 | Name | What it is |
 |---|---|
-| `sourceId` | the model's and the wire's field for `source_id`, an `Option` |
-| `isInLibrary` | predicate: no chat |
-| `buildFileId` | the id the bytes are stored under: the source's, else its own |
-| `buildAttachmentFrom` | the chat's record of a library attachment, for a message |
-| `ensureAllReachableFrom(chatId)` | each is in the library or in this chat, else not found |
-| `ensureUnused(uses)` | refuses a delete while a record names it, with their chats |
-| `AttachmentBoundError` | gains `chatIds`; no new error |
-| `AttachmentService.list` | the user's library, as `ChatService.list` is the user's chats |
 | `UploadChatAttachmentUseCase` | the chat's service, then the upload with the chat as place |
 
 ```text
-model     the rules above, pure, in `attachment.model.ts`
 services  `AttachmentService`, the plain records; `FileAttachmentService`, the records with
           their bytes: `upload` takes the place, `bind` binds a chat's and adds a library's
           record, `delete` reads the uses and calls the rule
@@ -89,40 +95,7 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
 
 ### Notes
 
-- [Q:ai] The first of the five questions fails for the send's swap. With
-  `ensureAllReachableFrom` in place of `ensureAllUnbound`
-  (`application/use-cases/chat/create-user-message.use-case.ts:66`), an attachment of this chat
-  that a message already holds is refused by `bind` alone, after the message's insert (`:69`),
-  while `layering.md › Use cases` wants every check before the first write. Pipe both, reachable
-  then unbound, and keep `ensureAllUnbound`?
-  - [N:ai] The owner's "ok" in the chat: both are piped, reachable then unbound, and
-    `ensureAllUnbound` stays.
-
 ### Pieces
-
-- [N:ai] L2.2 `GET /attachments` answers the user's library, the attachments no chat holds, in
-  upload order; until the send's piece lands, a sent one still leaves it · visible:
-  `bun --bun vitest run --project unit apps/api/__tests__/attachment/attachment.handler.test.ts
-  -t 'GET /attachments answers'`
-- [N:ai] L2.3 The table, the model and the wire know a source: `source_id` names the attachment
-  a row was sent from, only a bound row may name one, and the source's delete dies while a row
-  names it; every attachment reads `sourceId: null` until the send's piece. The one migration
-  `init` is generated anew, so a local database needs `make reset && make up` · visible:
-  `bun --bun vitest run --project e2e kernel/data/__e2e__/attachment -t source`
-- [N:ai] L2.4 A send of a library attachment adds the chat's record of it and leaves it in the
-  library, so one upload is sent to two chats; the record is read, downloaded and handed to the
-  assistant by its source's bytes; one of another chat is `404`, one a message holds `409`,
-  both before the message is stored. The e2e races of two sends on one file went with the
-  shared row they raced on; the bind's update has no row to bind until L3's upload into a
-  chat. Until L2.5 the delete of a sent library attachment dies on the key, a `500` · visible:
-  `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts -t 'two concurrent sends of one
-  library attachment'`
-- [N:ai] L2.5 The delete of a library attachment is refused with `409` while a message holds a
-  record sent from it, and `AttachmentBoundError` names the chats in `chatIds`, on a send's
-  refusal too; once those chats are deleted, it goes. A send that adds a record between the
-  delete's check and its write makes the delete die on the key, a `500`, and keeps the bytes ·
-  visible: `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts -t 'refuses its
-  delete'`
 
 ### Output
 
@@ -140,6 +113,8 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
 - The bytes are stored once, under the source's id. A delete is refused with `409`, naming the
   chats, while a message holds the attachment or one sent from it; a key from a record to its
   source refuses the race in the write.
+- A send refuses an attachment of another chat as not found and one a message holds as
+  bound, both before the message is stored.
 - A message has no attachment routes of its own, and a chat has none but its upload: each
   read carries its attachments, and a file enters a chat's context by a send.
 - An attachment does not expire: the 24-hour lifetime of an unbound one, the `unbound` tag and
