@@ -98,6 +98,14 @@ it? (the owner, chat)
   unlinks: `PUT` attaches, `DELETE` removes from that chat and leaves the attachment with the
   user. The alert is the `409` of `DELETE /attachments/:attachmentId`, naming where it is held.
   An upload straight into a chat stays in Later: without it the client makes two calls.
+[Q] About `POST /chats/:chatId/attachments` and `POST /chats/:chatId/messages`: we upload the
+file first and then attach it, and an existing one is only linked? These routes never upload,
+only link? (the owner, chat)
+  [A:ai] Yes. The bytes enter once, through `POST /attachments`
+  (`http-api/attachment/api-attachment.http.ts:20`); a chat's routes take ids and no bytes, as
+  the send does today with `attachmentIds` (`http-api/chat/api-chat.http.ts:53`). The link to a
+  chat is drafted as `PUT /chats/:chatId/attachments/:attachmentId`, not a `POST` with a body:
+  the id is in the path, and a repeat changes nothing.
 [D:ai] No expiry: an attachment lives until its owner deletes it (roadmap entry 16, inherited
   from `architecture-audit`). `unboundLifetime`
   (`application/chat/domain/attachment.model.ts:54`), `LiveAttachmentService`, the `unbound` tag
