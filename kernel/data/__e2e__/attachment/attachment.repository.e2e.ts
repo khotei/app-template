@@ -168,6 +168,25 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
+  it.effect('selects the records that name an attachment as their source', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const source = attachment('0192d4e0-7b3a-7c00-8000-00000000002d')
+      const record = {
+        ...attachment('0192d4e0-7b3a-7c00-8000-00000000002e'),
+        messageId,
+        chatId,
+        sourceId: source.id,
+      }
+      yield* insertChatWithMessage
+      yield* Effect.forEach([source, record], attachments.insert)
+
+      const selected = yield* attachments.selectMany({ userId, sourceId: source.id })
+
+      assertSchemaEquals(Attachments, selected, [record])
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
   it.effect('deletes the attachments asked for and keeps the rest', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository

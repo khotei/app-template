@@ -9,7 +9,7 @@ import {
   type ChatId,
   type RunId,
 } from '@app-template/application/chat'
-import { ApiClient, AttachmentNotFoundError } from '@app-template/http-api'
+import { ApiClient, AttachmentBoundError, AttachmentNotFoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
@@ -218,6 +218,35 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             photo,
           )
         }),
+    )
+
+    it.effect(
+      'a library attachment sent to a chat refuses its delete, naming the chat, until the chat is deleted',
+      () =>
+        Effect.gen(function* () {
+          const api = yield* ApiClient
+          yield* api.users.ensure()
+          const chat = yield* api.chats.create()
+          const photo = yield* uploadPhoto
+          const remove = api.attachments.delete({ params: { attachmentId: photo.id } })
+          const sent = yield* api.chats.createMessage({
+            params: { chatId: chat.id },
+            payload: { text: 'Look', attachmentIds: [photo.id] },
+          })
+
+          const refused = yield* remove.pipe(Effect.flip)
+          yield* pollSettledRun(chat.id, sent.id)
+          yield* api.chats.delete({ params: { chatId: chat.id } })
+          yield* remove
+
+          assertSchemaEquals(
+            AttachmentBoundError,
+            refused,
+            new AttachmentBoundError({ id: photo.id, chatIds: [chat.id] }),
+          )
+          assert.notDeepInclude(yield* api.attachments.list(), photo)
+        }),
+      30_000,
     )
   })
 })

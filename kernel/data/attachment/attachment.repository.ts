@@ -30,6 +30,7 @@ const encodeWhere = buildWhere<AttachmentEntitySelectWhere>({
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
   messageId: UndefinedOr.map(eqOrIsNull(attachments.messageId)),
   chatId: UndefinedOr.map(eqOrIsNull(attachments.chatId)),
+  sourceId: UndefinedOr.map(eqOrIsNull(attachments.sourceId)),
 })
 
 export class AttachmentRepository extends Context.Service<

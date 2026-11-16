@@ -117,6 +117,12 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   chat. Until L2.5 the delete of a sent library attachment dies on the key, a `500` · visible:
   `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts -t 'two concurrent sends of one
   library attachment'`
+- [N:ai] L2.5 The delete of a library attachment is refused with `409` while a message holds a
+  record sent from it, and `AttachmentBoundError` names the chats in `chatIds`, on a send's
+  refusal too; once those chats are deleted, it goes. A send that adds a record between the
+  delete's check and its write makes the delete die on the key, a `500`, and keeps the bytes ·
+  visible: `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts -t 'refuses its
+  delete'`
 
 ### Output
 
@@ -180,6 +186,9 @@ source.>
 - `deployment` imports nothing of the data layer since L1.1, yet the guard and its docs still
   allow it (`.misc/lint/biome-imports.grit:81`, `docs/knowledge/architecture.md:84`,
   `.claude/rules/modules.md:29`). Open.
+- `AttachmentBoundError.chatIds` may be empty by its type, though a refusal always has a chat
+  (`application/chat/domain/attachment.error.ts:16`): the model does not tie an attachment's
+  chat to its message, as the table's check does. Open.
 - The roadmap's entry 16 still names a pool, links and a `drive` module
   (`docs/knowledge/roadmap.md:501`). Open, at the lab's close: the roadmap on this branch is
   behind `feat/web-app`'s.

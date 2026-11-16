@@ -143,8 +143,27 @@ export const ensureAllReachableFrom =
 /** Fails `AttachmentBoundError` for an attachment a message holds. */
 export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(
   isUnbound,
-  (attachment) => new AttachmentBoundError({ id: attachment.id }),
+  (attachment) =>
+    new AttachmentBoundError({ id: attachment.id, chatIds: Option.toArray(attachment.chatId) }),
 )
+
+/**
+ * The attachment when `uses`, the records sent from it, are none; else `AttachmentBoundError`
+ * naming their chats, each once.
+ */
+export const ensureUnused =
+  (uses: ReadonlyArray<Attachment>) =>
+  (attachment: Attachment): Effect.Effect<Attachment, AttachmentBoundError> =>
+    Arr.match(uses, {
+      onEmpty: () => Effect.succeed(attachment),
+      onNonEmpty: (records) =>
+        Effect.fail(
+          new AttachmentBoundError({
+            id: attachment.id,
+            chatIds: pipe(records, Arr.map(Struct.get('chatId')), Arr.getSomes, Arr.dedupe),
+          }),
+        ),
+    })
 
 /** The attachments when no message holds any; else `AttachmentBoundError` naming the first bound. */
 export const ensureAllUnbound = (attachments: ReadonlyArray<Attachment>) =>

@@ -17,6 +17,7 @@ import {
   ensureAllStored,
   ensureFound,
   ensureUnbound,
+  ensureUnused,
   FileName,
   FileSize,
   MediaType,
@@ -138,7 +139,42 @@ describe('ensureUnbound', () => {
     Effect.gen(function* () {
       const error = yield* Effect.succeed(bound).pipe(ensureUnbound, Effect.flip)
 
-      assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
+      assertSchemaEquals(
+        AttachmentBoundError,
+        error,
+        new AttachmentBoundError({ id: bound.id, chatIds: [chatId] }),
+      )
+    }),
+  )
+})
+
+describe('ensureUnused', () => {
+  it.effect('answers an attachment no record names', () =>
+    Effect.gen(function* () {
+      assert.strictEqual(yield* pipe(unbound, ensureUnused([])), unbound)
+    }),
+  )
+
+  it.effect('fails AttachmentBoundError naming the chat of each record once', () =>
+    Effect.gen(function* () {
+      const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021')
+      const again = new Attachment({
+        ...record,
+        id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000027'),
+      })
+      const elsewhere = new Attachment({
+        ...record,
+        id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000028'),
+        chatId: Option.some(otherChatId),
+      })
+
+      const error = yield* pipe(unbound, ensureUnused([record, again, elsewhere]), Effect.flip)
+
+      assertSchemaEquals(
+        AttachmentBoundError,
+        error,
+        new AttachmentBoundError({ id: unbound.id, chatIds: [chatId, otherChatId] }),
+      )
     }),
   )
 })
@@ -154,7 +190,11 @@ describe('bindAttachment', () => {
     Effect.gen(function* () {
       const error = yield* bindAttachment(bound, message).pipe(Effect.flip)
 
-      assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: bound.id }))
+      assertSchemaEquals(
+        AttachmentBoundError,
+        error,
+        new AttachmentBoundError({ id: bound.id, chatIds: [chatId] }),
+      )
     }),
   )
 })

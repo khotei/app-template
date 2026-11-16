@@ -198,7 +198,11 @@ describe('CreateUserMessageUseCase', () => {
           .create(owner, chat.id, { text: 'Again', attachmentIds: [record.id] })
           .pipe(Effect.flip)
 
-        assertSchemaEquals(AttachmentBoundError, error, new AttachmentBoundError({ id: record.id }))
+        assertSchemaEquals(
+          AttachmentBoundError,
+          error,
+          new AttachmentBoundError({ id: record.id, chatIds: [chat.id] }),
+        )
         // The first send's message and its reply, and nothing of the refused one.
         assert.lengthOf(yield* selectMessages(chat.id), 2)
       }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))

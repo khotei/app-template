@@ -269,10 +269,30 @@ describe('FileAttachmentService', () => {
       assertSchemaEquals(
         AttachmentBoundError,
         error,
-        new AttachmentBoundError({ id: attachment.id }),
+        new AttachmentBoundError({ id: attachment.id, chatIds: [chatId] }),
       )
       assert.deepStrictEqual(bytes, Option.some(png))
     }).pipe(Effect.provide(FileAttachmentServiceTest)),
+  )
+
+  it.effect(
+    'delete of a library attachment sent to a chat is AttachmentBoundError naming the chat and keeps it whole',
+    () =>
+      Effect.gen(function* () {
+        const service = yield* FileAttachmentService
+        const source = yield* uploadPhoto
+        yield* service.bind([source], firstMessage)
+
+        const error = yield* service.delete({ id: source.id, userId: owner }).pipe(Effect.flip)
+
+        assertSchemaEquals(
+          AttachmentBoundError,
+          error,
+          new AttachmentBoundError({ id: source.id, chatIds: [chatId] }),
+        )
+        assertEquals(yield* selectAttachments([source.id]), [source])
+        assert.deepStrictEqual(yield* downloadBytes(source.id), Option.some(png))
+      }).pipe(Effect.provide(FileAttachmentServiceTest)),
   )
 
   it.effect('an attachment left unbound for 24 h is still read, downloaded and deleted', () =>

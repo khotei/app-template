@@ -17,10 +17,13 @@ export type AttachmentEntityWhere = Types.Simplify<
   >
 >
 
-/** A read may leave the ids out and take a user's rows; `chatId: null` finds those of no chat. */
+/**
+ * A read may leave the ids out and take a user's rows; `chatId: null` finds those of no chat,
+ * `sourceId` the records sent from that attachment.
+ */
 export type AttachmentEntitySelectWhere = Types.Simplify<
   RequireAtLeastOne<Pick<AttachmentEntityWhere, 'id' | 'userId'>> &
-    Partial<Pick<AttachmentEntity, 'messageId' | 'chatId'>>
+    Partial<Pick<AttachmentEntity, 'messageId' | 'chatId' | 'sourceId'>>
 >
 
 export type AttachmentEntitySet = Types.Simplify<

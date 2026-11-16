@@ -237,11 +237,14 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     (500), rolled back whole. An attachment of the chat itself is bound on its own row `where`
     `messageId` is still `none`, a write that dies unless it binds every row it names; a send
     with none skips that write, which would die on no rows.
-  - `FileAttachmentService.delete` checks the attachment unbound, then deletes it
-    through `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and
-    the bytes after the row, so a send binding it in between makes the delete die and keeps the
-    bytes. `AttachmentService.delete` deletes many attachments by the full `where` it is given,
-    then their bytes in one call, so without the guard it removes bound ones too.
+  - `FileAttachmentService.delete` reads the records sent from the attachment and refuses it
+    while a message holds it or one of them (`ensureUnbound`, `ensureUnused`,
+    `AttachmentBoundError` naming the chats, 409), then deletes it through
+    `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and the
+    bytes after the row, so a send binding it in between makes the delete die and keeps the
+    bytes; so does a send that adds a record of it in between, on `attachments_source_id_fk`.
+    `AttachmentService.delete` deletes many attachments by the full `where` it is given, then
+    their bytes in one call, so without the guard it removes bound ones too.
 
 `ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages,
 their attachments and its Runs go by the cascade, and `RETURNING` answers only the chat's row.

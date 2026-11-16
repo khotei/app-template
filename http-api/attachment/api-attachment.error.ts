@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { AttachmentId } from '#http-api/shared/ids'
+import { AttachmentId, ChatId } from '#http-api/shared/ids'
 
 export class AttachmentNotFoundError extends Schema.TaggedError<AttachmentNotFoundError>()(
   'AttachmentNotFoundError',
@@ -10,7 +10,7 @@ export class AttachmentNotFoundError extends Schema.TaggedError<AttachmentNotFou
 
 export class AttachmentBoundError extends Schema.TaggedError<AttachmentBoundError>()(
   'AttachmentBoundError',
-  { id: AttachmentId },
+  { id: AttachmentId, chatIds: Schema.Array(ChatId) },
   { httpApiStatus: 409 },
 ) {}
 

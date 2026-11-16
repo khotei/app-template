@@ -26,11 +26,12 @@ import {
   ensureAllStored,
   ensureFound,
   ensureUnbound,
+  ensureUnused,
   FileSize,
   isInLibrary,
 } from '#chat/domain/attachment.model'
 import type { Message } from '#chat/domain/message.model'
-import { encodeAttachment } from '#chat/services/attachment.mapper'
+import { decodeAttachments, encodeAttachment } from '#chat/services/attachment.mapper'
 import {
   type AttachmentGetManyWhere,
   AttachmentService,
@@ -70,7 +71,10 @@ export class FileAttachmentService extends Context.Service<
       attachments: ReadonlyArray<Attachment>,
       message: Message,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentBoundError>
-    /** Removes the user's attachment and its bytes while no message holds it. */
+    /**
+     * Removes the user's attachment and its bytes while no message holds it or a record sent
+     * from it; dies when a send binds it, or adds a record of it, after the check.
+     */
     readonly delete: (
       where: AttachmentWhere,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
@@ -179,7 +183,11 @@ export class FileAttachmentService extends Context.Service<
     })
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
-      yield* attachmentService.getOne(where).pipe(ensureUnbound)
+      const uses = yield* attachments
+        .selectMany({ userId: where.userId, sourceId: where.id })
+        .pipe(Effect.flatMap(decodeAttachments))
+
+      yield* attachmentService.getOne(where).pipe(ensureUnbound, Effect.flatMap(ensureUnused(uses)))
       // A send that binds it after the check makes this die, so its bytes stay.
       yield* attachmentService.delete({ id: [where.id], userId: where.userId, messageId: null })
     })

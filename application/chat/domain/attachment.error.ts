@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
 import { AttachmentId } from '#chat/domain/attachment.id'
+import { ChatId } from '#chat/domain/chat.id'
 
 export class AttachmentNotFoundError extends Schema.TaggedError<AttachmentNotFoundError>()(
   'AttachmentNotFoundError',
@@ -9,5 +10,9 @@ export class AttachmentNotFoundError extends Schema.TaggedError<AttachmentNotFou
 
 export class AttachmentBoundError extends Schema.TaggedError<AttachmentBoundError>()(
   'AttachmentBoundError',
-  { id: AttachmentId },
+  {
+    id: AttachmentId,
+    /** The chats whose messages hold it, or a record sent from it. */
+    chatIds: Schema.Array(ChatId),
+  },
 ) {}
