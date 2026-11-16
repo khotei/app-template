@@ -444,6 +444,9 @@ as a condition of the first public deploy, with no guard built here. (the owner,
   handler's `get` reading the plain service. A send now names an absent row and absent bytes in
   one `AttachmentNotFoundError` · visible: `bun --bun vitest run --project unit
   application/chat/__tests__/services/file-attachment.service.test.ts -t '24 h'`; `make check`
+[N:ai] L1.3 Review, Standards: the record `Layered services of one model` named this ticket and
+  the removal in its Rejected line, which `.claude/rules/claude-md.md:41` refuses in a doc; cut
+  to the rejection itself. The hunt found no bug · visible: `make check`
 
 ### Output
 

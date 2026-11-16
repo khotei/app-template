@@ -302,9 +302,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   and the bytes are stored and removed with their record in one service.
 - **Sources:** `.claude/rules/layering.md › Ports and domain services`;
   `.claude/rules/deep-modules.md › The tests` (a name per variation is the last resort).
-- **Rejected:** a layer per rule between the two (`Live<Model>Service`, which held the
-  attachment's expiry until `shared-files` removed it): shallow, two reads over the plain ones,
-  and a wrapper once its rule went.
+- **Rejected:** a layer per rule between the two (`Live<Model>Service`): shallow, two reads over
+  the plain ones, and a wrapper once its rule goes.
 - **Cost:** it breaks the line that a domain service never sees another one, and the line that a
   domain service's `layer` leaves every dependency open: a layer provides the one below it. Two
   services and two layers for one model; a handler of the model takes both. A rule over the
