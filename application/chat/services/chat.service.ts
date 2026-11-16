@@ -96,7 +96,8 @@ export class ChatService extends Context.Service<
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatDeleteWhere) {
       const chat = yield* getOne(where)
 
-      // The cascade takes the messages and their attachments; the bytes go by the ids read.
+      // The cascade takes the messages and their attachments; the bytes go by the ids read, never
+      // by `buildFileId`: a record's bytes are its source's, and stay in the library.
       yield* chats.delete({ id: chat.id })
       yield* files.delete({ id: Arr.map(chat.attachments, Struct.get('id')) })
     })

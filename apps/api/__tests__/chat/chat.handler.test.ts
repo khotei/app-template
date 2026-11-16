@@ -153,7 +153,7 @@ describe('chats', () => {
 
       Arr.forEach(wires, (wire) =>
         assert.deepNestedInclude(wire, {
-          'attachments[0].id': uploaded.id,
+          'attachments[0].sourceId': uploaded.id,
           'attachments[0].messageId': userMessage.id,
           'attachments[0].chatId': chat.id,
           'attachments[0].fileName': 'photo.png',

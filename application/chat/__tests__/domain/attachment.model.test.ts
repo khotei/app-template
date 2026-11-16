@@ -11,6 +11,9 @@ import {
   Attachment,
   bindAttachment,
   buildAttachment,
+  buildAttachmentFrom,
+  buildFileId,
+  ensureAllReachableFrom,
   ensureAllStored,
   ensureFound,
   ensureUnbound,
@@ -18,6 +21,7 @@ import {
   FileSize,
   MediaType,
 } from '#chat/domain/attachment.model'
+import { ChatId } from '#chat/domain/chat.id'
 import { chatId, messageId } from '#testing/chat/chat.test-fixture'
 
 describe('Attachment', () => {
@@ -71,6 +75,56 @@ const bound = new Attachment({
   ...unbound,
   messageId: Option.some(messageId),
   chatId: Option.some(chatId),
+})
+
+/** The record a send of `unbound`, a library attachment, adds to the chat of `message`. */
+const record = new Attachment({
+  ...bound,
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000026'),
+  sourceId: Option.some(unbound.id),
+  createdAt: DateTime.makeUnsafe('2026-10-19T00:00:00.000Z'),
+})
+
+describe('buildAttachmentFrom', () => {
+  it("builds the chat's record of a library attachment, bound to the message", () => {
+    assertEquals(
+      buildAttachmentFrom(unbound, { id: record.id, message, createdAt: record.createdAt }),
+      record,
+    )
+  })
+})
+
+describe('buildFileId', () => {
+  it.effect.each([
+    { name: 'its own id for an attachment with no source', attachment: unbound },
+    { name: "its source's id for a record", attachment: record },
+  ])('is $name', ({ attachment }) =>
+    Effect.sync(() => assert.strictEqual(buildFileId(attachment), unbound.id)),
+  )
+})
+
+describe('ensureAllReachableFrom', () => {
+  const found = [unbound, record]
+
+  it.effect('answers the attachments of the library and of the chat', () =>
+    Effect.gen(function* () {
+      assertEquals(yield* pipe(found, ensureAllReachableFrom(chatId)), found)
+    }),
+  )
+
+  it.effect('fails AttachmentNotFoundError naming an attachment of another chat', () =>
+    Effect.gen(function* () {
+      const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021')
+
+      const error = yield* pipe(found, ensureAllReachableFrom(otherChatId), Effect.flip)
+
+      assertSchemaEquals(
+        AttachmentNotFoundError,
+        error,
+        new AttachmentNotFoundError({ ids: [record.id] }),
+      )
+    }),
+  )
 })
 
 describe('ensureUnbound', () => {
@@ -137,6 +191,12 @@ describe('ensureAllStored', () => {
       const stored = [other.id, unbound.id]
 
       assertEquals(yield* pipe(found, ensureAllStored([unbound.id, other.id], stored)), found)
+    }),
+  )
+
+  it.effect("keeps a record when the store holds its source's bytes", () =>
+    Effect.gen(function* () {
+      assertEquals(yield* pipe([record], ensureAllStored([record.id], [unbound.id])), [record])
     }),
   )
 

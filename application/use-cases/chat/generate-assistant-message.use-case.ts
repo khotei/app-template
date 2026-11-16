@@ -17,6 +17,7 @@ import {
   type AssistantReply,
   type Attachment,
   buildAssistantMessage,
+  buildFileId,
   buildRunFailure,
   completeRun,
   decodeMessages,
@@ -76,7 +77,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const readBytes = (attachment: Attachment) =>
       files
-        .download({ id: attachment.id })
+        .download({ id: buildFileId(attachment) })
         .pipe(
           Effect.tap(
             Option.match({ onNone: () => logMissingFile(attachment), onSome: () => Effect.void }),

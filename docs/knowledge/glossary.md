@@ -62,12 +62,14 @@ first message unless the user has already set one; a user's title is never overw
 _Avoid_: Name, subject, summary
 
 **Attachment**:
-A file a user uploaded; no assistant produces files yet. An attachment is bound to a message
-when that message is sent; until then only its owner can see it.
+A file a user uploaded; no assistant produces files yet. A send adds to the chat a record of a
+library attachment: an attachment of its own, bound to the message, that names the library one
+as its source and shares its bytes.
 _Avoid_: File, upload, document, media, draft
 
 **Library**:
-The attachments of a user that no chat holds, listed in upload order.
+The attachments of a user that no chat holds, listed in upload order. A send leaves an
+attachment there, to be sent again in any chat.
 _Avoid_: Drive, pool, files, storage
 
 **Assistant**:

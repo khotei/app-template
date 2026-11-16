@@ -53,30 +53,19 @@ const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
 const selectMessages = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select id, author from messages where chat_id = ${chatId}`)
 
-const selectAttachmentChat = (id: AttachmentId) =>
+/** The chats that hold a record sent from the library attachment `id`. */
+const selectRecordChats = (id: AttachmentId) =>
   SqlClient.SqlClient.use(
-    (sql) => sql`select chat_id as "chatId" from attachments where id = ${id}`,
-  )
-
-/**
- * Sends the files to the chat: 'sent', or 'refused' when the send reads one bound
- * (`AttachmentBoundError`) or, having read them free, dies on the bind's guard with a bare 500.
- */
-const sendRacing = (chatId: ChatId, attachmentIds: ReadonlyArray<AttachmentId>) =>
-  ApiClient.use((api) =>
-    api.chats.createMessage({ params: { chatId }, payload: { text: 'Look', attachmentIds } }).pipe(
-      Effect.as('sent'),
-      Effect.catchTag('AttachmentBoundError', () => Effect.succeed('refused')),
-      Effect.catchTag('HttpClientError', (error) =>
-        isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
-      ),
-    ),
-  )
+    (sql) =>
+      sql<{
+        readonly chatId: string
+      }>`select chat_id as "chatId" from attachments where source_id = ${id}`,
+  ).pipe(Effect.map(Arr.map(({ chatId }) => chatId)))
 
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect(
-      'a sent message with an upload is answered and titled by the worker, and its delete removes the object',
+      'a sent message with an upload is answered and titled by the worker, and its delete keeps the upload in the library',
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -104,22 +93,17 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           assert.deepStrictEqual(titled.title, Option.some<string>(scriptedAnswers.title))
           assert.strictEqual(titled.status, 'idle')
           assert.deepStrictEqual(
-            Arr.map(asked.attachments, ({ id }) => id),
-            [uploaded.id],
+            Arr.map(asked.attachments, ({ sourceId }) => sourceId),
+            [Option.some(uploaded.id)],
           )
 
           yield* api.chats.delete({ params: { chatId: chat.id } })
           const object = yield* files.selectOne({ id: uploaded.id })
-          const gone = yield* api.attachments
-            .get({ params: { attachmentId: uploaded.id } })
-            .pipe(Effect.flip)
+          const library = yield* api.attachments.list()
 
-          assert.deepStrictEqual(object, Option.none())
-          assertSchemaEquals(
-            AttachmentNotFoundError,
-            gone,
-            new AttachmentNotFoundError({ ids: [uploaded.id] }),
-          )
+          assert.isTrue(Option.isSome(object))
+          assert.deepStrictEqual(yield* selectRecordChats(uploaded.id), [])
+          assert.deepInclude(library, uploaded)
         }),
       30_000,
     )
@@ -212,7 +196,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
     )
 
     it.effect(
-      'of two concurrent sends binding one file to two chats, one binds it and the other is refused, keeping nothing',
+      'two concurrent sends of one library attachment to two chats each store a record of it',
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -220,41 +204,19 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const chat = yield* api.chats.create()
           const other = yield* api.chats.create()
           const photo = yield* uploadPhoto
+          const sendTo = (chatId: ChatId) =>
+            api.chats.createMessage({
+              params: { chatId },
+              payload: { text: 'Look', attachmentIds: [photo.id] },
+            })
 
-          const outcomes = yield* Effect.all(
-            [sendRacing(chat.id, [photo.id]), sendRacing(other.id, [photo.id])],
-            { concurrency: 'unbounded' },
+          yield* Effect.all([sendTo(chat.id), sendTo(other.id)], { concurrency: 'unbounded' })
+
+          assert.sameMembers(yield* selectRecordChats(photo.id), [chat.id, other.id])
+          assert.deepStrictEqual(
+            yield* api.attachments.get({ params: { attachmentId: photo.id } }),
+            photo,
           )
-
-          const winner = outcomes[0] === 'sent' ? chat.id : other.id
-          const loser = winner === chat.id ? other.id : chat.id
-          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
-          assert.deepStrictEqual(yield* selectAttachmentChat(photo.id), [{ chatId: winner }])
-          assert.deepStrictEqual(yield* selectMessages(loser), [])
-        }),
-    )
-
-    it.effect(
-      'of two concurrent sends of overlapping files to two chats, the loser keeps nothing, not even the file only it named',
-      () =>
-        Effect.gen(function* () {
-          const api = yield* ApiClient
-          yield* api.users.ensure()
-          const chat = yield* api.chats.create()
-          const other = yield* api.chats.create()
-          const [a, b, c] = yield* Effect.all([uploadPhoto, uploadPhoto, uploadPhoto])
-
-          const outcomes = yield* Effect.all(
-            [sendRacing(chat.id, [a.id, b.id]), sendRacing(other.id, [b.id, c.id])],
-            { concurrency: 'unbounded' },
-          )
-
-          const chatWon = outcomes[0] === 'sent'
-          const loser = chatWon ? other.id : chat.id
-          const loserOnly = chatWon ? c.id : a.id
-          assert.deepStrictEqual(Arr.sort(outcomes, Order.String), ['refused', 'sent'])
-          assert.deepStrictEqual(yield* selectMessages(loser), [])
-          assert.deepStrictEqual(yield* selectAttachmentChat(loserOnly), [{ chatId: null }])
         }),
     )
   })
@@ -263,7 +225,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 // Each case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
 describe('a write Postgres refuses, through the api', () => {
   it.live(
-    'a send whose Run is refused leaves no message, no bind and no chat change',
+    'a send whose Run is refused leaves no message, no record and no chat change',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
@@ -272,7 +234,6 @@ describe('a write Postgres refuses, through the api', () => {
         const chat = yield* api.chats.create()
         const photo = yield* uploadPhoto
         const created = yield* api.chats.get({ params: { chatId: chat.id } })
-        const unbound = yield* api.attachments.get({ params: { attachmentId: photo.id } })
         // The Run is the last write of a send; all the others precede it.
         yield* client
           .unsafe(`ALTER TABLE runs ADD CONSTRAINT refuse_run CHECK (status <> 'queued')`)
@@ -292,10 +253,7 @@ describe('a write Postgres refuses, through the api', () => {
 
         assert.strictEqual(outcome, 'refused')
         assert.deepStrictEqual(yield* selectMessages(chat.id), [])
-        assert.deepStrictEqual(
-          yield* api.attachments.get({ params: { attachmentId: photo.id } }),
-          unbound,
-        )
+        assert.deepStrictEqual(yield* selectRecordChats(photo.id), [])
         assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
       }).pipe(Effect.provide(StandTest)),
     30_000,
@@ -387,7 +345,6 @@ describe('a write Postgres refuses, through the api', () => {
         const asked = yield* api.chats.getMessage({
           params: { chatId: chat.id, messageId: sent.userMessage.id },
         })
-        const bound = yield* api.attachments.get({ params: { attachmentId: photo.id } })
         // A row that references the chat without a cascade: Postgres refuses the chat's delete,
         // and the cascade it started goes back with it.
         yield* client
@@ -414,10 +371,7 @@ describe('a write Postgres refuses, through the api', () => {
           yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } }),
           done,
         )
-        assert.deepStrictEqual(
-          yield* api.attachments.get({ params: { attachmentId: photo.id } }),
-          bound,
-        )
+        assert.deepStrictEqual(yield* selectRecordChats(photo.id), [chat.id])
         assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
       }).pipe(Effect.provide(StandTest)),
     30_000,

@@ -459,8 +459,8 @@ nothing and rolls back whole.
   writes.
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a
   loser that reads after it gets its `409`.
-- **Guarded by:** the repositories' writes die on a missed row; the e2e races of two sends, on one
-  file and on overlapping sets, assert one sent, one refused, and the loser's other files free.
+- **Guarded by:** the repositories' writes die on a missed row, each with its e2e; the e2e race
+  of two sends to one chat asserts one sent, one refused.
 - **If reversed:** the reads take `forUpdate` again, and a check whose loser must get a domain
   error waits on the winner's commit.
 - **Revisit when:** a race's `500` reaches users often enough to need its own refusal.

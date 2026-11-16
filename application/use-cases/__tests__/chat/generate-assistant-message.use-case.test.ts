@@ -283,6 +283,41 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
   )
 
+  it.effect("generate prompts with the bytes a record's source holds", () => {
+    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+    const source = new Attachment({
+      ...sketch,
+      id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000042'),
+      messageId: Option.none(),
+      chatId: Option.none(),
+    })
+    const record = new Attachment({ ...sketch, sourceId: Option.some(source.id) })
+    return Effect.gen(function* () {
+      yield* insertWith([attachmentsOnly], lastRun)
+      yield* insertAttachment(source)
+      // A record stores no bytes under its own id.
+      yield* insertAttachment(record, 'lost')
+
+      yield* generate
+
+      assertEquals(yield* assistant.calls, [
+        {
+          method: 'reply',
+          history: [
+            {
+              message: new Message({
+                ...attachmentsOnly,
+                attachments: [record],
+                run: Option.some(preparing),
+              }),
+              attachments: [{ attachment: record, bytes: png }],
+            },
+          ],
+        },
+      ])
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+  })
+
   it.effect(
     "generate prompts without an attachment whose bytes are gone and logs a warning with its, the chat's and the Run's ids",
     () => {

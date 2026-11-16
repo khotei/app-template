@@ -1,4 +1,15 @@
-import { Array as Arr, Context, Crypto, DateTime, Effect, Layer, Ref, Stream, Struct } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Crypto,
+  DateTime,
+  Effect,
+  Layer,
+  Predicate,
+  Ref,
+  Stream,
+  Struct,
+} from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
@@ -10,10 +21,13 @@ import {
   type Attachment,
   bindAttachment,
   buildAttachment,
+  buildAttachmentFrom,
+  buildFileId,
   ensureAllStored,
   ensureFound,
   ensureUnbound,
   FileSize,
+  isInLibrary,
 } from '#chat/domain/attachment.model'
 import type { Message } from '#chat/domain/message.model'
 import { encodeAttachment } from '#chat/services/attachment.mapper'
@@ -48,8 +62,9 @@ export class FileAttachmentService extends Context.Service<
       where: AttachmentGetManyWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
     /**
-     * Binds the attachments to the stored message and its chat; dies when a send bound one since
-     * it was read.
+     * Binds the chat's attachments to the stored message and adds the chat's record of each
+     * library attachment, which stays in the library; dies when a send bound one, or a delete
+     * removed a library one, since it was read.
      */
     readonly bind: (
       attachments: ReadonlyArray<Attachment>,
@@ -116,10 +131,10 @@ export class FileAttachmentService extends Context.Service<
     const download = Effect.fn('FileAttachmentService.download')(function* (
       where: AttachmentWhere,
     ) {
-      const { id } = yield* attachmentService.getOne(where)
+      const attachment = yield* attachmentService.getOne(where)
       return yield* files
-        .selectOne({ id })
-        .pipe(Effect.flatMap(ensureFound(id)), Effect.map(Struct.get('url')))
+        .selectOne({ id: buildFileId(attachment) })
+        .pipe(Effect.flatMap(ensureFound(attachment.id)), Effect.map(Struct.get('url')))
     })
 
     const getMany = Effect.fn('FileAttachmentService.getMany')(function* (
@@ -127,7 +142,7 @@ export class FileAttachmentService extends Context.Service<
     ) {
       const found = yield* attachmentService.getMany(where)
       const storedIds = yield* files
-        .selectMany({ id: Arr.map(found, Struct.get('id')) })
+        .selectMany({ id: Arr.map(found, buildFileId) })
         .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
       return yield* ensureAllStored(where.id, storedIds)(found)
     })
@@ -136,20 +151,31 @@ export class FileAttachmentService extends Context.Service<
       requested: ReadonlyArray<Attachment>,
       message: Message,
     ) {
-      const bound = yield* Effect.forEach(requested, (attachment) =>
-        bindAttachment(attachment, message),
+      const createdAt = yield* DateTime.now
+      const held = Arr.filter(requested, Predicate.not(isInLibrary))
+      const sources = Arr.filter(requested, isInLibrary)
+      const bound = yield* Effect.forEach(held, (attachment) => bindAttachment(attachment, message))
+      const records = yield* Effect.forEach(sources, (source) =>
+        randomAttachmentId.pipe(
+          Effect.map((id) => buildAttachmentFrom(source, { id, message, createdAt })),
+        ),
       )
-      // A message without files skips the writes, as the update would die on no rows.
-      if (Arr.isReadonlyArrayEmpty(bound)) return bound
 
-      const ids = Arr.map(bound, Struct.get('id'))
       // `messageId: null` is the race's guard: a send that bound any of them since the read
       // leaves this write short of a row it names, so it dies and the send rolls back whole.
-      yield* attachments.update(
-        { messageId: message.id, chatId: message.chatId },
-        { id: ids, messageId: null },
+      // No row to bind skips the write, which would die on none.
+      if (Arr.isReadonlyArrayNonEmpty(bound)) {
+        yield* attachments.update(
+          { messageId: message.id, chatId: message.chatId },
+          { id: Arr.map(bound, Struct.get('id')), messageId: null },
+        )
+      }
+      yield* Effect.forEach(
+        records,
+        (record) => encodeAttachment(record).pipe(Effect.flatMap(attachments.insert)),
+        { discard: true },
       )
-      return bound
+      return Arr.appendAll(bound, records)
     })
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {

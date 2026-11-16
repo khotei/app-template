@@ -109,6 +109,14 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   names it; every attachment reads `sourceId: null` until the send's piece. The one migration
   `init` is generated anew, so a local database needs `make reset && make up` · visible:
   `bun --bun vitest run --project e2e kernel/data/__e2e__/attachment -t source`
+- [N:ai] L2.4 A send of a library attachment adds the chat's record of it and leaves it in the
+  library, so one upload is sent to two chats; the record is read, downloaded and handed to the
+  assistant by its source's bytes; one of another chat is `404`, one a message holds `409`,
+  both before the message is stored. The e2e races of two sends on one file went with the
+  shared row they raced on; the bind's update has no row to bind until L3's upload into a
+  chat. Until L2.5 the delete of a sent library attachment dies on the key, a `500` · visible:
+  `bun --bun vitest run --project e2e apps/e2e/api/chat.e2e.ts -t 'two concurrent sends of one
+  library attachment'`
 
 ### Output
 

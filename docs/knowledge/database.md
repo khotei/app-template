@@ -226,14 +226,17 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     none`, so a rename landing between the two wins and the title job dies and fails.
   - The send reads its attachments through `FileAttachmentService.getMany`, which takes no lock
     and reads no bytes, and refuses one whose bytes the store no longer has
-    (`AttachmentNotFoundError`); the send then refuses a bound one (`ensureAllUnbound`), both
-    before its first write; once its message is stored, `FileAttachmentService.bind` writes the
-    bind on the attachments' rows `where` `messageId` is still `none`, a write that dies unless
-    it binds every row it names. Of two sends sharing a file, the loser
-    either reads it bound and fails `AttachmentBoundError` (409) or, having read it free, finds
-    that row taken under the guard and dies (500), rolled back whole with the files only it
-    named; an attachment its owner deletes between the read and the write fails the send the
-    same way. A send without files skips the write, which would die on no rows.
+    (`AttachmentNotFoundError`); the send then refuses one of another chat
+    (`ensureAllReachableFrom`, `AttachmentNotFoundError`) and one a message holds
+    (`ensureAllUnbound`, `AttachmentBoundError`, 409), all before its first write. Once its
+    message is stored, `FileAttachmentService.bind` inserts, for each library attachment, the
+    chat's record of it: a row of its own, bound to the message, that names the attachment in
+    `source_id`. The library attachment's row is not written, so two sends of one attachment
+    never meet on a row and each chat gets its record. One its owner deletes between the read
+    and the write fails the record's insert on `attachments_source_id_fk`, and the send dies
+    (500), rolled back whole. An attachment of the chat itself is bound on its own row `where`
+    `messageId` is still `none`, a write that dies unless it binds every row it names; a send
+    with none skips that write, which would die on no rows.
   - `FileAttachmentService.delete` checks the attachment unbound, then deletes it
     through `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and
     the bytes after the row, so a send binding it in between makes the delete die and keeps the
@@ -254,14 +257,13 @@ A use case that writes several aggregates commits them together: `Transaction.ru
 the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.withTransaction`), and
 every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. `CreateUserMessageUseCase.create`
-writes the user message, the binds and the Run, or keeps none of them, and sends its jobs after the
-commit. The guards above then decide every race inside Postgres, with no lock in the process: of
-two sends to one chat the second's Run insert waits on the index entry the first holds and, once
-the first commits, finds an active Run, and of two binds sharing an attachment the second waits on
-the row the first's update holds and, once it commits, finds it bound, so the second misses a row it
-names and dies. Two api processes behave as two fibers. S3 stays outside the transaction: the bytes
-are kept before the bind and deleted before the commit, so a rollback restores rows that a retry
-still finds. SQS joins none either: the sends follow the
+writes the user message, its attachments' rows and the Run, or keeps none of them, and sends its
+jobs after the commit. The guards above then decide every race inside Postgres, with no lock in
+the process: of two sends to one chat the second's Run insert waits on the index entry the first
+holds and, once the first commits, finds an active Run; two sends of one library attachment write
+only rows of their own and never wait on each other. Two api processes behave as two fibers. S3
+stays outside the transaction: the bytes are kept before the bind and deleted before the commit,
+so a rollback restores rows that a retry still finds. SQS joins none either: the sends follow the
 commit ([The sends](#the-sends)).
 
 ## Stuck Runs

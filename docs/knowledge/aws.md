@@ -108,7 +108,8 @@ queue in place.
 ## Attachments
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
-`attachments/<id>`. `FileRepository`, in the data layer, holds only the keys, the headers and the
+`attachments/<id>`, the id of the library attachment it was sent from when it names one
+(`buildFileId`). `FileRepository`, in the data layer, holds only the keys, the headers and the
 tag, which its entity file declares beside the key; the upload itself is `S3Bucket` in
 `packages/s3`, taken from the context. `S3BucketFromConfig`, among the kernel's AWS clients,
 binds it to the stage's bucket, and the api and the worker provide it beside

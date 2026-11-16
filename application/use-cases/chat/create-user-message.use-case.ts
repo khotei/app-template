@@ -7,6 +7,7 @@ import {
   type ChatId,
   type ChatNotFoundError,
   ChatService,
+  ensureAllReachableFrom,
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
@@ -55,7 +56,10 @@ export class CreateUserMessageUseCase extends Context.Service<
     const titleSender = yield* ChatTitleSender
     const transaction = yield* Transaction
 
-    /** The user's message with the attachments it names bound to it; a bound one is refused first. */
+    /**
+     * The user's message with the attachments it names bound to it; one of another chat or one
+     * a message holds is refused first.
+     */
     const createUserMessage = Effect.fnUntraced(function* (
       userId: UserId,
       chatId: ChatId,
@@ -63,7 +67,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     ) {
       const requested = yield* fileAttachments
         .getMany({ id: input.attachmentIds, userId })
-        .pipe(Effect.flatMap(ensureAllUnbound))
+        .pipe(Effect.flatMap(ensureAllReachableFrom(chatId)), Effect.flatMap(ensureAllUnbound))
 
       // The bind follows the message, since its key to the message is not deferrable.
       const message = yield* messageService.create({ chatId, text: input.text })

@@ -3,7 +3,7 @@ import {
   Effect,
   flow,
   Option,
-  type Predicate,
+  Predicate,
   pipe,
   Schema,
   Struct,
@@ -57,8 +57,41 @@ export const buildAttachment = (
     sourceId: Option.none(),
   })
 
+/** The chat's record of the library attachment `source`, bound to `message`. */
+export const buildAttachmentFrom = (
+  source: Attachment,
+  {
+    message,
+    ...fields
+  }: Types.Simplify<
+    Pick<Attachment, 'id' | 'createdAt'> & {
+      readonly message: { readonly id: MessageId; readonly chatId: ChatId }
+    }
+  >,
+): Attachment =>
+  new Attachment({
+    ...source,
+    ...fields,
+    messageId: Option.some(message.id),
+    chatId: Option.some(message.chatId),
+    sourceId: Option.some(source.id),
+  })
+
+/** The id its bytes are stored under: its source's, else its own. */
+export const buildFileId = (attachment: Attachment): AttachmentId =>
+  Option.getOrElse(attachment.sourceId, () => attachment.id)
+
 const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
   Option.isNone(attachment.messageId)
+
+/** Holds for an attachment of its user's library, which no chat holds. */
+export const isInLibrary: Predicate.Predicate<Attachment> = (attachment) =>
+  Option.isNone(attachment.chatId)
+
+const isIn =
+  (chatId: ChatId): Predicate.Predicate<Attachment> =>
+  (attachment) =>
+    Option.contains(attachment.chatId, chatId)
 
 /** The value found for the attachment `id`; an absent one fails `AttachmentNotFoundError` naming `id`. */
 export const ensureFound = (id: AttachmentId) =>
@@ -83,16 +116,29 @@ const ensureAllFound =
 const isStoredIn =
   (stored: ReadonlyArray<AttachmentId>): Predicate.Predicate<Attachment> =>
   (attachment) =>
-    Arr.contains(stored, attachment.id)
+    Arr.contains(stored, buildFileId(attachment))
 
 /**
- * Keeps the attachments whose id is in `stored`, the ids whose bytes the object store holds;
- * fails `AttachmentNotFoundError` naming each id of `ids` left out, once, in the order asked.
+ * Keeps the attachments whose `buildFileId` is in `stored`, the ids whose bytes the object store
+ * holds; fails `AttachmentNotFoundError` naming each id of `ids` left out, once, in the order
+ * asked.
  */
 export const ensureAllStored = (
   ids: ReadonlyArray<AttachmentId>,
   stored: ReadonlyArray<AttachmentId>,
 ) => flow(Arr.filter(isStoredIn(stored)), ensureAllFound(ids))
+
+/**
+ * The attachments when each is in the library or in the chat `chatId`; else
+ * `AttachmentNotFoundError` naming each of another chat.
+ */
+export const ensureAllReachableFrom =
+  (chatId: ChatId) => (attachments: ReadonlyArray<Attachment>) =>
+    pipe(
+      attachments,
+      Arr.filter(Predicate.or(isInLibrary, isIn(chatId))),
+      ensureAllFound(Arr.map(attachments, Struct.get('id'))),
+    )
 
 /** Fails `AttachmentBoundError` for an attachment a message holds. */
 export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(

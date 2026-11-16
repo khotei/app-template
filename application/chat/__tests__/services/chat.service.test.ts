@@ -45,6 +45,15 @@ const ChatTest = ChatService.layer.pipe(
   Layer.provide(BunCrypto.layer),
 )
 
+const uploaded = buildAttachment({
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
+  userId: owner,
+  fileName: FileName.make('photo.png'),
+  mediaType: MediaType.make('image/png'),
+  size: FileSize.make(png.length),
+  createdAt: epoch,
+})
+
 const trip = ChatTitle.make('Trip')
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
@@ -118,14 +127,7 @@ describe('ChatService', () => {
         yield* insertMessage(firstMessage)
         yield* insertRun(queuedRun)
         const photo = new Attachment({
-          ...buildAttachment({
-            id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
-            userId: owner,
-            fileName: FileName.make('photo.png'),
-            mediaType: MediaType.make('image/png'),
-            size: FileSize.make(png.length),
-            createdAt: epoch,
-          }),
+          ...uploaded,
           messageId: Option.some(firstMessage.id),
           chatId: Option.some(chat.id),
         })
@@ -140,6 +142,33 @@ describe('ChatService', () => {
         assertEquals(yield* selectRun(queuedRun.id), Option.none())
         assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
         assertEquals(yield* files.selectOne({ id: photo.id }), Option.none())
+      }).pipe(Effect.provide(ChatTest)),
+  )
+
+  it.effect(
+    'delete keeps the library attachment a message of the chat was sent, and its bytes',
+    () =>
+      Effect.gen(function* () {
+        const service = yield* ChatService
+        const attachments = yield* AttachmentRepository
+        const files = yield* FileRepository
+        yield* insertMessage(firstMessage)
+        const record = new Attachment({
+          ...uploaded,
+          id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+          messageId: Option.some(firstMessage.id),
+          chatId: Option.some(chat.id),
+          sourceId: Option.some(uploaded.id),
+        })
+        yield* Effect.forEach([uploaded, record], (attachment) =>
+          encodeAttachment(attachment).pipe(Effect.flatMap(attachments.insert)),
+        )
+        yield* files.insert({ ...uploaded, content: Stream.make(png) })
+
+        yield* service.delete({ id: chat.id, userId: owner })
+
+        assert.lengthOf(yield* attachments.selectMany({ id: [uploaded.id, record.id] }), 1)
+        assert.isTrue(Option.isSome(yield* files.selectOne({ id: uploaded.id })))
       }).pipe(Effect.provide(ChatTest)),
   )
 

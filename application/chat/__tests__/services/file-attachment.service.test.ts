@@ -30,7 +30,7 @@ import {
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import {
-  type Attachment,
+  Attachment,
   buildAttachment,
   FileName,
   FileSize,
@@ -205,6 +205,43 @@ describe('FileAttachmentService', () => {
         error,
         new AttachmentNotFoundError({ ids: [attachment.id] }),
       )
+    }).pipe(Effect.provide(FileAttachmentServiceTest)),
+  )
+
+  it.effect("bind adds the chat's record of a library attachment, which stays in the library", () =>
+    Effect.gen(function* () {
+      const service = yield* FileAttachmentService
+      const source = yield* uploadPhoto
+
+      const record = yield* service.bind([source], firstMessage).pipe(Effect.head)
+
+      assertEquals(
+        record,
+        new Attachment({
+          ...source,
+          id: record.id,
+          messageId: Option.some(messageId),
+          chatId: Option.some(chatId),
+          sourceId: Option.some(source.id),
+        }),
+      )
+      assertEquals(yield* selectAttachments([source.id]), [source])
+      assertEquals(yield* selectAttachments([record.id]), [record])
+      assert.deepStrictEqual(yield* countStored, { rows: 2, objects: 1 })
+    }).pipe(Effect.provide(FileAttachmentServiceTest)),
+  )
+
+  it.effect("a record is read and downloaded by its source's bytes", () =>
+    Effect.gen(function* () {
+      const service = yield* FileAttachmentService
+      const source = yield* uploadPhoto
+      const record = yield* service.bind([source], firstMessage).pipe(Effect.head)
+
+      const read = yield* service.getMany({ id: [record.id], userId: owner })
+      const url = yield* service.download({ id: record.id, userId: owner })
+
+      assertEquals(read, [record])
+      assert.deepStrictEqual(Option.some(url.href), yield* bucketHref(source.id))
     }).pipe(Effect.provide(FileAttachmentServiceTest)),
   )
 
