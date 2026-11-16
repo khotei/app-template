@@ -106,6 +106,15 @@ only link? (the owner, chat)
   the send does today with `attachmentIds` (`http-api/chat/api-chat.http.ts:53`). The link to a
   chat is drafted as `PUT /chats/:chatId/attachments/:attachmentId`, not a `POST` with a body:
   the id is in the path, and a repeat changes nothing.
+[Q] How will the same attachment or file be attached to different chats and messages? (the
+owner, chat)
+  [A:ai] By its id, sent again: the bytes are stored once under the attachment's id
+  (`kernel/data/file/file.entity.ts:6`), and each attaching adds one row to a table of links.
+  Today the attachment's own row names its one message
+  (`kernel/data/attachment/attachment.table.ts:24`), so a second message has no place to be
+  written; those two columns move into the links, one row per chat or message that holds it. A
+  chat's read takes the links of its `chat_id`, a message's those of its `message_id`, and the
+  delete of the attachment is refused while a link names it.
 [D:ai] No expiry: an attachment lives until its owner deletes it (roadmap entry 16, inherited
   from `architecture-audit`). `unboundLifetime`
   (`application/chat/domain/attachment.model.ts:54`), `LiveAttachmentService`, the `unbound` tag
