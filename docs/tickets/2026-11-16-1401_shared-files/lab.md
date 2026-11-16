@@ -176,6 +176,12 @@ source.>
   its user would hold it in the table. Open.
 - Records added by one send share an instant, so their order within the message rests on
   their ids. Open.
+  - [N:ai] The review's hunt, claimed: `bind` stamps every record of one send with one
+    `createdAt` (`application/chat/services/file-attachment.service.ts:158`), and a read
+    orders by `createdAt`, then `id` (`kernel/data/chat/message.entity.ts:30`), a UUIDv7
+    whose tail is random within a millisecond. A send of `[a, b]` answers `[a, b]` and may
+    read back `[b, a]`, in the message, the chat and the assistant's history; no test sends
+    two attachments.
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
@@ -189,6 +195,10 @@ source.>
 - `AttachmentBoundError.chatIds` may be empty by its type, though a refusal always has a chat
   (`application/chat/domain/attachment.error.ts:16`): the model does not tie an attachment's
   chat to its message, as the table's check does. Open.
+- `effect-style.md › Signatures` asks a named function to be a declaration, while the
+  models' functions are arrows, L2's as those before them
+  (`application/chat/domain/attachment.model.ts:48`, `application/chat/domain/chat.model.ts:51`).
+  Open: the rule or the code, outside this lab.
 - The roadmap's entry 16 still names a pool, links and a `drive` module
   (`docs/knowledge/roadmap.md:501`). Open, at the lab's close: the roadmap on this branch is
   behind `feat/web-app`'s.
