@@ -155,6 +155,18 @@ chat)
   outside client sees, the client being private (`http-api/package.json:3`). L2's own
   questions wait for L2: the shape of a chat's list, an unlink of one only messages hold, the
   same attachment read twice by the assistant, a cap per chat.
+[D] 1. Yes: the expiry goes. 3. Ok: we now just have attachments, no `drive`. (the owner, chat)
+  [N:ai] Both in Knowledge.
+[R] If a chat's delete only unlinks, how do we keep the user's own files apart from the ones
+only attached to a chat, which the user never meant to be global: folders, or every file global
+and some hidden? A file is user-level even when attached; another is chat-level even when
+attached to a chat or a message. How do other companies and services divide, show and hide
+them? (the owner, chat)
+  [N:ai] Sent to two researchers on the same brief, the fork being the data model's: how
+  products tell a user's kept files from a conversation's uploads, list them and delete them.
+[R] What limits do other companies put on a user's files? Ours should be configured in `.env`
+or in a ts file, easy to change. (the owner, chat)
+  [N:ai] Sent to one researcher: the limits of the chat products and their apis.
 
 ### Pieces
 
@@ -175,6 +187,9 @@ chat)
 - A message has no attachment routes of its own: a send links by `attachmentIds`, and the
   message's read carries them.
 - The assistant reads a chat's attachments in every reply of that chat.
+- An attachment does not expire: the 24-hour lifetime of an unbound one, the `unbound` tag and
+  the bucket's rule that removed it go.
+- Attachments stay in `chat` in the minimal pass; no `drive` module is split out.
 
 ## Numbers
 
