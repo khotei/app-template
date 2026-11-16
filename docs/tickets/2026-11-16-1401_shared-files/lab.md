@@ -14,7 +14,7 @@ a minimal working feature first; edge cases and improvements of little value com
 
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | An attachment never expires: one left unsent stays readable, and the expiry's code, tag and bucket rule are gone | minimal | build | todo |
+| L1 | An attachment never expires: one left unsent stays readable, and the expiry's code, tag and bucket rule are gone | minimal | build | in progress |
 | L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | todo |
 | L3 | An upload into a chat stays out of the library and goes with the chat; then the play of the whole feature | minimal | build | todo |
 | L4 | Right: what the play and the reviews change | right | build | todo |
@@ -416,10 +416,22 @@ elegant, composable and minimal, check the abstractions and the names. (the owne
   - One word is new, the library; the verb stays bind, for a message only.
   - Rejected: every send adding a record, a chat's upload too. One path for the write, but a
     chat would read each of its sent uploads twice.
+[Q:ai] Question 4 of the five (no wrapper) fails for `LiveAttachmentService` once the expiry
+  goes: its `getOne` only forwards the plain one
+  (`application/chat/services/live-attachment.service.ts:30`), and its `getMany` adds the check
+  of every id, which `ensureAllStored` repeats one call later
+  (`application/chat/services/file-attachment.service.ts:134`). I propose that L1.2 deletes the
+  service and rewrites the record `decisions.md › Layered services of one model` and
+  `.claude/rules/layering.md:24` to two layers, the plain records and the records with their
+  bytes; the layer comes back in L2 only on the owner's word, the open question above.
 
 ### Pieces
 
-<[N:ai] L1.1 <what it gives> · visible: <command or link>>
+[N:ai] L1.1 A new object carries no `unbound` tag, a send writes nothing to the store, and the
+  bucket has no rule that removes an object; `FileRepository.update`, `S3Bucket.untag` and the
+  inventory's `unboundExpirationDays` went with them. The 24-hour lifetime in the model stays
+  for L1.2 · visible: `git grep -nE 'unboundTag|untag|expire-unbound' -- ':!docs' ':!repos'`
+  answers nothing; `make check`
 
 ### Output
 
@@ -476,3 +488,9 @@ source.>
 - Pages, search and a filter by media type for `GET /attachments`. Open.
 - A chat's delete removes its bytes inside the request, and a failure after the rows are gone
   leaves bytes no rule removes (roadmap entry 16, inherited from `jobs`). Open.
+- `deployment` imports nothing of the data layer since L1.1, yet the guard and its docs still
+  allow it (`.misc/lint/biome-imports.grit:81`, `docs/knowledge/architecture.md:84`,
+  `.claude/rules/modules.md:29`). Open.
+- The roadmap's entry 16 still names a pool, links and a `drive` module
+  (`docs/knowledge/roadmap.md:501`). Open, at the lab's close: the roadmap on this branch is
+  behind `feat/web-app`'s.

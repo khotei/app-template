@@ -226,8 +226,8 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     and reads no bytes, and refuses one whose bytes the store no longer has
     (`AttachmentNotFoundError`); the send then refuses a bound one (`ensureAllUnbound`), both
     before its first write; once its message is stored, `FileAttachmentService.bind` writes the
-    bind, the files first, then the attachments' rows `where` `messageId` is still `none`, a
-    write that dies unless it binds every row it names. Of two sends sharing a file, the loser
+    bind on the attachments' rows `where` `messageId` is still `none`, a write that dies unless
+    it binds every row it names. Of two sends sharing a file, the loser
     either reads it bound and fails `AttachmentBoundError` (409) or, having read it free, finds
     that row taken under the guard and dies (500), rolled back whole with the files only it
     named; an attachment its owner deletes between the read and the write fails the send the
@@ -243,8 +243,8 @@ their attachments and its Runs go by the cascade, and `RETURNING` answers only t
 `ChatService.delete` therefore reads the chat with its attachments to name `ChatNotFoundError`,
 then deletes the chat, then the bytes, through
 `FileRepository.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
-between the read and the delete loses its row with the chat while its bytes stay in S3, bound and
-never expired: the price of a delete with no transaction.
+between the read and the delete loses its row with the chat while its bytes stay in S3: the price
+of a delete with no transaction.
 
 ## Transactions
 
@@ -258,8 +258,8 @@ two sends to one chat the second's Run insert waits on the index entry the first
 the first commits, finds an active Run, and of two binds sharing an attachment the second waits on
 the row the first's update holds and, once it commits, finds it bound, so the second misses a row it
 names and dies. Two api processes behave as two fibers. S3 stays outside the transaction: the bytes
-are kept before the bind, so no bound row sits over expiring bytes, and deleted before the commit,
-so a rollback restores rows that a retry still finds. SQS joins none either: the sends follow the
+are kept before the bind and deleted before the commit, so a rollback restores rows that a retry
+still finds. SQS joins none either: the sends follow the
 commit ([The sends](#the-sends)).
 
 ## Stuck Runs

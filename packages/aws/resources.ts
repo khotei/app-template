@@ -1,9 +1,6 @@
 export interface BucketResource {
   readonly name: string
-  readonly lifecycle: {
-    readonly unboundExpirationDays: number
-    readonly abortIncompleteUploadDays: number
-  }
+  readonly lifecycle: { readonly abortIncompleteUploadDays: number }
 }
 
 export interface QueueResource {

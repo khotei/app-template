@@ -131,14 +131,11 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
         }),
     )
 
-    it.effect('answers none and void for a missing key', () =>
+    it.effect('head answers none for a missing key', () =>
       Effect.gen(function* () {
         const files = yield* S3Bucket
 
-        const head = yield* files.head('missing')
-        yield* files.untag('missing')
-
-        assert.deepStrictEqual(head, Option.none())
+        assert.deepStrictEqual(yield* files.head('missing'), Option.none())
       }),
     )
   })

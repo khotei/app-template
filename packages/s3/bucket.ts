@@ -24,7 +24,6 @@ export interface PutOptions {
    * name survives as ASCII.
    */
   readonly fileName?: string
-  readonly tags?: Record<string, string>
 }
 
 /** What `put` wrote of the object's options; the name is none when it was put without one. */
@@ -89,15 +88,12 @@ const readBody = ({ Body }: { readonly Body?: { transformToByteArray(): Promise<
     Effect.flatMap((body) => Effect.promise(() => body.transformToByteArray())),
   )
 
-const buildTagging = (tags: Record<string, string>) => new URLSearchParams(tags).toString()
-
-const buildObjectHeaders = ({ contentType, fileName, tags }: PutOptions) => ({
+const buildObjectHeaders = ({ contentType, fileName }: PutOptions) => ({
   ContentType: contentType,
   ContentDisposition: Option.fromNullishOr(fileName).pipe(
     Option.map(buildInlineDisposition),
     Option.getOrUndefined,
   ),
-  Tagging: Option.fromNullishOr(tags).pipe(Option.map(buildTagging), Option.getOrUndefined),
 })
 
 const sizeOf = (chunks: ReadonlyArray<Uint8Array>) =>
@@ -122,12 +118,6 @@ const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8
     Stream.map(Bytes.concat),
     Stream.filter(hasBytes),
   )
-
-/**
- * `deleteObjectTagging` types its error as a bare `S3ServiceError`, so `catchTag` cannot name
- * `NoSuchKey`; a missing key still arrives with that tag.
- */
-const isNoSuchKey = (error: unknown): boolean => Predicate.isTagged(error, 'NoSuchKey')
 
 /** `Quiet` answers only the keys it failed on; a missing key is no failure. */
 const hasKeptKeys = ({ Errors }: { readonly Errors?: ReadonlyArray<unknown> | undefined }) =>
@@ -156,8 +146,6 @@ export class S3Bucket extends Context.Service<
     readonly head: (key: string) => Effect.Effect<Option.Option<ObjectHead>>
     /** A presigned GET valid for `lifetime`, signed without a request: it never checks that the key exists. */
     readonly url: (key: string, lifetime: Duration.Duration) => Effect.Effect<URL>
-    /** Idempotent, a no-op for a missing key. */
-    readonly untag: (key: string) => Effect.Effect<void>
     /** Idempotent; one request per 1000 keys, none for no key. */
     readonly deleteMany: (keys: ReadonlyArray<string>) => Effect.Effect<void>
   }
@@ -276,14 +264,6 @@ export class S3Bucket extends Context.Service<
         return new URL(signed)
       })
 
-      const untag = Effect.fn('S3Bucket.untag')((key: string) =>
-        s3.deleteObjectTagging(buildObjectRef(key)).pipe(
-          Effect.catchIf(isNoSuchKey, () => Effect.void),
-          Effect.asVoid,
-          Effect.orDie,
-        ),
-      )
-
       const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
         s3
           .deleteObjects({
@@ -303,7 +283,7 @@ export class S3Bucket extends Context.Service<
         pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
       )
 
-      return { put, download, head, url, untag, deleteMany }
+      return { put, download, head, url, deleteMany }
     }),
 }) {
   static readonly layer = (options: {

@@ -49,8 +49,8 @@ export class FileAttachmentService extends Context.Service<
       where: AttachmentGetManyWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
     /**
-     * Binds the attachments to the stored message and its chat, the bytes first; dies when a
-     * send bound one since it was read.
+     * Binds the attachments to the stored message and its chat; dies when a send bound one since
+     * it was read.
      */
     readonly bind: (
       attachments: ReadonlyArray<Attachment>,
@@ -145,8 +145,6 @@ export class FileAttachmentService extends Context.Service<
       if (Arr.isReadonlyArrayEmpty(bound)) return bound
 
       const ids = Arr.map(bound, Struct.get('id'))
-      // The files first: unbound bytes expire, so a crash must never leave a bound row over them.
-      yield* files.update({ bound: true }, { id: ids })
       // `messageId: null` is the race's guard: a send that bound any of them since the read
       // leaves this write short of a row it names, so it dies and the send rolls back whole.
       yield* attachments.update(

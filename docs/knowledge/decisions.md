@@ -463,8 +463,7 @@ nothing and rolls back whole.
   from an attachment to its message, to bind before the insert: a schema change for one order of
   writes.
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a
-  loser that reads after it gets its `409`. A send's untagged files stay tagged bound if it rolls
-  back.
+  loser that reads after it gets its `409`.
 - **Guarded by:** the repositories' writes die on a missed row; the e2e races of two sends, on one
   file and on overlapping sets, assert one sent, one refused, and the loser's other files free.
 - **If reversed:** the reads take `forUpdate` again, and a check whose loser must get a domain
@@ -544,8 +543,8 @@ needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) an
 Files are `FileEntity` and `FileRepository` in the data layer, over the `S3Bucket` in the
 context. A file is one entity read from its object's metadata, with its signed URL as a field;
 only `download` reads the bytes, answering `DownloadedFileEntity`, the entity with them. The data
-layer declares the key and the `unbound` tag; `kernel/aws/resources` declares the bucket's name
-and lifecycle; `deployment` reads both.
+layer declares the key; `kernel/aws/resources` declares the bucket's name and lifecycle, which
+`deployment` reads.
 
 - **Why:** a consumer reads and writes through one kind of repository, whichever store holds the
   data; the objects stay in their bucket under their keys.

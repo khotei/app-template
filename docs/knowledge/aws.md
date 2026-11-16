@@ -82,7 +82,7 @@ identifier and carrying its logical `name`. Physical names are `buildResourceNam
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
-| a bucket | its `lifecycle` days | the bucket and its lifecycle rules; the attachments' bucket expires the objects carrying the data layer's `unboundTag` (`unbound=true`) and aborts incomplete multipart uploads. |
+| a bucket | its `lifecycle` days | the bucket and its lifecycle rule, which aborts incomplete multipart uploads. |
 | a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
@@ -122,20 +122,10 @@ before the row that binds them and deletes them once the rows are gone.
   incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the download URL is signed without overrides.
-- **The unbound tag.** A new object carries `unbound=true`, sent with the `PutObject` or
-  `CreateMultipartUpload` that writes it, and the bucket's expiration rule
-  ([The inventory](#the-inventory)) acts on the tag; locally a file over 5 MiB stays untagged
-  ([Tests on Docker](#tests-on-docker)), so the repository's e2e asserts the tag on a small
-  upload only. Binding the attachment removes the tag before the bind is written, so a
-  crash between leaves an orphaned object, never a bound attachment without bytes.
 - **Expiry.** An attachment still unbound 24 hours after its upload (the attachment model's
   `unboundLifetime`) reads as not found everywhere; no read deletes it, since a delete on read
-  would race a send binding it. Its object goes by the bucket's rule, which acts after
-  `unboundExpirationDays` (S3 rounds up to the next midnight UTC); a unit test of the module's
-  services keeps those days no shorter than `unboundLifetime`, so nothing still bindable loses
-  its bytes. Its row stays, since no sweep
-  removes expired rows. Locally the object stays as well, since MiniStack never runs the rule
-  ([Tests on Docker](#tests-on-docker)).
+  would race a send binding it. Its row and its object stay: the bucket has no rule that
+  removes an object.
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
   api signs with. With an endpoint set, S3 uses path-style addressing and the URL is
@@ -188,6 +178,5 @@ the stand's worker, and the `s3` suite creates one bucket, named as a stage is, 
 `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The Pulumi
 project is for `make up` alone.
 
-MiniStack differs from AWS in what it never does: lifecycle rules never run, the 5 MiB minimum
-part size is not enforced, and the `Tagging` sent with `CreateMultipartUpload` is dropped. What
-depends on those is checked on real AWS in the deploy ticket.
+MiniStack differs from AWS in what it never does: lifecycle rules never run, and the 5 MiB minimum
+part size is not enforced. What depends on those is checked on real AWS in the deploy ticket.

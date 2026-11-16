@@ -7,7 +7,7 @@ export const resources = {
   buckets: {
     attachments: {
       name: 'attachments',
-      lifecycle: { unboundExpirationDays: 1, abortIncompleteUploadDays: 1 },
+      lifecycle: { abortIncompleteUploadDays: 1 },
     },
   },
   queues: {
