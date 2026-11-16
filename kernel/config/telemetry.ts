@@ -1,0 +1,3 @@
+/** The telemetry backend's image `make up` runs, pinned by digest. */
+export const telemetryImage =
+  'grafana/otel-lgtm:0.40.0@sha256:72e05804790e6e0d8c0b70a6d5ff1f721ef7b203463374631e99aa3429bd0cf6'

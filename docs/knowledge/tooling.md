@@ -230,9 +230,10 @@ server's `Bun.serve({ development })`.
 
 A worktree is a full copy of the environment, so trees run `make up` and `make dev` side by side.
 Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun install`), `.data/`
-(with the Pulumi state), MiniStack container and database container. It shares only the Pulumi
+(with the Pulumi state), MiniStack container, database container and telemetry backend
+([observability.md](observability.md)). It shares only the Pulumi
 provider plugins, the main tree's `.pulumi/`, which never change once installed. Its `.env` is
-the main tree's with five ports and the stage moved, since MiniStack names the database's
+the main tree's with seven ports and the stage moved, since MiniStack names the database's
 container and volume after the stage:
 
 | Variable | Value | Main tree | `N=1` |
@@ -241,6 +242,8 @@ container and volume after the stage:
 | `WEB_PORT` | `3001 + 10N` | 3001 | 3011 |
 | `WORKER_PORT` | `3002 + 10N` | 3002 | 3012 |
 | `AWS_ENDPOINT_URL` | `4566 + 10N` | 4566 | 4576 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | `4318 + 10N` | 4318 | 4328 |
+| `GRAFANA_PORT` | `3003 + 10N` | 3003 | 3013 |
 | `RDS_BASE_PORT` | `15432 + 10N` | 15432 | 15442 |
 | `STAGE` | `local<N>` | `local` | `local1` |
 

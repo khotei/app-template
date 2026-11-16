@@ -7,6 +7,7 @@ import { createStorage } from '#deployment/aws/storage'
 import { createWorker } from '#deployment/aws/worker'
 import { ministack } from '#deployment/local/ministack'
 import { localDatabase, settings } from '#deployment/local/settings'
+import '#deployment/local/telemetry'
 
 const { stage } = settings.aws
 const provider = createProvider(settings.aws, { dependsOn: [ministack] })

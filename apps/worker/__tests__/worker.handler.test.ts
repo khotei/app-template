@@ -18,6 +18,7 @@ function buildRecord(queue: string, body: unknown) {
     messageId: 'a',
     body: JSON.stringify(body),
     eventSourceARN: `arn:aws:sqs:us-east-1:000000000000:${queue}`,
+    messageAttributes: {},
   }
 }
 

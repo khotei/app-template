@@ -1,13 +1,26 @@
 import { Effect, Layer } from 'effect'
 
-import { AwsConfig, MiniStackConfig, WorkerConfig } from '@app-template/kernel/config'
+import {
+  AwsConfig,
+  MiniStackConfig,
+  TelemetryConfig,
+  WorkerConfig,
+} from '@app-template/kernel/config'
 
 export const settings = Effect.all({
   aws: AwsConfig,
   ministack: MiniStackConfig,
+  telemetry: TelemetryConfig,
   worker: WorkerConfig,
 }).pipe(
-  Effect.provide(Layer.mergeAll(AwsConfig.layer, MiniStackConfig.layer, WorkerConfig.layer)),
+  Effect.provide(
+    Layer.mergeAll(
+      AwsConfig.layer,
+      MiniStackConfig.layer,
+      TelemetryConfig.layer,
+      WorkerConfig.layer,
+    ),
+  ),
   Effect.runSync,
 )
 

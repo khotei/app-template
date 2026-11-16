@@ -1,6 +1,7 @@
 import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
+import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import { AssistantLlmFromConfig } from '@app-template/application/chat'
 import {
@@ -52,5 +53,6 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
 
 export const WorkerLayer = WorkerProcess.pipe(
   Layer.provide(AssistantLlmFromConfig),
-  Layer.provide(FetchHttpClient.layer),
+  Layer.provide(Otlp.layerFromConfig({ resource: { serviceName: 'worker' } })),
+  Layer.provide([FetchHttpClient.layer, OtlpSerialization.layerProtobuf]),
 )

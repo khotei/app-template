@@ -40,7 +40,7 @@ graph LR
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
-| 8 | [`observability`](#8-observability) | `feat` | 3 | planned |
+| 8 | [`observability`](#8-observability) | `feat` | 3 | in progress: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
@@ -332,6 +332,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `docker-compose`; structured logging conventions; health and readiness endpoints; a
   `docs/knowledge/observability.md`.
 - **Out of scope.** Dashboards and alerting in AWS (9).
+- **Status.** In progress, narrowed to the least code: the `api`'s and the `worker`'s export, one
+  trace per user message across the queue, and a Grafana per tree:
+  [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md).
+  Later: `web` in the trace, Effect DevTools, health and readiness, log conventions, and
+  [Later › From `telemetry-minimal`](#from-telemetry-minimal).
 - **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
   OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
   SigNoz).
@@ -397,6 +402,18 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   Function URL with a cold start of 130–180 ms; a partial batch failure worked; the function
   reaches Postgres only at `host.docker.internal`, not at the `localhost` the RDS endpoint
   reports; a rebuild to an answer took about 2 s. Pulumi creating these functions was not run.
+- **Inherits from `telemetry-minimal` (2026-11-14).** Two things only AWS can show, researched
+  there with sources (`docs/tickets/2026-11-07-0944_telemetry-minimal/lab.md`, L3 and L6 Notes):
+  the OTLP receivers (X-Ray traces, CloudWatch Logs and CloudWatch metrics take OTLP/HTTP directly
+  with an `Authorization: Bearer <API key>` header; the switch from the local backend is the
+  per-signal `OTEL_EXPORTER_OTLP_<SIGNAL>_{ENDPOINT,HEADERS}` variables, no code; Transaction
+  Search, the keys and the log group must exist first; nothing was sent to a real account), and
+  getting an invocation's telemetry out before Lambda freezes (Effect's exporter batches on an
+  interval and the server span closes after the response; the reliable patterns are a flush
+  before the response in the worker's `POST /events`, which `OtlpExporter.Flusher` gives in three
+  lines, a flush after it held by an `INVOKE`-registered process, or the Collector extension
+  copied into the image, since no ADOT layer exists for `provided.al2023`; the shutdown window is
+  2 s with LWA, below the exporter's 3 s default).
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
   runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
@@ -1131,3 +1148,16 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
   stay thin: outbox relay, SQS and S3 adapters, multipart-to-S3 sink, Lambda event adapter,
   per-test database isolation. Covered by Effect with only glue: SSE chat stream, multipart
   parsing, typed client, OTLP export, config from `.env` and the environment.
+
+### From `telemetry-minimal`
+
+- (2026-11-15) Tempo's metrics per route and status lump every `POST` route into one line: its
+  span metrics count by span name and status, and the api's server span is named by the method
+  alone (`POST`), so `http.route` and `http.response.status_code` need dimensions in
+  `otel-lgtm`'s metrics-generator config. Left: the minimal feature reads traces, not metrics.
+  Ways out to weigh: those dimensions in the generator's config, or a server span named
+  `<method> <route>`.
+- (2026-11-15) The api's first `QueueSender.send` spends 281 ms of its 288 in
+  `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
+  looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
+  resolve the queue's URL once when the layer is built.

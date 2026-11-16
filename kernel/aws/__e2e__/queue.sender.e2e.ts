@@ -36,7 +36,7 @@ const queueUrl = Effect.gen(function* () {
     .pipe(Effect.flatMap(({ QueueUrl }) => Effect.fromNullishOr(QueueUrl)))
 })
 
-/** The bodies on the sample queue within `waitSeconds`, parsed, with their attribute names. */
+/** The messages on the sample queue within `waitSeconds`: each body parsed, beside its traceparent. */
 const receive = (waitSeconds: number) =>
   Effect.gen(function* () {
     const sqs = yield* SQSService
@@ -50,11 +50,8 @@ const receive = (waitSeconds: number) =>
     return UndefinedOr.match(Messages, {
       onUndefined: () => [],
       onDefined: Arr.map((message) => ({
-        attributes: UndefinedOr.match(message.MessageAttributes, {
-          onUndefined: () => [],
-          onDefined: Object.keys,
-        }),
         body: JSON.parse(UndefinedOr.getOrThrow(message.Body)),
+        traceparent: message.MessageAttributes?.traceparent?.StringValue,
       })),
     })
   })
@@ -62,16 +59,22 @@ const receive = (waitSeconds: number) =>
 // Live: SQS long-polls in real time.
 describe('QueueSender', { concurrent: false }, () => {
   it.live(
-    "a sent message reaches the stage's queue as its body alone",
+    "a sent message reaches the stage's queue with the trace it was sent in",
     () =>
       Effect.gen(function* () {
+        const { traceId } = yield* Effect.currentSpan.pipe(Effect.orDie)
         yield* send
         const received = yield* receive(10)
 
-        assert.deepStrictEqual(received, [
-          { attributes: [], body: { chatId: '0192d4e0-7b3a-7c00-8000-000000000030' } },
-        ])
-      }).pipe(Effect.provide(QueueSenderTest)),
+        assert.deepStrictEqual(
+          Arr.map(received, ({ body }) => body),
+          [{ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' }],
+        )
+        assert.match(
+          String(received[0]?.traceparent),
+          new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`),
+        )
+      }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
     30_000,
   )
 

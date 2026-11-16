@@ -1,7 +1,8 @@
 import { BunHttpServer } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
-import { HttpRouter } from 'effect/http'
+import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
+import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
   ChatService,
@@ -82,4 +83,9 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide([PgClientFromConfig, S3BucketFromConfig, SQSServiceFromConfig, AwsConfig.layer]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
+  Layer.provide(
+    Otlp.layerFromConfig({ resource: { serviceName: 'api' } }).pipe(
+      Layer.provide([OtlpSerialization.layerProtobuf, FetchHttpClient.layer]),
+    ),
+  ),
 )

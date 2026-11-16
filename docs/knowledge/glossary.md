@@ -190,3 +190,27 @@ _Avoid_: Integration test, system test, functional test
 A layer of a repository or a port over a `Ref<HashMap>`, one per service; a repository's over
 the same entities as the real one. The unit tests' only double.
 _Avoid_: Mock, stub, in-memory repository
+
+## Observability
+
+The words of the telemetry the `api` and the `worker` emit about themselves.
+
+**Telemetry**:
+The traces, logs and metrics the processes emit about themselves; each one exported carries the
+process's name and stage.
+_Avoid_: Monitoring data, diagnostics, instrumentation
+
+**Trace**:
+The tree of spans that follows one request in the `api`, or one job's handling in the `worker`;
+one trace id joins them.
+_Avoid_: Request log, transaction, flow
+
+**Span**:
+One timed step in a trace, such as a request, a service call, a database statement or a model
+call.
+_Avoid_: Segment, step, event
+
+**Telemetry backend**:
+The service that receives telemetry and shows it; locally a container `make up` starts beside the
+others when `.env` asks for it, elsewhere whatever the environment names.
+_Avoid_: Collector (it is one part), monitoring tool, APM
