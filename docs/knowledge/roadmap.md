@@ -332,10 +332,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `docker-compose`; structured logging conventions; health and readiness endpoints; a
   `docs/knowledge/observability.md`.
 - **Out of scope.** Dashboards and alerting in AWS (9).
-- **Status.** In progress, narrowed to the least code: the `api`'s export and one trace per request:
+- **Status.** In progress, narrowed to the least code: the `api`'s and the `worker`'s export, one
+  trace per user message across the queue, and a Grafana per tree:
   [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md).
-  Later: the `worker`'s telemetry (after its consumer moves to a Lambda, 9), `web` in the trace,
-  one trace across the queue, Effect DevTools, health and readiness, log conventions.
+  Later: `web` in the trace, Effect DevTools, health and readiness, log conventions, and
+  [Later › From `telemetry-minimal`](#from-telemetry-minimal).
 - **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
   OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
   SigNoz).
@@ -1147,3 +1148,16 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
   stay thin: outbox relay, SQS and S3 adapters, multipart-to-S3 sink, Lambda event adapter,
   per-test database isolation. Covered by Effect with only glue: SSE chat stream, multipart
   parsing, typed client, OTLP export, config from `.env` and the environment.
+
+### From `telemetry-minimal`
+
+- (2026-11-15) Tempo's metrics per route and status lump every `POST` route into one line: its
+  span metrics count by span name and status, and the api's server span is named by the method
+  alone (`POST`), so `http.route` and `http.response.status_code` need dimensions in
+  `otel-lgtm`'s metrics-generator config. Left: the minimal feature reads traces, not metrics.
+  Ways out to weigh: those dimensions in the generator's config, or a server span named
+  `<method> <route>`.
+- (2026-11-15) The api's first `QueueSender.send` spends 281 ms of its 288 in
+  `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
+  looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
+  resolve the queue's URL once when the layer is built.

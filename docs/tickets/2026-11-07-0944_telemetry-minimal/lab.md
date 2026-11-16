@@ -139,9 +139,22 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
 
 ## Numbers
 
-<At the close, from git: time from the intent to the PR; lines against each step's budget; lines
-reworked after the owner saw a piece (the OWNER rounds); stops by signal; claims without a
-source.>
+- **Время:** от L0.1 (2026-11-13 15:45) до закрытия (2026-11-16 11:41), PR не открыт: 2 дня
+  20 ч календарного времени (`git log -1 --format=%ad <L0.1>`, `date`).
+- **Строки против бюджета** (`git diff --shortstat <L5.1>^ <L5.7> -- . ':!<lab.md>'`, код без
+  `__tests__`, `__e2e__` и `.md`):
+  - L1–L4 (learn): 0 строк в ветке, черновики жили в своих worktree;
+  - L5: бюджет reference + 90, после остановки reference + 140 (L5.4); код +137 −18 в 13 файлах,
+    L5.8 ещё −1; тесты +58 −12, документы +59 −8;
+  - L6: без бюджета; код +3 −1 (L6.4), тесты +16 −1 (L6.4) и +2 −1 (L5.9).
+- **Переделка после показа** (раунды `OWNER` вне `lab.md`): код 0, тесты +2 −1 (L5.9, находка
+  ревью), документы +12 (L6.3, проверки AWS в roadmap `aws-deployment`); остальные раунды
+  `OWNER` меняли только `lab.md`.
+- **Остановки по сигналу:** 1 — бюджет (rail 4) на L5, ~138 строк против reference + 90;
+  владелец принял reference + 140 (`git log -p -- <lab.md> | grep 'Stop ('`).
+- **Утверждения без источника:** 0 строк «предполагаю» в истории `lab.md`. Одно утверждение с
+  источником оказалось неверным: пункт Later «e2e шлёт трассы api»; ревью L5 его опровергло
+  (стенд заменяет источник конфига), он снят в L5.7.
 
 ## Later
 

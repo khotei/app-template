@@ -8,11 +8,11 @@ request; a *span* is one timed operation in it.
 
 The api's `POST` is the trace's root. Under it come the services' `Effect.fn('<Service>.<method>')`
 spans, `sql.transaction` and each statement with `db.query.text`, then `QueueSender.send`. The
-worker's `process <queue>` span hangs under that send, and under it the use case, its SQL and
-`LanguageModel.generateObject` with `gen_ai.*` attributes (model, response id, tokens). A failure
-is a span event `exception` with its type, message and stack. Every log line carries `trace_id`
-and `span_id`. Tempo derives `calls_total` and `latency_bucket` per span name and status; the apps
-send no metrics of their own.
+worker's `process <queue>` span (kind `consumer`, named after OTel's messaging conventions) hangs
+under that send, and under it the use case, its SQL and `LanguageModel.generateObject` with
+`gen_ai.*` attributes (model, response id, tokens). A failure is a span event `exception` with its
+type, message and stack. Every log line carries `trace_id` and `span_id`. Tempo derives
+`calls_total` and `latency_bucket` per span name and status; the apps send no metrics of their own.
 
 Every incoming HTTP request is a trace root, so the worker's `POST /events` and the web's polls
 are traces of their own beside the user's; filter them out in the query
@@ -20,21 +20,22 @@ are traces of their own beside the user's; filter them out in the query
 
 ## Where to look
 
-`make up` runs `grafana/otel-lgtm` per tree and prints its Grafana link (`admin`/`admin`); the
-ports follow the tree's `N` ([tooling.md › Worktrees](tooling.md#worktrees)). In Grafana, Explore
-→ Tempo for traces (TraceQL `{ resource.service.name = "api" }`), Loki for logs
-(`{service_name="api"}`); a log line links to its trace by `trace_id`. Tempo's search lists a
-trace a while after it ends (within two minutes on the local stand), while a trace opened by its
-id answers at once. An empty Grafana with the apps running means the container is down: a failed
-export turns its exporter off for 60 s and says so only at `Debug` level. The backend keeps its data
-inside the container, so `make down` followed by `make up`, which replaces the container, starts
-it empty.
+`make up` always runs `grafana/otel-lgtm`, one per tree with no switch, and prints its Grafana link
+(`admin`/`admin`); the ports follow the tree's `N` ([tooling.md › Worktrees](tooling.md#worktrees)).
+In Grafana, Explore → Tempo for traces (TraceQL `{ resource.service.name = "api" }`), Loki for logs
+(`{service_name="api"}`); a log line links to its trace by `trace_id`. Tempo's search lists a trace
+a while after it ends (within two minutes on the local stand), while a trace opened by its id
+answers at once. An empty Grafana with the apps running means the container is down: a failed export
+turns its exporter off for 60 s and says so only at `Debug` level. The backend keeps its data inside
+the container, so `make down` followed by `make up`, which replaces the container, starts it empty.
 
 ## How it is wired
 
 - Each process's `layer.ts` ends with `Otlp.layerFromConfig({ resource: { serviceName } })`; the
   `OTEL_*` variables of `.env` decide what leaves, and without an `OTEL_<SIGNAL>_EXPORTER` nothing
-  does. No module, service or repository holds telemetry code.
+  does. No module, service or repository holds telemetry code, and there is no telemetry
+  workspace: one pays off once logic shared by processes appears, such as the flush before a
+  Lambda invocation ends.
 - The trace crosses SQS in the message: `QueueSender.send` puts its span's W3C `traceparent` into
   the message attributes, and `QueueConsumer` runs each record in a consumer span with that parent.
   The process span is a child, not a link: one trace per user message, so its length includes the
