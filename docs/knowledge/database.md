@@ -58,7 +58,9 @@ the entities derived from them.
   `(message_id, chat_id)` over `messages (id, chat_id)`, so `chat_id`, which a bind writes beside
   `message_id` to find a chat's attachments without its messages, can only name the message's
   chat, and a check keeps both null or both set. The cascade never reaches S3: whoever deletes a
-  chat or a message deletes the bytes too.
+  chat or a message deletes the bytes too. `source_id`, the attachment a row was sent from, does
+  not cascade (`attachments_source_id_fk`): a delete of an attachment that a row still names
+  fails the statement, and a check lets only a bound row name a source.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
   foreign key on array elements, so a copy would drift: a message's attachments are the rows
   whose `attachments.message_id` names it, and `messages` keeps no list of them. They read in

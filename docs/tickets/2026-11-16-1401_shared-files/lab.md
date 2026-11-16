@@ -95,6 +95,8 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   that a message already holds is refused by `bind` alone, after the message's insert (`:69`),
   while `layering.md › Use cases` wants every check before the first write. Pipe both, reachable
   then unbound, and keep `ensureAllUnbound`?
+  - [N:ai] The owner's "ok" in the chat: both are piped, reachable then unbound, and
+    `ensureAllUnbound` stays.
 
 ### Pieces
 
@@ -102,6 +104,11 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   upload order; until the send's piece lands, a sent one still leaves it · visible:
   `bun --bun vitest run --project unit apps/api/__tests__/attachment/attachment.handler.test.ts
   -t 'GET /attachments answers'`
+- [N:ai] L2.3 The table, the model and the wire know a source: `source_id` names the attachment
+  a row was sent from, only a bound row may name one, and the source's delete dies while a row
+  names it; every attachment reads `sourceId: null` until the send's piece. The one migration
+  `init` is generated anew, so a local database needs `make reset && make up` · visible:
+  `bun --bun vitest run --project e2e kernel/data/__e2e__/attachment -t source`
 
 ### Output
 

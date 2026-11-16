@@ -37,6 +37,8 @@ export class Attachment extends Schema.Class<Attachment>('Attachment')({
   messageId: Schema.Option(MessageId),
   /** The chat of `messageId`, set with it, so a chat's attachments are found without its messages. */
   chatId: Schema.Option(ChatId),
+  /** The attachment it was sent from, set only with `messageId`. */
+  sourceId: Schema.Option(AttachmentId),
   fileName: FileName,
   mediaType: MediaType,
   size: FileSize,
@@ -47,7 +49,13 @@ export const buildAttachment = (
   fields: Types.Simplify<
     Pick<Attachment, 'id' | 'userId' | 'fileName' | 'mediaType' | 'size' | 'createdAt'>
   >,
-): Attachment => new Attachment({ ...fields, messageId: Option.none(), chatId: Option.none() })
+): Attachment =>
+  new Attachment({
+    ...fields,
+    messageId: Option.none(),
+    chatId: Option.none(),
+    sourceId: Option.none(),
+  })
 
 const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
   Option.isNone(attachment.messageId)

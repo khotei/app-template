@@ -27,6 +27,7 @@ export const ApiAttachment = Schema.Struct({
   userId: UserId,
   messageId: Schema.OptionFromNullOr(MessageId),
   chatId: Schema.OptionFromNullOr(ChatId),
+  sourceId: Schema.OptionFromNullOr(AttachmentId),
   fileName: FileName,
   mediaType: MediaType,
   size: FileSize,

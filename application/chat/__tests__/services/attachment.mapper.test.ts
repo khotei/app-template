@@ -13,6 +13,7 @@ const attachment = new Attachment({
   userId: owner,
   messageId: Option.none(),
   chatId: Option.none(),
+  sourceId: Option.none(),
   fileName: FileName.make('notes.txt'),
   mediaType: MediaType.make('Az09!#$&^_.+-/Az09!#$&^_.+-'),
   size: FileSize.make(42),

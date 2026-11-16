@@ -132,6 +132,7 @@ describe('attachments', () => {
         assert.deepInclude(wire, {
           messageId: null,
           chatId: null,
+          sourceId: null,
           createdAt: DateTime.formatIso(read.createdAt),
         })
       }).pipe(Effect.provide(ApiTest)),

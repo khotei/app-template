@@ -23,6 +23,7 @@ export const attachments = snakeCase.table(
       .references(() => users.id),
     messageId: uuid(),
     chatId: uuid(),
+    sourceId: uuid(),
     fileName: text().notNull(),
     mediaType: text().notNull(),
     size: integer().notNull(),
@@ -42,7 +43,18 @@ export const attachments = snakeCase.table(
       columns: [table.messageId, table.chatId],
       foreignColumns: [messages.id, messages.chatId],
     }).onDelete('cascade'),
+    check(
+      'attachments_source_id_message_id_check',
+      sql`${table.sourceId} is null or ${table.messageId} is not null`,
+    ),
+    // No cascade: a delete of an attachment that a record names as its source is refused.
+    foreignKey({
+      name: 'attachments_source_id_fk',
+      columns: [table.sourceId],
+      foreignColumns: [table.id],
+    }),
     index('attachments_chat_id_index').on(table.chatId),
+    index('attachments_source_id_index').on(table.sourceId),
     index('attachments_message_id_created_at_id_index').on(
       table.messageId,
       table.createdAt,

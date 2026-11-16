@@ -47,6 +47,11 @@ describe('attachments', () => {
       check: 'attachments_message_id_chat_id_check',
       fields: { chatId: '0192d4e0-7b3a-7c00-8000-000000000094' },
     },
+    {
+      name: 'a source without a message',
+      check: 'attachments_source_id_message_id_check',
+      fields: { sourceId: '0192d4e0-7b3a-7c00-8000-000000000095' },
+    },
   ])('refuses $name through its check', ({ check, fields }) =>
     Effect.gen(function* () {
       const db = yield* Db

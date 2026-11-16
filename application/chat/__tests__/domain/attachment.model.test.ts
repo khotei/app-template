@@ -26,6 +26,7 @@ describe('Attachment', () => {
     userId: '0192d4e0-7b3a-7c00-8000-000000000010',
     messageId: Option.none(),
     chatId: Option.none(),
+    sourceId: Option.none(),
     fileName: 'report.pdf',
     mediaType: 'application/pdf',
     size: 1024,

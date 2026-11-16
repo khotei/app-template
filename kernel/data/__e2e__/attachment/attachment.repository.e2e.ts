@@ -26,6 +26,7 @@ const attachment = (id: string): AttachmentEntity => ({
   userId,
   messageId: null,
   chatId: null,
+  sourceId: null,
   fileName: 'photo.png',
   mediaType: 'image/png',
   size: 1024,
@@ -197,6 +198,47 @@ describe('AttachmentRepository', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assert.deepStrictEqual(yield* attachments.selectMany({ id: [stored.id] }), [])
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
+  it.effect('delete of an attachment a record names as its source dies and keeps both', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const source = attachment('0192d4e0-7b3a-7c00-8000-00000000002a')
+      const record = {
+        ...attachment('0192d4e0-7b3a-7c00-8000-00000000002b'),
+        messageId,
+        chatId,
+        sourceId: source.id,
+      }
+      yield* insertChatWithMessage
+      yield* Effect.forEach([source, record], attachments.insert)
+
+      const exit = yield* attachments.delete({ id: [source.id] }).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(
+        Attachments,
+        yield* attachments.selectMany({ id: [source.id, record.id] }),
+        [source, record],
+      )
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
+  it.effect('insert of a record whose source no row holds dies', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const record = {
+        ...attachment('0192d4e0-7b3a-7c00-8000-00000000002c'),
+        messageId,
+        chatId,
+        sourceId: unknownId,
+      }
+      yield* insertChatWithMessage
+
+      const exit = yield* attachments.insert(record).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 

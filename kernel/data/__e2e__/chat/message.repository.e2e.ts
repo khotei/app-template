@@ -47,6 +47,7 @@ const attachment = (
   userId,
   messageId: message.id,
   chatId: message.chatId,
+  sourceId: null,
   fileName: 'photo.png',
   mediaType: 'image/png',
   size: 1024,

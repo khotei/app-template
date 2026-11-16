@@ -13,6 +13,7 @@ import {
   Schema,
   UndefinedOr,
 } from 'effect'
+import { constTrue } from 'effect/Function'
 
 import { hasRowPer, orDieUnless } from '@app-template/packages/db'
 
@@ -49,16 +50,29 @@ const holdsWhere = ({ id, ...fields }: AttachmentEntitySelectWhere) =>
 const decodeAttachment = Schema.decodeUnknownEffect(AttachmentEntity)
 
 /** The column defaults Postgres fills on an insert that leaves them out. */
-const attachmentDefaults = { messageId: null, chatId: null } as const
+const attachmentDefaults = { messageId: null, chatId: null, sourceId: null } as const
 
 const isUnbound = matches<AttachmentEntity>({ messageId: null, chatId: null })
+
+/** Holds while every row that names a source is bound and the rows hold that source. */
+const keepsSources = (rows: HashMap.HashMap<string, AttachmentEntity>) =>
+  HashMap.every(rows, (row) =>
+    pipe(
+      Option.fromNullOr(row.sourceId),
+      Option.match({
+        onNone: constTrue,
+        onSome: (sourceId) => Predicate.isNotNull(row.messageId) && HashMap.has(rows, sourceId),
+      }),
+    ),
+  )
 
 /**
  * Requires the id and the timestamp every caller passes, where Postgres would default the id,
  * and fills the binding with nulls. Copies the guards the repository's e2e proves: the primary
  * key, the where fields, the set fields, and on an update `attachments_message_id_chat_id_check`
  * with `attachments_message_id_chat_id_fk`: a row stays unbound, or binds to a message of that
- * chat, read through the `MessageRepository` in context.
+ * chat, read through the `MessageRepository` in context; and on an insert and a delete
+ * `attachments_source_id_message_id_check` with `attachments_source_id_fk` (`keepsSources`).
  */
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
@@ -82,8 +96,8 @@ export const AttachmentRepositoryTest = Layer.effect(
       insert: (attachment) =>
         decodeAttachment({ ...attachmentDefaults, ...attachment }).pipe(
           Effect.orDie,
-          Effect.flatMap((row) => insertRow(rows, { row })),
-          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no attachment was inserted: its id is taken'),
+          Effect.flatMap((row) => insertRow(rows, { row, accepts: keepsSources })),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no attachment was inserted'),
         ),
       update: (set, where) => {
         const update = writeSet({ messageId: true, chatId: true }, set)
@@ -106,9 +120,14 @@ export const AttachmentRepositoryTest = Layer.effect(
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
       // Deletes before it dies: outside a transaction, Postgres keeps the rows the statement
-      // removed although another id named none.
+      // removed although another id named none. A source still named fails the statement whole.
       delete: (where) =>
-        deleteRows(rows, holdsWhere(where)).pipe(
+        Ref.get(rows).pipe(
+          Effect.map(HashMap.filter(Predicate.not(holdsWhere(where)))),
+          Effect.filterOrElse(keepsSources, () =>
+            Effect.die(new Error('an attachment named is still a source')),
+          ),
+          Effect.andThen(deleteRows(rows, holdsWhere(where))),
           orDieUnless(hasRowPer(where.id), 'an attachment named was not deleted'),
           Effect.asVoid,
         ),

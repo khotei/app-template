@@ -6,6 +6,7 @@ CREATE TABLE "attachments" (
 	"user_id" uuid NOT NULL,
 	"message_id" uuid,
 	"chat_id" uuid,
+	"source_id" uuid,
 	"file_name" text NOT NULL,
 	"media_type" text NOT NULL,
 	"size" integer NOT NULL,
@@ -13,7 +14,8 @@ CREATE TABLE "attachments" (
 	CONSTRAINT "attachments_file_name_check" CHECK ("file_name" <> ''),
 	CONSTRAINT "attachments_media_type_check" CHECK ("media_type" ~* '^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$'),
 	CONSTRAINT "attachments_size_check" CHECK ("size" >= 0),
-	CONSTRAINT "attachments_message_id_chat_id_check" CHECK (("message_id" is null) = ("chat_id" is null))
+	CONSTRAINT "attachments_message_id_chat_id_check" CHECK (("message_id" is null) = ("chat_id" is null)),
+	CONSTRAINT "attachments_source_id_message_id_check" CHECK ("source_id" is null or "message_id" is not null)
 );
 --> statement-breakpoint
 CREATE TABLE "chats" (
@@ -61,6 +63,7 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 CREATE INDEX "attachments_chat_id_index" ON "attachments" ("chat_id");--> statement-breakpoint
+CREATE INDEX "attachments_source_id_index" ON "attachments" ("source_id");--> statement-breakpoint
 CREATE INDEX "attachments_message_id_created_at_id_index" ON "attachments" ("message_id","created_at","id");--> statement-breakpoint
 CREATE INDEX "chats_user_id_created_at_index" ON "chats" ("user_id","created_at" DESC);--> statement-breakpoint
 CREATE INDEX "chats_user_id_updated_at_index" ON "chats" ("user_id","updated_at" DESC);--> statement-breakpoint
@@ -69,6 +72,7 @@ CREATE UNIQUE INDEX "runs_chat_id_active_index" ON "runs" ("chat_id") WHERE "sta
 CREATE INDEX "runs_user_message_id_created_at_index" ON "runs" ("user_message_id","created_at");--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_message_id_chat_id_fk" FOREIGN KEY ("message_id","chat_id") REFERENCES "messages"("id","chat_id") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "attachments" ADD CONSTRAINT "attachments_source_id_fk" FOREIGN KEY ("source_id") REFERENCES "attachments"("id");--> statement-breakpoint
 ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_chat_id_chats_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "runs" ADD CONSTRAINT "runs_chat_id_chats_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE;--> statement-breakpoint
