@@ -18,12 +18,11 @@ import { UserRepositoryTest, UserRows } from '#testing/data/user.test-fake'
  */
 export const RepositoryStackTest = Layer.mergeAll(
   UserRepositoryTest,
-  ChatRepositoryTest,
   AttachmentRepositoryTest,
   FileRepositoryTest,
   RunRepositoryTest,
 ).pipe(
-  Layer.provideMerge(MessageRepositoryTest),
+  Layer.provideMerge(Layer.mergeAll(ChatRepositoryTest, MessageRepositoryTest)),
   Layer.provideMerge(
     Layer.mergeAll(
       UserRows.layer,

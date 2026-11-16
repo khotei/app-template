@@ -3,6 +3,7 @@ import { check, foreignKey, index, integer, snakeCase, text, uuid } from 'drizzl
 
 import { createdAt, id } from '@app-template/packages/db'
 
+import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
 import { users } from '#kernel/data/user/user.table'
 
@@ -22,7 +23,7 @@ export const attachments = snakeCase.table(
       .notNull()
       .references(() => users.id),
     messageId: uuid(),
-    chatId: uuid(),
+    chatId: uuid().references(() => chats.id, { onDelete: 'cascade' }),
     sourceId: uuid(),
     fileName: text().notNull(),
     mediaType: text().notNull(),
@@ -33,9 +34,10 @@ export const attachments = snakeCase.table(
     check('attachments_file_name_check', sql`${table.fileName} <> ''`),
     check('attachments_media_type_check', sql`${table.mediaType} ~* ${mediaTypePattern.source}`),
     check('attachments_size_check', sql`${table.size} >= ${minFileSize}`),
+    // The pair key below skips a row with a null in it, so the check refuses a message alone.
     check(
       'attachments_message_id_chat_id_check',
-      sql`(${table.messageId} is null) = (${table.chatId} is null)`,
+      sql`${table.messageId} is null or ${table.chatId} is not null`,
     ),
     // One key over both columns, so `chat_id` can only name the chat of `message_id`.
     foreignKey({

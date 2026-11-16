@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "b204912f-2609-4dca-80c7-a49c5c42fbf3",
+  "id": "b4dee328-d3c3-49cd-a295-8fb7966e4e2c",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -364,6 +364,29 @@
         "n|col|public.attachments.user_id",
         "n|col|public.users.id",
         "e|uniqueness|public.users.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachments"
+      ],
+      "writes": [
+        "s|fk|public.attachments.attachments_chat_id_chats_id_fkey",
+        "n|fk|public.attachments.attachments_chat_id_chats_id_fkey",
+        "e|fk|public.attachments.attachments_chat_id_chats_id_fkey",
+        "n|con|public.attachments.attachments_chat_id_chats_id_fkey"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public",
+        "n|tbl|public.chats",
+        "n|sch|public",
+        "n|col|public.attachments.chat_id",
+        "n|col|public.chats.id",
+        "e|uniqueness|public.chats.id"
       ]
     },
     {
@@ -1280,6 +1303,23 @@
     {
       "schema": "public",
       "table": "attachments",
+      "name": "attachments_chat_id_chats_id_fkey",
+      "nameExplicit": false,
+      "columns": [
+        "chat_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "chats",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "attachments",
       "name": "attachments_message_id_chat_id_fk",
       "nameExplicit": true,
       "columns": [
@@ -1525,7 +1565,7 @@
       "schema": "public",
       "table": "attachments",
       "name": "attachments_message_id_chat_id_check",
-      "value": "(\"message_id\" is null) = (\"chat_id\" is null)",
+      "value": "\"message_id\" is null or \"chat_id\" is not null",
       "entityType": "checks"
     },
     {

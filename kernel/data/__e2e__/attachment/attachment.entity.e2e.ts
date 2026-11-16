@@ -43,9 +43,9 @@ describe('attachments', () => {
     },
     { name: 'a negative size', check: 'attachments_size_check', fields: { size: -1 } },
     {
-      name: 'a chat without a message',
+      name: 'a message without a chat',
       check: 'attachments_message_id_chat_id_check',
-      fields: { chatId: '0192d4e0-7b3a-7c00-8000-000000000094' },
+      fields: { messageId: '0192d4e0-7b3a-7c00-8000-000000000094' },
     },
     {
       name: 'a source without a message',

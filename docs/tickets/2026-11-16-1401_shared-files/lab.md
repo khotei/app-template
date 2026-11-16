@@ -95,7 +95,23 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
 
 ### Notes
 
+- [Q:ai] The fourth of the five questions fails for the bind. `bindAttachment` writes `chatId`
+  beside `messageId` (`application/chat/domain/attachment.model.ts:182`,
+  `application/chat/services/file-attachment.service.ts:173`), though from L3 on a chat's
+  attachment names its chat since its upload: given one of another chat, `bind` alone moves it
+  into the message's chat, and only the send's `ensureAllReachableFrom` stands before that.
+  With `messageId` as the whole set, the pair key refuses that bind in the write, and
+  `AttachmentEntitySet` loses `chatId`. Write `messageId` alone, in the piece that binds a
+  chat's own attachment?
+
 ### Pieces
+
+- [N:ai] L3.1 The table lets a chat hold an attachment no message holds: `chat_id` is a key
+  to `chats` that cascades, so an unsent attachment of a chat goes with it, and the check
+  refuses only a message without a chat. The memory repositories copy both, on an insert too.
+  Nothing writes such a row yet. The one migration `init` is generated anew, so a local
+  database needs `make reset && make up` · visible: `bun --bun vitest run --project e2e
+  kernel/data/__e2e__ -t 'sent or not'`
 
 ### Output
 
@@ -164,6 +180,12 @@ source.>
   (`kernel/data/attachment/attachment.table.ts:45`), so it scans the table. Open.
 - A chat's delete removes its bytes inside the request, and a failure after the rows are gone
   leaves bytes no rule removes (roadmap entry 16, inherited from `jobs`). Open.
+- An upload into a chat that lands between the read and the delete of that chat's delete
+  loses its row by the cascade and keeps its bytes, which no rule removes
+  (`application/chat/services/chat.service.ts:102`). Open, from L3's upload on.
+- The table lets a record name any attachment as its source, a chat's too, whose chat's
+  delete would then die on `attachments_source_id_fk`; only `bind` adds a record, and only
+  of a library attachment (`application/chat/services/file-attachment.service.ts:160`). Open.
 - `deployment` imports nothing of the data layer since L1.1, yet the guard and its docs still
   allow it (`.misc/lint/biome-imports.grit:81`, `docs/knowledge/architecture.md:84`,
   `.claude/rules/modules.md:29`). Open.

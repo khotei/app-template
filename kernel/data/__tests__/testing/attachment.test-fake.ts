@@ -22,6 +22,7 @@ import {
   type AttachmentEntitySelectWhere,
 } from '#kernel/data/attachment/attachment.entity'
 import { AttachmentRepository } from '#kernel/data/attachment/attachment.repository'
+import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import {
   deleteRows,
@@ -52,8 +53,6 @@ const decodeAttachment = Schema.decodeUnknownEffect(AttachmentEntity)
 /** The column defaults Postgres fills on an insert that leaves them out. */
 const attachmentDefaults = { messageId: null, chatId: null, sourceId: null } as const
 
-const isUnbound = matches<AttachmentEntity>({ messageId: null, chatId: null })
-
 /** Holds while every row that names a source is bound and the rows hold that source. */
 const keepsSources = (rows: HashMap.HashMap<string, AttachmentEntity>) =>
   HashMap.every(rows, (row) =>
@@ -69,24 +68,41 @@ const keepsSources = (rows: HashMap.HashMap<string, AttachmentEntity>) =>
 /**
  * Requires the id and the timestamp every caller passes, where Postgres would default the id,
  * and fills the binding with nulls. Copies the guards the repository's e2e proves: the primary
- * key, the where fields, the set fields, and on an update `attachments_message_id_chat_id_check`
- * with `attachments_message_id_chat_id_fk`: a row stays unbound, or binds to a message of that
- * chat, read through the `MessageRepository` in context; and on an insert and a delete
- * `attachments_source_id_message_id_check` with `attachments_source_id_fk` (`keepsSources`).
+ * key, the where fields, the set fields, and on an insert and an update
+ * `attachments_message_id_chat_id_check` with the keys to `chats` and `messages` (`ensurePlaced`,
+ * read through the `ChatRepository` and `MessageRepository` in context); and on an insert and a
+ * delete `attachments_source_id_message_id_check` with `attachments_source_id_fk`
+ * (`keepsSources`).
  */
 export const AttachmentRepositoryTest = Layer.effect(
   AttachmentRepository,
   Effect.gen(function* () {
     const rows = yield* AttachmentRows
+    const chats = yield* ChatRepository
     const messages = yield* MessageRepository
 
-    const isBindable = (row: AttachmentEntity) =>
+    const holdsPlace = (row: AttachmentEntity) =>
       pipe(
-        Option.all({ id: Option.fromNullOr(row.messageId), chatId: Option.fromNullOr(row.chatId) }),
+        Option.fromNullOr(row.chatId),
         Option.match({
-          onNone: () => Effect.succeed(isUnbound(row)),
-          onSome: (message) => messages.selectOne(message).pipe(Effect.map(Option.isSome)),
+          onNone: () => Effect.succeed(Predicate.isNull(row.messageId)),
+          onSome: (chatId) =>
+            pipe(
+              Option.fromNullOr(row.messageId),
+              Option.match({
+                onNone: () => chats.selectOne({ id: chatId }).pipe(Effect.map(Option.isSome)),
+                onSome: (id) => messages.selectOne({ id, chatId }).pipe(Effect.map(Option.isSome)),
+              }),
+            ),
         }),
+      )
+
+    /** Dies unless the row is of no chat and no message, of a chat, or of a message of that chat. */
+    const ensurePlaced = (row: AttachmentEntity) =>
+      holdsPlace(row).pipe(
+        Effect.filterOrElse(identity, () =>
+          Effect.die(new Error('an attachment names a chat or a message no row holds')),
+        ),
       )
 
     const selectMany = (where: AttachmentEntitySelectWhere) =>
@@ -96,6 +112,7 @@ export const AttachmentRepositoryTest = Layer.effect(
       insert: (attachment) =>
         decodeAttachment({ ...attachmentDefaults, ...attachment }).pipe(
           Effect.orDie,
+          Effect.tap(ensurePlaced),
           Effect.flatMap((row) => insertRow(rows, { row, accepts: keepsSources })),
           orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no attachment was inserted'),
         ),
@@ -105,13 +122,7 @@ export const AttachmentRepositoryTest = Layer.effect(
         // which `TransactionTest` cannot.
         return Ref.get(rows).pipe(
           Effect.map(flow(HashMap.filter(holdsWhere(where)), HashMap.toValues, Arr.map(update))),
-          Effect.flatMap((written) =>
-            Effect.forEach(written, isBindable).pipe(
-              Effect.map((bindable) =>
-                Arr.every(bindable, identity) ? written : Arr.empty<AttachmentEntity>(),
-              ),
-            ),
-          ),
+          Effect.tap(Effect.forEach(ensurePlaced, { discard: true })),
           orDieUnless(hasRowPer(where.id), 'an attachment named was not updated'),
           Effect.andThen(updateRows(rows, { where: holdsWhere(where), update })),
           Effect.asVoid,

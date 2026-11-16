@@ -53,14 +53,15 @@ the entities derived from them.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
-- **Foreign keys say what a delete does.** `credentials`, `messages` and a bound attachment's row
-  cascade from their parent, so a chat's delete is one statement. The attachment's key is the pair
-  `(message_id, chat_id)` over `messages (id, chat_id)`, so `chat_id`, which a bind writes beside
-  `message_id` to find a chat's attachments without its messages, can only name the message's
-  chat, and a check keeps both null or both set. The cascade never reaches S3: whoever deletes a
-  chat or a message deletes the bytes too. `source_id`, the attachment a row was sent from, does
-  not cascade (`attachments_source_id_fk`): a delete of an attachment that a row still names
-  fails the statement, and a check lets only a bound row name a source.
+- **Foreign keys say what a delete does.** `credentials`, `messages` and a chat's attachments
+  cascade from their parent, so a chat's delete is one statement. An attachment names its chat in
+  `chat_id`, a key to `chats` that cascades, so one uploaded into a chat and never sent goes with
+  it. A sent one names its message too, by the pair `(message_id, chat_id)` over
+  `messages (id, chat_id)`, so the message can only be one of that chat; the pair key skips a
+  row with a null in it, so a check refuses a message without a chat. The cascade never reaches
+  S3: whoever deletes a chat or a message deletes the bytes too. `source_id`, the attachment a
+  row was sent from, does not cascade (`attachments_source_id_fk`): a delete of an attachment
+  that a row still names fails the statement, and a check lets only a bound row name a source.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
   foreign key on array elements, so a copy would drift: a message's attachments are the rows
   whose `attachments.message_id` names it, and `messages` keeps no list of them. They read in
@@ -247,7 +248,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     their bytes in one call, so without the guard it removes bound ones too.
 
 `ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages,
-their attachments and its Runs go by the cascade, and `RETURNING` answers only the chat's row.
+its attachments and its Runs go by the cascade, and `RETURNING` answers only the chat's row.
 `ChatService.delete` therefore reads the chat with its attachments to name `ChatNotFoundError`,
 then deletes the chat, then the bytes, through
 `FileRepository.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds

@@ -14,7 +14,7 @@ CREATE TABLE "attachments" (
 	CONSTRAINT "attachments_file_name_check" CHECK ("file_name" <> ''),
 	CONSTRAINT "attachments_media_type_check" CHECK ("media_type" ~* '^[a-z0-9][a-z0-9!#$&^_.+-]*\/[a-z0-9][a-z0-9!#$&^_.+-]*$'),
 	CONSTRAINT "attachments_size_check" CHECK ("size" >= 0),
-	CONSTRAINT "attachments_message_id_chat_id_check" CHECK (("message_id" is null) = ("chat_id" is null)),
+	CONSTRAINT "attachments_message_id_chat_id_check" CHECK ("message_id" is null or "chat_id" is not null),
 	CONSTRAINT "attachments_source_id_message_id_check" CHECK ("source_id" is null or "message_id" is not null)
 );
 --> statement-breakpoint
@@ -71,6 +71,7 @@ CREATE INDEX "messages_chat_id_created_at_index" ON "messages" ("chat_id","creat
 CREATE UNIQUE INDEX "runs_chat_id_active_index" ON "runs" ("chat_id") WHERE "status" in ('queued', 'preparing', 'generating');--> statement-breakpoint
 CREATE INDEX "runs_user_message_id_created_at_index" ON "runs" ("user_message_id","created_at");--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
+ALTER TABLE "attachments" ADD CONSTRAINT "attachments_chat_id_chats_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_message_id_chat_id_fk" FOREIGN KEY ("message_id","chat_id") REFERENCES "messages"("id","chat_id") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_source_id_fk" FOREIGN KEY ("source_id") REFERENCES "attachments"("id");--> statement-breakpoint
 ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint

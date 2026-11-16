@@ -207,8 +207,8 @@ const tables = Effect.gen(function* () {
 /**
  * Requires the id and the timestamps every caller passes, where Postgres would default the id,
  * and fills the other defaults. Copies the guards the repository's e2e proves: the primary key,
- * the where fields, the set fields, and the cascade from a chat to its messages and Runs and,
- * through the messages, their attachments.
+ * the where fields, the set fields, and the cascade from a chat to its messages, its Runs and
+ * its attachments.
  */
 export const ChatRepositoryTest = Layer.effect(
   ChatRepository,
@@ -240,21 +240,13 @@ export const ChatRepositoryTest = Layer.effect(
         ),
       )
 
-    const cascade = (deleted: ReadonlyArray<ChatRow>) =>
-      deleteRows(runs, matchesAny<RunRow>({ chatId: Arr.map(deleted, Struct.get('id')) })).pipe(
-        Effect.andThen(
-          deleteRows(
-            messages,
-            matchesAny<MessageRow>({ chatId: Arr.map(deleted, Struct.get('id')) }),
-          ),
-        ),
-        Effect.flatMap((removed) =>
-          deleteRows(
-            attachments,
-            matchesAny<AttachmentEntity>({ messageId: Arr.map(removed, Struct.get('id')) }),
-          ),
-        ),
+    const cascade = (deleted: ReadonlyArray<ChatRow>) => {
+      const chatId = Arr.map(deleted, Struct.get('id'))
+      return deleteRows(runs, matchesAny<RunRow>({ chatId })).pipe(
+        Effect.andThen(deleteRows(messages, matchesAny<MessageRow>({ chatId }))),
+        Effect.andThen(deleteRows(attachments, matchesAny<AttachmentEntity>({ chatId }))),
       )
+    }
 
     return ChatRepository.of({
       insert: (chat) =>

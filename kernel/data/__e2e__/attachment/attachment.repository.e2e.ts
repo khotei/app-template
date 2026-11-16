@@ -88,6 +88,23 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
+  it.effect('inserts an attachment into a chat, unsent, and dies on a chat no row holds', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const unsent = { ...attachment('0192d4e0-7b3a-7c00-8000-00000000002f'), chatId }
+      const lost = { ...attachment('0192d4e0-7b3a-7c00-8000-000000000030'), chatId: unknownId }
+      yield* insertChatWithMessage
+
+      yield* attachments.insert(unsent)
+      const exit = yield* attachments.insert(lost).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: [unsent.id, lost.id] }), [
+        unsent,
+      ])
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
   it.effect(
     "selectOne with the owner's id finds the attachment; with a stranger's it is none",
     () =>

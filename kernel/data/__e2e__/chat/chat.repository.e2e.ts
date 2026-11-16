@@ -218,7 +218,7 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect("delete takes the messages' attachments with them by the cascade", () =>
+  it.effect("delete takes the chat's attachments, sent or not, by the cascade", () =>
     Effect.gen(function* () {
       const db = yield* Db
       const chats = yield* ChatRepository
@@ -226,12 +226,8 @@ describe('ChatRepository', () => {
       const eve = '0192d4e0-7b3a-7c00-8000-000000000014'
       const stored = chat('0192d4e0-7b3a-7c00-8000-000000000037', eve)
       const withPhoto = question('0192d4e0-7b3a-7c00-8000-000000000052', stored.id)
-      const attachedId = '0192d4e0-7b3a-7c00-8000-000000000020'
-      yield* insertUser(eve)
-      yield* chats.insert(stored)
-      yield* messages.insert(withPhoto)
-      yield* db.insert(attachments).values({
-        id: attachedId,
+      const sent = {
+        id: '0192d4e0-7b3a-7c00-8000-000000000020',
         userId: eve,
         messageId: withPhoto.id,
         chatId: stored.id,
@@ -239,13 +235,18 @@ describe('ChatRepository', () => {
         mediaType: 'image/png',
         size: 1024,
         createdAt,
-      })
+      }
+      const unsent = { ...sent, id: '0192d4e0-7b3a-7c00-8000-000000000021', messageId: null }
+      yield* insertUser(eve)
+      yield* chats.insert(stored)
+      yield* messages.insert(withPhoto)
+      yield* db.insert(attachments).values([sent, unsent])
 
       yield* chats.delete({ id: stored.id })
 
       assert.deepStrictEqual(yield* messages.selectMany({ chatId: stored.id }), [])
       assert.deepStrictEqual(
-        yield* db.select().from(attachments).where(eq(attachments.id, attachedId)),
+        yield* db.select().from(attachments).where(eq(attachments.userId, eve)),
         [],
       )
     }).pipe(Effect.provide(RepositoriesTest)),
