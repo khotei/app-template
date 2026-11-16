@@ -1,8 +1,7 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Duration, Effect, Layer, Option, Struct } from 'effect'
-import { TestClock } from 'effect/testing'
+import { Effect, Layer, Option, Struct } from 'effect'
 
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
@@ -39,11 +38,10 @@ const downloadBytes = (id: AttachmentId) =>
   )
 
 describe('AttachmentService', () => {
-  it.effect('getOne answers an attachment unbound for 24 h', () =>
+  it.effect("getOne answers the user's attachment", () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService
       const attachment = yield* uploadPhoto
-      yield* TestClock.adjust(Duration.hours(24))
 
       assertEquals(yield* service.getOne({ id: attachment.id, userId: owner }), attachment)
     }).pipe(Effect.provide(AttachmentServiceTest)),
@@ -81,7 +79,6 @@ describe('AttachmentService', () => {
         const service = yield* AttachmentService
         const own = yield* uploadPhoto
         const foreign = yield* upload(stranger)
-        yield* TestClock.adjust(Duration.hours(24))
 
         const found = yield* service.getMany({
           id: [foreign.id, own.id, unknownAttachmentId],

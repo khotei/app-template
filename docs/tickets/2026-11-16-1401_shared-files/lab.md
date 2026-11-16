@@ -424,6 +424,9 @@ elegant, composable and minimal, check the abstractions and the names. (the owne
   service and rewrites the record `decisions.md › Layered services of one model` and
   `.claude/rules/layering.md:24` to two layers, the plain records and the records with their
   bytes; the layer comes back in L2 only on the owner's word, the open question above.
+[D] Yes: L1.2 deletes `LiveAttachmentService`, and the record is rewritten to two layers. (the
+owner, chat)
+  [N:ai] In Knowledge, and done in L1.2.
 
 ### Pieces
 
@@ -432,6 +435,11 @@ elegant, composable and minimal, check the abstractions and the names. (the owne
   inventory's `unboundExpirationDays` went with them. The 24-hour lifetime in the model stays
   for L1.2 · visible: `git grep -nE 'unboundTag|untag|expire-unbound' -- ':!docs' ':!repos'`
   answers nothing; `make check`
+[N:ai] L1.2 An attachment left unsent for 24 hours is still read, downloaded, sent and deleted:
+  the model's lifetime and its four functions are gone, and so is `LiveAttachmentService`, the
+  handler's `get` reading the plain service. A send now names an absent row and absent bytes in
+  one `AttachmentNotFoundError` · visible: `bun --bun vitest run --project unit
+  application/chat/__tests__/services/file-attachment.service.test.ts -t '24 h'`; `make check`
 
 ### Output
 
@@ -455,6 +463,8 @@ elegant, composable and minimal, check the abstractions and the names. (the owne
   the bucket's rule that removed it go.
 - A rule is a pure function of the model, with no guard service; a service reads what a rule
   of its own model needs and calls it, and a use case composes the services with the chat's.
+- An attachment has two services, the plain records and the records with their bytes, and no
+  layer for a rule between them (`decisions.md › Layered services of one model`).
 - From L5 on, one user's attachments together hold at most 1 GiB, counted over the bytes
   stored, a record sent from the library adding none; the number is a constant beside its rule.
 - Attachments stay in `chat`; no `drive` module is split out.

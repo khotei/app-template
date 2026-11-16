@@ -1,11 +1,9 @@
 import {
   Array as Arr,
-  DateTime,
-  Duration,
   Effect,
   flow,
   Option,
-  Predicate,
+  type Predicate,
   pipe,
   Schema,
   Struct,
@@ -51,33 +49,12 @@ export const buildAttachment = (
   >,
 ): Attachment => new Attachment({ ...fields, messageId: Option.none(), chatId: Option.none() })
 
-export const unboundLifetime = Duration.hours(24)
-
 const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
   Option.isNone(attachment.messageId)
-
-const isExpiredAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
-  Predicate.and(isUnbound, (attachment) =>
-    DateTime.isGreaterThanOrEqualTo(
-      now,
-      DateTime.addDuration(attachment.createdAt, unboundLifetime),
-    ),
-  )
-
-/** Bound, or unbound for less than `unboundLifetime` at `now`. */
-export const isLiveAt = (now: DateTime.Utc): Predicate.Predicate<Attachment> =>
-  Predicate.not(isExpiredAt(now))
 
 /** The value found for the attachment `id`; an absent one fails `AttachmentNotFoundError` naming `id`. */
 export const ensureFound = (id: AttachmentId) =>
   Effect.fromOption(() => new AttachmentNotFoundError({ ids: [id] }))
-
-/** Fails `AttachmentNotFoundError` naming the attachment when it is not live at `now`. */
-export const ensureLive = (now: DateTime.Utc) =>
-  Effect.filterOrFail<Attachment, AttachmentNotFoundError>(
-    isLiveAt(now),
-    (attachment) => new AttachmentNotFoundError({ ids: [attachment.id] }),
-  )
 
 /** `found` when it holds every id of `ids`; else one error naming each missing id once, in the order asked. */
 const ensureAllFound =
@@ -94,10 +71,6 @@ const ensureAllFound =
         onNonEmpty: (missing) => Effect.fail(new AttachmentNotFoundError({ ids: missing })),
       }),
     )
-
-/** The attachments read, less the expired ones, when they hold every id of `ids` at `now`. */
-export const ensureAllLive = (ids: ReadonlyArray<AttachmentId>, now: DateTime.Utc) =>
-  flow(Arr.filter(isLiveAt(now)), ensureAllFound(ids))
 
 const isStoredIn =
   (stored: ReadonlyArray<AttachmentId>): Predicate.Predicate<Attachment> =>

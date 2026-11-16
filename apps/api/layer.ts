@@ -5,10 +5,10 @@ import { HttpApiBuilder } from 'effect/http-api'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
+  AttachmentService,
   ChatService,
   CurrentReplyProvenanceFromConfig,
   FileAttachmentService,
-  LiveAttachmentService,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
@@ -55,7 +55,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     ChatService.layer,
     MessageService.layer,
     RunService.layer,
-    LiveAttachmentService.layer,
+    AttachmentService.layer,
     FileAttachmentService.layer,
     CreateUserMessageUseCase.layer,
     RetryRunUseCase.layer,

@@ -22,7 +22,6 @@ import {
   AttachmentService,
   type AttachmentWhere,
 } from '#chat/services/attachment.service'
-import { LiveAttachmentService } from '#chat/services/live-attachment.service'
 
 export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fileName'> {
   readonly content: Stream.Stream<Uint8Array, E>
@@ -42,7 +41,7 @@ export class FileAttachmentService extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly download: (where: AttachmentWhere) => Effect.Effect<URL, AttachmentNotFoundError>
     /**
-     * The user's live attachments whose bytes the store still holds, in creation order; one
+     * The user's attachments whose bytes the store still holds, in creation order; one
      * `AttachmentNotFoundError` names every id that is not.
      */
     readonly getMany: (
@@ -56,7 +55,7 @@ export class FileAttachmentService extends Context.Service<
       attachments: ReadonlyArray<Attachment>,
       message: Message,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentBoundError>
-    /** Removes the user's live attachment and its bytes while no message holds it. */
+    /** Removes the user's attachment and its bytes while no message holds it. */
     readonly delete: (
       where: AttachmentWhere,
     ) => Effect.Effect<void, AttachmentNotFoundError | AttachmentBoundError>
@@ -66,7 +65,6 @@ export class FileAttachmentService extends Context.Service<
     const attachments = yield* AttachmentRepository
     const files = yield* FileRepository
     const records = yield* AttachmentService
-    const live = yield* LiveAttachmentService
     const crypto = yield* Crypto.Crypto
     const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
@@ -118,7 +116,7 @@ export class FileAttachmentService extends Context.Service<
     const download = Effect.fn('FileAttachmentService.download')(function* (
       where: AttachmentWhere,
     ) {
-      const { id } = yield* live.getOne(where)
+      const { id } = yield* records.getOne(where)
       return yield* files
         .selectOne({ id })
         .pipe(Effect.flatMap(ensureFound(id)), Effect.map(Struct.get('url')))
@@ -127,7 +125,7 @@ export class FileAttachmentService extends Context.Service<
     const getMany = Effect.fn('FileAttachmentService.getMany')(function* (
       where: AttachmentGetManyWhere,
     ) {
-      const found = yield* live.getMany(where)
+      const found = yield* records.getMany(where)
       const storedIds = yield* files
         .selectMany({ id: Arr.map(found, Struct.get('id')) })
         .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
@@ -155,7 +153,7 @@ export class FileAttachmentService extends Context.Service<
     })
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
-      yield* live.getOne(where).pipe(ensureUnbound)
+      yield* records.getOne(where).pipe(ensureUnbound)
       // A send that binds it after the check makes this die, so its bytes stay.
       yield* records.delete({ id: [where.id], userId: where.userId, messageId: null })
     })
@@ -163,8 +161,5 @@ export class FileAttachmentService extends Context.Service<
     return { upload, download, getMany, bind, delete: remove }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide(LiveAttachmentService.layer),
-    Layer.provide(AttachmentService.layer),
-  )
+  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(AttachmentService.layer))
 }

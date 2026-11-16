@@ -19,7 +19,6 @@ export type AttachmentDeleteWhere = Types.Simplify<
   AttachmentGetManyWhere & { readonly messageId?: null }
 >
 
-/** The attachments' records as stored, expired ones included; `LiveAttachmentService` drops those. */
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {

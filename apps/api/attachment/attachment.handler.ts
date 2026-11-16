@@ -3,9 +3,9 @@ import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import {
+  AttachmentService,
   FileAttachmentService,
   FileName,
-  LiveAttachmentService,
   type MediaType,
 } from '@app-template/application/chat'
 import {
@@ -64,7 +64,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
   Api,
   'attachments',
   Effect.fnUntraced(function* (handlers) {
-    const liveAttachments = yield* LiveAttachmentService
+    const attachments = yield* AttachmentService
     const fileAttachments = yield* FileAttachmentService
 
     return handlers
@@ -94,7 +94,7 @@ export const AttachmentHandler = HttpApiBuilder.group(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
-          return yield* liveAttachments.getOne({ id: params.attachmentId, userId: user.id })
+          return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
         }, Effect.map(buildApiAttachment)),
       )
       .handleRaw(

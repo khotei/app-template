@@ -238,26 +238,20 @@ describe('FileAttachmentService', () => {
     }).pipe(Effect.provide(FileAttachmentServiceTest)),
   )
 
-  it.effect(
-    'delete of an attachment unbound for 24 h is AttachmentNotFoundError and deletes nothing',
-    () =>
-      Effect.gen(function* () {
-        const service = yield* FileAttachmentService
-        const attachment = yield* uploadPhoto
-        yield* TestClock.adjust(Duration.hours(24))
+  it.effect('an attachment left unbound for 24 h is still read, downloaded and deleted', () =>
+    Effect.gen(function* () {
+      const service = yield* FileAttachmentService
+      const attachment = yield* uploadPhoto
+      const where = { id: attachment.id, userId: owner }
+      yield* TestClock.adjust(Duration.hours(24))
 
-        const error = yield* service.delete({ id: attachment.id, userId: owner }).pipe(Effect.flip)
-        const stored = yield* selectAttachments([attachment.id])
-        const bytes = yield* downloadBytes(attachment.id)
+      const read = yield* service.getMany({ id: [attachment.id], userId: owner })
+      yield* service.download(where)
+      yield* service.delete(where)
 
-        assertSchemaEquals(
-          AttachmentNotFoundError,
-          error,
-          new AttachmentNotFoundError({ ids: [attachment.id] }),
-        )
-        assertEquals(stored, [attachment])
-        assert.deepStrictEqual(bytes, Option.some(png))
-      }).pipe(Effect.provide(FileAttachmentServiceTest)),
+      assertEquals(read, [attachment])
+      assert.deepStrictEqual(yield* selectAttachments([attachment.id]), [])
+    }).pipe(Effect.provide(FileAttachmentServiceTest)),
   )
 
   it.effect('delete of an attachment a send binds after the check dies and keeps it whole', () =>

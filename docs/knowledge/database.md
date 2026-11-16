@@ -232,7 +232,7 @@ a race: every repository's `insert`, `update` and `delete` dies when it touches 
     that row taken under the guard and dies (500), rolled back whole with the files only it
     named; an attachment its owner deletes between the read and the write fails the send the
     same way. A send without files skips the write, which would die on no rows.
-  - `FileAttachmentService.delete` checks the attachment live and unbound, then deletes it
+  - `FileAttachmentService.delete` checks the attachment unbound, then deletes it
     through `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and
     the bytes after the row, so a send binding it in between makes the delete die and keeps the
     bytes. `AttachmentService.delete` deletes many attachments by the full `where` it is given,

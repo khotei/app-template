@@ -285,42 +285,38 @@ repository only reads, calls it and writes.
 
 A model's records may be served by domain services layered over each other, each named for what
 it adds: `<Model>Service` holds the plain records (a read by key with its `*NotFoundError`, a
-read of many, a delete of many under the full `where` its caller passes), `Live<Model>Service`
-over it applies the model's rule to the same reads, and `File<Model>Service` over the live one
-stores, serves and removes the bytes with the record, checking the rule a delete needs and
-passing its guard into the plain delete's `where`. A layer sees only the layers of its own model
-below it; another model's service stays a use case's.
+read of many, a delete of many under the full `where` its caller passes), and
+`File<Model>Service` over it stores, serves and removes the bytes with the record, checking the
+rule a delete needs and passing its guard into the plain delete's `where`. A layer sees only the
+layers of its own model below it; another model's service stays a use case's.
 
 ```ts
-// the rule's layer reads through the plain one and pipes the model's guard
-const getOne = Effect.fn('LiveOrderService.getOne')(function* (where: OrderWhere) {
-  const now = yield* DateTime.now
-  return yield* orders.getOne(where).pipe(ensureOpen(now))
+// the bytes' layer reads through the plain one, pipes the model's guard and passes it on
+const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
+  yield* orders.getOne(where).pipe(ensureUnpaid)
+  yield* orders.delete({ ...where, paidAt: null })
 })
 ```
 
-- **Why:** a read's name says what it answers. One `getMany` that dropped the expired
-  attachments without a word taught its reader the rule from the source; the plain service
-  answers the records as stored, the live one says in its name that the expired read as absent,
+- **Why:** a read's name says what it answers: the plain service answers the records as stored,
   and the bytes are stored and removed with their record in one service.
 - **Sources:** `.claude/rules/layering.md › Ports and domain services`;
   `.claude/rules/deep-modules.md › The tests` (a name per variation is the last resort).
-- **Rejected:** one service with the rule in its method names (`getOneLive` beside `getOne`):
-  two reads per verb on one interface, doubling with each rule. The rule piped onto the plain
-  `getMany` by each caller (`getMany(where).pipe(ensureAllLive(ids, now))`): every caller
-  repeats the clock read and the pipe, and one that forgets it treats an expired attachment as
-  usable.
+- **Rejected:** a layer per rule between the two (`Live<Model>Service`, which held the
+  attachment's expiry until `shared-files` removed it): shallow, two reads over the plain ones,
+  and a wrapper once its rule went.
 - **Cost:** it breaks the line that a domain service never sees another one, and the line that a
-  domain service's `layer` leaves every dependency open: a layer provides the one below it. Three
-  services and three layers for one model; a handler of the model takes two of them; the rule's
-  layer is shallow, two reads over the plain ones; the plain `getMany` leaves an absent id out,
-  so only the live layer's error names every absent and expired id at once.
+  domain service's `layer` leaves every dependency open: a layer provides the one below it. Two
+  services and two layers for one model; a handler of the model takes both. A rule over the
+  reads is piped by each caller that reads, and one that forgets the pipe skips the rule. The
+  plain `getMany` leaves an absent id out, so only the file layer's error names every absent id
+  at once.
 - **Guarded by:** review, by `layering.md`; `noImportCycles` refuses a lower layer that imports
   an upper one; nothing refuses a service of another model.
-- **If reversed:** the live and file methods fold back into one `<Model>Service` that applies
-  the rule in every read, and a caller that needs the plain record reads the repository.
-- **Revisit when:** a model needs a second rule over the same reads, so the layers would
-  multiply per combination, or a layer is left with one caller.
+- **If reversed:** the file methods fold back into one `<Model>Service`, and a caller that needs
+  the plain record reads the repository.
+- **Revisit when:** a rule over the same reads gains a second caller, so a layer named for the
+  rule would hold the pipe once, or a layer is left with one caller.
 
 ## The kernel and the data
 

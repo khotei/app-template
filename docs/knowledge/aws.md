@@ -122,10 +122,6 @@ before the row that binds them and deletes them once the rows are gone.
   incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the download URL is signed without overrides.
-- **Expiry.** An attachment still unbound 24 hours after its upload (the attachment model's
-  `unboundLifetime`) reads as not found everywhere; no read deletes it, since a delete on read
-  would race a send binding it. Its row and its object stay: the bucket has no rule that
-  removes an object.
 - **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
   api signs with. With an endpoint set, S3 uses path-style addressing and the URL is
