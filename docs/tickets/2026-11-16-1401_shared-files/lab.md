@@ -12,60 +12,63 @@ a minimal working feature first; edge cases and improvements of little value com
 
 ## Map
 
-Drafted by the agent on the owner's `[DO]` in L1, and accepted with the `[D]` lines of its
-Notes.
-
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | An attachment is the user's own or one chat's, by where it is uploaded, with no expiry: the user lists their own, a chat takes an upload, and a send attaches either by id, the user's own to any number of messages | minimal | build | todo |
-| L2 | A chat's attachments: link the user's own to a chat and remove one, list the chat's with its messages'; the reply reads them; then the play of the whole feature | minimal | build | todo |
-| L3 | Right: what the play and the reviews change | right | build | todo |
-| L4 | Later: the items of the open list the owner picks, the limit per user first | hard | build | todo |
+| L1 | An attachment never expires: one left unsent stays readable, and the expiry's code, tag and bucket rule are gone | minimal | build | todo |
+| L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | todo |
+| L3 | An upload into a chat stays out of the library and goes with the chat; then the play of the whole feature | minimal | build | todo |
+| L4 | Right: what the play and the reviews change | right | build | todo |
+| L5 | Later: the items of the open list the owner picks, the limit per user first | hard | build | todo |
 
-## L1 — The user's own attachments and a chat's
+## L1 — An attachment never expires
 
 ### Shape
 
-Drafted by the agent on the `[DO]` below and accepted by the owner in the chat; the contract in
-code is the next move.
+Accepted by the owner in the chat, the names proposed by the agent; the contract in code is the
+next move. It serves L1 to L3.
 
-One word: an **Attachment** is a file a user uploaded, and the only way to its bytes. It has an
-owner, set by where it is uploaded and marked on it: the user, or one chat of theirs. The
-user's own is listed for the user, linked to any chat or message of theirs, and kept until
-deleted. A chat's own is listed in that chat only, linked to its messages only, and deleted
-with the chat. A message's attachment is its chat's too.
+An **Attachment** is a file a user uploaded, in the place where it lives: the user's
+**library**, or one chat. The place is set by the upload. A chat's attachment is bound to one
+message by a send, as today. A send of a library attachment leaves it in the library and adds
+to the chat a record of its own, bound to the message, that names the library attachment as its
+source and carries its name, type and size; the bytes are stored once, under the source's id.
 
 ```text
-POST   /attachments                                upload the user's own, 1 to 5  (today)
-GET    /attachments                                the user's own, in upload order (new)
-GET    /attachments/:attachmentId                  one                            (today)
-GET    /attachments/:attachmentId/download         302 to the bytes               (today)
-DELETE /attachments/:attachmentId                  the attachment and its bytes   (today)
-                                                   409 while a chat or a message holds it
-
-POST   /chats/:chatId/attachments                  upload the chat's own          (new)
-GET    /chats/:chatId/attachments                  its own and the linked         (new, L2)
-PUT    /chats/:chatId/attachments/:attachmentId    link the user's own            (new, L2)
-DELETE /chats/:chatId/attachments/:attachmentId    remove from the chat: unlink   (new, L2)
-                                                   the user's own, delete its own
-
-POST   /chats/:chatId/messages                     { text, attachmentIds }        (today)
-GET    /chats/:chatId/messages[/:messageId]        a message with its attachments (today)
+POST   /attachments                          upload into the library          (today)
+GET    /attachments                          the library, in upload order     (new, L2)
+GET    /attachments/:attachmentId            any attachment of the user       (today)
+GET    /attachments/:attachmentId/download   302 to the bytes                 (today)
+DELETE /attachments/:attachmentId            409 while a message holds it,    (today, wider in L2)
+                                             or holds one sent from it
+POST   /chats/:chatId/attachments            upload into the chat             (new, L3)
+POST   /chats/:chatId/messages               { text, attachmentIds }          (today)
 ```
 
 ```text
-attachments  id, user_id, chat_id? -> chats (its owner, none for the user's own), file_name,
-             media_type, size, created_at; message_id leaves
-<links>      attachment_id -> attachments, chat_id -> chats, message_id? -> messages, created_at
-             a chat's delete takes its own attachments and every link to it
+attachments  + source_id? -> attachments, no cascade: the library attachment it was sent from
+             a message without a chat is refused, as is a source without a message
+             chat_id -> chats, cascading, so an unsent upload goes with its chat
 ```
 
+| Name | What it is |
+|---|---|
+| `sourceId` | the model's and the wire's field for `source_id`, an `Option` |
+| `isInLibrary` | predicate: no chat |
+| `buildFileId` | the id the bytes are stored under: the source's, else its own |
+| `buildAttachmentFrom` | the chat's record of a library attachment, for a message |
+| `ensureAllReachableFrom(chatId)` | each is in the library or in this chat, else not found |
+| `ensureUnused(uses)` | refuses a delete while a record names it, with their chats |
+| `AttachmentBoundError` | gains `chatIds`; no new error |
+| `AttachmentService.list` | the user's library, as `ChatService.list` is the user's chats |
+| `UploadChatAttachmentUseCase` | the chat's service, then the upload with the chat as place |
+
 ```text
-model     the rules, pure functions over the values passed in
-services  the plain records; the reads with the chat's rule; the records with their bytes
-use case  a flow that needs the chat's service too: an upload into a chat, a link, an unlink,
-          the send; it takes checked data from a service and pipes no rule itself
-handler   one service for the user's own upload, the list, the read, the download, the delete
+model     the rules above, pure, in `attachment.model.ts`
+services  `AttachmentService`, the plain records; `FileAttachmentService`, the records with
+          their bytes: `upload` takes the place, `bind` binds a chat's and adds a library's
+          record, `delete` reads the uses and calls the rule
+use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbound` today; the
+          upload into a chat is the one new use case
 ```
 
 ### Notes
@@ -394,6 +397,25 @@ for the specific place, a chat or a message. (the owner, chat)
   the race in the write. Over the copy of the bytes: no second storing and no copy request to
   the store; the price is that a user's file sent in a message is deleted only after its
   chats. Proposed in place of the `[D:ai]` above it.
+[D] Yes: a record per use naming its original, the original's delete refused with `409`. Then
+review the decisions, the names and the architecture of this solution: improve it, find the
+elegant, composable and minimal, check the abstractions and the names. (the owner, chat)
+  [N:ai] Map, Shape, Knowledge and Later rewritten to it. What the review changed:
+  - No table and no layer is added. The table gains one column; a message's and a chat's
+    reads stay the relations they are (`kernel/data/relations.ts:18`, `:24`).
+  - A chat's delete keeps its line (`application/chat/services/chat.service.ts:101`): it
+    removes the bytes under each of its attachments' ids, and a record sent from the library
+    has none under its own id, the store's delete being a no-op on a missing object
+    (`kernel/data/file/file.repository.ts:40`). A test of the contract holds it.
+  - The layer shaped as the live service loses its reason: with no bind to a chat, the send is
+    the only reader of the rule, and the record `Layered services of one model` says to
+    revisit a layer left with one caller. The send pipes the rule as it pipes one today
+    (`application/use-cases/chat/create-user-message.use-case.ts:66`). An accepted `[D]`, so
+    it waits for the owner's word.
+  - One error, wider, over a second one for a library attachment in use.
+  - One word is new, the library; the verb stays bind, for a message only.
+  - Rejected: every send adding a record, a chat's upload too. One path for the write, but a
+    chat would read each of its sent uploads twice.
 
 ### Pieces
 
@@ -405,31 +427,25 @@ for the specific place, a chat or a message. (the owner, chat)
 
 ## Knowledge
 
-- An attachment is the user's own or one chat's, marked on it and set by where it is uploaded:
-  `POST /attachments` makes the user's own, `POST /chats/:chatId/attachments` that chat's.
-  The user's own is listed by `GET /attachments`, linked to any chat or message of the user and
-  kept until deleted; a chat's own is listed and linked in that chat only.
-- `/attachments` is the CRUD of the user's own. Under a chat, a route uploads the chat's own
-  or links and unlinks the user's own; a link takes an id, never bytes.
-- A chat's delete deletes the chat's own attachments, bytes too, and only unlinks the user's
-  own.
-- From L4 on, one user's attachments together hold at most 1 GiB, their chats' own counted;
-  the number is a constant beside its rule in the model.
-- A rule is a pure function of the model, and there is no guard service. The attachment's
-  services are three layers, as today: the plain records; over them the reads that apply the
-  rule of which attachments a chat may use, shaped as the live service was; over those the
-  records with their bytes. A use case composes them with the chat's service and pipes no rule
-  itself.
-- One attachment is linked to any number of chats and messages by its id; its bytes are stored
-  once.
-- `DELETE /attachments/:attachmentId` answers `409`, naming where the attachment is held, while
-  a chat or a message holds it.
-- A message has no attachment routes of its own: a send links by `attachmentIds`, and the
-  message's read carries them.
-- The assistant reads a chat's attachments in every reply of that chat.
+- One word for the file, an attachment, and one for where a user keeps them, the library.
+- An attachment lives in the library or in one chat, by where it is uploaded: `POST
+  /attachments` the library, `POST /chats/:chatId/attachments` that chat. The library's is
+  kept until deleted; a chat's is seen in that chat only and deleted with it, bytes too.
+- A send binds a chat's attachment to its message, one attachment to one message, as today. A
+  send of a library attachment adds the chat's own record of it, bound to the message and
+  naming its source; the library attachment stays, to be sent again in any chat.
+- The bytes are stored once, under the source's id. A delete is refused with `409`, naming the
+  chats, while a message holds the attachment or one sent from it; a key from a record to its
+  source refuses the race in the write.
+- A message has no attachment routes of its own, and a chat has none but its upload: each
+  read carries its attachments, and a file enters a chat's context by a send.
 - An attachment does not expire: the 24-hour lifetime of an unbound one, the `unbound` tag and
   the bucket's rule that removed it go.
-- Attachments stay in `chat` in the minimal pass; no `drive` module is split out.
+- A rule is a pure function of the model, with no guard service; a service reads what a rule
+  of its own model needs and calls it, and a use case composes the services with the chat's.
+- From L5 on, one user's attachments together hold at most 1 GiB, counted over the bytes
+  stored, a record sent from the library adding none; the number is a constant beside its rule.
+- Attachments stay in `chat`; no `drive` module is split out.
 
 ## Numbers
 
@@ -439,29 +455,24 @@ source.>
 
 ## Later
 
-- The limit per user, 1 GiB in total: with no expiry nothing else bounds what an anonymous
-  user keeps. Open, first in L4. Uploads at once may pass it together, each by its own
-  request's files.
-- Delete an attachment in use after the alert (`?force`), from every chat and message. Open.
+- The limit per user, 1 GiB in total: with no expiry nothing else bounds what one user keeps.
+  Open, first in L5. Uploads at once may pass it together, each by its own request's files.
+- A limit per user stops no script, a user being made by `POST /users`: a condition of the
+  first public deploy, for the roadmap. Open, on the owner's word.
 - With no expiry, a crash between the bytes' write and the row's insert leaves bytes no rule
   removes; the `unbound` tag's rule removed them within a day. Open.
-- A cap on a chat's own attachments: every reply reads the bytes of all of them
-  (`application/use-cases/chat/generate-assistant-message.use-case.ts:87`). Open, L2.
-- An attachment a chat holds and a message of it holds too reaches the assistant twice. Open,
-  L2.
-- Make a chat's attachment the user's own ("save to my files"); until then, upload it again.
+- Delete a library attachment in use, from every chat that holds it (`?force`). Open.
+- Make a chat's attachment the library's ("save to my files"); until then, upload it again.
   Open.
-- Bind the user's own attachment to a chat with no message, as its context for every reply
-  (`PUT` and `DELETE /chats/:chatId/attachments/:attachmentId`). Open, if the owner takes it
-  out of the minimal feature.
-- One attachment sent in two messages of a chat reaches the assistant twice; send it once.
-  Open.
+- Bind a library attachment to a chat with no message, as its context for every reply. Open.
+- One library attachment sent in two messages of a chat reaches the assistant twice; send it
+  once. Open.
+- The attachment's chat is the user's by the use case's check alone; a key over the chat and
+  its user would hold it in the table. Open.
+- Records added by one send share an instant, so their order within the message rests on
+  their ids. Open.
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
-- Where an attachment is used: its chats, in its read. Open.
-- Upload straight into a chat (`POST /chats/:chatId/attachments` with the bytes). Done in L1's
-  shape: it makes the chat's own attachment.
-- The same bytes uploaded twice are stored twice. Open.
-- An attachment's delete removes the rows, then the bytes: a failure between them leaves bytes
-  no rule removes (roadmap entry 16, inherited from `jobs`). Open.
+- A chat's delete removes its bytes inside the request, and a failure after the rows are gone
+  leaves bytes no rule removes (roadmap entry 16, inherited from `jobs`). Open.
