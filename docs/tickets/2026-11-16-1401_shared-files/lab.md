@@ -62,7 +62,7 @@ attachments  id, user_id, chat_id? -> chats (its owner, none for the user's own)
 
 ```text
 model     the rules, pure functions over the values passed in
-services  the plain records; the records with their bytes, calling a rule of their own model
+services  the plain records; the reads with the chat's rule; the records with their bytes
 use case  a flow that needs the chat's service too: an upload into a chat, a link, an unlink,
           the send; it takes checked data from a service and pipes no rule itself
 handler   one service for the user's own upload, the list, the read, the download, the delete
@@ -278,6 +278,63 @@ the use case gets the data and passes it to the pure functions. (the owner, chat
   and that chat's, any other read as not found. The send's use case and L2's link read
   through it, in place of the pipe drafted in the use case. The layer's name is the
   contract's to settle.
+[D] Good. (the owner, chat, to the layer shaped as the live service)
+  [N:ai] In Knowledge: three layers, the rule over an attachment and its chat in the middle one.
+[DO] Review the ticket again: find the conflicts and the missed cases, audit that everything is
+clear and aligned with the feature and the application, before the implementation starts. (the
+owner, chat)
+  [N:ai] Two passes: the agent's own, and a `reviewer` in a fresh context on the binding parts
+  against the code. Fixed at once, being wording: Knowledge named two readings of where the
+  chat's rule is called, and stated the limit as holding before L4. The rest, below.
+  [D:ai] Never deferred, loss of stored data: a chat's delete removes the bytes of every id in
+  `chat.attachments` (`application/chat/services/chat.service.ts:101`), which will hold the
+  user's own once they are bound to the chat. The delete picks bytes by the owner mark alone,
+  and a test of the contract says so: a chat's delete keeps the bytes of a user's own.
+  [Q:ai] Never deferred, a hole for the owner to weigh: a user is an anonymous browser, made by
+  `POST /users` (`http-api/user/api-user.http.ts:13`), so a limit per user stops no script; and
+  with the expiry gone, what a script uploads stays for good, where it expired in a day. I
+  propose to record it as a condition of the first public deploy, in the roadmap, and not to
+  build a limit on users here.
+  [Q:ai] One table of links cannot serve a chat's read: an attachment bound to a chat and to
+  two of its messages is three rows, so the chat reads it three times, and separate keys let a
+  link name chat C with a message of chat D. I propose two tables, one per level:
+  `chat_attachments (chat_id, attachment_id)` and `message_attachments (message_id, chat_id,
+  attachment_id)`, each pair unique, the message's keyed over `(message_id, chat_id)` to its
+  message as today (`kernel/data/attachment/attachment.table.ts:40`) and over `(chat_id,
+  attachment_id)` to the chat's row, so a message holds only what its chat holds and an unbind
+  racing a send is refused in the write. Drizzle reads through such a table
+  (`repos/drizzle/integration-tests/tests/pg/common-cache.ts:561`); a run on our schema is a
+  learn step's.
+  [Q:ai] A chat already carries its attachments in its read (`http-api/chat/api-chat.model.ts:24`),
+  as a message does, so `GET /chats/:chatId/attachments` adds nothing. I propose to drop the
+  route: `Chat.attachments` is everything bound to the chat, its own, the user's and its
+  messages'.
+  [Q:ai] One act has four words here: link, attach, hold, bind. The code and the glossary say
+  `bind` and bound (`application/chat/domain/attachment.model.ts:127`). I propose that one,
+  with unbind, and no other.
+  [Q:ai] L1 is too wide for the thinnest slice: the owner mark, the binds, the upload into a
+  chat and the end of the expiry, which alone touches some fifteen files. I propose a Map of
+  six: a learn step for the read through a bind table; the user's own reused across chats, with
+  the expiry gone; a chat's own; the bind to a chat and the reply's read, with the play; right;
+  Later.
+  [D:ai] Settled by the agent, for the contract: `GET` and the download under `/attachments`
+  reach any attachment of the user, a chat's own too. A delete is refused while anything but
+  its owner holds the attachment: any chat for the user's own, a message for a chat's own; the
+  `409` names the chats. `ApiAttachment` keeps `chatId` as the owner mark and loses
+  `messageId`. A message's attachments stay in upload order (`decisions.md › Reads in creation
+  order`). A key that must refuse is `NO ACTION`, so a chat's delete cascades in one statement.
+  The owner mark is keyed over `(chat_id, user_id)` to the chat, so an upload cannot land on
+  another user's chat. The memory fakes cascade as the tables do
+  (`kernel/data/__tests__/testing/chat.test-fake.ts:243`).
+  [D:ai] The e2e races of two sends on one file (`apps/e2e/api/chat.e2e.ts:215`) lose their
+  subject, as both sends now bind it; a race of a delete and a send takes their place, and the
+  record `decisions.md › Guards in the write, no lock` names it. With them the records and
+  docs rewritten in the commits that change the behaviour: `decisions.md` (Modules by
+  capability, Layered services of one model, Files in the data layer), the glossary's
+  Attachment, `database.md`, `aws.md`, `.claude/rules/layering.md` (the live layer's name), the
+  roadmap's entry 16.
+  [N:ai] Rejected, a reviewer's: objects left in the bucket after a reset. `make reset` removes
+  MiniStack and `.data` (`Makefile:67`), and no deployed bucket exists.
 
 ### Pieces
 
@@ -297,11 +354,13 @@ the use case gets the data and passes it to the pure functions. (the owner, chat
   or links and unlinks the user's own; a link takes an id, never bytes.
 - A chat's delete deletes the chat's own attachments, bytes too, and only unlinks the user's
   own.
-- One user's attachments together hold at most 1 GiB, their chats' own counted; the number is
-  a constant beside its rule in the model.
-- A rule is a pure function of the model, and there is no guard service. A service reads what
-  a rule of its own model needs and calls it; a use case composes the services where a flow
-  needs the chat too, and passes what they read to a rule over both.
+- From L4 on, one user's attachments together hold at most 1 GiB, their chats' own counted;
+  the number is a constant beside its rule in the model.
+- A rule is a pure function of the model, and there is no guard service. The attachment's
+  services are three layers, as today: the plain records; over them the reads that apply the
+  rule of which attachments a chat may use, shaped as the live service was; over those the
+  records with their bytes. A use case composes them with the chat's service and pipes no rule
+  itself.
 - One attachment is linked to any number of chats and messages by its id; its bytes are stored
   once.
 - `DELETE /attachments/:attachmentId` answers `409`, naming where the attachment is held, while
@@ -322,8 +381,8 @@ source.>
 ## Later
 
 - The limit per user, 1 GiB in total: with no expiry nothing else bounds what an anonymous
-  user keeps. Open, first in L4. Two uploads at once may pass it together, by one request's
-  files at most.
+  user keeps. Open, first in L4. Uploads at once may pass it together, each by its own
+  request's files.
 - Delete an attachment in use after the alert (`?force`), from every chat and message. Open.
 - With no expiry, a crash between the bytes' write and the row's insert leaves bytes no rule
   removes; the `unbound` tag's rule removed them within a day. Open.
