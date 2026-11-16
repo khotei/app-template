@@ -12,7 +12,8 @@ a minimal working feature first; edge cases and improvements of little value com
 
 ## Map
 
-Draft by the agent, on the owner's `[DO]` in L1; the owner confirms or changes it.
+Drafted by the agent on the owner's `[DO]` in L1, and accepted with the `[D]` that closes its
+Notes.
 
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
@@ -134,6 +135,12 @@ owner, chat)
 [Q:ai] The record `decisions.md › Modules by capability` names this ticket as the one that splits
   a `drive` module out of `chat`. With one word and the routes in place, I propose no split in
   the minimal pass, and the question again in the right pass.
+[D] Ok, to the five questions put in the chat. (the owner, chat)
+  [N:ai] Settled, each a line of Knowledge: `/attachments` as the CRUD with only a link and an
+  unlink under a chat; `409` for the delete of an attachment in use; no routes of a message's
+  own; a chat's attachment read in every reply; the upload into a chat dropped from Later. The
+  `[D:ai]` lines on the expiry, the chat's delete and the `drive` module stay proposals until
+  L1's contract.
 
 ### Pieces
 
@@ -145,7 +152,15 @@ owner, chat)
 
 ## Knowledge
 
-<Only an accepted [D] or Output, written in the commit that settles it.>
+- `/attachments` is the CRUD of an attachment. A route under a chat only links or unlinks one
+  and never takes bytes: the upload is `POST /attachments` alone.
+- One attachment is linked to any number of chats and messages by its id; its bytes are stored
+  once.
+- `DELETE /attachments/:attachmentId` answers `409`, naming where the attachment is held, while
+  a chat or a message holds it.
+- A message has no attachment routes of its own: a send links by `attachmentIds`, and the
+  message's read carries them.
+- The assistant reads a chat's attachments in every reply of that chat.
 
 ## Numbers
 
@@ -163,7 +178,7 @@ source.>
 - Pages, search and a filter by media type for `GET /attachments`. Open.
 - Where an attachment is used: its chats, in its read. Open.
 - Upload straight into a chat (`POST /chats/:chatId/attachments` with the bytes), one call for
-  the two. Open.
+  the two. Dropped on the owner's word: a chat's routes never take bytes.
 - The same bytes uploaded twice are stored twice. Open.
 - An attachment's delete removes the rows, then the bytes: a failure between them leaves bytes
   no rule removes (roadmap entry 16, inherited from `jobs`). Open.

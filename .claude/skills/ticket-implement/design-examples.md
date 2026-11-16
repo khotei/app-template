@@ -194,3 +194,21 @@ const ship = (id: OrderId, at: DateTime.Utc) =>
 
 One pair per fix the owner accepted after a stop in a lab, recorded in that fix's commit: a before
 → after on an `Order` and one line why.
+
+**One noun, and the path says what a delete means.**
+Why: a second noun for the same thing doubles its routes, ids and glossary entry, while the path
+already tells the delete of the thing from the delete of its link.
+
+```text
+// before: a saved address renamed where an order uses it, so that its delete can mean "unlink"
+DELETE /addresses/:addressId
+PUT    /orders/:orderId/destinations/:addressId
+DELETE /orders/:orderId/destinations/:addressId
+```
+
+```text
+// after: one noun; the top-level route is the thing, the nested one its link
+DELETE /addresses/:addressId                  the address itself
+PUT    /orders/:orderId/addresses/:addressId  link
+DELETE /orders/:orderId/addresses/:addressId  unlink; the address stays
+```
