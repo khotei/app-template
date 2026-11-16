@@ -427,6 +427,10 @@ elegant, composable and minimal, check the abstractions and the names. (the owne
 [D] Yes: L1.2 deletes `LiveAttachmentService`, and the record is rewritten to two layers. (the
 owner, chat)
   [N:ai] In Knowledge, and done in L1.2.
+[D] Ok: the word library stays; and that a limit per user stops no script goes to the roadmap
+as a condition of the first public deploy, with no guard built here. (the owner, chat)
+  [N:ai] The word is in Knowledge already. The roadmap's line is written at the lab's close,
+  as Later says.
 
 ### Pieces
 
@@ -480,7 +484,7 @@ source.>
 - The limit per user, 1 GiB in total: with no expiry nothing else bounds what one user keeps.
   Open, first in L5. Uploads at once may pass it together, each by its own request's files.
 - A limit per user stops no script, a user being made by `POST /users`: a condition of the
-  first public deploy, for the roadmap. Open, on the owner's word.
+  first public deploy. To the roadmap at the lab's close, on the owner's word.
 - With no expiry, a crash between the bytes' write and the row's insert leaves bytes no rule
   removes; the `unbound` tag's rule removed them within a day. Open.
 - Delete a library attachment in use, from every chat that holds it (`?force`). Open.
