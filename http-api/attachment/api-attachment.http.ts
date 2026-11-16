@@ -27,6 +27,7 @@ export class AttachmentHttp extends HttpApiGroup.make('attachments')
       success: Schema.Array(ApiAttachment).pipe(HttpApiSchema.status(201)),
       error: [AttachmentTooLargeError, AttachmentTypeUnsupportedError],
     }),
+    HttpApiEndpoint.get('list', '/attachments', { success: Schema.Array(ApiAttachment) }),
     HttpApiEndpoint.get('get', '/attachments/:attachmentId', {
       params: attachmentPath,
       success: ApiAttachment,

@@ -66,6 +66,10 @@ A file a user uploaded; no assistant produces files yet. An attachment is bound 
 when that message is sent; until then only its owner can see it.
 _Avoid_: File, upload, document, media, draft
 
+**Library**:
+The attachments of a user that no chat holds, listed in upload order.
+_Avoid_: Drive, pool, files, storage
+
 **Assistant**:
 The language-model side of a chat, as the user sees it. The language model behind it is a
 provider's artefact and is named only at the boundary.

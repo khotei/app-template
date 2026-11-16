@@ -97,6 +97,20 @@ describe('AttachmentService', () => {
     }).pipe(Effect.provide(AttachmentServiceTest)),
   )
 
+  it.effect("list answers the user's library, without one a chat holds or another user's", () =>
+    Effect.gen(function* () {
+      const service = yield* AttachmentService
+      const kept = yield* uploadPhoto
+      const held = yield* uploadPhoto
+      yield* upload(stranger)
+      yield* AttachmentRepository.use((attachments) =>
+        attachments.update({ messageId, chatId }, { id: [held.id] }),
+      )
+
+      assertEquals(yield* service.list(owner), [kept])
+    }).pipe(Effect.provide(AttachmentServiceTest)),
+  )
+
   it.effect('delete with no messageId removes the attachments, one bound, then their bytes', () =>
     Effect.gen(function* () {
       const service = yield* AttachmentService

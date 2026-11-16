@@ -91,6 +91,16 @@ export const AttachmentHandler = HttpApiBuilder.group(
         ),
       )
       .handle(
+        'list',
+        Effect.fn('AttachmentHandler.list')(
+          function* () {
+            const user = yield* CurrentUser
+            return yield* attachments.list(user.id)
+          },
+          Effect.map(Arr.map(buildApiAttachment)),
+        ),
+      )
+      .handle(
         'get',
         Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser

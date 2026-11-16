@@ -150,6 +150,23 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
+  it.effect("selects a user's attachments in no chat, leaving out one a chat holds", () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const kept = attachment('0192d4e0-7b3a-7c00-8000-000000000021')
+      const held = attachment('0192d4e0-7b3a-7c00-8000-000000000022')
+      yield* insertChatWithMessage
+      yield* Effect.forEach([kept, held], attachments.insert)
+      yield* attachments.update({ messageId, chatId }, { id: [held.id] })
+
+      const selected = yield* attachments.selectMany({ userId, chatId: null })
+      const foreign = yield* attachments.selectMany({ userId: strangerId, chatId: null })
+
+      assertSchemaEquals(Attachments, selected, [kept])
+      assert.deepStrictEqual(foreign, [])
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
   it.effect('deletes the attachments asked for and keeps the rest', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository

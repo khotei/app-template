@@ -13,6 +13,7 @@ import {
 import type {
   AttachmentEntity,
   AttachmentEntityInsert,
+  AttachmentEntitySelectWhere,
   AttachmentEntitySet,
   AttachmentEntityWhere,
 } from '#kernel/data/attachment/attachment.entity'
@@ -24,10 +25,11 @@ const encodeSet = buildSet<AttachmentEntitySet, typeof attachments>({
   chatId: identity,
 })
 
-const encodeWhere = buildWhere<AttachmentEntityWhere>({
-  id: (id) => inArray(attachments.id, Arr.ensure(id)),
+const encodeWhere = buildWhere<AttachmentEntitySelectWhere>({
+  id: UndefinedOr.map((id) => inArray(attachments.id, Arr.ensure(id))),
   userId: UndefinedOr.map((userId) => eq(attachments.userId, userId)),
   messageId: UndefinedOr.map(eqOrIsNull(attachments.messageId)),
+  chatId: UndefinedOr.map(eqOrIsNull(attachments.chatId)),
 })
 
 export class AttachmentRepository extends Context.Service<
@@ -38,11 +40,11 @@ export class AttachmentRepository extends Context.Service<
     readonly update: (set: AttachmentEntitySet, where: AttachmentEntityWhere) => Effect.Effect<void>
     /** The first row `selectMany` reads. */
     readonly selectOne: (
-      where: AttachmentEntityWhere,
+      where: AttachmentEntitySelectWhere,
     ) => Effect.Effect<Option.Option<AttachmentEntity>>
     /** Rows where `where` holds, in creation order. */
     readonly selectMany: (
-      where: AttachmentEntityWhere,
+      where: AttachmentEntitySelectWhere,
     ) => Effect.Effect<ReadonlyArray<AttachmentEntity>>
     /** Deletes the rows where `where` holds, in one statement; dies when it misses a row `where.id` names. */
     readonly delete: (where: AttachmentEntityWhere) => Effect.Effect<void>
@@ -50,7 +52,7 @@ export class AttachmentRepository extends Context.Service<
 >()('@app-template/kernel/data/attachment/AttachmentRepository', {
   make: Db.useSync((db) => {
     const selectMany = Effect.fn('AttachmentRepository.selectMany')(
-      (where: AttachmentEntityWhere) =>
+      (where: AttachmentEntitySelectWhere) =>
         db
           .select()
           .from(attachments)
@@ -75,7 +77,8 @@ export class AttachmentRepository extends Context.Service<
             .pipe(orDieUnless(hasRowPer(where.id), 'an attachment named was not updated')),
         orDieWithSqlError,
       ),
-      selectOne: (where: AttachmentEntityWhere) => selectMany(where).pipe(Effect.map(Arr.head)),
+      selectOne: (where: AttachmentEntitySelectWhere) =>
+        selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
       delete: Effect.fn('AttachmentRepository.delete')(
         (where: AttachmentEntityWhere) =>

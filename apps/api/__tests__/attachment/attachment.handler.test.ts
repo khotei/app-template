@@ -137,6 +137,16 @@ describe('attachments', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
+  it.effect("GET /attachments answers the user's library", () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      yield* api.users.ensure()
+      const uploaded = yield* api.attachments.upload({ payload: formOf(png('photo.png')) })
+
+      assert.deepStrictEqual(yield* api.attachments.list(), uploaded)
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
   it.effect(
     'GET /attachments/:attachmentId of an unknown id is caught as AttachmentNotFoundError',
     () =>

@@ -15,7 +15,7 @@ a minimal working feature first; edge cases and improvements of little value com
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | An attachment never expires: one left unsent stays readable, and the expiry's code, tag and bucket rule are gone | minimal | build | done |
-| L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | todo |
+| L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | in progress |
 | L3 | An upload into a chat stays out of the library and goes with the chat; then the play of the whole feature | minimal | build | todo |
 | L4 | Right: what the play and the reviews change | right | build | todo |
 | L5 | Later: the items of the open list the owner picks, the limit per user first | hard | build | todo |
@@ -89,12 +89,19 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
 
 ### Notes
 
-<The markers, one per line, each answer indented under what it answers: [Q], [A:ai] with its
-path:line or run, [R], [DO], [D:ai] then [D], [!].>
+- [Q:ai] The first of the five questions fails for the send's swap. With
+  `ensureAllReachableFrom` in place of `ensureAllUnbound`
+  (`application/use-cases/chat/create-user-message.use-case.ts:66`), an attachment of this chat
+  that a message already holds is refused by `bind` alone, after the message's insert (`:69`),
+  while `layering.md › Use cases` wants every check before the first write. Pipe both, reachable
+  then unbound, and keep `ensureAllUnbound`?
 
 ### Pieces
 
-<[N:ai] L2.1 <what it gives> · visible: <command or link>>
+- [N:ai] L2.2 `GET /attachments` answers the user's library, the attachments no chat holds, in
+  upload order; until the send's piece lands, a sent one still leaves it · visible:
+  `bun --bun vitest run --project unit apps/api/__tests__/attachment/attachment.handler.test.ts
+  -t 'GET /attachments answers'`
 
 ### Output
 
@@ -151,6 +158,8 @@ source.>
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
+- `GET /attachments` filters by `user_id`, which no index covers
+  (`kernel/data/attachment/attachment.table.ts:45`), so it scans the table. Open.
 - A chat's delete removes its bytes inside the request, and a failure after the rows are gone
   leaves bytes no rule removes (roadmap entry 16, inherited from `jobs`). Open.
 - `deployment` imports nothing of the data layer since L1.1, yet the guard and its docs still

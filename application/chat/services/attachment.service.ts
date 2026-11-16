@@ -1,5 +1,6 @@
 import { Array as Arr, Context, Effect, Layer, type Types } from 'effect'
 
+import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 
 import type { AttachmentNotFoundError } from '#chat/domain/attachment.error'
@@ -22,6 +23,8 @@ export type AttachmentDeleteWhere = Types.Simplify<
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
+    /** The user's library, the attachments no chat holds, in upload order. */
+    readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<Attachment>>
     readonly getOne: (where: AttachmentWhere) => Effect.Effect<Attachment, AttachmentNotFoundError>
     /** The user's attachments among `where.id` in creation order; an absent id is left out. */
     readonly getMany: (where: AttachmentGetManyWhere) => Effect.Effect<ReadonlyArray<Attachment>>
@@ -36,6 +39,10 @@ export class AttachmentService extends Context.Service<
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const files = yield* FileRepository
+
+    const list = Effect.fn('AttachmentService.list')((userId: UserId) =>
+      attachments.selectMany({ userId, chatId: null }).pipe(Effect.flatMap(decodeAttachments)),
+    )
 
     const getOne = Effect.fn('AttachmentService.getOne')((where: AttachmentWhere) =>
       attachments
@@ -56,7 +63,7 @@ export class AttachmentService extends Context.Service<
       yield* files.delete({ id: where.id })
     })
 
-    return { getOne, getMany, delete: remove }
+    return { list, getOne, getMany, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

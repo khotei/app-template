@@ -11,13 +11,14 @@ import {
   pipe,
   Ref,
   Schema,
+  UndefinedOr,
 } from 'effect'
 
 import { hasRowPer, orDieUnless } from '@app-template/packages/db'
 
 import {
   AttachmentEntity,
-  type AttachmentEntityWhere,
+  type AttachmentEntitySelectWhere,
 } from '#kernel/data/attachment/attachment.entity'
 import { AttachmentRepository } from '#kernel/data/attachment/attachment.repository'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
@@ -39,10 +40,10 @@ export class AttachmentRows extends Context.Service<
   static readonly layer = Layer.effect(this, Ref.make(HashMap.empty<string, AttachmentEntity>()))
 }
 
-const holdsWhere = (where: AttachmentEntityWhere) =>
+const holdsWhere = ({ id, ...fields }: AttachmentEntitySelectWhere) =>
   Predicate.and(
-    matchesAny<AttachmentEntity>({ id: Arr.ensure(where.id) }),
-    matches<AttachmentEntity>({ userId: where.userId, messageId: where.messageId }),
+    matchesAny<AttachmentEntity>({ id: UndefinedOr.map(id, Arr.ensure) }),
+    matches<AttachmentEntity>(fields),
   )
 
 const decodeAttachment = Schema.decodeUnknownEffect(AttachmentEntity)
@@ -74,7 +75,7 @@ export const AttachmentRepositoryTest = Layer.effect(
         }),
       )
 
-    const selectMany = (where: AttachmentEntityWhere) =>
+    const selectMany = (where: AttachmentEntitySelectWhere) =>
       Ref.get(rows).pipe(Effect.map((all) => inCreationOrderWhere(all, holdsWhere(where))))
 
     return AttachmentRepository.of({
