@@ -358,6 +358,27 @@ message? (the owner, chat)
   chat's delete that could remove a user's bytes: it deletes `chat.attachments`, now the
   chat's own by construction. This rewrites three settled lines of Knowledge, on the owner's
   word only.
+[DO] Think how to organise it with simple logic, without splitting tables; maybe rethink files
+and attachments, and do as the other AI services do. (the owner, chat)
+  [A:ai] The services reuse a kept file in one of two ways. By reference: one file, many
+  messages point at it (ChatGPT's "Add from library", a `file_id` in the apis), which needs a
+  record of every place that points and a refusal to delete a file in use. By copy: the kept
+  file stays where it is and the place that uses it gets its own. Anthropic's Managed Agents
+  do so: "A new `file_id` is created that references the instance of the file in the session",
+  and "Files mounted in the sandbox are read-only copies"
+  (<https://platform.claude.com/docs/en/managed-agents/files>, read 2026-11-16); a researcher
+  read the same of Perplexity, "Moving a file creates a copy with the destination's rules",
+  which the agent did not re-read.
+  [D:ai] By copy, since it shares nothing. An attachment lives in one of two places, the
+  user's own files or one chat, by where it is uploaded. A send takes a chat's attachment as
+  today, one attachment to one message; given one of the user's own, it puts a copy into the
+  chat and binds the copy, and the original stays the user's. A chat's delete removes its
+  attachments, as today; the delete of a user's own touches no chat. The table keeps its
+  shape, with no table of binds, no refusal of a delete in use, no repeats to drop, and no
+  chat's delete that could reach a user's bytes. The price: each reuse stores the bytes again,
+  counted in the user's limit, and a send of a user's own makes one copy request to the store,
+  a call `packages/s3/bucket.ts` lacks today. This replaces the binds of the earlier `[D]`
+  lines and rewrites Knowledge, on the owner's word only.
 
 ### Pieces
 
