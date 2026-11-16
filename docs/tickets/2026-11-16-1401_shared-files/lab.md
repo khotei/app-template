@@ -164,6 +164,36 @@ attached to a chat or a message. How do other companies and services divide, sho
 them? (the owner, chat)
   [N:ai] Sent to two researchers on the same brief, the fork being the data model's: how
   products tell a user's kept files from a conversation's uploads, list them and delete them.
+  [A:ai] Both researchers, read 2026-11-16, name the same two models and no folders. One
+  store for every upload, which a conversation only points at and which outlives it: ChatGPT's
+  Library "automatically saves uploaded and created files, including files uploaded in chats",
+  and "Deleting a chat containing files does not delete a separate file that remains saved in
+  Library" (<https://help.openai.com/en/articles/20001052>). Or a file owned by its container
+  and deleted with it: in Claude, "When a user deletes a chat in claude.ai, its message
+  content, attached files, tool-generated files, and artifacts are deleted with it"
+  (<https://platform.claude.com/docs/en/manage-claude/compliance-content-data>), and kept files
+  live in a project; in Perplexity, "When you delete a session, any files or images attached
+  to it will also be deleted", a project's being kept "until they are deleted"
+  (<https://www.perplexity.ai/help-center/en/articles/10354810>). Anthropic's api holds both in
+  one store and marks the kind on the file: `scope: {type: "session", id}`, null for a file the
+  user uploaded; a session's delete leaves "Files you uploaded through the Files API" and
+  removes those "scoped to it"
+  (<https://platform.claude.com/docs/en/managed-agents/session-operations>). Where the two
+  differ: one found an older ChatGPT page that keeps a file only "up to the retention period
+  of the corresponding chat", against the Library page; one read Perplexity only in search
+  snippets, the other on the live page. Not verified by either: whether a single file of a
+  Claude chat can be saved to a project, and what a ChatGPT chat shows once its Library file
+  is deleted.
+  [D:ai] An attachment is the user's own or one chat's, marked on it as Anthropic's `scope` is:
+  the chat that owns it, or none. Where it is uploaded decides: `POST /attachments` makes the
+  user's own, listed by `GET /attachments`, linked to any chat or message, kept until deleted;
+  an upload under a chat makes that chat's, listed only there, linked only to its messages,
+  deleted with the chat as today (`application/chat/services/chat.service.ts:101`). This
+  rewrites two settled lines of Knowledge, on the owner's word only: a chat's route would take
+  bytes again (`POST /chats/:chatId/attachments`), and a chat's delete would unlink the
+  user's own attachments and delete its own. The column `chat_id` then stays on the
+  attachment as its owner (`kernel/data/attachment/attachment.table.ts:25`); only `message_id`
+  moves to the links.
 [R] What limits do other companies put on a user's files? Ours should be configured in `.env`
 or in a ts file, easy to change. (the owner, chat)
   [N:ai] Sent to one researcher: the limits of the chat products and their apis.
@@ -232,6 +262,8 @@ source.>
   (`application/use-cases/chat/generate-assistant-message.use-case.ts:87`). Open, L2.
 - An attachment a chat holds and a message of it holds too reaches the assistant twice. Open,
   L2.
+- Make a chat's attachment the user's own ("save to my files"); until then, upload it again.
+  Open.
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
