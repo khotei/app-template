@@ -132,6 +132,9 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
 - [N:ai] L5.8 (ревью L6, Standards): удалён комментарий «RDS_BASE_PORT is the highest of the four
   ports» в `.claude/skills/ticket-implement/worktree.sh`; с L5.3 портов шесть (`comments.md`:
   неверный комментарий удаляют).
+- [N:ai] L5.9 (owner: A на `[D:ai]` выше) тест трассы в очереди проверяет и ответ `consume`,
+  `{ batchItemFailures: [] }`. Проба — span только у записи с `traceparent`: старый тест зелёный
+  (4 passed), новый красный (`expected { batchItemFailures: [ { …(1) } ] }`); находка подтверждена.
 
 ## Knowledge
 

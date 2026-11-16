@@ -44,7 +44,7 @@ describe('QueueConsumer.consume', () => {
       const traceIds = yield* Ref.make<Record<string, string>>({})
       const traceId = '0af7651916cd43dd8448eb211c80319c'
 
-      yield* consumer.consume(pingQueue, ({ ping }) =>
+      const response = yield* consumer.consume(pingQueue, ({ ping }) =>
         Effect.currentSpan.pipe(
           Effect.orDie,
           Effect.flatMap((span) => Ref.update(traceIds, Rec.set(ping, span.traceId))),
@@ -59,6 +59,7 @@ describe('QueueConsumer.consume', () => {
       })
 
       const { traced, untraced } = yield* Ref.get(traceIds)
+      assert.deepStrictEqual(response, { batchItemFailures: [] })
       assert.strictEqual(traced, traceId)
       assert.notStrictEqual(untraced, traceId)
     }).pipe(Effect.provide(QueueConsumer.layer)),
