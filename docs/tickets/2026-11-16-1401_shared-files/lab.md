@@ -141,6 +141,20 @@ owner, chat)
   own; a chat's attachment read in every reply; the upload into a chat dropped from Later. The
   `[D:ai]` lines on the expiry, the chat's delete and the `drive` module stay proposals until
   L1's contract.
+[Q] What else has to be reviewed and resolved now, for the minimal implementation? (the owner,
+chat)
+  [A:ai] Three choices shape L1 and are the owner's: the expiry goes; a chat's delete only
+  unlinks; attachments stay in `chat`, with no `drive` module yet (the three `[D:ai]` above).
+  One has a deadline, not a place in L1: a cap on what one user keeps, since the expiry was the
+  only bound. The agent settles the rest in L1's contract: the schema changes by regenerating
+  the one `init` migration (`decisions.md › One initial migration`); the link's key to its
+  attachment does not cascade, so a delete racing a link is refused in the write
+  (`decisions.md › Guards in the write, no lock`); `AttachmentBoundError` gains the chats that
+  hold the attachment (`http-api/attachment/api-attachment.error.ts:13`); `ApiAttachment` loses
+  `messageId` and `chatId` (`http-api/attachment/api-attachment.model.ts:28`), a change no
+  outside client sees, the client being private (`http-api/package.json:3`). L2's own
+  questions wait for L2: the shape of a chat's list, an unlink of one only messages hold, the
+  same attachment read twice by the assistant, a cap per chat.
 
 ### Pieces
 
@@ -173,6 +187,12 @@ source.>
 - A quota per user, in attachments or bytes: with no expiry nothing bounds what an anonymous
   user keeps; before any public deploy. Open.
 - Delete an attachment in use after the alert (`?force`), from every chat and message. Open.
+- With no expiry, a crash between the bytes' write and the row's insert leaves bytes no rule
+  removes; the `unbound` tag's rule removed them within a day. Open.
+- A cap on a chat's own attachments: every reply reads the bytes of all of them
+  (`application/use-cases/chat/generate-assistant-message.use-case.ts:87`). Open, L2.
+- An attachment a chat holds and a message of it holds too reaches the assistant twice. Open,
+  L2.
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
