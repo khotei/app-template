@@ -379,6 +379,21 @@ and attachments, and do as the other AI services do. (the owner, chat)
   counted in the user's limit, and a send of a user's own makes one copy request to the store,
   a call `packages/s3/bucket.ts` lacks today. This replaces the binds of the earlier `[D]`
   lines and rewrites Knowledge, on the owner's word only.
+[Q] Why not solve it without a copy? Copy only the link: create a link, a copy of the record,
+for the specific place, a chat or a message. (the owner, chat)
+  [A:ai] It works, and stores the bytes once. The copy of the bytes was proposed because it
+  leaves nothing shared; a copy of the record shares the bytes, which costs one rule: who
+  removes them, and when. The simplest answer is the one the owner chose before as the alert:
+  the original cannot be deleted while a record made from it exists.
+  [D:ai] A send of a user's own attachment adds a record of its own in the chat, bound to the
+  message as any attachment is today, naming the original and carrying its name, type and
+  size; no bytes move. The table keeps its shape and gains that one name of the original.
+  The bytes belong to the original: a chat's delete removes its records and the bytes of the
+  attachments uploaded into it only; the delete of a user's own answers `409`, naming the
+  chats, while a record made from it exists, and a key from the record to its original refuses
+  the race in the write. Over the copy of the bytes: no second storing and no copy request to
+  the store; the price is that a user's file sent in a message is deleted only after its
+  chats. Proposed in place of the `[D:ai]` above it.
 
 ### Pieces
 
