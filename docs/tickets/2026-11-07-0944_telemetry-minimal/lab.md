@@ -112,6 +112,14 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
 
 ### Notes
 
+- [D:ai] Тест «runs a message in its sender's trace, and one sent outside a trace in its own»
+  (`packages/queue/__tests__/queue.consumer.test.ts:63`, L5.2) не ловит поломку второй половины:
+  если запись без `traceparent` останется без span'а, её обработчик упадёт на
+  `Effect.currentSpan`, `untraced` останется `undefined`, а `assert.notStrictEqual(untraced,
+  traceId)` пройдёт. Claimed (ревью L6, hunt). Без исправления система теряет проверку того, что
+  сообщение, отправленное вне трассы, обрабатывается в своей. Исправление: проверить ответ
+  `consume` — `{ batchItemFailures: [] }`.
+
 ### Pieces
 
 - [N:ai] L6.4 `stringValue` атрибута `traceparent` необязателен
@@ -121,6 +129,9 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
 - [N:ai] L6.5 `.claude/rules/tooling.md`: настройки читаются только через `kernel/config`, кроме
   `OTEL_*`, которые `Otlp.layerFromConfig` читает сам; второй читатель endpoint — Pulumi через
   `TelemetryConfig`, ему нужен только порт.
+- [N:ai] L5.8 (ревью L6, Standards): удалён комментарий «RDS_BASE_PORT is the highest of the four
+  ports» в `.claude/skills/ticket-implement/worktree.sh`; с L5.3 портов шесть (`comments.md`:
+  неверный комментарий удаляют).
 
 ## Knowledge
 

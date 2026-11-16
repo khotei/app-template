@@ -55,7 +55,6 @@ otlp=$((4318 + 10 * N))
 grafana=$((3003 + 10 * N))
 rds=$((15432 + 10 * N))
 stage="STAGE=\"local$N\""
-# RDS_BASE_PORT is the highest of the four ports.
 [ "$rds" -le 65535 ] || refuse "N=$N puts RDS_BASE_PORT at $rds, past 65535"
 # A stage moved before means containers still run under it.
 own=$(sed -n 's/^STAGE=//p' .env 2>/dev/null)
