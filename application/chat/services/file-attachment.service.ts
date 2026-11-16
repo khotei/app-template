@@ -64,7 +64,7 @@ export class FileAttachmentService extends Context.Service<
   make: Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const files = yield* FileRepository
-    const records = yield* AttachmentService
+    const attachmentService = yield* AttachmentService
     const crypto = yield* Crypto.Crypto
     const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
@@ -116,7 +116,7 @@ export class FileAttachmentService extends Context.Service<
     const download = Effect.fn('FileAttachmentService.download')(function* (
       where: AttachmentWhere,
     ) {
-      const { id } = yield* records.getOne(where)
+      const { id } = yield* attachmentService.getOne(where)
       return yield* files
         .selectOne({ id })
         .pipe(Effect.flatMap(ensureFound(id)), Effect.map(Struct.get('url')))
@@ -125,7 +125,7 @@ export class FileAttachmentService extends Context.Service<
     const getMany = Effect.fn('FileAttachmentService.getMany')(function* (
       where: AttachmentGetManyWhere,
     ) {
-      const found = yield* records.getMany(where)
+      const found = yield* attachmentService.getMany(where)
       const storedIds = yield* files
         .selectMany({ id: Arr.map(found, Struct.get('id')) })
         .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
@@ -153,9 +153,9 @@ export class FileAttachmentService extends Context.Service<
     })
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
-      yield* records.getOne(where).pipe(ensureUnbound)
+      yield* attachmentService.getOne(where).pipe(ensureUnbound)
       // A send that binds it after the check makes this die, so its bytes stay.
-      yield* records.delete({ id: [where.id], userId: where.userId, messageId: null })
+      yield* attachmentService.delete({ id: [where.id], userId: where.userId, messageId: null })
     })
 
     return { upload, download, getMany, bind, delete: remove }
