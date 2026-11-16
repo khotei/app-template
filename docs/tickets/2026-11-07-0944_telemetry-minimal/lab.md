@@ -21,7 +21,7 @@ Flow: lab · Worktree: —
 | L3 | Локально и AWS одним конфигом: куда OTLP шлёт в AWS и что меняется только в переменных | minimal | learn | done |
 | L4 | Паттерны интеграции: логи с trace id, LLM-вызовы, ошибки — из docs и `repos/effect` | minimal | learn | done (в L1) |
 | L5 | Одна минимальная поставка: экспорт из api и worker, `otel-lgtm` на worktree, одна трасса через SQS | minimal | build | done |
-| L6 | Later: the items of the open list the owner picks | hard | build | todo |
+| L6 | Later: the items of the open list the owner picks | hard | build | done |
 
 Draft-worktree L1 удалён при закрытии; его код не копируется, reference — строка Reference L1.
 
@@ -105,36 +105,13 @@ worker внутри неё. Код: три строки `Otlp.layerFromConfig` �
 
 ## L6 — Later
 
-### Shape
+### Output
 
-Пункты, которые выбрал владелец (2026-11-15): атрибут `traceparent` не строкой не роняет пакет;
-`OTEL_*`, которые Effect читает сам, — исключение в правиле настроек.
-
-### Notes
-
-- [D:ai] Тест «runs a message in its sender's trace, and one sent outside a trace in its own»
-  (`packages/queue/__tests__/queue.consumer.test.ts:63`, L5.2) не ловит поломку второй половины:
-  если запись без `traceparent` останется без span'а, её обработчик упадёт на
-  `Effect.currentSpan`, `untraced` останется `undefined`, а `assert.notStrictEqual(untraced,
-  traceId)` пройдёт. Claimed (ревью L6, hunt). Без исправления система теряет проверку того, что
-  сообщение, отправленное вне трассы, обрабатывается в своей. Исправление: проверить ответ
-  `consume` — `{ batchItemFailures: [] }`.
-
-### Pieces
-
-- [N:ai] L6.4 `stringValue` атрибута `traceparent` необязателен
-  (`packages/queue/queue.consumer.ts:12`): запись с атрибутом `Binary` декодируется и
-  обрабатывается под текущим span'ом, а не роняет весь пакет `POST /events`. Тест: событие с
-  `traceparent` `{ dataType: 'Binary', binaryValue }` проходит схему `SqsEvent` (был красным).
-- [N:ai] L6.5 `.claude/rules/tooling.md`: настройки читаются только через `kernel/config`, кроме
-  `OTEL_*`, которые `Otlp.layerFromConfig` читает сам; второй читатель endpoint — Pulumi через
-  `TelemetryConfig`, ему нужен только порт.
-- [N:ai] L5.8 (ревью L6, Standards): удалён комментарий «RDS_BASE_PORT is the highest of the four
-  ports» в `.claude/skills/ticket-implement/worktree.sh`; с L5.3 портов шесть (`comments.md`:
-  неверный комментарий удаляют).
-- [N:ai] L5.9 (owner: A на `[D:ai]` выше) тест трассы в очереди проверяет и ответ `consume`,
-  `{ batchItemFailures: [] }`. Проба — span только у записи с `traceparent`: старый тест зелёный
-  (4 passed), новый красный (`expected { batchItemFailures: [ { …(1) } ] }`); находка подтверждена.
+Запись SQS, у которой атрибут `traceparent` не строкой (например `Binary`), больше не роняет весь
+пакет `POST /events`: её обрабатывают в отдельной трассе под текущим span'ом; это проверяет тест
+на схему `SqsEvent`. Правило настроек в `.claude/rules/tooling.md` разрешает `OTEL_*`, которые
+`Otlp.layerFromConfig` читает сам. Тест трассы в очереди ловит запись, которая упала без span'а.
+Остальные пункты Later — в списке Later.
 
 ## Knowledge
 
