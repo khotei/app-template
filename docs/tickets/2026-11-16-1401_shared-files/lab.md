@@ -12,46 +12,60 @@ a minimal working feature first; edge cases and improvements of little value com
 
 ## Map
 
-Drafted by the agent on the owner's `[DO]` in L1, and accepted with the `[D]` that closes its
+Drafted by the agent on the owner's `[DO]` in L1, and accepted with the `[D]` lines of its
 Notes.
 
 | Step | Goal | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | A user's attachments live on their own: the routes under `/attachments` and a list of them, with no expiry; a send attaches them by id, one attachment to any number of messages | minimal | build | todo |
-| L2 | A chat's attachments: attach one to a chat and remove it, list the chat's own with its messages'; the reply reads them; then the play of the whole feature | minimal | build | todo |
+| L1 | An attachment is the user's own or one chat's, by where it is uploaded, with no expiry: the user lists their own, a chat takes an upload, and a send attaches either by id, the user's own to any number of messages | minimal | build | todo |
+| L2 | A chat's attachments: link the user's own to a chat and remove one, list the chat's with its messages'; the reply reads them; then the play of the whole feature | minimal | build | todo |
 | L3 | Right: what the play and the reviews change | right | build | todo |
-| L4 | Later: the items of the open list the owner picks | hard | build | todo |
+| L4 | Later: the items of the open list the owner picks, the limit per user first | hard | build | todo |
 
-## L1 — A user's attachments on their own
+## L1 — The user's own attachments and a chat's
 
 ### Shape
 
-Draft by the agent, on the `[DO]` below; the contract in code follows the owner's word on it.
+Drafted by the agent on the `[DO]` below and accepted by the owner in the chat; the contract in
+code is the next move.
 
-One word, as the owner asked: an **Attachment** is a file a user uploaded, and the only way to
-its bytes. It is the user's from the upload, and may be attached to chats and to messages; a
-message's attachment is its chat's too. The api gains three routes under a chat and one list.
+One word: an **Attachment** is a file a user uploaded, and the only way to its bytes. It has an
+owner, set by where it is uploaded and marked on it: the user, or one chat of theirs. The
+user's own is listed for the user, linked to any chat or message of theirs, and kept until
+deleted. A chat's own is listed in that chat only, linked to its messages only, and deleted
+with the chat. A message's attachment is its chat's too.
 
 ```text
-POST   /attachments                                upload 1 to 5 files            (today)
-GET    /attachments                                the user's, in upload order    (new)
+POST   /attachments                                upload the user's own, 1 to 5  (today)
+GET    /attachments                                the user's own, in upload order (new)
 GET    /attachments/:attachmentId                  one                            (today)
 GET    /attachments/:attachmentId/download         302 to the bytes               (today)
 DELETE /attachments/:attachmentId                  the attachment and its bytes   (today)
                                                    409 while a chat or a message holds it
 
-GET    /chats/:chatId/attachments                  its own and its messages'      (new, L2)
-PUT    /chats/:chatId/attachments/:attachmentId    attach to the chat             (new, L2)
-DELETE /chats/:chatId/attachments/:attachmentId    remove from the chat; it stays (new, L2)
+POST   /chats/:chatId/attachments                  upload the chat's own          (new)
+GET    /chats/:chatId/attachments                  its own and the linked         (new, L2)
+PUT    /chats/:chatId/attachments/:attachmentId    link the user's own            (new, L2)
+DELETE /chats/:chatId/attachments/:attachmentId    remove from the chat: unlink   (new, L2)
+                                                   the user's own, delete its own
 
 POST   /chats/:chatId/messages                     { text, attachmentIds }        (today)
 GET    /chats/:chatId/messages[/:messageId]        a message with its attachments (today)
 ```
 
 ```text
-attachments  id, user_id, file_name, media_type, size, created_at; message_id, chat_id leave
+attachments  id, user_id, chat_id? -> chats (its owner, none for the user's own), file_name,
+             media_type, size, created_at; message_id leaves
 <links>      attachment_id -> attachments, chat_id -> chats, message_id? -> messages, created_at
-             deleting a chat or a message takes its links, never an attachment
+             a chat's delete takes its own attachments and every link to it
+```
+
+```text
+model     the rules, pure functions over the values passed in
+services  the plain records; the records with their bytes, calling a rule of their own model
+use case  a flow that needs the chat's service too: an upload into a chat, a link, an unlink,
+          the send; it passes what the services read to a rule over both
+handler   one service for the user's own upload, the list, the read, the download, the delete
 ```
 
 ### Notes
@@ -98,7 +112,7 @@ it? (the owner, chat)
 [D:ai] `/attachments` is the CRUD of the attachment itself. Under a chat a route only links or
   unlinks: `PUT` attaches, `DELETE` removes from that chat and leaves the attachment with the
   user. The alert is the `409` of `DELETE /attachments/:attachmentId`, naming where it is held.
-  An upload straight into a chat stays in Later: without it the client makes two calls.
+  [N:ai] Changed by the owner mark, accepted below: a chat also takes the upload of its own.
 [Q] About `POST /chats/:chatId/attachments` and `POST /chats/:chatId/messages`: we upload the
 file first and then attach it, and an existing one is only linked? These routes never upload,
 only link? (the owner, chat)
@@ -126,6 +140,8 @@ owner, chat)
 [D:ai] Deleting a chat takes its links and leaves the attachments with the user, so the chat's
   delete stops deleting bytes inside the request
   (`application/chat/services/chat.service.ts:101`).
+  [N:ai] Changed by the owner mark, accepted below: it holds for the user's own only, and a
+  chat's own are deleted with it, bytes too, as today.
 [Q:ai] Question 1 of the five (what breaks if this is removed?) fails for a message's own routes
   (`/chats/:chatId/messages/:messageId/attachments`): a sent message is finished text and its
   Run has read its files, so there is nothing to add or remove, and the message already carries
@@ -241,6 +257,17 @@ attachments, and how to split and compose them over the services. (the owner, ch
   upload into a chat, a link and an unlink, the send. A handler calls the service alone for
   the user's own upload, the list, the read, the download and the delete. A limits service
   earns its place only as the source of the numbers, if they are to come from `.env`.
+[D] Ok: the owner of an attachment is the user or one chat, by where it is uploaded, with the
+two changes to Knowledge; and the limit per user is a total in bytes, 1 GiB. (the owner, chat)
+  [N:ai] Both in Knowledge. The total counts every attachment of the user, their chats' too:
+  the agent's reading, one sum over the user's rows.
+[D] A service is needed only where a database or another outside system is: the rules are
+pure functions of the model. They need data, so, to keep repositories out of a use case, a
+service composes the read with the rule and the use case uses it; or, where it is no big deal,
+the use case gets the data and passes it to the pure functions. (the owner, chat)
+  [N:ai] In Knowledge. Which of the two, per rule: a rule over its own model's records is
+  called inside that model's service, so the method is safe alone (`layering.md:32`); a rule
+  over an attachment and a chat is called by the use case, on what the two services read.
 
 ### Pieces
 
@@ -252,8 +279,19 @@ attachments, and how to split and compose them over the services. (the owner, ch
 
 ## Knowledge
 
-- `/attachments` is the CRUD of an attachment. A route under a chat only links or unlinks one
-  and never takes bytes: the upload is `POST /attachments` alone.
+- An attachment is the user's own or one chat's, marked on it and set by where it is uploaded:
+  `POST /attachments` makes the user's own, `POST /chats/:chatId/attachments` that chat's.
+  The user's own is listed by `GET /attachments`, linked to any chat or message of the user and
+  kept until deleted; a chat's own is listed and linked in that chat only.
+- `/attachments` is the CRUD of the user's own. Under a chat, a route uploads the chat's own
+  or links and unlinks the user's own; a link takes an id, never bytes.
+- A chat's delete deletes the chat's own attachments, bytes too, and only unlinks the user's
+  own.
+- One user's attachments together hold at most 1 GiB, their chats' own counted; the number is
+  a constant beside its rule in the model.
+- A rule is a pure function of the model, and there is no guard service. A service reads what
+  a rule of its own model needs and calls it; a use case composes the services where a flow
+  needs the chat too, and passes what they read to a rule over both.
 - One attachment is linked to any number of chats and messages by its id; its bytes are stored
   once.
 - `DELETE /attachments/:attachmentId` answers `409`, naming where the attachment is held, while
@@ -273,8 +311,9 @@ source.>
 
 ## Later
 
-- A quota per user, in attachments or bytes: with no expiry nothing bounds what an anonymous
-  user keeps; before any public deploy. Open.
+- The limit per user, 1 GiB in total: with no expiry nothing else bounds what an anonymous
+  user keeps. Open, first in L4. Two uploads at once may pass it together, by one request's
+  files at most.
 - Delete an attachment in use after the alert (`?force`), from every chat and message. Open.
 - With no expiry, a crash between the bytes' write and the row's insert leaves bytes no rule
   removes; the `unbound` tag's rule removed them within a day. Open.
@@ -288,8 +327,8 @@ source.>
   again. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
 - Where an attachment is used: its chats, in its read. Open.
-- Upload straight into a chat (`POST /chats/:chatId/attachments` with the bytes), one call for
-  the two. Dropped on the owner's word: a chat's routes never take bytes.
+- Upload straight into a chat (`POST /chats/:chatId/attachments` with the bytes). Done in L1's
+  shape: it makes the chat's own attachment.
 - The same bytes uploaded twice are stored twice. Open.
 - An attachment's delete removes the rows, then the bytes: a failure between them leaves bytes
   no rule removes (roadmap entry 16, inherited from `jobs`). Open.
