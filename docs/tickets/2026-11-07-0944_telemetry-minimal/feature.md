@@ -1,7 +1,7 @@
 # Telemetry, minimal
 
 > Ticket: `2026-11-07-0944_telemetry-minimal` · Source: conversation; [roadmap › observability](../../knowledge/roadmap.md#8-observability)
-> Related: [architecture.md](./architecture.md) · [plan.md](./plan.md)
+> Related: [lab.md](./lab.md)
 
 ## Problem
 
