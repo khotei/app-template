@@ -221,6 +221,26 @@ own limits, and the business verifies against what the user already holds. (the 
   (`application/chat/domain/attachment.model.ts:54`); the service that uploads reads the
   user's rows and calls it. `http-api/shared/limits.ts` keeps what one request may carry,
   checked by the schema before any code runs.
+[DO] The rules are not part of `FileAttachmentService`: add services of their own, a
+`FileAttachmentGuard` or a limits service, used on a delete, an upload and so on, and compose
+them with `FileAttachmentService` in a use case. Think which features we will have over
+attachments, and how to split and compose them over the services. (the owner, chat)
+  [A:ai] The rules already sit outside the service: each is a pure function in
+  `application/chat/domain/attachment.model.ts`, which a service or a use case calls
+  (`decisions.md › Rules as pure functions`); the send's use case pipes one today
+  (`application/use-cases/chat/create-user-message.use-case.ts:66`). A guard as a service fails
+  three lines of the rules. `effect-services.md:28`: a `Context.Service` only when something
+  varies, and nothing does in a check. `layering.md:32`: every method is safe on its own, and
+  an upload whose limit a use case checks beside it is not. And the limit cannot be checked
+  before the upload at all: a file's size is known once its bytes are stored
+  (`application/chat/services/file-attachment.service.ts:79`), so the check runs inside the
+  upload, per file, where the cleanup already removes what was stored (line 114).
+  [D:ai] Split by what the records ask. The model holds the rules as pure functions. Two
+  services stay, the plain records and the records with their bytes; `LiveAttachmentService`
+  goes with the expiry. A use case composes wherever a flow needs the chat's service too: an
+  upload into a chat, a link and an unlink, the send. A handler calls the service alone for
+  the user's own upload, the list, the read, the download and the delete. A limits service
+  earns its place only as the source of the numbers, if they are to come from `.env`.
 
 ### Pieces
 
