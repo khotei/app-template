@@ -16,7 +16,7 @@ a minimal working feature first; edge cases and improvements of little value com
 |---|---|---|---|---|
 | L1 | An attachment never expires: one left unsent stays readable, and the expiry's code, tag and bucket rule are gone | minimal | build | done |
 | L2 | The library reused: the user lists it, sends one attachment of it in two chats, and its delete is refused while a message holds one sent from it | minimal | build | done |
-| L3 | An upload into a chat stays out of the library and goes with the chat; then the play of the whole feature | minimal | build | todo |
+| L3 | An upload into a chat stays out of the library and goes with the chat; then the play of the whole feature | minimal | build | in progress |
 | L4 | Right: what the play and the reviews change | right | build | todo |
 | L5 | Later: the items of the open list the owner picks, the limit per user first | hard | build | todo |
 
@@ -93,6 +93,26 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
           upload into a chat is the one new use case
 ```
 
+The next piece, drafted by the agent on the owner's word after the research in Notes: the
+bind's rule is held twice, by the write and by the type of what `bind` takes.
+
+| Name | What it is |
+|---|---|
+| `UnsentAttachment` | an attachment no message holds: `Attachment` with `messageId` none, the type the check answers and the bind takes |
+| `ensureUnbound`, `ensureAllUnbound` | answer `UnsentAttachment`; the send and the delete pipe them as today |
+| `bindAttachment` | a pure builder over an `UnsentAttachment`: no check of its own, no failure, `messageId` its only change |
+| `FileAttachmentService.bind` | takes `UnsentAttachment`s and fails with nothing; its update sets `messageId` alone, so the pair key refuses a message of another chat |
+| `AttachmentEntitySet` | `messageId` alone: no write names a chat |
+| `Attachment` | its doc states once the four valid combinations of `chatId`, `messageId` and `sourceId` |
+| `uploadAttachment` | the endpoint of `POST /chats/:chatId/attachments`, in the group `chats` as every route under a chat is |
+
+```text
+pieces left  the bind's rule above, with `upload` taking the place, a chat's own attachment
+             bound and a chat's delete removing an unsent one's bytes;
+             then `UploadChatAttachmentUseCase` with its route and handler;
+             then the play of the whole feature through the api
+```
+
 ### Notes
 
 - [Q:ai] The fourth of the five questions fails for the bind. `bindAttachment` writes `chatId`
@@ -103,6 +123,7 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   With `messageId` as the whole set, the pair key refuses that bind in the write, and
   `AttachmentEntitySet` loses `chatId`. Write `messageId` alone, in the piece that binds a
   chat's own attachment?
+  - [N:ai] Yes, by the owner's `[D]` below: the first of the research's ways.
 - [R] Research more about the options to simplify it and make it more visible for a developer:
   how the model's rules could be reorganised, whether a new service could create boundaries
   and methods that show this; look at Effect's core and Drizzle to find the right solution.
@@ -146,6 +167,10 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
        `bind`'s argument, in 2 or 3.
   - [D:ai] 1 and 2 in L3's next piece, with the four valid combinations stated once on the
     class; 3 to Later, for the right pass, the draft worktree its measure until then.
+- [D] Save it and commit as the next step. (the owner, chat)
+  - [N:ai] Read as: the proposal above is accepted and becomes L3's next piece. Its contract
+    is in the Shape, its two lines in Knowledge, the class per state in Later; no code is
+    written in this round.
 
 ### Pieces
 
@@ -182,6 +207,11 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   of its own model needs and calls it, and a use case composes the services with the chat's.
 - An attachment has two services, the plain records and the records with their bytes, and no
   layer for a rule between them (`decisions.md › Layered services of one model`).
+- A bind writes `messageId` alone: an attachment's chat is set by its upload and never
+  written again, and the pair key refuses a message of another chat in the write.
+- A check answers the narrower type its next step takes: `bind` takes only an
+  `UnsentAttachment`, which `ensureUnbound` answers. That type is the boundary; no service is
+  added for it.
 - From L5 on, one user's attachments together hold at most 1 GiB, counted over the bytes
   stored, a record sent from the library adding none; the number is a constant beside its rule.
 - Attachments stay in `chat`; no `drive` module is split out.
@@ -229,6 +259,12 @@ source.>
 - The table lets a record name any attachment as its source, a chat's too, whose chat's
   delete would then die on `attachments_source_id_fk`; only `bind` adds a record, and only
   of a library attachment (`application/chat/services/file-attachment.service.ts:160`). Open.
+- A class per state, `LibraryAttachment`, `ChatAttachment` and `SentAttachment`, in place of
+  the three optional ids, so no invalid combination builds and each signature names the state
+  it takes. Open, for the right pass. Its measure is the draft in
+  `.claude/worktrees/shared-files-L3-place-draft` (uncommitted, on
+  `wt/shared-files-L3-place-draft`), priced in L3's Notes; the worktree goes once this is
+  decided.
 - `deployment` imports nothing of the data layer since L1.1, yet the guard and its docs still
   allow it (`.misc/lint/biome-imports.grit:81`, `docs/knowledge/architecture.md:84`,
   `.claude/rules/modules.md:29`). Open.
