@@ -103,6 +103,49 @@ use case  the send pipes `ensureAllReachableFrom` where it pipes `ensureAllUnbou
   With `messageId` as the whole set, the pair key refuses that bind in the write, and
   `AttachmentEntitySet` loses `chatId`. Write `messageId` alone, in the piece that binds a
   chat's own attachment?
+- [R] Research more about the options to simplify it and make it more visible for a developer:
+  how the model's rules could be reorganised, whether a new service could create boundaries
+  and methods that show this; look at Effect's core and Drizzle to find the right solution.
+  Return with a report; worktrees to stress-test the solutions and the simplifications are
+  fine. (the owner, chat)
+  - [N:ai] Sent to two researchers, without the agent's proposal above: Effect's constructs
+    for a record in one of a closed set of states, and where Drizzle and Postgres can hold the
+    bind's rule in the write. The agent drafts the candidates in a worktree of its own.
+  - [A:ai] Three ways that add up, each proved by a run, and no service.
+    1. The guard in the write: the bind sets `messageId` alone. On Postgres, a row of chat A
+       and a message of chat B: with `chat_id` in the set the row moves to chat B; without it
+       the statement fails on `attachments_message_id_chat_id_fk`, and a library row fails on
+       the check (the agent's e2e probe, since deleted; the researcher's on temporary tables,
+       codes 23503 and 23514). `AttachmentEntitySet` loses `chatId`, so a write of the chat
+       fails typecheck. Not taken: `chatId` in the `where`, the same refusal twice; a trigger,
+       which Drizzle cannot declare and the memory twin would copy by hand.
+    2. A check that answers a narrower type, on the class as it is ("Parse, don't validate",
+       <https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/>):
+       `ensureUnbound` answers `UnsentAttachment`, `bind` takes only that, and the check
+       inside `bindAttachment` and `bind`'s error go. The mapper and the wire stay. Proved on
+       a toy class in the draft worktree, not on the model; I assume some 30 changed lines.
+       Left open: an invalid combination of the three ids still builds.
+    3. A class per state ("Make illegal states unrepresentable",
+       <https://blog.janestreet.com/effective-ml-revisited/>): `LibraryAttachment`,
+       `ChatAttachment`, `SentAttachment` (`Schema.TaggedClass`,
+       `repos/effect/packages/effect/src/Schema.ts:16525`), read from the flat row by one
+       struct per row shape (`Schema.tagDefaultOmit`, `:6248`). Drafted whole, uncommitted,
+       in `.claude/worktrees/shared-files-L3-place-draft`: the api's e2e pass unchanged, 96
+       of 98, the two red being repository cases that bind a library row; a sent attachment
+       given to `bind` fails typecheck; a row of no valid kind fails its decode. The price:
+       13 source files, 250 lines added and 116 removed; the mapper 28 lines to 95, with one
+       loosely typed read, as TypeScript cannot split the entity's nullable columns into the
+       kinds; the wire's mapper 1 line to 28, or a tagged wire; nine unit suites to port (106
+       type errors, 56 in the model's); and a second idiom beside the Run's, a status with
+       `Option` fields and a table (`application/chat/domain/run.model.ts:61`).
+    4. A service: none passes. `getMany` and `bind` have one caller
+       (`application/use-cases/chat/create-user-message.use-case.ts:68`), so a `send` that
+       merges them reappears nowhere, and its checks would follow the message's insert
+       (`layering.md › Use cases`); a layer between the two services is the alternative
+       `decisions.md › Layered services of one model` rejects. The boundary is the type of
+       `bind`'s argument, in 2 or 3.
+  - [D:ai] 1 and 2 in L3's next piece, with the four valid combinations stated once on the
+    class; 3 to Later, for the right pass, the draft worktree its measure until then.
 
 ### Pieces
 
