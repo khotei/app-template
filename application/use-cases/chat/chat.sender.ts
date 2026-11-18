@@ -37,7 +37,7 @@ export class AssistantMessageSender extends Context.Service<
         at,
       }).pipe(Effect.orDie)
       yield* encodeRun(failed).pipe(
-        Effect.flatMap((row) => runs.update(row, { id: run.id, status: ['queued'] })),
+        Effect.flatMap((row) => runs.update(row, { id: run.id, status: [run.status] })),
       )
       return yield* new RunNotQueuedError({ id: run.id })
     })
