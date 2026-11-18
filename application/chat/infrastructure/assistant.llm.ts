@@ -4,14 +4,12 @@ import {
   type Config,
   Duration,
   Effect,
-  Function as Fn,
   Layer,
   pipe,
   Schedule,
   Schema,
   SchemaTransformation,
   String as Str,
-  UndefinedOr,
 } from 'effect'
 import { AiError, Prompt, Response } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
@@ -122,7 +120,7 @@ const decodeReply = ({ text }: { readonly text: string }) =>
 const longestRetryAfter = Duration.seconds(30)
 
 const retryAfterOf = ({ retryAfter }: AiError.AiError): Duration.Duration =>
-  UndefinedOr.match(retryAfter, { onUndefined: () => Duration.zero, onDefined: Fn.identity })
+  retryAfter ?? Duration.zero
 
 const isWorthRetrying = (error: AiError.AiError): boolean =>
   error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), longestRetryAfter)
