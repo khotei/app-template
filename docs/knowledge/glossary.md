@@ -160,9 +160,11 @@ An implementation of a port over a client, in a module's `infrastructure/`: the 
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
-The owner of one model's rules: every write a rule guards goes through it. It is named by its
-model (`ChatService`); one that holds a single operation belonging to no model is named by that
-operation, without `Service` (`FundsTransfer`).
+The owner of one model's records for every caller above it: the reads a rule needs and the plain
+reads and writes a handler asks for; a use case writes through the repository where a model
+function already ran the write's rule (a status move). It is named by its model (`ChatService`);
+one that holds a single operation belonging to no model is named by that operation, without
+`Service` (`FundsTransfer`).
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Handler**:
