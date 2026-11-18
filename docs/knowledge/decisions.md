@@ -768,6 +768,28 @@ that go through a changed interface, and the setup of a moved client.
 - **If reversed:** a refactor can drop a case with no one noticing.
 - **Revisit when:** a case tests an interface that no longer exists, not a behaviour.
 
+### Leaf doubles without a contract suite
+
+The three leaf doubles, `recordAssistant` for `Assistant`, `recordMessages` for `QueueSender` and
+`FileRepositoryTest` for `FileRepository`, have no contract suite: no set of cases runs on both
+a double and the port's real layer.
+
+- **Why:** a suite run on a double tests test support, which `.claude/rules/effect-tests.md`
+  › What to test refuses; each of the three ports has one real layer.
+- **Sources:** Andrew Trenk and Dillon Bly, "Test Doubles", chapter 13 of *Software Engineering
+  at Google* (2020), asks for a fake's own tests run against the real implementation; this record
+  departs from it.
+- **Rejected:** one suite per port, run on the double and on the real layer: a test of test
+  support.
+- **Cost:** a double can drift from its real layer unseen. One drift stands: `recordMessages`
+  keeps the message as given, while `QueueSender.layer` encodes it by its definition's schema,
+  so a unit test passes a message the real sender cannot encode.
+- **Guarded by:** review alone; nothing compares a double with its real layer.
+- **If reversed:** each port gains a suite of cases run on both, and the rule line against testing
+  test support gets an exception.
+- **Revisit when:** a drift of a leaf double hides a defect (a unit test green on what the real
+  layer refuses), or `Assistant` gets a second real layer.
+
 ### One initial migration
 
 Until a deployed database holds data, the schema is one migration, `init`: a change to a table
