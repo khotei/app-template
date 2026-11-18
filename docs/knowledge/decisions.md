@@ -422,7 +422,7 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 ### Checks kept in the tables
 
 The tables keep their checks: the data layer declares the enums' values and the checks' limits
-and patterns, and the models import them to check the same rules on their side.
+and patterns, and a model that holds one imports it to check the same rule on its side.
 
 - **Why:** the database stays a guard against any writer, as the partial unique index already
   is.
@@ -435,7 +435,7 @@ and patterns, and the models import them to check the same rules on their side.
   the model's side may add to the check (trimming every whitespace, counting UTF-16 units),
   never accept less.
 - **Guarded by:** the data layer exports each limit, pattern and enum's values from its table and
-  the model imports it; the data layer's e2e check the table's side
+  a model that holds it imports it; the data layer's e2e check the table's side
   ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.

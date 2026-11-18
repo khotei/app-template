@@ -1,14 +1,13 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, HashMap, Layer, Option, Redacted, Ref, Result, Schema } from 'effect'
+import { Effect, HashMap, Layer, Option, Redacted, Ref, Result, Struct } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
 import { UserRepositoryTest, UserRows } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { UserUnknownError } from '#identity/domain/user.error'
-import { Credential, SecretHash } from '#identity/domain/user.model'
 import { type UserSecret, UserService } from '#identity/services/user.service'
 
 const UserServiceTest = UserService.layer.pipe(
@@ -51,15 +50,10 @@ describe('UserService', () => {
       const { user, secret } = yield* service.ensure(Option.none())
 
       const rows = yield* readRows
-      const stored = HashMap.get(rows, user.id).pipe(
-        Option.map((row) => Schema.decodeSync(Credential)(row.credential)),
-      )
+      const stored = HashMap.get(rows, user.id).pipe(Option.map(Struct.get('credential')))
       const hash = yield* hashWithWebCrypto(secret)
 
-      assertEquals(
-        stored,
-        Option.some(new Credential({ kind: 'secret', hash: SecretHash.make(hash) })),
-      )
+      assertEquals(stored, Option.some({ kind: 'secret', hash }))
       assertEquals(yield* service.authenticate(secret), user)
     }).pipe(Effect.provide(UserServiceTest)),
   )
