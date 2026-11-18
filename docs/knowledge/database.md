@@ -50,7 +50,7 @@ the entities derived from them.
   from `run.table.ts` beside the table.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
-  `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
+  `.desc().nullsFirst()` (`chats_user_id_created_at_index`).
 - **Foreign keys say what a delete does.** `credentials`, `messages` and a chat's attachments
   cascade from their parent, so a chat's delete is one statement. An attachment names its chat in
   `chat_id`, a key to `chats` that cascades, so one uploaded into a chat and never sent goes with
