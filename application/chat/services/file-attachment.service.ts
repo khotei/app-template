@@ -69,7 +69,7 @@ export class FileAttachmentService extends Context.Service<
      */
     readonly bind: (
       attachments: ReadonlyArray<Attachment>,
-      message: Message,
+      message: Pick<Message, 'id' | 'chatId'>,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentBoundError>
     /**
      * Removes the user's attachment and its bytes while no message holds it or a record sent
@@ -153,7 +153,7 @@ export class FileAttachmentService extends Context.Service<
 
     const bind = Effect.fn('FileAttachmentService.bind')(function* (
       requested: ReadonlyArray<Attachment>,
-      message: Message,
+      message: Pick<Message, 'id' | 'chatId'>,
     ) {
       const createdAt = yield* DateTime.now
       const held = Arr.filter(requested, Predicate.not(isInLibrary))

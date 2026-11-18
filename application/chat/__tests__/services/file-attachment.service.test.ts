@@ -30,7 +30,7 @@ import {
   MediaType,
 } from '#chat/domain/attachment.model'
 import { FileAttachmentService } from '#chat/services/file-attachment.service'
-import { chatId, firstMessage, messageId, owner } from '#testing/chat/chat.test-fixture'
+import { chatId, messageId, owner } from '#testing/chat/chat.test-fixture'
 
 /**
  * The service over an `AttachmentRepository` that answers only the methods the case gives, and
@@ -58,14 +58,14 @@ const stored = buildAttachment({
   createdAt: epoch,
 })
 
-/** `stored` held by `firstMessage`. */
+/** `stored` held by the message `messageId`. */
 const bound = new Attachment({
   ...stored,
   messageId: Option.some(messageId),
   chatId: Option.some(chatId),
 })
 
-/** The chat's record of `stored`, sent from the library with `firstMessage`. */
+/** The chat's record of `stored`, sent from the library with that message. */
 const record = new Attachment({
   ...bound,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
@@ -240,7 +240,7 @@ describe('FileAttachmentService', () => {
     return Effect.gen(function* () {
       const service = yield* FileAttachmentService
 
-      const added = yield* service.bind([stored], firstMessage).pipe(Effect.head)
+      const added = yield* service.bind([stored], { id: messageId, chatId }).pipe(Effect.head)
 
       assertEquals(added, new Attachment({ ...record, id: added.id }))
       assert.deepStrictEqual(inserts, [yield* rowOf(added)])
