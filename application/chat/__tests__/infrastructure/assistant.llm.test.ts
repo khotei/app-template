@@ -233,7 +233,7 @@ describe('AssistantLlmFromConfig', () => {
       name: 'suggestTitle on a title of 121 characters',
       ask: suggestTitle(lisbon),
       answer: () => message(JSON.stringify({ title: 'a'.repeat(121) })),
-      sentAt: [0, 1_000, 3_000, 7_000, 15_000],
+      sentAt: [0, 1_000, 3_000],
       error: 'AssistantFailedError',
       cause: '120',
     },

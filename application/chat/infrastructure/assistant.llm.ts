@@ -64,52 +64,20 @@ function toUnfinishedError({ finishReason }: { readonly finishReason: Response.F
 const toFailedError = (error: { readonly message: string }) =>
   new AssistantFailedError({ cause: error.message })
 
-const longestRetryAfter = Duration.seconds(30)
-
-const retryAfterOf = ({ retryAfter }: AiError.AiError): Duration.Duration =>
-  retryAfter ?? Duration.zero
-
-const isWorthRetrying = (error: AiError.AiError): boolean =>
-  error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), longestRetryAfter)
-
-/** `retries` more requests, 1, 2, 4 … s apart, each wait at least the provider's `retryAfter`. */
-const retrySchedule = (retries: number): Schedule.Schedule<Duration.Duration, AiError.AiError> =>
-  Schedule.exponential('1 second').pipe(
-    Schedule.upTo({ times: retries }),
-    Schedule.setInputType<AiError.AiError>(),
-    Schedule.modifyDelay(({ input, duration }) =>
-      Effect.succeed(Duration.max(duration, retryAfterOf(input))),
+/** A `retryAfter` over 30 s, such as a daily token limit's, would outlast the job. */
+const retryPassing = <A>(request: Effect.Effect<A, AiError.AiError>) =>
+  Effect.retry(request, {
+    times: 2,
+    while: (error) =>
+      error.isRetryable &&
+      Duration.isLessThanOrEqualTo(error.retryAfter ?? Duration.zero, Duration.seconds(30)),
+    schedule: Schedule.exponential('1 second').pipe(
+      Schedule.setInputType<AiError.AiError>(),
+      Schedule.modifyDelay(({ input, duration }) =>
+        Effect.succeed(Duration.max(duration, input.retryAfter ?? Duration.zero)),
+      ),
     ),
-  )
-
-/** Asks again up to `retries` times while a retry can help, then fails as the port's error. */
-const askWithin =
-  (retries: number) =>
-  <A>(request: Effect.Effect<A, AiError.AiError>) =>
-    request.pipe(
-      Effect.retry({ schedule: retrySchedule(retries), while: isWorthRetrying }),
-      Effect.mapError(toFailedError),
-    )
-
-const assistantModels = llmModels.pipe(
-  Effect.flatMap(({ replyModel, titleModel }) =>
-    Effect.all({
-      reply: AnthropicLanguageModel.make({
-        model: replyModel,
-        config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
-      }),
-      title: AnthropicLanguageModel.make({
-        model: titleModel,
-        config: {
-          system: titleInstruction,
-          max_tokens: 1_000,
-          output_config: { effort: 'low' },
-          thinking: { type: 'disabled' },
-        },
-      }),
-    }),
-  ),
-)
+  })
 
 export const AssistantLlmFromConfig: Layer.Layer<
   Assistant,
@@ -117,28 +85,41 @@ export const AssistantLlmFromConfig: Layer.Layer<
   HttpClient.HttpClient
 > = Layer.effect(
   Assistant,
-  assistantModels.pipe(
-    Effect.map((models) =>
-      // Checked after the retries, an unfinished answer or a blank reply is not asked again:
-      // resent with the same prompt and limits, it would most likely end the same way.
-      Assistant.of({
-        reply: Effect.fn('Assistant.reply')((history) =>
-          models.reply.generateText({ prompt: Arr.map(history, toMessage) }).pipe(
-            askWithin(2),
-            Effect.filterOrFail(isFinished, toUnfinishedError),
-            Effect.flatMap(({ text }) =>
-              Schema.decodeEffect(AssistantReply)({ text }).pipe(Effect.mapError(toFailedError)),
-            ),
-          ),
+  Effect.gen(function* () {
+    const { replyModel, titleModel } = yield* llmModels
+    const replies = yield* AnthropicLanguageModel.make({
+      model: replyModel,
+      config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
+    })
+    const titles = yield* AnthropicLanguageModel.make({
+      model: titleModel,
+      config: {
+        system: titleInstruction,
+        max_tokens: 1_000,
+        output_config: { effort: 'low' },
+        thinking: { type: 'disabled' },
+      },
+    })
+
+    // Checked after the retries, an unfinished answer or a blank reply is not asked again:
+    // resent with the same prompt and limits, it would most likely end the same way.
+    return Assistant.of({
+      reply: Effect.fn('Assistant.reply')(
+        (history) => replies.generateText({ prompt: Arr.map(history, toMessage) }),
+        retryPassing,
+        Effect.mapError(toFailedError),
+        Effect.filterOrFail(isFinished, toUnfinishedError),
+        Effect.flatMap(({ text }) =>
+          Schema.decodeEffect(AssistantReply)({ text }).pipe(Effect.mapError(toFailedError)),
         ),
-        suggestTitle: Effect.fn('Assistant.suggestTitle')((text) =>
-          models.title.generateObject({ prompt: text, schema: TitleAnswer }).pipe(
-            askWithin(4),
-            Effect.filterOrFail(isFinished, toUnfinishedError),
-            Effect.map(({ value }) => value.title),
-          ),
-        ),
-      }),
-    ),
-  ),
+      ),
+      suggestTitle: Effect.fn('Assistant.suggestTitle')(
+        (text) => titles.generateObject({ prompt: text, schema: TitleAnswer }),
+        retryPassing,
+        Effect.mapError(toFailedError),
+        Effect.filterOrFail(isFinished, toUnfinishedError),
+        Effect.map(({ value }) => value.title),
+      ),
+    })
+  }),
 ).pipe(Layer.provide(AnthropicClientFromConfig))

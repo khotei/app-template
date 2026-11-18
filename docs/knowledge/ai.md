@@ -64,13 +64,12 @@ job is never retried ([aws.md › Queues](aws.md#queues)).
 
 | Failure | Asked again |
 |---|---|
-| an `AiError` whose `isRetryable` holds (5xx, 529, a rate limit, a transport error, a title that fails its schema) and whose `retryAfter` is at most 30 s | yes, waiting at least `retryAfter` |
-| a rate limit asking a longer wait, such as a daily token limit | no: the wait would outlast the job |
+| an `AiError` whose `isRetryable` holds (5xx, 529, a rate limit, a transport error, a title that fails its schema) and whose `retryAfter` is at most 30 s | twice, 1 s then 2 s apart, never before `retryAfter` |
+| a rate limit asking a longer wait, such as a daily token limit | no |
 | any other `AiError` (401/403, 400/404/422, an overlong prompt, no credit) | no |
 | an answer the model refused (finish reason `content-filter`, Anthropic's `refusal`) | no: `AssistantRefusedError`, its partial text dropped |
 | an answer that finished any other way than `stop` (`length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `AssistantFailedError` |
 
-A reply makes three requests at most, 1 s then 2 s apart; a title five, 1, 2, 4 and 8 s apart.
 The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
 error, for operators; it never reaches the wire.
 
