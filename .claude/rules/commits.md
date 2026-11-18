@@ -14,9 +14,8 @@ Decision: <non-obvious choice: trade-off, rejected alternative, or downstream im
 Refs: docs/tickets/<ticket folder>/
 ```
 
-- **Subject:** imperative, capitalised, no trailing period, ≤ 50 characters, counted from after
-  the prefix and, in a ticket, after the round id and its source too.
-- **Gitmoji** as a `:code:` shortcode (`:sparkles:`), not the emoji character.
+- **Subject:** imperative, capitalised, no trailing period, ≤ 50 characters past the prefix,
+  round id and source; the gitmoji as its `:code:` shortcode, not the emoji character.
 - **Scope:** the ticket slug (`monorepo-setup`), else the area (`api`, `domain`, `ci`, `tooling`).
 - **Decision:** required whenever a choice is non-obvious; add one paragraph per decision.
 - **Refs:** the ticket folder, the last paragraph before any trailers. When a ticket's commit may
@@ -26,10 +25,10 @@ Refs: docs/tickets/<ticket folder>/
 
 - **One change a reader can judge alone, green under `make check`.** Independent parts of a step
   or task are separate commits; a part that cannot be green alone joins the one it needs.
-- **The body says what and why.** A fact (a number, a behaviour, "X fails") is written only when
-  a run showed it, naming the command and its result. A `Decision:` paragraph states the choice
-  and its trade-off without a run, but a fact inside it follows the same rule.
-- **A doc or rule line the change makes false** is fixed in the same commit.
+- **The body says what and why.** A fact (a number, a behaviour, "X fails") is written only when a
+  run showed it, naming the command and its result. A `Decision:` paragraph states the choice and
+  its trade-off without a run, but a fact inside it follows the same rule. A doc or rule line the
+  change makes false is fixed in the same commit.
 
 ## A ticket's rounds
 
@@ -42,25 +41,26 @@ A ticket's commit opens its subject with its round, so `git log --oneline` shows
 :rewind: revert(<slug>): St2 S5.3 (OWNER) Revert S5.2
 :memo: docs(<slug>): St2 (VERIFY) Verify stage 2
 :memo: docs(<slug>): St3 (PLAN) Prepare stage 3
-:recycle: refactor(<slug>): L2.2 (OWNER) Drop the order helper
 ```
 
 - **The id:** `St<stage> S<step>.<round>`; a stage's preparation and its verification's section
   are `St<stage>` alone; a plan without stages drops the stage (`S4.2 (REVIEW)`). A lab step's is
   `L<step>.<round>` (`.claude/rules/lab.md`); `L0` is the lab itself, its start and its close.
-- **The source**, in capitals, past the implementer's first run: `REVIEW` the step's passes,
-  `OWNER` the user's word or edit, `STAGE` the Stage review, `VERIFY` a verification, `PLAN` an
-  edit of the plan alone (a stage's preparation, a step's close). The kind of change stays in the
-  gitmoji and type.
+- **The source**, in capitals, past the implementer's first run: `REVIEW` the step's passes, `OWNER`
+  the user's word or edit, `STAGE` the Stage review, `VERIFY` a verification, `PLAN` a plan-only
+  edit (a stage's preparation, a step's close); the gitmoji and type keep the kind.
 - **A fix** carries the id of each step whose code it changes (`S5+S6`), and its body opens with
   `Fixes <the fixed round's id>: <what was wrong>`; never a hash, stale after a cherry-pick.
 - **A revert's** subject names each round it reverts.
 - **A step's rounds** are found by the subject, not a body's `Fixes`:
-  `git log -E --grep='^:[a-z_]+: [a-z]+\([^)]*\): (St[0-9]+ )?(S[0-9]+\+)*S4(\+S[0-9]+)*[. ]'`
+  `git log -E --grep='^:[a-z0-9_-]+: [a-z]+\([^)]*\): (St[0-9]+ )?(S[0-9]+\+)*S4(\+S[0-9]+)*[. ]'`
   finds `S4.1` and `S4+S6`, not `S41`; a lab step's, by
-  `git log -E --grep='^:[a-z_]+: [a-z]+\([^)]*\): (L[0-9]+\+)*L2(\+L[0-9]+)*[. ]'`.
+  `git log -E --grep='^:[a-z0-9_-]+: [a-z]+\([^)]*\): (L[0-9]+\+)*L2(\+L[0-9]+)*[. ]'`.
 
 ## Vocabulary
+
+Every other gitmoji: [sdd.md › Gitmoji](../../docs/knowledge/sdd.md#gitmoji); a row here wins over
+a close upstream entry (`:fire:` over `:coffin:`, `:bug:` over `:adhesive_bandage:`).
 
 | Gitmoji | Type | Use |
 |---|---|---|

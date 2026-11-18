@@ -369,6 +369,83 @@ gitGraph
 Ticket branches are cut from `main` and deleted on merge; nothing is merged back into a second
 branch, so no merge commit is needed and the repository allows none.
 
+### Gitmoji
+
+The gitmoji a commit's subject opens with
+([commits.md › Vocabulary](../../.claude/rules/commits.md#vocabulary)) that the rule's own table
+leaves out: the rest of gitmoji's
+[gitmojis.json](https://github.com/carloscuesta/gitmoji/blob/4774b049ef57eee985e71bf3dd33a30110f3cd86/packages/gitmojis/src/gitmojis.json)
+at commit `4774b049ef` (2026-10-22), fetched on 2026-11-18, each with its conventional type. A
+row of the rule wins over a close entry here. The project keeps its own meaning against
+gitmoji's description for `:tada:`, `:rotating_light:` and `:rewind:` (in the rule) and
+`:test_tube:` (below), and does not use `:construction:`, `:poop:`, `:beers:` and
+`:twisted_rightwards_arrows:`, since every commit is a green, reviewed unit and the repository
+allows no merge commit.
+
+| Gitmoji | Type | Use |
+|---|---|---|
+| `:art:` | `style` | structure or format of the code |
+| `:zap:` | `perf` | performance |
+| `:ambulance:` | `fix` | critical hotfix |
+| `:rocket:` | `chore` | deploy |
+| `:closed_lock_with_key:` | `chore` | add or update secrets |
+| `:bookmark:` | `chore` | release or version tags |
+| `:construction:` | `chore` | work in progress; not used, since every commit is a green unit |
+| `:green_heart:` | `ci` | fix the CI build |
+| `:arrow_down:` | `build` | downgrade dependencies |
+| `:arrow_up:` | `build` | upgrade dependencies |
+| `:pushpin:` | `build` | pin dependencies to exact versions |
+| `:chart_with_upwards_trend:` | `feat` | analytics or tracking code |
+| `:heavy_plus_sign:` | `build` | add a dependency |
+| `:heavy_minus_sign:` | `build` | remove a dependency |
+| `:globe_with_meridians:` | `feat` | internationalization and localization |
+| `:pencil2:` | `fix` | typos |
+| `:poop:` | `chore` | bad code to improve later; not used, since a unit passes review |
+| `:twisted_rightwards_arrows:` | `chore` | merge branches; not used, since the repository allows no merge commit on `main` |
+| `:package:` | `build` | compiled files or packages |
+| `:alien:` | `fix` | code updated for an external API change |
+| `:truck:` | `refactor` | move or rename files, paths or routes |
+| `:page_facing_up:` | `chore` | license |
+| `:boom:` | `feat` | a breaking change |
+| `:bento:` | `chore` | assets |
+| `:wheelchair:` | `feat` | accessibility |
+| `:bulb:` | `docs` | comments in source code |
+| `:beers:` | `chore` | code written drunk; not used |
+| `:speech_balloon:` | `feat` | text and literals |
+| `:card_file_box:` | `feat` | database changes: schema, migrations |
+| `:loud_sound:` | `feat` | add or update logs |
+| `:mute:` | `chore` | remove logs |
+| `:busts_in_silhouette:` | `chore` | contributors |
+| `:children_crossing:` | `feat` | user experience or usability |
+| `:building_construction:` | `refactor` | architectural changes |
+| `:iphone:` | `feat` | responsive design |
+| `:clown_face:` | `test` | mocks |
+| `:egg:` | `feat` | an easter egg |
+| `:see_no_evil:` | `chore` | a `.gitignore` file |
+| `:camera_flash:` | `test` | snapshots |
+| `:alembic:` | `chore` | experiments |
+| `:mag:` | `feat` | SEO |
+| `:label:` | `refactor` | types |
+| `:seedling:` | `chore` | seed files |
+| `:triangular_flag_on_post:` | `feat` | add, update or remove feature flags |
+| `:goal_net:` | `fix` | catch errors |
+| `:dizzy:` | `feat` | animations and transitions |
+| `:wastebasket:` | `chore` | deprecate code to clean up later |
+| `:passport_control:` | `feat` | authorization, roles and permissions |
+| `:adhesive_bandage:` | `fix` | a simple fix of a non-critical issue |
+| `:monocle_face:` | `chore` | data exploration or inspection |
+| `:coffin:` | `chore` | remove dead code |
+| `:test_tube:` | `test` | a failing test, kept green as an expected failure |
+| `:necktie:` | `feat` | business logic |
+| `:stethoscope:` | `feat` | a healthcheck |
+| `:bricks:` | `chore` | infrastructure |
+| `:technologist:` | `chore` | developer experience |
+| `:money_with_wings:` | `chore` | sponsorships or money-related infrastructure |
+| `:thread:` | `feat` | multithreading or concurrency |
+| `:safety_vest:` | `feat` | validation |
+| `:airplane:` | `feat` | offline support |
+| `:t-rex:` | `feat` | backwards compatibility |
+
 ## Lessons
 
 `/ticket-verify` ends with **Lessons**, each a recurring mistake turned into one proposed change
