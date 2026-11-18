@@ -52,17 +52,7 @@ whatever modules it touches; no events, facades or reactions between modules. A 
 composes the modules' services, holds the transaction, orders the writes against a store outside
 it and enqueues the jobs; a rule stays in its module. It reads or writes a repository itself only
 where no rule applies ([layering.md › Use cases](../../.claude/rules/layering.md#use-cases)).
-
-```ts
-// two modules' services, each reading for its own module's rule, under one transaction
-const place = Effect.fn('PlaceOrderUseCase.place')(function* (
-  customerId: CustomerId,
-  lines: OrderLines,
-) {
-  yield* customers.requireActive(customerId)
-  return yield* orders.place(customerId, lines)
-}, transaction.run)
-```
+The shape: [architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
   from the request to the last write, debuggable without following an event; one transaction for
