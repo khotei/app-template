@@ -29,12 +29,30 @@
     // Effect diagnostics, read only by the effect-tsgo binary: the patched tsc and the editor
     // language server. bun check and a stock tsserver ignore plugins. unstableApiUsage is an
     // editor-only suggestion, because unstable modules are used by choice and at warning each
-    // import of one fails tsc -b (docs/knowledge/tooling.md › TypeScript)
+    // import of one fails tsc -b (docs/knowledge/tooling.md › TypeScript). The override holds the
+    // ban on ambient time, ids, fetch and the environment of application/CLAUDE.md
     "plugins": [
       {
         "name": "@effect/language-service",
         "diagnosticSeverity": { "unstableApiUsage": "suggestion" },
-        "includeSuggestionsInTsc": false
+        "includeSuggestionsInTsc": false,
+        "overrides": [
+          {
+            "include": ["application/**/*.ts"],
+            "options": {
+              "diagnosticSeverity": {
+                "globalDate": "error",
+                "globalDateInEffect": "error",
+                "cryptoRandomUUID": "error",
+                "cryptoRandomUUIDInEffect": "error",
+                "globalFetch": "error",
+                "globalFetchInEffect": "error",
+                "processEnv": "error",
+                "processEnvInEffect": "error"
+              }
+            }
+          }
+        ]
       }
     ]
   }

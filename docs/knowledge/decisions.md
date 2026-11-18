@@ -632,7 +632,8 @@ what:
 - **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind
   the diff (`make review-rules`); `.misc/lint/biome.base.json` and its GritQL plugins beside
   it, `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a
-  type-blind reader can see.
+  type-blind reader can see; the Effect language service's `overrides` in `tsconfig.base.json`,
+  for the ambient globals `application/` bans.
 - **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
   again, or a folder split into a workspace per unit
   ([Imports through subpaths](#imports-through-subpaths)), its dependencies in place of the lists.

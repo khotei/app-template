@@ -4,10 +4,11 @@ The behaviour ring: the modules and the use cases over them. What each layer of 
 [architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings); what it
 may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
-- **No I/O and no ambient state outside a module's `infrastructure/`:** no `Bun.env`, no `fetch`,
-  no `Date.now()`, no `new Date()`, no `crypto.randomUUID()`. A pure operation takes time and ids
-  as input. An adapter in `infrastructure/` does the I/O, over the clients the process provides
-  (`HttpClient`) and the settings of `@app-template/kernel/config`, never `fetch` or `Bun.env`.
+- **No I/O and no ambient state outside a module's `infrastructure/`:** no `Bun.env`, and
+  `make typecheck` refuses the clock, `crypto.randomUUID()`, `fetch` and `process.env` anywhere
+  in the ring. A pure operation takes time and ids as input. An adapter in `infrastructure/` does
+  the I/O, over the clients the process provides (`HttpClient`) and the settings of
+  `@app-template/kernel/config`, never `Bun.env`.
 - **A module's `domain/` is pure:** it imports `effect`, another module's contract and the data
   layer's values (a table's limit, pattern or enum values, never a table, entity or repository),
   no other workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and

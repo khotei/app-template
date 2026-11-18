@@ -367,9 +367,9 @@ them:
   the rest, a namespace import included; a table or an enum given such a name passes it, so
   review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
-  package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
-  review: the Effect language service has the checks (`globalDate`, `cryptoRandomUUID`,
-  `globalFetch`, `processEnv`, each with its `…InEffect` twin), switched off.
+  package passes the domain guard, which bans only workspaces and `@effect/*`. `Bun.env` passes
+  too; `make typecheck` refuses `Date.now`, `new Date`, `crypto.randomUUID`, `fetch` and
+  `process.env` anywhere in `application/`.
 - **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
   its tests, so `@effect/vitest`, a `/testing` entry and, in a module's services,
   `@effect/platform-bun` pass in the layer's source too. A module's test support
