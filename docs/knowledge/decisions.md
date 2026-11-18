@@ -175,7 +175,7 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 - **Sources:** departs from the guide's "Keep internal layering per module (API → domain →
   infrastructure)"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
-  `.claude/rules/deep-modules.md`'s id maker given the brand.
+  `.claude/rules/deep-modules.md`'s id generator given the brand's `make`.
 - **Rejected:** `generateId` spelled out at each call, or copied per module: two copies of a rule
   no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's.
 - **Cost:** a module's HTTP shape lives outside the module.

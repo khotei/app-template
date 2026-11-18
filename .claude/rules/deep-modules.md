@@ -60,7 +60,8 @@ return shipped                                           // the value built: no 
 
 - No method sits between a model function and the repository. Two methods that differ by their
   `where` or `set` are one, taking them from the caller, with arguments as narrow as it uses.
-- A copy per model is one function over the varying part (an id maker given the brand).
+- A copy per model is one function over the varying part (an id generator given the brand's
+  `make`); a one-line expression, such as an id's schema, is spelled at each use.
 - A value another table implies is a column the transactions that change it move, not derived on
   each read; one a model function derives from the one row its read already nests stays derived
   ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).

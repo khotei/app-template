@@ -1,19 +1,16 @@
 import { Schema } from 'effect'
 
-const buildIdSchema = <const B extends string>(brand: Parameters<typeof Schema.brand<B>>[0]) =>
-  Schema.String.check(Schema.isUUID()).pipe(Schema.brand<B>(brand))
-
-export const UserId = buildIdSchema('UserId')
+export const UserId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('UserId'))
 export type UserId = typeof UserId.Type
 
-export const ChatId = buildIdSchema('ChatId')
+export const ChatId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('ChatId'))
 export type ChatId = typeof ChatId.Type
 
-export const MessageId = buildIdSchema('MessageId')
+export const MessageId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('MessageId'))
 export type MessageId = typeof MessageId.Type
 
-export const AttachmentId = buildIdSchema('AttachmentId')
+export const AttachmentId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('AttachmentId'))
 export type AttachmentId = typeof AttachmentId.Type
 
-export const RunId = buildIdSchema('RunId')
+export const RunId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('RunId'))
 export type RunId = typeof RunId.Type
