@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, flow, Schema, String as Str, type Types } from 'effect'
+import { Array as Arr, Effect, pipe, Schema, String as Str, type Types } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
@@ -50,7 +50,7 @@ export const buildAssistantMessage = (
     attachments: [],
   })
 
-export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
+export const isBlank = (text: string) => pipe(text, Str.trim, Str.isEmpty)
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
   if (isBlank(input.text) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {

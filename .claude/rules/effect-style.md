@@ -41,7 +41,7 @@ Code reads top to bottom and extends by adding a row, not a branch.
   result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
   data through `pipe(value, …)`, never both in one chain. A function whose every step feeds only
   the next is point-free (`flow(…)`, or an arrow whose body is one `.pipe`), never at the cost of
-  a cast or a lost `E` or `R`. Go data-last when the function's name says the step
+  a cast, an annotation or a lost `E` or `R`. Go data-last when the function's name says the step
   (`Effect.tap(Arr.match({ … }))`); a lambda only to add an argument or a name.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when it is called both ways.
