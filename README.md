@@ -139,7 +139,7 @@ server module in the browser's bundle. The rules a change most often breaks:
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
 
 One name crosses every ring: a module's files read from the data outward, table and repository,
-then model, mapper, service, use case, adapter and handler. Every file of `chat`:
+then model, service, use case, adapter and handler. Every file of `chat`:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live). Why each
 boundary holds, what it costs and what breaks if it is reversed:
 [decisions.md](docs/knowledge/decisions.md), one record per decision.

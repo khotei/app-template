@@ -1,12 +1,12 @@
-import { Effect, Stream } from 'effect'
+import { Effect, Schema, Stream } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository } from '@app-template/kernel/data'
+import { decodeRowWith } from '@app-template/packages/db'
 import { png } from '@app-template/packages/testing'
 
 import type { AttachmentId } from '#chat/domain/attachment.id'
-import { FileName, MediaType } from '#chat/domain/attachment.model'
-import { decodeAttachments } from '#chat/services/attachment.mapper'
+import { Attachment, FileName, MediaType } from '#chat/domain/attachment.model'
 import { FileAttachmentService } from '#chat/services/file-attachment.service'
 
 /** Uploads one `png` as `photo.png` for `userId` through the `FileAttachmentService` in context. */
@@ -24,5 +24,5 @@ export const upload = (userId: UserId) =>
 
 export const selectAttachments = (ids: ReadonlyArray<AttachmentId>) =>
   AttachmentRepository.use((attachments) => attachments.selectMany({ id: ids })).pipe(
-    Effect.flatMap(decodeAttachments),
+    Effect.flatMap(decodeRowWith(Schema.Array(Attachment))),
   )

@@ -6,9 +6,9 @@ domain model, how the schema changes, and how tests get a database. The code:
 the shared columns and the query helpers); the kernel's `postgres` part (`PgClientFromConfig`
 and the migrate program); the data layer, `kernel/data/` (the client `Db`, made by
 `createDb(relations)` over the `PgClient` in the context, the tables, their entities, the
-migrations and the repositories over them); and the mappers in a module's `services/`, each
-the codec pair of a model over its row. Drizzle runs on `@effect/sql-pg` and is reached only
-through Effect: every query is an `Effect`, never a promise.
+migrations and the repositories over them); and a module's models, each the codec of its own
+row. Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an
+`Effect`, never a promise.
 
 ## Schema and entity files
 
@@ -66,7 +66,7 @@ the entities derived from them.
   upload order, `created_at` then `id`, whatever order the send listed them in;
   `attachments_message_id_created_at_id_index` serves that order.
 
-## Entities and mappers
+## Entities and models
 
 An entity file lays its entity over the table's columns, in the data layer's own types
 (`string`, `string | null`, `Date`), beside the `<Name>EntityWhere` and `<Name>EntitySet` its
@@ -91,22 +91,23 @@ repository maps every read through it.
 
 A model is the codec of its own row: it declares each stored value as its row holds it, a
 nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as `Schema.DateTimeUtcFromDate`,
-so its encoded side is its entity and its type side is what the rules read. A mapper,
-`<model>.mapper.ts` in the module's `services/`, holds only the codec pair over the model: a read
-decodes the entity with the model, whose nested models decode their own rows, and a write
-encodes the model's own fields, its `<Model>Fields`, since a write holds no nested record:
+so its encoded side is its entity and its type side is what the rules read. No mapper sits
+between them: a service or a use case codes a row with `encodeRowWith` and `decodeRowWith` from
+`@app-template/packages/db`, given the model. A read decodes the entity with the model in the
+read's shape, whose nested models decode their own rows, and a write encodes the model's own
+fields, its `<Model>Fields`, since a write holds no nested record:
 
 ```ts
-export const encodeChat = encodeRowWith(ChatFields)
-export const decodeChat = decodeRowWith(Schema.Option(Chat))
+const row = yield* encodeRowWith(ChatFields)(chat)
+const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeRowWith(Schema.Option(Chat))))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
   back a mapper of its own, which lays the model's schemas over that store's columns.
-- A service writes a model encoded through its mapper into the row the repository's `insert`
+- A service writes a model encoded through `encodeRowWith` into the row the repository's `insert`
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
-  `UserRepository.insert` takes the credential with no mapper and writes
+  `UserRepository.insert` takes the credential with no codec and writes
   `{ hash, kind, userId }`, the user's id from the row it inserted.
 - A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
@@ -141,19 +142,18 @@ A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository
 `kernel/data/<store>/`, `FileRepository` over the attachments' objects among them
 ([aws.md › Attachments](aws.md#attachments)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
-`<Name>Entity`. A module's service
-calls one directly, with no port in front, and maps with its module's mapper (`UserService` over
-`UserRepository`). A method that writes several tables runs them in one `sql.withTransaction`,
-passed to `Effect.fn` as a pipeable:
+`<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
+through its models (`UserService` over `UserRepository`). A method that writes several tables
+runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 `UserRepository.insert` writes the user and its credential, or neither. `SqlClient` is the
 `PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
 `orDieWithSqlError` from `@app-template/packages/db`.
 
-A module's services and the use cases call the data layer's repositories through the
-mappers of the module's `services/`: a write encodes the model through its mapper into the
-row, the set takes its fields from that row, the service maps each `Option` of a `where` to
-`null`, and a read decodes the entities into models; a mapping failure dies.
+A module's services and the use cases call the data layer's repositories with the models as
+their codecs: a write encodes the model into the row, the set takes its fields from that row, the
+service maps each `Option` of a `where` to `null`, and a read decodes the entities into models; a
+mapping failure dies.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
@@ -206,7 +206,7 @@ touches no row:
   where the rows match `where` (`ChatEntityWhere`, `AttachmentEntityWhere`: a key, one id or a
   list of them for attachments, and optionally a field the row must still hold, `null` rendering
   `IS NULL`). The repository picks the set's columns and maps the `where` through `buildWhere`
-  (above); a service encodes the changed model through its mapper and writes the set's fields
+  (above); a service encodes the changed model and writes the set's fields
   from the row, and `encodeChatWhere` turns the `Option` of a chat's `where` into `null`. Both
   die when they write nothing.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal

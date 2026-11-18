@@ -110,8 +110,8 @@ rest of the module. A dependency on a module's contract counts as one on the mod
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
   and a cycle through contracts.
-- **If reversed:** a consumer that takes the module's entry reaches its services and data
-  mappers, and two modules can depend on each other with no tool noticing.
+- **If reversed:** a consumer that takes the module's entry reaches its services and
+  models, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second consumer needs more of a module than its contract holds: grow the
   contract, never import past it.
 
@@ -156,7 +156,7 @@ calls the data layer's repository directly.
   it only a value's name (`<name>Pattern`, `<name>Statuses`): the rows of a module's layers and
   of `http-api` in [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
-  `.claude/rules/layering.md`, a repository, a mapper or the data layer in an app's handler.
+  `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path; a domain without the
   data layer declares each value again, and a mapper's unit test per value compares the copies.
@@ -412,8 +412,9 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their attachments. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
-only, and `<model>.mapper.ts` holds its `encode<Model>` and `decode<Model>`. A second stored form
-of a model brings back a mapper that lays the model's schemas over that store's columns.
+only, and its callers code its row with the generic `encodeRowWith` and `decodeRowWith`, with
+no mapper per model. A second stored form of a model brings back a mapper that lays the model's
+schemas over that store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
@@ -423,14 +424,20 @@ of a model brings back a mapper that lays the model's schemas over that store's 
 - **Rejected:** a flat entity beside a second one with its attachments: a second name for the one
   shape every read returns. The service composing a chat from two repositories: two queries and a
   grouping where one relational read serves. A mapper that lays the model's schemas over the
-  columns (`<Model>FromEntity`): a second list of the model's fields.
+  columns (`<Model>FromEntity`): a second list of the model's fields. A mapper that only names
+  the model's codec pair (`encode<Model>`, `decode<Model>`): a file and three names per model,
+  each over one generic call.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
-  a value (`null`, a `Date`), and a column the model lacks is dropped by a read.
+  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. Each call names
+  its codec and the read's shape (`decodeRowWith(Schema.Option(<Model>))`), and a write encoded
+  with the whole model instead of its `<Model>Fields` compiles and runs, encoding the nested
+  records for nothing, since the insert takes only the table's columns.
 - **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the
   repository's `insert`, which takes the table's full row, so a column the model lacks or a model
   field its row cannot take fails typecheck at the service's insert.
 - **If reversed:** a rename, and the tables back into the entity files, where nesting reads
-  bring the import cycle back; each mapper lays the model's schemas over its columns again.
+  bring the import cycle back; each mapper lays the model's schemas over its columns again, and
+  every call of a model's codec moves to its mapper, each named by `tsc` at its insert or read.
 - **Revisit when:** a store needs a read shape other than its entity's.
 
 ### Checks kept in the tables

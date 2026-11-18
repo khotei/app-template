@@ -19,8 +19,8 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   attachments' objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
-  that reach outside; its `services/` the domain services, the mappers
-  between an entity and a model and the job definitions, over the data layer's repositories; its
+  that reach outside; its `services/` the domain services and the job definitions, over the data
+  layer's repositories; its
   `infrastructure/` the adapters of its ports; its `contract/`, once another module needs one,
   what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
@@ -77,8 +77,8 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
 | `http-api` | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
-| `apps/api` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data and the mappers |
-| `apps/worker` | ✓, a mapper in `layer.ts` only | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data and the mappers |
+| `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
+| `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
 | `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, a module, `use-cases`; review, the rest |
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
@@ -146,11 +146,10 @@ Using the files of `chat` as the map:
 | What | File | Named |
 |---|---|---|
 | branded id | `application/chat/domain/chat.id.ts` | `ChatId`, `MessageId` |
-| model with its pure operations | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
+| model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `application/chat/domain/assistant.port.ts` | `Assistant` (`Context.Service` with no layer) |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| a model's codec pair over its row | `application/chat/services/chat.mapper.ts` | `encodeChat`, `decodeChat` |
 | queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
@@ -243,20 +242,20 @@ imports need.
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input; a limit, a pattern or
    an enum's values imported from its table, never declared again,
-   [Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), `<entity>.error.ts`,
+   [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
+   declared as its row holds it, so the model is its row's codec and needs no mapper,
+   [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`,
    each with its unit test.
-3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `encode<Model>` and
-   `decode<Model>` over the model, which declares each stored value as its row holds it
-   ([database.md › Entities and mappers](database.md#entities-and-mappers)).
-4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
-   repository, the one owner every handler goes through, tested over the memory repositories.
+3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
+   repository, coding its rows through the model with `encodeRowWith` and `decodeRowWith`, the
+   one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.
-5. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
+4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
    queue to the inventory and its definition to the module's `services/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route.
-6. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape
+5. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape
    in `api-<entity>.model.ts`, its errors in `api-<entity>.error.ts` and its ids in
    `http-api/shared/ids.ts`, as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
    `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups

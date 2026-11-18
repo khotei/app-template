@@ -1,14 +1,14 @@
-import { Context, Crypto, DateTime, Effect, Layer, type Types } from 'effect'
+import { Context, Crypto, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import { RunId } from '#chat/domain/chat.id'
 import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { buildRun, type Run } from '#chat/domain/run.model'
-import { decodeRun, encodeRun } from '#chat/services/run.mapper'
+import { buildRun, Run } from '#chat/domain/run.model'
+import { RunFields } from '#chat/domain/run-fields.model'
 
 /** The Run of the user's chat; one of another user's chat reads as absent. */
 export type RunWhere = Types.Simplify<Pick<Run, 'id' | 'chatId'> & { readonly userId: UserId }>
@@ -32,7 +32,7 @@ export class RunService extends Context.Service<
       const id = yield* generateId(crypto, RunId.make)
       const createdAt = yield* DateTime.now
       const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })
-      const row = yield* encodeRun(run)
+      const row = yield* encodeRowWith(RunFields)(run)
 
       // The index on the active Run refuses a second one in the chat, so this insert dies.
       yield* runs.insert(row)
@@ -43,7 +43,7 @@ export class RunService extends Context.Service<
       runs
         .selectOne(where)
         .pipe(
-          Effect.flatMap(decodeRun),
+          Effect.flatMap(decodeRowWith(Schema.Option(Run))),
           Effect.flatMap(Effect.fromOption(() => new RunNotFoundError({ id: where.id }))),
         ),
     )

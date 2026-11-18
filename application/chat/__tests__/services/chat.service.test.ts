@@ -6,6 +6,7 @@ import { DateTime, Effect, Layer, Option, Stream } from 'effect'
 import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
+import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
 import { AttachmentId } from '#chat/domain/attachment.id'
@@ -19,7 +20,6 @@ import {
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import type { ChatId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
-import { encodeAttachment } from '#chat/services/attachment.mapper'
 import { ChatService } from '#chat/services/chat.service'
 import {
   chat,
@@ -140,7 +140,7 @@ describe('ChatService', () => {
           messageId: Option.some(firstMessage.id),
           chatId: Option.some(chat.id),
         })
-        const row = yield* encodeAttachment(photo)
+        const row = yield* encodeRowWith(Attachment)(photo)
         yield* attachments.insert(row)
         yield* files.insert({ ...photo, content: Stream.make(png) })
 
@@ -170,7 +170,7 @@ describe('ChatService', () => {
           sourceId: Option.some(uploaded.id),
         })
         yield* Effect.forEach([uploaded, record], (attachment) =>
-          encodeAttachment(attachment).pipe(Effect.flatMap(attachments.insert)),
+          encodeRowWith(Attachment)(attachment).pipe(Effect.flatMap(attachments.insert)),
         )
         yield* files.insert({ ...uploaded, content: Stream.make(png) })
 

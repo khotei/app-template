@@ -88,7 +88,7 @@ A record as the data layer reads and writes it, derived from its table in the da
 types (`ChatEntity`, with its `Where` and `Set`): the one shape every read of its store
 returns, nesting a neighbour's `<Name>Columns` one level deep. Where a read's shape differs, the
 entity file's `build<Name>Entity` turns the read into it. Never a model; it is a model's encoded
-side, which its module's mapper decodes.
+side, which the model decodes.
 _Avoid_: Model, row type, record class, DTO
 
 **Data layer**:

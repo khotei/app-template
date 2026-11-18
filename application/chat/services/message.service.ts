@@ -1,14 +1,13 @@
-import { Context, Crypto, DateTime, Effect, Layer, Option, type Types } from 'effect'
+import { Context, Crypto, DateTime, Effect, Layer, Option, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { buildUserMessage, type Message } from '#chat/domain/message.model'
-import { decodeMessage, decodeMessages, encodeMessage } from '#chat/services/message.mapper'
+import { buildUserMessage, Message, MessageFields } from '#chat/domain/message.model'
 
 /** The message of the user's chat; one of another user's chat reads as absent. */
 export type MessageWhere = Types.Simplify<
@@ -37,7 +36,7 @@ export class MessageService extends Context.Service<
       const id = yield* generateId(crypto, MessageId.make)
       const createdAt = yield* DateTime.now
       const message = buildUserMessage({ ...fields, id, createdAt })
-      const row = yield* encodeMessage(message)
+      const row = yield* encodeRowWith(MessageFields)(message)
 
       yield* messages.insert(row)
       return message
@@ -45,7 +44,7 @@ export class MessageService extends Context.Service<
 
     const getOne = Effect.fn('MessageService.getOne')((where: MessageWhere) =>
       messages.selectOne(where).pipe(
-        Effect.flatMap(decodeMessage),
+        Effect.flatMap(decodeRowWith(Schema.Option(Message))),
         Effect.flatMap(
           Effect.fromOption(
             () =>
@@ -66,7 +65,7 @@ export class MessageService extends Context.Service<
         .pipe(Effect.filterOrFail(Option.isSome, () => new ChatNotFoundError({ id: where.chatId })))
 
       const rows = yield* messages.selectMany(where)
-      return yield* decodeMessages(rows)
+      return yield* decodeRowWith(Schema.Array(Message))(rows)
     })
 
     return { create, getOne, getMany }

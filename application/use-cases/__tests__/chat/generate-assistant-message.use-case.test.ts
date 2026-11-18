@@ -12,7 +12,6 @@ import {
   buildAssistantMessage,
   buildAttachment,
   buildRun,
-  encodeAttachment,
   FileName,
   FileSize,
   GenerateAssistantMessage,
@@ -39,6 +38,7 @@ import {
   userMessageAt,
 } from '@app-template/application/chat/testing'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
+import { encodeRowWith } from '@app-template/packages/db'
 import { epoch, png, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantMessageTest } from '#testing/use-cases/chat.test-layer'
@@ -106,7 +106,7 @@ const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'st
   Effect.gen(function* () {
     const attachments = yield* AttachmentRepository
     const files = yield* FileRepository
-    const row = yield* encodeAttachment(attachment)
+    const row = yield* encodeRowWith(Attachment)(attachment)
 
     yield* attachments.insert(row)
     if (bytes === 'lost') return

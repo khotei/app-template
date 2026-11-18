@@ -2,13 +2,14 @@ import { Cause, Context, DateTime, Effect, Layer } from 'effect'
 
 import {
   assistantMessageQueue,
-  encodeRun,
   failRun,
   GenerateAssistantMessage,
   type Run,
+  RunFields,
   RunNotQueuedError,
 } from '@app-template/application/chat'
 import { RunRepository } from '@app-template/kernel/data'
+import { encodeRowWith } from '@app-template/packages/db'
 import { type QueueError, QueueSender } from '@app-template/packages/queue'
 
 export class AssistantMessageSender extends Context.Service<
@@ -33,7 +34,7 @@ export class AssistantMessageSender extends Context.Service<
         cause: Cause.pretty(Cause.fail(error)),
         at,
       }).pipe(Effect.orDie)
-      yield* encodeRun(failed).pipe(
+      yield* encodeRowWith(RunFields)(failed).pipe(
         Effect.flatMap((row) => runs.update(row, { id: run.id, status: [run.status] })),
       )
       return yield* new RunNotQueuedError({ id: run.id })

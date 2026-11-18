@@ -7,18 +7,19 @@ import {
   Layer,
   Predicate,
   Ref,
+  Schema,
   Stream,
   Struct,
 } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import type { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
-  type Attachment,
+  Attachment,
   bindAttachment,
   buildAttachment,
   buildAttachmentFrom,
@@ -31,7 +32,6 @@ import {
   isInLibrary,
 } from '#chat/domain/attachment.model'
 import type { Message } from '#chat/domain/message.model'
-import { decodeAttachments, encodeAttachment } from '#chat/services/attachment.mapper'
 import {
   type AttachmentGetManyWhere,
   AttachmentService,
@@ -95,7 +95,7 @@ export class FileAttachmentService extends Context.Service<
 
       const size = yield* files.insert({ ...file, id }).pipe(Effect.map(FileSize.make))
       const attachment = buildAttachment({ ...file, id, userId, size, createdAt })
-      const row = yield* encodeAttachment(attachment)
+      const row = yield* encodeRowWith(Attachment)(attachment)
 
       yield* attachments.insert(row)
       return attachment
@@ -176,7 +176,7 @@ export class FileAttachmentService extends Context.Service<
       }
       yield* Effect.forEach(
         records,
-        (record) => encodeAttachment(record).pipe(Effect.flatMap(attachments.insert)),
+        (record) => encodeRowWith(Attachment)(record).pipe(Effect.flatMap(attachments.insert)),
         { discard: true },
       )
       return Arr.appendAll(bound, records)
@@ -185,7 +185,7 @@ export class FileAttachmentService extends Context.Service<
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
       const uses = yield* attachments
         .selectMany({ userId: where.userId, sourceId: where.id })
-        .pipe(Effect.flatMap(decodeAttachments))
+        .pipe(Effect.flatMap(decodeRowWith(Schema.Array(Attachment))))
 
       yield* attachmentService.getOne(where).pipe(ensureUnbound, Effect.flatMap(ensureUnused(uses)))
       // A send that binds it after the check makes this die, so its bytes stay.

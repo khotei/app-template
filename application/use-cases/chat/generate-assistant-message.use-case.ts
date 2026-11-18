@@ -9,6 +9,7 @@ import {
   Exit,
   Layer,
   Option,
+  Schema,
   type Types,
 } from 'effect'
 
@@ -20,26 +21,24 @@ import {
   buildFileId,
   buildRunFailure,
   completeRun,
-  decodeMessages,
-  decodeRun,
-  encodeMessage,
-  encodeRun,
   failRun,
   type GenerateAssistantMessage,
   generateRun,
   type HistoryMessage,
   isActiveRun,
   isStartedRun,
-  type Message,
+  Message,
+  MessageFields,
   MessageId,
   prepareRun,
-  type Run,
+  Run,
   type RunFailure,
+  RunFields,
   type RunId,
   type RunStatus,
 } from '@app-template/application/chat'
 import { FileRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
-import { generateId, Transaction } from '@app-template/packages/db'
+import { decodeRowWith, encodeRowWith, generateId, Transaction } from '@app-template/packages/db'
 
 type ReplySkip = 'chatDeleted' | 'alreadySettled'
 
@@ -93,13 +92,15 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       messages
         .selectMany({ chatId: run.chatId })
         .pipe(
-          Effect.flatMap(decodeMessages),
+          Effect.flatMap(decodeRowWith(Schema.Array(Message))),
           Effect.flatMap(Effect.forEach(readHistoryMessage)),
           Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
         )
 
     const updateRun = (run: Run, from: RunStatus) =>
-      encodeRun(run).pipe(Effect.flatMap((row) => runs.update(row, { id: run.id, status: [from] })))
+      encodeRowWith(RunFields)(run).pipe(
+        Effect.flatMap((row) => runs.update(row, { id: run.id, status: [from] })),
+      )
 
     const settleCompleted = Effect.fnUntraced(
       function* (generating: Run, { text }: AssistantReply) {
@@ -110,7 +111,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
         // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
         // its update, and the transaction takes the reply back.
-        yield* encodeMessage(reply).pipe(Effect.flatMap(messages.insert))
+        yield* encodeRowWith(MessageFields)(reply).pipe(Effect.flatMap(messages.insert))
         yield* updateRun(completed, generating.status)
       },
       // The reply and the Run's `done` land together, or neither does.
@@ -147,7 +148,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     // The cascade takes the Run with its chat, so a missing one means a deleted chat.
     const selectActive = (id: RunId) =>
       runs.selectOne({ id }).pipe(
-        Effect.flatMap(decodeRun),
+        Effect.flatMap(decodeRowWith(Schema.Option(Run))),
         Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chatDeleted' }))),
         Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'alreadySettled' })),
       )

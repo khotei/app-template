@@ -1,14 +1,15 @@
-import { Context, Effect, Layer, Option } from 'effect'
+import { Context, Effect, Layer, Option, Schema } from 'effect'
 
 import {
   Assistant,
   type AssistantError,
   ChatService,
-  decodeMessage,
   type GenerateChatTitle,
   isBlank,
+  Message,
 } from '@app-template/application/chat'
 import { MessageRepository } from '@app-template/kernel/data'
+import { decodeRowWith } from '@app-template/packages/db'
 
 type TitleSkip = 'chatDeleted' | 'deletedOrTitled' | 'nothingToTitle'
 
@@ -44,7 +45,7 @@ export class GenerateChatTitleUseCase extends Context.Service<
       // The cascade takes the first message with its chat, so a missing one means a deleted chat.
       const first = yield* messages
         .selectOne({ id: job.messageId })
-        .pipe(Effect.flatMap(decodeMessage))
+        .pipe(Effect.flatMap(decodeRowWith(Schema.Option(Message))))
       if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
       if (isBlank(first.value.text)) return yield* titleSkipLogs.nothingToTitle
 

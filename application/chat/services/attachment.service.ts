@@ -1,11 +1,11 @@
-import { Array as Arr, Context, Effect, Layer, type Types } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
+import { decodeRowWith } from '@app-template/packages/db'
 
 import type { AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import { type Attachment, ensureFound } from '#chat/domain/attachment.model'
-import { decodeAttachment, decodeAttachments } from '#chat/services/attachment.mapper'
+import { Attachment, ensureFound } from '#chat/domain/attachment.model'
 
 /** The user's attachment; another user's reads as absent. */
 export type AttachmentWhere = Types.Simplify<Pick<Attachment, 'id' | 'userId'>>
@@ -41,20 +41,27 @@ export class AttachmentService extends Context.Service<
     const files = yield* FileRepository
 
     const list = Effect.fn('AttachmentService.list')((userId: UserId) =>
-      attachments.selectMany({ userId, chatId: null }).pipe(Effect.flatMap(decodeAttachments)),
+      attachments
+        .selectMany({ userId, chatId: null })
+        .pipe(Effect.flatMap(decodeRowWith(Schema.Array(Attachment)))),
     )
 
     const getOne = Effect.fn('AttachmentService.getOne')((where: AttachmentWhere) =>
       attachments
         .selectOne(where)
-        .pipe(Effect.flatMap(decodeAttachment), Effect.flatMap(ensureFound(where.id))),
+        .pipe(
+          Effect.flatMap(decodeRowWith(Schema.Option(Attachment))),
+          Effect.flatMap(ensureFound(where.id)),
+        ),
     )
 
     const getMany = Effect.fn('AttachmentService.getMany')(function* (
       where: AttachmentGetManyWhere,
     ) {
       if (Arr.isReadonlyArrayEmpty(where.id)) return Arr.empty<Attachment>()
-      return yield* attachments.selectMany(where).pipe(Effect.flatMap(decodeAttachments))
+      return yield* attachments
+        .selectMany(where)
+        .pipe(Effect.flatMap(decodeRowWith(Schema.Array(Attachment))))
     })
 
     const remove = Effect.fn('AttachmentService.delete')(function* (where: AttachmentDeleteWhere) {

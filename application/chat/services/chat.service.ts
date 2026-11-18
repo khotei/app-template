@@ -6,6 +6,7 @@ import {
   Effect,
   Layer,
   Option,
+  Schema,
   Struct,
   type Types,
   UndefinedOr,
@@ -14,12 +15,11 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntityWhere, ChatRepository, FileRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.id'
-import { buildChat, type Chat, type ChatTitle, renameChat } from '#chat/domain/chat.model'
-import { decodeChat, decodeChats, encodeChat } from '#chat/services/chat.mapper'
+import { buildChat, Chat, ChatFields, type ChatTitle, renameChat } from '#chat/domain/chat.model'
 
 /** The user's chat; another user's reads as absent. */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
@@ -59,21 +59,21 @@ export class ChatService extends Context.Service<
       const id = yield* generateId(crypto, ChatId.make)
       const createdAt = yield* DateTime.now
       const chat = buildChat({ id, userId, createdAt })
-      const row = yield* encodeChat(chat)
+      const row = yield* encodeRowWith(ChatFields)(chat)
 
       yield* chats.insert(row)
       return chat
     })
 
     const list = Effect.fn('ChatService.list')((userId: UserId) =>
-      chats.selectMany({ userId }).pipe(Effect.flatMap(decodeChats)),
+      chats.selectMany({ userId }).pipe(Effect.flatMap(decodeRowWith(Schema.Array(Chat)))),
     )
 
     const getOne = Effect.fn('ChatService.getOne')((where: ChatReadWhere) =>
       chats
         .selectOne(encodeChatWhere(where))
         .pipe(
-          Effect.flatMap(decodeChat),
+          Effect.flatMap(decodeRowWith(Schema.Option(Chat))),
           Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id }))),
         ),
     )
@@ -85,7 +85,7 @@ export class ChatService extends Context.Service<
       const chat = yield* getOne(where)
       const at = yield* DateTime.now
       const renamed = renameChat(chat, { title, at })
-      const row = yield* encodeChat(renamed)
+      const row = yield* encodeRowWith(ChatFields)(renamed)
 
       // Only the renamed fields, under the `where` again: a change landing after the read is kept.
       yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
