@@ -65,44 +65,38 @@ export const AttachmentHandler = HttpApiBuilder.group(
     const attachments = yield* AttachmentService
     const fileAttachments = yield* FileAttachmentService
 
-    return handlers
-      .handleAll({
-        upload: Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
-          const user = yield* CurrentUser
+    return handlers.handleAll({
+      upload: Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
+        const user = yield* CurrentUser
 
-          return yield* fileAttachments
-            .upload(user.id, Stream.mapEffect(payload, decodeUpload))
-            .pipe(
-              Effect.catchTag(
-                'MultipartError',
-                (error): Effect.Effect<never, UploadRefusal> =>
-                  refuseMultipart[error.reason._tag](error),
-              ),
-              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-                buildRequestInvalid(['files'], 'Expected at least 1 file'),
-              ),
-            )
-        }),
-        list: Effect.fn('AttachmentHandler.list')(function* () {
-          const user = yield* CurrentUser
-          return yield* attachments.list(user.id)
-        }),
-        get: Effect.fn('AttachmentHandler.get')(function* ({ params }) {
-          const user = yield* CurrentUser
-          return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
-        }),
-        delete: Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
-          const user = yield* CurrentUser
-          yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
-        }),
-      })
-      .handleRaw(
-        'download',
-        Effect.fn('AttachmentHandler.download')(function* ({ params }) {
-          const user = yield* CurrentUser
-          const url = yield* fileAttachments.download({ id: params.attachmentId, userId: user.id })
-          return HttpServerResponse.redirect(url)
-        }),
-      )
+        return yield* fileAttachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
+          Effect.catchTag(
+            'MultipartError',
+            (error): Effect.Effect<never, UploadRefusal> =>
+              refuseMultipart[error.reason._tag](error),
+          ),
+          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+            buildRequestInvalid(['files'], 'Expected at least 1 file'),
+          ),
+        )
+      }),
+      list: Effect.fn('AttachmentHandler.list')(function* () {
+        const user = yield* CurrentUser
+        return yield* attachments.list(user.id)
+      }),
+      get: Effect.fn('AttachmentHandler.get')(function* ({ params }) {
+        const user = yield* CurrentUser
+        return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
+      }),
+      delete: Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
+        const user = yield* CurrentUser
+        yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
+      }),
+      download: Effect.fn('AttachmentHandler.download')(function* ({ params }) {
+        const user = yield* CurrentUser
+        const url = yield* fileAttachments.download({ id: params.attachmentId, userId: user.id })
+        return HttpServerResponse.redirect(url)
+      }),
+    })
   }),
 ).pipe(Layer.provide([AttachmentService.layer, FileAttachmentService.layer]))
