@@ -63,7 +63,7 @@
       },
       "devDependencies": {
         "@effect/openapi-generator": "catalog:effect",
-        "@effect/vitest": "catalog:effect",
+        "@effect/platform-node": "catalog:effect",
       },
     },
     "apps/worker": {
@@ -137,6 +137,7 @@
       "@effect/ai-anthropic": "4.0.6",
       "@effect/openapi-generator": "4.0.6",
       "@effect/platform-bun": "4.0.6",
+      "@effect/platform-node": "4.0.6",
       "@effect/sql-pg": "4.0.6",
       "@effect/vitest": "4.0.6",
       "effect": "4.0.6",

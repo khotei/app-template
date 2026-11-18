@@ -83,7 +83,7 @@ Which suite runs where:
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the ports; the worker's route over mocks of its use cases; the web's client against the api's OpenAPI snapshot |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the ports; the worker's route over mocks of its use cases |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -299,8 +299,8 @@ package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `i
 1. `make outdated` lists what is behind.
 2. Edit the version in the root `catalogs`. It is the only place a version lives.
 3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`; after an
-   `effect` bump, run `make api-snapshot` before `make check`: both snapshots come from effect's
-   code.
+   `effect` bump, run `make api-snapshot` before `make check`: the api's snapshot and the web's
+   client both come from effect's code.
 4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
    and commit `repos/<lib>` with the bump. The target fetches the pinned tag at depth 1, empties
    the folder and exports the library's slice into it: its guides, sources, examples and agent

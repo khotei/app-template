@@ -5,7 +5,7 @@
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
   fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
-  migrate migration migration-check api-snapshot
+  migrate migration migration-check api-snapshot api-client-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -87,9 +87,17 @@ migration-check: ## Fail when an entity changed without a migration
 		exit 1; \
 	}
 
+# The web's client, as @effect/openapi-generator's installed command writes it from the api's
+# snapshot; --no-install stops bunx from fetching a registry package of that name instead.
+API_CLIENT = cd apps/web && bunx --no-install --bun openapigen -s ../api/openapi.json -n Api -f httpapi
+
 api-snapshot: ## Rewrite the api's OpenAPI snapshot from its code, then the web's client from it
 	bun --bun vitest run --project unit apps/api/__tests__/openapi.test.ts -u
-	bun --bun vitest run --project unit apps/web/__tests__/shared/api.generated.test.ts -u
+	$(API_CLIENT) > shared/api.generated.ts
+
+api-client-check: ## Fail when the web's client differs from what the api's snapshot generates
+	@$(API_CLIENT) | cmp -s - shared/api.generated.ts || \
+		{ echo 'The web client is stale: run make api-snapshot and commit it' >&2; exit 1; }
 
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
@@ -112,7 +120,7 @@ debug-worker: ## Run the worker with the inspector
 debug-web: ## Run the web dev server with the inspector
 	bun --filter @app-template/web debug
 
-check: typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
+check: api-client-check typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits

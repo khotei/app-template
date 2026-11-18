@@ -191,9 +191,9 @@ the domain's own; every error gets its status where an endpoint or a middleware 
 (`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
 which omits fields by name or swaps them, and a mapper adds only what the model lacks
 (`buildApiChat` adds `status`). Its unit test writes `apps/api/openapi.json`; the web reads that
-file by path and keeps the client `@effect/openapi-generator` writes from it, checked in. Nothing
-of `application/` reaches the browser, and the web declares no workspace of the app but
-`packages`.
+file by path and keeps the client `@effect/openapi-generator`'s command writes from it, checked
+in. Nothing of `application/` reaches the browser, and the web declares no workspace of the app
+but `packages`.
 
 - **Why:** a contract of its own declared each id, constrained string, status list and error a
   second time (23 twins of the domain's, 5 ids among them, with the tables' limits, patterns
@@ -224,13 +224,17 @@ of `application/` reaches the browser, and the web declares no workspace of the 
   rewritten as a `Model`, whose select, insert and update variants restate the row the Drizzle
   table and the model as its row's codec already state ([Entity names](#entity-names)), and
   whose json variants are a second field list per model. A client generated at build time:
-  typecheck, the bundle check and the editor would need a step first. The web importing the
-  api's `Api`: it would install the api and the modules. The api's tests on the web's generated
-  client: they assert the domain's brands, `DateTime` and error classes. The snapshot in a folder
-  below both apps: the api's test would write outside its workspace. A name per endpoint
-  (`OpenApi.Identifier`): an operationId is unique across groups, so it repeats its group
-  anyway. A translation per handler, an identity `buildApi<Model>`: `tsc` refuses the drift
-  without them.
+  typecheck, the bundle check and the editor would need a step first. The client held by a
+  vitest file snapshot of the generator's output: 27 lines of test and `@effect/vitest` in the
+  web, where the generator's command and `cmp` check the same. Track B had rejected that command,
+  as the test called the same service and `bunx` wrote 33 lines apart on a fetched peer `effect`
+  4.1.4; the installed command, run with `--no-install` over its peer pinned in the catalog,
+  answers the second half. The web importing the api's `Api`: it would install the api and the
+  modules. The api's tests on the web's generated client: they assert the domain's brands,
+  `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
+  write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
+  unique across groups, so it repeats its group anyway. A translation per handler, an identity
+  `buildApi<Model>`: `tsc` refuses the drift without them.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -244,11 +248,14 @@ of `application/` reaches the browser, and the web declares no workspace of the 
   (25 for 13 errors), and a listing without `HttpApiSchema.status` answers `500`, which likewise
   only review of the snapshot diff refuses. The web's endpoints are `<group><Endpoint>`, the
   components follow the domain's classes (`UserEncoded`), two checked-in files move with every
-  wire change, and the web keeps a generator.
+  wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
+  pinned.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
-  model lacks fails `TS2322` at each handler that returns it); the api's snapshot test and the
-  web's, both rewritten by `make api-snapshot`; the web's manifest, which declares `packages`
-  alone, so an import of the app fails `TS2307`; the `apps/web/**` override; `make bundle-check`.
+  model lacks fails `TS2322` at each handler that returns it); the api's snapshot test;
+  `make api-client-check`, which compares the client with what the generator's command writes
+  from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
+  `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
+  `make bundle-check`.
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
   test to compare them, and the web imports it instead of the generated client.
 - **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
