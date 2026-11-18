@@ -54,9 +54,9 @@ export const ensureRunRetryable = Effect.fn('ensureRunRetryable')(function* (
 
 /** Which Runs may enter each status; `queued` is only ever built, never entered. */
 const transitions = {
-  preparing: isActiveRun,
+  preparing: hasStatus(['queued']),
   generating: isPreparing,
-  done: isActiveRun,
+  done: hasStatus(['generating']),
   failed: isActiveRun,
 } as const satisfies Record<Exclude<RunStatus, 'queued'>, Predicate.Predicate<Run>>
 

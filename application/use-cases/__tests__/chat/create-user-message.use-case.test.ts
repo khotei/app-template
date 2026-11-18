@@ -17,9 +17,11 @@ import {
   completeRun,
   GenerateAssistantMessage,
   GenerateChatTitle,
+  generateRun,
   Message,
   MessageId,
   type MessageInput,
+  prepareRun,
   type Run,
   type RunId,
 } from '@app-template/application/chat'
@@ -47,10 +49,15 @@ const selectSentAttachment = (chatId: ChatId) =>
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
-/** Settles a Run as done with its reply, as the worker would, freeing its chat for the next create. */
+/**
+ * Settles a queued Run as done with its reply, walking it through its statuses as the worker
+ * would, freeing its chat for the next create.
+ */
 const settle = (run: Run) =>
   Effect.gen(function* () {
     const at = yield* DateTime.now
+    const prepared = yield* prepareRun(run, at)
+    const generating = yield* generateRun(prepared, at)
     // The Run's id serves its reply too: one reply per Run, so no two collide.
     const reply = buildAssistantMessage({
       id: MessageId.make(run.id),
@@ -60,7 +67,7 @@ const settle = (run: Run) =>
     })
 
     yield* insertMessage(reply)
-    yield* completeRun(run, { reply, at }).pipe(Effect.flatMap(updateRun))
+    yield* completeRun(generating, { reply, at }).pipe(Effect.flatMap(updateRun))
   })
 
 const replyJob = (runId: RunId) => ({

@@ -82,11 +82,11 @@ const moves: ReadonlyArray<{
   readonly from: ReadonlyArray<RunStatus>
   readonly move: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
 }> = [
-  { to: 'preparing', from: activeRunStatuses, move: (run) => prepareRun(run, later) },
+  { to: 'preparing', from: ['queued'], move: (run) => prepareRun(run, later) },
   { to: 'generating', from: ['preparing'], move: (run) => generateRun(run, later) },
   {
     to: 'done',
-    from: activeRunStatuses,
+    from: ['generating'],
     move: (run) => completeRun(run, { reply, at: later }),
   },
   {
