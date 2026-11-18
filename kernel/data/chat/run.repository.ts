@@ -20,7 +20,7 @@ import {
   type RunEntityWhere,
   withMessages,
 } from '#kernel/data/chat/run.entity'
-import { activeRun, runs } from '#kernel/data/chat/run.table'
+import { runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 
 const encodeSet = buildSet<RunEntitySet, typeof runs>({
@@ -48,7 +48,7 @@ const encodeWhere = (table: typeof runs) =>
 export class RunRepository extends Context.Service<
   RunRepository,
   {
-    /** Dies when it writes nothing: the Run is active and its chat already has one. */
+    /** Dies when the Run is active and its chat already has one. */
     readonly insert: (run: typeof RunEntityInsert.Type) => Effect.Effect<void>
     /** Writes the fields of `set` a Run may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: RunEntitySet, where: RunEntityWhere) => Effect.Effect<void>
@@ -61,13 +61,7 @@ export class RunRepository extends Context.Service<
     Db.useSync((db) =>
       this.of({
         insert: Effect.fn('RunRepository.insert')(
-          (run) =>
-            db
-              .insert(runs)
-              .values(run)
-              .onConflictDoNothing({ target: runs.chatId, where: activeRun })
-              .returning({ id: runs.id })
-              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, `run ${run.id} was not inserted`)),
+          (run) => db.insert(runs).values(run),
           orDieWithSqlError,
         ),
         update: Effect.fn('RunRepository.update')(

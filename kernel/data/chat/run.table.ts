@@ -1,4 +1,4 @@
-import { inArray, type SQL, sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import {
   check,
@@ -68,21 +68,15 @@ export const runs = snakeCase.table(
       columns: [table.userMessageId, table.chatId],
       foreignColumns: [messages.id, messages.chatId],
     }).onDelete('cascade'),
-    uniqueIndex('runs_chat_id_active_index').on(table.chatId).where(activeRun),
+    uniqueIndex('runs_chat_id_active_index')
+      .on(table.chatId)
+      .where(inArray(table.status, activeRunStatuses)),
     index('runs_user_message_id_created_at_index').on(table.userMessageId, table.createdAt),
   ],
 )
 
 /** The statuses of a Run still in flight, read by the index's predicate and the memory fake. */
 export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
-
-/**
- * Holds for a Run still in flight: the predicate of `runs_chat_id_active_index`.
- *
- * An `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant. Do not
- * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
- */
-export const activeRun: SQL = sql`${inArray(runs.status, activeRunStatuses)}`.inlineParams()
 
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
 export const runJsonColumns = {

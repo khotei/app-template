@@ -904,8 +904,7 @@ and deletes it here.
   the check and the insert (two tabs, a client that resends) both pass `ensureChatNotBusy`; the
   active Run's index refuses the second insert, which dies, so the client gets a bare `500`, not
   `409 ChatBusyError`; a double click, its second request arriving after the first Run is stored,
-  already gets the `409` (`kernel/data/chat/run.repository.ts:68`,
-  `application/chat/services/run.service.ts:40`). Left: a lost race dies by
+  already gets the `409` (`RunRepository.insert`, `RunService.create`). Left: a lost race dies by
   [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
   weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
   `ChatBusyError` (an exception to `deep-modules.md`'s "a write dies where it misses"), or a

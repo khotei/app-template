@@ -46,11 +46,8 @@ the entities derived from them.
   `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
   `<table>_<columns>_<predicate>_index` (`runs_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `runs_chat_id_active_index` allows one
-  active Run per chat; its predicate is `activeRun`, exported from `run.table.ts` beside the
-  table, with the active statuses listed there. An
-  `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant, which
-  renders as literals (`.inlineParams()`): a generic plan, which Postgres switches a prepared
-  statement to after five runs, cannot prove the index predicate from bound parameters.
+  active Run per chat; its predicate reads the active statuses from `activeRunStatuses`, exported
+  from `run.table.ts` beside the table.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_updated_at_index`).
@@ -194,11 +191,11 @@ SQL's `=` never matches it.
 
 A rule that two writers could break between a read and a write is held by the database, in the
 statement that writes. The caller checks the rule first, so a write the guard refuses only lost
-a race: every repository's `insert`, `update` and `delete` dies when it touches no row:
+a race: every repository's `insert`, `update` and `delete` dies when Postgres refuses it or it
+touches no row:
 
-- **Insert under a partial unique index.** `RunRepository.insert` adds `ON CONFLICT (chat_id)
-  WHERE <activeRun> DO NOTHING RETURNING id` (Drizzle's `onConflictDoNothing({ target, where })`),
-  so a second active Run in a chat writes nothing and dies. `CreateUserMessageUseCase.create`
+- **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
+  active Run in a chat fails on the index and dies. `CreateUserMessageUseCase.create`
   reads the chat with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
   `ChatBusyError`, 409); of two sends that both read none at once, the second's Run insert, its
   last write, dies on the index, rolled back whole with its message and binds: a lost race of
