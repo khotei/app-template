@@ -188,34 +188,34 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 status list and error restates the domain's under the same name, a model's wire shape is an
 `Api<Model>` `Schema.Struct`, and an error carries its status on the class. The api implements
 it, handing it the domain's models and errors as they are, through a `buildApi<Model>` only where
-the wire adds a field (`buildApiChat` adds `status`); the web calls it. Nothing of
-`application/` reaches the browser.
+the wire adds a field (`buildApiChat` adds `status`); the web calls the api through a client
+generated from the contract's OpenAPI snapshot. Nothing of `application/` reaches the browser.
 
 - **Why:** the web's freedom from server code rested on tree shaking, which a lost side-effects
   flag undoes in one build; the backend kept rules for the web's sake, and the bundle check was
-  rewritten on every rename. A contract of its own closes the only path from the browser into
-  the app. A struct encodes any object that has its fields and writes only them, so an internal
-  field stays off the wire with no code, and the contract's error class encodes the domain's
-  instance by the class marker Effect puts on it, so no handler translates an error.
+  rewritten on every rename. A struct encodes any object that has its fields and writes only
+  them, so an internal field stays off the wire with no code, and the contract's error class
+  encodes the domain's instance by the class marker Effect puts on it, so no handler translates
+  an error.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
   the prototype of `docs/tickets/2026-11-04-1131_client-publishing/`, where renaming a nested
   domain field on the wire broke 8 of 13 handlers without a mapper.
-- **Rejected:** the contract's DTOs as `mapFields` over the domain's schemas: the browser bundle
-  holds whatever the bundler fails to drop, and the domain must stay browser-safe for it. A
-  client generated from `openapi.json`: it loses `Option`, `DateTime` and the error classes, and
-  adds a generator to keep. A module `contract/` that ships to the browser: every module would
-  carry the browser's constraints, and the web would import `application/`. A translation per
-  handler from a domain error to the contract's: a place per handler for the wire to drift. An
-  identity `buildApi<Model>` per response model: `tsc` refuses the drift at the handler without
-  it.
+- **Rejected:** the contract's DTOs as `mapFields` over the domain's schemas, while the web
+  imported the contract: the browser bundle held whatever the bundler failed to drop, and the
+  domain had to stay browser-safe for it. A module `contract/` that ships to the browser: every
+  module would carry the browser's constraints, and the web would import `application/`. A
+  translation per handler from a domain error to the contract's: a place per handler for the
+  wire to drift. An identity `buildApi<Model>` per response model: `tsc` refuses the drift at
+  the handler without it.
 - **Cost:** every id, constrained string, status list and error is declared twice, in the domain
   and in the contract, held in step by the twins test only under one name; a wire field costs a
   line more; `openapi.json`'s component names follow the contract's identifiers; a drifted field
   is named at every handler that returns its model, not once per model. The class
   marker is internal to Effect, so an upgrade that drops it turns every domain error into a
-  `500`.
+  `500`. The web's client knows no brands, `DateTime`, `Option` or error classes, and its
+  endpoints are named by their operationIds.
 - **Guarded by:** the `http-api/**` override, an allow-list that refuses every import but
   `effect`, `effect/<module>` and the contract's own `#http-api/…` files; `"types": []` in its
   `tsconfig.json`, so a `Bun` or `process` global fails `tsc`; the api's twins test, which
@@ -225,11 +225,9 @@ the wire adds a field (`buildApiChat` adds `status`); the web calls it. Nothing 
   brand, tag, literal or field drifted on one side no longer typechecks (`fileName` renamed in
   `ApiAttachment` fails `TS2322` at the attachment group's `upload`, `list` and `get`, the chat
   group's `listMessages` and `getMessage`, and `buildApiChat`); `make bundle-check`.
-- **If reversed:** the contract imports the modules again, the web bundle holds whatever the
-  bundler fails to drop, and the domain must stay browser-safe; one commit per group, back to
+- **If reversed:** the contract imports the modules again; one commit per group, back to
   `mapFields` over the domain.
-- **Revisit when:** a second consumer of the contract appears, or a client generated from it
-  replaces `ApiClient`.
+- **Revisit when:** a second consumer of the contract appears.
 
 ### Status owned by chat
 

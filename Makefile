@@ -87,8 +87,9 @@ migration-check: ## Fail when an entity changed without a migration
 		exit 1; \
 	}
 
-api-snapshot: ## Rewrite the HTTP contract's OpenAPI snapshot, which a unit test compares with the code
+api-snapshot: ## Rewrite the api's OpenAPI snapshot from its code, then the web's client from it
 	bun --bun vitest run --project unit apps/api/__tests__/openapi.test.ts -u
+	bun --bun vitest run --project unit apps/web/__tests__/shared/api.generated.test.ts -u
 
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev

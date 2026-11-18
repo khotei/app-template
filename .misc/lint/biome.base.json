@@ -8,7 +8,14 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!bun.lock", "!repos", "!kernel/data/migrations", "!http-api/openapi.json"]
+    "includes": [
+      "**",
+      "!bun.lock",
+      "!repos",
+      "!kernel/data/migrations",
+      "!http-api/openapi.json",
+      "!apps/web/shared/api.generated.ts"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -97,8 +104,8 @@
               "options": {
                 "patterns": [
                   {
-                    "group": ["@app-template/**", "!@app-template/{http-api,packages/ui}"],
-                    "message": "web client code may import only @app-template/http-api and @app-template/packages/ui: it ships to the browser (decisions.md › HTTP outside the modules; Guards are configuration)"
+                    "group": ["@app-template/**", "!@app-template/packages/ui"],
+                    "message": "web client code may import only @app-template/packages/ui and its generated client: it ships to the browser (decisions.md › The API contract on its own; Guards are configuration)"
                   }
                 ]
               }

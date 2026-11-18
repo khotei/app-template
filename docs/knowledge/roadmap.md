@@ -73,7 +73,7 @@ left.
   and inline placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
-  atoms with `AtomHttpApi` over `@app-template/http-api` and `HydrationBoundary` for SSR; Chakra
+  atoms with `AtomHttpApi` over the web's generated client and `HydrationBoundary` for SSR; Chakra
   UI v3 theme in `packages/ui`; a nested `biome.json` (`"root": false, "extends": "//"`) with the
   `react` domain; the visitor cookie flowing through the Start server; the web `Dockerfile` or
   Nitro output for 9.

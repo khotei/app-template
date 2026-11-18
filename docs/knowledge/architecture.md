@@ -26,9 +26,10 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
-  `infrastructure/`, `http-api`, the API contract the api implements and the web client calls,
-  which declares the wire itself and imports only `effect`, and the apps, thin entry points that
-  assemble the layers and provide the clients. Nothing of `application/` reaches the browser.
+  `infrastructure/`, `http-api`, the API contract the api implements and the web's client is
+  generated from, which declares the wire itself and imports only `effect`, and the apps, thin
+  entry points that assemble the layers and provide the clients. Nothing of `application/`
+  reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
 provisions the stores of the local stand ([aws.md](aws.md)). What each ring and layer may import:
@@ -80,8 +81,8 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | `http-api` | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
 | `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
 | `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data |
-| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
-| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, a module, `use-cases`, the kernel; review, `http-api` and a package but `ui` |
+| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✗ | `apps/web/**`; TS2307, any workspace but `packages`; `make bundle-check` |
+| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, any workspace but `packages`; review, a package but `ui` |
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
 | `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
 
@@ -95,9 +96,9 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **`http-api` imports only `effect`:** it is the browser's whole way into the app, so it
-  declares every id, constrained string, model shape and error itself
-  ([The API contract on its own](decisions.md#the-api-contract-on-its-own)). **A contract
+- **`http-api` imports only `effect`:** it declares every id, constrained string, model shape
+  and error itself ([The API contract on its own](decisions.md#the-api-contract-on-its-own)).
+  **A contract
   imports only `effect`** too (and `type-fest` for types), **a module's `domain/` also the values
   its tables declare** (a limit, a pattern, an enum's values, from
   `@app-template/kernel/data`), and none of them nor a module's `services/` import an
@@ -165,6 +166,7 @@ Using the files of `chat` as the map:
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its `Assistant`, `WorkerLayer` with it; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
+| the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.ts` | `Api`, `ApiClient` |
 
 Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel, and
 each module's own `index.ts` re-exports its layers. The
@@ -266,7 +268,8 @@ imports need.
    `apps/api/<entity>/<entity>.mapper.ts` only for a wire shape that adds or renames a field, the
    handler added to `ApiRoutes`, its group providing the services and use cases it reads. Test only
    what HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
-   `StandTest`. A browser feature calls it through `ApiClient` from `apps/web/features/<entity>/`.
+   `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through the web's
+   `ApiClient`, as `<group><Endpoint>`, after `make api-snapshot`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).
@@ -345,7 +348,7 @@ Why each rule sits with its guard, and what that costs:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
 The bundle guard passes a type-only import, which the build erases, as it should. `apps/web`
-imports only `http-api` and `packages/ui`, and the contract imports only `effect`, so a leak
+imports only `packages/ui` and its generated client, which imports only `effect`, so a leak
 comes through a package the list allows growing a server import, which the guard refuses with
 its chain.
 

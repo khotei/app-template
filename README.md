@@ -100,7 +100,7 @@ changes it.
 | Folder | What it holds |
 |---|---|
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
-| `http-api/` | the HTTP contract the api serves and the web client calls |
+| `http-api/` | the HTTP contract the api serves; the web's client is generated from its snapshot |
 | `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
 | `packages/` | generic tools that know no app: database, S3, queue and model clients, UI, test helpers |

@@ -121,8 +121,8 @@ _Avoid_: Public API, interface, SDK, client
 
 **API contract**:
 The HTTP API described on its own, `http-api`: its routes, the shapes and errors on the wire and
-the client derived from them. It imports nothing of the app; the api implements it and the web
-calls it. Never a module contract.
+the client derived from them. It imports nothing of the app; the api implements it, and the
+web's client is generated from its OpenAPI snapshot. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:

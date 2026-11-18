@@ -6,5 +6,5 @@
     "outDir": "../../node_modules/.cache/tsc/web"
   },
   "include": ["**/*.ts"],
-  "references": [{ "path": "../../http-api" }, { "path": "../../packages" }]
+  "references": [{ "path": "../../packages" }]
 }

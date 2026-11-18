@@ -83,7 +83,7 @@ Which suite runs where:
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the ports; the worker's route over mocks of its use cases |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the ports; the worker's route over mocks of its use cases; the web's client against the api's OpenAPI snapshot |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -278,11 +278,11 @@ symlink and checks its sources either way.
 4. Add the path to the root `tsconfig.json` `references`.
 5. Run `bun install` and `make check`.
 
-A new workspace the browser imports takes nothing of the app, as the API contract does
-([decisions.md › The API contract on its own](decisions.md#the-api-contract-on-its-own)): it
-gets an override like `http-api/**`'s in `.misc/lint/biome.base.json`, joins the
+Code the browser imports is a package, a folder of `packages/`, never a workspace of its own,
+since the web declares no workspace of the app but `packages`: the package joins the
 `apps/web/**` override's allowed imports and `browserPackages` in `apps/web/package.json`, which
-`make bundle-check` reads; a new module, kernel part or package adds nothing there
+`make bundle-check` reads, so it imports only `effect` and the browser's other packages; a new
+module, kernel part or other package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 
 ### Add a package
@@ -297,7 +297,9 @@ package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `i
 
 1. `make outdated` lists what is behind.
 2. Edit the version in the root `catalogs`. It is the only place a version lives.
-3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`.
+3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`; after an
+   `effect` bump, run `make api-snapshot` before `make check`: both snapshots come from effect's
+   code.
 4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
    and commit `repos/<lib>` with the bump. The target fetches the pinned tag at depth 1, empties
    the folder and exports the library's slice into it: its guides, sources, examples and agent

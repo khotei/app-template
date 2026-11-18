@@ -1,13 +1,12 @@
 # http-api
 
-The API contract: one `HttpApi` that `apps/api` implements and the browser calls through
-`ApiClient`. It declares the wire itself: every id, constrained string, model shape, error, limit
-and the auth middleware. Why:
+The API contract: one `HttpApi` that `apps/api` implements. It declares the wire itself: every
+id, constrained string, model shape, error, limit and the auth middleware. Why:
 [The API contract on its own](../docs/knowledge/decisions.md#the-api-contract-on-its-own).
 
 - **Imports only `effect`:** `effect`, `effect/<module>` and its own files through
-  `#http-api/…`; no workspace, no other package, no Bun API or Node built-in, since it ships to
-  the browser. The domain's schemas are restated here, never imported.
+  `#http-api/…`; no workspace, no other package, no Bun API or Node built-in. The domain's
+  schemas are restated here, never imported.
 - **A twin keeps the domain's export name.** A schema the domain declares too (an id, a
   constrained string, a status list, an error) is exported here under the domain's name and
   brand, so the api's twins test pairs it by name and fails on a drifted check. It carries no
@@ -22,4 +21,4 @@ and the auth middleware. Why:
   (`{ httpApiStatus: <code> }`): the contract's class encodes the domain's instance, so a
   handler fails with the domain's errors as they are.
 - **A wire change is a contract edit:** the api's snapshot test fails on it until
-  `make api-snapshot` moves `openapi.json` with it.
+  `make api-snapshot` moves `openapi.json` and the web's generated client with it.

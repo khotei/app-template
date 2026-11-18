@@ -11,13 +11,15 @@
     "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --hot main.ts"
   },
   "dependencies": {
-    "@app-template/http-api": "workspace:*",
     "@app-template/packages": "workspace:*",
     "effect": "catalog:effect"
   },
   "browserPackages": [
     "effect",
-    "@app-template/http-api",
     "@app-template/packages/ui"
-  ]
+  ],
+  "devDependencies": {
+    "@effect/openapi-generator": "catalog:effect",
+    "@effect/vitest": "catalog:effect"
+  }
 }
