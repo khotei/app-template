@@ -39,14 +39,11 @@ import {
 import { FileRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId, Transaction } from '@app-template/packages/db'
 
-type ReplySkip = 'chatDeleted' | 'alreadySettled'
+class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
+  readonly why: 'chat deleted' | 'already settled'
+}> {}
 
-const replySkipLogs = {
-  chatDeleted: Effect.logInfo('assistant reply skipped: chat deleted'),
-  alreadySettled: Effect.logInfo('assistant reply skipped: already settled'),
-} as const satisfies Record<ReplySkip, Effect.Effect<void>>
-
-class ReplySkipped extends Data.TaggedError('ReplySkipped')<{ readonly why: ReplySkip }> {}
+const logSkipped = ({ why }: ReplySkipped) => Effect.logInfo(`assistant reply skipped: ${why}`)
 
 export class GenerateAssistantMessageUseCase extends Context.Service<
   GenerateAssistantMessageUseCase,
@@ -68,15 +65,12 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const transaction = yield* Transaction
     const crypto = yield* Crypto.Crypto
 
-    const logMissingFile = (attachment: Attachment) =>
-      Effect.logWarning('attachment skipped: file missing').pipe(
-        Effect.annotateLogs({ attachmentId: attachment.id }),
-      )
-
     const readBytes = Effect.fnUntraced(function* (attachment: Attachment) {
       const file = yield* files.download({ id: buildFileId(attachment) })
       if (Option.isNone(file)) {
-        yield* logMissingFile(attachment)
+        yield* Effect.logWarning('attachment skipped: file missing').pipe(
+          Effect.annotateLogs({ attachmentId: attachment.id }),
+        )
         return Option.none()
       }
       return Option.some({ attachment, bytes: file.value.blob })
@@ -153,8 +147,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const selectActive = (id: RunId) =>
       runs.selectOne({ id }).pipe(
         Effect.flatMap(decodeRowWith(Schema.Option(Run))),
-        Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chatDeleted' }))),
-        Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'alreadySettled' })),
+        Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chat deleted' }))),
+        Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'already settled' })),
       )
 
     const fail = Effect.fnUntraced(
@@ -162,7 +156,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         const active = yield* selectActive(runId)
         yield* settleFailed(active, { reason: 'ReplyFailed', cause: Cause.pretty(cause) })
       },
-      Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
+      Effect.catchTag('ReplySkipped', logSkipped),
     )
 
     const answer = Effect.fnUntraced(function* (active: Run) {
@@ -185,7 +179,7 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
       (job: GenerateAssistantMessage) => selectActive(job.runId).pipe(Effect.flatMap(answer)),
-      Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
+      Effect.catchTag('ReplySkipped', logSkipped),
       // A race is decided by the write's guard on the status its mover read, whose update dies
       // on a Run another worker moved, not by this refusal; a refused move is a bug and dies too.
       Effect.catchTag('RunStatusInvalidError', Effect.die),

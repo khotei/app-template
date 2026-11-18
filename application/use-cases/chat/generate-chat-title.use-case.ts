@@ -11,14 +11,6 @@ import {
 import { MessageRepository } from '@app-template/kernel/data'
 import { decodeRowWith } from '@app-template/packages/db'
 
-type TitleSkip = 'chatDeleted' | 'deletedOrTitled' | 'nothingToTitle'
-
-const titleSkipLogs = {
-  chatDeleted: Effect.logInfo('chat title skipped: chat deleted'),
-  deletedOrTitled: Effect.logInfo('chat title skipped: chat deleted or titled'),
-  nothingToTitle: Effect.logInfo('chat title skipped: nothing to title'),
-} as const satisfies Record<TitleSkip, Effect.Effect<void>>
-
 const logAssistantFailure = (error: AssistantError) =>
   Effect.logWarning('chat title skipped: the assistant failed').pipe(
     Effect.annotateLogs({ error: error._tag, cause: error.cause }),
@@ -46,15 +38,21 @@ export class GenerateChatTitleUseCase extends Context.Service<
       const first = yield* messages
         .selectOne({ id: job.messageId })
         .pipe(Effect.flatMap(decodeRowWith(Schema.Option(Message))))
-      if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
-      if (isBlank(first.value.text)) return yield* titleSkipLogs.nothingToTitle
+      if (Option.isNone(first)) return yield* Effect.logInfo('chat title skipped: chat deleted')
+      if (isBlank(first.value.text)) {
+        return yield* Effect.logInfo('chat title skipped: nothing to title')
+      }
 
       const title = yield* assistant.suggestTitle(first.value.text)
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
       yield* chatService
         .rename({ id: first.value.chatId, title: Option.none() }, title)
-        .pipe(Effect.catchTag('ChatNotFoundError', () => titleSkipLogs.deletedOrTitled))
+        .pipe(
+          Effect.catchTag('ChatNotFoundError', () =>
+            Effect.logInfo('chat title skipped: chat deleted or titled'),
+          ),
+        )
     }, Effect.catch(logAssistantFailure))
 
     return { generate }
