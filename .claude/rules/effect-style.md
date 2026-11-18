@@ -63,18 +63,12 @@ pipe(orders, sumBy((order) => order.refunded))
   `as const satisfies Record<Key, …>`, never a predicate parameter or a chain of `if`s, so a new
   key fails typecheck until its row exists. A table of effects names its rows' `E` and `R`, never
   `unknown`.
-- A closed union of three or more arms read in one place is a `Match` (`Match.typeTags`,
-  `Match.valueTags`, `Match.discriminators('<field>')`) ending in `Match.exhaustive`; two arms stay
-  a guard.
 - A varying value is passed as data (`Effect.logWithLevel(level)`), not a choice of two functions.
 
 ## Errors and logs
 
 - One job per combinator: log in `Effect.tapCauseIf` / `Effect.tapError`, recover in `catch*`,
   annotate in `Effect.annotateLogs`.
-- Let an interrupt-only cause through with
-  `Effect.catchCauseIf(Predicate.not(Cause.hasInterruptsOnly), …)`, paired with the `tapCauseIf`
-  that logs every other cause. Inspect a `Cause` with `Cause.hasInterruptsOnly`, `hasDies`,
-  `hasFails`, never by walking it; a ternary in `catchCause` only when the handler can fail.
+- Inspect a `Cause` by its predicates, never by walking it (`repos/effect/migration/cause.md`).
 - A "nothing changed" check before a write or a snapshot compares models with `Equal.equals`,
   and errors by their encoded form, as tests do ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).

@@ -6,8 +6,11 @@ paths:
 # Effect
 
 This is Effect 4, not the Effect 3 you remember: check every API against the vendored
-`repos/effect` (start at `repos/effect/LLMS.md`), never memory. `http-api`, `persistence` and `ai`
-are unstable and change between patches. Check Drizzle the same way, against
+`repos/effect` (start at `repos/effect/LLMS.md`), never memory. Grep a name you remember in
+`repos/effect/migration/v3-to-v4.md`; a changed concept has a guide in `repos/effect/migration/`,
+schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (`SCHEMA.md`,
+`HTTPAPI.md`, `CONFIG.md`). What is unstable, and what a release may break there:
+`repos/effect/MIGRATION.md › Unstable Module System`. Check Drizzle the same way, against
 `repos/drizzle/drizzle-orm/src`: its rc line changes between releases.
 
 - Write with effect's modules. Code over a value uses the module named for its type (`Array as

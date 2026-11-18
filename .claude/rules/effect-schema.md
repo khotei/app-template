@@ -23,8 +23,6 @@ paths:
 
 ## Failures
 
-- Fail with `return yield* new <Model><Problem>Error({ … })`; the `return` ends the branch for
-  TypeScript.
 - A refused operation is a typed failure: never a `throw` (a defect that reads as an infrastructure
   failure) and never an `Option.none` (no detail for the caller or the log).
 - A domain error is a `Schema.TaggedError` tagged with its class name, so the API contract's twin

@@ -7,10 +7,9 @@ paths:
 
 ## Functions
 
-- An effectful function at a tracing boundary is `Effect.fn('<name>')(function* (…) { … })`, named
-  after its export, a service method `'<Service>.<method>'`; a helper that marks no useful
-  boundary is `Effect.fnUntraced`. Extra arguments to `Effect.fn` are the pipeables every call
-  runs through (`transaction.run`); a body that only delegates is passed as is
+- An effectful function follows `repos/effect/LLMS.md › Using Effect.fn and Effect.fnUntraced`. A
+  service method's span is `'<Service>.<method>'`; its pipeables (`transaction.run`) are
+  `Effect.fn`'s extra arguments; a body that only delegates is passed as is
   (`Effect.fn('<Service>.<method>')(port.<method>)`).
 - The variable holding it is named after the span's last segment, a reserved word its plain
   synonym (`remove` for `'<Model>Service.delete'`), never with a model suffix. A method that needs
@@ -51,5 +50,3 @@ paths:
   read.
 - A client takes its settings as options and never reads `Config` (`PgClient.layerConfig` is
   rejected): [tooling.md › Environment](../../docs/knowledge/tooling.md#environment).
-- A combinator that returns a `Layer` runs its effect in a fiber the layer's scope owns:
-  `Effect.forkScoped`, then `Layer.effectDiscard`.
