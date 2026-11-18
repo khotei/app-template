@@ -93,8 +93,8 @@ export class CreateUserMessageUseCase extends Context.Service<
         transaction.run,
       )
 
-      yield* replySender.send(run)
-      // Every user message starts a Run, so a chat with none had no message before this one.
+      // Every user message starts a Run, so a chat with none had no message before this one. The
+      // title job goes first: a reply job SQS refuses fails the create, and no retry sends a title.
       if (Option.isNone(chat.run)) {
         const messageId = run.userMessageId
         yield* queue
@@ -104,6 +104,7 @@ export class CreateUserMessageUseCase extends Context.Service<
             Effect.annotateLogs({ chatId, messageId }),
           )
       }
+      yield* replySender.send(run)
       return run
     })
 

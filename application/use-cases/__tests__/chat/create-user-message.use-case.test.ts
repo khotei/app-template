@@ -7,6 +7,7 @@ import {
   AttachmentBoundError,
   AttachmentId,
   AttachmentNotFoundError,
+  assistantMessageQueue,
   buildAttachment,
   buildRun,
   buildUserMessage,
@@ -23,7 +24,8 @@ import {
   type MessageInput,
   Run,
   RunFields,
-  type RunId,
+  RunId,
+  RunNotQueuedError,
 } from '@app-template/application/chat'
 import {
   chat,
@@ -205,7 +207,7 @@ describe('CreateUserMessageUseCase', () => {
   )
 
   it.effect.each([
-    { name: 'the first create queues the reply job and the title job', read: chat, title: true },
+    { name: 'the first create queues the title job, then the reply job', read: chat, title: true },
     {
       name: 'a create after an answered one queues the reply job only',
       read: answeredChat,
@@ -222,7 +224,7 @@ describe('CreateUserMessageUseCase', () => {
         queue: 'chat-title',
         message: new GenerateChatTitle({ messageId: run.userMessageId }),
       }
-      assertEquals(yield* jobs.sent, title ? [replyJob(run.id), titleJob] : [replyJob(run.id)])
+      assertEquals(yield* jobs.sent, title ? [titleJob, replyJob(run.id)] : [replyJob(run.id)])
     }).pipe(
       Effect.provide(
         layerChatTest(insertingInto(noInserts(), sendingTo(read))).pipe(Layer.provide(jobs.layer)),
@@ -251,6 +253,40 @@ describe('CreateUserMessageUseCase', () => {
         ),
         logger,
       ]),
+    )
+  })
+
+  it.effect('a first create whose reply job SQS refuses still queues the title job', () => {
+    const queued: Array<string> = []
+    const RefusingReplyQueueTest = Layer.mock(QueueSender, {
+      send: ({ name }) =>
+        name === assistantMessageQueue.name
+          ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
+          : Effect.sync(() => {
+              queued.push(name)
+            }),
+    })
+    const inserts = noInserts()
+    const mocks = insertingInto(inserts, sendingTo(chat))
+    return Effect.gen(function* () {
+      const createUserMessage = yield* CreateUserMessageUseCase
+
+      const error = yield* createUserMessage
+        .create(owner, chat.id, ask('Plan a weekend in Lisbon'))
+        .pipe(Effect.flip)
+
+      assertSchemaEquals(
+        Schema.Array(RunNotQueuedError),
+        [error],
+        Arr.map(inserts.runs, (row) => new RunNotQueuedError({ id: RunId.make(row.id) })),
+      )
+      assert.deepStrictEqual(queued, [chatTitleQueue.name])
+    }).pipe(
+      Effect.provide(
+        layerChatTest({ ...mocks, runs: { ...mocks.runs, update: () => Effect.void } }).pipe(
+          Layer.provide(RefusingReplyQueueTest),
+        ),
+      ),
     )
   })
 
