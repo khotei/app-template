@@ -277,16 +277,16 @@ describe('a write Postgres refuses, through the api', () => {
   )
 
   it.live(
-    'a Run whose reply Postgres refuses ends failed with its chat, never done without its reply',
+    'a Run whose move to done Postgres refuses ends failed with its chat and keeps no reply',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
         const client = yield* SqlClient.SqlClient
         yield* api.users.ensure()
         const chat = yield* api.chats.create()
-        // The reply is the last write of a completion, after the Run's move to `done`.
+        // The Run's move to `done` is the last write of a completion, after its reply.
         yield* client
-          .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
+          .unsafe(`ALTER TABLE runs ADD CONSTRAINT refuse_done CHECK (status <> 'done')`)
           .pipe(Effect.orDie)
 
         const sent = yield* api.chats.createMessage({
