@@ -303,8 +303,8 @@ package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `i
 
 Another repository vendored under `repos/` gets one more target of the same shape.
 
-Upgrading Bun means bumping `packageManager` and `@types/bun` together, so CI's pinned job uses the
-new version. CI also runs a non-blocking job on Bun `latest`, which shows the next upgrade early.
+Upgrading Bun means bumping `packageManager` and `@types/bun` together, so CI uses the new
+version.
 
 ## TypeScript
 
@@ -395,8 +395,7 @@ Never skip a hook with `--no-verify`. CI runs the same checks, so a skipped hook
 CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`:
 
 `bun install --frozen-lockfile`, then `make -k check BIOME=ci`, so its gates are the `Makefile`'s
-list and one run reports every red gate. The job runs on two Bun versions: `pinned` (from
-`packageManager`) blocks the merge, and `latest` only reports.
+list and one run reports every red gate, on the Bun that `packageManager` pins.
 
 ## Troubleshooting
 
