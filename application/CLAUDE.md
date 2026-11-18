@@ -16,8 +16,9 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   Record: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
 - **Each port has one memory layer** in its module's test support, for every workspace's unit
   tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
-- **An adapter is a `Layer` of a port** in the module's `infrastructure/`, so callers never see
-  the client: the prompts stay inside the adapter.
-- A `<model>.queue.ts` in `services/` holds only queue definitions; only the use cases' level
-  calls `send`, a `<Job>Sender` in `use-cases/<object>/<object>.sender.ts` where a refused send
-  changes a record, and no adapter wraps the worker.
+- **A module's `infrastructure/` holds what connects to the environment**
+  ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter is a `Layer` of a port,
+  so callers never see the client: the prompts stay inside the adapter.
+- A `<model>.queue.ts` in `infrastructure/` holds only queue definitions; only the use cases'
+  level calls `send`, a `<Job>Sender` in `use-cases/<object>/<object>.sender.ts` where a refused
+  send changes a record, and no adapter wraps the worker.

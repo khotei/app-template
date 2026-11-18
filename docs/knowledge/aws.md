@@ -85,7 +85,7 @@ every AWS stage hold their own set.
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | a bucket | its `lifecycle` days | the bucket and its lifecycle rule, which aborts incomplete multipart uploads. |
-| a queue | `maxReceiveCount`, `visibilityTimeoutSeconds` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` from here, so the two cannot disagree. |
+| a queue | `maxReceiveCount`, `visibilityTimeoutSeconds` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `infrastructure/` reads its `name` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with `provision(resources, stage)` from the e2e support of
@@ -100,10 +100,10 @@ on create; Pulumi updates the queue in place.
 ### Adding a resource
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
-2. For a queue, add its definition in `application/<module>/services/<model>.queue.ts`, reading
-   `name` from the entry, and its row in the worker's route (`apps/worker/worker.handler.ts`),
-   which typecheck asks for; for a bucket, `S3BucketFromConfig` reads it from
-   `resources.buckets`.
+2. For a queue, add its definition in `application/<module>/infrastructure/<model>.queue.ts`,
+   reading `name` from the entry, and its row in the worker's route
+   (`apps/worker/worker.handler.ts`), which typecheck asks for; for a bucket,
+   `S3BucketFromConfig` reads it from `resources.buckets`.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
 

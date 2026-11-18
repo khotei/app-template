@@ -19,10 +19,11 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   attachments' objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
-  that reach outside; its `services/` the domain services and the job definitions, over the data
-  layer's repositories; its
-  `infrastructure/` the adapters of its ports; its `contract/`, once another module needs one,
-  what other modules may take of it.
+  that reach outside; its `services/` the domain services, over the data layer's repositories;
+  its `infrastructure/` everything of it that connects to the environment, the adapters of its
+  ports and its queues' definitions
+  ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once another module
+  needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, `http-api`, the API contract the api implements and the web client calls,
@@ -69,7 +70,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
 |---|---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | ✗ | `application/*/domain/**`, `kernel/data` by name |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | `/aws`: the inventory only | `db`, `queue` only | ✗ | `application/*/services/**` |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `db` only | ✗ | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
@@ -150,7 +151,7 @@ Using the files of `chat` as the map:
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `application/chat/domain/assistant.port.ts` | `Assistant` (`Context.Service` with no layer) |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue` with its job schema |
+| queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
 | job sender: sends a job and settles a send SQS refuses on its record | `application/use-cases/chat/chat.sender.ts` | `AssistantMessageSender` |
@@ -253,7 +254,7 @@ imports need.
    one owner every handler goes through, tested over mocks of the repositories it calls.
    The layers' barrels re-export the new files.
 4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
-   queue to the inventory and its definition to the module's `services/`
+   queue to the inventory and its definition to the module's `infrastructure/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route.

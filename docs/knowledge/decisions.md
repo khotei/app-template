@@ -107,10 +107,12 @@ rest of the module. A dependency on a module's contract counts as one on the mod
 
 ### A module's layers
 
-A module holds `domain/`, `services/` and, once it has an adapter, `infrastructure/`, behind one
-entry, its `index.ts`, which re-exports every layer; its files reach each other through aliases
-that name the module (`#<module>/domain/*`). A repository is no port: a service
-calls the data layer's repository directly.
+A module holds `domain/`, `services/` and, once it reaches the environment, `infrastructure/`,
+behind one entry, its `index.ts`, which re-exports every layer; its files reach each other
+through aliases that name the module (`#<module>/domain/*`). A module's `infrastructure/` holds
+everything of the module that connects to the environment (a language model, a queue, a
+bucket): the adapters of its ports and its queues' definitions. A repository is no port: a
+service calls the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
   data cannot sit there. Nothing of it reaches the browser any more
@@ -134,7 +136,9 @@ calls the data layer's repository directly.
   [.claude/rules/modules.md › A service rule or a model in the kernel](../../.claude/rules/modules.md#a-service-rule-or-a-model-in-the-kernel).
   A leaf package of shared values for the data layer, the domain and the API contract: the
   contract would import a workspace ([The API contract on its own](#the-api-contract-on-its-own)).
-  The domain's own copies kept: a value could drift between the two declarations.
+  The domain's own copies kept: a value could drift between the two declarations. The queues'
+  definitions in `services/`: the services' guard would admit `@app-template/kernel/aws` and
+  `@app-template/packages/queue`.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
   repositories; the domain loads the data layer's entry, and its guard admits of it only the names
   of a value's shape, so a value of a new shape widens the guard's pattern; one entry opens the
@@ -143,9 +147,11 @@ calls the data layer's repository directly.
   [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
-  it only a value's name (`<name>Pattern`, `<name>Statuses`): the rows of a module's layers and
-  of `http-api` in [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
-  which reads the web bundle's metafile and refuses the module's package in it;
+  it only a value's name (`<name>Pattern`, `<name>Statuses`), the services' admitting neither
+  `@app-template/kernel/aws` nor `@app-template/packages/queue`: the rows of a module's layers
+  and of `http-api` in [architecture.md › Dependency rules](architecture.md#dependency-rules);
+  `make bundle-check`, which reads the web bundle's metafile and refuses the module's package in
+  it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path; a domain without the

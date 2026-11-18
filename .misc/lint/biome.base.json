@@ -184,10 +184,10 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{db,queue,testing}",
+                      "!@app-template/packages/{db,testing}",
                       "!@app-template/packages/db/testing",
-                      "!@app-template/kernel/{aws,data}",
-                      "!@app-template/kernel/{aws,data}/testing",
+                      "!@app-template/kernel/data",
+                      "!@app-template/kernel/data/testing",
                       "!@app-template/application/*",
                       "!@app-template/application/*/testing",
                       "@app-template/application/use-cases",
@@ -197,12 +197,7 @@
                       "!@effect/vitest/**",
                       "!@effect/platform-bun"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the row codecs, @app-template/packages/queue for the job definitions, the inventory (@app-template/kernel/aws), the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no boundary part such as @app-template/kernel/llm; its tests add test support, the /testing of those, @app-template/packages/testing, @effect/vitest and @effect/platform-bun (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
-                  },
-                  {
-                    "group": ["@app-template/kernel/aws"],
-                    "importNamePattern": "[A-Za-z0-9]+(FromConfig|OfStage)",
-                    "message": "of @app-template/kernel/aws a module's services take only the inventory: the configured clients are the boundary the processes provide (decisions.md › Clients from the context)"
+                    "message": "a module's services import no workspace but @app-template/packages/db for generateId and the row codecs, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/queue, which a module's infrastructure holds; its tests add test support, the /testing of those, @app-template/packages/testing, @effect/vitest and @effect/platform-bun (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -231,7 +226,7 @@
                 "patterns": [
                   {
                     "group": ["#*/services/**"],
-                    "message": "a module's infrastructure implements its domain's ports and imports none of its services (decisions.md › A module's layers)"
+                    "message": "a module's infrastructure holds what connects to the environment, the adapters of its domain's ports and its queues' definitions, and imports none of its services (decisions.md › A module's layers)"
                   }
                 ]
               }
