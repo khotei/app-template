@@ -395,7 +395,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `make lint BIOME=ci`, `make doc-lint`, `make sh-lint`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
+| `static` | `bun install --frozen-lockfile`, `make lint BIOME=ci`, `make doc-lint`, `make sh-lint`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
 | `links` | `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 

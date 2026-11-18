@@ -20,5 +20,5 @@ and the auth middleware. Why:
 - **An error is a `Schema.TaggedError` with the domain's tag and its status on the class**
   (`{ httpApiStatus: <code> }`): the contract's class encodes the domain's instance, so a
   handler fails with the domain's errors as they are.
-- **A wire change is a contract edit:** `make api-check` fails on it until `make api-snapshot`
-  moves `openapi.json` with it.
+- **A wire change is a contract edit:** the api's snapshot test fails on it until
+  `make api-snapshot` moves `openapi.json` with it.
