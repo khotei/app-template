@@ -1,6 +1,17 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Exit, Fiber, Layer, Option, Stream } from 'effect'
+import {
+  Array as Arr,
+  DateTime,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Option,
+  pipe,
+  Schema,
+  Stream,
+} from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -17,57 +28,52 @@ import {
   GenerateAssistantMessage,
   MediaType,
   Message,
+  MessageFields,
   type MessageId,
   Run,
+  RunFields,
 } from '@app-template/application/chat'
 import {
-  type AssistantCallHold,
   assistantMessageAt,
   chatId,
-  deleteChat,
   firstMessage,
   holdAssistantCall,
-  insertMessage,
-  insertRun,
   owner,
   queuedRun,
   recordAssistant,
-  selectMessages,
-  selectRun,
-  updateRun,
   userMessageAt,
 } from '@app-template/application/chat/testing'
-import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
-import { encodeRowWith } from '@app-template/packages/db'
+import {
+  FileRepository,
+  type MessageColumns,
+  type RunEntitySet,
+  type RunEntityWhere,
+} from '@app-template/kernel/data'
+import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
 import { epoch, png, recordLogs } from '@app-template/packages/testing'
 
-import { AssistantMessageTest } from '#testing/use-cases/chat.test-layer'
+import {
+  type ChatRepositoryMocks,
+  layerAssistantMessageTest,
+} from '#testing/use-cases/chat.test-layer'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
 const sure = new AssistantReply({ text: 'Sure.' })
 
-// The use case asks for the reply after its `generating` write.
-const heldReply = (held: AssistantCallHold) => held.hold.pipe(Effect.as(sure))
-
 const whatIsThis = userMessageAt(1, 'What is this?')
 const aPhoto = assistantMessageAt(2, 'A photo.')
 const andAgain = userMessageAt(3, 'And again?')
 const attachmentsOnly = userMessageAt(4, '')
 
-const history = [whatIsThis, aPhoto, andAgain, attachmentsOnly]
-
-/** The queued Run of the history's last message. */
+/** The queued Run of `attachmentsOnly`, the history's last message. */
 const lastRun = buildRun({
   id: queuedRun.id,
   chatId,
   userMessage: attachmentsOnly,
   createdAt: attachmentsOnly.createdAt,
 })
-
-/** `lastRun` as the history reads it: prepared, at the test clock's start. */
-const preparing = new Run({ ...lastRun, status: 'preparing', updatedAt: epoch })
 
 const image = (
   id: string,
@@ -96,22 +102,9 @@ const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
   boundTo: attachmentsOnly.id,
 })
 
-/** Stores the messages, then `run` over the one it answers. */
-const insertWith = (messages: ReadonlyArray<Message>, run: Run) =>
-  Effect.forEach(messages, insertMessage, { discard: true }).pipe(Effect.andThen(insertRun(run)))
-
-const insertQueued = insertWith([firstMessage], queuedRun)
-
-const insertAttachment = (attachment: Attachment, bytes: 'stored' | 'lost' = 'stored') =>
-  Effect.gen(function* () {
-    const attachments = yield* AttachmentRepository
-    const files = yield* FileRepository
-    const row = yield* encodeRowWith(Attachment)(attachment)
-
-    yield* attachments.insert(row)
-    if (bytes === 'lost') return
-    yield* files.insert({ ...attachment, content: Stream.make(png) })
-  })
+/** Stores the bytes of `attachment`, as its upload left them. */
+const storeBytes = (attachment: Attachment) =>
+  FileRepository.use((files) => files.insert({ ...attachment, content: Stream.make(png) }))
 
 const elsewhereReply = assistantMessageAt(5, 'Done elsewhere.')
 
@@ -122,110 +115,186 @@ const doneElsewhere = new Run({
   assistantMessage: Option.some(elsewhereReply),
 })
 
-const job = new GenerateAssistantMessage({ runId: queuedRun.id })
+/** A Run read that answers `reads` in turn, the last one from then on. */
+const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {
+  let turn = 0
+  return () =>
+    Effect.sync(() =>
+      Arr.get(reads, turn++).pipe(Option.getOrElse(() => Arr.lastNonEmpty(reads))),
+    ).pipe(
+      Effect.flatMap((run) => encodeRowWith(Run)(run)),
+      Effect.map(Option.some),
+    )
+}
 
-const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
+/** The writes a reply makes, each as it was handed to its repository. */
+interface Writes {
+  readonly runs: Array<readonly [RunEntitySet, RunEntityWhere]>
+  readonly messages: Array<MessageColumns>
+}
 
-const selectQueuedRun = selectRun(queuedRun.id).pipe(Effect.map(Option.getOrThrow))
+const noWrites = (): Writes => ({ runs: [], messages: [] })
+
+/** The reads of `run`'s chat holding `history`, every write kept in `writes`. */
+const replyingTo = (
+  writes: Writes,
+  {
+    runs,
+    history = [firstMessage],
+  }: { readonly runs: ReturnType<typeof readsInTurn>; readonly history?: ReadonlyArray<Message> },
+): ChatRepositoryMocks => ({
+  runs: {
+    selectOne: runs,
+    update: (...update) =>
+      Effect.sync(() => {
+        writes.runs.push(update)
+      }),
+  },
+  messages: {
+    selectMany: () => Effect.forEach(history, (message) => encodeRowWith(Message)(message)),
+    insert: (row) =>
+      Effect.sync(() => {
+        writes.messages.push(row)
+      }),
+  },
+})
+
+/** Each Run write as the status its guard read, then the status it writes. */
+const moves = (writes: Writes) =>
+  Arr.map(writes.runs, ([set, where]) => `${where.status} → ${set.status}`)
+
+/** The last Run write: its move, and its failure's reason and cause when it fails the Run. */
+const lastWrite = (writes: Writes) =>
+  pipe(
+    writes.runs,
+    Arr.last,
+    Option.map(([set, where]) => ({
+      move: `${where.status} → ${set.status}`,
+      reason: set.failure?.reason,
+      cause: set.failure?.cause,
+    })),
+    Option.getOrThrow,
+  )
+
+const generate = GenerateAssistantMessageUseCase.use((useCase) =>
+  useCase.generate(new GenerateAssistantMessage({ runId: queuedRun.id })),
+)
 
 describe('GenerateAssistantMessageUseCase', () => {
   it.effect(
-    "generate moves the Run through preparing and generating, then completes it with the assistant's message in one write",
+    "generate moves the Run through preparing and generating, then writes the assistant's message and done",
     () => {
       const held = holdAssistantCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
       const assistant = recordAssistant({ reply: slowReply })
       const { logs, layer: logger } = recordLogs()
+      const writes = noWrites()
       return Effect.gen(function* () {
-        yield* insertQueued
-
         const running = yield* Effect.forkChild(generate)
         yield* held.asked
-        // `generate` writes only where the stored status is `preparing`, so this row proves that write.
-        const generating = new Run({ ...queuedRun, status: 'generating' })
-        assertEquals(yield* selectQueuedRun, generating)
+        const asked = moves(writes)
         yield* held.release
         yield* TestClock.adjust('500 millis')
-        assertEquals(yield* selectQueuedRun, generating)
+        const halfway = moves(writes)
         yield* TestClock.adjust('500 millis')
         yield* Fiber.join(running)
 
-        const done = yield* selectQueuedRun
-        const reply = Option.getOrThrow(done.assistantMessage)
-        assertEquals(
-          done,
-          new Run({
-            ...queuedRun,
-            status: 'done',
-            updatedAt: at(1000),
-            assistantMessageId: Option.some(reply.id),
-            assistantMessage: Option.some(
-              buildAssistantMessage({
-                id: reply.id,
-                chatId,
-                text: 'Sure.',
-                createdAt: at(1000),
-              }),
-            ),
-          }),
+        const generating = ['queued → preparing', 'preparing → generating']
+        assert.deepStrictEqual(asked, generating)
+        assert.deepStrictEqual(halfway, generating)
+        const reply = yield* decodeRowWith(Schema.Array(MessageFields))(writes.messages).pipe(
+          Effect.head,
         )
-        // Each message reads with the Run: the question's newest, the reply's own.
-        assertEquals(yield* selectMessages(chatId), [
-          new Message({ ...firstMessage, run: Option.some(done) }),
-          new Message({ ...reply, attachments: [], run: Option.some(done) }),
+        const message = buildAssistantMessage({
+          id: reply.id,
+          chatId,
+          text: 'Sure.',
+          createdAt: at(1000),
+        })
+        assert.deepStrictEqual(writes.messages, [yield* encodeRowWith(MessageFields)(message)])
+        const done = new Run({
+          ...queuedRun,
+          status: 'done',
+          updatedAt: at(1000),
+          assistantMessageId: Option.some(message.id),
+          assistantMessage: Option.some(message),
+        })
+        assert.deepStrictEqual(writes.runs.at(-1), [
+          yield* encodeRowWith(RunFields)(done),
+          { id: queuedRun.id, status: ['generating'] },
         ])
         assert.deepStrictEqual(logs, [])
-      }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
+      }).pipe(
+        Effect.provide([
+          layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+            Layer.provide(assistant.layer),
+          ),
+          logger,
+        ]),
+      )
     },
   )
 
-  it.effect('generate completes the Run with a reply holding U+0000, without it', () => {
+  it.effect('generate writes a reply holding U+0000 without it, and the Run done', () => {
     const assistant = recordAssistant({
       reply: Effect.succeed(new AssistantReply({ text: 'a\u0000b' })),
     })
+    const writes = noWrites()
     return Effect.gen(function* () {
-      yield* insertQueued
-
       yield* generate
-      const run = yield* selectQueuedRun
 
-      assert.strictEqual(run.status, 'done')
-      assert.strictEqual(Option.getOrThrow(run.assistantMessage).text, 'ab')
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+      assert.deepStrictEqual(
+        Arr.map(writes.messages, ({ text }) => text),
+        ['ab'],
+      )
+      assert.strictEqual(lastWrite(writes).move, 'generating → done')
+    }).pipe(
+      Effect.provide(
+        layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+          Layer.provide(assistant.layer),
+        ),
+      ),
+    )
   })
 
-  it.effect('generate dies with the assistant and fails the Run first', () => {
+  it.effect('generate dies with the assistant and fails the Run it reads again first', () => {
     const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
+    const writes = noWrites()
+    const generating = new Run({ ...queuedRun, status: 'generating' })
     return Effect.gen(function* () {
-      yield* insertQueued
-
       const exit = yield* generate.pipe(Effect.exit)
-      const run = yield* selectQueuedRun
 
       assert.isTrue(Exit.hasDies(exit))
-      assert.strictEqual(run.status, 'failed')
-      assert.strictEqual(Option.getOrThrow(run.failure).reason, 'ReplyFailed')
-      assert.include(Option.getOrThrow(run.failure).cause, 'provider exploded')
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+      const last = lastWrite(writes)
+      assert.deepInclude(last, { move: 'generating → failed', reason: 'ReplyFailed' })
+      assert.include(last.cause, 'provider exploded')
+    }).pipe(
+      Effect.provide(
+        layerAssistantMessageTest(
+          replyingTo(writes, { runs: readsInTurn(queuedRun, generating) }),
+        ).pipe(Layer.provide(assistant.layer)),
+      ),
+    )
   })
 
   it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
     'generate fails a $status Run a dead worker left, without asking the assistant',
     ({ status }) => {
       const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const writes = noWrites()
       return Effect.gen(function* () {
-        yield* insertWith([firstMessage], new Run({ ...queuedRun, status }))
-
         yield* generate
-        const run = yield* selectQueuedRun
 
-        assert.strictEqual(run.status, 'failed')
-        assert.deepStrictEqual(
-          Option.map(run.failure, ({ reason }) => reason),
-          Option.some('ReplyFailed'),
-        )
+        assert.deepStrictEqual(moves(writes), [`${status} → failed`])
+        assert.strictEqual(lastWrite(writes).reason, 'ReplyFailed')
         assertEquals(yield* assistant.calls, [])
-      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+      }).pipe(
+        Effect.provide(
+          layerAssistantMessageTest(
+            replyingTo(writes, { runs: readsInTurn(new Run({ ...queuedRun, status })) }),
+          ).pipe(Layer.provide(assistant.layer)),
+        ),
+      )
     },
   )
 
@@ -239,24 +308,24 @@ describe('GenerateAssistantMessageUseCase', () => {
     "generate fails the Run with $reason and the error's cause after one call, and writes no reply",
     ({ error, reason }) => {
       const assistant = recordAssistant({ reply: Effect.fail(error) })
+      const writes = noWrites()
       return Effect.gen(function* () {
-        yield* insertQueued
-
         yield* generate
 
-        const run = yield* selectQueuedRun
-        assert.deepStrictEqual(
-          {
-            status: run.status,
-            failure: run.failure.pipe(Option.map(({ reason, cause }) => ({ reason, cause }))),
-          },
-          { status: 'failed', failure: Option.some({ reason, cause: error.cause }) },
-        )
+        assert.deepStrictEqual(lastWrite(writes), {
+          move: 'generating → failed',
+          reason,
+          cause: error.cause,
+        })
         assert.strictEqual((yield* assistant.calls).length, 1)
-        assertEquals(yield* selectMessages(chatId), [
-          new Message({ ...firstMessage, run: Option.some(run) }),
-        ])
-      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+        assert.deepStrictEqual(writes.messages, [])
+      }).pipe(
+        Effect.provide(
+          layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+            Layer.provide(assistant.layer),
+          ),
+        ),
+      )
     },
   )
 
@@ -264,10 +333,10 @@ describe('GenerateAssistantMessageUseCase', () => {
     "generate prompts with the chat's messages in order and the bytes of their attachments",
     () => {
       const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const withPhoto = new Message({ ...whatIsThis, attachments: [photo] })
+      const withSketch = new Message({ ...attachmentsOnly, attachments: [sketch] })
       return Effect.gen(function* () {
-        yield* insertWith(history, lastRun)
-        yield* insertAttachment(photo)
-        yield* insertAttachment(sketch)
+        yield* Effect.forEach([photo, sketch], storeBytes)
 
         yield* generate
 
@@ -275,24 +344,23 @@ describe('GenerateAssistantMessageUseCase', () => {
           {
             method: 'reply',
             history: [
-              {
-                message: new Message({ ...whatIsThis, attachments: [photo] }),
-                attachments: [{ attachment: photo, bytes: png }],
-              },
+              { message: withPhoto, attachments: [{ attachment: photo, bytes: png }] },
               { message: aPhoto, attachments: [] },
               { message: andAgain, attachments: [] },
-              {
-                message: new Message({
-                  ...attachmentsOnly,
-                  attachments: [sketch],
-                  run: Option.some(preparing),
-                }),
-                attachments: [{ attachment: sketch, bytes: png }],
-              },
+              { message: withSketch, attachments: [{ attachment: sketch, bytes: png }] },
             ],
           },
         ])
-      }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+      }).pipe(
+        Effect.provide(
+          layerAssistantMessageTest(
+            replyingTo(noWrites(), {
+              runs: readsInTurn(lastRun),
+              history: [withPhoto, aPhoto, andAgain, withSketch],
+            }),
+          ).pipe(Layer.provide(assistant.layer)),
+        ),
+      )
     },
   )
 
@@ -305,30 +373,26 @@ describe('GenerateAssistantMessageUseCase', () => {
       chatId: Option.none(),
     })
     const record = new Attachment({ ...sketch, sourceId: Option.some(source.id) })
+    const withRecord = new Message({ ...attachmentsOnly, attachments: [record] })
     return Effect.gen(function* () {
-      yield* insertWith([attachmentsOnly], lastRun)
-      yield* insertAttachment(source)
       // A record stores no bytes under its own id.
-      yield* insertAttachment(record, 'lost')
+      yield* storeBytes(source)
 
       yield* generate
 
       assertEquals(yield* assistant.calls, [
         {
           method: 'reply',
-          history: [
-            {
-              message: new Message({
-                ...attachmentsOnly,
-                attachments: [record],
-                run: Option.some(preparing),
-              }),
-              attachments: [{ attachment: record, bytes: png }],
-            },
-          ],
+          history: [{ message: withRecord, attachments: [{ attachment: record, bytes: png }] }],
         },
       ])
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+    }).pipe(
+      Effect.provide(
+        layerAssistantMessageTest(
+          replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withRecord] }),
+        ).pipe(Layer.provide(assistant.layer)),
+      ),
+    )
   })
 
   it.effect(
@@ -336,78 +400,96 @@ describe('GenerateAssistantMessageUseCase', () => {
     () => {
       const assistant = recordAssistant({ reply: Effect.succeed(sure) })
       const { logs, layer: logger } = recordLogs('attachmentId', 'chatId', 'runId')
+      const withSketch = new Message({ ...attachmentsOnly, attachments: [sketch] })
       return Effect.gen(function* () {
-        yield* insertWith([attachmentsOnly], lastRun)
-        yield* insertAttachment(sketch, 'lost')
-
         yield* generate
 
         assertEquals(yield* assistant.calls, [
-          {
-            method: 'reply',
-            history: [
-              {
-                message: new Message({
-                  ...attachmentsOnly,
-                  attachments: [sketch],
-                  run: Option.some(preparing),
-                }),
-                attachments: [],
-              },
-            ],
-          },
+          { method: 'reply', history: [{ message: withSketch, attachments: [] }] },
         ])
         assert.deepStrictEqual(logs, [
           ['Warn', 'attachment skipped: file missing', sketch.id, chatId, queuedRun.id],
         ])
-      }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
+      }).pipe(
+        Effect.provide([
+          layerAssistantMessageTest(
+            replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withSketch] }),
+          ).pipe(Layer.provide(assistant.layer)),
+          logger,
+        ]),
+      )
     },
   )
 
-  it.effect('generate dies on a Run another worker settled while the assistant answers', () => {
-    const held = holdAssistantCall()
-    const assistant = recordAssistant({ reply: heldReply(held) })
-    return Effect.gen(function* () {
-      yield* insertQueued
+  it.effect(
+    'generate dies on a done write the store refuses, and skips the Run it then reads settled',
+    () => {
+      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const { logs, layer: logger } = recordLogs()
+      const writes = noWrites()
+      const mocks = replyingTo(writes, { runs: readsInTurn(queuedRun, doneElsewhere) })
+      return Effect.gen(function* () {
+        const exit = yield* generate.pipe(Effect.exit)
 
-      const running = yield* generate.pipe(Effect.exit, Effect.forkChild)
-      yield* held.asked
-      yield* insertMessage(elsewhereReply)
-      yield* updateRun(doneElsewhere)
-      yield* held.release
-      const exit = yield* Fiber.join(running)
-
-      assert.isTrue(Exit.hasDies(exit))
-      // The memory transaction keeps the lost reply's insert; Postgres takes it back.
-      assertEquals(yield* selectQueuedRun, doneElsewhere)
-    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
-  })
+        assert.isTrue(Exit.hasDies(exit))
+        assert.deepStrictEqual(moves(writes), ['queued → preparing', 'preparing → generating'])
+        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
+      }).pipe(
+        Effect.provide([
+          layerAssistantMessageTest({
+            ...mocks,
+            runs: {
+              ...mocks.runs,
+              update: (set, where) =>
+                set.status === 'done'
+                  ? Effect.die('no run was updated')
+                  : Effect.sync(() => {
+                      writes.runs.push([set, where])
+                    }),
+            },
+          }).pipe(Layer.provide(assistant.layer)),
+          logger,
+        ]),
+      )
+    },
+  )
 
   it.effect('generate skips a Run settled before it, without asking the assistant', () => {
     const assistant = recordAssistant({ reply: Effect.succeed(sure) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertWith([firstMessage, elsewhereReply], doneElsewhere)
-
       yield* generate
 
-      assertEquals(yield* selectQueuedRun, doneElsewhere)
       assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
-    }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(
+      Effect.provide([
+        layerAssistantMessageTest({ runs: { selectOne: readsInTurn(doneElsewhere) } }).pipe(
+          Layer.provide(assistant.layer),
+        ),
+        logger,
+      ]),
+    )
   })
 
-  it.effect('generate skips a deleted chat, without asking the assistant', () => {
-    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
-    const { logs, layer: logger } = recordLogs()
-    return Effect.gen(function* () {
-      yield* insertQueued
-      yield* deleteChat(chatId)
+  it.effect(
+    'generate skips a Run the store finds none of, as for a deleted chat, without asking',
+    () => {
+      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const { logs, layer: logger } = recordLogs()
+      return Effect.gen(function* () {
+        yield* generate
 
-      yield* generate
-
-      assertEquals(yield* assistant.calls, [])
-      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
-    }).pipe(Effect.provide([AssistantMessageTest.pipe(Layer.provide(assistant.layer)), logger]))
-  })
+        assertEquals(yield* assistant.calls, [])
+        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
+      }).pipe(
+        Effect.provide([
+          layerAssistantMessageTest({ runs: { selectOne: () => Effect.succeedNone } }).pipe(
+            Layer.provide(assistant.layer),
+          ),
+          logger,
+        ]),
+      )
+    },
+  )
 })
