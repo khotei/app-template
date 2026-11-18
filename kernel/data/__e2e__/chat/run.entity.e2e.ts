@@ -148,4 +148,37 @@ describe('runs', () => {
       assert.include(String(error.reason.cause), 'runs_user_message_id_chat_id_fk')
     }).pipe(Effect.provide(DbTest)),
   )
+
+  it.effect('refuses a Run in a chat no row holds through its key', () =>
+    Effect.gen(function* () {
+      yield* insertMessages
+      const error = yield* flipSqlError(
+        insertRun(
+          run('0192d4e0-7b3a-7c00-8000-00000000009d', {
+            chatId: '0192d4e0-7b3a-7c00-8000-00000000009f',
+          }),
+        ),
+      )
+
+      assert.strictEqual(error.reason._tag, 'ConstraintError')
+      assert.include(String(error.reason.cause), 'runs_chat_id_chats_id_fkey')
+    }).pipe(Effect.provide(DbTest)),
+  )
+
+  it.effect('refuses a done Run naming a reply no row holds through its key', () =>
+    Effect.gen(function* () {
+      yield* insertMessages
+      const error = yield* flipSqlError(
+        insertRun(
+          run('0192d4e0-7b3a-7c00-8000-00000000009e', {
+            status: 'done',
+            assistantMessageId: '0192d4e0-7b3a-7c00-8000-0000000000a0',
+          }),
+        ),
+      )
+
+      assert.strictEqual(error.reason._tag, 'ConstraintError')
+      assert.include(String(error.reason.cause), 'runs_assistant_message_id_messages_id_fkey')
+    }).pipe(Effect.provide(DbTest)),
+  )
 })

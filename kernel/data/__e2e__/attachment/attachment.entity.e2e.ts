@@ -63,4 +63,15 @@ describe('attachments', () => {
       assert.include(String(error.reason.cause), check)
     }).pipe(Effect.provide(DbTest)),
   )
+
+  it.effect('refuses an attachment of a user no row holds through its key', () =>
+    Effect.gen(function* () {
+      const db = yield* Db
+
+      const error = yield* flipSqlError(db.insert(attachments).values(attachment))
+
+      assert.strictEqual(error.reason._tag, 'ConstraintError')
+      assert.include(String(error.reason.cause), 'attachments_user_id_users_id_fkey')
+    }).pipe(Effect.provide(DbTest)),
+  )
 })

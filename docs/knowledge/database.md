@@ -302,10 +302,10 @@ at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
 ## Tests
 
 A repository's e2e runs on `DbTest`, in entities, its parent rows written through `Db`. An entity's
-e2e checks, in entities only, what the schema itself refuses (a check, a partial unique index) and
-reads the `SqlError` of a refused statement with `flipSqlError`. Each [guard](#guards) the database
-adds, the cascades of its [foreign keys](#schema-and-entity-files) included, has its case in a
-repository suite: a unit test mocks the repository, so it sees none
+e2e checks, in entities only, what the schema itself refuses (a check, a foreign key, a partial
+unique index) and reads the `SqlError` of a refused statement with `flipSqlError`. Each
+[guard](#guards) the database adds, the cascades of its [foreign keys](#schema-and-entity-files)
+included, has its case in a repository suite: a unit test mocks the repository, so it sees none
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). Where each
 suite and its support live and the e2e of a use case's transaction:
 [tooling.md › Tests](tooling.md#tests).
