@@ -39,7 +39,7 @@ An older `Refs:` line may name a folder before its rename: the slug is unchanged
 | New behaviour, a new dependency, or any choice a reviewer could question | the full cycle |
 | A bug fix or small change with no new decision and an existing seam to test at | `/ticket-feature` with a few requirements (a bug starts from one command that shows it failing), then `/ticket-plan`, `/ticket-implement`, `/ticket-verify`; skip `/ticket-architecture` |
 | A ticket that changes only the toolkit or docs (`.claude/`, `docs/`), no app code | the cycle its change calls for, with one `/ticket-verify`: its accepted fixes land as steps without a second run unless one changes what a requirement asks; a past step is replayed (its commit's parent run again under the new toolkit) only for a requirement nothing else can check |
-| A direct task: it fits one session, adds no dependency, moves no module boundary and makes no choice a reviewer could question | no ticket: a `<type>/<slug>` branch, the change and `make check`, one Standards and Spec review, one fix round, a commit; the PR on your word. One that turns out bigger stops and becomes a ticket |
+| A direct task: it fits one session, adds no dependency, moves no module boundary and makes no choice a reviewer could question | no ticket: a `<type>/<slug>` branch, the change and `make check`, one Standards and Spec review, one fix pass, a commit per unit ([commits.md › A commit's unit](../../.claude/rules/commits.md#a-commits-unit)); the PR on your word. One that turns out bigger stops and becomes a ticket |
 | A typo, a version bump, a doc fix | no ticket: one commit with the area as its scope (`docs`, `tooling`) |
 
 ## Minimal, right, hard
@@ -161,7 +161,7 @@ so the glossary holds none of them.
   rounds of the steps whose code they change. "Stage review" names the close, never a pass.
 - **Stage verification** — `/ticket-verify <ticket> stage <n>`: verifiers on the requirements the
   stage completes and on the earlier ones whose files it changed, over the stage's range; a
-  failure is fixed as a `VERIFY` round of the step whose code it changes. When it is **due**
+  failure is fixed as `VERIFY` rounds of the step whose code it changes. When it is **due**
   ([the stage close](../../.claude/skills/ticket-implement/SKILL.md#the-stage-close)), the close
   names it outside a loop, and you may run one for any stage; inside a loop it runs at the close
   without stopping.
@@ -187,7 +187,7 @@ for you. Each takes the ticket folder, except
 | `/ticket-architecture <ticket>` | `feature.md` | the Seams and the Decisions | `architecture.md` |
 | `/ticket-plan <ticket> [next]` | `feature.md`, `architecture.md`; with `next`, also the closed stages | the skeleton and stage 1, in one approval; with `next`, only a question round, when the preparation raises one | `plan.md`: the skeleton, the coverage and stage 1 in full; with `next`, the next stage in full |
 | `/ticket-implement <ticket> [step \| loop]` | the next unblocked step, or each in turn ([the loop](#the-loop)) | whether a ready step closes without your OK, once per session; per round, feedback, a rejection or stop | the step's commits, one per round, each committed before you read it ([Gates](../../.claude/rules/sdd.md#gates)) |
-| `/ticket-verify <ticket> [stage <n>]` | the branch against its PR's base branch; with `stage <n>`, that stage's range | which simplifications and lessons to apply; whether to open the PR; for a stage, only a failure that needs a requirement changed | `verification.md`, with a per-stage table for a plan in stages; for a stage, its `## Stage <n>` section and a `VERIFY` round per failure |
+| `/ticket-verify <ticket> [stage <n>]` | the branch against its PR's base branch; with `stage <n>`, that stage's range | which simplifications and lessons to apply; whether to open the PR; for a stage, only a failure that needs a requirement changed | `verification.md`, with a per-stage table for a plan in stages; for a stage, its `## Stage <n>` section and `VERIFY` rounds per failure |
 
 ## Under the hood
 
@@ -212,11 +212,11 @@ uses updates this map too; the Standards review checks it against `.claude/rules
 | `/ticket-architecture` | `codebase-design`, `grilling` | `researcher` | a fact or an experiment: `opus high` | — | `architecture.md` |
 | `/ticket-plan` | — | through [stage.md](../../.claude/skills/ticket-plan/stage.md), read afresh for each stage: `researcher` for the fact check, a second for a probe of behaviour, one for the plan check; for a step that adds, changes or removes a guard, one more for its probes; every probe runs in the disposable worktree `<slug>-plan-probes` set up by `make worktree` | the fact check, a probe of behaviour, the plan check: `opus high`; the guard probes: `sonnet medium`; each step's **Model** line it writes: `opus medium` for a move, rename or config step, `opus high` for one that writes behaviour | — | `plan.md`; `architecture.md` where you agreed to a stage's question; the stage's facts and preparation commits |
 | `/ticket-implement` | on a new-interface step and at a stage's close the built-in `simplify`, run by the main session, with `codebase-design` as its vocabulary | `implementer` (one worktree per parallel step, set up by `make worktree`), `reviewer` (one per review pass, in parallel; Standards and Design over the stage's diff at its close), `researcher` (one per claimed finding, in parallel, all writing their confirming tests in one disposable worktree per review round, set up by `make worktree`); in a loop, after a stage's close, what a due stage verification and the next stage's preparation spawn, read afresh from `ticket-verify/SKILL.md` and `ticket-plan/stage.md` | `implementer`: the step's **Model** line; Standards: `sonnet medium`; Spec: `opus medium`; the hunt and Design: `opus high`; a question about the code and a claimed finding: `researcher` on `opus high`; the no-op experiment: `sonnet medium` | `make-check.sh`, through `implementer` | `plan.md`, `architecture.md`, a decision's record in `docs/knowledge/decisions.md`, the step's commits, a stage's `STAGE` rounds; in a loop, what the stage verification and preparation write |
-| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` round per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | `make-check.sh`, through `implementer` | `verification.md`, a stage's `VERIFY` rounds |
+| `/ticket-verify` | — | `verifier` (one per group of requirements, in parallel), `reviewer` (one per axis, in parallel; none for a stage), `implementer` (a stage's `VERIFY` rounds per failure) | `verifier`: `opus high`, or `xhigh` for a stage over ~30 minutes of work; Standards: `sonnet medium`; Spec: `opus high`; `implementer`: the fixed step's **Model** line, `opus high` when it names none | `make-check.sh`, through `implementer` | `verification.md`, a stage's `VERIFY` rounds |
 | `/lab` | — | `researcher` (one per `[R]`, in the background; a second on the same question at a key fork in an unfamiliar area); no `implementer`, since your stop must reach the one who writes; a learn step's draft runs in its own worktree on `wt/<name>`, a lab's own worktree stays on the ticket branch, both set up by `make worktree` (`KEEP=1` for the second) | `researcher`: `opus high` | — | `lab.md`, the lab's rounds, a pair in `design-examples.md` after a stop; at the close, what moves to `docs/knowledge/` |
 | `/lab-review` | — | `reviewer` (Standards and the hunt in parallel; Design only on `design`); it picks and reads the lab as `/lab` does, from `/lab`'s file | Standards: `sonnet medium`; the hunt and Design: `opus high` | — | your edits as an `OWNER` round, one `REVIEW` round, `[D:ai]` lines in `lab.md` |
 | `/review-brief` | — | — | — | — | nothing: a brief in the chat before you review a range |
-| `implementer` | `tdd`, preloaded | — | the spawn's | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files |
+| `implementer` | `tdd`, preloaded | — | the spawn's | `make-check.sh` on `Stop` (runs as `SubagentStop`) | the step's files and its rounds |
 | `reviewer` | one pass: Standards, Spec, Design or the hunt, and at a stage's close Standards and Design over its diff, Design also against `architecture.md`, the skeleton and the stage design; on Standards over an instruction file, `writing-for-agents`; on Design, `codebase-design` as its vocabulary | — | the spawn's | — | nothing: read-only |
 | `verifier` | — | — | the spawn's | — | nothing: read-only |
 | `researcher` | — | — | the spawn's | — | nothing in the main tree; a probe or a confirming test only in a disposable worktree its brief names, set up by `make worktree` |
@@ -287,7 +287,7 @@ it; dotted arrows use a plugin skill.
 | `domain-modeling` writes `GLOSSARY.md` at the root and ADRs to `docs/adr/` | glossary in `docs/knowledge/glossary.md`; ADR candidates become open questions, then `D…` decisions, and a binding one a record in `docs/knowledge/decisions.md` | one docs tree; a decision's history stays next to the ticket that made it, its living record in one page |
 | `to-spec` and `to-tickets` write to `.scratch/` or an issue tracker, as user stories | `/ticket-feature` and `/ticket-plan` write EARS requirements and steps into the ticket folder | artifacts are reviewed and committed with the code |
 | `tdd` asks the user to confirm seams before testing | the implementer takes them from `architecture.md › Seams`, confirmed earlier | a subagent cannot ask, and the seams were already agreed |
-| `implement` commits on its own and reviews committed work | `/ticket-implement` commits each round as soon as it is green, reviews the step's committed rounds, and closes the step under the commit gate | every change, yours included, is a commit you can read alone; the step closes only once reviewed, and as you chose |
+| `implement` commits on its own and reviews committed work | the implementer commits each unit as a round as soon as it is green, `/ticket-implement` reviews the step's committed rounds, and closes the step under the commit gate | every change, yours included, is a commit you can read alone; the step closes only once reviewed, and as you chose |
 | `improve-codebase-architecture` scans the whole codebase, writes an HTML report, grills, and writes `GLOSSARY.md` and ADRs | the Design pass of `/ticket-implement`: a read-only `reviewer` on one step, with at most five candidates, each a sketch and a strength | the shape is questioned while the step is small, and no doc lands outside `docs/knowledge/` and the ticket |
 | `research` writes a notes file into the repo | `researcher` answers in its report | facts reach the conversation, not the tree |
 | `diagnosing-bugs` runs from a feedback loop to the fix and its regression test | `/ticket-feature` runs phases 1 and 2 only, to one red command on the tree as it stands, copied into `feature.md` | the fix and its test go through the plan and its review |
@@ -295,8 +295,9 @@ it; dotted arrows use a plugin skill.
 ## The commit gate
 
 The gate is stated in [.claude/rules/sdd.md › Gates](../../.claude/rules/sdd.md#gates), and
-`/ticket-implement` runs a step through it: the `implementer`, then `simplify` on a new-interface
-step, the round's commit, the review passes, then you. Why it is cut so:
+`/ticket-implement` runs a step through it: the `implementer`, which commits each green unit as a
+round, then `simplify` on a new-interface step, its own round, the review passes, then you. Why
+it is cut so:
 
 - **The implementer cannot finish red.** A hook runs `make check` when it stops and sends it
   back; `BLOCKED:` is its only way out, and reaches you unchanged.
@@ -324,9 +325,9 @@ through the whole gate, and closes each without asking you: the main session for
 it recommends as rounds, as it would on your word. It stops where
 [the skill](../../.claude/skills/ticket-implement/SKILL.md#the-loop) lists, and only then shows
 you each committed step and the cause of the stop. To stop it sooner, tell the session to stop:
-the rounds already committed stay, and the current round stays uncommitted in the tree. To go on
+the rounds already committed stay, and the current unit stays uncommitted in the tree. To go on
 after a stop, answer it, then type the command again: a run that finds changes in the tree first
-asks whose they are, so your edits commit as an `OWNER` round and the agent's stopped round is
+asks whose they are, so your edits commit as an `OWNER` round and the agent's stopped unit is
 finished by the implementer. Pushing and opening the PR still wait for your OK.
 
 In a plan in stages the loop crosses a stage's boundary on its own. On the stage's last step it
@@ -367,6 +368,83 @@ gitGraph
 
 Ticket branches are cut from `main` and deleted on merge; nothing is merged back into a second
 branch, so no merge commit is needed and the repository allows none.
+
+### Gitmoji
+
+The gitmoji a commit's subject opens with
+([commits.md › Vocabulary](../../.claude/rules/commits.md#vocabulary)) that the rule's own table
+leaves out: the rest of gitmoji's
+[gitmojis.json](https://github.com/carloscuesta/gitmoji/blob/4774b049ef57eee985e71bf3dd33a30110f3cd86/packages/gitmojis/src/gitmojis.json)
+at commit `4774b049ef` (2026-10-22), fetched on 2026-11-18, each with its conventional type. A
+row of the rule wins over a close entry here. The project keeps its own meaning against
+gitmoji's description for `:tada:`, `:rotating_light:` and `:rewind:` (in the rule) and
+`:test_tube:` (below), and does not use `:construction:`, `:poop:`, `:beers:` and
+`:twisted_rightwards_arrows:`, since every commit is a green, reviewed unit and the repository
+allows no merge commit.
+
+| Gitmoji | Type | Use |
+|---|---|---|
+| `:art:` | `style` | structure or format of the code |
+| `:zap:` | `perf` | performance |
+| `:ambulance:` | `fix` | critical hotfix |
+| `:rocket:` | `chore` | deploy |
+| `:closed_lock_with_key:` | `chore` | add or update secrets |
+| `:bookmark:` | `chore` | release or version tags |
+| `:construction:` | `chore` | work in progress; not used, since every commit is a green unit |
+| `:green_heart:` | `ci` | fix the CI build |
+| `:arrow_down:` | `build` | downgrade dependencies |
+| `:arrow_up:` | `build` | upgrade dependencies |
+| `:pushpin:` | `build` | pin dependencies to exact versions |
+| `:chart_with_upwards_trend:` | `feat` | analytics or tracking code |
+| `:heavy_plus_sign:` | `build` | add a dependency |
+| `:heavy_minus_sign:` | `build` | remove a dependency |
+| `:globe_with_meridians:` | `feat` | internationalization and localization |
+| `:pencil2:` | `fix` | typos |
+| `:poop:` | `chore` | bad code to improve later; not used, since a unit passes review |
+| `:twisted_rightwards_arrows:` | `chore` | merge branches; not used, since the repository allows no merge commit on `main` |
+| `:package:` | `build` | compiled files or packages |
+| `:alien:` | `fix` | code updated for an external API change |
+| `:truck:` | `refactor` | move or rename files, paths or routes |
+| `:page_facing_up:` | `chore` | license |
+| `:boom:` | `feat` | a breaking change |
+| `:bento:` | `chore` | assets |
+| `:wheelchair:` | `feat` | accessibility |
+| `:bulb:` | `docs` | comments in source code |
+| `:beers:` | `chore` | code written drunk; not used |
+| `:speech_balloon:` | `feat` | text and literals |
+| `:card_file_box:` | `feat` | database changes: schema, migrations |
+| `:loud_sound:` | `feat` | add or update logs |
+| `:mute:` | `chore` | remove logs |
+| `:busts_in_silhouette:` | `chore` | contributors |
+| `:children_crossing:` | `feat` | user experience or usability |
+| `:building_construction:` | `refactor` | architectural changes |
+| `:iphone:` | `feat` | responsive design |
+| `:clown_face:` | `test` | mocks |
+| `:egg:` | `feat` | an easter egg |
+| `:see_no_evil:` | `chore` | a `.gitignore` file |
+| `:camera_flash:` | `test` | snapshots |
+| `:alembic:` | `chore` | experiments |
+| `:mag:` | `feat` | SEO |
+| `:label:` | `refactor` | types |
+| `:seedling:` | `chore` | seed files |
+| `:triangular_flag_on_post:` | `feat` | add, update or remove feature flags |
+| `:goal_net:` | `fix` | catch errors |
+| `:dizzy:` | `feat` | animations and transitions |
+| `:wastebasket:` | `chore` | deprecate code to clean up later |
+| `:passport_control:` | `feat` | authorization, roles and permissions |
+| `:adhesive_bandage:` | `fix` | a simple fix of a non-critical issue |
+| `:monocle_face:` | `chore` | data exploration or inspection |
+| `:coffin:` | `chore` | remove dead code |
+| `:test_tube:` | `test` | a failing test, kept green as an expected failure |
+| `:necktie:` | `feat` | business logic |
+| `:stethoscope:` | `feat` | a healthcheck |
+| `:bricks:` | `chore` | infrastructure |
+| `:technologist:` | `chore` | developer experience |
+| `:money_with_wings:` | `chore` | sponsorships or money-related infrastructure |
+| `:thread:` | `feat` | multithreading or concurrency |
+| `:safety_vest:` | `feat` | validation |
+| `:airplane:` | `feat` | offline support |
+| `:t-rex:` | `feat` | backwards compatibility |
 
 ## Lessons
 

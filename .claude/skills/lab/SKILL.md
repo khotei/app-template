@@ -57,8 +57,8 @@ one who writes, and a subagent does not see the chat.
   Shape or contract; without one, ask, or draft the Shape on a `[DO]`. Before the first piece,
   ask the five questions aloud (rail 5); in an unfamiliar area, check the Reference ran and the
   Budget is named (rail 4). Then one piece at a time, each within rail 4:
-  its test first (as `test` does), the body, `make check`, the round's commit
-  (`.claude/rules/commits.md › A ticket's rounds`), its `[N:ai]` line in Pieces, and a `Later`
+  its test first (as `test` does), the body, its rounds, one commit per green unit
+  (`.claude/rules/commits.md › A commit's unit`), its `[N:ai]` line in Pieces, and a `Later`
   line for each issue it noticed and left; show the owner the diff and wait for the word before
   the next. A learn step's draft runs in its own worktree: `git worktree add -b wt/<name>
   .claude/worktrees/<name> HEAD`, then, inside it, `make worktree N=<n> NAME=<name>`; it never

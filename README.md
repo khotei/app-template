@@ -231,7 +231,7 @@ which order: [roadmap.md](docs/knowledge/roadmap.md).
 | How is a change specified, planned, implemented and verified? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
 | What are the rules for one layer? | the `CLAUDE.md` in its folder, and `.claude/rules/` |
-| How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
+| How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/rounds.md](.claude/rules/rounds.md) (a ticket's), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is it built this way? | [docs/knowledge/decisions.md](docs/knowledge/decisions.md): each binding decision with its reason, its rejected alternatives and what a reversal breaks; its history in the ticket that made it, under `docs/tickets/` |
 
 How a merged ticket's steps and reasoning stay findable in the history:

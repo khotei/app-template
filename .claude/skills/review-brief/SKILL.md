@@ -12,7 +12,7 @@ code and spawns no agent. It takes one session's reading, about ten tool calls.
 ## Steps
 
 1. **The range.** `L<n>` or `S<n>`: from the parent of the oldest commit the subject search of
-   `.claude/rules/commits.md › A ticket's rounds` finds for the step to `HEAD`; `<base>..<head>`
+   `.claude/rules/rounds.md` finds for the step to `HEAD`; `<base>..<head>`
    as given; `all`: from `git merge-base main HEAD`; none: the Map's step in progress, else
    `all`. Done when `git log --oneline` and `git diff --shortstat` of the range are in hand, the
    lines split into code, tests, docs and generated files (migrations, snapshots).
