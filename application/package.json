@@ -6,8 +6,7 @@
     "./chat": "./chat/index.ts",
     "./identity": "./identity/index.ts",
     "./use-cases": "./use-cases/index.ts",
-    "./chat/testing": "./chat/__tests__/testing/index.ts",
-    "./use-cases/testing": "./use-cases/__tests__/testing/index.ts"
+    "./chat/testing": "./chat/__tests__/testing/index.ts"
   },
   "imports": {
     "#chat/*": "./chat/*.ts",

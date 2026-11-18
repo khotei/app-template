@@ -9,7 +9,6 @@
     "./data": "./data/index.ts",
     "./llm": "./llm/index.ts",
     "./data/testing": "./data/__tests__/testing/index.ts",
-    "./data/testing/e2e": "./data/__tests__/testing/e2e/index.ts",
     "./aws/testing/e2e": "./aws/__tests__/testing/e2e/index.ts"
   },
   "imports": {
