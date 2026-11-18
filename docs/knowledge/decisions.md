@@ -396,7 +396,7 @@ builds the adapter from those settings.
 - **Cost:** chat's adapter names the provider's package, and `@effect/ai-anthropic` is a runtime
   dependency of the application workspace and of the kernel; a second provider changes both,
   its client layer in `kernel/llm` and its models in the adapter. No test checks the 10-minute
-  wait.
+  wait, nor a request setting beside the model.
 - **Guarded by:** the row of a module's `services/` in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); the
   `AssistantLlmFromConfig` suite over a recording client.

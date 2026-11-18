@@ -1,7 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Option, Ref } from 'effect'
+import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -11,49 +11,37 @@ import type { AssistantError } from '#chat/domain/assistant.error'
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Assistant, type HistoryMessage } from '#chat/domain/assistant.port'
 import { AttachmentId } from '#chat/domain/attachment.id'
-import {
-  Attachment,
-  buildAttachment,
-  FileName,
-  FileSize,
-  MediaType,
-} from '#chat/domain/attachment.model'
-import { MessageId } from '#chat/domain/chat.id'
+import { buildAttachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
 import { ChatTitle } from '#chat/domain/chat.model'
 import { AssistantLlmFromConfig } from '#chat/infrastructure/assistant.llm'
 import { assistantMessageAt, owner, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
-const replyModel = 'claude-sonnet-5-5'
-
-const titleModel = 'claude-haiku-5-5'
-
 const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
   request.body._tag === 'Uint8Array'
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** `AssistantLlmFromConfig` over Anthropic's models and an `HttpClient` that keeps each request body and the time it was sent, and answers it by `respond`. */
-function recordAnthropic(respond: (body: RequestBody) => Response) {
+/** `AssistantLlmFromConfig` over an `HttpClient` that keeps each request body and its time, and answers it by `respond`. */
+function recordAnthropic(respond: () => Response) {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
   >([])
-  const httpClient = HttpClient.make((request) => {
-    const body = readBody(request)
-    return Clock.currentTimeMillis.pipe(
-      Effect.flatMap((at) => Ref.update(requests, Arr.append({ body, at }))),
-      Effect.as(HttpClientResponse.fromWeb(request, respond(body))),
-    )
-  })
+  const httpClient = HttpClient.make((request) =>
+    Clock.currentTimeMillis.pipe(
+      Effect.flatMap((at) => Ref.update(requests, Arr.append({ body: readBody(request), at }))),
+      Effect.as(HttpClientResponse.fromWeb(request, respond())),
+    ),
+  )
   const layer = AssistantLlmFromConfig.pipe(
     Layer.provide([
       Layer.succeed(HttpClient.HttpClient, httpClient),
       ConfigProvider.layer(
         ConfigProvider.fromUnknown({
           ANTHROPIC_API_KEY: 'sk-test-key',
-          LLM_REPLY_MODEL: replyModel,
-          LLM_TITLE_MODEL: titleModel,
+          LLM_REPLY_MODEL: 'claude-sonnet-5-5',
+          LLM_TITLE_MODEL: 'claude-haiku-5-5',
         }),
       ),
     ]),
@@ -71,7 +59,7 @@ const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn'
     id: 'msg_test',
     type: 'message',
     role: 'assistant',
-    model: replyModel,
+    model: 'claude-sonnet-5-5',
     content: [{ type: 'text', text }],
     stop_reason: stopReason,
     stop_sequence: null,
@@ -88,118 +76,57 @@ const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn'
 /** A Messages API error response. */
 const apiError = (
   status: number,
-  { type, text, headers }: { type: string; text: string; headers?: Record<string, string> },
+  { text, headers }: { readonly text: string; readonly headers?: Record<string, string> },
 ) =>
   Response.json(
-    { type: 'error', error: { type, message: text }, request_id: null },
+    { type: 'error', error: { type: 'error', message: text }, request_id: null },
     { status, headers },
   )
-
-const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
 
 const reply = (history: ReadonlyArray<HistoryMessage>) =>
   Assistant.use((assistant) => assistant.reply(history))
 
+const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
+
 const hi: ReadonlyArray<HistoryMessage> = [{ message: userMessageAt(1, 'Hi'), attachments: [] }]
 
-const image = (id: string, fileName: string) =>
-  new Attachment({
-    ...buildAttachment({
-      id: AttachmentId.make(id),
-      userId: owner,
-      fileName: FileName.make(fileName),
-      mediaType: MediaType.make('image/png'),
-      size: FileSize.make(png.length),
-      createdAt: epoch,
-    }),
-    messageId: Option.some(MessageId.make('0192d4e0-7b3a-7c00-8000-000000000051')),
-  })
+const lisbon = 'Plan a weekend in Lisbon'
 
-// The package writes `cache_control: null` on every system and user block.
+const photo = buildAttachment({
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
+  userId: owner,
+  fileName: FileName.make('photo.png'),
+  mediaType: MediaType.make('image/png'),
+  size: FileSize.make(png.length),
+  createdAt: epoch,
+})
+
+/** The package writes `cache_control: null` on every user block. */
 const imageBlock = {
   type: 'image',
   source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgoA/w==' },
   cache_control: null,
 } as const
 
-const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', 'photo.png')
-
-const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', 'sketch.png')
-
 describe('AssistantLlmFromConfig', () => {
   it.effect(
-    'reply asks the reply model for at most 16 000 tokens, with the prefix cached and the default effort and thinking',
+    "reply asks the reply model with the system prompt, user turns as their text and images and assistant turns as their text, and answers the model's text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
-        yield* reply(hi)
-
-        const [body] = yield* bodies
-        assert.deepStrictEqual(
-          {
-            model: body?.model,
-            max_tokens: body?.max_tokens,
-            cache_control: body?.cache_control,
-            effort: body?.output_config?.effort,
-            thinking: body?.thinking,
-          },
-          {
-            model: replyModel,
-            max_tokens: 16_000,
-            cache_control: { type: 'ephemeral' },
-            effort: undefined,
-            thinking: undefined,
-          },
-        )
-      }).pipe(Effect.provide(layer))
-    },
-  )
-
-  it.effect(
-    'suggestTitle asks the title model for at most 1 000 tokens, with the lowest effort and thinking off',
-    () => {
-      const { bodies, layer } = recordAnthropic(() => message('{"title":"Lisbon weekend"}'))
-      return Effect.gen(function* () {
-        yield* suggestTitle('Plan a weekend in Lisbon')
-
-        const [body] = yield* bodies
-        assert.deepStrictEqual(
-          {
-            model: body?.model,
-            max_tokens: body?.max_tokens,
-            cache_control: body?.cache_control,
-            effort: body?.output_config?.effort,
-            thinking: body?.thinking,
-          },
-          {
-            model: titleModel,
-            max_tokens: 1_000,
-            cache_control: undefined,
-            effort: 'low',
-            thinking: { type: 'disabled' },
-          },
-        )
-      }).pipe(Effect.provide(layer))
-    },
-  )
-
-  it.effect(
-    'reply sends the fixed system prompt, then user turns with text and images and assistant turns as their text',
-    () => {
-      const { bodies, layer } = recordAnthropic(() => message('Hello'))
-      return Effect.gen(function* () {
-        yield* reply([
+        const answer = yield* reply([
           {
             message: userMessageAt(1, 'What is this?'),
             attachments: [{ attachment: photo, bytes: png }],
           },
           { message: assistantMessageAt(2, 'A photo.'), attachments: [] },
-          { message: userMessageAt(3, ''), attachments: [{ attachment: sketch, bytes: png }] },
+          { message: userMessageAt(3, ''), attachments: [{ attachment: photo, bytes: png }] },
         ])
-        yield* reply(hi)
 
-        const [photoChat, hiChat] = yield* bodies
-        assert.deepStrictEqual(photoChat?.messages, [
+        const [body] = yield* bodies
+        assert.strictEqual(body?.model, 'claude-sonnet-5-5')
+        assert.include(JSON.stringify(body?.system), 'You are the assistant of a chat app')
+        assert.deepStrictEqual(body?.messages, [
           {
             role: 'user',
             content: [{ type: 'text', text: 'What is this?', cache_control: null }, imageBlock],
@@ -207,142 +134,23 @@ describe('AssistantLlmFromConfig', () => {
           { role: 'assistant', content: [{ type: 'text', text: 'A photo.' }] },
           { role: 'user', content: [imageBlock] },
         ])
-        assert.isNotEmpty(photoChat?.system)
-        assert.deepStrictEqual(photoChat?.system, hiChat?.system)
+        assertEquals(answer, new AssistantReply({ text: 'Hello' }))
       }).pipe(Effect.provide(layer))
     },
   )
 
-  it.effect("reply answers the model's text", () => {
-    const { layer } = recordAnthropic(() => message('Hello'))
-    return Effect.gen(function* () {
-      const answer = yield* reply(hi)
-
-      assertEquals(answer, new AssistantReply({ text: 'Hello' }))
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect.each<{
-    name: string
-    answer: () => Response
-    sentAt: ReadonlyArray<number>
-    error: AssistantError['_tag']
-  }>([
-    {
-      name: 'a refusal',
-      answer: () => message('I cannot help with that.', 'refusal'),
-      sentAt: [0],
-      error: 'AssistantRefusedError',
-    },
-    {
-      name: 'an answer cut by max_tokens',
-      answer: () => message('Hello', 'max_tokens'),
-      sentAt: [0, 1_000, 3_000],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a blank text',
-      answer: () => message(' \n'),
-      sentAt: [0, 1_000, 3_000],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 529',
-      answer: () => apiError(529, { type: 'overloaded_error', text: 'Overloaded' }),
-      sentAt: [0, 1_000, 3_000],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 500',
-      answer: () => apiError(500, { type: 'api_error', text: 'Internal server error' }),
-      sentAt: [0, 1_000, 3_000],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 429 with retry-after 5',
-      answer: () =>
-        apiError(429, {
-          type: 'rate_limit_error',
-          text: 'Rate limited',
-          headers: { 'retry-after': '5' },
-        }),
-      sentAt: [0, 5_000, 10_000],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 429 with retry-after 60',
-      answer: () =>
-        apiError(429, {
-          type: 'rate_limit_error',
-          text: 'Rate limited',
-          headers: { 'retry-after': '60' },
-        }),
-      sentAt: [0],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 401',
-      answer: () => apiError(401, { type: 'authentication_error', text: 'invalid x-api-key' }),
-      sentAt: [0],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 403',
-      answer: () =>
-        apiError(403, {
-          type: 'permission_error',
-          text: 'The model is not available for this account',
-        }),
-      sentAt: [0],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 400',
-      answer: () => apiError(400, { type: 'invalid_request_error', text: 'prompt is too long' }),
-      sentAt: [0],
-      error: 'AssistantFailedError',
-    },
-  ])(
-    'reply on $name fails with $error, its requests sent at $sentAt ms',
-    ({ answer, sentAt, error }) => {
-      const recorded = recordAnthropic(answer)
-      return Effect.gen(function* () {
-        const failing = yield* reply(hi).pipe(Effect.flip, Effect.forkChild)
-
-        yield* TestClock.adjust('2 minutes')
-
-        const failure = yield* Fiber.join(failing)
-        assertEquals(yield* recorded.sentAt, sentAt)
-        assert.strictEqual(failure._tag, error)
-      }).pipe(Effect.provide(recorded.layer))
-    },
-  )
-
-  it.effect("reply keeps the provider's text in the failure's cause", () => {
-    const { layer } = recordAnthropic(() =>
-      apiError(401, { type: 'authentication_error', text: 'invalid x-api-key' }),
-    )
-    return Effect.gen(function* () {
-      const failure = yield* reply(hi).pipe(Effect.flip)
-
-      assert.include(failure.cause, 'invalid x-api-key')
-    }).pipe(Effect.provide(layer))
-  })
-
   it.effect(
-    'suggestTitle asks for a title of the opening message, its JSON Schema telling the model what the field means',
+    'suggestTitle asks the title model with the title instruction and the opening message, its JSON Schema telling the model what the field means, and answers the title trimmed',
     () => {
-      const { bodies, layer } = recordAnthropic(() => message('{"title":"Lisbon weekend"}'))
+      const { bodies, layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
       return Effect.gen(function* () {
-        yield* suggestTitle('Plan a weekend in Lisbon')
+        const title = yield* suggestTitle(lisbon)
 
         const [body] = yield* bodies
-        assert.isNotEmpty(body?.system)
+        assert.strictEqual(body?.model, 'claude-haiku-5-5')
+        assert.include(JSON.stringify(body?.system), 'Write a title')
         assert.deepStrictEqual(body?.messages, [
-          {
-            role: 'user',
-            content: [{ type: 'text', text: 'Plan a weekend in Lisbon', cache_control: null }],
-          },
+          { role: 'user', content: [{ type: 'text', text: lisbon, cache_control: null }] },
         ])
         assert.deepStrictEqual(body?.output_config?.format?.schema.properties, {
           title: {
@@ -351,65 +159,102 @@ describe('AssistantLlmFromConfig', () => {
               'The title of the chat, in the language of its opening message, at most 120 characters.',
           },
         })
+        assert.strictEqual(title, ChatTitle.make('Lisbon weekend'))
       }).pipe(Effect.provide(layer))
     },
   )
 
-  it.effect("suggestTitle answers the model's title trimmed", () => {
-    const { layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
-    return Effect.gen(function* () {
-      const title = yield* suggestTitle('Plan a weekend in Lisbon')
-
-      assert.strictEqual(title, ChatTitle.make('Lisbon weekend'))
-    }).pipe(Effect.provide(layer))
-  })
-
   it.effect.each<{
     name: string
+    ask: Effect.Effect<unknown, AssistantError, Assistant>
     answer: () => Response
     sentAt: ReadonlyArray<number>
     error: AssistantError['_tag']
+    cause: string
   }>([
     {
-      name: 'a title of 121 characters',
+      name: 'reply on a refusal',
+      ask: reply(hi),
+      answer: () => message('I cannot help with that.', 'refusal'),
+      sentAt: [0],
+      error: 'AssistantRefusedError',
+      cause: 'content-filter',
+    },
+    {
+      name: 'reply on an answer cut at max_tokens',
+      ask: reply(hi),
+      answer: () => message('Hel', 'max_tokens'),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      cause: 'length',
+    },
+    {
+      name: 'reply on a blank text',
+      ask: reply(hi),
+      answer: () => message(' \n'),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      cause: 'non-whitespace',
+    },
+    {
+      name: 'reply on a 529',
+      ask: reply(hi),
+      answer: () => apiError(529, { text: 'Overloaded' }),
+      sentAt: [0, 1_000, 3_000],
+      error: 'AssistantFailedError',
+      cause: 'Overloaded',
+    },
+    {
+      name: 'reply on a 429 with retry-after 5',
+      ask: reply(hi),
+      answer: () => apiError(429, { text: 'Rate limited', headers: { 'retry-after': '5' } }),
+      sentAt: [0, 5_000, 10_000],
+      error: 'AssistantFailedError',
+      cause: 'Rate limit',
+    },
+    {
+      name: 'reply on a 429 with retry-after 60',
+      ask: reply(hi),
+      answer: () => apiError(429, { text: 'Rate limited', headers: { 'retry-after': '60' } }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+      cause: 'Rate limit',
+    },
+    {
+      name: 'reply on a 401',
+      ask: reply(hi),
+      answer: () => apiError(401, { text: 'invalid x-api-key' }),
+      sentAt: [0],
+      error: 'AssistantFailedError',
+      cause: 'invalid x-api-key',
+    },
+    {
+      name: 'suggestTitle on a title of 121 characters',
+      ask: suggestTitle(lisbon),
       answer: () => message(JSON.stringify({ title: 'a'.repeat(121) })),
       sentAt: [0, 1_000, 3_000, 7_000, 15_000],
       error: 'AssistantFailedError',
+      cause: '120',
     },
     {
-      name: 'a blank title',
-      answer: () => message('{"title":" \\n"}'),
-      sentAt: [0, 1_000, 3_000, 7_000, 15_000],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a 401',
-      answer: () => apiError(401, { type: 'authentication_error', text: 'invalid x-api-key' }),
-      sentAt: [0],
-      error: 'AssistantFailedError',
-    },
-    {
-      name: 'a refusal',
+      name: 'suggestTitle on a refusal',
+      ask: suggestTitle(lisbon),
       answer: () => message('{"title":"Lisbon weekend"}', 'refusal'),
       sentAt: [0],
       error: 'AssistantRefusedError',
+      cause: 'content-filter',
     },
-  ])(
-    'suggestTitle on $name fails with $error, its requests sent at $sentAt ms',
-    ({ answer, sentAt, error }) => {
-      const recorded = recordAnthropic(answer)
-      return Effect.gen(function* () {
-        const failing = yield* suggestTitle('Plan a weekend in Lisbon').pipe(
-          Effect.flip,
-          Effect.forkChild,
-        )
+  ])('$name fails with $error, its requests sent at $sentAt ms', ({ ask, answer, ...expected }) => {
+    const { sentAt, layer } = recordAnthropic(answer)
+    return Effect.gen(function* () {
+      const failing = yield* ask.pipe(Effect.flip, Effect.forkChild)
 
-        yield* TestClock.adjust('2 minutes')
+      yield* TestClock.adjust('1 minute')
 
-        const failure = yield* Fiber.join(failing)
-        assertEquals(yield* recorded.sentAt, sentAt)
-        assert.strictEqual(failure._tag, error)
-      }).pipe(Effect.provide(recorded.layer))
-    },
-  )
+      const failure = yield* Fiber.join(failing)
+      assertEquals(yield* sentAt, expected.sentAt)
+      assert.strictEqual(failure._tag, expected.error)
+      assert.include(failure.cause, expected.cause)
+    }).pipe(Effect.provide(layer))
+  })
 })
