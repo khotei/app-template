@@ -69,20 +69,20 @@ headings has no `Completed in`: stop and say so.
    `git diff <fixed point>...<end>` is not empty, else stop and tell the user. The requirements
    are those whose `Completed in` in `plan.md › Requirement coverage` is stage `<n>`, and each
    one completed earlier whose steps' commits (the subject search of
-   `.claude/rules/commits.md › A ticket's rounds`) touched a file
+   `.claude/rules/rounds.md`) touched a file
    `git diff --name-only <fixed point>...<end>` lists.
 2. **Verify** them, grouped and briefed as `## Steps` 1 does, each brief naming the range's end
    too, the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No
    reviewer, since the stage's close reviewed its diff, and no lessons, which stay with the
    whole-ticket run. The step is done when every requirement of the list has a `pass`, `fail` or
    `not verifiable` verdict.
-3. **Fix a `fail`** before anything else runs: spawn an `implementer` with the ticket folder, the
-   id of the step whose code the fix changes and the verifier's evidence, on the step's
-   **Model** line, `opus high` when it names none. It is a `VERIFY` round of that step, committed
-   under the commit gate and the round rule of `.claude/rules/sdd.md`. Then verify only the
-   failed requirements again, on the same range, each brief also naming the `VERIFY` round's
-   commits. A failure that needs a requirement changed is the user's question: present it and
-   stop.
+3. **Fix a `fail`** before anything else runs: spawn an `implementer` with the ticket folder, the id
+   of the step whose code the fix changes and the verifier's evidence, on the step's **Model** line,
+   `opus high` when it names none, its brief naming the source `VERIFY`. It commits the fix as
+   `VERIFY` rounds of that step, under the commit gate and the round rule of `.claude/rules/sdd.md`.
+   Then verify only the failed requirements again, on the same range, each brief also naming the
+   `VERIFY` rounds' commits. A failure that needs a requirement changed is the user's question:
+   present it and stop.
 4. **Append** `## Stage <n> — <date>` to `verification.md`, in the template's shape: the verdict
    per requirement and the rounds that fixed a failure. Commit it under the commit gate, named as
    `.claude/rules/commits.md` says.
