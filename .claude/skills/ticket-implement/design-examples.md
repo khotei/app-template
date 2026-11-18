@@ -68,15 +68,9 @@ Cohesion: a new tier is one row, and the formula is written once.
 
 ```ts
 // before: a function per tier, the formula copied into each
-function priceRetail(order: Order) {
-  return withTax(subtotal(order), 0.2)
-}
-function priceWholesale(order: Order) {
-  return withTax(subtotal(order) * 0.9, 0.2)
-}
-function priceStaff(order: Order) {
-  return withTax(subtotal(order) * 0.7, 0)
-}
+const priceRetail = (order: Order) => withTax(subtotal(order), 0.2)
+const priceWholesale = (order: Order) => withTax(subtotal(order) * 0.9, 0.2)
+const priceStaff = (order: Order) => withTax(subtotal(order) * 0.7, 0)
 ```
 
 ```ts

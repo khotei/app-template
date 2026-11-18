@@ -32,6 +32,11 @@ interface MessageRead extends Omit<MessageEntity, 'run'> {
   readonly replyOf: RunColumns | null
 }
 
-export function buildMessageEntity({ latestRun, replyOf, ...message }: MessageRead): MessageEntity {
-  return { ...message, run: { user: latestRun, assistant: replyOf }[message.author] }
-}
+export const buildMessageEntity = ({
+  latestRun,
+  replyOf,
+  ...message
+}: MessageRead): MessageEntity => ({
+  ...message,
+  run: { user: latestRun, assistant: replyOf }[message.author],
+})

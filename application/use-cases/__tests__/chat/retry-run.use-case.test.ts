@@ -34,9 +34,8 @@ const replyJob = (runId: RunId) => ({
   message: new GenerateAssistantMessage({ runId }),
 })
 
-function replyJobsOf(sent: ReadonlyArray<SentMessage>) {
-  return Arr.filter(sent, ({ queue }) => queue === 'assistant-message')
-}
+const replyJobsOf = (sent: ReadonlyArray<SentMessage>) =>
+  Arr.filter(sent, ({ queue }) => queue === 'assistant-message')
 
 describe('RetryRunUseCase', () => {
   it.effect(

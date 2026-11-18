@@ -6,6 +6,4 @@ export interface QueueDefinition<S extends Schema.Top> {
 }
 
 /** The name of the queue an ARN names. */
-export function buildQueueName(arn: string): string {
-  return Arr.lastNonEmpty(Str.split(arn, ':'))
-}
+export const buildQueueName = (arn: string): string => Arr.lastNonEmpty(Str.split(arn, ':'))
