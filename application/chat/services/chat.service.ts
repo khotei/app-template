@@ -21,18 +21,17 @@ import { ChatId } from '#chat/domain/chat.id'
 import { buildChat, type Chat, type ChatTitle, renameChat } from '#chat/domain/chat.model'
 import { decodeChat, decodeChats, encodeChat } from '#chat/services/chat.mapper'
 
-/** The row found by `id`; every other field named must still hold, so an owner mismatch reads as absent. */
-export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
+/** The user's chat; another user's reads as absent. */
+export type ChatWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
 /** The chat a rename finds: by its owner, or only while it is still untitled. */
 export type ChatRenameWhere = Types.Simplify<
   Pick<Chat, 'id'> & RequireAtLeastOne<Pick<Chat, 'userId' | 'title'>>
 >
 
-/** The user's chat a delete finds. */
-export type ChatDeleteWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
+type ChatReadWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
 
-const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
+const encodeChatWhere = (where: ChatReadWhere): ChatEntityWhere =>
   Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
 
 export class ChatService extends Context.Service<
@@ -48,7 +47,7 @@ export class ChatService extends Context.Service<
       title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the user's chat with its messages, their attachments and the bytes. */
-    readonly delete: (where: ChatDeleteWhere) => Effect.Effect<void, ChatNotFoundError>
+    readonly delete: (where: ChatWhere) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
@@ -70,7 +69,7 @@ export class ChatService extends Context.Service<
       chats.selectMany({ userId }).pipe(Effect.flatMap(decodeChats)),
     )
 
-    const getOne = Effect.fn('ChatService.getOne')((where: ChatWhere) =>
+    const getOne = Effect.fn('ChatService.getOne')((where: ChatReadWhere) =>
       chats
         .selectOne(encodeChatWhere(where))
         .pipe(
@@ -93,7 +92,7 @@ export class ChatService extends Context.Service<
       return renamed
     })
 
-    const remove = Effect.fn('ChatService.delete')(function* (where: ChatDeleteWhere) {
+    const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
       const chat = yield* getOne(where)
 
       // The cascade takes the messages and their attachments; the bytes go by the ids read, never
