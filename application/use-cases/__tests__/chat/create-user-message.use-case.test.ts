@@ -56,6 +56,8 @@ import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
+const look = (id: AttachmentId): MessageInput => ({ text: 'Look', attachmentIds: [id] })
+
 /** An unbound attachment of `owner` in the library. */
 const photo = buildAttachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
@@ -74,6 +76,15 @@ const record = new Attachment({
   chatId: Option.some(chat.id),
   sourceId: Option.some(photo.id),
 })
+
+/** A library attachment whose bytes the store no longer holds. */
+const lost = new Attachment({
+  ...photo,
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000026'),
+})
+
+/** Every refusal a send answers before its first write. */
+const CreateRefusal = Schema.Union([ChatBusyError, AttachmentBoundError, AttachmentNotFoundError])
 
 /** Stores `photo`'s bytes, as its upload left them. */
 const storePhotoBytes = FileRepository.use((files) =>
@@ -318,72 +329,53 @@ describe('createUserMessage', () => {
     )
   })
 
-  it.effect('create while a Run is in work is ChatBusyError before any write or job', () => {
-    const jobs = recordMessages()
-    return Effect.gen(function* () {
-      const error = yield* createUserMessage(owner, chat.id, ask('And in Porto?')).pipe(Effect.flip)
-
-      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-      assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest(sendingTo(busyChat)).pipe(Layer.provideMerge(jobs.layer))))
-  })
-
-  it.effect(
-    'create with an attachment a message of the chat holds is AttachmentBoundError before any write',
-    () => {
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        yield* storePhotoBytes
-
-        const error = yield* createUserMessage(owner, chat.id, {
-          text: 'Again',
-          attachmentIds: [record.id],
-        }).pipe(Effect.flip)
-
-        assertSchemaEquals(
-          AttachmentBoundError,
-          error,
-          new AttachmentBoundError({ id: record.id, chatIds: [chat.id] }),
-        )
-      }).pipe(
-        Effect.provide(layerChatTest(sendingTo(chat, record)).pipe(Layer.provideMerge(jobs.layer))),
-      )
-    },
-  )
-
   it.effect.each([
     {
-      name: 'held by another chat',
-      ids: Arr.make(record.id),
-      found: [new Attachment({ ...record, chatId: Option.some(unknownChatId) })],
-      bytes: true,
+      name: 'while a Run is in work',
+      read: busyChat,
+      found: [],
+      input: ask('And in Porto?'),
+      error: new ChatBusyError({ id: chat.id }),
     },
     {
-      name: 'the store finds none of, as for another user',
-      ids: Arr.make(photo.id),
+      name: 'with an attachment a message of the chat holds',
+      read: chat,
+      found: [record],
+      input: look(record.id),
+      error: new AttachmentBoundError({ id: record.id, chatIds: [chat.id] }),
+    },
+    {
+      name: 'with an attachment held by another chat',
+      read: chat,
+      found: [new Attachment({ ...record, chatId: Option.some(unknownChatId) })],
+      input: look(record.id),
+      error: new AttachmentNotFoundError({ ids: [record.id] }),
+    },
+    {
+      name: 'with an attachment the store finds none of, as for another user',
+      read: chat,
       found: [],
-      bytes: true,
+      input: look(photo.id),
+      error: new AttachmentNotFoundError({ ids: [photo.id] }),
     },
-    { name: 'whose bytes are gone', ids: Arr.make(photo.id), found: [photo], bytes: false },
-  ])(
-    'create with an attachment $name is AttachmentNotFoundError before any write or job',
-    ({ ids, found, bytes }) => {
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        if (bytes) yield* storePhotoBytes
-
-        const error = yield* createUserMessage(owner, chat.id, {
-          text: 'Look',
-          attachmentIds: ids,
-        }).pipe(Effect.flip)
-
-        assertSchemaEquals(AttachmentNotFoundError, error, new AttachmentNotFoundError({ ids }))
-        assertEquals(yield* jobs.sent, [])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(sendingTo(chat, ...found)).pipe(Layer.provideMerge(jobs.layer)),
-        ),
-      )
+    {
+      name: 'with an attachment whose bytes are gone',
+      read: chat,
+      found: [lost],
+      input: look(lost.id),
+      error: new AttachmentNotFoundError({ ids: [lost.id] }),
     },
-  )
+  ])('create $name is refused before any write or job', ({ read, found, input, error }) => {
+    const jobs = recordMessages()
+    return Effect.gen(function* () {
+      yield* storePhotoBytes
+
+      const refused = yield* createUserMessage(owner, chat.id, input).pipe(Effect.flip)
+
+      assertSchemaEquals(CreateRefusal, refused, error)
+      assertEquals(yield* jobs.sent, [])
+    }).pipe(
+      Effect.provide(layerChatTest(sendingTo(read, ...found)).pipe(Layer.provideMerge(jobs.layer))),
+    )
+  })
 })
