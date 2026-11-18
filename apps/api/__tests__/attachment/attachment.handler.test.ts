@@ -209,8 +209,11 @@ describe('attachments', () => {
         }),
       )
 
+      const bucketHref = yield* FileRepository.use((files) =>
+        files.selectOne({ id: photo.id }),
+      ).pipe(Effect.map(Option.map((stored) => stored.url.href)))
       assert.strictEqual(response.status, 302)
-      assert.strictEqual(response.headers.location, `memory:attachments/${photo.id}`)
+      assert.deepStrictEqual(Option.some(response.headers.location), bucketHref)
     }).pipe(
       Effect.provide(
         layerApiTest(
