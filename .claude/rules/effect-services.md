@@ -25,8 +25,12 @@ paths:
 
 ## Services
 
-- A `Context.Service` only when something varies (the implementation, a test double, an injected
-  dependency) or several holders share one state; otherwise a plain function.
+- A `Context.Service` is one of four kinds; anything else is a plain function or constant:
+  - one a test or a second implementation stands in for: a port, a repository, `Transaction`,
+    the queue's sender;
+  - a client its layer builds once for every holder: the database, a bucket, the API client;
+  - a value a middleware provides to the handlers behind it (`HttpApiMiddleware`'s `provides`);
+  - a domain service, a use case or a `<Job>Sender` ([layering.md](layering.md)).
 - Its key is `'@app-template/<folder>/<Name>'`, `<folder>` its file's folder from the repository
   root, so the key says where to look.
 - One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:
