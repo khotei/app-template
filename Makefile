@@ -34,7 +34,7 @@ help: ## List all targets
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-16s %s\n", $$1, $$2 }'
 
 # Claude Code fetches a plugin from an outside source only when user settings enable it, so setup
-# installs mattpocock-skills, which the /ticket-* skills wrap; a machine without claude skips it.
+# installs mattpocock-skills, whose skills /lab calls; a machine without claude skips it.
 setup: ## Install dependencies and the Claude Code plugins, create .env from .env.example if missing
 	bun install
 	@if command -v claude >/dev/null; then \
@@ -66,7 +66,10 @@ reset: ## Remove MiniStack, the database's container and volume, the telemetry b
 
 # Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
 worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEEP=1, the branch stays]
-	@sh .claude/skills/ticket-implement/worktree.sh "$$N" "$$NAME" "$$KEEP"
+	@sh .claude/skills/lab/worktree.sh "$$N" "$$NAME" "$$KEEP"
+
+numbers: ## A lab's Numbers from git: [SLUG=<slug>] [RANGE=main..HEAD]
+	@sh .claude/skills/lab/numbers.sh "$$SLUG" "$${RANGE:-main..HEAD}"
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
 	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts
@@ -138,8 +141,8 @@ link-check: ## Check the relative links of README.md, docs/ and .claude/ with ly
 	@docker run --rm -v "$(CURDIR):/input:ro" -w /input $(LYCHEE_IMAGE) --offline --no-progress \
 		--exclude-path '^\.claude/worktrees/' README.md 'docs/**/*.md' '.claude/**/*.md'
 
-# /ticket-implement passes the parent of the step's first round as BASE and hands the list to the
-# Standards reviewer.
+# /lab passes the parent of the step's first round as BASE and hands the list to the Rules
+# reviewer.
 BASE = HEAD
 
 review-rules: ## List the rules that bind the diff from BASE (default HEAD): no paths: filter, or one it matches
