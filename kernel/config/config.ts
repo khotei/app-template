@@ -31,12 +31,12 @@ export const nodeEnv = Config.Literals(['development', 'test', 'production'], 'N
 
 export const logLevel = Config.LogLevel('LOG_LEVEL').pipe(Config.withDefault('Info'))
 
-/** Anthropic's key and the models that answer replies and titles. */
-export const llmConfig = Config.all({
-  apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
+export const anthropicApiKey = Config.Redacted('ANTHROPIC_API_KEY')
+
+/** The models that answer replies and titles. */
+export const llmModels = Config.all({
   replyModel: Config.String('LLM_REPLY_MODEL'),
   titleModel: Config.String('LLM_TITLE_MODEL'),
 })
-export type LlmConfig = Config.Success<typeof llmConfig>
 
 export const MinimumLogLevelFromConfig = Layer.effect(References.MinimumLogLevel, logLevel)

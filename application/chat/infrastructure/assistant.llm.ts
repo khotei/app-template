@@ -1,3 +1,4 @@
+import { AnthropicLanguageModel } from '@effect/ai-anthropic'
 import {
   Array as Arr,
   type Config,
@@ -18,8 +19,9 @@ import {
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
+import { llmModels } from '@app-template/kernel/config'
 import { maxTitleLength } from '@app-template/kernel/data'
-import { createLanguageModel } from '@app-template/kernel/llm'
+import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 
 import {
   type AssistantError,
@@ -170,20 +172,24 @@ const askWithin =
       Effect.mapError(toAssistantError),
     )
 
-const assistantModels = Effect.all({
-  reply: createLanguageModel({
-    model: Struct.get('replyModel'),
-    config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
-  }),
-  title: createLanguageModel({
-    model: Struct.get('titleModel'),
-    config: {
-      max_tokens: 1_000,
-      output_config: { effort: 'low' },
-      thinking: { type: 'disabled' },
-    },
-  }),
-})
+const assistantModels = llmModels.pipe(
+  Effect.flatMap(({ replyModel, titleModel }) =>
+    Effect.all({
+      reply: AnthropicLanguageModel.make({
+        model: replyModel,
+        config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
+      }),
+      title: AnthropicLanguageModel.make({
+        model: titleModel,
+        config: {
+          max_tokens: 1_000,
+          output_config: { effort: 'low' },
+          thinking: { type: 'disabled' },
+        },
+      }),
+    }),
+  ),
+)
 
 export const AssistantLlmFromConfig: Layer.Layer<
   Assistant,
@@ -210,4 +216,4 @@ export const AssistantLlmFromConfig: Layer.Layer<
       }),
     ),
   ),
-)
+).pipe(Layer.provide(AnthropicClientFromConfig))

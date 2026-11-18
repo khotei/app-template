@@ -5,7 +5,6 @@
   "exports": {
     "./aws": "./aws/index.ts",
     "./db": "./db/index.ts",
-    "./llm": "./llm/index.ts",
     "./queue": "./queue/index.ts",
     "./s3": "./s3/index.ts",
     "./testing": "./testing/index.ts",
@@ -18,7 +17,6 @@
   "imports": {
     "#aws/*": "./aws/*.ts",
     "#db/*": "./db/*.ts",
-    "#llm/*": "./llm/*.ts",
     "#queue/*": "./queue/*.ts",
     "#s3/*": "./s3/*.ts",
     "#testing/*": "./testing/*.ts",
@@ -31,7 +29,6 @@
   "dependencies": {
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
-    "@effect/ai-anthropic": "catalog:effect",
     "@effect/sql-pg": "catalog:effect",
     "@effect/vitest": "catalog:effect",
     "drizzle-orm": "catalog:drizzle",

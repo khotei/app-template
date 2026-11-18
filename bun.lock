@@ -20,11 +20,11 @@
       "dependencies": {
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
+        "@effect/ai-anthropic": "catalog:effect",
         "effect": "catalog:effect",
         "type-fest": "catalog:runtime",
       },
       "devDependencies": {
-        "@effect/ai-anthropic": "catalog:effect",
         "@effect/platform-bun": "catalog:effect",
         "@effect/vitest": "catalog:effect",
       },
@@ -103,6 +103,7 @@
         "@app-template/packages": "workspace:*",
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
+        "@effect/ai-anthropic": "catalog:effect",
         "@effect/platform-bun": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
         "drizzle-orm": "catalog:drizzle",
@@ -122,7 +123,6 @@
       "dependencies": {
         "@effect-aws/client-s3": "catalog:effect-aws",
         "@effect-aws/client-sqs": "catalog:effect-aws",
-        "@effect/ai-anthropic": "catalog:effect",
         "@effect/sql-pg": "catalog:effect",
         "@effect/vitest": "catalog:effect",
         "drizzle-orm": "catalog:drizzle",

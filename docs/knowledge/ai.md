@@ -3,12 +3,12 @@
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or its schema. The
 code: `AssistantLlmFromConfig`, the chat module's adapter of its `Assistant` port (the prompts,
-the schemas, one language model per purpose with its settings, the
-finish-reason hook, the retries and the failure mapping); `createLanguageModel` in the kernel
-(Anthropic's, with the key and the models of `ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and
-`LLM_TITLE_MODEL`); the Anthropic builder in `packages/llm`; and those settings in
-`@app-template/kernel/config`. The adapter's suite runs over a
-fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
+the schemas, one `AnthropicLanguageModel` per purpose with its model of `LLM_REPLY_MODEL` or
+`LLM_TITLE_MODEL` and its settings, the finish-reason hook, the retries and the failure
+mapping); `AnthropicClientFromConfig` in `@app-template/kernel/llm` (Anthropic's client with the
+key of `ANTHROPIC_API_KEY`); and those settings in `@app-template/kernel/config`. The adapter's
+suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key
+or the network.
 
 Every module named here is unstable at the pinned version: check an API against the vendored
 sources (`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`)
@@ -19,8 +19,8 @@ before using it, and read this page again after an upgrade.
 ```mermaid
 graph LR
   P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlmFromConfig<br/>Prompt.make · generateObject"]
-  L -->|"reply · title"| K["createLanguageModel<br/>the models by LLM_*_MODEL"]
-  K --> A["AnthropicLanguageModel<br/>AnthropicClient · HttpClient"]
+  L -->|"reply · title"| A["AnthropicLanguageModel<br/>the models by LLM_*_MODEL"]
+  A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
 
 1. `reply` turns the chat's messages into a `Prompt`: the fixed system prompt first, then
@@ -53,8 +53,8 @@ The e2e journey runs no language model: its stand gives the worker a scripted `A
 - No `temperature` is sent: the package sends none by default, and the Claude 5 models want it
   left out.
 - Anthropic's requests wait up to 10 minutes for a byte (`transformClient` on
-  `AnthropicClient.make` in `createLanguageModelAnthropic`): Bun's `fetch` cuts a silent request
-  at 360 s, and a non-streamed answer of 16 000 tokens arrives only at the end.
+  `AnthropicClient.layer` in `AnthropicClientFromConfig`): Bun's `fetch` cuts a silent request at
+  360 s, and a non-streamed answer of 16 000 tokens arrives only at the end.
 
 ## Failures and retries
 
@@ -133,5 +133,5 @@ Four modules a reader would reach for are left alone on purpose: `Chat`, since t
 in the database and every request is rebuilt from it; `Model`, since the adapter holds two
 `LanguageModel` values, one per purpose; `ResponseIdTracker`, since Anthropic's Messages API keeps
 no server-side conversation; and `AnthropicConfig`, since the wait is set once, on
-`AnthropicClient.make`, for every request. What every other module of the two vendored folders
+`AnthropicClient.layer`, for every request. What every other module of the two vendored folders
 is: its first comment.

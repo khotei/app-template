@@ -351,27 +351,32 @@ no app.
 
 ### The language model in the kernel
 
-The language-model technology lives in `packages/llm` (the provider builders) and `kernel/llm`
-(Anthropic's, configured by `ANTHROPIC_API_KEY` and the two `LLM_*_MODEL` settings); `chat` keeps
-only `AssistantLlmFromConfig` with its prompts and its purposes, and its test builds the models
-from those settings.
+`kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
+`ANTHROPIC_API_KEY`, a 10-minute wait for a byte); `chat`'s `AssistantLlmFromConfig` builds its
+two models over that client with `AnthropicLanguageModel.make`, each with its model of
+`LLM_REPLY_MODEL` or `LLM_TITLE_MODEL` and its request settings, beside its prompts; its test
+builds the adapter from those settings.
 
-- **Why:** a second provider is added in one place; the test takes the path the app takes.
-  `AssistantLlmFromConfig` builds both models itself, since a service between them failed the
-  deletion test.
+- **Why:** the kernel configures this client as it does Postgres (`PgClientFromConfig`), and the
+  adapter, which holds Anthropic's request settings anyway, builds its models where it uses them.
+  The two functions that stood between them, `createLanguageModel` in the kernel and
+  `createLanguageModelAnthropic` in a package of its own, had one caller each and forwarded its
+  arguments. The test takes the path the app takes.
 - **Sources:** `docs/knowledge/ai.md`; the roadmap's `openai-provider` and `bedrock-provider`.
-- **Rejected:** a provider layer kept only for the test: an interface only a test uses. The test
-  building the models itself: it would copy chat's settings and check its copy.
-- **Cost:** the test's setup names the environment variables; a purpose is still keyed by
-  provider and carries Anthropic's request settings, so a second provider adds a key in `chat`
-  too.
+- **Rejected:** a builder in `kernel/llm` taking a purpose: its parameter was typed by Anthropic's
+  request settings, so the adapter held one provider's settings all the same. A provider layer
+  kept only for the test: an interface only a test uses. The test building the models itself: it
+  would copy chat's settings and check its copy.
+- **Cost:** chat's adapter names the provider's package, and `@effect/ai-anthropic` is a runtime
+  dependency of the application workspace and of the kernel; a second provider changes both,
+  its client layer in `kernel/llm` and its models in the adapter. No test checks the 10-minute
+  wait.
 - **Guarded by:** the row of a module's `services/` in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); the
   `AssistantLlmFromConfig` suite over a recording client.
-- **If reversed:** the provider choice moves back into `chat`, and each new provider changes the
-  module.
-- **Revisit when:** `openai-provider` lands: it decides a provider-neutral purpose, translated
-  inside `kernel/llm`.
+- **If reversed:** a function between the adapter and the library comes back, and its signature
+  carries the provider's request settings.
+- **Revisit when:** a second provider lands.
 
 ### The data at the centre
 

@@ -22,6 +22,7 @@
     "@app-template/packages": "workspace:*",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
+    "@effect/ai-anthropic": "catalog:effect",
     "@effect/platform-bun": "catalog:effect",
     "@effect/sql-pg": "catalog:effect",
     "drizzle-orm": "catalog:drizzle",
