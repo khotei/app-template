@@ -209,59 +209,32 @@ touches no row:
   first and accepts the overshoot, one row per concurrent create; the `FOR UPDATE` read that
   would close it is rejected in
   [decisions.md › Guards in the write, no lock](decisions.md#guards-in-the-write-no-lock).
-- **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
-  `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
-  `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
-  where the rows match `where` (`ChatEntityWhere`, `AttachmentEntityWhere`: a key, one id or a
-  list of them for attachments, and optionally a field the row must still hold, `null` rendering
-  `IS NULL`). The repository picks the set's columns and maps the `where` through `buildWhere`
-  (above); a service encodes the changed model and writes the set's fields
-  from the row, and `encodeChatWhere` turns the `Option` of a chat's `where` into `null`. Both
-  die when they write nothing.
-  - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
-    (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
-    none`, so a rename landing between the two wins and the title job dies and fails.
-  - The send reads its attachments through `FileAttachmentService.getMany`, which takes no lock
-    and reads no bytes, and refuses one whose bytes the store no longer has
-    (`AttachmentNotFoundError`); the send then refuses one of another chat
-    (`ensureAllReachableFrom`, `AttachmentNotFoundError`) and one a message holds
-    (`ensureAllUnbound`, `AttachmentBoundError`, 409), all before its first write. Once its
-    message is stored, `FileAttachmentService.bind` inserts, for each library attachment, the
-    chat's record of it: a row of its own, bound to the message, that names the attachment in
-    `source_id`. The library attachment's row is not written, so two sends of one attachment
-    never meet on a row and each chat gets its record. One its owner deletes between the read
-    and the write fails the record's insert on `attachments_source_id_fk`, and the send dies
-    (500), rolled back whole. An attachment of the chat itself is bound on its own row `where`
-    `messageId` is still `none`, a write that dies unless it binds every row it names; a send
-    with none skips that write, which would die on no rows.
-  - `FileAttachmentService.delete` reads the records sent from the attachment and refuses it
-    while a message holds it or one of them (`ensureUnbound`, `ensureUnused`,
-    `AttachmentBoundError` naming the chats, 409), then deletes it through
-    `AttachmentService.delete` with its guard, `where` `messageId` is still `none`, and the
-    bytes after the row, so a send binding it in between makes the delete die and keeps the
-    bytes; so does a send that adds a record of it in between, on `attachments_source_id_fk`.
-    `AttachmentService.delete` deletes many attachments by the full `where` it is given, then
-    their bytes in one call, so without the guard it removes bound ones too.
+- **Update of some fields under a `where`.** A service reads by the caller's `where` to name the
+  refusal, then writes only the changed fields under the same `where`, so a row another writer
+  changed in between is missed and the write dies. A repository's `update(set, where)` takes a
+  set that is `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck, and a
+  `where` of a key and optionally a field the row must still hold, mapped through `buildWhere`
+  (above). The worked case is a chat's rename: the title job renames `where` `title` is still
+  `none`, so a rename landing between its read and its write wins, and the title job dies and
+  fails.
+- **A row of its own, not a shared one.** A send binds a library attachment by inserting the
+  chat's record of it, a row bound to the message that names the attachment in `source_id`, and
+  never writes the library attachment's row, so two sends of one attachment never meet on a row.
+  A delete of the attachment between a send's read and its insert fails the insert on
+  `attachments_source_id_fk`, and the send dies (500), rolled back whole.
 
-`ChatRepository.delete(where)` is one statement and dies when it removes nothing; its messages,
-its attachments and its Runs go by the cascade, and `RETURNING` answers only the chat's row.
-`ChatService.delete` therefore reads the chat with its attachments to name `ChatNotFoundError`,
-then deletes the chat, then the bytes, through
-`FileRepository.delete` (one `DeleteObjects` per 1000 keys). A file a concurrent send binds
-between the read and the delete loses its row with the chat while its bytes stay in S3: the price
-of a delete with no transaction.
+`ChatRepository.delete(where)` is one statement: the chat's messages, attachments and Runs go by
+the cascade, and the service deletes the bytes after the row, with no transaction. A file a
+concurrent send binds between the service's read and the delete loses its row with the chat while
+its bytes stay in S3.
 
 ## Transactions
 
 A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable of
 the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.withTransaction`), and
 every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
-fiber's context, so no repository takes a transaction parameter. `CreateUserMessageUseCase.create`
-writes the user message, its attachments' rows and the Run, or keeps none of them, and sends its
-jobs after the commit. The guards above then decide every race inside Postgres, with no lock in
-the process: of two sends to one chat the second's Run insert waits on the index entry the first
-holds and, once the first commits, finds an active Run; two sends of one library attachment write
-only rows of their own and never wait on each other. Two api processes behave as two fibers. S3
+fiber's context, so no repository takes a transaction parameter. The guards above decide every
+race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3
 stays outside the transaction: the bytes are kept before the bind and deleted before the commit,
 so a rollback restores rows that a retry still finds. SQS joins none either: the sends follow the
 commit ([The sends](#the-sends)).
@@ -290,8 +263,7 @@ chat's title) is the one the worker reads
 - **A send SQS refuses** is logged with the job's id and its chat's. The reply's sender beside
   the use cases also fails its Run with `ReplyFailed` and answers `503 RunNotQueuedError`, the
   message stored and shown failed with its retry; the title's is only logged, by the use case
-  that sends it. A process that dies between the commit and the send, or a client that aborts
-  there, leaves the Run queued and its chat busy ([Stuck Runs](#stuck-runs)).
+  that sends it. A send that never happens after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 
