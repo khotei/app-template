@@ -37,7 +37,7 @@ the container, so `make down` followed by `make up`, which replaces the containe
   workspace: one pays off once logic shared by processes appears, such as the flush before a
   Lambda invocation ends.
 - The trace crosses SQS in the message: `QueueSender.send` puts its span's W3C `traceparent` into
-  the message attributes, and `QueueConsumer` runs each record in a consumer span with that parent.
+  the message attributes, and `consumeQueue` runs each record in a consumer span with that parent.
   The process span is a child, not a link: one trace per user message, so its length includes the
   wait in the queue, and each redelivery adds one more `process` subtree.
 

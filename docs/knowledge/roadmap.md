@@ -664,7 +664,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
     SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
     deleting them. A run needs no status of its own: the queue's lock covers it.
   - The worker writes each outcome back by `queue` and `job_id`, which SQS carries in the
-    message's attributes: a wrapper of `QueueConsumer` in `kernel/queue`, since
+    message's attributes: a wrapper of `consumeQueue` in `kernel/queue`, since
     `packages/queue` knows no database.
   - Attachment deletions are jobs of this ledger: a statement-level trigger `AFTER DELETE ON
     attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
@@ -954,6 +954,10 @@ and deletes it here.
   `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
   looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
   resolve the queue's URL once when the layer is built.
+- (2026-11-18) The lookup of a queue's URL has no span since the design audit folded
+  `QueueClient` into `QueueSender.layer`: its time shows only inside `QueueSender.send`'s own.
+  Left: the audit added no span. Ways out to weigh: one `Effect.withSpan` on the lookup's
+  `Cache.get` when the item above is measured, or none.
 
 ## Ideas to weigh
 
@@ -1009,7 +1013,7 @@ For `jobs` (22) and `aws-deployment` (9), and the record
 [Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
-  the jobs in a Postgres table and replaces our queue: `packages/queue` (`QueueConsumer`,
+  the jobs in a Postgres table and replaces our queue: `packages/queue` (`consumeQueue`,
   `QueueSender`, `QueueTransport` over SQS), `kernel/queue` (`QueueSenderJobs`, `JobRelay`,
   `QueueConsumerSqs`), `kernel/data/job`, the dead-letter handlers and definitions, the SQS queues
   in `deployment/`, three queue variables: about 610 lines of code and 960 of tests.

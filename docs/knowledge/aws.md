@@ -133,7 +133,7 @@ before the row that binds them and deletes them once the rows are gone.
 
 ## Queues
 
-`QueueSender` and `QueueConsumer` (`packages/queue`) are the two sides of SQS: the first encodes a
+`QueueSender` and `consumeQueue` (`packages/queue`) are the two sides of SQS: the first encodes a
 message by its definition's schema ([database.md › The sends](database.md#the-sends)), the second
 decodes each body by it. A definition's queue is `buildResourceName(STAGE, definition.name)`.
 
@@ -162,7 +162,7 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 
-`QueueConsumer` calls no SQS, so its suite needs none.
+`consumeQueue` calls no SQS, so its suite needs none.
 
 ## Tests on Docker
 
