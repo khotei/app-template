@@ -72,15 +72,19 @@ describe('QueueSender', { concurrent: false }, () => {
     }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
   )
 
-  it.live('a send SQS refuses fails with QueueError', () =>
+  it.live('a send SQS refuses fails with QueueError, and the next looks the URL up again', () =>
     Effect.gen(function* () {
+      const { stage } = yield* AwsConfig
       const sqs = yield* SQSService
       const url = yield* queueUrl
       yield* sqs.deleteQueue({ QueueUrl: url })
 
-      const exit = yield* Effect.exit(send)
+      const refused = yield* Effect.exit(send)
+      yield* sqs.createQueue({ QueueName: buildResourceName(stage, sampleQueue.name) })
+      const resent = yield* Effect.exit(send)
 
-      assert.isTrue(Exit.hasFails(exit))
+      assert.isTrue(Exit.hasFails(refused))
+      assert.isTrue(Exit.isSuccess(resent))
     }).pipe(Effect.provide(QueueSenderTest)),
   )
 })
