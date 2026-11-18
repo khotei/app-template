@@ -14,7 +14,6 @@
       "Bash(make *)",
       "Bash(bun *)",
       "Bash(bunx *)",
-      "Bash(lychee *)",
 
       "Bash(ls *)",
       "Bash(cat *)",
@@ -62,7 +61,6 @@
 
       "Bash(docker ps*)",
       "Bash(docker logs*)",
-      "Bash(docker compose ps*)",
       "Bash(claude -p *)",
       "Bash(claude mcp list*)",
       "Bash(claude plugin list*)",
