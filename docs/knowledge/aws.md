@@ -16,7 +16,7 @@ the bind mount of `.data/ministack` and the health check with `wait: true`, so `
 only once MiniStack answers. The program reads `AwsConfig` from `.env` (how `make up` passes it:
 [tooling.md › Environment](tooling.md#environment)): MiniStack's default region is `AWS_REGION`,
 its 4566 is published on the endpoint's port, and the container is named
-`app-template-ministack-<port>`, so the stacks of several trees share no port, container or state.
+`app-template-<STAGE>-ministack`, so the stacks of several trees share no port, container or state.
 A new name or image replaces the container, the old one deleted first because it holds the port.
 
 Through an `aws.Provider` that waits for the healthy container, the same program creates inside
@@ -70,7 +70,7 @@ path-style addressing; without one, the SDK's own endpoints.
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it (<https://www.pulumi.com/docs/install/>). `make check` does not need it |
 | an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
 | the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
-| the endpoint's port is taken | the container fails to start; free the port (a leftover `app-template-ministack-<port>`, or another emulator) |
+| the endpoint's port is taken | the container fails to start; free the port (a leftover MiniStack container, or another emulator) |
 | `make up` failed midway | run it again; it goes on from what it created |
 | you want a clean slate | `make reset` also wipes the database, not only MiniStack |
 

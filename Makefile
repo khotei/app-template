@@ -23,13 +23,9 @@ FAST_PROVIDER = VCR_MODE=REPLAY_ONLY VCR_PATH=unused
 
 # Why the recipes export .env: docs/knowledge/tooling.md › Environment.
 EXPORT_ENV = set -a && . ./.env && set +a
-# The pair of the container name in deployment/local/ministack.ts; a stack output would not do,
-# since `make reset` deletes the state.
-NAME_MINISTACK = ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
-# The pair of the container name in deployment/local/telemetry.ts, for the same reason.
-NAME_TELEMETRY = telemetry=app-template-telemetry-$$(echo "$$OTEL_EXPORTER_OTLP_ENDPOINT" | sed -E 's/.*:([0-9]+).*/\1/')
-# The pair of the identifier in deployment/aws/database.ts, for the same reason.
-NAME_DATABASE = database=app-template-$$STAGE-database
+# Every container and volume of the tree's stand holds the kernel's name prefix of its stage,
+# the database's container and volume, which MiniStack names, included.
+STAND = name=app-template-$$STAGE-
 DRIZZLE_CONFIG = kernel/data/drizzle.config.ts
 
 help: ## List all targets
@@ -59,16 +55,13 @@ up: stack ## Start MiniStack and the telemetry backend, create the database, buc
 	@$(EXPORT_ENV) && echo "Grafana: http://localhost:$$GRAFANA_PORT (admin/admin)"
 
 down: ## Stop MiniStack, which stops the database's container, and the telemetry backend; every resource keeps its data
-	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_TELEMETRY) && \
-		docker ps -q --filter "name=^$$ministack$$" --filter "name=^$$telemetry$$" | xargs -r docker stop
+	$(EXPORT_ENV) && docker ps -q --filter "$(STAND)ministack" --filter "$(STAND)telemetry" | xargs -r docker stop
 
 # A killed MiniStack leaves the database's container running; why no destroy runs:
 # docs/knowledge/aws.md.
 reset: ## Remove MiniStack, the database's container and volume, the telemetry backend, the tree's MCP containers, .data/
-	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_TELEMETRY) && $(NAME_DATABASE) && \
-		docker rm -f "$$ministack" "$$telemetry" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") \
-			$$(docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)") && \
-		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
+	$(EXPORT_ENV) && { docker ps -aq --filter "$(STAND)"; docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)"; } | \
+		xargs -r docker rm -fv && docker volume ls -q --filter "$(STAND)" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
 # Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
