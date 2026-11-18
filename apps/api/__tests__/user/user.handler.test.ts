@@ -3,9 +3,9 @@ import { Duration, Effect, Option } from 'effect'
 import { Cookies, type HttpClientResponse } from 'effect/http'
 
 import { owner } from '@app-template/application/chat/testing'
-import { ApiClient } from '@app-template/http-api'
 
 import { layerApiTest, ownerCookie, signedIn } from '#testing/api.test-layer'
+import { ApiClient } from '#testing/api-client.test-layer'
 
 const issuedCookie: Cookies.Cookie['options'] = {
   maxAge: Duration.seconds(31_536_000),

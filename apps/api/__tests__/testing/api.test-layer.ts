@@ -3,7 +3,6 @@ import { ConfigProvider, DateTime, Effect, Layer, Option, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 
 import { owner } from '@app-template/application/chat/testing'
-import { ApiClient } from '@app-template/http-api'
 import {
   AttachmentRepository,
   ChatRepository,
@@ -17,6 +16,7 @@ import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
 
 import { ApiHttp } from '#api/layer'
+import { ApiClient } from '#testing/api-client.test-layer'
 
 /** The whole api process, clients and all, for the e2e journey that runs it beside the worker. */
 export { ApiLayer } from '#api/layer'

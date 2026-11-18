@@ -3,13 +3,14 @@ import { Array as Arr, Effect, Option, Order, Predicate, Schedule } from 'effect
 import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
+import { ApiClient } from '@app-template/api/testing'
 import {
   type AttachmentId,
   type ChatId,
   isActiveRun,
   type RunId,
 } from '@app-template/application/chat'
-import { ApiClient, AttachmentBoundError } from '@app-template/http-api'
+import { AttachmentBoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 

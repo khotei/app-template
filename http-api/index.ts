@@ -1,5 +1,4 @@
 export * from '#http-api/api'
-export * from '#http-api/api.client'
 export * from '#http-api/attachment/api-attachment.error'
 export * from '#http-api/attachment/api-attachment.http'
 export * from '#http-api/attachment/api-attachment.model'

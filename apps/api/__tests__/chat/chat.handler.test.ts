@@ -15,7 +15,6 @@ import {
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import {
-  ApiClient,
   ChatNotFoundError,
   MessageNotFoundError,
   RequestInvalidError,
@@ -31,6 +30,7 @@ import {
   ownerCookie,
   signedIn,
 } from '#testing/api.test-layer'
+import { ApiClient } from '#testing/api-client.test-layer'
 
 /** An api where `owner` is signed in, over the stores `mocks` give. */
 const asOwner = (mocks: ApiRepositoryMocks = {}) =>
