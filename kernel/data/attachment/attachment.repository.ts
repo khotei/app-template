@@ -72,8 +72,10 @@ export class AttachmentRepository extends Context.Service<
             .pipe(orDieUnless(hasRowPer(where.id), 'an attachment named was not updated')),
         orDieWithSqlError,
       ),
-      selectOne: (where: AttachmentEntitySelectWhere) =>
-        selectMany(where).pipe(Effect.map(Arr.head)),
+      selectOne: Effect.fn('AttachmentRepository.selectOne')(
+        (where: AttachmentEntitySelectWhere) => selectMany(where),
+        Effect.map(Arr.head),
+      ),
       selectMany,
       delete: Effect.fn('AttachmentRepository.delete')(
         (where: AttachmentEntityWhere) =>
