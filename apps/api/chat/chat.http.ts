@@ -31,19 +31,9 @@ import { Auth } from '#api/shared/security'
 /** A Run's failure on the wire: its user-facing sentence, never its cause. */
 const ApiRunFailure = Schema.OptionFromNullOr(RunFailure.mapFields(Struct.omit(['cause'])))
 
-const ApiRunFields = RunFields.mapFields(
-  flow(
-    Struct.omit(['userMessageId', 'assistantMessageId']),
-    Struct.assign({ failure: ApiRunFailure }),
-  ),
-)
+const ApiRunFields = RunFields.mapFields(Struct.assign({ failure: ApiRunFailure }))
 
-const ApiRun = Run.mapFields(
-  flow(
-    Struct.omit(['userMessageId', 'assistantMessageId']),
-    Struct.assign({ failure: ApiRunFailure }),
-  ),
-)
+const ApiRun = Run.mapFields(Struct.assign({ failure: ApiRunFailure }))
 
 const ApiMessage = Message.mapFields(Struct.assign({ run: Schema.OptionFromNullOr(ApiRunFields) }))
 
