@@ -279,7 +279,7 @@ chat's title) is the one the worker reads
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
 - **A send SQS refuses** is settled by the job's sender beside the use cases, which logs it with
-  the job's ids: the reply's also fails its Run with `ReplyFailed` and answers
+  the job's id and its chat's: the reply's also fails its Run with `ReplyFailed` and answers
   `503 RunNotQueuedError`, the message stored and shown failed with its retry. A process that
   dies between the commit and the send, or a client that aborts there, leaves the Run queued and
   its chat busy ([Stuck Runs](#stuck-runs)).

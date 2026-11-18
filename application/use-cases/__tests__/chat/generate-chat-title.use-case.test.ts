@@ -34,7 +34,7 @@ const trip = ChatTitle.make('Trip')
 const renameChat = ChatRepository.use((chats) => chats.update({ title: trip }, { id: chatId }))
 
 const generate = GenerateChatTitleUseCase.use((useCase) =>
-  useCase.generate(new GenerateChatTitle({ chatId, messageId })),
+  useCase.generate(new GenerateChatTitle({ messageId })),
 )
 
 const heldAnswer = (held: AssistantCallHold) =>

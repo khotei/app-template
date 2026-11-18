@@ -5,7 +5,7 @@ import { Array as Arr, ConfigProvider, Effect, Layer, Ref } from 'effect'
 import { HttpClient, HttpClientRequest, HttpRouter } from 'effect/http'
 
 import { GenerateChatTitle } from '@app-template/application/chat'
-import { chatId, messageId } from '@app-template/application/chat/testing'
+import { messageId } from '@app-template/application/chat/testing'
 import {
   GenerateAssistantMessageUseCase,
   GenerateChatTitleUseCase,
@@ -46,7 +46,7 @@ describe('POST /events', () => {
       ),
     )
     return Effect.gen(function* () {
-      const record = buildRecord('app-template-test-chat-title', { chatId, messageId })
+      const record = buildRecord('app-template-test-chat-title', { messageId })
 
       const response = yield* HttpClientRequest.post('/events').pipe(
         HttpClientRequest.bodyJsonUnsafe({ Records: [record] }),
@@ -55,7 +55,7 @@ describe('POST /events', () => {
 
       assert.strictEqual(response.status, 200)
       assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
-      assertEquals(yield* titles.jobs, [new GenerateChatTitle({ chatId, messageId })])
+      assertEquals(yield* titles.jobs, [new GenerateChatTitle({ messageId })])
     }).pipe(Effect.provide(events))
   })
 })

@@ -43,16 +43,11 @@ export class AssistantMessageSender extends Context.Service<
     })
 
     const send = Effect.fn('AssistantMessageSender.send')((run: Run) =>
-      queue
-        .send(
-          assistantMessageQueue,
-          new GenerateAssistantMessage({ chatId: run.chatId, runId: run.id }),
-        )
-        .pipe(
-          Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
-          Effect.catchTag('QueueError', (error) => failUnsent(run, error)),
-          Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
-        ),
+      queue.send(assistantMessageQueue, new GenerateAssistantMessage({ runId: run.id })).pipe(
+        Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
+        Effect.catchTag('QueueError', (error) => failUnsent(run, error)),
+        Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
+      ),
     )
 
     return { send }
@@ -72,16 +67,11 @@ export class ChatTitleSender extends Context.Service<
     const queue = yield* QueueSender
 
     const send = Effect.fn('ChatTitleSender.send')((message: MessageFields) =>
-      queue
-        .send(
-          chatTitleQueue,
-          new GenerateChatTitle({ chatId: message.chatId, messageId: message.id }),
-        )
-        .pipe(
-          Effect.tapError((error) => Effect.logError('chat title not queued', error)),
-          Effect.catchTag('QueueError', () => Effect.void),
-          Effect.annotateLogs({ chatId: message.chatId, messageId: message.id }),
-        ),
+      queue.send(chatTitleQueue, new GenerateChatTitle({ messageId: message.id })).pipe(
+        Effect.tapError((error) => Effect.logError('chat title not queued', error)),
+        Effect.catchTag('QueueError', () => Effect.void),
+        Effect.annotateLogs({ chatId: message.chatId, messageId: message.id }),
+      ),
     )
 
     return { send }

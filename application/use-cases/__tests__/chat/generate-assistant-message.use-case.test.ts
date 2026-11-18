@@ -124,7 +124,7 @@ const doneElsewhere = new Run({
   assistantMessage: Option.some(elsewhereReply),
 })
 
-const job = new GenerateAssistantMessage({ chatId, runId: queuedRun.id })
+const job = new GenerateAssistantMessage({ runId: queuedRun.id })
 
 const generate = GenerateAssistantMessageUseCase.use((useCase) => useCase.generate(job))
 

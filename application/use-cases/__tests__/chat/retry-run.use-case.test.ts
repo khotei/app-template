@@ -28,7 +28,7 @@ import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
 
 const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
-  message: new GenerateAssistantMessage({ chatId: chat.id, runId }),
+  message: new GenerateAssistantMessage({ runId }),
 })
 
 describe('RetryRunUseCase', () => {

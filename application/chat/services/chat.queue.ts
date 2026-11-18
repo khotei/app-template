@@ -3,7 +3,7 @@ import { Schema } from 'effect'
 import { resources } from '@app-template/kernel/aws'
 import type { QueueDefinition } from '@app-template/packages/queue'
 
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { MessageId, RunId } from '#chat/domain/chat.id'
 
 const { assistantMessage, chatTitle } = resources.queues
 
@@ -11,7 +11,6 @@ const { assistantMessage, chatTitle } = resources.queues
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
 )({
-  chatId: ChatId,
   runId: RunId,
 }) {}
 
@@ -20,9 +19,8 @@ export const assistantMessageQueue = {
   schema: GenerateAssistantMessage,
 } satisfies QueueDefinition<typeof GenerateAssistantMessage>
 
-/** `messageId` is the chat's first user message; the worker reads its text from the store. */
+/** `messageId` is the chat's first user message; the worker reads the rest from its row. */
 export class GenerateChatTitle extends Schema.Class<GenerateChatTitle>('GenerateChatTitle')({
-  chatId: ChatId,
   messageId: MessageId,
 }) {}
 

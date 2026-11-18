@@ -414,6 +414,11 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   lines, a flush after it held by an `INVOKE`-registered process, or the Collector extension
   copied into the image, since no ADOT layer exists for `provided.al2023`; the shutdown window is
   2 s with LWA, below the exporter's 3 s default).
+- **Inherits from the design audit (2026-11-18).** A job's reader is released before its writer
+  stops sending a field: a body with a field its schema no longer has decodes with the field
+  dropped, while a reader of the old build refuses a body without it (`Missing key`), the case
+  [aws.md › Queues](aws.md#queues) logs and acknowledges unrun. The reply and title jobs lost `chatId`
+  this way.
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
   runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)

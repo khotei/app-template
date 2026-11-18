@@ -51,7 +51,7 @@ export class GenerateChatTitleUseCase extends Context.Service<
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
       yield* chatService
-        .rename({ id: job.chatId, title: Option.none() }, title.value)
+        .rename({ id: first.value.chatId, title: Option.none() }, title.value)
         .pipe(Effect.catchTag('ChatNotFoundError', () => titleSkipLogs.deletedOrTitled))
     }, Effect.catch(logAssistantFailure))
 

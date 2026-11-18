@@ -66,7 +66,7 @@ const settle = (run: Run) =>
 
 const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
-  message: new GenerateAssistantMessage({ chatId: chat.id, runId }),
+  message: new GenerateAssistantMessage({ runId }),
 })
 
 describe('CreateUserMessageUseCase', () => {
@@ -156,7 +156,7 @@ describe('CreateUserMessageUseCase', () => {
           replyJob(first.id),
           {
             queue: 'chat-title',
-            message: new GenerateChatTitle({ chatId: chat.id, messageId: first.userMessageId }),
+            message: new GenerateChatTitle({ messageId: first.userMessageId }),
           },
           replyJob(second.id),
         ])
