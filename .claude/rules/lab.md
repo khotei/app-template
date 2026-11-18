@@ -75,6 +75,6 @@ The agent never rewrites an owner's line, and reports each write to the file in 
   before its body is `it.effect.fails` over a body of `Effect.die('todo')`; the piece that writes
   the body removes `.fails`. Every commit is green.
 - A piece lands as rounds, one per unit (`.claude/rules/commits.md › A commit's unit`), each
-  committed once `make check` is green, before the owner reads it, named by `› A ticket's rounds`.
+  committed once `make check` is green, before the owner reads it, named by `.claude/rules/rounds.md`.
   The owner's edits found between rounds commit first, as an `OWNER` round. A commit the owner
   has seen is never amended; a push, a PR and a merge wait for the owner's word.

@@ -827,7 +827,7 @@ A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the li
 
 Every round of a ticket's step is a commit of one unit
 (`.claude/rules/commits.md › A commit's unit`), named by its stage, step, round and source
-(`› A ticket's rounds`), committed by the implementer, or by the main session for its own and the
+(`.claude/rules/rounds.md`), committed by the implementer, or by the main session for its own and the
 user's rounds, as soon as `make check` is green and before the user reads it; the user's own edits,
 found between rounds, are a round of their own, and no commit the user has seen is rewritten
 before the PR.
@@ -853,9 +853,9 @@ before the PR.
   `git revert` is in the allow list of `.claude/settings.json`. The branch's last rounds revert
   together in one commit while nothing after them rests on them; a rejection after later work
   rests on a round fixes forward, since a revert there would pull the base from under that work.
-- **Guarded by:** review against `.claude/rules/commits.md` and `.claude/rules/sdd.md`; nothing
+- **Guarded by:** review against `.claude/rules/rounds.md` and `.claude/rules/sdd.md`; nothing
   checks a subject's id.
-- **If reversed:** one commit in `commits.md`, `sdd.md` and `/ticket-implement` brings back one
+- **If reversed:** one commit in `rounds.md`, `sdd.md` and `/ticket-implement` brings back one
   commit per reviewed step; a written history keeps its names.
 - **Revisit when:** a ticket's history is read by its PR alone, or the rounds' count makes
   `git log --oneline` of a branch harder to read than its steps.

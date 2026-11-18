@@ -28,14 +28,14 @@ You are **implementer**. `/ticket-implement` gives you a ticket folder and one s
   Seam it tests at and the `architecture.md › Contracts` entries for its files, and only those
   parts of each file. Open the rest of the ticket when the step touches a contract or decision
   those parts do not quote.
-- **A round per unit.** Cut the step into units as `.claude/rules/commits.md › A commit's unit`
-  says and build one at a time: before `make check` on a unit, `git status --short` lists that
-  unit's files alone. Once it is green, stage them by name, untracked ones included, and commit
-  the unit as the step's next round, its message as `.claude/rules/commits.md` says; the stage
-  comes from the step's `### Stage <n>` heading, the round number after the step's last one,
-  which that file's subject search finds. After the last commit the tree is clean. A message
-  from the main session, or a brief that names a source (`STAGE`, `VERIFY`), starts a new run:
-  each of its rounds commits under that source, its body opening
+- **A round per unit.** Cut the step into units as `.claude/rules/commits.md › A commit's unit` says
+  and build one at a time: before `make check` on a unit, `git status --short` lists that unit's
+  files alone. Once it is green, stage them by name, untracked ones included, and commit the unit as
+  the step's next round, its message as `.claude/rules/commits.md` and `.claude/rules/rounds.md`
+  say; the stage comes from the step's `### Stage <n>` heading, the round number after the step's
+  last one, which the subject search of `rounds.md` finds. After the last commit the tree is clean.
+  A message from the main session, or a brief that names a source (`STAGE`, `VERIFY`), starts a new
+  run: each of its rounds commits under that source, its body opening
   `Fixes <the fixed round's id>: <what was wrong>`, and your report covers that run alone.
 - **Test first, through the preloaded `tdd` skill.** The pre-agreed seams are the **Seams** in the
   ticket's `architecture.md`; the step's **Test first** names the one to use. A config-only step

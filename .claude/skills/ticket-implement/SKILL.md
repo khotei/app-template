@@ -22,7 +22,7 @@ step id, take step after step, as **The loop** below says. Gates:
    untracked file included, and on each commit that step 2's comparison finds outside a report's
    **Rounds**. At a call's start, before this session has changed anything, ask whose the changes
    are, since a stopped unit looks the same: the user's commit as an `OWNER` round of the step
-   whose files they change (`.claude/rules/commits.md › A ticket's rounds`), its body naming what
+   whose files they change (`.claude/rules/rounds.md`), its body naming what
    changed and what it reaches, the callers and tests a search finds; a unit the user names as
    the agent's stays in the tree for the implementer to finish. Later in the call, the
    implementer's uncommitted tree is this session's change: a red unit a `BLOCKED:` report leaves
@@ -62,7 +62,7 @@ step id, take step after step, as **The loop** below says. Gates:
    its brief naming the pass, the diff, its sources, the word limit of 400 and, after the step's
    first review, the findings rejected in it with their reasons, and nothing else: no question or
    focus of its own. The diff is the step's committed rounds, `git diff <base>
-   HEAD`, where `<base>` is the parent of the oldest commit the subject search of `commits.md`
+   HEAD`, where `<base>` is the parent of the oldest commit the subject search of `rounds.md`
    finds for the step. Every step gets the two axes:
 
    - **Standards**, on `sonnet medium`: `make review-rules BASE=<base>`'s output, pasted
@@ -130,7 +130,7 @@ step id, take step after step, as **The loop** below says. Gates:
      the source; it commits them as step 2 says, and you return to 3;
    - **reject** (a round or the step's last rounds): run step 1's owner check, then revert them
      or fix them forward as `.claude/rules/sdd.md › Gates` says; a revert is one commit named as
-     `.claude/rules/commits.md › A ticket's rounds` says (`git revert --no-commit <first>^..HEAD`,
+     `.claude/rules/rounds.md` says (`git revert --no-commit <first>^..HEAD`,
      then commit);
    - **stop:** leave the working tree as it is, and name a unit left uncommitted in the status.
 6. **Next.** Outside a loop, name the next unblocked step and end the turn. After a stage's close,

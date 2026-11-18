@@ -53,7 +53,7 @@ live in the skills; this file holds the constraints they share. A lab step (`lab
   lands, with an acceptance check red before it and green after. It is ≤ ~400 changed lines of
   code and tests (its docs counted apart) and fits one fresh session. A ticket is one branch
   `<type>/<slug>` and one squash-merged PR, so no commit between two steps reaches `main`.
-- **A step lands in rounds, one commit each,** named as `commits.md › A ticket's rounds` says. A
+- **A step lands in rounds, one commit each,** named as `rounds.md` says. A
   round is one unit of `commits.md › A commit's unit`, so a run of the implementer, on its brief or
   on a fix pass (one batch of fixes forwarded to it), lands as several rounds; the implementer
   commits each once `make check` is green, before the user reads it, so each diff is read alone, and

@@ -69,7 +69,7 @@ headings has no `Completed in`: stop and say so.
    `git diff <fixed point>...<end>` is not empty, else stop and tell the user. The requirements
    are those whose `Completed in` in `plan.md › Requirement coverage` is stage `<n>`, and each
    one completed earlier whose steps' commits (the subject search of
-   `.claude/rules/commits.md › A ticket's rounds`) touched a file
+   `.claude/rules/rounds.md`) touched a file
    `git diff --name-only <fixed point>...<end>` lists.
 2. **Verify** them, grouped and briefed as `## Steps` 1 does, each brief naming the range's end
    too, the verifiers on `opus high`, or `xhigh` for a stage over ~30 minutes of work. No
