@@ -16,7 +16,8 @@ paths:
   synonym (`remove` for `'<Model>Service.delete'`), never with a model suffix. A method that needs
   the model in its name is often doing a neighbouring service's work.
 - A module-level function another module composes states `Effect.fn.Return<A, E, R>` on the
-  generator; a helper used once stays inferred.
+  generator; a helper used once, or a composed function whose every caller dies on its errors
+  (`Effect.orDie`), stays inferred.
 - A pure builder that cannot fail returns the model, not an `Effect`.
 - A pure transition (`naming.md`) checks its source in one shared table of allowed sources and
   fails one `<Model>StatusInvalidError { id, from, to }`. One whose refusal reaches the user maps

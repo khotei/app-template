@@ -1,7 +1,7 @@
 import { LambdaService } from '@effect-aws/client-lambda'
 import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
-import { type Cause, Effect, pipe, Record as Rec } from 'effect'
+import { Effect, pipe, Record as Rec } from 'effect'
 
 import { buildDeadLetterName } from '#aws/naming'
 import type { BucketResource, QueueResource, Resources } from '#aws/resources'
@@ -56,13 +56,6 @@ const provisionQueues = Effect.fn('provisionQueues')(
     pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(buildName), { discard: true })),
 )
 
-type ProvisionWorkerError =
-  | Cause.NoSuchElementError
-  | Effect.Error<ReturnType<SQSService['Service']['getQueueUrl']>>
-  | Effect.Error<ReturnType<SQSService['Service']['getQueueAttributes']>>
-  | Effect.Error<ReturnType<LambdaService['Service']['createFunction']>>
-  | Effect.Error<ReturnType<LambdaService['Service']['createEventSourceMapping']>>
-
 const mapQueue = (buildName: BuildName, functionName: string) =>
   Effect.fnUntraced(function* (queue: QueueResource) {
     const sqs = yield* SQSService
@@ -85,7 +78,7 @@ const mapQueue = (buildName: BuildName, functionName: string) =>
 export const provisionWorker = Effect.fn('provisionWorker')(function* (
   { worker, queues }: Resources,
   { buildName, proxyUrl }: { readonly buildName: BuildName; readonly proxyUrl: string },
-): Effect.fn.Return<void, ProvisionWorkerError, LambdaService | SQSService> {
+) {
   const lambda = yield* LambdaService
   const functionName = buildName(worker.name)
 
