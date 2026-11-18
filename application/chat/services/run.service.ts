@@ -10,16 +10,11 @@ import { RunNotFoundError } from '#chat/domain/run.error'
 import { buildRun, Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
 
-/** The Run of the user's chat; one of another user's chat reads as absent. */
 export type RunWhere = Types.Simplify<Pick<Run, 'id' | 'chatId'> & { readonly userId: UserId }>
 
 export class RunService extends Context.Service<
   RunService,
   {
-    /**
-     * Stores the queued Run that answers the user's message; dies when its chat has an active Run
-     * already, a send that lost the race to another.
-     */
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
   }
@@ -34,7 +29,6 @@ export class RunService extends Context.Service<
       const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })
       const row = yield* encodeRowWith(RunFields)(run)
 
-      // The index on the active Run refuses a second one in the chat, so this insert dies.
       yield* runs.insert(row)
       return run
     })

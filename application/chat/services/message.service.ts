@@ -9,7 +9,6 @@ import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { buildUserMessage, Message, MessageFields } from '#chat/domain/message.model'
 
-/** The message of the user's chat; one of another user's chat reads as absent. */
 export type MessageWhere = Types.Simplify<
   Pick<Message, 'id' | 'chatId'> & Partial<Pick<Message, 'author'>> & { readonly userId: UserId }
 >
