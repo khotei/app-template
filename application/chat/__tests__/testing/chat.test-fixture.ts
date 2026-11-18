@@ -13,7 +13,6 @@ export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
 export const unknownChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000038')
 
 export const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-export const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
 
 /** An untitled chat of `owner`, created at `epoch`, so a later write shows as a moved `updatedAt`. */
 export const chat = buildChat({ id: chatId, userId: owner, createdAt: epoch })

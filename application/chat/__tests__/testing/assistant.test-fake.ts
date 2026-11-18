@@ -48,5 +48,3 @@ export function holdAssistantCall() {
     release: Deferred.succeed(released, undefined),
   }
 }
-
-export type AssistantCallHold = ReturnType<typeof holdAssistantCall>
