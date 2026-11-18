@@ -2,12 +2,10 @@ import * as Schema from "effect/Schema"
 import { Multipart } from "effect/http"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, HttpApiSecurity, OpenApi } from "effect/http-api"
 // non-recursive definitions
-export type RequestInvalidErrorEncoded = { readonly "_tag": "RequestInvalidError", readonly "issues": ReadonlyArray<{ readonly "path": ReadonlyArray<string | number>, readonly "message": string }> }
-export const RequestInvalidErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("RequestInvalidError"), "issues": Schema.Array(Schema.Struct({ "path": Schema.Array(Schema.Union([Schema.String, Schema.Int.check(Schema.isGreaterThanOrEqualTo(-9007199254740991).annotate({ "expected": "a value greater than or equal to -9007199254740991" })).check(Schema.isLessThanOrEqualTo(9007199254740991).annotate({ "expected": "a value less than or equal to 9007199254740991" }))])), "message": Schema.String })) }).annotate({ "identifier": "RequestInvalidErrorEncoded" })
-export type UserEncoded = { readonly "id": string, readonly "createdAt": string }
-export const UserEncoded = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "createdAt": Schema.String }).annotate({ "identifier": "UserEncoded" })
 export type AttachmentEncoded = { readonly "id": string, readonly "userId": string, readonly "messageId": string | null, readonly "chatId": string | null, readonly "sourceId": string | null, readonly "fileName": string, readonly "mediaType": string, readonly "size": number, readonly "createdAt": string }
 export const AttachmentEncoded = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "userId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "messageId": Schema.Union([Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), Schema.Null]), "chatId": Schema.Union([Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), Schema.Null]), "sourceId": Schema.Union([Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), Schema.Null]), "fileName": Schema.String.check(Schema.isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(Schema.isPattern(new RegExp("^[^\\0]*$", "u")).annotate({ "expected": "a string matching the RegExp ^[^\\0]*$" })), "mediaType": Schema.String, "size": Schema.Int.check(Schema.isGreaterThanOrEqualTo(0).annotate({ "expected": "a value greater than or equal to 0" })).check(Schema.isLessThanOrEqualTo(9007199254740991).annotate({ "expected": "a value less than or equal to 9007199254740991" })), "createdAt": Schema.String }).annotate({ "identifier": "AttachmentEncoded" })
+export type RequestInvalidErrorEncoded = { readonly "_tag": "RequestInvalidError", readonly "issues": ReadonlyArray<{ readonly "path": ReadonlyArray<string | number>, readonly "message": string }> }
+export const RequestInvalidErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("RequestInvalidError"), "issues": Schema.Array(Schema.Struct({ "path": Schema.Array(Schema.Union([Schema.String, Schema.Int.check(Schema.isGreaterThanOrEqualTo(-9007199254740991).annotate({ "expected": "a value greater than or equal to -9007199254740991" })).check(Schema.isLessThanOrEqualTo(9007199254740991).annotate({ "expected": "a value less than or equal to 9007199254740991" }))])), "message": Schema.String })) }).annotate({ "identifier": "RequestInvalidErrorEncoded" })
 export type UserUnknownErrorEncoded = { readonly "_tag": "UserUnknownError" }
 export const UserUnknownErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("UserUnknownError") }).annotate({ "identifier": "UserUnknownErrorEncoded" })
 export type ChatNotFoundErrorEncoded = { readonly "_tag": "ChatNotFoundError", readonly "id": string }
@@ -34,17 +32,11 @@ export type AttachmentTooLargeErrorEncoded = { readonly "_tag": "AttachmentTooLa
 export const AttachmentTooLargeErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("AttachmentTooLargeError") }).annotate({ "identifier": "AttachmentTooLargeErrorEncoded" })
 export type AttachmentTypeUnsupportedErrorEncoded = { readonly "_tag": "AttachmentTypeUnsupportedError" }
 export const AttachmentTypeUnsupportedErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("AttachmentTypeUnsupportedError") }).annotate({ "identifier": "AttachmentTypeUnsupportedErrorEncoded" })
+export type UserEncoded = { readonly "id": string, readonly "createdAt": string }
+export const UserEncoded = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "createdAt": Schema.String }).annotate({ "identifier": "UserEncoded" })
 export type __HttpApiMultipartFiles = ReadonlyArray<Multipart.PersistedFile>
 export const __HttpApiMultipartFiles = Multipart.FilesSchema
 // schemas
-export type HealthGet200 = { readonly "status": "ok" }
-export const HealthGet200 = Schema.Struct({ "status": Schema.Literal("ok") })
-export type HealthGet400 = RequestInvalidErrorEncoded
-export const HealthGet400 = RequestInvalidErrorEncoded
-export type UsersEnsure201 = UserEncoded
-export const UsersEnsure201 = UserEncoded
-export type UsersEnsure400 = RequestInvalidErrorEncoded
-export const UsersEnsure400 = RequestInvalidErrorEncoded
 export type ChatsList200 = ReadonlyArray<{ readonly "id": string, readonly "userId": string, readonly "title": string | null, readonly "createdAt": string, readonly "updatedAt": string, readonly "attachments": ReadonlyArray<AttachmentEncoded>, readonly "status": "idle" | "queued" | "failed" }>
 export const ChatsList200 = Schema.Array(Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "userId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "title": Schema.Union([Schema.String.check(Schema.isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(Schema.isMaxCodePoints(120).annotate({ "expected": "a string with at most 120 code points" })).check(Schema.isPattern(new RegExp("^\\S[\\s\\S]*\\S$|^\\S$|^$", "u")).annotate({ "expected": "a string matching the RegExp ^\\S[\\s\\S]*\\S$|^\\S$|^$" })).check(Schema.isPattern(new RegExp("^[^\\0]*$", "u")).annotate({ "expected": "a string matching the RegExp ^[^\\0]*$" })), Schema.Null]), "createdAt": Schema.String, "updatedAt": Schema.String, "attachments": Schema.Array(AttachmentEncoded), "status": Schema.Literals(["idle", "queued", "failed"]) }))
 export type ChatsList400 = RequestInvalidErrorEncoded
@@ -193,18 +185,18 @@ export type AttachmentsDownload401 = UserUnknownErrorEncoded
 export const AttachmentsDownload401 = UserUnknownErrorEncoded
 export type AttachmentsDownload404 = AttachmentNotFoundErrorEncoded
 export const AttachmentsDownload404 = AttachmentNotFoundErrorEncoded
+export type HealthGet200 = { readonly "status": "ok" }
+export const HealthGet200 = Schema.Struct({ "status": Schema.Literal("ok") })
+export type HealthGet400 = RequestInvalidErrorEncoded
+export const HealthGet400 = RequestInvalidErrorEncoded
+export type UsersEnsure201 = UserEncoded
+export const UsersEnsure201 = UserEncoded
+export type UsersEnsure400 = RequestInvalidErrorEncoded
+export const UsersEnsure400 = RequestInvalidErrorEncoded
 
 export const CookieSecurity = HttpApiSecurity.apiKey({ key: "user_secret", in: "cookie" })
 
 export class CookieSecurityMiddleware extends HttpApiMiddleware.Service<CookieSecurityMiddleware>()("cookie security", { security: { "cookie": CookieSecurity } }) {}
-
-class HealthGroup extends HttpApiGroup.make("health")
-  .add(HttpApiEndpoint.get("healthGet", "/health", { success: HealthGet200, error: HealthGet400.pipe(HttpApiSchema.status(400)) })
-      .annotate(OpenApi.Identifier, "health.get")) {}
-
-class UsersGroup extends HttpApiGroup.make("users")
-  .add(HttpApiEndpoint.post("usersEnsure", "/users", { success: UsersEnsure201.pipe(HttpApiSchema.status(201)), error: UsersEnsure400.pipe(HttpApiSchema.status(400)) })
-      .annotate(OpenApi.Identifier, "users.ensure")) {}
 
 class ChatsGroup extends HttpApiGroup.make("chats")
   .add(HttpApiEndpoint.get("chatsList", "/chats", { success: ChatsList200, error: [ChatsList400.pipe(HttpApiSchema.status(400)), ChatsList401.pipe(HttpApiSchema.status(401))] })
@@ -255,7 +247,15 @@ class AttachmentsGroup extends HttpApiGroup.make("attachments")
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "attachments.download")) {}
 
+class HealthGroup extends HttpApiGroup.make("health")
+  .add(HttpApiEndpoint.get("healthGet", "/health", { success: HealthGet200, error: HealthGet400.pipe(HttpApiSchema.status(400)) })
+      .annotate(OpenApi.Identifier, "health.get")) {}
+
+class UsersGroup extends HttpApiGroup.make("users")
+  .add(HttpApiEndpoint.post("usersEnsure", "/users", { success: UsersEnsure201.pipe(HttpApiSchema.status(201)), error: UsersEnsure400.pipe(HttpApiSchema.status(400)) })
+      .annotate(OpenApi.Identifier, "users.ensure")) {}
+
 export class Api extends HttpApi.make("Api")
   .annotate(OpenApi.Title, "Api")
   .annotate(OpenApi.Version, "0.0.1")
-  .add(HealthGroup, UsersGroup, ChatsGroup, AttachmentsGroup) {}
+  .add(ChatsGroup, AttachmentsGroup, HealthGroup, UsersGroup) {}

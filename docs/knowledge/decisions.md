@@ -173,7 +173,11 @@ beside the `id()` column.
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/deep-modules.md`'s id generator given the brand's `make`.
 - **Rejected:** `generateId` spelled out at each call, or copied per module: two copies of a rule
-  no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's.
+  no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's. A group
+  in its module's `infrastructure/`, which no cycle forbids, as a group imports only `effect`,
+  the domain and a sibling group: it would sit apart from its handler, and every process that
+  imports the module, the worker too, would load the groups and `effect/http-api` (10 modules,
+  27 KB more in the worker's bundle).
 - **Cost:** a module's HTTP shape lives outside the module.
 - **Guarded by:** the `apps/api` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules); no module's manifest
@@ -246,12 +250,14 @@ but `packages`.
   wire shape omits it; the snapshot test stops it until `make api-snapshot` writes it into the
   diff, and only review of that diff refuses it. An error's status is spelled at each listing
   (25 for 13 errors), and a listing without `HttpApiSchema.status` answers `500`, which likewise
-  only review of the snapshot diff refuses. The web's endpoints are `<group><Endpoint>`, the
-  components follow the domain's classes (`UserEncoded`), two checked-in files move with every
-  wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned.
+  only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
+  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
+  `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
+  (`UserEncoded`), two checked-in files move with every wire change, and the web keeps a
+  generator, with its command's peer `@effect/platform-node` pinned.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
-  model lacks fails `TS2322` at each handler that returns it); the api's snapshot test;
+  model lacks fails `TS2322` at each handler that returns it, and a group past
+  `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;

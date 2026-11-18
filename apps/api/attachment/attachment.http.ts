@@ -9,8 +9,6 @@ import {
   AttachmentNotFoundError,
 } from '@app-template/application/chat'
 
-import { Auth } from '#api/shared/security'
-
 /** The files one upload takes, and the attachments one message binds. */
 export const maxFiles = 5
 
@@ -26,36 +24,34 @@ export class AttachmentTypeUnsupportedError extends Schema.TaggedError<Attachmen
 
 const attachmentPath = { attachmentId: AttachmentId }
 
-export class AttachmentHttp extends HttpApiGroup.make('attachments')
-  .add(
-    HttpApiEndpoint.post('upload', '/attachments', {
-      payload: Schema.Struct({ files: Multipart.FilesSchema }).pipe(
-        HttpApiSchema.asMultipartStream({ maxParts: maxFiles, maxFileSize: '10 MiB' }),
-      ),
-      success: Schema.Array(Attachment).pipe(HttpApiSchema.status(201)),
-      error: [
-        AttachmentTooLargeError.pipe(HttpApiSchema.status(413)),
-        AttachmentTypeUnsupportedError.pipe(HttpApiSchema.status(415)),
-      ],
-    }),
-    HttpApiEndpoint.get('list', '/attachments', { success: Schema.Array(Attachment) }),
-    HttpApiEndpoint.get('get', '/attachments/:attachmentId', {
-      params: attachmentPath,
-      success: Attachment,
-      error: AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
-    }),
-    HttpApiEndpoint.get('download', '/attachments/:attachmentId/download', {
-      params: attachmentPath,
-      success: HttpApiSchema.Empty(302),
-      error: AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
-    }),
-    HttpApiEndpoint.delete('delete', '/attachments/:attachmentId', {
-      params: attachmentPath,
-      success: HttpApiSchema.NoContent,
-      error: [
-        AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
-        AttachmentBoundError.pipe(HttpApiSchema.status(409)),
-      ],
-    }),
-  )
-  .middleware(Auth) {}
+export class AttachmentHttp extends HttpApiGroup.make('attachments').add(
+  HttpApiEndpoint.post('upload', '/attachments', {
+    payload: Schema.Struct({ files: Multipart.FilesSchema }).pipe(
+      HttpApiSchema.asMultipartStream({ maxParts: maxFiles, maxFileSize: '10 MiB' }),
+    ),
+    success: Schema.Array(Attachment).pipe(HttpApiSchema.status(201)),
+    error: [
+      AttachmentTooLargeError.pipe(HttpApiSchema.status(413)),
+      AttachmentTypeUnsupportedError.pipe(HttpApiSchema.status(415)),
+    ],
+  }),
+  HttpApiEndpoint.get('list', '/attachments', { success: Schema.Array(Attachment) }),
+  HttpApiEndpoint.get('get', '/attachments/:attachmentId', {
+    params: attachmentPath,
+    success: Attachment,
+    error: AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
+  }),
+  HttpApiEndpoint.get('download', '/attachments/:attachmentId/download', {
+    params: attachmentPath,
+    success: HttpApiSchema.Empty(302),
+    error: AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
+  }),
+  HttpApiEndpoint.delete('delete', '/attachments/:attachmentId', {
+    params: attachmentPath,
+    success: HttpApiSchema.NoContent,
+    error: [
+      AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
+      AttachmentBoundError.pipe(HttpApiSchema.status(409)),
+    ],
+  }),
+) {}

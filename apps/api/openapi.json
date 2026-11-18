@@ -5,82 +5,6 @@
     "version": "0.0.1"
   },
   "paths": {
-    "/health": {
-      "get": {
-        "tags": [
-          "health"
-        ],
-        "operationId": "health.get",
-        "parameters": [],
-        "security": [],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "RequestInvalidError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/users": {
-      "post": {
-        "tags": [
-          "users"
-        ],
-        "operationId": "users.ensure",
-        "parameters": [],
-        "security": [],
-        "responses": {
-          "201": {
-            "description": "User",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UserEncoded"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "RequestInvalidError",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/chats": {
       "post": {
         "tags": [
@@ -2196,6 +2120,82 @@
           }
         }
       }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "operationId": "health.get",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ok"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "RequestInvalidError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "tags": [
+          "users"
+        ],
+        "operationId": "users.ensure",
+        "parameters": [],
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "User",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserEncoded"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "RequestInvalidError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2244,6 +2244,24 @@
         "required": [
           "_tag",
           "issues"
+        ],
+        "additionalProperties": false
+      },
+      "UserEncoded": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt"
         ],
         "additionalProperties": false
       },
@@ -2588,24 +2606,6 @@
           "_tag"
         ],
         "additionalProperties": false
-      },
-      "UserEncoded": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "createdAt"
-        ],
-        "additionalProperties": false
       }
     },
     "securitySchemes": {
@@ -2619,16 +2619,16 @@
   "security": [],
   "tags": [
     {
-      "name": "health"
-    },
-    {
-      "name": "users"
-    },
-    {
       "name": "chats"
     },
     {
       "name": "attachments"
+    },
+    {
+      "name": "health"
+    },
+    {
+      "name": "users"
     }
   ]
 }

@@ -262,8 +262,9 @@ imports need.
 5. **The boundary.** A group in `apps/api/<entity>/<entity>.http.ts` over the domain's ids,
    models and errors, each error with its status where its endpoint lists it, a wire shape only
    where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
-   `apps/api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups added
-   before it; its handler beside it, with a mapper in `apps/api/<entity>/<entity>.mapper.ts` only
+   `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
+   `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
+   mapper in `apps/api/<entity>/<entity>.mapper.ts` only
    where the wire adds a field, the handler added to `ApiRoutes`, its group providing the services
    and use cases it reads; then `make api-snapshot`. Test only what HTTP adds, on the api test
    layer; a new module's journey case goes in a file of its own on `StandTest`. A browser feature

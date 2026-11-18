@@ -3,14 +3,13 @@ import { HttpApi } from 'effect/http-api'
 import { AttachmentHttp } from '#api/attachment/attachment.http'
 import { ChatHttp } from '#api/chat/chat.http'
 import { HealthHttp } from '#api/health/health.http'
-import { SchemaErrors } from '#api/shared/security'
+import { Auth, SchemaErrors } from '#api/shared/security'
 import { UserHttp } from '#api/user/user.http'
 
-/** `SchemaErrors` comes last: `HttpApi.middleware` reaches only the groups added before it. */
+/** A middleware reaches only the groups added before it: an authed group joins the first `add`. */
 export class Api extends HttpApi.make('app-template')
-  .add(HealthHttp)
-  .add(UserHttp)
-  .add(ChatHttp)
-  .add(AttachmentHttp)
+  .add(ChatHttp, AttachmentHttp)
+  .middleware(Auth)
+  .add(HealthHttp, UserHttp)
   .middleware(SchemaErrors)
   .annotate(HttpApi.ParseOptions, { errors: 'all' }) {}
