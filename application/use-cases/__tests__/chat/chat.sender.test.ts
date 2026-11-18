@@ -30,14 +30,12 @@ describe('AssistantMessageSender', () => {
           Arr.map(updates, ([set, where]) => ({
             status: set.status,
             reason: set.failure?.reason,
-            refusedBySqs: set.failure?.cause.includes('SQS is unavailable'),
             where,
           })),
           [
             {
               status: 'failed',
               reason: 'ReplyFailed',
-              refusedBySqs: true,
               where: { id: queuedRun.id, status: ['queued'] },
             },
           ],

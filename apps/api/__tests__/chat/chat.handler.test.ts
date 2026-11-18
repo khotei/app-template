@@ -49,7 +49,6 @@ const refusedRun = new Run({
   failure: Option.some({
     reason: 'ReplyRefused',
     message: 'The assistant declined to answer this message.',
-    cause: 'stop_reason refusal',
   }),
 })
 
@@ -158,34 +157,31 @@ describe('chats', () => {
       ),
   )
 
-  it.effect(
-    'GET /chats/:chatId/messages lists a message with its failed Run, without the cause',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
+  it.effect('GET /chats/:chatId/messages lists a message with its failed Run', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
 
-        const listed = yield* api.chats
-          .listMessages({ params: { chatId: chat.id } })
-          .pipe(Effect.head)
-        const wire = yield* getJson(`/chats/${chat.id}/messages`)
+      const listed = yield* api.chats
+        .listMessages({ params: { chatId: chat.id } })
+        .pipe(Effect.head)
+      const wire = yield* getJson(`/chats/${chat.id}/messages`)
 
-        assert.deepInclude(listed, { id: firstMessage.id, author: 'user' })
-        assert.deepInclude(Option.getOrThrow(listed.run), { id: refusedRun.id, status: 'failed' })
-        assert.nestedPropertyVal(wire, '[0].run.failure.reason', 'ReplyRefused')
-        assert.notNestedProperty(wire, '[0].run.failure.cause')
-      }).pipe(
-        Effect.provide(
-          asOwner({
-            chats: { selectOne: reads.chat(chat) },
-            messages: {
-              selectMany: () =>
-                encodeRowWith(Message)(
-                  new Message({ ...firstMessage, run: Option.some(refusedRun) }),
-                ).pipe(Effect.map(Arr.of)),
-            },
-          }),
-        ),
+      assert.deepInclude(listed, { id: firstMessage.id, author: 'user' })
+      assert.deepInclude(Option.getOrThrow(listed.run), { id: refusedRun.id, status: 'failed' })
+      assert.nestedPropertyVal(wire, '[0].run.failure.reason', 'ReplyRefused')
+    }).pipe(
+      Effect.provide(
+        asOwner({
+          chats: { selectOne: reads.chat(chat) },
+          messages: {
+            selectMany: () =>
+              encodeRowWith(Message)(
+                new Message({ ...firstMessage, run: Option.some(refusedRun) }),
+              ).pipe(Effect.map(Arr.of)),
+          },
+        }),
       ),
+    ),
   )
 
   it.effect('a chat and its message carry a sent attachment on the wire', () =>
@@ -286,7 +282,7 @@ describe('chats', () => {
       ),
   )
 
-  it.effect('a refused Run carries its reason and message on the wire, never its cause', () =>
+  it.effect('a refused Run carries its reason and message on the wire', () =>
     Effect.gen(function* () {
       const [wire, chatWire] = yield* Effect.forEach(
         [`/chats/${chat.id}/runs/${refusedRun.id}`, `/chats/${chat.id}`],
@@ -299,7 +295,6 @@ describe('chats', () => {
         assistantMessage: null,
       })
       assert.nestedProperty(wire, 'failure.message')
-      assert.notNestedProperty(wire, 'failure.cause')
       assert.deepInclude(chatWire, { status: 'failed' })
       assert.notProperty(chatWire, 'run')
     }).pipe(

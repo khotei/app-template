@@ -163,7 +163,7 @@ const replyingTo = (
 const moves = (writes: Writes) =>
   Arr.map(writes.runs, ([set, where]) => `${where.status} → ${set.status}`)
 
-/** The last Run write: its move, and its failure's reason and cause when it fails the Run. */
+/** The last Run write: its move, and its failure's reason when it fails the Run. */
 const lastWrite = (writes: Writes) =>
   pipe(
     writes.runs,
@@ -171,7 +171,6 @@ const lastWrite = (writes: Writes) =>
     Option.map(([set, where]) => ({
       move: `${where.status} → ${set.status}`,
       reason: set.failure?.reason,
-      cause: set.failure?.cause,
     })),
     Option.getOrThrow,
   )
@@ -259,21 +258,22 @@ describe('GenerateAssistantMessageUseCase', () => {
 
   it.effect('generate dies with the assistant and fails the Run it reads again first', () => {
     const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
+    const { logs, layer: logger } = recordLogs('cause')
     const writes = noWrites()
     const generating = new Run({ ...queuedRun, status: 'generating' })
     return Effect.gen(function* () {
       const exit = yield* generate.pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      const last = lastWrite(writes)
-      assert.deepInclude(last, { move: 'generating → failed', reason: 'ReplyFailed' })
-      assert.include(last.cause, 'provider exploded')
+      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'ReplyFailed' })
+      assert.include(String(logs[0]?.[2]), 'provider exploded')
     }).pipe(
-      Effect.provide(
+      Effect.provide([
         layerAssistantMessageTest(
           replyingTo(writes, { runs: readsInTurn(queuedRun, generating) }),
         ).pipe(Layer.provide(assistant.layer)),
-      ),
+        logger,
+      ]),
     )
   })
 
@@ -325,26 +325,25 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
     { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
   ] as const)(
-    "generate fails the Run with $reason and the error's cause after one call, and writes no reply",
+    "generate fails the Run with $reason after one call, logs the error's cause and writes no reply",
     ({ error, reason }) => {
       const assistant = recordAssistant({ reply: Effect.fail(error) })
+      const { logs, layer: logger } = recordLogs('reason', 'cause')
       const writes = noWrites()
       return Effect.gen(function* () {
         yield* generate
 
-        assert.deepStrictEqual(lastWrite(writes), {
-          move: 'generating → failed',
-          reason,
-          cause: error.cause,
-        })
+        assert.deepStrictEqual(lastWrite(writes), { move: 'generating → failed', reason })
+        assert.deepStrictEqual(logs, [['Warn', 'assistant reply failed', reason, error.cause]])
         assert.strictEqual((yield* assistant.calls).length, 1)
         assert.deepStrictEqual(writes.messages, [])
       }).pipe(
-        Effect.provide(
+        Effect.provide([
           layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
             Layer.provide(assistant.layer),
           ),
-        ),
+          logger,
+        ]),
       )
     },
   )

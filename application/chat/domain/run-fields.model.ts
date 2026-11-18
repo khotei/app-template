@@ -15,8 +15,6 @@ export const RunFailure = Schema.Struct({
   reason: RunFailureReason,
   /** A user-facing sentence fixed per reason; it never quotes the cause. */
   message: Schema.String,
-  /** Diagnostic detail for operators; it never leaves the api. */
-  cause: Schema.String,
 })
 export type RunFailure = typeof RunFailure.Type
 

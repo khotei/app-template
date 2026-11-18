@@ -106,14 +106,14 @@ const failureMessages = {
 
 /** Why a Run failed and when; the user-facing text comes from `failureMessages`. */
 export type RunFailureInput = Types.Simplify<
-  Pick<RunFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc }
+  Pick<RunFailure, 'reason'> & { readonly at: DateTime.Utc }
 >
 
-export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: RunFailureInput) =>
+export const failRun = Effect.fn('failRun')((run: Run, { reason, at }: RunFailureInput) =>
   move(run, {
     to: 'failed',
     at,
-    patch: { failure: Option.some({ reason, message: failureMessages[reason], cause }) },
+    patch: { failure: Option.some({ reason, message: failureMessages[reason] }) },
   }),
 )
 
@@ -122,9 +122,5 @@ const failureReasons = {
   AssistantFailedError: 'ReplyFailed',
 } as const satisfies Record<AssistantError['_tag'], RunFailureReason>
 
-export const buildRunFailure = (
-  error: AssistantError,
-): Types.Simplify<Pick<RunFailure, 'reason' | 'cause'>> => ({
-  reason: failureReasons[error._tag],
-  cause: error.cause,
-})
+export const buildRunFailureReason = (error: AssistantError): RunFailureReason =>
+  failureReasons[error._tag]

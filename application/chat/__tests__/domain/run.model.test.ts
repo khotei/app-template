@@ -10,7 +10,7 @@ import { buildAssistantMessage, buildUserMessage, MessageFields } from '#chat/do
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
-  buildRunFailure,
+  buildRunFailureReason,
   completeRun,
   ensureRunRetryable,
   failRun,
@@ -24,7 +24,6 @@ import { RunFailure, RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
-const cause = 'Provider returned 529: overloaded'
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002')
 
@@ -93,7 +92,7 @@ const moves: ReadonlyArray<{
   {
     to: 'failed',
     from: activeRunStatuses,
-    move: (run) => failRun(run, { reason: 'ReplyFailed', cause, at: later }),
+    move: (run) => failRun(run, { reason: 'ReplyFailed', at: later }),
   },
 ]
 
@@ -130,15 +129,15 @@ it.effect.each([
   { reason: 'ReplyFailed', sentence: 'The assistant could not reply. Please try again.' },
   { reason: 'ReplyRefused', sentence: 'The assistant declined to answer this message.' },
 ] as const)(
-  'failRun for $reason keeps the reason, a sentence of its own and the cause',
+  'failRun for $reason keeps the reason and a sentence of its own',
   ({ reason, sentence }) =>
     Effect.gen(function* () {
-      const failed = yield* failRun(runAt('generating'), { reason, cause, at: later })
+      const failed = yield* failRun(runAt('generating'), { reason, at: later })
 
       assertSchemaEquals(
         Schema.Option(RunFailure),
         failed.failure,
-        Option.some({ reason, message: sentence, cause }),
+        Option.some({ reason, message: sentence }),
       )
     }),
 )
@@ -153,14 +152,14 @@ describe('completeRun', () => {
   )
 })
 
-describe('buildRunFailure', () => {
+describe('buildRunFailureReason', () => {
   it.each([
     { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
     { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
   ] as const)(
-    "fails a Run the assistant ended with $error._tag as $reason with the error's cause",
+    'fails a Run the assistant ended with $error._tag as $reason',
     ({ error, reason }) => {
-      assert.deepStrictEqual(buildRunFailure(error), { reason, cause: error.cause })
+      assert.strictEqual(buildRunFailureReason(error), reason)
     },
   )
 })

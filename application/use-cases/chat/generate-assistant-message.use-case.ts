@@ -10,7 +10,6 @@ import {
   Layer,
   Option,
   Schema,
-  type Types,
 } from 'effect'
 
 import {
@@ -19,7 +18,7 @@ import {
   type Attachment,
   buildAssistantMessage,
   buildFileId,
-  buildRunFailure,
+  buildRunFailureReason,
   completeRun,
   failRun,
   type GenerateAssistantMessage,
@@ -32,7 +31,7 @@ import {
   MessageId,
   prepareRun,
   Run,
-  type RunFailure,
+  type RunFailureReason,
   RunFields,
   type RunId,
   type RunStatus,
@@ -120,10 +119,14 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
 
     const settleFailed = Effect.fnUntraced(function* (
       active: Run,
-      { reason, cause }: Types.Simplify<Pick<RunFailure, 'reason' | 'cause'>>,
+      { reason, cause }: { readonly reason: RunFailureReason; readonly cause: string },
     ) {
+      yield* Effect.logWarning('assistant reply failed').pipe(
+        Effect.annotateLogs({ runId: active.id, reason, cause }),
+      )
+
       const at = yield* DateTime.now
-      const failed = yield* failRun(active, { reason, cause, at })
+      const failed = yield* failRun(active, { reason, at })
       yield* updateRun(failed, active.status)
     })
 
@@ -140,7 +143,8 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
       yield* assistant.reply(history).pipe(
         Effect.matchEffect({
           onSuccess: (answer) => settleCompleted(generating, answer),
-          onFailure: (error) => settleFailed(generating, buildRunFailure(error)),
+          onFailure: (error) =>
+            settleFailed(generating, { reason: buildRunFailureReason(error), cause: error.cause }),
         }),
       )
     })

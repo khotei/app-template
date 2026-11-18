@@ -24,7 +24,6 @@ export const runFailureReasons = ['ReplyFailed', 'ReplyRefused'] as const
 export const RunFailureJson = Schema.Struct({
   reason: Schema.Literals(runFailureReasons),
   message: Schema.String,
-  cause: Schema.String,
 })
 
 export const runStatuses = ['queued', 'preparing', 'generating', 'done', 'failed'] as const

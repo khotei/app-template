@@ -34,5 +34,6 @@ paths:
   no longer decodes, into a defect. The exception is a port whose failures are outcomes a use case
   settles each its own way (an external service that declines or gives up): one final
   `<Port><Problem>Error` per outcome, raised after the adapter's retries.
-- A failure's user-facing sentence comes from one table keyed by its reason; the cause stays in a
-  field that never reaches the user.
+- A failure's user-facing sentence comes from one table keyed by its reason; its cause goes to the
+  log, annotated with the failed record's id, never into a model
+  ([record](../../docs/knowledge/decisions.md#the-api-contract-in-the-api)).

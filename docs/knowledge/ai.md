@@ -71,7 +71,8 @@ job is never retried ([aws.md › Queues](aws.md#queues)).
 | an answer that finished any other way than `stop` (`length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `AssistantFailedError` |
 
 The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
-error, for operators; it never reaches the wire.
+error, for operators: the use cases log it, and a failed Run keeps only its reason and sentence,
+so it never reaches the wire.
 
 ### The finish reason
 

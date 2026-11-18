@@ -194,7 +194,8 @@ assembled into one `Api`, over the domain's schemas: ids, payload checks, models
 the domain's own; every error gets its status where an endpoint or a middleware lists it
 (`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
 which omits fields by name or swaps them, and a mapper adds only what the model lacks
-(`buildApiChat` adds `status`). Its unit test writes `apps/api/openapi.json`; the web reads that
+(`buildApiChat` adds `status`). A field no client may see stays out of the model: a failed Run's
+cause goes to the worker's log. Its unit test writes `apps/api/openapi.json`; the web reads that
 file by path and keeps the client `@effect/openapi-generator`'s command writes from it, checked
 in. Nothing of `application/` reaches the browser, and the web declares no workspace of the app
 but `packages`.
@@ -205,7 +206,9 @@ but `packages`.
   name, over a module list no check saw; the browser needs none of it, since its generated
   client imports only `effect`. A struct writes only its own fields, so `mapFields` keeps a
   field off the wire with no code, and the domain's error classes encode themselves, so no
-  handler translates one and no class marker internal to Effect is relied on.
+  handler translates one and no class marker internal to Effect is relied on. A field kept for
+  operators alone needs a wire shape for its model and for each model that nests it, while the
+  log line that holds the cause carries the record's id.
 - **Sources:** Effect's HTTP API guide, whose fixture group takes the domain's schemas
   (`repos/effect/ai-docs/src/51_http-server/fixtures/api/Users.ts`) and gives an error its
   status both on the domain's class
@@ -238,7 +241,10 @@ but `packages`.
   `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
-  `buildApi<Model>`: `tsc` refuses the drift without them.
+  `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause kept on the Run
+  for operators, as chat-core's D19 chose over the log alone: four wire shapes to keep it off
+  the wire (the failure, the Run, the Run a message nests, the message), each inlined in the
+  snapshot at every use, and two assertions that it stays off (`listMessages`, `getRun`).
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -253,8 +259,12 @@ but `packages`.
   only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserEncoded`), two checked-in files move with every wire change, and the web keeps a
-  generator, with its command's peer `@effect/platform-node` pinned.
+  (`UserEncoded`), and a class answered through more than one schema, the bare class and each
+  `.pipe(HttpApiSchema.status(…))` counting as one, gets a numbered component (`RunEncoded_2` for
+  the Run's three); two checked-in files move with every wire change, and the web keeps a
+  generator, with its command's peer `@effect/platform-node` pinned. A failed reply's cause
+  lives only in the worker's log (`assistant reply failed`, annotated with `runId`, `reason` and
+  `cause`), as long as the log keeps it.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
@@ -265,8 +275,9 @@ but `packages`.
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
   test to compare them, and the web imports it instead of the generated client.
 - **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
-  side; a client outside this repository needs the contract as code; or a model's row form must
-  differ from what the wire carries.
+  side; a client outside this repository needs the contract as code; a model's row form must
+  differ from what the wire carries; or an operator needs a failure's cause past what the log
+  keeps.
 
 ### Status owned by chat
 

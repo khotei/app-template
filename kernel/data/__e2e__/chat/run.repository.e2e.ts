@@ -91,7 +91,7 @@ describe('RunRepository', () => {
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a7')
-      const failure = { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' } as const
+      const failure = { reason: 'ReplyFailed', message: 'Try again.' } as const
       yield* insertUserMessage
       yield* runs.insert(queued)
 
