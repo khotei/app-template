@@ -232,13 +232,15 @@ imports need.
 1. **The data.** `kernel/data/<store>/`, a store's folder (messages share `chat/`):
    `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Where` and
    `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an `index.ts`, re-exported
-   by `kernel/data/index.ts`; the table in `kernel/data/relations.ts`; the repository's layer in
-   `PostgresRepositories` (`kernel/data/postgres-repositories.ts`), which both processes provide;
-   the one `init` migration regenerated ([database.md](database.md#migrations)). What a table and an
-   entity may import and declare: [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field
-   of the `<Name>EntityWhere` the reads take, so a record of another owner reads as absent, never a
-   check after the read. Test the repository on `DbTest`, and add its memory repository with a twin
-   of every guard the e2e proves ([tooling.md › Tests](tooling.md#tests)).
+   by `kernel/data/index.ts`; the table in `kernel/data/relations.ts` when a relational query
+   reads or nests it ([database.md › Repositories](database.md#repositories)); the repository's
+   layer in `PostgresRepositories` (`kernel/data/postgres-repositories.ts`), which both processes
+   provide; the one `init` migration regenerated ([database.md](database.md#migrations)). What a
+   table and an entity may import and declare: [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
+   Ownership is a field of the `<Name>EntityWhere` the reads take, so a record of another owner
+   reads as absent, never a check after the read. Test the repository on `DbTest`, and add its
+   memory repository with a twin of every guard the e2e proves
+   ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input; a limit, a pattern or
    an enum's values imported from its table, never declared again,

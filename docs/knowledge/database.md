@@ -127,13 +127,13 @@ const rows = yield* db.query.messages.findMany({
 // rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
 ```
 
-Every repository reads its entity `with` the top-level relations its entity nests, in one
-relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`, `Run.userMessage`
-and `Message.run` are model fields another table holds, read and never written by their own writes.
-A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy:
-newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
-aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never
-on the `chats` constant.
+A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
+in one relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`,
+`Run.userMessage` and `Message.run` are model fields another table holds, read and never written by
+their own writes. A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: {
+orderBy: newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
+aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never on
+the `chats` constant.
 
 ## Repositories
 
@@ -155,12 +155,15 @@ their codecs: a write encodes the model into the row, the set takes its fields f
 service maps each `Option` of a `where` to `null`, and a read decodes the entities into models; a
 mapping failure dies.
 
-Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
-through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
-`findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the query
-states its intent; the row it finds is the entity as Drizzle types it, answered with no decode,
-and `Option.fromUndefinedOr` turns the `undefined` of none into `Option.none()`. A filter on a
-relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
+A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
+and `findMany`); a read of one table with neither goes through the core builder
+(`db.select().from(<table>)`, as `AttachmentRepository` reads), and so do the writes
+(`db.insert`, `db.update`, `db.delete`). A relational read of at most one row is a `findFirst`,
+which emits the `limit 1` itself, even where a key makes the row unique, so the query states its
+intent; the row it finds is the entity as Drizzle types it, answered with no decode, and
+`Option.fromUndefinedOr` turns the `undefined` of none into `Option.none()`. A core-builder read
+of one row takes the head of its many (`Arr.head`). A filter on a relation (`{ credentials: {
+kind, hash } }`) renders as `exists (…)`.
 
 A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`.
 The entity file lists the columns an update may write once, as `<name>SetColumns`, typed by the
