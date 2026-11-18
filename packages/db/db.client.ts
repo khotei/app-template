@@ -41,17 +41,17 @@ export class Transaction extends Context.Service<
   )
 }
 
-/** Encodes a model through its mapper into the row its table takes; a failure is a defect. */
-export const encodeRowWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
-  flow(Schema.encodeEffect(mapper), Effect.orDie)
+/** Encodes a model through its codec into the row its table takes; a failure is a defect. */
+export const encodeRowWith = <Codec extends Schema.Constraint>(codec: Codec) =>
+  flow(Schema.encodeEffect(codec), Effect.orDie)
 
-/** Decodes the entity a read found, if any, through its mapper; a failure is a defect. */
-export const decodeOptionalWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
-  flow(Schema.decodeEffect(Schema.Option(mapper)), Effect.orDie)
+/** Decodes the entity a read found, if any, through its codec; a failure is a defect. */
+export const decodeOptionalWith = <Codec extends Schema.Constraint>(codec: Codec) =>
+  flow(Schema.decodeEffect(Schema.Option(codec)), Effect.orDie)
 
-/** Decodes the entities a read found through their mapper; a failure is a defect. */
-export const decodeManyWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
-  flow(Schema.decodeEffect(Schema.Array(mapper)), Effect.orDie)
+/** Decodes the entities a read found through their codec; a failure is a defect. */
+export const decodeManyWith = <Codec extends Schema.Constraint>(codec: Codec) =>
+  flow(Schema.decodeEffect(Schema.Array(codec)), Effect.orDie)
 
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the

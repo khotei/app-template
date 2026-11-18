@@ -1,18 +1,9 @@
-import { Schema } from 'effect'
-
 import { decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { Run } from '#chat/domain/run.model'
-import { MessageFieldsFromColumns } from '#chat/services/message.mapper'
-import { RunFieldsFromColumns } from '#chat/services/run-fields.mapper'
-
-export const RunFromEntity = Schema.Struct({
-  ...RunFieldsFromColumns.fields,
-  userMessage: MessageFieldsFromColumns,
-  assistantMessage: Schema.OptionFromNullOr(MessageFieldsFromColumns),
-}).pipe(Schema.decodeTo(Run))
+import { RunFields } from '#chat/domain/run-fields.model'
 
 /** Encodes a Run's own fields as its row; the nested messages are read, never written. */
-export const encodeRun = encodeRowWith(RunFieldsFromColumns)
+export const encodeRun = encodeRowWith(RunFields)
 
-export const decodeRun = decodeOptionalWith(RunFromEntity)
+export const decodeRun = decodeOptionalWith(Run)

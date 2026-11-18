@@ -15,7 +15,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A port speaks the domain's words, never a client's type or error; which failures it declares:
   [effect-schema.md › Failures](effect-schema.md#failures).
 - No port in front of a repository: a service calls the data layer's `<Name>Repository` in
-  entities and maps them with its module's `<Model>FromEntity`.
+  entities and maps them with its module's `encode<Model>` and `decode<Model>`.
 - A domain service owns its model's records for every caller above it: the reads a rule needs and
   the plain reads and writes a handler asks for (a list, a create, a record by key with its
   `*NotFoundError`). It sees the repositories, its ports, the clock and `Crypto`, and the
@@ -58,8 +58,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A handler decodes the input, calls one domain service method or one use case, returns a model
   through its `buildApi<Model>` and fails with the domain's errors as they are. It holds no rule
-  and imports no repository, `<Model>FromEntity` or data layer: only the process's `layer.ts`
-  provides them.
+  and imports no repository, `encode<Model>`, `decode<Model>` or data layer: only the process's
+  `layer.ts` provides them.
 
 ## Concurrency
 

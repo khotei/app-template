@@ -403,20 +403,27 @@ its clients from the context. The tables stay in `public` with their foreign key
 The data layer's names end in `Entity` (`ChatEntity`, its `Where` and `Set`);
 its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its entities in
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
-`MessageEntity` nest their attachments. A module maps with `<Model>FromEntity` in
-`<model>.mapper.ts`; the domain's records are models.
+`MessageEntity` nest their attachments. The domain's records are models, and a model is the
+codec of its own row: its encoded side is the row of its one store, the rules read its type side
+only, and `<model>.mapper.ts` holds its `encode<Model>` and `decode<Model>`. A second stored form
+of a model brings back a mapper that lays the model's schemas over that store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
-  without an import cycle.
+  without an import cycle. A stored field is declared in the table, the model and the wire, with
+  no fourth list in a mapper.
 - **Sources:** the ticket's naming survey; `.claude/rules/naming.md`.
 - **Rejected:** a flat entity beside a second one with its attachments: a second name for the one
   shape every read returns. The service composing a chat from two repositories: two queries and a
-  grouping where one relational read serves.
-- **Cost:** a store has two files where it had one.
-- **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out.
+  grouping where one relational read serves. A mapper that lays the model's schemas over the
+  columns (`<Model>FromEntity`): a second list of the model's fields.
+- **Cost:** a store has two files where it had one. A model's declaration says how its row stores
+  a value (`null`, a `Date`), and a column the model lacks is dropped by a read.
+- **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the
+  repository's `insert`, which takes the table's full row, so a column the model lacks or a model
+  field its row cannot take fails typecheck at the service's insert.
 - **If reversed:** a rename, and the tables back into the entity files, where nesting reads
-  bring the import cycle back.
+  bring the import cycle back; each mapper lays the model's schemas over its columns again.
 - **Revisit when:** a store needs a read shape other than its entity's.
 
 ### Checks kept in the tables

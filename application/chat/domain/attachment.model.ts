@@ -34,15 +34,15 @@ export type FileSize = typeof FileSize.Type
 export class Attachment extends Schema.Class<Attachment>('Attachment')({
   id: AttachmentId,
   userId: UserId,
-  messageId: Schema.Option(MessageId),
+  messageId: Schema.OptionFromNullOr(MessageId),
   /** The chat of `messageId`, set with it, so a chat's attachments are found without its messages. */
-  chatId: Schema.Option(ChatId),
+  chatId: Schema.OptionFromNullOr(ChatId),
   /** The attachment it was sent from, set only with `messageId`. */
-  sourceId: Schema.Option(AttachmentId),
+  sourceId: Schema.OptionFromNullOr(AttachmentId),
   fileName: FileName,
   mediaType: MediaType,
   size: FileSize,
-  createdAt: Schema.DateTimeUtc,
+  createdAt: Schema.DateTimeUtcFromDate,
 }) {}
 
 export const buildAttachment = (

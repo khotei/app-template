@@ -22,7 +22,7 @@ export class Run extends Schema.Class<Run>('Run')({
   ...RunFields.fields,
   userMessage: MessageFields,
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.Option(MessageFields).pipe(
+  assistantMessage: Schema.OptionFromNullOr(MessageFields).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
 }) {}

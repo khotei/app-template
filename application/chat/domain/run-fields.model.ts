@@ -30,13 +30,15 @@ export const RunFields = Schema.Struct({
   chatId: ChatId,
   userMessageId: MessageId,
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
-  failure: Schema.Option(RunFailure).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-  provenance: ReplyProvenance,
-  /** The reply's id, none until the Run is done. */
-  assistantMessageId: Schema.Option(MessageId).pipe(
+  failure: Schema.OptionFromNullOr(RunFailure).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
+  provenance: ReplyProvenance,
+  /** The reply's id, none until the Run is done. */
+  assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
+  createdAt: Schema.DateTimeUtcFromDate,
+  updatedAt: Schema.DateTimeUtcFromDate,
 })
 export type RunFields = typeof RunFields.Type

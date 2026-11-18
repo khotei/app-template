@@ -67,8 +67,9 @@ Where each kind of test and its support live, and what a test may import:
   <Model><Problem>Error({ … }))` from `@app-template/packages/testing` (`Schema.Array(<Class>)`
   for a list). Never `Equal.equals` (`assertEquals`) on errors, which fails at random under Bun,
   nor `assert.deepStrictEqual`, which judges an `Error` by its message alone.
-- A model fixture passes `DateTime` values (`Schema.DateTimeUtc` decodes a `DateTime`, not an ISO
-  string) and ids as `<Model>Id.make('<uuid>')`.
+- A model fixture builds the model with `DateTime` values and ids as `<Model>Id.make('<uuid>')`;
+  a test that decodes a model passes its row's values (`null`, a `Date`), since a model's
+  encoded side is its row.
 - The cases of one rule run with `it.effect.each` over objects (a name template over `$field`),
   never a `for` loop around `it` or a lookup by key.
 - A test of logging asserts the level with the message.

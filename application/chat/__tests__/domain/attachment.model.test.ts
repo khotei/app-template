@@ -29,13 +29,13 @@ describe('Attachment', () => {
   const encoded = {
     id: '0192d4e0-7b3a-7c00-8000-000000000020',
     userId: '0192d4e0-7b3a-7c00-8000-000000000010',
-    messageId: Option.none(),
-    chatId: Option.none(),
-    sourceId: Option.none(),
+    messageId: null,
+    chatId: null,
+    sourceId: null,
     fileName: 'report.pdf',
     mediaType: 'application/pdf',
     size: 1024,
-    createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.000Z'),
+    createdAt: DateTime.toDateUtc(DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')),
   }
   const decode = Schema.decodeUnknownExit(Attachment)
 

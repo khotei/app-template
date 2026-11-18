@@ -6,9 +6,9 @@ domain model, how the schema changes, and how tests get a database. The code:
 the shared columns and the query helpers); the kernel's `postgres` part (`PgClientFromConfig`
 and the migrate program); the data layer, `kernel/data/` (the client `Db`, made by
 `createDb(relations)` over the `PgClient` in the context, the tables, their entities, the
-migrations and the repositories over them); and the `<Model>FromEntity` mappers in a module's
-`services/`. Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is
-an `Effect`, never a promise.
+migrations and the repositories over them); and the mappers in a module's `services/`, each
+the codec pair of a model over its row. Drizzle runs on `@effect/sql-pg` and is reached only
+through Effect: every query is an `Effect`, never a promise.
 
 ## Schema and entity files
 
@@ -89,38 +89,25 @@ other: a message's Run comes from two relations, the newest that answers a user'
 the one that wrote an assistant's, so `buildMessageEntity` keeps the one its author has and the
 repository maps every read through it.
 
-A mapper, `<model>.mapper.ts` in the module's `services/`, lays the model's schemas over the
-columns as `<Model>FieldsFromColumns`, the codec of the model's own fields, and nests the
-neighbours' codecs into `<Model>FromEntity`, piped into the model; services and tests decode
-with the second and encode with the first, since a write holds the model's own fields only:
+A model is the codec of its own row: it declares each stored value as its row holds it, a
+nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as `Schema.DateTimeUtcFromDate`,
+so its encoded side is its entity and its type side is what the rules read. A mapper,
+`<model>.mapper.ts` in the module's `services/`, holds only the codec pair over the model: a read
+decodes the entity with the model, whose nested models decode their own rows, and a write
+encodes the model's own fields, its `<Model>Fields`, since a write holds no nested record:
 
 ```ts
-export const ChatFieldsFromColumns = Schema.Struct({
-  ...ChatColumns.fields,
-  id: ChatId,
-  userId: UserId,
-  title: Schema.OptionFromNullOr(ChatTitle),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-})
-export const ChatFromEntity = Schema.Struct({
-  ...ChatFieldsFromColumns.fields,
-  attachments: Schema.Array(AttachmentFromEntity.from),
-  run: Schema.OptionFromNullOr(RunFieldsFromColumns),
-}).pipe(Schema.decodeTo(Chat))
-export const encodeChat = encodeRowWith(ChatFieldsFromColumns)
+export const encodeChat = encodeRowWith(ChatFields)
+export const decodeChat = decodeOptionalWith(Chat)
 ```
 
-- A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
-  makes it optional, so a nullable column is laid as `Schema.OptionFromNullOr(…)`. A refinement
-  given as a function (`{ error: () => MessageFailureJson }`) keeps the column's `NullOr`.
-- A model class nested in another (an attachment in a chat) is laid by its encoded side,
-  `AttachmentFromEntity.from`, since encoding the parent hands it plain fields; a nested
-  `Schema.Struct` codec (`RunFieldsFromColumns`) is laid as is.
-- A service writes a model encoded through its `<Model>FieldsFromColumns` into the row the
-  repository's `insert` takes. A value already in the data layer's types (brands, literals) is
-  passed as is: `UserRepository.insert` takes the credential with
-  no mapper and writes `{ hash, kind, userId }`, the user's id from the row it inserted.
+- A model's encoded side is the row of its one store. A second stored form of a model brings
+  back a mapper of its own, which lays the model's schemas over that store's columns.
+- A service writes a model encoded through its mapper into the row the repository's `insert`
+  takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
+  read drops it. A value already in the data layer's types (brands, literals) is passed as is:
+  `UserRepository.insert` takes the credential with no mapper and writes
+  `{ hash, kind, userId }`, the user's id from the row it inserted.
 - A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -164,9 +151,9 @@ in the e2e), so the transaction runs on the connection `Db` uses. Every method e
 `orDieWithSqlError` from `@app-template/packages/db`.
 
 A module's services and the use cases call the data layer's repositories through the
-`<Model>FromEntity` mappers of the module's `services/`: a write encodes the model through its
-mapper into the row, the set takes its fields from that row, the service maps each `Option` of a
-`where` to `null`, and a read decodes the entities into models; a mapping failure dies.
+mappers of the module's `services/`: a write encodes the model through its mapper into the
+row, the set takes its fields from that row, the service maps each `Option` of a `where` to
+`null`, and a read decodes the entities into models; a mapping failure dies.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a

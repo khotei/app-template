@@ -150,7 +150,7 @@ Using the files of `chat` as the map:
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `application/chat/domain/assistant.port.ts` | `Assistant` (`Context.Service` with no layer) |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| mapper from an entity to a model | `application/chat/services/chat.mapper.ts` | `ChatFromEntity`, `MessageFromEntity` |
+| a model's codec pair over its row | `application/chat/services/chat.mapper.ts` | `encodeChat`, `decodeChat` |
 | queue definitions | `application/chat/services/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
@@ -245,8 +245,9 @@ imports need.
    an enum's values imported from its table, never declared again,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), `<entity>.error.ts`,
    each with its unit test.
-3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
-   model's schemas over the entity's fields.
+3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `encode<Model>` and
+   `decode<Model>` over the model, which declares each stored value as its row holds it
+   ([database.md › Entities and mappers](database.md#entities-and-mappers)).
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.

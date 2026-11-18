@@ -21,12 +21,13 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
+/** A chat's own fields: the row its writes encode. */
 export const ChatFields = Schema.Struct({
   id: ChatId,
   userId: UserId,
-  title: Schema.Option(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-  createdAt: Schema.DateTimeUtc,
-  updatedAt: Schema.DateTimeUtc,
+  title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  createdAt: Schema.DateTimeUtcFromDate,
+  updatedAt: Schema.DateTimeUtcFromDate,
 })
 export type ChatFields = typeof ChatFields.Type
 
@@ -35,7 +36,7 @@ export class Chat extends Schema.Class<Chat>('Chat')({
   /** Bound to the chat's messages, in upload order; the chat's own writes never touch them. */
   attachments: Schema.Array(Attachment),
   /** The newest Run, flat, read with the chat and never written; none before its first send. */
-  run: Schema.Option(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 /** What a chat's newest Run makes of it; a chat no send has reached yet is `idle`. */

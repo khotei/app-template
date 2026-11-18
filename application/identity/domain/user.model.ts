@@ -6,7 +6,7 @@ import { UserId } from '#identity/contract/user.id'
 
 export class User extends Schema.Class<User>('User')({
   id: UserId,
-  createdAt: Schema.DateTimeUtc,
+  createdAt: Schema.DateTimeUtcFromDate,
 }) {}
 
 /** The lower-case hex SHA-256 of a user secret; the secret itself is never stored. */

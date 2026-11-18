@@ -18,7 +18,7 @@ export const MessageFields = Schema.Struct({
   author: MessageAuthor,
   /** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
   text: Schema.String,
-  createdAt: Schema.DateTimeUtc,
+  createdAt: Schema.DateTimeUtcFromDate,
 })
 export type MessageFields = typeof MessageFields.Type
 
@@ -27,7 +27,7 @@ export class Message extends Schema.Class<Message>('Message')({
   /** Bound by the send, in upload order; the message's own writes never touch them. */
   attachments: Schema.Array(Attachment),
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
-  run: Schema.Option(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
 export interface MessageInput {
