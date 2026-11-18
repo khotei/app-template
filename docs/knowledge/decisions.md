@@ -576,15 +576,16 @@ layer declares the key; `kernel/aws/resources` declares the bucket's name and li
 A job is a message on its queue, and no table holds it: the work it asks for keeps its own
 record (the Run, the chat's title), which the worker reads to run it once, to settle a Run whose
 worker died and to record a failure. `QueueSender.send` encodes the job by its
-definition; a use case sends it after its commit, through the job's sender beside the use cases,
-so every delivery finds its record. A send SQS refuses settles that record in the sender: the
-reply's fails its Run, which the api answers `503 RunNotQueuedError`, and the title's is logged.
+definition; a use case sends it after its commit, so every delivery finds its record. A send SQS
+refuses that settles a record goes through the job's sender beside the use cases: the reply's
+fails its Run, which the api answers `503 RunNotQueuedError`. One only logged, the title's, is
+sent and logged in its use case.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
-  handler can catch, so its Run fails at once and the user sees the failure with its retry; a
-  sender per job keeps that settlement out of every use case that sends it, and the use cases'
+  handler can catch, so its Run fails at once and the user sees the failure with its retry; the
+  reply's sender keeps that settlement out of the two use cases that send it, and the use cases'
   level already holds the queue and a status write through the repository.
 - **Sources:** the ticket's review of what each reader of `jobs` used it for.
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -596,12 +597,13 @@ reply's fails its Run, which the api answers `503 RunNotQueuedError`, and the ti
   service would see the queue, and a send could run inside a transaction. A sweep resending
   unsent work: a schedule and a route of its own, and a reply up to a minute late. Retries with a
   delay per attempt: a failed reply the user waits on through every attempt, and code that counts
-  them.
+  them. A sender for every job, the title's included: a class with one caller and no double
+  around a send that changes no record.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
   send answers `503` for a stored message, which a reload shows with its failed Run.
-- **Guarded by:** the `QueueSender` e2e; the senders' unit tests; the
-  `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
+- **Guarded by:** the `QueueSender` e2e; the reply sender's and the create flow's unit tests;
+  the `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 

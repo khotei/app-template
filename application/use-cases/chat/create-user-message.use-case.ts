@@ -7,11 +7,13 @@ import {
   type ChatId,
   type ChatNotFoundError,
   ChatService,
+  chatTitleQueue,
   ensureAllReachableFrom,
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
   FileAttachmentService,
+  GenerateChatTitle,
   Message,
   type MessageInput,
   type MessageInputInvalidError,
@@ -22,8 +24,9 @@ import {
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import { Transaction } from '@app-template/packages/db'
+import { QueueSender } from '@app-template/packages/queue'
 
-import { AssistantMessageSender, ChatTitleSender } from '#use-cases/chat/chat.sender'
+import { AssistantMessageSender } from '#use-cases/chat/chat.sender'
 
 export class CreateUserMessageUseCase extends Context.Service<
   CreateUserMessageUseCase,
@@ -53,7 +56,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     const messageService = yield* MessageService
     const runService = yield* RunService
     const replySender = yield* AssistantMessageSender
-    const titleSender = yield* ChatTitleSender
+    const queue = yield* QueueSender
     const transaction = yield* Transaction
 
     /**
@@ -94,7 +97,13 @@ export class CreateUserMessageUseCase extends Context.Service<
       yield* replySender.send(run)
       // Every user message starts a Run, so a chat with none had no message before this one.
       if (Option.isNone(chat.run)) {
-        yield* titleSender.send(run.userMessage)
+        const messageId = run.userMessageId
+        yield* queue
+          .send(chatTitleQueue, new GenerateChatTitle({ messageId }))
+          .pipe(
+            Effect.ignore({ log: 'Error', message: 'chat title not queued' }),
+            Effect.annotateLogs({ chatId, messageId }),
+          )
       }
       return run
     })
@@ -106,7 +115,6 @@ export class CreateUserMessageUseCase extends Context.Service<
     Layer.provide([
       AssistantMessageSender.layer,
       ChatService.layer,
-      ChatTitleSender.layer,
       FileAttachmentService.layer,
       MessageService.layer,
       RunService.layer,

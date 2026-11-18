@@ -2,12 +2,9 @@ import { Cause, Context, DateTime, Effect, Layer } from 'effect'
 
 import {
   assistantMessageQueue,
-  chatTitleQueue,
   encodeRun,
   failRun,
   GenerateAssistantMessage,
-  GenerateChatTitle,
-  type MessageFields,
   type Run,
   RunNotQueuedError,
 } from '@app-template/application/chat'
@@ -47,30 +44,6 @@ export class AssistantMessageSender extends Context.Service<
         Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
         Effect.catchTag('QueueError', (error) => failUnsent(run, error)),
         Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
-      ),
-    )
-
-    return { send }
-  }),
-}) {
-  static readonly layer = Layer.effect(this, this.make)
-}
-
-export class ChatTitleSender extends Context.Service<
-  ChatTitleSender,
-  {
-    /** Sends the job that titles the message's chat; one SQS refuses is logged. */
-    readonly send: (message: MessageFields) => Effect.Effect<void>
-  }
->()('@app-template/application/use-cases/chat/ChatTitleSender', {
-  make: Effect.gen(function* () {
-    const queue = yield* QueueSender
-
-    const send = Effect.fn('ChatTitleSender.send')((message: MessageFields) =>
-      queue.send(chatTitleQueue, new GenerateChatTitle({ messageId: message.id })).pipe(
-        Effect.tapError((error) => Effect.logError('chat title not queued', error)),
-        Effect.catchTag('QueueError', () => Effect.void),
-        Effect.annotateLogs({ chatId: message.chatId, messageId: message.id }),
       ),
     )
 

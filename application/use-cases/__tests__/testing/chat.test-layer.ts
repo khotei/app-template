@@ -6,7 +6,7 @@ import { chat, insertChatLayer } from '@app-template/application/chat/testing'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
-import { AssistantMessageSender, ChatTitleSender } from '#use-cases/chat/chat.sender'
+import { AssistantMessageSender } from '#use-cases/chat/chat.sender'
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
@@ -47,9 +47,9 @@ export const AssistantMessageTest = GenerateAssistantMessageUseCase.layer.pipe(
   Layer.provide(BunCrypto.layer),
 )
 
-/** The chat's job senders over the memory layers, on fresh rows where `chat` exists; the
+/** The reply job's sender over the memory layers, on fresh rows where `chat` exists; the
  * `QueueSender` is the test's. */
-export const ChatSenderTest = Layer.merge(AssistantMessageSender.layer, ChatTitleSender.layer).pipe(
+export const ChatSenderTest = AssistantMessageSender.layer.pipe(
   Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(RepositoryStackTest),
 )
