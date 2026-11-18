@@ -1,6 +1,7 @@
+import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Fiber, Layer, Option } from 'effect'
+import { DateTime, Effect, Layer, Option } from 'effect'
 
 import {
   AssistantFailedError,
@@ -11,80 +12,109 @@ import {
   Message,
 } from '@app-template/application/chat'
 import {
-  type AssistantCallHold,
   chat,
   chatId,
-  deleteChat,
   firstMessage,
-  holdAssistantCall,
-  insertMessage,
   messageId,
   recordAssistant,
-  selectChat,
 } from '@app-template/application/chat/testing'
-import { ChatRepository } from '@app-template/kernel/data'
-import { recordLogs } from '@app-template/packages/testing'
+import {
+  type ChatEntitySet,
+  type ChatEntityWhere,
+  ChatRepository,
+  FileRepository,
+  MessageRepository,
+} from '@app-template/kernel/data'
+import { encodeRowWith } from '@app-template/packages/db'
+import { epoch, recordLogs } from '@app-template/packages/testing'
 
-import { ChatTitleTest } from '#testing/use-cases/chat.test-layer'
 import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
 
+/**
+ * The use case over repositories that answer only the methods the case gives, and the
+ * `Assistant` of `recordAssistant()`.
+ */
+const titleUseCaseOver = (
+  assistant: ReturnType<typeof recordAssistant>,
+  {
+    chats = {},
+    messages = {},
+  }: {
+    readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
+    readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>
+  },
+) =>
+  GenerateChatTitleUseCase.layer.pipe(
+    Layer.provide([
+      assistant.layer,
+      Layer.mock(ChatRepository, chats),
+      Layer.mock(MessageRepository, messages),
+      Layer.mock(FileRepository, {}),
+      BunCrypto.layer,
+    ]),
+  )
+
+/** A message read that answers `message` as its row. */
+const selectsMessage = (message: Message) => () =>
+  encodeRowWith(Message)(message).pipe(Effect.map(Option.some))
+
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
-
-const trip = ChatTitle.make('Trip')
-
-const renameChat = ChatRepository.use((chats) => chats.update({ title: trip }, { id: chatId }))
 
 const generate = GenerateChatTitleUseCase.use((useCase) =>
   useCase.generate(new GenerateChatTitle({ messageId })),
 )
 
-const heldAnswer = (held: AssistantCallHold) => held.hold.pipe(Effect.as(lisbonWeekend))
-
-const changesWhileAnswering = [
-  { name: 'renamed', change: renameChat, log: 'chat deleted or titled', title: Option.some(trip) },
-  {
-    name: 'deleted',
-    change: deleteChat(chatId),
-    log: 'chat deleted or titled',
-    title: Option.none<ChatTitle>(),
-  },
-] as const
-
 describe('GenerateChatTitleUseCase', () => {
-  it.effect('titles an untitled chat from its first message', () => {
+  it.effect('titles the chat of its first message while the chat is untitled', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
+    const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     return Effect.gen(function* () {
-      yield* insertMessage(firstMessage)
-
       yield* generate
 
-      assertEquals(
-        yield* selectChat(chatId),
-        Option.some(new Chat({ ...chat, title: Option.some(lisbonWeekend) })),
-      )
+      assert.deepStrictEqual(updates, [
+        [
+          { title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },
+          { id: chatId, title: null },
+        ],
+      ])
       assertEquals(yield* assistant.calls, [
         { method: 'suggestTitle', text: 'Plan a weekend in Lisbon' },
       ])
       assert.deepStrictEqual(logs, [])
-    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(
+      Effect.provide([
+        titleUseCaseOver(assistant, {
+          messages: { selectOne: selectsMessage(firstMessage) },
+          chats: {
+            selectOne: () => encodeRowWith(Chat)(chat).pipe(Effect.map(Option.some)),
+            update: (...update) =>
+              Effect.sync(() => {
+                updates.push(update)
+              }),
+          },
+        }),
+        logger,
+      ]),
+    )
   })
 
-  it.effect('keeps the title the user set and logs the skip', () => {
+  it.effect('skips a chat the store finds titled or gone by the rename, and logs it', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertMessage(firstMessage)
-      yield* renameChat
-
       yield* generate
 
-      assertEquals(
-        yield* selectChat(chatId),
-        Option.some(new Chat({ ...chat, title: Option.some(trip) })),
-      )
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted or titled']])
-    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(
+      Effect.provide([
+        titleUseCaseOver(assistant, {
+          messages: { selectOne: selectsMessage(firstMessage) },
+          chats: { selectOne: () => Effect.succeedNone },
+        }),
+        logger,
+      ]),
+    )
   })
 
   it.effect('logs a deleted chat when its first message is gone, without asking', () => {
@@ -95,21 +125,30 @@ describe('GenerateChatTitleUseCase', () => {
 
       assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted']])
-    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(
+      Effect.provide([
+        titleUseCaseOver(assistant, { messages: { selectOne: () => Effect.succeedNone } }),
+        logger,
+      ]),
+    )
   })
 
   it.effect('leaves the chat untitled when its first message is blank, without asking', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertMessage(new Message({ ...firstMessage, text: ' \n ' }))
-
       yield* generate
 
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
       assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
-    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(
+      Effect.provide([
+        titleUseCaseOver(assistant, {
+          messages: { selectOne: selectsMessage(new Message({ ...firstMessage, text: ' \n ' })) },
+        }),
+        logger,
+      ]),
+    )
   })
 
   it.effect.each([
@@ -119,38 +158,16 @@ describe('GenerateChatTitleUseCase', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.fail(error) })
     const { logs, layer: logger } = recordLogs('error', 'cause')
     return Effect.gen(function* () {
-      yield* insertMessage(firstMessage)
-
       yield* generate
 
-      assertEquals(yield* selectChat(chatId), Option.some(chat))
       assert.deepStrictEqual(logs, [
         ['Warn', 'chat title skipped: the assistant failed', error._tag, error.cause],
       ])
-    }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
+    }).pipe(
+      Effect.provide([
+        titleUseCaseOver(assistant, { messages: { selectOne: selectsMessage(firstMessage) } }),
+        logger,
+      ]),
+    )
   })
-
-  it.effect.each(changesWhileAnswering)(
-    'skips a chat $name while the assistant answers',
-    ({ change, log, title }) => {
-      const held = holdAssistantCall()
-      const assistant = recordAssistant({ suggestTitle: heldAnswer(held) })
-      const { logs, layer: logger } = recordLogs()
-      return Effect.gen(function* () {
-        yield* insertMessage(firstMessage)
-
-        const running = yield* Effect.forkChild(generate)
-        yield* held.asked
-        yield* change
-        yield* held.release
-        yield* Fiber.join(running)
-
-        assertEquals(
-          yield* selectChat(chatId),
-          title.pipe(Option.map((title) => new Chat({ ...chat, title: Option.some(title) }))),
-        )
-        assert.deepStrictEqual(logs, [['Info', `chat title skipped: ${log}`]])
-      }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
-    },
-  )
 })

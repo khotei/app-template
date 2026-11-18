@@ -8,7 +8,6 @@ import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
-import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
 import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
 
 /**
@@ -23,16 +22,6 @@ export const ChatTest = Layer.mergeAll(
 ).pipe(
   Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(Layer.merge(RepositoryStackTest, TransactionTest)),
-  Layer.provide(BunCrypto.layer),
-)
-
-/**
- * The title use case over the memory layers, on fresh rows where `chat` exists; the `Assistant`
- * is the test's, `recordAssistant()`.
- */
-export const ChatTitleTest = GenerateChatTitleUseCase.layer.pipe(
-  Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(RepositoryStackTest),
   Layer.provide(BunCrypto.layer),
 )
 
