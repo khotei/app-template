@@ -131,8 +131,8 @@ const overLimit = {
 export default {
   globs: ['*.md', ...folders.map((folder) => `${folder}/**/*.md`)],
   ignores: ['docs/tickets/**', 'repos/**'],
-  // The root file only: `true` searches the whole tree for .gitignore files, half of a run, and
-  // the repo's other ones are all in repos/.
+  // The root file only, the one .gitignore the repo tracks: `true` searches the whole tree for
+  // them, half of a run.
   gitignore: '.gitignore',
   noBanner: true,
   noProgress: true,

@@ -98,9 +98,9 @@ Which suite runs where:
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the
-  shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and `sequence`
-  itself, and the root sets no `globalSetup`, so a unit run starts no container. A new workspace
-  needs no test config, and the vendored suites and the worktrees' copies stay out.
+  shared `exclude` (`.claude/worktrees/**` added to the default) and `sequence` itself, and the
+  root sets no `globalSetup`, so a unit run starts no container. A new workspace needs no test
+  config, and the worktrees' copies stay out; `repos/` holds no tests.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.** The run's
   `globalSetup`, in the data layer's e2e support, starts both containers and migrates a template
   database; each test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`, a

@@ -1,1 +1,0 @@
-ALTER TABLE "users" ALTER COLUMN "email" SET DATA TYPE integer USING "email"::integer;
