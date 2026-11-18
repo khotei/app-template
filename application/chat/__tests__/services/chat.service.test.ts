@@ -117,6 +117,15 @@ describe('ChatService', () => {
       }).pipe(Effect.provide(ChatTest)),
   )
 
+  it.effect("list answers the user's chats and none of another's", () =>
+    Effect.gen(function* () {
+      const service = yield* ChatService
+      yield* service.create(stranger)
+
+      assertEquals(yield* service.list(owner), [chat])
+    }).pipe(Effect.provide(ChatTest)),
+  )
+
   it.effect(
     'delete while a reply runs removes the chat, its messages, their attachments and bytes',
     () =>

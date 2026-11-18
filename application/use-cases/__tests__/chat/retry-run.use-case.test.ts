@@ -5,11 +5,15 @@ import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
 import {
   buildRun,
   ChatBusyError,
+  completeRun,
   failRun,
   GenerateAssistantMessage,
+  generateRun,
   MessageNotFoundError,
+  prepareRun,
   Run,
   type RunId,
+  RunNotRetryableError,
 } from '@app-template/application/chat'
 import {
   assistantMessageAt,
@@ -81,6 +85,32 @@ describe('RetryRunUseCase', () => {
       const error = yield* retryRun.retry(owner, chat.id, first.userMessageId).pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+      assertEquals(replyJobsOf(yield* jobs.sent), [replyJob(first.id)])
+    }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+  })
+
+  it.effect('retry of an answered message is RunNotRetryableError before any Run or job', () => {
+    const jobs = recordMessages()
+    return Effect.gen(function* () {
+      const createUserMessage = yield* CreateUserMessageUseCase
+      const retryRun = yield* RetryRunUseCase
+      const first = yield* createUserMessage.create(owner, chat.id, {
+        text: 'Plan a weekend in Lisbon',
+        attachmentIds: [],
+      })
+      const reply = assistantMessageAt(1, 'Sure.')
+      yield* insertMessage(reply)
+      const prepared = yield* prepareRun(first, reply.createdAt)
+      const generating = yield* generateRun(prepared, reply.createdAt)
+      yield* completeRun(generating, { reply, at: reply.createdAt }).pipe(Effect.flatMap(updateRun))
+
+      const error = yield* retryRun.retry(owner, chat.id, first.userMessageId).pipe(Effect.flip)
+
+      assertSchemaEquals(
+        RunNotRetryableError,
+        error,
+        new RunNotRetryableError({ userMessageId: first.userMessageId }),
+      )
       assertEquals(replyJobsOf(yield* jobs.sent), [replyJob(first.id)])
     }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
   })

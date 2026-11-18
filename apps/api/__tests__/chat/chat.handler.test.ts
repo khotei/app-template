@@ -9,6 +9,7 @@ import {
   ChatBusyError,
   ChatNotFoundError,
   MessageNotFoundError,
+  RequestInvalidError,
   type RunId,
   RunNotFoundError,
   UserUnknownError,
@@ -47,6 +48,26 @@ describe('chats', () => {
       assert.strictEqual(response.status, 401)
       assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
       assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect('a payload that fails its schema is 400 RequestInvalidError naming each field', () =>
+    Effect.gen(function* () {
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+
+      const response = yield* http.post(`/chats/${chat.id}/messages`, {
+        body: HttpBody.jsonUnsafe({ text: 1, attachmentIds: ['not-an-id'] }),
+      })
+      const error = yield* response.json.pipe(
+        Effect.flatMap(Schema.decodeUnknownEffect(RequestInvalidError)),
+      )
+
+      assert.strictEqual(response.status, 400)
+      assert.deepStrictEqual(
+        Arr.map(error.issues, ({ path }) => path),
+        [['text'], ['attachmentIds', 0]],
+      )
     }).pipe(Effect.provide(ApiTest)),
   )
 
