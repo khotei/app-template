@@ -26,7 +26,7 @@ live in `architecture.md › Decisions` of their tickets
 
 ### Modules by capability
 
-The behaviour is split by business capability, `chat` and `identity` under `application/`;
+The behaviour is split by business capability, a module per capability under `application/`;
 attachments stay in `chat`.
 
 - **Why:** a module owns what changes together. Chat and attachments imported each other in 8 + 3
