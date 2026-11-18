@@ -25,6 +25,9 @@ Gates`. This file only adapts them to the PR surface.
 - **`main` is the only long-lived branch.** The squash merge deletes the ticket branch; the
   steps stay in the merged PR's commit list and the ticket's `plan.md`
   ([sdd.md › Roadmap and history](../../docs/knowledge/sdd.md#roadmap-and-history)).
+- **One PR merges at a time, on the latest `main`.** When `main` has moved since a PR's branch was
+  last updated on it, update the branch on `main`, let `make check` and CI pass again, then merge;
+  with several PRs ready, merge one and repeat for the next.
 - When a push, a PR or a merge may happen: the commit gate in `sdd.md › Gates`.
 
 Template: `.github/PULL_REQUEST_TEMPLATE.md`. A filled PR and the commit it produces:
