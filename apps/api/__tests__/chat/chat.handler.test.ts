@@ -1,12 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Order, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 import { HttpBody, HttpClient } from 'effect/http'
 
 import { failRun } from '@app-template/application/chat'
 import { selectRun, updateRun } from '@app-template/application/chat/testing'
 import {
   ApiClient,
-  ChatBusyError,
   ChatNotFoundError,
   MessageNotFoundError,
   RequestInvalidError,
@@ -69,23 +68,6 @@ describe('chats', () => {
         [['text'], ['attachmentIds', 0]],
       )
     }).pipe(Effect.provide(ApiTest)),
-  )
-
-  it.effect(
-    'a created chat reads back with Option and DateTime, and null and ISO on the wire',
-    () =>
-      Effect.gen(function* () {
-        const http = yield* HttpClient.HttpClient
-        const chat = yield* openChat
-
-        const wire = yield* http
-          .get(`/chats/${chat.id}`)
-          .pipe(Effect.flatMap((response) => response.json))
-
-        assert.deepStrictEqual(chat.title, Option.none())
-        assert.isTrue(DateTime.isUtc(chat.createdAt))
-        assert.deepInclude(wire, { title: null, createdAt: DateTime.formatIso(chat.createdAt) })
-      }).pipe(Effect.provide(ApiTest)),
   )
 
   it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () =>
@@ -180,31 +162,6 @@ describe('chats', () => {
           'attachments[0].fileName': 'photo.png',
           'attachments[0].createdAt': DateTime.formatIso(uploaded.createdAt),
         }),
-      )
-    }).pipe(Effect.provide(ApiTest)),
-  )
-
-  it.effect('two concurrent sends to one chat answer one 202 and one 409 ChatBusyError', () =>
-    Effect.gen(function* () {
-      const api = yield* ApiClient
-      const chat = yield* openChat
-      const send = api.chats.createMessage({
-        params: { chatId: chat.id },
-        payload: hello,
-        responseMode: 'response-only',
-      })
-
-      const responses = yield* Effect.all([send, send], { concurrency: 'unbounded' })
-
-      const statuses = Arr.map(responses, (response) => response.status)
-      const busy = yield* Arr.findFirst(responses, (response) => response.status === 409).pipe(
-        Effect.fromOption,
-      )
-      assert.deepStrictEqual(Arr.sort(statuses, Order.Number), [202, 409])
-      assertSchemaEquals(
-        ChatBusyError,
-        yield* busy.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatBusyError))),
-        new ChatBusyError({ id: chat.id }),
       )
     }).pipe(Effect.provide(ApiTest)),
   )

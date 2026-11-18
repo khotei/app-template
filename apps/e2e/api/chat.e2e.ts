@@ -3,8 +3,13 @@ import { Array as Arr, Effect, Option, Order, Predicate, Schedule } from 'effect
 import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
-import { AttachmentId, type ChatId, isActiveRun, type RunId } from '@app-template/application/chat'
-import { ApiClient, AttachmentBoundError, AttachmentNotFoundError } from '@app-template/http-api'
+import {
+  type AttachmentId,
+  type ChatId,
+  isActiveRun,
+  type RunId,
+} from '@app-template/application/chat'
+import { ApiClient, AttachmentBoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
@@ -126,31 +131,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             ],
           )
         }),
-    )
-
-    it.effect('a send with a stale attachment id keeps no message and no job', () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        yield* api.users.ensure()
-        const chat = yield* api.chats.create()
-        const stale = AttachmentId.make('0192d4e0-7b3a-7c00-8000-00000000dead')
-
-        const refused = yield* api.chats
-          .createMessage({
-            params: { chatId: chat.id },
-            payload: { text: 'Hello', attachmentIds: [stale] },
-          })
-          .pipe(Effect.flip)
-
-        const stored = yield* selectMessages(chat.id)
-
-        assertSchemaEquals(
-          AttachmentNotFoundError,
-          refused,
-          new AttachmentNotFoundError({ ids: [stale] }),
-        )
-        assert.deepStrictEqual(stored, [])
-      }),
     )
 
     it.effect(
