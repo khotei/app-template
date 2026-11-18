@@ -33,7 +33,8 @@
       },
       "suspicious": {
         "noExplicitAny": "error",
-        "noImportCycles": "error"
+        "noImportCycles": "error",
+        "useIterableCallbackReturn": { "level": "error", "options": { "checkForEach": false } }
       }
     }
   },

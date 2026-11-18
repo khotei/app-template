@@ -185,7 +185,7 @@ review-rules: ## List the rules that bind the diff from BASE (default HEAD): no 
 BIOME = check
 
 lint: ## Lint and format-check with Biome and its plugins, failing on a plugin that errored
-	@out=$$(bunx biome $(BIOME) --colors=off 2>&1); status=$$?; \
+	@out=$$(bunx biome $(BIOME) --colors=off --error-on-warnings 2>&1); status=$$?; \
 	printf '%s\n' "$$out"; \
 	if printf '%s\n' "$$out" | grep -qE '^  i [^ ]+ errored: '; then \
 		echo 'lint: a Biome plugin errored and checked nothing in that file: fix the plugin.' >&2; \
