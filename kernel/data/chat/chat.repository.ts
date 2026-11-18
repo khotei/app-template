@@ -42,7 +42,7 @@ export class ChatRepository extends Context.Service<
     /** Writes the fields of `set` a chat may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: ChatEntitySet, where: ChatEntityWhere) => Effect.Effect<void>
     readonly selectOne: (where: ChatEntityWhere) => Effect.Effect<Option.Option<ChatEntity>>
-    /** Rows where `where` holds, the newest created first. */
+    /** Rows where `where` holds, the newest created first, then the greater id. */
     readonly selectMany: (where: ChatEntityWhere) => Effect.Effect<ReadonlyArray<ChatEntity>>
     /**
      * Removes the chats `where` finds with their messages and attachments, in one statement; dies
@@ -75,7 +75,7 @@ export class ChatRepository extends Context.Service<
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('ChatRepository.selectMany')(
-          (where) => db.query.chats.findMany({ ...select(where), orderBy: { createdAt: 'desc' } }),
+          (where) => db.query.chats.findMany({ ...select(where), orderBy: newestFirst }),
           orDieWithSqlError,
         ),
         delete: Effect.fn('ChatRepository.delete')(

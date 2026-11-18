@@ -162,6 +162,22 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
+  it.effect('selectMany orders chats created in one instant by id, the greater first', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const ada = '0192d4e0-7b3a-7c00-8000-000000000010'
+      const lesser = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
+      const greater = chat('0192d4e0-7b3a-7c00-8000-000000000031', ada)
+      yield* insertUser(ada)
+      yield* Effect.forEach([lesser, greater], chats.insert)
+
+      assertSchemaEquals(Schema.Array(ChatEntity), yield* chats.selectMany({ userId: ada }), [
+        greater,
+        lesser,
+      ])
+    }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
   it.effect('selects a chat with its newest Run, flat', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
