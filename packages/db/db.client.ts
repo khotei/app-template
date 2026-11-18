@@ -1,7 +1,5 @@
 import type { PgClient } from '@effect/sql-pg'
 import type { AnyRelations } from 'drizzle-orm'
-import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
-import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { Array as Arr, Cause, Context, Effect, flow, Layer, Predicate, Schema } from 'effect'
@@ -14,7 +12,7 @@ import { SqlClient, SqlError } from 'effect/sql'
  * Drizzle's own `EffectLogger.layer` logs at `Info`, which would print every statement in
  * production.
  */
-const EffectLoggerDebug = Layer.succeed(EffectLogger, {
+const EffectLoggerDebug = Layer.succeed(PgDrizzle.EffectLogger, {
   logQuery: (query, params) => Effect.logDebug('sql').pipe(Effect.annotateLogs({ query, params })),
 })
 
@@ -22,7 +20,9 @@ const EffectLoggerDebug = Layer.succeed(EffectLogger, {
 export const createDb = <TRelations extends AnyRelations>(
   relations: TRelations,
 ): Effect.Effect<PgDrizzle.EffectPgDatabase<TRelations>, never, PgClient.PgClient> =>
-  PgDrizzle.make({ relations }).pipe(Effect.provide([EffectCache.Default, EffectLoggerDebug]))
+  PgDrizzle.make({ relations }).pipe(
+    Effect.provide(Layer.merge(PgDrizzle.DefaultServices, EffectLoggerDebug)),
+  )
 
 export class Transaction extends Context.Service<
   Transaction,
