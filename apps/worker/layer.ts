@@ -1,4 +1,4 @@
-import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
+import { BunHttpServer } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
@@ -22,7 +22,7 @@ import { Transaction } from '@app-template/packages/db'
 
 import { WorkerHandler } from '#worker/worker.handler'
 
-export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
+const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
   Layer.provide([GenerateAssistantMessageUseCase.layer, GenerateChatTitleUseCase.layer]),
   Layer.provide(Transaction.layer),
 )
@@ -44,7 +44,6 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
     MessageRepository.layer,
     RunRepository.layer,
     FileRepository.layer,
-    BunCrypto.layer,
   ]),
   Layer.provide([Db.layer, S3BucketFromConfig]),
   Layer.provide(PgClientFromConfig),
