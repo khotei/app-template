@@ -365,8 +365,8 @@ left.
     ids and their `chatId`, `messageId` and `userId`, whichever path deleted them (a chat's
     cascade, a message's, a user's delete of an unbound file), in the deleting statement. Its
     handler deletes the bytes by `FileRepository.delete`. `ChatService.delete` drops its
-    attachment read and its bucket call; the memory fake records the job as the trigger does,
-    with an e2e twin.
+    attachment read and its bucket call; the repository's e2e checks the job the trigger
+    writes.
   - The Run keeps its own status, its subset of the shared `Status`: it is the work's state,
     which the client polls and the guards read, not the job's; a message has none since
     `reply-run`.
@@ -466,7 +466,7 @@ left.
   - **A verb that takes a list is tested with one id missing.** The fake and the e2e twin each
     covered the whole list only: the order of `selectMany` (S1.2) and a partial `delete` (S3.4)
     were found by review. `effect-tests.md` gets one line: a verb over a list has a case for a
-    list with one id that misses, in the e2e and in the fake it shares a matcher with.
+    list with one id that misses, in the repository's e2e.
   - **A split moves tests with the methods.** After the service split the new service's tests
     repeated the expiry and not-found cases of the services below (S3.2). `effect-tests.md` has
     "a rule once, at the lowest seam"; the line adds that a wrapping service's test holds only
@@ -526,13 +526,10 @@ and deletes it here.
   gives the `404` (`application/chat/services/message.service.ts:58`). Left: a domain service
   opens no transaction ([layering.md](../../.claude/rules/layering.md)). Way out: one query that
   reads the chat with its messages.
-- (2026-11-13) The memory fakes miss what Postgres refuses or takes back, so a unit test passes
-  where the database would not: they check no foreign key (a Run whose user message is missing,
-  an assistant message whose Run is), and `TransactionTest` is the identity, so a lost race's
-  writes stay (`kernel/data/__tests__/testing/chat.test-fake.ts`). No e2e runs a worker's lost
-  race of a completion (`application/use-cases/chat/generate-assistant-message.use-case.ts`,
-  `settleCompleted`). Ways out to weigh: the fakes copy the foreign keys, a `TransactionTest` that
-  restores the rows on a failure, an e2e of the completion's race.
+- (2026-11-13) No e2e runs a worker's lost race of a completion
+  (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`): its
+  unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
+  e2e of the completion's race.
 - (2026-11-13) Errors without context: `MessageInputInvalidError` covers two reasons alike
   (`application/chat/domain/message.model.ts:51`, `:55`), `AttachmentTooLargeError` names neither
   the limit nor the file (`apps/api/attachment/attachment.handler.ts:30`),

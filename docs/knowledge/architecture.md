@@ -238,8 +238,8 @@ imports need.
    provide; the one `init` migration regenerated ([database.md](database.md#migrations)). What a
    table and an entity may import and declare: [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
    Ownership is a field of the `<Name>EntityWhere` the reads take, so a record of another owner
-   reads as absent, never a check after the read. Test the repository on `DbTest`, and add its
-   memory repository with a twin of every guard the e2e proves
+   reads as absent, never a check after the read. Test the repository on `DbTest`, every guard
+   the database adds included; the unit tests above it mock it
    ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input; a limit, a pattern or
@@ -250,7 +250,7 @@ imports need.
    each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, coding its rows through the model with `encodeRowWith` and `decodeRowWith`, the
-   one owner every handler goes through, tested over the memory repositories.
+   one owner every handler goes through, tested over mocks of the repositories it calls.
    The layers' barrels re-export the new files.
 4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
    queue to the inventory and its definition to the module's `services/`

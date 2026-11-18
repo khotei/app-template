@@ -145,12 +145,12 @@ calls the data layer's repository directly.
   A leaf package of shared values for the data layer, the domain and the API contract: the
   contract would import a workspace ([The API contract on its own](#the-api-contract-on-its-own)).
   The domain's own copies kept: a value could drift between the two declarations.
-- **Cost:** a service depends on the data layer directly, so its unit tests take the data layer's
-  memory repositories; the domain loads the data layer's entry, and its guard admits of it only
-  the names of a value's shape, so a value of a new shape widens the guard's pattern; one entry
-  opens the module whole, so another unit's ban on a layer matches the names it imports. A
-  layer's override covers its tests, so what they need passes in its source too. What passes
-  every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
+- **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
+  repositories; the domain loads the data layer's entry, and its guard admits of it only the names
+  of a value's shape, so a value of a new shape widens the guard's pattern; one entry opens the
+  module whole, so another unit's ban on a layer matches the names it imports. A layer's override
+  covers its tests, so what they need passes in its source too. What passes every guard:
+  [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
   it only a value's name (`<name>Pattern`, `<name>Statuses`): the rows of a module's layers and
@@ -499,8 +499,8 @@ list alone answers newest first. An error over a
 list of ids, such as `AttachmentNotFoundError`'s `ids`, names each missing id once, in the order
 asked.
 
-- **Why:** one order for a chat's contents, written once in each repository's `ORDER BY` and in
-  the memory fakes; a send's message answers its attachments as a later read of the chat does.
+- **Why:** one order for a chat's contents, written once, in each repository's `ORDER BY`; a send's
+  message answers its attachments as a later read of the chat does.
 - **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files) (the
   index that serves it).
 - **Rejected:** the order asked, kept by sorting the rows by the ids in the service: a second
@@ -508,8 +508,7 @@ asked.
 - **Cost:** a client that sends `[b, a]` gets `[a, b]` back when `a` was uploaded first, and
   reorders them itself if it needs the order it asked.
 - **Guarded by:** the repositories' e2e read rows created out of id order in creation order; the
-  memory fakes sort by the same order; the attachment model's unit test names the missing ids in
-  the order asked.
+  attachment model's unit test names the missing ids in the order asked.
 - **If reversed:** the service sorts what the repository reads by the ids asked, and a chat read
   back still answers creation order.
 - **Revisit when:** a client needs its attachments in an order it chooses.
@@ -728,27 +727,32 @@ test app `apps/e2e`. Test support lives with the unit that uses it. The layout, 
 what a test may import: [tooling.md › Tests](tooling.md#tests).
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
-  checks: the behaviour runs over memory, the real stores are tested in the kernel, the flow a
-  user starts through the api. A part's tests and support sit with the part they test or build,
-  as a package's do.
-- **Sources:** `.claude/rules/effect-tests.md`; `vitest.config.ts` selects by folder.
-- **Rejected:** test folders at a workspace's top: support beside the source folders. The
-  kernel's tests in one pair of test folders at its top: a part's tests away from it, and one
-  support barrel for every part. Every package's support in `packages/testing`: a package's own
-  harness away from it, behind a barrel every unit imports. The use cases' e2e in
-  `application`, a use case called on Postgres: a call, not the flow a user starts. The e2e
-  in each app: the journey would make the api import the worker, and apps never import each
-  other. The e2e workspace at the root: a test of the processes away from them. The workspace as
-  an `__e2e__/` folder in `apps/`: such a folder everywhere else holds the e2e of its own
-  folder's source. The e2e support in `__e2e__/testing/`, exported under a name of its own: a
-  third test folder, and an import name no folder carries. A label in the file name
-  (`<name>.e2e-layer.ts`) beside the unit test support: the label is lost behind the `/testing`
-  entry, which every unit test may import.
+  checks: the behaviour runs over mocks of the stores, the real stores are tested in the kernel, the
+  flow a user starts through the api. A part's tests and support sit with the part they test or
+  build, as a package's do.
+- **Sources:** `.claude/rules/effect-tests.md`; `vitest.config.ts` selects by folder; the
+  owner's answer to the design audit's Q1 (2026-11-18): a unit test replaces everything external,
+  and what Postgres accepts, refuses, races or rolls back is checked by e2e on the repository.
+- **Rejected:** test folders at a workspace's top: support beside the source folders. The kernel's
+  tests in one pair of test folders at its top: a part's tests away from it, and one support barrel
+  for every part. Every package's support in `packages/testing`: a package's own harness away from
+  it, behind a barrel every unit imports. The use cases' e2e in `application`, a use case called on
+  Postgres: a call, not the flow a user starts. The e2e in each app: the journey would make the api
+  import the worker, and apps never import each other. The e2e workspace at the root: a test of the
+  processes away from them. The workspace as an `__e2e__/` folder in `apps/`: such a folder
+  everywhere else holds the e2e of its own folder's source. The e2e support in `__e2e__/testing/`,
+  exported under a name of its own: a third test folder, and an import name no folder carries. A
+  label in the file name (`<name>.e2e-layer.ts`) beside the unit test support: the label is lost
+  behind the `/testing` entry, which every unit test may import. The behaviour's suites on the
+  per-test Postgres: `make test-unit` would need Docker. Memory repositories in place of the mocks:
+  a second store, kept in step with Postgres by hand.
 - **Cost:** a use case's race or rollback runs through the api with both processes up, slower than a
-  call of the use case. The kernel declares an alias per part's support, and an export where another
+  call of the use case. A unit test sees no store: a mock answers what its case gives, so a case
+  passes on a row Postgres would refuse, and each rule the database enforces needs its own case on
+  the repository's e2e. The kernel declares an alias per part's support, and an export where another
   unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the
-  MiniStack every workspace's e2e uses. No tool refuses an import of e2e support a unit test
-  never builds, nor test support in source: review does.
+  MiniStack every workspace's e2e uses. No tool refuses an import of e2e support a unit test never
+  builds, nor test support in source: review does.
 - **Guarded by:** `make test-unit`: its vitest project has no `globalSetup`, so a unit test that
   builds e2e support finds no database and fails; `.claude/rules/modules.md` refuses e2e support
   in a unit test and test support in source; the vitest projects include by folder and suffix.
@@ -763,7 +767,7 @@ that go through a changed interface, and the setup of a moved client.
 - **Why:** an unchanged case is the proof that behaviour was kept.
 - **Sources:** the ticket's requirement that behaviour seen from outside does not change.
 - **Rejected:** rewriting the suites with the code: nothing would show what changed.
-- **Cost:** the memory repositories were rewritten over entities.
+- **Cost:** a suite moved onto another double rewrites its arrange and read steps.
 - **Guarded by:** review of each step's test diff; nothing in `make check`.
 - **If reversed:** a refactor can drop a case with no one noticing.
 - **Revisit when:** a case tests an interface that no longer exists, not a behaviour.

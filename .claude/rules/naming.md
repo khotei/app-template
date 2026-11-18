@@ -59,4 +59,4 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
   is `PascalCase`, `<Service><Variant>` for a service declared elsewhere.
 - A test-only layer ends in `Test`: a fake `<Service>Test`, a model's real services over fakes
   `<Model>Test` (`layer<Model>Test(…)`). A stateful fake `<verb><Thing>()` returns
-  `{ <handle>, layer }`; `<Name>Rows` holds a memory layer's rows.
+  `{ <handle>, layer }`.

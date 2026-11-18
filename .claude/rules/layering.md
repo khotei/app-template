@@ -37,7 +37,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A flow becomes a use case as soon as it composes two domain services or sends a job, needs one
   transaction or one ordering of writes across them, or needs an exception to a rule here.
 - A `Context.Service` whose `layer` provides the domain services it composes and leaves the
-  repositories and ports open, for the process or a unit test's memory layers.
+  repositories and ports open, for the process or a unit test's mocks.
 - It writes through a domain service where one holds the write's rule, else through the
   repository: a rule-free write, or one whose rule a model function already ran (a status move);
   a read with no rule may go to the repository too. A rule of its own is refused (`modules.md`).

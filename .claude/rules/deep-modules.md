@@ -47,8 +47,6 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read. The field mappers and a relational query's alias:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
-- The memory fake is the repository's second layer, over the same entities, its methods sharing
-  one matcher.
 
 ## Composition over pass-through
 

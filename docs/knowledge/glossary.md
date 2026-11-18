@@ -185,7 +185,8 @@ configures it for this one.
 _Avoid_: Library (for a workspace), lib, helper, kernel
 
 **Unit test**:
-A test over memory layers, needing no process outside the test runner.
+A test over mocks of the repositories and memory layers of the ports, needing no process outside
+the test runner.
 _Avoid_: Fast test, isolated test, mock test
 
 **E2E test**:
@@ -193,9 +194,15 @@ A test over the containers the run starts (Postgres, MiniStack).
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a repository or a port over a `Ref<HashMap>`, one per service; a repository's over
-the same entities as the real one. The unit tests' only double.
+A layer of a port, or of the object store's `FileRepository`, over a `Ref`, one per service
+(`recordAssistant`, `recordMessages`, `FileRepositoryTest`): the unit tests' double of a leaf
+whose whole promise it keeps.
 _Avoid_: Mock, stub, in-memory repository
+
+**Mock**:
+A `Layer.mock` of a repository in a unit test, answering only the methods the test gives; any
+other call dies with `UnimplementedError`.
+_Avoid_: Fake, stub, memory repository
 
 ## Observability
 

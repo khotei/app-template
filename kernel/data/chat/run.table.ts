@@ -67,7 +67,7 @@ export const runs = snakeCase.table(
   ],
 )
 
-/** The statuses of a Run still in flight, read by the index's predicate and the memory fake. */
+/** The statuses of a Run still in flight, read by the index's predicate. */
 export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
 
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */

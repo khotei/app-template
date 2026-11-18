@@ -22,13 +22,15 @@ Where each kind of test and its support live, and what a test may import:
 
 ## Unit and e2e
 
-- A unit test runs the real services over the memory repositories and the memory layers of the
-  ports, and starts no container. A use case's unit test checks the order of its steps and the
-  jobs it sends, not the rules. A further fake only wraps a memory layer, to force a race or a
-  failure it cannot produce on demand.
-- A memory layer copies each guard the database adds, with its e2e twin on the repository, or a
-  unit test passes on a write the database refuses:
-  [database.md › Tests](../../docs/knowledge/database.md#tests).
+- A unit test runs the real services and use cases over a `Layer.mock(<Name>Repository, { … })` of
+  each repository, giving only the methods its flow may call (any other dies with
+  `UnimplementedError`), and the memory layers of the ports; it starts no container. It asserts the
+  row or the `set` and `where` a write was handed, never a read back. A use case's unit test checks
+  the order of its steps and the jobs it sends, not the rules.
+- Mock a leaf only, a repository or a port: a layer that provides its own dependency ignores a
+  double given from outside. What the database accepts, refuses, races or rolls back has its case on
+  the repository's e2e or through the api, never a unit test: `TransactionTest` takes nothing back
+  ([database.md › Tests](../../docs/knowledge/database.md#tests)).
 - An e2e test proves an adapter on the run's containers, or a flow through the api, never a call
   of the use case. Atomicity: the database refuses one write (a constraint the test adds) and no
   row and no job is kept. A race sends the rival requests with `Effect.all(…, { concurrency:
