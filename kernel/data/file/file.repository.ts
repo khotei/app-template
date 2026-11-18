@@ -60,18 +60,21 @@ export class FileRepository extends Context.Service<
     const headFile = Effect.fnUntraced(function* (id: string) {
       const head = yield* bucket.head(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* head.pipe(Option.map(buildFileEntity(id, url)), Effect.transposeOption)
+
+      if (Option.isNone(head)) return Option.none()
+
+      const file = yield* buildFileEntity(id, url)(head.value)
+      return Option.some(file)
     })
 
     const downloadFile = Effect.fnUntraced(function* (id: string) {
       const object = yield* bucket.download(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* object.pipe(
-        Option.map(({ head, blob }) =>
-          buildFileEntity(id, url)(head).pipe(Effect.map((file) => ({ ...file, blob }))),
-        ),
-        Effect.transposeOption,
-      )
+
+      if (Option.isNone(object)) return Option.none()
+
+      const file = yield* buildFileEntity(id, url)(object.value.head)
+      return Option.some({ ...file, blob: object.value.blob })
     })
 
     const selectMany = readEach(headFile)

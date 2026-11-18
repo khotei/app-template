@@ -24,7 +24,7 @@ Code reads top to bottom and extends by adding a row, not a branch.
 - A generator stays flat: guard clauses, no nested ternary, one `yield*` per statement with its
   value named. One blank line separates its paragraphs (the services it reads, the reads, the
   checks, the writes, the result); a body of three statements or fewer stays unbroken.
-- An `Option` is read by its combinators (`Option.match`).
+- An `Option` is read by its combinators; a generator may guard on `Option.isNone` and return.
 - An effect per element is `Effect.forEach` (`{ discard: true }` when nothing is returned);
   `for … of` around `yield*` only for an early exit.
 - A check on an effect's result is `Effect.filterOrFail` with a named predicate; a predicate built

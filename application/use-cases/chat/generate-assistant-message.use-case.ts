@@ -75,15 +75,14 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
         Effect.annotateLogs({ attachmentId: attachment.id }),
       )
 
-    const readBytes = (attachment: Attachment) =>
-      files
-        .download({ id: buildFileId(attachment) })
-        .pipe(
-          Effect.tap(
-            Option.match({ onNone: () => logMissingFile(attachment), onSome: () => Effect.void }),
-          ),
-          Effect.map(Option.map(({ blob }) => ({ attachment, bytes: blob }))),
-        )
+    const readBytes = Effect.fnUntraced(function* (attachment: Attachment) {
+      const file = yield* files.download({ id: buildFileId(attachment) })
+      if (Option.isNone(file)) {
+        yield* logMissingFile(attachment)
+        return Option.none()
+      }
+      return Option.some({ attachment, bytes: file.value.blob })
+    })
 
     const readHistoryMessage = (message: Message) =>
       Effect.forEach(message.attachments, readBytes).pipe(
