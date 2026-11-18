@@ -20,15 +20,7 @@ import {
   SQSServiceFromConfig,
 } from '@app-template/kernel/aws'
 import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
-import {
-  AttachmentRepository,
-  ChatRepository,
-  Db,
-  FileRepository,
-  MessageRepository,
-  RunRepository,
-  UserRepository,
-} from '@app-template/kernel/data'
+import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
@@ -65,14 +57,7 @@ const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logIn
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide([QueueSenderOfStage, Transaction.layer]),
-  Layer.provide([
-    UserRepository.layer,
-    ChatRepository.layer,
-    MessageRepository.layer,
-    RunRepository.layer,
-    AttachmentRepository.layer,
-    FileRepository.layer,
-  ]),
+  Layer.provide([PostgresRepositories, FileRepository.layer]),
   Layer.provide(Db.layer),
   Layer.provide([PgClientFromConfig, S3BucketFromConfig, SQSServiceFromConfig]),
   Layer.provide(BunHttpServerFromConfig),

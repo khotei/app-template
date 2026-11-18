@@ -231,14 +231,14 @@ imports need.
 
 1. **The data.** `kernel/data/<store>/`, a store's folder (messages share `chat/`):
    `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Where` and
-   `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an
-   `index.ts`, re-exported by `kernel/data/index.ts`; the table in
-   `kernel/data/relations.ts`; the one `init` migration regenerated
-   ([database.md](database.md#migrations)). What a table and an entity may import and declare:
-   [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field of the `<Name>EntityWhere`
-   the reads take, so a record of another owner reads as absent, never a check after the read.
-   Test the repository on `DbTest`, and add its memory repository with a twin of every guard
-   the e2e proves ([tooling.md › Tests](tooling.md#tests)).
+   `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an `index.ts`, re-exported
+   by `kernel/data/index.ts`; the table in `kernel/data/relations.ts`; the repository's layer in
+   `PostgresRepositories` (`kernel/data/postgres-repositories.ts`), which both processes provide;
+   the one `init` migration regenerated ([database.md](database.md#migrations)). What a table and an
+   entity may import and declare: [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field
+   of the `<Name>EntityWhere` the reads take, so a record of another owner reads as absent, never a
+   check after the read. Test the repository on `DbTest`, and add its memory repository with a twin
+   of every guard the e2e proves ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
    `Schema.Class` with its pure operations; time and ids come in as input; a limit, a pattern or
    an enum's values imported from its table, never declared again,
@@ -261,10 +261,9 @@ imports need.
    `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
    added before it; its handler in `apps/api/<entity>/`, with a mapper in
    `apps/api/<entity>/<entity>.mapper.ts` only for a wire shape that adds or renames a field,
-   the handler added to `ApiRoutes` and its services to `ApiHttp`, the repository's layer to
-   `ApiLayer`. Test only what HTTP adds, on the api test
-   layer; a new module's journey case goes in a file of its own on `StandTest`. A browser
-   feature calls it through `ApiClient` from `apps/web/features/<entity>/`.
+   the handler added to `ApiRoutes` and its services to `ApiHttp`. Test only what HTTP adds, on
+   the api test layer; a new module's journey case goes in a file of its own on `StandTest`. A
+   browser feature calls it through `ApiClient` from `apps/web/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).

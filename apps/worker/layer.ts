@@ -10,13 +10,7 @@ import {
 } from '@app-template/application/use-cases'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
-import {
-  ChatRepository,
-  Db,
-  FileRepository,
-  MessageRepository,
-  RunRepository,
-} from '@app-template/kernel/data'
+import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
@@ -39,12 +33,7 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 
 /** The worker process but its `Assistant`, which the e2e stand scripts. */
 export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
-  Layer.provide([
-    ChatRepository.layer,
-    MessageRepository.layer,
-    RunRepository.layer,
-    FileRepository.layer,
-  ]),
+  Layer.provide([PostgresRepositories, FileRepository.layer]),
   Layer.provide([Db.layer, S3BucketFromConfig]),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),
