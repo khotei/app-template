@@ -1,6 +1,6 @@
-import { assert, describe, it } from '@effect/vitest'
+import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option } from 'effect'
 
 import {
   buildRun,
@@ -18,7 +18,7 @@ import {
   owner,
   updateRun,
 } from '@app-template/application/chat/testing'
-import { recordMessages } from '@app-template/packages/queue/testing'
+import { recordMessages, type SentMessage } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatTest } from '#testing/use-cases/chat.test-layer'
@@ -29,6 +29,10 @@ const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
   message: new GenerateAssistantMessage({ runId }),
 })
+
+function replyJobsOf(sent: ReadonlyArray<SentMessage>) {
+  return Arr.filter(sent, ({ queue }) => queue === 'assistant-message')
+}
 
 describe('RetryRunUseCase', () => {
   it.effect(
@@ -77,8 +81,7 @@ describe('RetryRunUseCase', () => {
       const error = yield* retryRun.retry(owner, chat.id, first.userMessageId).pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-      // The send's reply and title jobs, and none of the retry.
-      assert.lengthOf(yield* jobs.sent, 2)
+      assertEquals(replyJobsOf(yield* jobs.sent), [replyJob(first.id)])
     }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
   })
 
@@ -105,7 +108,7 @@ describe('RetryRunUseCase', () => {
         error,
         new MessageNotFoundError({ id: reply.id, author: Option.some('user') }),
       )
-      assert.lengthOf(yield* jobs.sent, 2)
+      assertEquals(replyJobsOf(yield* jobs.sent), [replyJob(first.id)])
     }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
   })
 })
