@@ -38,7 +38,7 @@ runner, which ignores the vitest projects and their setup.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare` (`make lint`
 and `make fmt` call Biome themselves); each process app (`api`, `worker`, `web`) holds
-`dev`, `debug` and `start`; `apps/e2e` and the library workspaces hold none.
+`dev` and `debug`; `apps/e2e` and the library workspaces hold none.
 
 ## Tests
 
@@ -414,6 +414,6 @@ list and one run reports every red gate, on the Bun that `packageManager` pins.
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |
 | `<file>:<line> - error TS377001: … effect(floatingEffect)`, or another `effect(<rule>)` | the Effect language service flags a misuse; the name in parentheses is the rule | fix the code (here: yield or assign the Effect). A rule's severity is set in the plugin's `diagnosticSeverity` in `tsconfig.base.json` |
 | CI `Install`: `lockfile had changes, but lockfile is frozen` | `package.json` or a catalog changed without `bun install` | run `bun install` locally and commit `bun.lock` |
-| an app exits at startup with `ConfigError: SchemaError(… at ["API_PORT"])` | `.env` is missing or that variable is invalid; Bun ignores a missing `--env-file` without a warning | `make setup`, or fix the named variable in `.env` and rerun until it starts |
+| an app or `make migrate` exits with `ConfigError: SchemaError(… at ["API_PORT"])` | `.env` is missing or that variable is invalid; Bun ignores a missing `--env-file` without a warning. At `["DATABASE_URL"]`: the tree has no stand yet, so no `.env.pulumi` | `make setup` (in a worktree, `make worktree`), or fix the named variable in `.env` and rerun until it starts; for `DATABASE_URL`, `make up` |
 | `… at ["LOG_LEVEL"]` on a `.env` that used to work | `LOG_LEVEL` is case-sensitive since the Effect config: `Info`, not `info` | set `LOG_LEVEL="Info"` (see `.env.example`) |
 | `bun install` fails with a workspace path error | an explicit `workspaces` entry points to a folder that does not exist yet | create the folder first, then add the path |
