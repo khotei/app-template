@@ -16,6 +16,8 @@ export default defineConfig({
           // The apps' SDK clients read credentials from the environment; MiniStack accepts any.
           env: { AWS_ACCESS_KEY_ID: 'test', AWS_SECRET_ACCESS_KEY: 'test' },
           sequence,
+          // Several trees' runs share one Docker VM, where a test's database can take past vitest's 5 s.
+          testTimeout: 30_000,
         },
       },
     ],

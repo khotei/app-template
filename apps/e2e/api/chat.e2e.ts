@@ -105,7 +105,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           assert.deepStrictEqual(yield* selectRecordChats(uploaded.id), [])
           assert.deepInclude(library, uploaded)
         }),
-      30_000,
     )
 
     it.effect(
@@ -246,46 +245,42 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           )
           assert.notDeepInclude(yield* api.attachments.list(), photo)
         }),
-      30_000,
     )
   })
 })
 
 // Each case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
 describe('a write Postgres refuses, through the api', () => {
-  it.live(
-    'a send whose Run is refused leaves no message, no record and no chat change',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const client = yield* SqlClient.SqlClient
-        yield* api.users.ensure()
-        const chat = yield* api.chats.create()
-        const photo = yield* uploadPhoto
-        const created = yield* api.chats.get({ params: { chatId: chat.id } })
-        // The Run is the last write of a send; all the others precede it.
-        yield* client
-          .unsafe(`ALTER TABLE runs ADD CONSTRAINT refuse_run CHECK (status <> 'queued')`)
-          .pipe(Effect.orDie)
+  it.live('a send whose Run is refused leaves no message, no record and no chat change', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const client = yield* SqlClient.SqlClient
+      yield* api.users.ensure()
+      const chat = yield* api.chats.create()
+      const photo = yield* uploadPhoto
+      const created = yield* api.chats.get({ params: { chatId: chat.id } })
+      // The Run is the last write of a send; all the others precede it.
+      yield* client
+        .unsafe(`ALTER TABLE runs ADD CONSTRAINT refuse_run CHECK (status <> 'queued')`)
+        .pipe(Effect.orDie)
 
-        const outcome = yield* api.chats
-          .createMessage({
-            params: { chatId: chat.id },
-            payload: { text: 'Look', attachmentIds: [photo.id] },
-          })
-          .pipe(
-            Effect.as('sent'),
-            Effect.catchTag('HttpClientError', (error) =>
-              isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
-            ),
-          )
+      const outcome = yield* api.chats
+        .createMessage({
+          params: { chatId: chat.id },
+          payload: { text: 'Look', attachmentIds: [photo.id] },
+        })
+        .pipe(
+          Effect.as('sent'),
+          Effect.catchTag('HttpClientError', (error) =>
+            isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+          ),
+        )
 
-        assert.strictEqual(outcome, 'refused')
-        assert.deepStrictEqual(yield* selectMessages(chat.id), [])
-        assert.deepStrictEqual(yield* selectRecordChats(photo.id), [])
-        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
-      }).pipe(Effect.provide(StandTest)),
-    30_000,
+      assert.strictEqual(outcome, 'refused')
+      assert.deepStrictEqual(yield* selectMessages(chat.id), [])
+      assert.deepStrictEqual(yield* selectRecordChats(photo.id), [])
+      assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
+    }).pipe(Effect.provide(StandTest)),
   )
 
   it.live(
@@ -354,55 +349,52 @@ describe('a write Postgres refuses, through the api', () => {
     60_000,
   )
 
-  it.live(
-    'a refused chat delete keeps every row and the bytes',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const files = yield* FileRepository
-        const client = yield* SqlClient.SqlClient
-        yield* api.users.ensure()
-        const chat = yield* api.chats.create()
-        const photo = yield* uploadPhoto
-        const sent = yield* api.chats.createMessage({
-          params: { chatId: chat.id },
-          payload: { text: 'Look', attachmentIds: [photo.id] },
-        })
-        // The worker settles the Run and the title first, so only the delete could move a row.
-        const done = yield* pollSettledRun(chat.id, sent.id)
-        const settled = yield* pollTitledChat(chat.id)
-        const asked = yield* api.chats.getMessage({
+  it.live('a refused chat delete keeps every row and the bytes', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const files = yield* FileRepository
+      const client = yield* SqlClient.SqlClient
+      yield* api.users.ensure()
+      const chat = yield* api.chats.create()
+      const photo = yield* uploadPhoto
+      const sent = yield* api.chats.createMessage({
+        params: { chatId: chat.id },
+        payload: { text: 'Look', attachmentIds: [photo.id] },
+      })
+      // The worker settles the Run and the title first, so only the delete could move a row.
+      const done = yield* pollSettledRun(chat.id, sent.id)
+      const settled = yield* pollTitledChat(chat.id)
+      const asked = yield* api.chats.getMessage({
+        params: { chatId: chat.id, messageId: sent.userMessage.id },
+      })
+      // A row that references the chat without a cascade: Postgres refuses the chat's delete,
+      // and the cascade it started goes back with it.
+      yield* client
+        .unsafe('CREATE TABLE chat_holds (chat_id uuid NOT NULL REFERENCES chats (id))')
+        .pipe(Effect.orDie)
+      yield* Effect.orDie(client`INSERT INTO chat_holds (chat_id) VALUES (${chat.id})`)
+
+      const outcome = yield* api.chats.delete({ params: { chatId: chat.id } }).pipe(
+        Effect.as('deleted'),
+        Effect.catchTag('HttpClientError', (error) =>
+          isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
+        ),
+      )
+
+      assert.strictEqual(outcome, 'refused')
+      assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), settled)
+      assert.deepStrictEqual(
+        yield* api.chats.getMessage({
           params: { chatId: chat.id, messageId: sent.userMessage.id },
-        })
-        // A row that references the chat without a cascade: Postgres refuses the chat's delete,
-        // and the cascade it started goes back with it.
-        yield* client
-          .unsafe('CREATE TABLE chat_holds (chat_id uuid NOT NULL REFERENCES chats (id))')
-          .pipe(Effect.orDie)
-        yield* Effect.orDie(client`INSERT INTO chat_holds (chat_id) VALUES (${chat.id})`)
-
-        const outcome = yield* api.chats.delete({ params: { chatId: chat.id } }).pipe(
-          Effect.as('deleted'),
-          Effect.catchTag('HttpClientError', (error) =>
-            isDefectAnswer(error) ? Effect.succeed('refused') : Effect.fail(error),
-          ),
-        )
-
-        assert.strictEqual(outcome, 'refused')
-        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), settled)
-        assert.deepStrictEqual(
-          yield* api.chats.getMessage({
-            params: { chatId: chat.id, messageId: sent.userMessage.id },
-          }),
-          asked,
-        )
-        assert.deepStrictEqual(
-          yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } }),
-          done,
-        )
-        assert.deepStrictEqual(yield* selectRecordChats(photo.id), [chat.id])
-        assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
-      }).pipe(Effect.provide(StandTest)),
-    30_000,
+        }),
+        asked,
+      )
+      assert.deepStrictEqual(
+        yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } }),
+        done,
+      )
+      assert.deepStrictEqual(yield* selectRecordChats(photo.id), [chat.id])
+      assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
+    }).pipe(Effect.provide(StandTest)),
   )
 })

@@ -58,24 +58,18 @@ const receive = (waitSeconds: number) =>
 
 // Live: SQS long-polls in real time.
 describe('QueueSender', { concurrent: false }, () => {
-  it.live(
-    "a sent message reaches the stage's queue with the trace it was sent in",
-    () =>
-      Effect.gen(function* () {
-        const { traceId } = yield* Effect.currentSpan.pipe(Effect.orDie)
-        yield* send
-        const received = yield* receive(10)
+  it.live("a sent message reaches the stage's queue with the trace it was sent in", () =>
+    Effect.gen(function* () {
+      const { traceId } = yield* Effect.currentSpan.pipe(Effect.orDie)
+      yield* send
+      const received = yield* receive(10)
 
-        assert.deepStrictEqual(
-          Arr.map(received, ({ body }) => body),
-          [{ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' }],
-        )
-        assert.match(
-          String(received[0]?.traceparent),
-          new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`),
-        )
-      }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
-    30_000,
+      assert.deepStrictEqual(
+        Arr.map(received, ({ body }) => body),
+        [{ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' }],
+      )
+      assert.match(String(received[0]?.traceparent), new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`))
+    }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
   )
 
   it.live('a send SQS refuses fails with QueueError', () =>
