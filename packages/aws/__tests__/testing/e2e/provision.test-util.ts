@@ -1,40 +1,12 @@
 import { LambdaService } from '@effect-aws/client-lambda'
-import { type BucketAlreadyExistsError, S3Service } from '@effect-aws/client-s3'
-import {
-  type InvalidAddressError,
-  type InvalidAttributeNameError,
-  type InvalidAttributeValueError,
-  type InvalidSecurityError,
-  type QueueDeletedRecentlyError,
-  type QueueDoesNotExistError,
-  type QueueNameExistsError,
-  type RequestThrottledError,
-  type SdkError,
-  SQSService,
-  type UnsupportedOperationError,
-} from '@effect-aws/client-sqs'
+import { S3Service } from '@effect-aws/client-s3'
+import { SQSService } from '@effect-aws/client-sqs'
 import { type Cause, Effect, pipe, Record as Rec } from 'effect'
 
 import { buildDeadLetterName } from '#aws/naming'
 import type { BucketResource, QueueResource, Resources } from '#aws/resources'
 
 type BuildName = (name: string) => string
-
-type ProvisionBucketError = Cause.TimeoutError | SdkError | BucketAlreadyExistsError
-
-type ProvisionQueueError =
-  | Cause.NoSuchElementError
-  | Cause.TimeoutError
-  | SdkError
-  | InvalidAddressError
-  | InvalidAttributeNameError
-  | InvalidAttributeValueError
-  | InvalidSecurityError
-  | QueueDeletedRecentlyError
-  | QueueDoesNotExistError
-  | QueueNameExistsError
-  | RequestThrottledError
-  | UnsupportedOperationError
 
 // A bucket this account holds already is the one asked for: CreateBucket never updates one.
 const provisionBucket = (buildName: BuildName) => (bucket: BucketResource) =>
@@ -68,10 +40,7 @@ const provisionQueuePair = (buildName: BuildName) =>
 
 /** Creates each bucket under `buildName(name)`, without lifecycle rules; reruns change nothing. */
 const provisionBuckets = Effect.fn('provisionBuckets')(
-  (
-    buckets: Resources['buckets'],
-    buildName: BuildName,
-  ): Effect.Effect<void, ProvisionBucketError, S3Service> =>
+  (buckets: Resources['buckets'], buildName: BuildName) =>
     pipe(buckets, Rec.values, Effect.forEach(provisionBucket(buildName), { discard: true })),
 )
 
@@ -83,15 +52,14 @@ const provisionBuckets = Effect.fn('provisionBuckets')(
  * updates on create, and `make reset` is the local way back.
  */
 const provisionQueues = Effect.fn('provisionQueues')(
-  (
-    queues: Resources['queues'],
-    buildName: BuildName,
-  ): Effect.Effect<void, ProvisionQueueError, SQSService> =>
+  (queues: Resources['queues'], buildName: BuildName) =>
     pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(buildName), { discard: true })),
 )
 
 type ProvisionWorkerError =
-  | ProvisionQueueError
+  | Cause.NoSuchElementError
+  | Effect.Error<ReturnType<SQSService['Service']['getQueueUrl']>>
+  | Effect.Error<ReturnType<SQSService['Service']['getQueueAttributes']>>
   | Effect.Error<ReturnType<LambdaService['Service']['createFunction']>>
   | Effect.Error<ReturnType<LambdaService['Service']['createEventSourceMapping']>>
 
