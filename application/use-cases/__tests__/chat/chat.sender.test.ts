@@ -1,48 +1,66 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Layer, Option } from 'effect'
+import { Array as Arr, Effect, Layer } from 'effect'
 
 import { RunNotQueuedError } from '@app-template/application/chat'
-import {
-  firstMessage,
-  insertMessage,
-  insertRun,
-  queuedRun,
-  selectRun,
-} from '@app-template/application/chat/testing'
+import { queuedRun } from '@app-template/application/chat/testing'
+import { type RunEntitySet, type RunEntityWhere, RunRepository } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
-import { ChatSenderTest } from '#testing/use-cases/chat.test-layer'
 import { AssistantMessageSender } from '#use-cases/chat/chat.sender'
 
 /** A `QueueSender` that SQS refuses. */
-const RefusingQueueTest = Layer.succeed(
-  QueueSender,
-  QueueSender.of({
-    send: () => Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') })),
-  }),
-)
-
-const SenderTest = Layer.provide(ChatSenderTest, RefusingQueueTest)
+const RefusingQueueTest = Layer.mock(QueueSender, {
+  send: () => Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') })),
+})
 
 describe('AssistantMessageSender', () => {
-  it.effect('a send SQS refuses fails the Run with ReplyFailed and is RunNotQueuedError', () => {
-    const { logs, layer: logger } = recordLogs('chatId', 'runId')
-    return Effect.gen(function* () {
-      const sender = yield* AssistantMessageSender
-      yield* insertMessage(firstMessage)
-      yield* insertRun(queuedRun)
+  it.effect(
+    'a send SQS refuses fails the queued Run with ReplyFailed and is RunNotQueuedError',
+    () => {
+      const { logs, layer: logger } = recordLogs('chatId', 'runId')
+      const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
+      return Effect.gen(function* () {
+        const sender = yield* AssistantMessageSender
 
-      const error = yield* sender.send(queuedRun).pipe(Effect.flip)
+        const error = yield* sender.send(queuedRun).pipe(Effect.flip)
 
-      const run = yield* selectRun(queuedRun.id).pipe(Effect.map(Option.getOrThrow))
-      assertSchemaEquals(RunNotQueuedError, error, new RunNotQueuedError({ id: queuedRun.id }))
-      assert.strictEqual(run.status, 'failed')
-      assert.strictEqual(Option.getOrThrow(run.failure).reason, 'ReplyFailed')
-      assert.include(Option.getOrThrow(run.failure).cause, 'SQS is unavailable')
-      assert.deepStrictEqual(logs, [
-        ['Error', 'assistant message not queued', queuedRun.chatId, queuedRun.id],
-      ])
-    }).pipe(Effect.provide([SenderTest, logger]))
-  })
+        assertSchemaEquals(RunNotQueuedError, error, new RunNotQueuedError({ id: queuedRun.id }))
+        assert.deepStrictEqual(
+          Arr.map(updates, ([set, where]) => ({
+            status: set.status,
+            reason: set.failure?.reason,
+            refusedBySqs: set.failure?.cause.includes('SQS is unavailable'),
+            where,
+          })),
+          [
+            {
+              status: 'failed',
+              reason: 'ReplyFailed',
+              refusedBySqs: true,
+              where: { id: queuedRun.id, status: ['queued'] },
+            },
+          ],
+        )
+        assert.deepStrictEqual(logs, [
+          ['Error', 'assistant message not queued', queuedRun.chatId, queuedRun.id],
+        ])
+      }).pipe(
+        Effect.provide([
+          AssistantMessageSender.layer.pipe(
+            Layer.provide([
+              RefusingQueueTest,
+              Layer.mock(RunRepository, {
+                update: (...update) =>
+                  Effect.sync(() => {
+                    updates.push(update)
+                  }),
+              }),
+            ]),
+          ),
+          logger,
+        ]),
+      )
+    },
+  )
 })
