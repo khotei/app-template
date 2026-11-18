@@ -68,9 +68,8 @@ export const AttachmentHandler = HttpApiBuilder.group(
     const fileAttachments = yield* FileAttachmentService
 
     return handlers
-      .handle(
-        'upload',
-        Effect.fn('AttachmentHandler.upload')(
+      .handleAll({
+        upload: Effect.fn('AttachmentHandler.upload')(
           function* ({ payload }) {
             const user = yield* CurrentUser
 
@@ -89,37 +88,28 @@ export const AttachmentHandler = HttpApiBuilder.group(
           },
           Effect.map(Arr.map(buildApiAttachment)),
         ),
-      )
-      .handle(
-        'list',
-        Effect.fn('AttachmentHandler.list')(
+        list: Effect.fn('AttachmentHandler.list')(
           function* () {
             const user = yield* CurrentUser
             return yield* attachments.list(user.id)
           },
           Effect.map(Arr.map(buildApiAttachment)),
         ),
-      )
-      .handle(
-        'get',
-        Effect.fn('AttachmentHandler.get')(function* ({ params }) {
+        get: Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
           return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
         }, Effect.map(buildApiAttachment)),
-      )
+        delete: Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
+          const user = yield* CurrentUser
+          yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
+        }),
+      })
       .handleRaw(
         'download',
         Effect.fn('AttachmentHandler.download')(function* ({ params }) {
           const user = yield* CurrentUser
           const url = yield* fileAttachments.download({ id: params.attachmentId, userId: user.id })
           return HttpServerResponse.redirect(url)
-        }),
-      )
-      .handle(
-        'delete',
-        Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
-          const user = yield* CurrentUser
-          yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
         }),
       )
   }),
