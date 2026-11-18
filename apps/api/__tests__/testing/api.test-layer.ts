@@ -16,6 +16,9 @@ export { ApiLayer } from '#api/layer'
  * The api on an ephemeral port over the memory layers: fresh rows and files, the identity
  * transaction and a queue that only records. Its `HttpClient` targets that port, and the
  * repositories stay in context for arranging what only the worker writes.
+ *
+ * A real server, not `HttpApiTest`: its client takes no cookie jar, and a defect is no response
+ * there.
  */
 export const ApiServerTest = ApiHttp.pipe(
   Layer.provide([TransactionTest, recordMessages().layer]),
