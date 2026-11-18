@@ -200,6 +200,12 @@ touches no row:
   `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
   `runs_assistant_message_id_unique` that a reply belongs to one Run. The key sits on `runs`, so
   `messages` names no Run and the two tables never import each other.
+- **A count per owner.** A limit on how many rows an owner holds fits no guard here: an insert
+  that writes only while the owner's count is under the limit, even as one statement, lets two
+  concurrent creates both count one under it and both insert. Such a create checks the count
+  first and accepts the overshoot, one row per concurrent create; the `FOR UPDATE` read that
+  would close it is rejected in
+  [decisions.md › Guards in the write, no lock](decisions.md#guards-in-the-write-no-lock).
 - **Update of some fields under a `where`.** `ChatRepository.update(set, where)` and
   `AttachmentRepository.update(set, where)` write only the fields of `set` (`ChatEntitySet`,
   `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
