@@ -22,7 +22,9 @@ export type ChatEntityWhere = Types.Simplify<
 >
 
 /** The columns an update may write. */
-export const chatSetColumns = ['title', 'updatedAt'] as const
+export const chatSetColumns = ['title', 'updatedAt'] as const satisfies ReadonlyArray<
+  keyof ChatColumns
+>
 
 export type ChatEntitySet = Types.Simplify<
   RequireAtLeastOne<Pick<ChatColumns, (typeof chatSetColumns)[number]>>

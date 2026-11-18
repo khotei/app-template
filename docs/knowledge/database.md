@@ -176,8 +176,9 @@ and `Option.fromUndefinedOr` turns the `undefined` of none into `Option.none()`.
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
 A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`.
-The entity file lists the columns an update may write once, as `<name>SetColumns`, and derives
-the `Set` type from it over the table's columns, so a name that is no column fails typecheck; the
+The entity file lists the columns an update may write once, as `<name>SetColumns`, typed by the
+table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
+fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
 repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
 only those columns, and an `undefined` field is skipped by Drizzle's `set`.
 `buildWhere<Fields>(columns)` from `@app-template/packages/db` takes a `WhereColumns<Fields>`,

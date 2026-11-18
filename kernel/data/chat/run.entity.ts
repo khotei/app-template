@@ -25,7 +25,12 @@ export type RunEntityWhere = Types.Simplify<
 >
 
 /** The columns an update may write. */
-export const runSetColumns = ['status', 'failure', 'assistantMessageId', 'updatedAt'] as const
+export const runSetColumns = [
+  'status',
+  'failure',
+  'assistantMessageId',
+  'updatedAt',
+] as const satisfies ReadonlyArray<keyof RunColumns>
 
 export type RunEntitySet = Types.Simplify<
   RequireAtLeastOne<Pick<RunColumns, (typeof runSetColumns)[number]>>

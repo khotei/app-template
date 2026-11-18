@@ -25,7 +25,9 @@ export type AttachmentEntitySelectWhere = Types.Simplify<
 >
 
 /** The columns an update may write. */
-export const attachmentSetColumns = ['messageId', 'chatId'] as const
+export const attachmentSetColumns = ['messageId', 'chatId'] as const satisfies ReadonlyArray<
+  keyof AttachmentEntity
+>
 
 export type AttachmentEntitySet = Types.Simplify<
   RequireAtLeastOne<Pick<AttachmentEntity, (typeof attachmentSetColumns)[number]>>
