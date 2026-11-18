@@ -3,9 +3,11 @@
 Thin entry points: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev server).
 
 - `main.ts` starts the process. `api` and `worker` build it in `layer.ts`, which `main.ts` runs
-  and no package exports, except the app's `./testing` for the e2e through the api. An api
-  handler group provides the services and use cases it reads; the worker's `layer.ts` provides
-  its route's use cases. Where those e2e and the apps' unit suites live and what they run on:
+  and no package exports, except the app's `./testing` for the e2e through the api. `ApiHttp`
+  provides the services a use case reads, after `HttpRouter.serve`, since a handler group's
+  provide never reaches what its handlers call; a group or a middleware may close a service
+  only it reads. The worker's `layer.ts` provides what its route's use cases read. Where those
+  e2e and the apps' unit suites live and what they run on:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **Apps never import each other.** Shared code moves down into `application` or `packages/*`.
 - **The web declares no workspace of the app but `packages`:** its client is generated from the

@@ -1,15 +1,18 @@
-import { BunHttpServer } from '@effect/platform-bun'
+import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
-import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, ConfigProvider, Effect, Layer, Ref } from 'effect'
+import { ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest, HttpRouter } from 'effect/http'
 
-import { GenerateChatTitle } from '@app-template/application/chat'
-import { messageId } from '@app-template/application/chat/testing'
+import { ChatService } from '@app-template/application/chat'
+import { messageId, recordAssistant } from '@app-template/application/chat/testing'
 import {
-  GenerateAssistantMessageUseCase,
-  GenerateChatTitleUseCase,
-} from '@app-template/application/use-cases'
+  ChatRepository,
+  FileRepository,
+  type MessageEntityWhere,
+  MessageRepository,
+  RunRepository,
+} from '@app-template/kernel/data'
+import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { WorkerHandler } from '#worker/worker.handler'
 
@@ -20,22 +23,26 @@ const buildRecord = (queue: string, body: unknown) => ({
   messageAttributes: {},
 })
 
-function recordTitles() {
-  const jobs = Ref.makeUnsafe<ReadonlyArray<GenerateChatTitle>>([])
-  const layer = Layer.mock(GenerateChatTitleUseCase, {
-    generate: (job) => Ref.update(jobs, Arr.append(job)),
-  })
-  return { jobs: Ref.get(jobs), layer }
-}
-
 describe('POST /events', () => {
   it.effect('runs a batch on the use case of the queue it came from', () => {
-    const titles = recordTitles()
+    const reads: Array<MessageEntityWhere> = []
+    // Only the title job's first read answers: any other store call dies, and fails the batch.
     const events = HttpRouter.serve(WorkerHandler).pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
+      Layer.provide(ChatService.layer),
       Layer.provide([
-        titles.layer,
-        Layer.mock(GenerateAssistantMessageUseCase, { generate: () => Effect.die('wrong queue') }),
+        Layer.mock(MessageRepository, {
+          selectOne: (where) =>
+            Effect.sync(() => {
+              reads.push(where)
+            }).pipe(Effect.as(Option.none())),
+        }),
+        Layer.mock(ChatRepository, {}),
+        Layer.mock(RunRepository, {}),
+        Layer.mock(FileRepository, {}),
+        recordAssistant({}).layer,
+        TransactionTest,
+        BunCrypto.layer,
       ]),
       Layer.provide(
         ConfigProvider.layer(
@@ -53,7 +60,7 @@ describe('POST /events', () => {
 
       assert.strictEqual(response.status, 200)
       assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
-      assertEquals(yield* titles.jobs, [new GenerateChatTitle({ messageId })])
+      assert.deepStrictEqual(reads, [{ id: messageId }])
     }).pipe(Effect.provide(events))
   })
 })

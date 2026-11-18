@@ -52,7 +52,7 @@ import {
 } from '@app-template/packages/testing'
 
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
-import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
+import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
@@ -139,17 +139,16 @@ const answeredChat = new Chat({
 
 const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
 
-describe('CreateUserMessageUseCase', () => {
+describe('createUserMessage', () => {
   it.live(
     'create inserts the user message, a record of its library attachment and its queued Run, writing no chat',
     () => {
       const jobs = recordMessages()
       const inserts = noInserts()
       return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
         yield* storePhotoBytes
 
-        const run = yield* createUserMessage.create(owner, chat.id, {
+        const run = yield* createUserMessage(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
           attachmentIds: [photo.id],
         })
@@ -199,7 +198,7 @@ describe('CreateUserMessageUseCase', () => {
       }).pipe(
         Effect.provide(
           layerChatTest(insertingInto(inserts, sendingTo(titledChat, photo))).pipe(
-            Layer.provide(jobs.layer),
+            Layer.provideMerge(jobs.layer),
           ),
         ),
       )
@@ -216,10 +215,9 @@ describe('CreateUserMessageUseCase', () => {
       }),
     )
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
       yield* storePhotoBytes
 
-      yield* createUserMessage.create(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+      yield* createUserMessage(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
 
       assert.deepStrictEqual(steps, ['attachments read', 'transaction'])
     }).pipe(
@@ -235,7 +233,7 @@ describe('CreateUserMessageUseCase', () => {
             },
           }),
           RecordingTransactionTest,
-        ).pipe(Layer.provide(recordMessages().layer)),
+        ).pipe(Layer.provideMerge(recordMessages().layer)),
       ),
     )
   })
@@ -250,9 +248,7 @@ describe('CreateUserMessageUseCase', () => {
   ])('$name', ({ read, title }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-
-      const run = yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
+      const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
       const titleJob = {
         queue: 'chat-title',
@@ -261,7 +257,9 @@ describe('CreateUserMessageUseCase', () => {
       assertEquals(yield* jobs.sent, title ? [titleJob, replyJob(run.id)] : [replyJob(run.id)])
     }).pipe(
       Effect.provide(
-        layerChatTest(insertingInto(noInserts(), sendingTo(read))).pipe(Layer.provide(jobs.layer)),
+        layerChatTest(insertingInto(noInserts(), sendingTo(read))).pipe(
+          Layer.provideMerge(jobs.layer),
+        ),
       ),
     )
   })
@@ -275,15 +273,13 @@ describe('CreateUserMessageUseCase', () => {
           : Effect.void,
     })
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-
-      const run = yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
+      const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
       assert.deepStrictEqual(logs, [['Error', 'chat title not queued', chat.id, run.userMessageId]])
     }).pipe(
       Effect.provide([
         layerChatTest(insertingInto(noInserts(), sendingTo(chat))).pipe(
-          Layer.provide(RefusingTitleQueueTest),
+          Layer.provideMerge(RefusingTitleQueueTest),
         ),
         logger,
       ]),
@@ -303,11 +299,9 @@ describe('CreateUserMessageUseCase', () => {
     const inserts = noInserts()
     const mocks = insertingInto(inserts, sendingTo(chat))
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-
-      const error = yield* createUserMessage
-        .create(owner, chat.id, ask('Plan a weekend in Lisbon'))
-        .pipe(Effect.flip)
+      const error = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon')).pipe(
+        Effect.flip,
+      )
 
       assertSchemaEquals(
         Schema.Array(RunNotQueuedError),
@@ -318,7 +312,7 @@ describe('CreateUserMessageUseCase', () => {
     }).pipe(
       Effect.provide(
         layerChatTest({ ...mocks, runs: { ...mocks.runs, update: () => Effect.void } }).pipe(
-          Layer.provide(RefusingReplyQueueTest),
+          Layer.provideMerge(RefusingReplyQueueTest),
         ),
       ),
     )
@@ -327,15 +321,11 @@ describe('CreateUserMessageUseCase', () => {
   it.effect('create while a Run is in work is ChatBusyError before any write or job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-
-      const error = yield* createUserMessage
-        .create(owner, chat.id, ask('And in Porto?'))
-        .pipe(Effect.flip)
+      const error = yield* createUserMessage(owner, chat.id, ask('And in Porto?')).pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest(sendingTo(busyChat)).pipe(Layer.provide(jobs.layer))))
+    }).pipe(Effect.provide(layerChatTest(sendingTo(busyChat)).pipe(Layer.provideMerge(jobs.layer))))
   })
 
   it.effect(
@@ -343,12 +333,12 @@ describe('CreateUserMessageUseCase', () => {
     () => {
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
         yield* storePhotoBytes
 
-        const error = yield* createUserMessage
-          .create(owner, chat.id, { text: 'Again', attachmentIds: [record.id] })
-          .pipe(Effect.flip)
+        const error = yield* createUserMessage(owner, chat.id, {
+          text: 'Again',
+          attachmentIds: [record.id],
+        }).pipe(Effect.flip)
 
         assertSchemaEquals(
           AttachmentBoundError,
@@ -356,7 +346,7 @@ describe('CreateUserMessageUseCase', () => {
           new AttachmentBoundError({ id: record.id, chatIds: [chat.id] }),
         )
       }).pipe(
-        Effect.provide(layerChatTest(sendingTo(chat, record)).pipe(Layer.provide(jobs.layer))),
+        Effect.provide(layerChatTest(sendingTo(chat, record)).pipe(Layer.provideMerge(jobs.layer))),
       )
     },
   )
@@ -380,17 +370,19 @@ describe('CreateUserMessageUseCase', () => {
     ({ ids, found, bytes }) => {
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
         if (bytes) yield* storePhotoBytes
 
-        const error = yield* createUserMessage
-          .create(owner, chat.id, { text: 'Look', attachmentIds: ids })
-          .pipe(Effect.flip)
+        const error = yield* createUserMessage(owner, chat.id, {
+          text: 'Look',
+          attachmentIds: ids,
+        }).pipe(Effect.flip)
 
         assertSchemaEquals(AttachmentNotFoundError, error, new AttachmentNotFoundError({ ids }))
         assertEquals(yield* jobs.sent, [])
       }).pipe(
-        Effect.provide(layerChatTest(sendingTo(chat, ...found)).pipe(Layer.provide(jobs.layer))),
+        Effect.provide(
+          layerChatTest(sendingTo(chat, ...found)).pipe(Layer.provideMerge(jobs.layer)),
+        ),
       )
     },
   )

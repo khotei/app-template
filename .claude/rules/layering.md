@@ -33,8 +33,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A flow becomes a use case as soon as it composes two domain services or sends a job, needs one
   transaction or one ordering of writes across them, or needs an exception to a rule here.
-- A `Context.Service` whose `layer` provides the domain services it composes and leaves the
-  repositories and ports open, for the process or a unit test's mocks.
+- An `Effect.fn` that yields the domain services, repositories and ports it composes; the
+  process provides them after `HttpRouter.serve`, and a unit test from its mocks. Record:
+  [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
 - It writes through a domain service where one holds the write's rule, else through the
   repository: a rule-free write, or one whose rule a model function already ran (a status move);
   a read with no rule may go to the repository too. A rule of its own is refused (`modules.md`).
@@ -43,7 +44,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record.
-  A send SQS refuses is settled on the work's record through the job's `<Job>Sender` beside the
+  A send SQS refuses is settled on the work's record through the job's `send<Job>` beside the
   use cases; one only logged is sent and logged in its use case
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: a use case a job runs ends its own work on any outcome but

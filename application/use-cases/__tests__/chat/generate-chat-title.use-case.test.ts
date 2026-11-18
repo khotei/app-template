@@ -1,4 +1,3 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
@@ -18,41 +17,12 @@ import {
   messageId,
   recordAssistant,
 } from '@app-template/application/chat/testing'
-import {
-  type ChatEntitySet,
-  type ChatEntityWhere,
-  ChatRepository,
-  FileRepository,
-  MessageRepository,
-} from '@app-template/kernel/data'
+import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { epoch, recordLogs } from '@app-template/packages/testing'
 
-import { GenerateChatTitleUseCase } from '#use-cases/chat/generate-chat-title.use-case'
-
-/**
- * The use case over repositories that answer only the methods the case gives, and the
- * `Assistant` of `recordAssistant()`.
- */
-const titleUseCaseOver = (
-  assistant: ReturnType<typeof recordAssistant>,
-  {
-    chats = {},
-    messages = {},
-  }: {
-    readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
-    readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>
-  },
-) =>
-  GenerateChatTitleUseCase.layer.pipe(
-    Layer.provide([
-      assistant.layer,
-      Layer.mock(ChatRepository, chats),
-      Layer.mock(MessageRepository, messages),
-      Layer.mock(FileRepository, {}),
-      BunCrypto.layer,
-    ]),
-  )
+import { layerChatTest } from '#testing/use-cases/chat.test-layer'
+import { generateChatTitle } from '#use-cases/chat/generate-chat-title.use-case'
 
 /** A message read that answers `message` as its row. */
 const selectsMessage = (message: Message) => () =>
@@ -60,11 +30,9 @@ const selectsMessage = (message: Message) => () =>
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
-const generate = GenerateChatTitleUseCase.use((useCase) =>
-  useCase.generate(new GenerateChatTitle({ messageId })),
-)
+const generate = generateChatTitle(new GenerateChatTitle({ messageId }))
 
-describe('GenerateChatTitleUseCase', () => {
+describe('generateChatTitle', () => {
   it.effect('titles the chat of its first message while the chat is untitled', () => {
     const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
@@ -84,7 +52,7 @@ describe('GenerateChatTitleUseCase', () => {
       assert.deepStrictEqual(logs, [])
     }).pipe(
       Effect.provide([
-        titleUseCaseOver(assistant, {
+        layerChatTest({
           messages: { selectOne: selectsMessage(firstMessage) },
           chats: {
             selectOne: () => encodeRowWith(Chat)(chat).pipe(Effect.map(Option.some)),
@@ -93,7 +61,7 @@ describe('GenerateChatTitleUseCase', () => {
                 updates.push(update)
               }),
           },
-        }),
+        }).pipe(Layer.provideMerge(assistant.layer)),
         logger,
       ]),
     )
@@ -108,10 +76,10 @@ describe('GenerateChatTitleUseCase', () => {
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted or titled']])
     }).pipe(
       Effect.provide([
-        titleUseCaseOver(assistant, {
+        layerChatTest({
           messages: { selectOne: selectsMessage(firstMessage) },
           chats: { selectOne: () => Effect.succeedNone },
-        }),
+        }).pipe(Layer.provideMerge(assistant.layer)),
         logger,
       ]),
     )
@@ -127,7 +95,9 @@ describe('GenerateChatTitleUseCase', () => {
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted']])
     }).pipe(
       Effect.provide([
-        titleUseCaseOver(assistant, { messages: { selectOne: () => Effect.succeedNone } }),
+        layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }).pipe(
+          Layer.provideMerge(assistant.layer),
+        ),
         logger,
       ]),
     )
@@ -143,9 +113,9 @@ describe('GenerateChatTitleUseCase', () => {
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
     }).pipe(
       Effect.provide([
-        titleUseCaseOver(assistant, {
+        layerChatTest({
           messages: { selectOne: selectsMessage(new Message({ ...firstMessage, text: ' \n ' })) },
-        }),
+        }).pipe(Layer.provideMerge(assistant.layer)),
         logger,
       ]),
     )
@@ -165,7 +135,9 @@ describe('GenerateChatTitleUseCase', () => {
       ])
     }).pipe(
       Effect.provide([
-        titleUseCaseOver(assistant, { messages: { selectOne: selectsMessage(firstMessage) } }),
+        layerChatTest({ messages: { selectOne: selectsMessage(firstMessage) } }).pipe(
+          Layer.provideMerge(assistant.layer),
+        ),
         logger,
       ]),
     )

@@ -52,11 +52,8 @@ import {
 import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
 import { epoch, png, recordLogs } from '@app-template/packages/testing'
 
-import {
-  type ChatRepositoryMocks,
-  layerAssistantMessageTest,
-} from '#testing/use-cases/chat.test-layer'
-import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
+import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
+import { generateAssistantMessage } from '#use-cases/chat/generate-assistant-message.use-case'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
@@ -175,11 +172,9 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-const generate = GenerateAssistantMessageUseCase.use((useCase) =>
-  useCase.generate(new GenerateAssistantMessage({ runId: queuedRun.id })),
-)
+const generate = generateAssistantMessage(new GenerateAssistantMessage({ runId: queuedRun.id }))
 
-describe('GenerateAssistantMessageUseCase', () => {
+describe('generateAssistantMessage', () => {
   it.effect(
     "generate moves the Run through preparing and generating, then writes the assistant's message and done",
     () => {
@@ -225,8 +220,8 @@ describe('GenerateAssistantMessageUseCase', () => {
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
-          layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
-            Layer.provide(assistant.layer),
+          layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+            Layer.provideMerge(assistant.layer),
           ),
           logger,
         ]),
@@ -249,8 +244,8 @@ describe('GenerateAssistantMessageUseCase', () => {
       assert.strictEqual(lastWrite(writes).move, 'generating → done')
     }).pipe(
       Effect.provide(
-        layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
-          Layer.provide(assistant.layer),
+        layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+          Layer.provideMerge(assistant.layer),
         ),
       ),
     )
@@ -269,9 +264,9 @@ describe('GenerateAssistantMessageUseCase', () => {
       assert.include(String(logs[0]?.[2]), 'provider exploded')
     }).pipe(
       Effect.provide([
-        layerAssistantMessageTest(
-          replyingTo(writes, { runs: readsInTurn(queuedRun, generating) }),
-        ).pipe(Layer.provide(assistant.layer)),
+        layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
+          Layer.provideMerge(assistant.layer),
+        ),
         logger,
       ]),
     )
@@ -290,9 +285,9 @@ describe('GenerateAssistantMessageUseCase', () => {
       assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'ReplyFailed' })
     }).pipe(
       Effect.provide(
-        layerAssistantMessageTest(
-          replyingTo(writes, { runs: readsInTurn(queuedRun, generating) }),
-        ).pipe(Layer.provide(assistant.layer)),
+        layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
+          Layer.provideMerge(assistant.layer),
+        ),
       ),
     )
   })
@@ -310,9 +305,9 @@ describe('GenerateAssistantMessageUseCase', () => {
         assertEquals(yield* assistant.calls, [])
       }).pipe(
         Effect.provide(
-          layerAssistantMessageTest(
+          layerChatTest(
             replyingTo(writes, { runs: readsInTurn(new Run({ ...queuedRun, status })) }),
-          ).pipe(Layer.provide(assistant.layer)),
+          ).pipe(Layer.provideMerge(assistant.layer)),
         ),
       )
     },
@@ -339,8 +334,8 @@ describe('GenerateAssistantMessageUseCase', () => {
         assert.deepStrictEqual(writes.messages, [])
       }).pipe(
         Effect.provide([
-          layerAssistantMessageTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
-            Layer.provide(assistant.layer),
+          layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+            Layer.provideMerge(assistant.layer),
           ),
           logger,
         ]),
@@ -372,12 +367,12 @@ describe('GenerateAssistantMessageUseCase', () => {
         ])
       }).pipe(
         Effect.provide(
-          layerAssistantMessageTest(
+          layerChatTest(
             replyingTo(noWrites(), {
               runs: readsInTurn(lastRun),
               history: [withPhoto, aPhoto, andAgain, withSketch],
             }),
-          ).pipe(Layer.provide(assistant.layer)),
+          ).pipe(Layer.provideMerge(assistant.layer)),
         ),
       )
     },
@@ -407,9 +402,9 @@ describe('GenerateAssistantMessageUseCase', () => {
       ])
     }).pipe(
       Effect.provide(
-        layerAssistantMessageTest(
+        layerChatTest(
           replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withRecord] }),
-        ).pipe(Layer.provide(assistant.layer)),
+        ).pipe(Layer.provideMerge(assistant.layer)),
       ),
     )
   })
@@ -431,9 +426,9 @@ describe('GenerateAssistantMessageUseCase', () => {
         ])
       }).pipe(
         Effect.provide([
-          layerAssistantMessageTest(
+          layerChatTest(
             replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withSketch] }),
-          ).pipe(Layer.provide(assistant.layer)),
+          ).pipe(Layer.provideMerge(assistant.layer)),
           logger,
         ]),
       )
@@ -455,7 +450,7 @@ describe('GenerateAssistantMessageUseCase', () => {
         assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
       }).pipe(
         Effect.provide([
-          layerAssistantMessageTest({
+          layerChatTest({
             ...mocks,
             runs: {
               ...mocks.runs,
@@ -466,7 +461,7 @@ describe('GenerateAssistantMessageUseCase', () => {
                       writes.runs.push([set, where])
                     }),
             },
-          }).pipe(Layer.provide(assistant.layer)),
+          }).pipe(Layer.provideMerge(assistant.layer)),
           logger,
         ]),
       )
@@ -483,8 +478,8 @@ describe('GenerateAssistantMessageUseCase', () => {
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(
       Effect.provide([
-        layerAssistantMessageTest({ runs: { selectOne: readsInTurn(doneElsewhere) } }).pipe(
-          Layer.provide(assistant.layer),
+        layerChatTest({ runs: { selectOne: readsInTurn(doneElsewhere) } }).pipe(
+          Layer.provideMerge(assistant.layer),
         ),
         logger,
       ]),
@@ -503,8 +498,8 @@ describe('GenerateAssistantMessageUseCase', () => {
         assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
       }).pipe(
         Effect.provide([
-          layerAssistantMessageTest({ runs: { selectOne: () => Effect.succeedNone } }).pipe(
-            Layer.provide(assistant.layer),
+          layerChatTest({ runs: { selectOne: () => Effect.succeedNone } }).pipe(
+            Layer.provideMerge(assistant.layer),
           ),
           logger,
         ]),

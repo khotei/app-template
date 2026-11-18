@@ -15,8 +15,9 @@ paths:
   synonym (`remove` for `'<Model>Service.delete'`), never with a model suffix. A method that needs
   the model in its name is often doing a neighbouring service's work.
 - A module-level function another module composes states `Effect.fn.Return<A, E, R>` on the
-  generator; a helper used once, or a composed function whose every caller dies on its errors
-  (`Effect.orDie`), stays inferred.
+  generator; a helper used once, a composed function whose every caller dies on its errors
+  (`Effect.orDie`), or a use case, whose endpoint's error list or `consumeQueue`'s `never` checks
+  it, stays inferred.
 - A pure builder that cannot fail returns the model, not an `Effect`.
 - A pure transition (`naming.md`) checks its source in one shared table of allowed sources and
   fails one `<Model>StatusInvalidError { id, from, to }`. One whose refusal reaches the user maps
@@ -30,7 +31,7 @@ paths:
     the queue's sender;
   - a client its layer builds once for every holder: the database, a bucket, the API client;
   - a value a middleware provides to the handlers behind it (`HttpApiMiddleware`'s `provides`);
-  - a domain service, a use case or a `<Job>Sender` ([layering.md](layering.md)).
+  - a domain service ([layering.md](layering.md)); a use case and a job's sender are functions.
 - Its key is `'@app-template/<folder>/<Name>'`, `<folder>` its file's folder from the repository
   root, so the key says where to look.
 - One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:

@@ -2,6 +2,12 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
 import {
+  AttachmentService,
+  ChatService,
+  MessageService,
+  RunService,
+} from '@app-template/application/chat'
+import {
   AttachmentRepository,
   ChatRepository,
   MessageRepository,
@@ -11,10 +17,6 @@ import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testi
 import type { Transaction } from '@app-template/packages/db'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
-import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
-import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
-import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
-
 /** What each repository answers in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ChatRepositoryMocks {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
@@ -23,40 +25,31 @@ export interface ChatRepositoryMocks {
   readonly attachments?: Layer.PartialEffectful<AttachmentRepository['Service']>
 }
 
-const mockRepositories = ({
-  chats = {},
-  messages = {},
-  runs = {},
-  attachments = {},
-}: ChatRepositoryMocks) =>
-  Layer.mergeAll(
-    Layer.mock(ChatRepository, chats),
-    Layer.mock(MessageRepository, messages),
-    Layer.mock(RunRepository, runs),
-    Layer.mock(AttachmentRepository, attachments),
-  )
-
 /**
- * The send and retry use cases over `mocks`, the memory files and `transaction`, the identity one
- * by default; the files stay in context, and the `QueueSender` is the test's, `recordMessages()`.
+ * Chat's services over `mocks`, the memory files and `transaction`, the identity one by default,
+ * each in context for the use cases; the `QueueSender` and the `Assistant` are the test's,
+ * `recordMessages()` and `recordAssistant()`.
  */
 export const layerChatTest = (
-  mocks: ChatRepositoryMocks,
+  { chats = {}, messages = {}, runs = {}, attachments = {} }: ChatRepositoryMocks,
   transaction: Layer.Layer<Transaction> = TransactionTest,
 ) =>
-  Layer.mergeAll(CreateUserMessageUseCase.layer, RetryRunUseCase.layer).pipe(
-    Layer.provide([mockRepositories(mocks), transaction, BunCrypto.layer]),
-    Layer.provideMerge(FileRepositoryTest),
-    Layer.provideMerge(FileObjects.layer),
-  )
-
-/**
- * The reply use case over `mocks`, the memory files and the identity transaction; the files stay
- * in context, and the `Assistant` is the test's, `recordAssistant()`.
- */
-export const layerAssistantMessageTest = (mocks: ChatRepositoryMocks) =>
-  GenerateAssistantMessageUseCase.layer.pipe(
-    Layer.provide([mockRepositories(mocks), TransactionTest, BunCrypto.layer]),
+  Layer.mergeAll(
+    AttachmentService.layer,
+    ChatService.layer,
+    MessageService.layer,
+    RunService.layer,
+  ).pipe(
+    Layer.provideMerge(
+      Layer.mergeAll(
+        Layer.mock(ChatRepository, chats),
+        Layer.mock(MessageRepository, messages),
+        Layer.mock(RunRepository, runs),
+        Layer.mock(AttachmentRepository, attachments),
+        transaction,
+        BunCrypto.layer,
+      ),
+    ),
     Layer.provideMerge(FileRepositoryTest),
     Layer.provideMerge(FileObjects.layer),
   )

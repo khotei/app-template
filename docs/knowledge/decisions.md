@@ -77,6 +77,36 @@ The shape: [architecture.md › A use case](architecture.md#a-use-case).
 - **Revisit when:** a module must be extracted into its own process, or a flow must outlive the
   request it starts in for a reason other than slow work.
 
+### Use cases as functions
+
+A use case, and a job's sender, is an `Effect.fn` that yields what it composes, its type
+inferred. The process provides the services it reads: the api in `ApiHttp`, after
+`HttpRouter.serve`, the worker in its layer.
+
+- **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
+  errors among it, and closed its services in a layer that each handler group or route provided
+  again; only the worker's route test stood in for one. `HttpRouter.serve` makes a handler's
+  requirement per request the served layer's
+  (`repos/effect/packages/effect/src/http/HttpRouter.ts:1343-1373`), so a function a handler
+  calls finds its services there.
+- **Sources:** `repos/effect/packages/effect/HTTPAPI.md › Using Services Inside a
+  HttpApiEndpoint`; departs from `repos/effect/LLMS.md › Writing Effect services` ("Prefer using
+  services to encapsulate behaviour").
+- **Rejected:** the class with its `Shape` inferred from `make`: its layer and provide lists
+  stay. The services provided in each handler group: a handler's own requirement is a request's
+  (`repos/effect/packages/effect/src/http-api/HttpApiBuilder.ts:222-232`), which the group's
+  provide never reaches, so `tsc` refuses the process.
+- **Cost:** a flow that reads a service its process lacks fails `tsc` at the process's `main.ts`
+  and its tests, not at the flow; a unit test merges its doubles into the layer it provides
+  (`Layer.provideMerge`), since the flow reads them itself; the worker's route test mocks the
+  leaves, not the use cases; a span is the function's name; the api provides services two ways,
+  `ApiHttp` those a use case reads and a group or a middleware one only it reads.
+- **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
+  list, a job's failure at `consumeQueue`.
+- **If reversed:** each use case and the sender become a `Context.Service` whose layer provides
+  the services it composes, and each handler group and the worker's route provide those layers.
+- **Revisit when:** a use case needs a second implementation, a test double or state of its own.
+
 ### Module contracts
 
 A module other modules need exposes a contract, a folder of the module created with its first
@@ -638,8 +668,8 @@ sent and logged in its use case.
   service would see the queue, and a send could run inside a transaction. A sweep resending
   unsent work: a schedule and a route of its own, and a reply up to a minute late. Retries with a
   delay per attempt: a failed reply the user waits on through every attempt, and code that counts
-  them. A sender for every job, the title's included: a class with one caller and no double
-  around a send that changes no record.
+  them. A sender for every job, the title's included: a function with one caller around a send
+  that changes no record.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
   send answers `503` for a stored message, which a reload shows with its failed Run.

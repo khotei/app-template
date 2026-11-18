@@ -517,7 +517,7 @@ and deletes it here.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts its own; a send of a newer
   message whose Run commits and fails between the two lets the insert pass the active Run's index,
   so an older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
-  (`application/use-cases/chat/retry-run.use-case.ts`, the chat's read and `runService.create`).
+  (`application/use-cases/chat/retry-run.use-case.ts`, the chat's read and `runs.create`).
   Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.

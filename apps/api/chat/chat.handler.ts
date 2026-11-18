@@ -1,8 +1,8 @@
-import { Array as Arr, Effect, Layer } from 'effect'
+import { Array as Arr, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService, RunService } from '@app-template/application/chat'
-import { CreateUserMessageUseCase, RetryRunUseCase } from '@app-template/application/use-cases'
+import { createUserMessage, retryRun } from '@app-template/application/use-cases'
 
 import { Api } from '#api/api'
 import { buildApiChat } from '#api/chat/chat.mapper'
@@ -15,8 +15,6 @@ export const ChatHandler = HttpApiBuilder.group(
     const chatService = yield* ChatService
     const messageService = yield* MessageService
     const runService = yield* RunService
-    const createUserMessage = yield* CreateUserMessageUseCase
-    const retryRun = yield* RetryRunUseCase
 
     return handlers.handleAll({
       create: Effect.fn('ChatHandler.create')(function* () {
@@ -48,11 +46,11 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
       createMessage: Effect.fn('ChatHandler.createMessage')(function* ({ params, payload }) {
         const user = yield* CurrentUser
-        return yield* createUserMessage.create(user.id, params.chatId, payload)
+        return yield* createUserMessage(user.id, params.chatId, payload)
       }),
       retryRun: Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
         const user = yield* CurrentUser
-        return yield* retryRun.retry(user.id, params.chatId, params.userMessageId)
+        return yield* retryRun(user.id, params.chatId, params.userMessageId)
       }),
       getMessage: Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
         const user = yield* CurrentUser
@@ -72,12 +70,4 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
     })
   }),
-).pipe(
-  Layer.provide([
-    ChatService.layer,
-    MessageService.layer,
-    RunService.layer,
-    CreateUserMessageUseCase.layer,
-    RetryRunUseCase.layer,
-  ]),
 )

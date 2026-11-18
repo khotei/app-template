@@ -26,7 +26,7 @@ import { recordMessages } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
-import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
+import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
 /** The reads of a chat whose newest Run is `newest`, with the message the retry names. */
 const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
@@ -54,9 +54,9 @@ const doneRun = new Run({
   assistantMessage: Option.some(reply),
 })
 
-const retry = RetryRunUseCase.use((useCase) => useCase.retry(owner, chat.id, firstMessage.id))
+const retry = retryRun(owner, chat.id, firstMessage.id)
 
-describe('RetryRunUseCase', () => {
+describe('retryRun', () => {
   it.effect(
     'retry after a failed Run inserts a new queued Run of the message and queues its job',
     () => {
@@ -92,7 +92,7 @@ describe('RetryRunUseCase', () => {
                   inserts.push(row)
                 }),
             },
-          }).pipe(Layer.provide(jobs.layer)),
+          }).pipe(Layer.provideMerge(jobs.layer)),
         ),
       )
     },
@@ -105,7 +105,9 @@ describe('RetryRunUseCase', () => {
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest(chatWithRun(queuedRun)).pipe(Layer.provide(jobs.layer))))
+    }).pipe(
+      Effect.provide(layerChatTest(chatWithRun(queuedRun)).pipe(Layer.provideMerge(jobs.layer))),
+    )
   })
 
   it.effect('retry of an answered message is RunNotRetryableError before any Run or job', () => {
@@ -119,7 +121,9 @@ describe('RetryRunUseCase', () => {
         new RunNotRetryableError({ userMessageId: firstMessage.id }),
       )
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest(chatWithRun(doneRun)).pipe(Layer.provide(jobs.layer))))
+    }).pipe(
+      Effect.provide(layerChatTest(chatWithRun(doneRun)).pipe(Layer.provideMerge(jobs.layer))),
+    )
   })
 
   it.effect(
@@ -148,7 +152,7 @@ describe('RetryRunUseCase', () => {
                   wheres.push(where)
                 }).pipe(Effect.as(Option.none())),
             },
-          }).pipe(Layer.provide(jobs.layer)),
+          }).pipe(Layer.provideMerge(jobs.layer)),
         ),
       )
     },

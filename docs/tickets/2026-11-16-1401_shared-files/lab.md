@@ -174,8 +174,9 @@ pieces left  the bind's rule above, with `upload` taking the place, a chat's own
 - [N:ai] `FileAttachmentService` is folded into `AttachmentService`, its method bodies unchanged
   (`docs/knowledge/decisions.md › One service per model`): where this file names
   `FileAttachmentService` or `file-attachment.service.ts`, read `AttachmentService` and
-  `attachment.service.ts`, and the Knowledge line on two services reads one. Whether this lands
-  before L3's next piece is the owner's word.
+  `attachment.service.ts`, and the Knowledge line on two services reads one. A use case is a
+  function (`› Use cases as functions`), so the Shape's `UploadChatAttachmentUseCase` reads
+  `uploadChatAttachment`. Whether this lands before L3's next piece is the owner's word.
 
 ### Pieces
 

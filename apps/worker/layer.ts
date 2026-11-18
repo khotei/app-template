@@ -3,11 +3,7 @@ import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
-import { AssistantLlmFromConfig } from '@app-template/application/chat'
-import {
-  GenerateAssistantMessageUseCase,
-  GenerateChatTitleUseCase,
-} from '@app-template/application/use-cases'
+import { AssistantLlmFromConfig, ChatService } from '@app-template/application/chat'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/data'
@@ -17,8 +13,7 @@ import { Transaction } from '@app-template/packages/db'
 import { WorkerHandler } from '#worker/worker.handler'
 
 const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide([GenerateAssistantMessageUseCase.layer, GenerateChatTitleUseCase.layer]),
-  Layer.provide(Transaction.layer),
+  Layer.provide([ChatService.layer, Transaction.layer]),
 )
 
 const BunHttpServerFromConfig = workerPort.pipe(

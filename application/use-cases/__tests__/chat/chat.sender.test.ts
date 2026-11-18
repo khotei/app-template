@@ -7,23 +7,21 @@ import { type RunEntitySet, type RunEntityWhere, RunRepository } from '@app-temp
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
-import { AssistantMessageSender } from '#use-cases/chat/chat.sender'
+import { sendGenerateAssistantMessage } from '#use-cases/chat/chat.sender'
 
 /** A `QueueSender` that SQS refuses. */
 const RefusingQueueTest = Layer.mock(QueueSender, {
   send: () => Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') })),
 })
 
-describe('AssistantMessageSender', () => {
+describe('sendGenerateAssistantMessage', () => {
   it.effect(
     'a send SQS refuses fails the queued Run with ReplyFailed and is RunNotQueuedError',
     () => {
       const { logs, layer: logger } = recordLogs('chatId', 'runId')
       const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
       return Effect.gen(function* () {
-        const sender = yield* AssistantMessageSender
-
-        const error = yield* sender.send(queuedRun).pipe(Effect.flip)
+        const error = yield* sendGenerateAssistantMessage(queuedRun).pipe(Effect.flip)
 
         assertSchemaEquals(RunNotQueuedError, error, new RunNotQueuedError({ id: queuedRun.id }))
         assert.deepStrictEqual(
@@ -45,17 +43,13 @@ describe('AssistantMessageSender', () => {
         ])
       }).pipe(
         Effect.provide([
-          AssistantMessageSender.layer.pipe(
-            Layer.provide([
-              RefusingQueueTest,
-              Layer.mock(RunRepository, {
-                update: (...update) =>
-                  Effect.sync(() => {
-                    updates.push(update)
-                  }),
+          RefusingQueueTest,
+          Layer.mock(RunRepository, {
+            update: (...update) =>
+              Effect.sync(() => {
+                updates.push(update)
               }),
-            ]),
-          ),
+          }),
           logger,
         ]),
       )

@@ -186,11 +186,11 @@ a race: every repository's `insert`, `update` and `delete` dies when Postgres re
 touches no row:
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `CreateUserMessageUseCase.create`
-  reads the chat with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
-  `ChatBusyError`, 409); of two sends that both read none at once, the second's Run insert, its
-  last write, dies on the index, rolled back whole with its message and binds: a lost race of
-  that narrow window answers 500.
+  active Run in a chat fails on the index and dies. `createUserMessage` reads the chat with its
+  newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`, `ChatBusyError`, 409);
+  of two sends that both read none at once, the second's Run insert, its last write, dies on the
+  index, rolled back whole with its message and binds: a lost race of that narrow window answers
+  500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
   and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case passes the encoded Run as
   the set, and its id and the stored status to match as the `RunEntityWhere`, so a write whose

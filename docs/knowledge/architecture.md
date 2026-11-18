@@ -121,7 +121,7 @@ import { Effect } from 'effect'                             // external packages
 
 import { buildChat } from '@app-template/application/chat'  // another unit
 
-import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'  // this unit
+import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'  // this unit
 ```
 
 - **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
@@ -152,8 +152,8 @@ Using the files of `chat` as the map:
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
-| use case | `application/use-cases/chat/create-user-message.use-case.ts` | `CreateUserMessageUseCase` |
-| job sender: sends a job and settles a send SQS refuses on its record | `application/use-cases/chat/chat.sender.ts` | `AssistantMessageSender` |
+| use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
+| job sender: sends a job and settles a send SQS refuses on its record | `application/use-cases/chat/chat.sender.ts` | `sendGenerateAssistantMessage` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
@@ -163,7 +163,7 @@ Using the files of `chat` as the map:
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat` |
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp` over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its `Assistant`, `WorkerLayer` with it; `main.ts` runs them |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its `Assistant`, `WorkerLayer` with it; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.ts` | `Api`, `ApiClient` |
 
@@ -187,33 +187,24 @@ modules has the same shape as one that does not:
 
 ```ts
 // application/use-cases/order/place-order.use-case.ts
-export class PlaceOrderUseCase extends Context.Service<PlaceOrderUseCase, {
-  /** Places the order of an active customer. */
-  readonly place: (
-    customerId: CustomerId,
-    lines: OrderLines,
-  ) => Effect.Effect<Order, CustomerBlockedError>
-}>()('@app-template/application/use-cases/order/PlaceOrderUseCase', {
-  make: Effect.gen(function* () {
-    const customers = yield* CustomerService // the customer module
-    const orders = yield* OrderService       // the order module
-    const transaction = yield* Transaction
-    const place = Effect.fn('PlaceOrderUseCase.place')(function* (
-      customerId: CustomerId,
-      lines: OrderLines,
-    ) {
-      yield* customers.requireActive(customerId) // the customer's rule, called
-      return yield* orders.place(customerId, lines)
-    }, transaction.run)                      // the writes commit together or not at all
-    return { place }
-  }),
-}) {
-  static readonly layer = Layer.effect(this, this.make).pipe(
-    Layer.provide([CustomerService.layer, OrderService.layer]),
-  )
-}
+/** Places the order of an active customer. */
+export const placeOrder = Effect.fn('placeOrder')(
+  function* (customerId: CustomerId, lines: OrderLines) {
+    const customers = yield* CustomerService   // the customer module
+    const orders = yield* OrderService         // the order module
+
+    yield* customers.requireActive(customerId) // the customer's rule, called
+    return yield* orders.place(customerId, lines)
+  },
+  // the writes commit together or not at all
+  (place) => Transaction.use((transaction) => transaction.run(place)),
+)
 ```
 
+- **Its type is inferred, its services its process's.** A handler calls it as it calls a service
+  method, and the endpoint's error list checks what it fails with; the api provides the services
+  it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer, and a unit test from
+  its mocks. Record: [Use cases as functions](decisions.md#use-cases-as-functions).
 - **A rule another module owns is called, never copied.** The order module may read the
   customer's row itself, but whether a customer may order is the customer module's rule, so the
   use case calls it. How to tell one rule from two that only look alike:
@@ -252,21 +243,21 @@ imports need.
    each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, coding its rows through the model with `encodeRowWith` and `decodeRowWith`, the
-   one owner every handler goes through, tested over mocks of the repositories it calls.
-   The layers' barrels re-export the new files.
+   one owner every handler goes through, tested over mocks of the repositories it calls, and
+   provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
+   the new files.
 4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
    queue to the inventory and its definition to the module's `infrastructure/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
-   worker's route.
+   worker's route, the services it reads provided in the worker's layer.
 5. **The boundary.** A group in `apps/api/<entity>/<entity>.http.ts` over the domain's ids,
    models and errors, each error with its status where its endpoint lists it, a wire shape only
    where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
    `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
    `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
-   mapper in `apps/api/<entity>/<entity>.mapper.ts` only
-   where the wire adds a field, the handler added to `ApiRoutes`, its group providing the services
-   and use cases it reads; then `make api-snapshot`. Test only what HTTP adds, on the api test
+   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, the handler
+   added to `ApiRoutes`; then `make api-snapshot`. Test only what HTTP adds, on the api test
    layer; a new module's journey case goes in a file of its own on `StandTest`. A browser feature
    calls it from `apps/web/features/<entity>/` through the web's `ApiClient`, as
    `<group><Endpoint>`.

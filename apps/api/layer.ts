@@ -5,6 +5,12 @@ import { HttpApiBuilder } from 'effect/http-api'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
+  AttachmentService,
+  ChatService,
+  MessageService,
+  RunService,
+} from '@app-template/application/chat'
+import {
   QueueSenderOfStage,
   S3BucketFromConfig,
   SQSServiceFromConfig,
@@ -26,7 +32,16 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide([Auth.layer, SchemaErrors.layer]),
 )
 
-export const ApiHttp = HttpRouter.serve(ApiRoutes)
+// After `serve`, which makes what a handler reads per request its own requirement: a use case
+// the handler calls reads its services so, and a handler group's provide never reaches them.
+export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
+  Layer.provide([
+    AttachmentService.layer,
+    ChatService.layer,
+    MessageService.layer,
+    RunService.layer,
+  ]),
+)
 
 const BunHttpServerFromConfig = apiPort.pipe(
   Effect.map((port) => BunHttpServer.layer({ port })),
