@@ -21,3 +21,7 @@ export interface DownloadedFileEntity extends FileEntity {
 export interface FileEntityWhere {
   readonly id: string | ReadonlyArray<string>
 }
+
+export interface FileEntityDownloadWhere {
+  readonly id: string
+}

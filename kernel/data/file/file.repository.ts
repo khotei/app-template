@@ -6,6 +6,7 @@ import {
   buildFileKey,
   type DownloadedFileEntity,
   type FileEntity,
+  type FileEntityDownloadWhere,
   type FileEntityInsert,
   type FileEntityWhere,
 } from '#kernel/data/file/file.entity'
@@ -47,7 +48,7 @@ export class FileRepository extends Context.Service<
     readonly selectMany: (where: FileEntityWhere) => Effect.Effect<ReadonlyArray<FileEntity>>
     /** A `GetObject`, the metadata with the bytes. */
     readonly download: (
-      where: FileEntityWhere,
+      where: FileEntityDownloadWhere,
     ) => Effect.Effect<Option.Option<DownloadedFileEntity>>
     /** In as few requests as the store allows. */
     readonly delete: (where: FileEntityWhere) => Effect.Effect<void>
@@ -88,8 +89,8 @@ export class FileRepository extends Context.Service<
         selectMany(where).pipe(Effect.map(Arr.head)),
       ),
       selectMany: Effect.fn('FileRepository.selectMany')(selectMany),
-      download: Effect.fn('FileRepository.download')((where: FileEntityWhere) =>
-        readEach(downloadFile)(where).pipe(Effect.map(Arr.head)),
+      download: Effect.fn('FileRepository.download')(({ id }: FileEntityDownloadWhere) =>
+        downloadFile(id),
       ),
       delete: Effect.fn('FileRepository.delete')(({ id }: FileEntityWhere) =>
         pipe(id, Arr.ensure, Arr.map(buildFileKey), bucket.deleteMany),
