@@ -18,23 +18,24 @@ before using it, and read this page again after an upgrade.
 
 ```mermaid
 graph LR
-  P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlmFromConfig<br/>Prompt.make · generateText · generateObject"]
-  L -->|"reply · title"| A["AnthropicLanguageModel<br/>the models by LLM_*_MODEL"]
+  P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlmFromConfig<br/>generateText · generateObject"]
+  L -->|"reply · title"| A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
 
-1. `reply` turns the chat's messages into a `Prompt`: the fixed system prompt first, then
-   each user turn as its text (none when blank) and files, each assistant turn as its text. A
-   failed Run leaves no reply, so two user turns may follow each other: `@effect/ai-anthropic`
-   folds them into one, and the Messages API takes either shape. `suggestTitle` sends the title
-   instruction and the opening message.
-2. `reply` calls `generateText` on the reply model and decodes the text as the domain's
-   `AssistantReply`, so a blank reply fails as `InvalidOutputError` and is asked again.
-   `suggestTitle` calls `generateObject` on the title model with `TitleAnswer`. Nothing streams:
-   the answer arrives whole.
-3. For the title, `AnthropicLanguageModel` sends the schema as `output_config.format`
-   (Anthropic's native structured output). The schema's `description` annotations reach the
-   model; length bounds and other checks do not, so the decode of the JSON answer enforces them.
+1. Each model sends its fixed prompt as the request's `system`, set in its `config`: the system
+   prompt for a reply, the title instruction for a title. A prompt that asks the model to show
+   its reasoning invites a refusal.
+2. `reply` calls `generateText` on the reply model with the chat's messages: each user turn as
+   its text (none when blank) and files, each assistant turn as its text. A failed Run leaves no
+   reply, so two user turns may follow each other: `@effect/ai-anthropic` folds them into one,
+   and the Messages API takes either shape. The text is decoded as the domain's
+   `AssistantReply`, so a blank reply fails as `InvalidOutputError` and is asked again. Nothing
+   streams: the answer arrives whole.
+3. `suggestTitle` calls `generateObject` on the title model with the opening message and
+   `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's native
+   structured output). The schema's checks are not sent: the instruction states the language and
+   the 120-character bound; the decode of the JSON answer trims the title and enforces the bound.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `Assistant`
 ([tooling.md › Tests](tooling.md#tests)), so only the adapter's suite covers these steps.
@@ -96,18 +97,8 @@ The title's use case logs either and leaves the chat untitled.
   its cache once its history passes the floor. `usage.cache_creation_input_tokens` and
   `usage.cache_read_input_tokens` both 0 means nothing was cached.
 - **What breaks it.** A cache belongs to one model and one prefix. Changing the reply model, the
-  system prompt, the thinking setting or the effort invalidates every chat's cached prefix; the
-  next reply of each chat writes it again at the write price.
-
-## Changing the system prompt
-
-It lives beside `AssistantLlmFromConfig` as `systemPrompt`, and it is all the reply's model
-reads besides the history: the reply is asked as text, with no schema.
-
-- Keep it fixed per process: a date, a name or any user data in it would give every request its
-  own prefix, and nothing would be cached. Asking the model to show its reasoning invites a
-  refusal.
-- *Cache:* every chat's cached prefix is invalidated once, when the new prompt deploys.
+  system prompt, the thinking setting or the effort invalidates every chat's cached prefix once;
+  the next reply of each chat writes it again at the write price.
 
 ## Modules left unused
 

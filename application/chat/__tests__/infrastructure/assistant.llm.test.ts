@@ -125,7 +125,7 @@ describe('AssistantLlmFromConfig', () => {
 
         const [body] = yield* bodies
         assert.strictEqual(body?.model, 'claude-sonnet-5-5')
-        assert.include(JSON.stringify(body?.system), 'You are the assistant of a chat app')
+        assert.include(body?.system, 'You are the assistant of a chat app')
         assert.deepStrictEqual(body?.messages, [
           {
             role: 'user',
@@ -140,7 +140,7 @@ describe('AssistantLlmFromConfig', () => {
   )
 
   it.effect(
-    'suggestTitle asks the title model with the title instruction and the opening message, its JSON Schema telling the model what the field means, and answers the title trimmed',
+    'suggestTitle asks the title model with the title instruction and the opening message, and answers the title trimmed',
     () => {
       const { bodies, layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
       return Effect.gen(function* () {
@@ -148,17 +148,10 @@ describe('AssistantLlmFromConfig', () => {
 
         const [body] = yield* bodies
         assert.strictEqual(body?.model, 'claude-haiku-5-5')
-        assert.include(JSON.stringify(body?.system), 'Write a title')
+        assert.include(body?.system, 'Write a title of at most 120 characters')
         assert.deepStrictEqual(body?.messages, [
           { role: 'user', content: [{ type: 'text', text: lisbon, cache_control: null }] },
         ])
-        assert.deepStrictEqual(body?.output_config?.format?.schema.properties, {
-          title: {
-            type: 'string',
-            description:
-              'The title of the chat, in the language of its opening message, at most 120 characters.',
-          },
-        })
         assert.strictEqual(title, ChatTitle.make('Lisbon weekend'))
       }).pipe(Effect.provide(layer))
     },

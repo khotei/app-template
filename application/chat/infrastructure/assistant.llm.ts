@@ -5,12 +5,11 @@ import {
   Duration,
   Effect,
   Layer,
-  pipe,
   Schedule,
   Schema,
   SchemaTransformation,
 } from 'effect'
-import { AiError, Prompt, Response } from 'effect/ai'
+import { AiError, type Prompt, Response } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
 import { llmModels } from '@app-template/kernel/config'
@@ -27,7 +26,7 @@ import { Assistant, type HistoryMessage } from '#chat/domain/assistant.port'
 import { ChatTitle } from '#chat/domain/chat.model'
 import { isBlank } from '#chat/domain/message.model'
 
-// Fixed for every request: a date or user data here would break the cached prefix.
+/** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
   'You are the assistant of a chat app. Answer the last user message, using the whole conversation and every attached file as context.',
   'Reply in the language of the last user message.',
@@ -49,29 +48,12 @@ function toMessage({ message, attachments }: HistoryMessage): Prompt.MessageEnco
   return { role: message.author, content: isBlank(message.text) ? files : Arr.prepend(files, text) }
 }
 
-const buildChatPrompt = (history: ReadonlyArray<HistoryMessage>): Prompt.Prompt =>
-  pipe(
-    history,
-    Arr.map(toMessage),
-    Arr.prepend<Prompt.MessageEncoded>({ role: 'system', content: systemPrompt }),
-    Prompt.make,
-  )
+const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 
-const titleInstruction = 'Write a title for a chat that opens with the next message.' as const
-
-// The JSON Schema is the encoded side's, so the description sits on the `String` that is trimmed
-// into a `ChatTitle`: on `Schema.Trim`, its own `expected` text would replace it.
+/** A bare `String`: `Schema.Trim` would send the model its `expected` text as a description. */
 const TitleAnswer = Schema.Struct({
-  title: Schema.String.annotate({
-    description: `The title of the chat, in the language of its opening message, at most ${maxTitleLength} characters.`,
-  }).pipe(Schema.decodeTo(ChatTitle, SchemaTransformation.trim())),
+  title: Schema.String.pipe(Schema.decodeTo(ChatTitle, SchemaTransformation.trim())),
 })
-
-const buildTitlePrompt = (text: string): Prompt.Prompt =>
-  Prompt.make([
-    { role: 'system', content: titleInstruction },
-    { role: 'user', content: [{ type: 'text', text }] },
-  ])
 
 const EarlyFinish = Response.FinishReason.pick(['content-filter', 'length'])
 
@@ -153,11 +135,12 @@ const assistantModels = llmModels.pipe(
     Effect.all({
       reply: AnthropicLanguageModel.make({
         model: replyModel,
-        config: { max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
+        config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
       }),
       title: AnthropicLanguageModel.make({
         model: titleModel,
         config: {
+          system: titleInstruction,
           max_tokens: 1_000,
           output_config: { effort: 'low' },
           thinking: { type: 'disabled' },
@@ -178,12 +161,12 @@ export const AssistantLlmFromConfig: Layer.Layer<
       Assistant.of({
         reply: Effect.fn('Assistant.reply')((history) =>
           models.reply
-            .generateText({ prompt: buildChatPrompt(history) })
+            .generateText({ prompt: Arr.map(history, toMessage) })
             .pipe(Effect.flatMap(failOnEarlyFinish), Effect.flatMap(decodeReply), askWithin(2)),
         ),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
           const response = yield* models.title
-            .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
+            .generateObject({ prompt: text, schema: TitleAnswer })
             .pipe(Effect.flatMap(failOnEarlyFinish), askWithin(4))
           return response.value.title
         }),
