@@ -283,12 +283,13 @@ at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
   table changed without a committed migration fails the build.
 - Commit `migration.sql` and `snapshot.json` together. The ledger `drizzle.__drizzle_migrations`
   records each migration once, so an edit never reaches a database that already applied it.
-- **Until a deployed database holds data, the migrations stay one `init`.** Every change to a
-  table deletes `kernel/data/migrations/` and regenerates it with `make migration NAME=init`,
-  never a second migration, a rename by `--hints` or hand-written SQL; a local database then
-  rebuilds by `make reset && make up`. Two branches that both regenerated it merge as two
-  folders, which `make migration-check` refuses: regenerate once more.
-  The first deployed database ends this: from then on a committed migration is never edited.
+- **Until a deployed database holds data, the migrations stay one `init`, whose `migration.sql`
+  reads as the whole schema in one file.** Every change to a table deletes
+  `kernel/data/migrations/` and regenerates it with `make migration NAME=init`, never a second
+  migration, a rename by `--hints` or hand-written SQL; a local database then rebuilds by
+  `make reset && make up`. Two branches that both regenerated it merge as two folders, which
+  `make migration-check` refuses: regenerate once more. The first deployed database ends this:
+  from then on a committed migration is never edited.
 - The apps neither migrate nor check the schema at startup; only `make migrate` and the tests'
   setup apply migrations.
 - Biome skips `kernel/data/migrations/`: the files are drizzle-kit's output, and a
