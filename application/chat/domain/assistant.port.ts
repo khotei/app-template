@@ -4,7 +4,7 @@ import type { AssistantError } from '#chat/domain/assistant.error'
 import type { AssistantReply } from '#chat/domain/assistant.model'
 import type { Attachment } from '#chat/domain/attachment.model'
 import type { ChatTitle } from '#chat/domain/chat.model'
-import type { Message } from '#chat/domain/message.model'
+import type { MessageFields } from '#chat/domain/message.model'
 
 export interface AttachmentBytes {
   readonly attachment: Attachment
@@ -12,7 +12,7 @@ export interface AttachmentBytes {
 }
 
 export interface HistoryMessage {
-  readonly message: Message
+  readonly message: MessageFields
   readonly attachments: ReadonlyArray<AttachmentBytes>
 }
 
