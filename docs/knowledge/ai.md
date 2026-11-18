@@ -30,8 +30,7 @@ graph LR
    its text (none when blank) and files, each assistant turn as its text. A failed Run leaves no
    reply, so two user turns may follow each other: `@effect/ai-anthropic` folds them into one,
    and the Messages API takes either shape. The text is decoded as the domain's
-   `AssistantReply`, so a blank reply fails as `InvalidOutputError` and is asked again. Nothing
-   streams: the answer arrives whole.
+   `AssistantReply`, so a blank reply fails. Nothing streams: the answer arrives whole.
 3. `suggestTitle` calls `generateObject` on the title model with the opening message and
    `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's native
    structured output). The schema's checks are not sent: the instruction states the language and
@@ -58,31 +57,30 @@ The e2e journey runs no language model: its stand gives the worker a scripted `A
 
 ## Failures and retries
 
-`AssistantLlmFromConfig` retries in place what a retry can fix and lets only a final failure out of
-the port, as `AssistantRefusedError` or `AssistantFailedError`; the use cases turn them into a
-`failed` message (`ReplyRefused` or `ReplyFailed`) or an untitled chat. A job is never retried
-([aws.md › Queues](aws.md#queues)).
+`AssistantLlmFromConfig` asks again in place only what the provider marks retryable, and lets out
+of the port only a final failure, as `AssistantRefusedError` or `AssistantFailedError`; the use
+cases turn them into a `failed` message (`ReplyRefused` or `ReplyFailed`) or an untitled chat. A
+job is never retried ([aws.md › Queues](aws.md#queues)).
 
-| `AiError` reason | Retried |
+| Failure | Asked again |
 |---|---|
-| finish reason `content-filter` (Anthropic's `refusal`), or `ContentPolicyError` | no: refused |
-| finish reason `length` (`max_tokens` reached), raised as `InvalidOutputError` | yes |
-| a blank reply (`InvalidOutputError`), a title that fails its schema (`StructuredOutputError`) | yes |
-| `RateLimitError` with `retryAfter` up to 30 s | yes, waiting at least `retryAfter` |
-| `RateLimitError` with a longer `retryAfter` | no |
-| any other reason with `isRetryable` (5xx, 529, a transport error) | yes |
-| any other reason (401/403, 400/404/422, an overlong prompt, no credit) | no |
+| an `AiError` whose `isRetryable` holds (5xx, 529, a rate limit, a transport error, a title that fails its schema) and whose `retryAfter` is at most 30 s | yes, waiting at least `retryAfter` |
+| a rate limit asking a longer wait, such as a daily token limit | no: the wait would outlast the job |
+| any other `AiError` (401/403, 400/404/422, an overlong prompt, no credit) | no |
+| an answer the model refused (finish reason `content-filter`, Anthropic's `refusal`) | no: `AssistantRefusedError`, its partial text dropped |
+| an answer that finished any other way than `stop` (`length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `AssistantFailedError` |
 
 A reply makes three requests at most, 1 s then 2 s apart; a title five, 1, 2, 4 and 8 s apart.
-The final error's `cause` is the `AiError`'s message, for operators; it never reaches the wire.
+The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
+error, for operators; it never reaches the wire.
 
 ### The finish reason
 
-The adapter reads `finishReason` from each answer before it decodes it, so a `content-filter` or
-`length` finish fails even when the text reads whole. A title the model refuses as prose fails
-`generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so it is
-retried as a malformed answer and ends as `AssistantFailedError`, not `AssistantRefusedError`.
-The title's use case logs either and leaves the chat untitled.
+The adapter reads `finishReason` after its retries, so an answer that did not finish fails at
+once, even when its text reads whole. A title cut at `max_tokens` inside its JSON, or refused as
+prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
+it is asked again as a malformed answer and ends as `AssistantFailedError`, a refusal too. The
+title's use case logs either and leaves the chat untitled.
 
 ## Prompt caching
 

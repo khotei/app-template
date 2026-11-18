@@ -535,9 +535,10 @@ and deletes it here.
   the limit nor the file (`apps/api/attachment/attachment.handler.ts:30`),
   `AttachmentTypeUnsupportedError` not the type sent (`:50`), `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`application/chat/infrastructure/assistant.llm.ts:159`); `UserUnknownError` stays empty, so no
-  secret reaches a reply or a log. Left: the lab's step for it was skipped. First check, by a
-  run, which of an error's fields reach the api's and the worker's logs and spans.
+  (`toFailedError` in `application/chat/infrastructure/assistant.llm.ts`); `UserUnknownError`
+  stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
+  First check, by a run, which of an error's fields reach the api's and the worker's logs and
+  spans.
 
 ### From `telemetry-minimal`
 

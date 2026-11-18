@@ -9,18 +9,14 @@ import {
   Schema,
   SchemaTransformation,
 } from 'effect'
-import { AiError, type Prompt, Response } from 'effect/ai'
+import type { AiError, Prompt, Response } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
 import { llmModels } from '@app-template/kernel/config'
 import { maxTitleLength } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 
-import {
-  type AssistantError,
-  AssistantFailedError,
-  AssistantRefusedError,
-} from '#chat/domain/assistant.error'
+import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Assistant, type HistoryMessage } from '#chat/domain/assistant.port'
 import { ChatTitle } from '#chat/domain/chat.model'
@@ -55,48 +51,18 @@ const TitleAnswer = Schema.Struct({
   title: Schema.String.pipe(Schema.decodeTo(ChatTitle, SchemaTransformation.trim())),
 })
 
-const EarlyFinish = Response.FinishReason.pick(['content-filter', 'length'])
+const isFinished = ({ finishReason }: { readonly finishReason: Response.FinishReason }) =>
+  finishReason === 'stop'
 
-const isEarlyFinish = Schema.is(EarlyFinish)
+function toUnfinishedError({ finishReason }: { readonly finishReason: Response.FinishReason }) {
+  const cause = `the model stopped with finish reason ${finishReason}`
+  return finishReason === 'content-filter'
+    ? new AssistantRefusedError({ cause })
+    : new AssistantFailedError({ cause })
+}
 
-const earlyFinishReasons = {
-  'content-filter': AiError.ContentPolicyError,
-  length: AiError.InvalidOutputError,
-} as const satisfies Record<
-  typeof EarlyFinish.Type,
-  new (props: {
-    readonly description: string
-  }) => AiError.AiErrorReason
->
-
-/** Fails an answer whose model refused or was cut; a cut one fails even when it reads whole. */
-const failOnEarlyFinish = Effect.fnUntraced(function* <
-  A extends { readonly finishReason: Response.FinishReason },
->(answer: A) {
-  const reason = answer.finishReason
-  if (isEarlyFinish(reason)) {
-    return yield* AiError.make({
-      module: 'AssistantLlm',
-      method: 'failOnEarlyFinish',
-      reason: new earlyFinishReasons[reason]({
-        description: `The model stopped with finish reason ${reason}`,
-      }),
-    })
-  }
-  return answer
-})
-
-/** A blank text fails as an output a retry can fix. */
-const decodeReply = ({ text }: { readonly text: string }) =>
-  Schema.decodeEffect(AssistantReply)({ text }).pipe(
-    Effect.mapError((error) =>
-      AiError.make({
-        module: 'AssistantLlm',
-        method: 'decodeReply',
-        reason: AiError.InvalidOutputError.fromSchemaError(error),
-      }),
-    ),
-  )
+const toFailedError = (error: { readonly message: string }) =>
+  new AssistantFailedError({ cause: error.message })
 
 const longestRetryAfter = Duration.seconds(30)
 
@@ -105,11 +71,6 @@ const retryAfterOf = ({ retryAfter }: AiError.AiError): Duration.Duration =>
 
 const isWorthRetrying = (error: AiError.AiError): boolean =>
   error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), longestRetryAfter)
-
-const toAssistantError = (error: AiError.AiError): AssistantError =>
-  error.reason._tag === 'ContentPolicyError'
-    ? new AssistantRefusedError({ cause: error.message })
-    : new AssistantFailedError({ cause: error.message })
 
 /** `retries` more requests, 1, 2, 4 … s apart, each wait at least the provider's `retryAfter`. */
 const retrySchedule = (retries: number): Schedule.Schedule<Duration.Duration, AiError.AiError> =>
@@ -124,10 +85,10 @@ const retrySchedule = (retries: number): Schedule.Schedule<Duration.Duration, Ai
 /** Asks again up to `retries` times while a retry can help, then fails as the port's error. */
 const askWithin =
   (retries: number) =>
-  <A>(request: Effect.Effect<A, AiError.AiError>): Effect.Effect<A, AssistantError> =>
+  <A>(request: Effect.Effect<A, AiError.AiError>) =>
     request.pipe(
       Effect.retry({ schedule: retrySchedule(retries), while: isWorthRetrying }),
-      Effect.mapError(toAssistantError),
+      Effect.mapError(toFailedError),
     )
 
 const assistantModels = llmModels.pipe(
@@ -158,18 +119,25 @@ export const AssistantLlmFromConfig: Layer.Layer<
   Assistant,
   assistantModels.pipe(
     Effect.map((models) =>
+      // Checked after the retries, an unfinished answer or a blank reply is not asked again:
+      // resent with the same prompt and limits, it would most likely end the same way.
       Assistant.of({
         reply: Effect.fn('Assistant.reply')((history) =>
-          models.reply
-            .generateText({ prompt: Arr.map(history, toMessage) })
-            .pipe(Effect.flatMap(failOnEarlyFinish), Effect.flatMap(decodeReply), askWithin(2)),
+          models.reply.generateText({ prompt: Arr.map(history, toMessage) }).pipe(
+            askWithin(2),
+            Effect.filterOrFail(isFinished, toUnfinishedError),
+            Effect.flatMap(({ text }) =>
+              Schema.decodeEffect(AssistantReply)({ text }).pipe(Effect.mapError(toFailedError)),
+            ),
+          ),
         ),
-        suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-          const response = yield* models.title
-            .generateObject({ prompt: text, schema: TitleAnswer })
-            .pipe(Effect.flatMap(failOnEarlyFinish), askWithin(4))
-          return response.value.title
-        }),
+        suggestTitle: Effect.fn('Assistant.suggestTitle')((text) =>
+          models.title.generateObject({ prompt: text, schema: TitleAnswer }).pipe(
+            askWithin(4),
+            Effect.filterOrFail(isFinished, toUnfinishedError),
+            Effect.map(({ value }) => value.title),
+          ),
+        ),
       }),
     ),
   ),
