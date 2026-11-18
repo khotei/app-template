@@ -24,9 +24,6 @@ export const telemetry = new docker.Container(
       { internal: grafanaInternalPort, external: grafanaPort },
       { internal: otlpInternalPort, external: otlpPort },
     ],
-    // The image's own healthcheck, every 30 s, so a new container holds `make up` for about that.
-    wait: true,
-    waitTimeout: 120,
   },
   // A new name or image replaces the container; the old one holds the ports until it is deleted.
   { deleteBeforeReplace: true },
