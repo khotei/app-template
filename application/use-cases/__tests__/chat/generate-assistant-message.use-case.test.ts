@@ -277,6 +277,26 @@ describe('GenerateAssistantMessageUseCase', () => {
     )
   })
 
+  it.effect('generate interrupted while the assistant answers fails the Run it reads again', () => {
+    const held = holdAssistantCall()
+    const assistant = recordAssistant({ reply: held.hold.pipe(Effect.as(sure)) })
+    const writes = noWrites()
+    const generating = new Run({ ...queuedRun, status: 'generating' })
+    return Effect.gen(function* () {
+      const running = yield* Effect.forkChild(generate)
+      yield* held.asked
+      yield* Fiber.interrupt(running)
+
+      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'ReplyFailed' })
+    }).pipe(
+      Effect.provide(
+        layerAssistantMessageTest(
+          replyingTo(writes, { runs: readsInTurn(queuedRun, generating) }),
+        ).pipe(Layer.provide(assistant.layer)),
+      ),
+    )
+  })
+
   it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
     'generate fails a $status Run a dead worker left, without asking the assistant',
     ({ status }) => {
