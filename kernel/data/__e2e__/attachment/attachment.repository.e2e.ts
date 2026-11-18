@@ -147,6 +147,22 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
+  it.effect('delete where unbound dies on a bound attachment and keeps it', () =>
+    Effect.gen(function* () {
+      const attachments = yield* AttachmentRepository
+      const bound = { ...attachment('0192d4e0-7b3a-7c00-8000-000000000027'), messageId, chatId }
+      yield* insertChatWithMessage
+      yield* attachments.insert(bound)
+
+      const exit = yield* attachments
+        .delete({ id: [bound.id], userId, messageId: null })
+        .pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: [bound.id] }), [bound])
+    }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
+  )
+
   it.effect('selects the attachments found in creation order, leaving out unknown ids', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
