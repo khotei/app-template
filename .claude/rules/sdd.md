@@ -54,12 +54,14 @@ live in the skills; this file holds the constraints they share. A lab step (`lab
   code and tests (its docs counted apart) and fits one fresh session. A ticket is one branch
   `<type>/<slug>` and one squash-merged PR, so no commit between two steps reaches `main`.
 - **A step lands in rounds, one commit each,** named as `commits.md › A ticket's rounds` says. A
-  round commits once `make check` is green, before the user reads it, so each diff is read alone,
-  and the step's passes review its committed rounds. The user's own edits, found between rounds,
-  commit first as an `OWNER` round; an edit during a live round is not one, so the user says stop
-  first. No commit the user has seen is amended or squashed before the PR: a rejected round is
-  reverted by a new commit only while it is the branch's last, and fixed forward by a new round
-  once later work rests on it. `plan.md` is edited only at the step's close, a `PLAN` round.
+  round is one unit of `commits.md › A commit's unit`, so a run of the implementer, on its brief or
+  on a fix pass (one batch of fixes forwarded to it), lands as several rounds; the implementer
+  commits each once `make check` is green, before the user reads it, so each diff is read alone, and
+  the step's passes review its committed rounds. The user's own edits, found between rounds, commit
+  first as an `OWNER` round; an edit during a live round is not one, so the user says stop first. No
+  commit the user has seen is amended or squashed before the PR: one new commit reverts the branch's
+  last rounds while nothing rests on them; once later work does, a rejected round is fixed forward.
+  `plan.md` is edited only at the step's close, a `PLAN` round.
 - **The commit gate, for every commit of a ticket.** A round commits when ready; the gate decides
   whether a ready step closes. At its first step of a session, `/ticket-implement` asks once
   whether a ready step closes without the user's OK or waits for it, and holds the answer for the

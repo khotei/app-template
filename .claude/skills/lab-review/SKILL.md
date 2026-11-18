@@ -30,8 +30,9 @@ whole branch, in one round under `.claude/rules/lab.md`. Pick and read the lab a
      `docs/knowledge/architecture.md`, and the records of `docs/knowledge/decisions.md` that bind
      the range's files.
 5. **Decide** on each finding as its report states it:
-   - a rule or style fix: make it yourself, all of them in one `REVIEW` round once `make check` is
-     green, each an `[N:ai]` line in its step's Pieces;
+   - a rule or style fix: make it yourself, each independent fix its own `REVIEW` round once
+     `make check` is green (`.claude/rules/commits.md › A commit's unit`), each an `[N:ai]` line in
+     its step's Pieces;
    - a hunt finding, a Design candidate, or a fix that changes the shape (a signature, a module,
      a type, what a test asserts): a `[D:ai]` in the step's Notes, with its `path:line`, its
      scenario, `shown` or `claimed` as the reviewer marked it, and what the system loses without
@@ -39,6 +40,6 @@ whole branch, in one round under `.claude/rules/lab.md`. Pick and read the lab a
      and `.claude/rules/sdd.md › Gates` may defer is a `Later` line instead. A case seen only on a
      stub is no fix (rail 7);
    - a finding you reject: one line in the report, with the reason.
-6. **Report** in the chat: the `REVIEW` commit, then each `[D:ai]` as one block (what is wrong,
+6. **Report** in the chat: the `REVIEW` commits, then each `[D:ai]` as one block (what is wrong,
    what it leads to, the options with their cost, your recommendation, the question), then the
-   rejected findings. The round is the only one: no pass runs again.
+   rejected findings. The review is the only one: no pass runs again.
