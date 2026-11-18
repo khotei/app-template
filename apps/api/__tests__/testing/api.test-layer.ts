@@ -2,7 +2,6 @@ import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { ConfigProvider, Effect, Layer, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 
-import { CurrentReplyProvenanceTest } from '@app-template/application/chat/testing'
 import { ApiClient } from '@app-template/http-api'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
@@ -14,12 +13,12 @@ import { ApiHttp } from '#api/layer'
 export { ApiLayer } from '#api/layer'
 
 /**
- * The api on an ephemeral port over the memory layers: fresh rows and files,
- * the identity transaction, a queue that only records and a fixed reply provenance. Its `HttpClient` targets that port, and
- * the repositories stay in context for arranging what only the worker writes.
+ * The api on an ephemeral port over the memory layers: fresh rows and files, the identity
+ * transaction and a queue that only records. Its `HttpClient` targets that port, and the
+ * repositories stay in context for arranging what only the worker writes.
  */
 export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([TransactionTest, recordMessages().layer, CurrentReplyProvenanceTest]),
+  Layer.provide([TransactionTest, recordMessages().layer]),
   Layer.provideMerge(BunHttpServer.layerTest),
   Layer.provideMerge(RepositoryStackTest),
   Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),

@@ -33,7 +33,6 @@ import {
   owner,
   queuedRun,
   recordAssistant,
-  replyProvenance,
   selectMessages,
   selectRun,
   updateRun,
@@ -64,7 +63,6 @@ const lastRun = buildRun({
   id: queuedRun.id,
   chatId,
   userMessage: attachmentsOnly,
-  provenance: replyProvenance,
   createdAt: attachmentsOnly.createdAt,
 })
 

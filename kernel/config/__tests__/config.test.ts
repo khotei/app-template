@@ -8,7 +8,6 @@ import {
   LlmConfig,
   MinimumLogLevelFromConfig,
   MiniStackConfig,
-  ReplyModelConfig,
   RuntimeConfig,
   TelemetryConfig,
   WorkerConfig,
@@ -54,7 +53,6 @@ describe('config layers', () => {
       layer: LlmConfig.layer,
       given: { ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
     },
-    { variable: 'LLM_REPLY_MODEL', layer: ReplyModelConfig.layer },
   ])(
     'fails with a ConfigError naming a missing or invalid $variable',
     ({ variable, layer, given }) =>
@@ -72,12 +70,6 @@ describe('config layers', () => {
 
       assert.deepStrictEqual({ nodeEnv, logLevel }, { nodeEnv: 'development', logLevel: 'Info' })
     }).pipe(Effect.provide(provideVariables(RuntimeConfig.layer, {}))),
-  )
-
-  it.effect('reads the reply model with no key', () =>
-    Effect.gen(function* () {
-      assert.deepStrictEqual(yield* ReplyModelConfig, { replyModel: 'reply' })
-    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, { LLM_REPLY_MODEL: 'reply' }))),
   )
 
   it.effect.each([

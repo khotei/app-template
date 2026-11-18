@@ -16,7 +16,6 @@ import {
   chat,
   insertMessage,
   owner,
-  replyProvenance,
   updateRun,
 } from '@app-template/application/chat/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
@@ -57,7 +56,6 @@ describe('RetryRunUseCase', () => {
             id: retried.id,
             chatId: chat.id,
             userMessage: first.userMessage,
-            provenance: replyProvenance,
             createdAt: retried.createdAt,
           }),
         )

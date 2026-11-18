@@ -28,7 +28,7 @@ by the Run that answers, once it is done, and the Run names it.
 _Avoid_: Prompt, reply, completion, turn
 
 **Run**:
-The work of answering one user message: its status, its failure and its provenance. A send starts
+The work of answering one user message: its status and its failure. A send starts
 one, queued; the worker moves it and, once it is done, writes the assistant's message. A retry is
 a new Run of the same message.
 _Avoid_: Job (a queue message that names a Run), task, attempt, reply
@@ -76,13 +76,6 @@ _Avoid_: Drive, pool, files, storage
 The language-model side of a chat, as the user sees it. The language model behind it is a
 provider's artefact and is named only at the boundary.
 _Avoid_: Bot, AI, agent, model
-
-**Provenance**:
-Who the api expects to answer a Run and with which instructions: the configured provider and
-reply model and a hash of the system prompt with the reply schema. The Run keeps it, written by
-the send; the worker may run another language model while a deploy rolls out. For operators only;
-no api response carries it.
-_Avoid_: Metadata, model info, source, origin
 
 ## Architecture language
 

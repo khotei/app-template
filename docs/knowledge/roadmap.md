@@ -392,8 +392,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
   the provider's fixed waits; never on AWS.
 - **Inherits from `llm-providers` (2026-10-30).** `deployment/` sets no LLM variables, so a
-  deployed worker and api fail at start: both need `LLM_REPLY_MODEL`; the worker also
-  `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api never reads the key.
+  deployed worker fails at start: it needs `LLM_REPLY_MODEL`, `LLM_TITLE_MODEL` and
+  `ANTHROPIC_API_KEY` (in SSM). The api reads none of them.
 - **Inherits from `lambda` (2026-11-08).** Dev runs the worker behind MiniStack's SQS mapping in
   proxy mode: the code stays on the host. The production build in dev, api and worker as real
   Lambda functions inside MiniStack (a Bun image with Lambda Web Adapter,
@@ -689,9 +689,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   chat (`POST /chats/:chatId/attachments`) with keys `chats/<chatId>/…`, which a delete clears by
   prefix listing.
 - **Inherits from `llm-providers` (2026-10-30).** The relay already keeps its rows: it sets
-  `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`, so a reply's job
-  keeps its provenance in `body`. The ledger's statuses replace `sent_at`; nothing removes sent
-  rows yet, which the retention question above now settles for every row.
+  `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`. The ledger's
+  statuses replace `sent_at`; nothing removes sent rows yet, which the retention question above
+  now settles for every row.
 - **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** The table is `jobs`, read
   and written by `JobRepository` in `kernel/data/job`, so the statuses and the trigger are the
   data layer's, in this ticket's migration, the second since the schema restarted as one;

@@ -44,7 +44,6 @@ const run = (
   status: 'queued',
   failure: null,
   assistantMessageId: null,
-  provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
   createdAt,
   updatedAt,
   ...fields,

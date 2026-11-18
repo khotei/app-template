@@ -27,7 +27,6 @@ import {
   chat,
   insertMessage,
   owner,
-  replyProvenance,
   selectAttachments,
   selectChat,
   selectMessages,
@@ -114,7 +113,6 @@ describe('CreateUserMessageUseCase', () => {
               }),
               attachments: [record],
             }),
-            provenance: replyProvenance,
             createdAt: run.createdAt,
           }),
         )
@@ -138,7 +136,7 @@ describe('CreateUserMessageUseCase', () => {
   )
 
   it.effect(
-    "the first create queues the reply job with the process's provenance and the title job, a later one the reply only",
+    'the first create queues the reply job and the title job, a later one the reply only',
     () => {
       const jobs = recordMessages()
       return Effect.gen(function* () {

@@ -260,31 +260,28 @@ describe('chats', () => {
     }).pipe(Effect.provide(ApiTest)),
   )
 
-  it.effect(
-    'a refused Run carries its reason and message on the wire, never its cause or provenance',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
-        const http = yield* HttpClient.HttpClient
-        const chat = yield* openChat
-        const run = yield* api.chats.createMessage({ params: { chatId: chat.id }, payload: hello })
-        yield* refuseRun(run.id)
+  it.effect('a refused Run carries its reason and message on the wire, never its cause', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+      const run = yield* api.chats.createMessage({ params: { chatId: chat.id }, payload: hello })
+      yield* refuseRun(run.id)
 
-        const [wire, chatWire] = yield* Effect.forEach(
-          [`/chats/${chat.id}/runs/${run.id}`, `/chats/${chat.id}`],
-          (url) => http.get(url).pipe(Effect.flatMap((response) => response.json)),
-        )
+      const [wire, chatWire] = yield* Effect.forEach(
+        [`/chats/${chat.id}/runs/${run.id}`, `/chats/${chat.id}`],
+        (url) => http.get(url).pipe(Effect.flatMap((response) => response.json)),
+      )
 
-        assert.deepNestedInclude(wire, {
-          status: 'failed',
-          'failure.reason': 'ReplyRefused',
-          assistantMessage: null,
-        })
-        assert.nestedProperty(wire, 'failure.message')
-        assert.notNestedProperty(wire, 'failure.cause')
-        assert.notProperty(wire, 'provenance')
-        assert.deepInclude(chatWire, { status: 'failed' })
-        assert.notProperty(chatWire, 'latestRun')
-      }).pipe(Effect.provide(ApiTest)),
+      assert.deepNestedInclude(wire, {
+        status: 'failed',
+        'failure.reason': 'ReplyRefused',
+        assistantMessage: null,
+      })
+      assert.nestedProperty(wire, 'failure.message')
+      assert.notNestedProperty(wire, 'failure.cause')
+      assert.deepInclude(chatWire, { status: 'failed' })
+      assert.notProperty(chatWire, 'latestRun')
+    }).pipe(Effect.provide(ApiTest)),
   )
 })

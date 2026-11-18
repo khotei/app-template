@@ -33,7 +33,6 @@ const run = (
   userMessageId,
   status: 'queued',
   failure: null,
-  provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
   assistantMessageId: null,
   createdAt,
   updatedAt,

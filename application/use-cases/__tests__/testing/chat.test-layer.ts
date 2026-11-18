@@ -2,11 +2,7 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
 import { ChatService, FileAttachmentService } from '@app-template/application/chat'
-import {
-  CurrentReplyProvenanceTest,
-  chat,
-  insertChatLayer,
-} from '@app-template/application/chat/testing'
+import { chat, insertChatLayer } from '@app-template/application/chat/testing'
 import { RepositoryStackTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
@@ -26,7 +22,6 @@ export const ChatTest = Layer.mergeAll(
   CreateUserMessageUseCase.layer,
   RetryRunUseCase.layer,
 ).pipe(
-  Layer.provide(CurrentReplyProvenanceTest),
   Layer.provideMerge(insertChatLayer(chat)),
   Layer.provideMerge(Layer.merge(RepositoryStackTest, TransactionTest)),
   Layer.provide(BunCrypto.layer),

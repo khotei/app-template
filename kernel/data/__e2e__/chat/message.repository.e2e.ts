@@ -67,7 +67,6 @@ const run = (
     chatId: answered.chatId,
     userMessageId: answered.id,
     status,
-    provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
     failure: (
       {
         queued: null,

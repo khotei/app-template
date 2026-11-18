@@ -7,7 +7,6 @@ import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildChat } from '#chat/domain/chat.model'
 import { buildAssistantMessage, buildUserMessage } from '#chat/domain/message.model'
 import { buildRun } from '#chat/domain/run.model'
-import { replyProvenance } from '#testing/chat/assistant.test-fake'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
@@ -45,6 +44,5 @@ export const queuedRun = buildRun({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
   chatId,
   userMessage: firstMessage,
-  provenance: replyProvenance,
   createdAt: epoch,
 })

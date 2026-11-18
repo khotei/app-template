@@ -2,7 +2,6 @@ import { Effect, Schema } from 'effect'
 
 import { runFailureReasons, runStatuses } from '@app-template/kernel/data'
 
-import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { Status } from '#chat/domain/status.model'
 
@@ -30,7 +29,6 @@ export const RunFields = Schema.Struct({
   failure: Schema.OptionFromNullOr(RunFailure).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
-  provenance: ReplyProvenance,
   /** The reply's id, none until the Run is done. */
   assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),

@@ -4,7 +4,6 @@ import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
-import { CurrentReplyProvenance } from '#chat/domain/assistant.port'
 import { RunId } from '#chat/domain/chat.id'
 import type { Message } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
@@ -18,8 +17,8 @@ export class RunService extends Context.Service<
   RunService,
   {
     /**
-     * Stores the queued Run that answers the user's message, with this process's provenance;
-     * dies when its chat has an active Run already, a send that lost the race to another.
+     * Stores the queued Run that answers the user's message; dies when its chat has an active Run
+     * already, a send that lost the race to another.
      */
     readonly create: (userMessage: Message) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
@@ -28,12 +27,11 @@ export class RunService extends Context.Service<
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
     const crypto = yield* Crypto.Crypto
-    const provenance = yield* CurrentReplyProvenance
 
     const create = Effect.fn('RunService.create')(function* (userMessage: Message) {
       const id = yield* generateId(crypto, RunId.make)
       const createdAt = yield* DateTime.now
-      const run = buildRun({ id, chatId: userMessage.chatId, userMessage, provenance, createdAt })
+      const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })
       const row = yield* encodeRun(run)
 
       // The index on the active Run refuses a second one in the chat, so this insert dies.

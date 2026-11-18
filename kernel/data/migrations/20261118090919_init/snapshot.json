@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "b4dee328-d3c3-49cd-a295-8fb7966e4e2c",
+  "id": "9c9cbc48-21b9-49a5-8abc-c867b7977b55",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -950,19 +950,6 @@
       "type": "jsonb",
       "typeSchema": null,
       "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "runs",
-      "name": "provenance",
-      "type": "jsonb",
-      "typeSchema": null,
-      "notNull": true,
       "dimensions": 0,
       "default": null,
       "generated": null,

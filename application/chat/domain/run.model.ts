@@ -28,7 +28,7 @@ export class Run extends Schema.Class<Run>('Run')({
 }) {}
 
 export const buildRun = (
-  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'provenance' | 'createdAt'>>,
+  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'createdAt'>>,
 ): Run => new Run({ ...fields, userMessageId: fields.userMessage.id, updatedAt: fields.createdAt })
 
 export const isActiveRun = hasStatus(activeRunStatuses)

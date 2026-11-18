@@ -90,8 +90,6 @@ export class RuntimeConfig extends Context.Service<
   )
 }
 
-const replyModel = Config.String('LLM_REPLY_MODEL')
-
 /** Anthropic's key and the models that answer replies and titles. */
 export class LlmConfig extends Context.Service<
   LlmConfig,
@@ -101,18 +99,10 @@ export class LlmConfig extends Context.Service<
     this,
     Config.all({
       apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
-      replyModel,
+      replyModel: Config.String('LLM_REPLY_MODEL'),
       titleModel: Config.String('LLM_TITLE_MODEL'),
     }),
   )
-}
-
-/** The model that answers replies, read without the key. */
-export class ReplyModelConfig extends Context.Service<
-  ReplyModelConfig,
-  { readonly replyModel: string }
->()('@app-template/kernel/config/ReplyModelConfig') {
-  static readonly layer = Layer.effect(this, Config.all({ replyModel }))
 }
 
 export const MinimumLogLevelFromConfig = RuntimeConfig.pipe(

@@ -1,4 +1,1 @@
-export {
-  AssistantLlmFromConfig,
-  CurrentReplyProvenanceFromConfig,
-} from '#chat/infrastructure/assistant.llm'
+export { AssistantLlmFromConfig } from '#chat/infrastructure/assistant.llm'

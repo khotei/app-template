@@ -1,18 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import {
-  Array as Arr,
-  Clock,
-  ConfigProvider,
-  Effect,
-  Fiber,
-  Layer,
-  Option,
-  Ref,
-  Schema,
-} from 'effect'
+import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Option, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -20,7 +9,7 @@ import { epoch, png } from '@app-template/packages/testing'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { Assistant, CurrentReplyProvenance, type HistoryMessage } from '#chat/domain/assistant.port'
+import { Assistant, type HistoryMessage } from '#chat/domain/assistant.port'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
@@ -31,11 +20,7 @@ import {
 } from '#chat/domain/attachment.model'
 import { MessageId } from '#chat/domain/chat.id'
 import { ChatTitle } from '#chat/domain/chat.model'
-import {
-  AssistantLlmFromConfig,
-  CurrentReplyProvenanceFromConfig,
-  generateInstructionsHash,
-} from '#chat/infrastructure/assistant.llm'
+import { AssistantLlmFromConfig } from '#chat/infrastructure/assistant.llm'
 import { assistantMessageAt, owner, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
@@ -455,51 +440,4 @@ describe('AssistantLlmFromConfig', () => {
       assertEquals(yield* bodies, [])
     }).pipe(Effect.provide(layer))
   })
-})
-
-describe('generateInstructionsHash', () => {
-  const prompt = 'Answer the last user message.'
-
-  const Answer = Schema.Struct({
-    text: Schema.String.annotateKey({ description: 'The reply, as plain text.' }),
-  })
-
-  it.effect('changes with the system prompt and with the schema, and with nothing else', () =>
-    Effect.gen(function* () {
-      const [first, again, otherPrompt, otherSchema] = yield* Effect.all([
-        generateInstructionsHash(prompt, Answer),
-        generateInstructionsHash(prompt, Answer),
-        generateInstructionsHash('Answer the last user message briefly.', Answer),
-        generateInstructionsHash(
-          prompt,
-          Schema.Struct({
-            text: Schema.String.annotateKey({ description: 'The reply, as Markdown.' }),
-          }),
-        ),
-      ])
-
-      assert.strictEqual(first, again)
-      assert.notStrictEqual(otherPrompt, first)
-      assert.notStrictEqual(otherSchema, first)
-    }).pipe(Effect.provide(BunCrypto.layer)),
-  )
-})
-
-describe('CurrentReplyProvenanceFromConfig', () => {
-  it.effect(
-    'names Anthropic and the configured reply model with the instructions hash, and needs no key',
-    () =>
-      Effect.gen(function* () {
-        const { provider, model, instructionsHash } = yield* CurrentReplyProvenance
-
-        assert.deepStrictEqual({ provider, model }, { provider: 'anthropic', model: replyModel })
-        assert.match(instructionsHash, /^[0-9a-f]{64}$/)
-      }).pipe(
-        Effect.provide(CurrentReplyProvenanceFromConfig),
-        Effect.provide([
-          BunCrypto.layer,
-          ConfigProvider.layer(ConfigProvider.fromUnknown({ LLM_REPLY_MODEL: replyModel })),
-        ]),
-      ),
-  )
 })

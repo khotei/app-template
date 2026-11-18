@@ -6,9 +6,8 @@ code: `AssistantLlmFromConfig`, the chat module's adapter of its `Assistant` por
 the schemas, one language model per purpose with its settings, the
 finish-reason hook, the retries and the failure mapping); `createLanguageModel` in the kernel
 (Anthropic's, with the key and the models `LlmConfig` reads); the Anthropic builder in
-`packages/llm`; and
-`LlmConfig` and `ReplyModelConfig` in `@app-template/kernel/config`. The adapter's suite runs over
-a fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
+`packages/llm`; and `LlmConfig` in `@app-template/kernel/config`. The adapter's suite runs over a
+fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
 
 Every module named here is unstable at the pinned version: check an API against the vendored
 sources (`repos/effect/packages/effect/src/ai/`, `repos/effect/packages/ai/anthropic/src/`)
@@ -127,15 +126,11 @@ Both live beside `AssistantLlmFromConfig`: `systemPrompt` and `ReplyAnswer`.
   - *Cache:* every chat's cached prefix is invalidated, and the first request with the new
     schema waits while Anthropic compiles it.
 
-Either change moves the instructions hash, the SHA-256 of the system prompt and the reply
-schema's JSON Schema document, which the send writes on the Run as its provenance
-(**Provenance** in [glossary.md](glossary.md)).
-
 ## Modules left unused
 
 Four modules a reader would reach for are left alone on purpose: `Chat`, since the history lives
 in the database and every request is rebuilt from it; `Model`, since the adapter holds two
-`LanguageModel` values, one per purpose, and provenance names the reply model's setting;
-`ResponseIdTracker`, since Anthropic's Messages API keeps no server-side conversation; and
-`AnthropicConfig`, since the wait is set once, on `AnthropicClient.make`, for every request. What
-every other module of the two vendored folders is: its first comment.
+`LanguageModel` values, one per purpose; `ResponseIdTracker`, since Anthropic's Messages API keeps
+no server-side conversation; and `AnthropicConfig`, since the wait is set once, on
+`AnthropicClient.make`, for every request. What every other module of the two vendored folders
+is: its first comment.

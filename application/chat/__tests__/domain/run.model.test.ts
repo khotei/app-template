@@ -5,7 +5,6 @@ import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
-import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildAssistantMessage, buildUserMessage, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
@@ -42,7 +41,6 @@ const queued = new Run({
   userMessageId: userMessage.id,
   status: 'queued',
   failure: Option.none(),
-  provenance: new ReplyProvenance({ provider: 'anthropic', model: 'haiku', instructionsHash: 'h' }),
   assistantMessageId: Option.none(),
   createdAt,
   updatedAt: createdAt,

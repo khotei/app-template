@@ -7,7 +7,6 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 import {
   AttachmentService,
   ChatService,
-  CurrentReplyProvenanceFromConfig,
   FileAttachmentService,
   MessageService,
   RunService,
@@ -70,7 +69,7 @@ const BunHttpServerFromConfig = Layer.unwrap(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([QueueSenderOfStage, Transaction.layer, CurrentReplyProvenanceFromConfig]),
+  Layer.provide([QueueSenderOfStage, Transaction.layer]),
   Layer.provide([
     UserRepository.layer,
     ChatRepository.layer,

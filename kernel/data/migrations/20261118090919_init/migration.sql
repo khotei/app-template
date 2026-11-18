@@ -42,7 +42,6 @@ CREATE TABLE "runs" (
 	"user_message_id" uuid NOT NULL,
 	"status" "run_status" NOT NULL,
 	"failure" jsonb,
-	"provenance" jsonb NOT NULL,
 	"assistant_message_id" uuid CONSTRAINT "runs_assistant_message_id_unique" UNIQUE,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,

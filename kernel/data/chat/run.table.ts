@@ -27,13 +27,6 @@ export const RunFailureJson = Schema.Struct({
   cause: Schema.String,
 })
 
-/** Who the api expected to answer the Run, as the column `provenance` holds it. */
-export const RunProvenanceJson = Schema.Struct({
-  provider: Schema.String,
-  model: Schema.String,
-  instructionsHash: Schema.String,
-})
-
 export const runStatuses = ['queued', 'preparing', 'generating', 'done', 'failed'] as const
 
 export const runStatus = pgEnum('run_status', runStatuses)
@@ -48,7 +41,6 @@ export const runs = snakeCase.table(
     userMessageId: uuid().notNull(),
     status: runStatus().notNull(),
     failure: jsonb().$type<typeof RunFailureJson.Type>(),
-    provenance: jsonb().$type<typeof RunProvenanceJson.Type>().notNull(),
     /** The assistant's message the Run wrote, once it is done. */
     assistantMessageId: uuid().references(() => messages.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
@@ -81,7 +73,6 @@ export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
 const runJsonColumns = {
   failure: () => RunFailureJson,
-  provenance: () => RunProvenanceJson,
 }
 
 /** The columns of a Run, as the entities of its neighbours nest them. */

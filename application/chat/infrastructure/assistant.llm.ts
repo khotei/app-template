@@ -1,7 +1,6 @@
 import {
   Array as Arr,
   type Config,
-  Crypto,
   Duration,
   Effect,
   Function as Fn,
@@ -17,10 +16,8 @@ import {
   UndefinedOr,
 } from 'effect'
 import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
-import { Hex } from 'effect/encoding'
 import type { HttpClient } from 'effect/http'
 
-import { ReplyModelConfig } from '@app-template/kernel/config'
 import { maxTitleLength } from '@app-template/kernel/data'
 import { createLanguageModel } from '@app-template/kernel/llm'
 
@@ -30,13 +27,7 @@ import {
   AssistantRefusedError,
 } from '#chat/domain/assistant.error'
 import { AssistantReply } from '#chat/domain/assistant.model'
-import {
-  Assistant,
-  type AttachmentBytes,
-  CurrentReplyProvenance,
-  type HistoryMessage,
-  ReplyProvenance,
-} from '#chat/domain/assistant.port'
+import { Assistant, type AttachmentBytes, type HistoryMessage } from '#chat/domain/assistant.port'
 import { ChatTitle } from '#chat/domain/chat.model'
 import { isBlank } from '#chat/domain/message.model'
 
@@ -178,38 +169,6 @@ const askWithin =
       Effect.retry({ schedule: retrySchedule(retries), while: isWorthRetrying }),
       Effect.mapError(toAssistantError),
     )
-
-const encoder = new TextEncoder()
-
-/**
- * Hashes the system prompt with the JSON Schema document the model reads, so it moves exactly when
- * what is sent does.
- */
-export function generateInstructionsHash(
-  systemPrompt: string,
-  schema: Schema.Top,
-): Effect.Effect<string, never, Crypto.Crypto> {
-  const instructions = `${systemPrompt}\n${JSON.stringify(Schema.toJsonSchemaDocument(schema))}`
-  return Crypto.Crypto.use((crypto) => crypto.digest('SHA-256', encoder.encode(instructions))).pipe(
-    Effect.map(Hex.encode),
-    Effect.orDie,
-  )
-}
-
-/** The provenance of every reply this process queues, read from the reply model's config. */
-export const CurrentReplyProvenanceFromConfig: Layer.Layer<
-  CurrentReplyProvenance,
-  Config.ConfigError,
-  Crypto.Crypto
-> = Layer.effect(
-  CurrentReplyProvenance,
-  Effect.gen(function* () {
-    const { replyModel } = yield* ReplyModelConfig
-    const instructionsHash = yield* generateInstructionsHash(systemPrompt, ReplyAnswer)
-
-    return new ReplyProvenance({ provider: 'anthropic', model: replyModel, instructionsHash })
-  }),
-).pipe(Layer.provide(ReplyModelConfig.layer))
 
 const assistantModels = Effect.all({
   reply: createLanguageModel({

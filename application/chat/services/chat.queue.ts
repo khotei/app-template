@@ -7,7 +7,7 @@ import { MessageId, RunId } from '#chat/domain/chat.id'
 
 const { assistantMessage, chatTitle } = resources.queues
 
-/** `runId` is the Run the worker drives; the Run holds what it answers and its provenance. */
+/** `runId` is the Run the worker drives; the Run holds what it answers. */
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
 )({
