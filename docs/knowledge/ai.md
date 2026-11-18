@@ -86,7 +86,7 @@ title's use case logs either and leaves the chat untitled.
 - **What is cached.** The reply request's top-level `cache_control` puts the cache breakpoint on
   its last block, so it moves with the growing history: the next reply in the same chat, within
   the 5-minute lifetime, reads the whole earlier prefix (system prompt, then messages). On
-  Sonnet 5.5 a read costs 5% of the input price and a write 125%. The title request is not
+  Sonnet 5.5 a read costs 10% of the input price and a write 125%. The title request is not
   cached.
 - **The 512-token floor.** Anthropic caches no prefix shorter than 512 tokens on the 5.5 models
   (1 024 on Sonnet 5), and says nothing: the request runs uncached with no error. The system
