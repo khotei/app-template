@@ -120,6 +120,21 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
+  it.effect('selectOne where the title is null reads a titled chat as none', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const hal = '0192d4e0-7b3a-7c00-8000-000000000018'
+      const titled: ChatEntity = {
+        ...chat('0192d4e0-7b3a-7c00-8000-00000000003b', hal),
+        title: 'Trip',
+      }
+      yield* insertUser(hal)
+      yield* chats.insert(titled)
+
+      assert.deepStrictEqual(yield* chats.selectOne({ id: titled.id, title: null }), Option.none())
+    }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
   it.effect("selectMany selects the user's chats, the newest created first", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
@@ -174,21 +189,25 @@ describe('ChatRepository', () => {
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const messages = yield* MessageRepository
+      const runs = yield* RunRepository
       const cy = '0192d4e0-7b3a-7c00-8000-000000000012'
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
       const keptQuestion = question('0192d4e0-7b3a-7c00-8000-000000000050', kept.id)
       const deletedQuestion = question('0192d4e0-7b3a-7c00-8000-000000000051', deleted.id)
+      const deletedRun = run('0192d4e0-7b3a-7c00-8000-000000000060', deletedQuestion)
       yield* insertUser(cy)
       yield* Effect.forEach([kept, deleted], chats.insert)
       yield* Effect.forEach([keptQuestion, deletedQuestion], (each) =>
         messages.insert(Struct.omit(each, ['attachments', 'run'])),
       )
+      yield* runs.insert(deletedRun)
 
       yield* chats.delete({ id: deleted.id, userId: cy })
 
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedQuestion.id }), Option.none())
+      assert.deepStrictEqual(yield* runs.selectOne({ id: deletedRun.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
       assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: kept.id }), [keptQuestion])
     }).pipe(Effect.provide(RepositoriesTest)),
@@ -215,6 +234,48 @@ describe('ChatRepository', () => {
         Option.some(stored),
       )
     }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
+  it.effect(
+    'delete keeps the library attachment a sent record of the chat names as its source',
+    () =>
+      Effect.gen(function* () {
+        const db = yield* Db
+        const chats = yield* ChatRepository
+        const messages = yield* MessageRepository
+        const fay = '0192d4e0-7b3a-7c00-8000-000000000017'
+        const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003a', fay)
+        const withPhoto = question('0192d4e0-7b3a-7c00-8000-000000000053', stored.id)
+        const library = {
+          id: '0192d4e0-7b3a-7c00-8000-000000000022',
+          userId: fay,
+          messageId: null,
+          chatId: null,
+          sourceId: null,
+          fileName: 'photo.png',
+          mediaType: 'image/png',
+          size: 1024,
+          createdAt,
+        }
+        const record = {
+          ...library,
+          id: '0192d4e0-7b3a-7c00-8000-000000000023',
+          messageId: withPhoto.id,
+          chatId: stored.id,
+          sourceId: library.id,
+        }
+        yield* insertUser(fay)
+        yield* chats.insert(stored)
+        yield* messages.insert(withPhoto)
+        yield* db.insert(attachments).values([library, record])
+
+        yield* chats.delete({ id: stored.id })
+
+        assert.deepStrictEqual(
+          yield* db.select().from(attachments).where(eq(attachments.userId, fay)),
+          [library],
+        )
+      }).pipe(Effect.provide(RepositoriesTest)),
   )
 
   it.effect("delete takes the chat's attachments, sent or not, by the cascade", () =>

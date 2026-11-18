@@ -1,11 +1,16 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option, Stream } from 'effect'
+import { DateTime, Effect, Layer, Option } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
-import { RepositoryStackTest } from '@app-template/kernel/data/testing'
+import {
+  type ChatEntitySet,
+  type ChatEntityWhere,
+  ChatRepository,
+  type FileEntityWhere,
+  FileRepository,
+} from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
@@ -21,29 +26,26 @@ import { ChatNotFoundError } from '#chat/domain/chat.error'
 import type { ChatId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { ChatService } from '#chat/services/chat.service'
-import {
-  chat,
-  firstMessage,
-  owner,
-  queuedRun,
-  stranger,
-  unknownChatId,
-} from '#testing/chat/chat.test-fixture'
-import {
-  insertChatLayer,
-  insertMessage,
-  insertRun,
-  selectChat,
-  selectMessages,
-  selectRun,
-} from '#testing/chat/chat.test-layer'
+import { chat, firstMessage, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 
-/** The chat services over the memory layers, on fresh rows where `chat` exists. */
-const ChatTest = ChatService.layer.pipe(
-  Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(RepositoryStackTest),
-  Layer.provide(BunCrypto.layer),
-)
+/** The service over repositories that answer only the methods the case gives; any other dies. */
+const chatServiceOver = ({
+  chats = {},
+  files = {},
+}: {
+  readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
+  readonly files?: Layer.PartialEffectful<FileRepository['Service']>
+}) =>
+  ChatService.layer.pipe(
+    Layer.provide([
+      Layer.mock(ChatRepository, chats),
+      Layer.mock(FileRepository, files),
+      BunCrypto.layer,
+    ]),
+  )
+
+/** A `selectOne` that answers `found` as its row. */
+const selectsOne = (found: Chat) => () => encodeRowWith(Chat)(found).pipe(Effect.map(Option.some))
 
 const uploaded = buildAttachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
@@ -57,9 +59,6 @@ const uploaded = buildAttachment({
 const trip = ChatTitle.make('Trip')
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
-
-/** The `where` a generated title writes with: only a chat no one has titled yet. */
-const untitled = (id: ChatId) => ({ id, title: Option.none<ChatTitle>() })
 
 type ChatCall = (
   service: ChatService['Service'],
@@ -77,122 +76,161 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 ]
 
 describe('ChatService', () => {
-  it.live("rename titles the owner's chat, moves its updatedAt and returns it", () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-
-      const renamed = yield* service.rename({ id: chat.id, userId: owner }, trip)
-
-      assert.isTrue(DateTime.isGreaterThan(renamed.updatedAt, epoch))
-      assertEquals(
-        renamed,
-        new Chat({ ...chat, title: Option.some(trip), updatedAt: renamed.updatedAt }),
-      )
-      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatTest)),
-  )
-
-  it.effect('rename where the title is none titles an untitled chat', () =>
-    Effect.gen(function* () {
-      const service = yield* ChatService
-
-      const renamed = yield* service.rename(untitled(chat.id), lisbonWeekend)
-
-      assertEquals(renamed.title, Option.some(lisbonWeekend))
-      assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-    }).pipe(Effect.provide(ChatTest)),
-  )
-
-  it.effect(
-    'rename where the title is none of a titled chat is ChatNotFoundError and keeps the title',
-    () =>
-      Effect.gen(function* () {
+  it.live(
+    "rename writes the title and a moved updatedAt under the owner's where, and returns the chat",
+    () => {
+      const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
+      return Effect.gen(function* () {
         const service = yield* ChatService
+
         const renamed = yield* service.rename({ id: chat.id, userId: owner }, trip)
 
-        const error = yield* service.rename(untitled(chat.id), lisbonWeekend).pipe(Effect.flip)
-
-        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
-        assertEquals(yield* selectChat(chat.id), Option.some(renamed))
-      }).pipe(Effect.provide(ChatTest)),
+        assert.isTrue(DateTime.isGreaterThan(renamed.updatedAt, epoch))
+        assertEquals(
+          renamed,
+          new Chat({ ...chat, title: Option.some(trip), updatedAt: renamed.updatedAt }),
+        )
+        assert.deepStrictEqual(updates, [
+          [
+            { title: trip, updatedAt: DateTime.toDateUtc(renamed.updatedAt) },
+            { id: chat.id, userId: owner },
+          ],
+        ])
+      }).pipe(
+        Effect.provide(
+          chatServiceOver({
+            chats: {
+              selectOne: selectsOne(chat),
+              update: (...update) =>
+                Effect.sync(() => {
+                  updates.push(update)
+                }),
+            },
+          }),
+        ),
+      )
+    },
   )
 
-  it.effect("list answers the user's chats and none of another's", () =>
-    Effect.gen(function* () {
+  it.effect(
+    'rename where the title is none reads and writes only while the chat is untitled',
+    () => {
+      const wheres: Array<ChatEntityWhere> = []
+      return Effect.gen(function* () {
+        const service = yield* ChatService
+
+        const renamed = yield* service.rename({ id: chat.id, title: Option.none() }, lisbonWeekend)
+
+        assertEquals(renamed.title, Option.some(lisbonWeekend))
+        assert.deepStrictEqual(wheres, [
+          { id: chat.id, title: null },
+          { id: chat.id, title: null },
+        ])
+      }).pipe(
+        Effect.provide(
+          chatServiceOver({
+            chats: {
+              selectOne: (where) =>
+                Effect.sync(() => {
+                  wheres.push(where)
+                }).pipe(Effect.andThen(selectsOne(chat))),
+              update: (_, where) =>
+                Effect.sync(() => {
+                  wheres.push(where)
+                }),
+            },
+          }),
+        ),
+      )
+    },
+  )
+
+  it.effect("list reads the user's chats", () => {
+    const wheres: Array<ChatEntityWhere> = []
+    return Effect.gen(function* () {
       const service = yield* ChatService
-      yield* service.create(stranger)
 
       assertEquals(yield* service.list(owner), [chat])
-    }).pipe(Effect.provide(ChatTest)),
-  )
+      assert.deepStrictEqual(wheres, [{ userId: owner }])
+    }).pipe(
+      Effect.provide(
+        chatServiceOver({
+          chats: {
+            selectMany: (where) =>
+              Effect.sync(() => {
+                wheres.push(where)
+              }).pipe(
+                Effect.andThen(encodeRowWith(Chat)(chat)),
+                Effect.map((row) => [row]),
+              ),
+          },
+        }),
+      ),
+    )
+  })
 
-  it.effect(
-    'delete while a reply runs removes the chat, its messages, their attachments and bytes',
-    () =>
-      Effect.gen(function* () {
-        const service = yield* ChatService
-        const attachments = yield* AttachmentRepository
-        const files = yield* FileRepository
-        yield* insertMessage(firstMessage)
-        yield* insertRun(queuedRun)
-        const photo = new Attachment({
-          ...uploaded,
+  it.effect.each([
+    { name: 'its own upload', attachment: uploaded },
+    {
+      name: 'a library upload, by the record and never the source',
+      attachment: new Attachment({
+        ...uploaded,
+        id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+        sourceId: Option.some(uploaded.id),
+      }),
+    },
+  ])("delete removes the owner's chat by its id, then the bytes of $name", ({ attachment }) => {
+    const calls: Array<readonly ['chats', ChatEntityWhere] | readonly ['files', FileEntityWhere]> =
+      []
+    const sent = new Chat({
+      ...chat,
+      attachments: [
+        new Attachment({
+          ...attachment,
           messageId: Option.some(firstMessage.id),
           chatId: Option.some(chat.id),
-        })
-        const row = yield* encodeRowWith(Attachment)(photo)
-        yield* attachments.insert(row)
-        yield* files.insert({ ...photo, content: Stream.make(png) })
+        }),
+      ],
+    })
+    return Effect.gen(function* () {
+      const service = yield* ChatService
 
-        yield* service.delete({ id: chat.id, userId: owner })
+      yield* service.delete({ id: chat.id, userId: owner })
 
-        assertEquals(yield* selectChat(chat.id), Option.none())
-        assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* selectRun(queuedRun.id), Option.none())
-        assertEquals(yield* attachments.selectMany({ id: [photo.id] }), [])
-        assertEquals(yield* files.selectOne({ id: photo.id }), Option.none())
-      }).pipe(Effect.provide(ChatTest)),
-  )
-
-  it.effect(
-    'delete keeps the library attachment a message of the chat was sent, and its bytes',
-    () =>
-      Effect.gen(function* () {
-        const service = yield* ChatService
-        const attachments = yield* AttachmentRepository
-        const files = yield* FileRepository
-        yield* insertMessage(firstMessage)
-        const record = new Attachment({
-          ...uploaded,
-          id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
-          messageId: Option.some(firstMessage.id),
-          chatId: Option.some(chat.id),
-          sourceId: Option.some(uploaded.id),
-        })
-        yield* Effect.forEach([uploaded, record], (attachment) =>
-          encodeRowWith(Attachment)(attachment).pipe(Effect.flatMap(attachments.insert)),
-        )
-        yield* files.insert({ ...uploaded, content: Stream.make(png) })
-
-        yield* service.delete({ id: chat.id, userId: owner })
-
-        assert.lengthOf(yield* attachments.selectMany({ id: [uploaded.id, record.id] }), 1)
-        assert.isTrue(Option.isSome(yield* files.selectOne({ id: uploaded.id })))
-      }).pipe(Effect.provide(ChatTest)),
-  )
+      assert.deepStrictEqual(calls, [
+        ['chats', { id: chat.id }],
+        ['files', { id: [attachment.id] }],
+      ])
+    }).pipe(
+      Effect.provide(
+        chatServiceOver({
+          chats: {
+            selectOne: selectsOne(sent),
+            delete: (where) =>
+              Effect.sync(() => {
+                calls.push(['chats', where])
+              }),
+          },
+          files: {
+            delete: (where) =>
+              Effect.sync(() => {
+                calls.push(['files', where])
+              }),
+          },
+        }),
+      ),
+    )
+  })
 
   it.effect.each(chatCalls)(
-    "$name of another user's chat or of an unknown chat is ChatNotFoundError",
+    '$name of a chat the store finds none of is ChatNotFoundError, writing nothing',
     ({ call }) =>
       Effect.gen(function* () {
         const service = yield* ChatService
 
-        const foreign = yield* call(service, stranger, chat.id).pipe(Effect.flip)
         const missing = yield* call(service, owner, unknownChatId).pipe(Effect.flip)
 
-        assertSchemaEquals(ChatNotFoundError, foreign, new ChatNotFoundError({ id: chat.id }))
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
-        assertEquals(yield* service.getOne({ id: chat.id, userId: owner }), chat)
-      }).pipe(Effect.provide(ChatTest)),
+      }).pipe(Effect.provide(chatServiceOver({ chats: { selectOne: () => Effect.succeedNone } }))),
   )
 })
