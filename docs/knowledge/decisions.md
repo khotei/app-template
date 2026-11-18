@@ -1010,10 +1010,10 @@ A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the li
 
 ### Rounds by commit
 
-Every round of a ticket's step is a commit of one unit
-(`.claude/rules/commits.md › A commit's unit`), named by its stage, step, round and source
-(`.claude/rules/rounds.md`), committed by the implementer, or by the main session for its own and the
-user's rounds, as soon as `make check` is green and before the user reads it; the user's own edits,
+Every round of a lab's step is a commit of one unit
+(`.claude/rules/commits.md › A commit's unit`), named by its step, round and source
+(`.claude/skills/lab/SKILL.md › Rounds`), committed by whoever wrote it, the main session or an
+`implementer`, as soon as `make check` is green and before the user reads it; the user's own edits,
 found between rounds, are a round of their own, and no commit the user has seen is rewritten
 before the PR.
 
@@ -1023,7 +1023,7 @@ before the PR.
   opens with the round it fixes, show in `git log --oneline` where a change belongs, who asked for
   it and what it corrects. Committing before reading costs nothing on `main`, which takes the
   ticket as one squash.
-- **Sources:** `.claude/rules/sdd.md › Gates` (the rounds and the commit gate);
+- **Sources:** `.claude/skills/lab/SKILL.md` (rails 1 and 5, Rounds);
   [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
 - **Rejected:** the kind of change in the brackets (`FIX`): it repeats the gitmoji and type and
   leaves the source unnamed. The fixed commit's hash in a fix's body: it goes stale after a
@@ -1034,49 +1034,48 @@ before the PR.
 - **Cost:** more commits on the branch, a revert of rejected rounds among them; a subject longer
   by the id, which counts apart from its 50 characters; a commit takes 1.3 s for docs and 2.5 s
   for code with the pre-commit hook. Every reader of the step's diff reads a committed range
-  (`make review-rules BASE=<base>`, the parallel steps' pick, the claimed finding's worktree), and
+  (`make review-rules BASE=<base>`, the review's range), and
   `git revert` is allowed by `.claude/settings.json`. The branch's last rounds revert together
   in one commit while nothing after them rests on them; a rejection after later work rests on a
   round fixes forward, since a revert there would pull the base from under that work.
-- **Guarded by:** review against `.claude/rules/rounds.md` and `.claude/rules/sdd.md`; nothing
-  checks a subject's id.
-- **If reversed:** one commit in `rounds.md`, `sdd.md` and `/ticket-implement` brings back one
-  commit per reviewed step; a written history keeps its names.
+- **Guarded by:** review against `.claude/skills/lab/SKILL.md`; nothing checks a subject's id.
+- **If reversed:** one commit in the skill brings back one commit per reviewed step; a written
+  history keeps its names.
 - **Revisit when:** a ticket's history is read by its PR alone, or the rounds' count makes
   `git log --oneline` of a branch harder to read than its steps.
 
-### Plans in stages
+### One flow, sized at intake
 
-A ticket's plan holds every step as a skeleton, with its outcome and coverage, and writes the low
-level, a stage design and its steps in full, one stage of about three steps at a time, after the
-facts those steps rest on are checked. Each stage closes with a review of its diff and, when due,
-a verification of what it built (`.claude/rules/sdd.md › Gates`).
+Every change of substance runs through `/lab`: micro on a branch alone, macro with a `lab.md` in
+its ticket folder. Both build the same way: the owner's intent and shape first, a failing test,
+pieces committed green as rounds, one review per range by fresh `reviewer`s (Intent, Hunt,
+Rules; Design on request), a check the owner can repeat. A macro step is built with the owner in
+the session, or by an `implementer` once its Shape is settled.
 
-- **Why:** the low level written before its facts goes stale. An audit of 21 tickets found
-  late-step detail edited after approval in 6 of the 9 with history: 4 to 8 of the 10 steps after
-  the third, with edits reaching up to 8 steps ahead. What held was the step list, each step's
-  outcome and the architecture's decisions, which the skeleton keeps; so the heavy review lands
-  on the skeleton and the first stage, and each later stage is checked when prepared and
-  reviewed when it closes. Three commits skip the user's OK, so a loop crosses a boundary
-  without stopping: a stage's facts, which land before its triage so a compaction or a question
-  round loses none; a preparation that asks the user nothing; and a stage verification's section
-  when no failure in it needs a requirement changed.
-- **Sources:** `.claude/skills/ticket-plan/stage.md` (the preparation), the stage close of
-  `.claude/skills/ticket-implement/SKILL.md` and the stage mode of
-  `.claude/skills/ticket-verify/SKILL.md`;
-  [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
-- **Rejected:** the whole plan detailed and approved up front: the stale detail above. Each stage
-  approved by the user: an independent critic counted 8 to 14 approvals per ticket and a loop
-  stopping every three steps. A review pass of its own for a stage: the Design pass, given the
-  architecture, the skeleton and the stage design, already reads the stage's shape.
-- **Cost:** the user sees a later stage only as its commits, unless its preparation asks; each
-  close runs `simplify` and two reviewers over the stage's diff, and a verifier every second
-  close or after a change to a contract or the architecture; a plan grows by a section per stage.
-- **Guarded by:** a stage's steps get their sections only from its preparation, and
-  `/ticket-implement` runs no step without one, naming `/ticket-plan <ticket> next` instead;
-  review against `.claude/rules/sdd.md`.
-- **If reversed:** one commit brings back the plan detailed whole under one review and drops the
-  stage close; plans written in stages stay readable, and a plan without stage headings already
-  runs as one.
-- **Revisit when:** the first two tickets planned in stages, `lambda-processes` and
-  `telemetry-minimal`, have reported their per-stage tables.
+- **Why:** the five-phase cycle stopped being used: none of its skills ran on a feature after the
+  owner found that a full hand-off cost days of rework, about half of it thrown away, and every
+  feature since ran as a lab or as unit commits from settled decisions. Its plans in stages never
+  ran on a real ticket, its ticket prose outweighed the code 2.6 : 1, and its verifications failed
+  on prose, reran up to three times, and two tickets merged on a failing run. The published
+  methods that size work (BMAD, Tessl, Every) keep one build loop and change only the context
+  around it.
+- **Sources:** `.claude/skills/lab/SKILL.md`; `docs/knowledge/sdd.md › Why each part`.
+- **Rejected:** two cycles routed by a table in a human doc, each with its own rules: the agent
+  loaded both, and the table had no row for the one in use. Plans in stages: never run. A
+  verification phase with its verifiers: its two recorded catches that every step review had
+  passed (an HTTP answer changed with no requirement asking, a guard a re-export bypassed) are
+  the branch review's Intent and Hunt duties now, held by a replay. A Design pass on every new
+  interface: 12 of its 22 findings were taken, the rate of Standards, but the owner writes the
+  Shape, so it runs on the owner's request. A `simplify` round: 2 of 4 findings taken, its time
+  never measured. A researcher per claimed finding: a claim is settled by its own red test.
+- **Cost:** no EARS requirements, no `architecture.md` and no `verification.md`: a large feature
+  is planned only as far as its Map and the Shape of the step at hand, and no fresh agent checks
+  behaviour against a requirement list apart from the branch review. The review per range is one
+  round, so a finding its fix introduces waits for the branch review. A code range gets three
+  reviewers, one more than the lab's review before.
+- **Guarded by:** review against the skill; the replays of
+  `docs/knowledge/sdd.md › Evaluating the toolkit`, run before and after each toolkit change.
+- **If reversed:** the `/ticket-*` skills, the `verifier` and the templates come back from the
+  commit before this record; the tickets written under them keep their files.
+- **Revisit when:** a macro lab's owner rework or stops exceed those of the SDD tickets before it,
+  or a defect merges that a replay shows a verifier would have caught.
