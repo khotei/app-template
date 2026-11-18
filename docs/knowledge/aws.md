@@ -2,9 +2,9 @@
 
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: the kernel's `aws` part (the inventory, the naming rule, the apps'
-S3 and SQS clients), `packages/aws` (the generic provisioner) and `deployment/` (the Pulumi
-program of the local stand and the resource code it runs); the e2e support,
-[tooling.md › Tests](tooling.md#tests).
+S3 and SQS clients), `packages/aws` (the inventory's types, the dead-letter naming rule and, in
+its e2e support, the generic provisioner) and `deployment/` (the Pulumi program of the local
+stand and the resource code it runs); the e2e support, [tooling.md › Tests](tooling.md#tests).
 
 ## The local stand-in
 
@@ -88,14 +88,14 @@ every AWS stage hold their own set.
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with
-`provision(resources, (name) => buildResourceName(stage, name))` from `packages/aws`, in
-milliseconds and without the Pulumi CLI: the provisioner knows no naming rule, its caller passes
-one. It creates the buckets and the queues, without the lifecycle rules (MiniStack never runs
-them), and is idempotent: `CreateBucket` on a bucket the account holds and `CreateQueue` on an
-identical queue both succeed. `CreateQueue` compares a repeated `RedrivePolicy` as a string, so
-its JSON is built with a fixed key order. A queue whose `maxReceiveCount` changed in the
-inventory fails with `QueueNameExists`, because SQS never updates on create; Pulumi updates the
-queue in place.
+`provision(resources, (name) => buildResourceName(stage, name))` from the e2e support of
+`packages/aws`, in milliseconds and without the Pulumi CLI: the provisioner knows no naming
+rule, its caller passes one. It creates the buckets and the queues, without the lifecycle rules
+(MiniStack never runs them), and is idempotent: `CreateBucket` on a bucket the account holds and
+`CreateQueue` on an identical queue both succeed. `CreateQueue` compares a repeated
+`RedrivePolicy` as a string, so its JSON is built with a fixed key order. A queue whose
+`maxReceiveCount` changed in the inventory fails with `QueueNameExists`, because SQS never updates
+on create; Pulumi updates the queue in place.
 
 ### Adding a resource
 

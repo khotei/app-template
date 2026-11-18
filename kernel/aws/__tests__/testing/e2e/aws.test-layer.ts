@@ -2,10 +2,10 @@ import { Effect, Layer, Option } from 'effect'
 import { inject } from 'vitest'
 
 import { AwsConfig } from '@app-template/kernel/config'
-import { provision } from '@app-template/packages/aws'
 import {
   generateStage,
   ministackRegion,
+  provision,
   S3ClientTest,
   SqsClientTest,
 } from '@app-template/packages/aws/testing/e2e'
