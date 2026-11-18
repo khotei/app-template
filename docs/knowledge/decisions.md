@@ -688,7 +688,7 @@ share lives in a ring below them.
 
 - **Why:** each app is one process with its own deployment; an import between them ships one
   process's code and dependencies inside another.
-- **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys each app as a service of its own.
+- **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys the worker as a function of its own.
 - **Rejected:** a shared helper in one app imported by another: it couples their releases.
 - **Cost:** a helper both processes need moves down into a module, the kernel or a package.
 - **Guarded by:** the apps' rows of
