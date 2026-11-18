@@ -25,13 +25,18 @@ _Avoid_: Conversation, thread, dialogue, session
 One turn in a chat, authored by the user or by the assistant: finished text with zero or more
 attachments, and no status. A user's message is stored when sent; an assistant's message is written
 by the Run that answers, once it is done, and the Run names it.
-_Avoid_: Prompt, reply, completion, turn
+_Avoid_: Prompt, completion, turn
 
 **Run**:
 The work of answering one user message: its status and its failure. A send starts
 one, queued; the worker moves it and, once it is done, writes the assistant's message. A retry is
 a new Run of the same message.
-_Avoid_: Job (a queue message that names a Run), task, attempt, reply
+_Avoid_: Job (a queue message that names a Run), task, attempt
+
+**Reply**:
+What the assistant answers to a user's message: the text a Run asks the assistant for and, once
+the Run is done, the assistant's message that holds it. Never the Run, which is the work.
+_Avoid_: Response, completion
 
 **Run status**:
 Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `preparing` (the
@@ -53,8 +58,9 @@ _Avoid_: State, stage, in progress; a new word for one of the six
 
 **Chat status**:
 What the chat's newest Run makes of it: `queued` while that Run is active, `failed` after it
-failed, else `idle`, also before the first send. Read with the chat, never stored.
-_Avoid_: Busy, chat state; a value outside its subset (`generating`)
+failed, else `idle`, also before the first send. Read with the chat, never stored. A send to a
+`queued` chat is refused as busy (`ChatBusyError`).
+_Avoid_: Busy as a status, chat state; a value outside its subset (`generating`)
 
 **Title**:
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the
@@ -161,7 +167,7 @@ _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Handler**:
 The entry point of one request or one job in an app.
-_Avoid_: Controller, consumer, processor, endpoint
+_Avoid_: Controller, consumer (the function that runs a queue's handler), processor, endpoint
 
 **Job**:
 A message on a queue that asks the worker for one unit of work, shaped by its queue definition.
