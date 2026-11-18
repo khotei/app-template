@@ -141,7 +141,8 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch
   goes to the worker's `POST /events` on the host (`MINISTACK_LAMBDA_PROXY_URL`), the request
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
-  records' `eventSourceARN`; a queue with no consumer answers `500`, a deployment bug.
+  records' `eventSourceARN`. A queue of the inventory with no consumer fails typecheck; a batch of
+  a queue outside the inventory answers `500`, a deployment bug.
 - **The work's record runs a job once.** A queue's use case reads the record of its work (the
   Run, the chat's title) and skips work already settled; it ends its own work on
   any outcome but success, an interrupt included. A body that does not decode never will, so it

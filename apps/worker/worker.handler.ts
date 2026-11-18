@@ -6,9 +6,11 @@ import {
   GenerateAssistantMessageUseCase,
   GenerateChatTitleUseCase,
 } from '@app-template/application/use-cases'
-import { buildResourceName } from '@app-template/kernel/aws'
+import { buildResourceName, type resources } from '@app-template/kernel/aws'
 import { AwsConfig } from '@app-template/kernel/config'
 import { buildQueueName, consumeQueue, SqsEvent } from '@app-template/packages/queue'
+
+type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name']
 
 /**
  * `POST /events`: the batch an SQS mapping invokes the worker with, run by the use case of the
@@ -20,16 +22,11 @@ export const WorkerHandler = HttpRouter.use(
     const assistantMessage = yield* GenerateAssistantMessageUseCase
     const chatTitle = yield* GenerateChatTitleUseCase
 
-    const consumers = {
-      [buildResourceName(stage, assistantMessageQueue.name)]: consumeQueue(
-        assistantMessageQueue,
-        assistantMessage.generate,
-      ),
-      [buildResourceName(stage, chatTitleQueue.name)]: consumeQueue(
-        chatTitleQueue,
-        chatTitle.generate,
-      ),
-    }
+    const routes = {
+      [assistantMessageQueue.name]: consumeQueue(assistantMessageQueue, assistantMessage.generate),
+      [chatTitleQueue.name]: consumeQueue(chatTitleQueue, chatTitle.generate),
+    } satisfies Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown>>
+    const consumers = Record.mapKeys(routes, (name) => buildResourceName(stage, name))
 
     yield* router.add(
       'POST',
