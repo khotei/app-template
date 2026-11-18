@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { type Redacted, Schema } from 'effect'
 
 import { secretHashPattern } from '@app-template/kernel/data'
 
@@ -14,3 +14,8 @@ export const SecretHash = Schema.String.check(Schema.isPattern(secretHashPattern
   Schema.brand('SecretHash'),
 )
 export type SecretHash = typeof SecretHash.Type
+
+/** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
+export type UserSecret = Redacted.Redacted<string>
+
+export const secretBytes = 32

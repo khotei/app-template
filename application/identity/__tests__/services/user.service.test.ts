@@ -8,7 +8,8 @@ import { UserRepositoryTest, UserRows } from '@app-template/kernel/data/testing'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { UserUnknownError } from '#identity/domain/user.error'
-import { type UserSecret, UserService } from '#identity/services/user.service'
+import type { UserSecret } from '#identity/domain/user.model'
+import { UserService } from '#identity/services/user.service'
 
 const UserServiceTest = UserService.layer.pipe(
   Layer.provideMerge(UserRepositoryTest),

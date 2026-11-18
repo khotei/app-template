@@ -6,13 +6,8 @@ import { generateId } from '@app-template/packages/db'
 
 import { UserId } from '#identity/contract/user.id'
 import { UserUnknownError } from '#identity/domain/user.error'
-import { SecretHash, User } from '#identity/domain/user.model'
+import { SecretHash, secretBytes, User, type UserSecret } from '#identity/domain/user.model'
 import { decodeUser, encodeUser } from '#identity/services/user.mapper'
-
-/** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
-export type UserSecret = Redacted.Redacted<string>
-
-const secretBytes = 32
 
 const encoder = new TextEncoder()
 
