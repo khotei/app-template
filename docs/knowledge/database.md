@@ -98,7 +98,7 @@ encodes the model's own fields, its `<Model>Fields`, since a write holds no nest
 
 ```ts
 export const encodeChat = encodeRowWith(ChatFields)
-export const decodeChat = decodeOptionalWith(Chat)
+export const decodeChat = decodeRowWith(Schema.Option(Chat))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings

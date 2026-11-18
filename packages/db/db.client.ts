@@ -45,13 +45,12 @@ export class Transaction extends Context.Service<
 export const encodeRowWith = <Codec extends Schema.Constraint>(codec: Codec) =>
   flow(Schema.encodeEffect(codec), Effect.orDie)
 
-/** Decodes the entity a read found, if any, through its codec; a failure is a defect. */
-export const decodeOptionalWith = <Codec extends Schema.Constraint>(codec: Codec) =>
-  flow(Schema.decodeEffect(Schema.Option(codec)), Effect.orDie)
-
-/** Decodes the entities a read found through their codec; a failure is a defect. */
-export const decodeManyWith = <Codec extends Schema.Constraint>(codec: Codec) =>
-  flow(Schema.decodeEffect(Schema.Array(codec)), Effect.orDie)
+/**
+ * Decodes what a read answered through the codec of its shape, `Schema.Option(<Model>)` for one
+ * row and `Schema.Array(<Model>)` for many; a failure is a defect.
+ */
+export const decodeRowWith = <Codec extends Schema.Constraint>(codec: Codec) =>
+  flow(Schema.decodeEffect(codec), Effect.orDie)
 
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the

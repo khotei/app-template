@@ -8,8 +8,7 @@ export {
 } from '#db/columns'
 export {
   createDb,
-  decodeManyWith,
-  decodeOptionalWith,
+  decodeRowWith,
   encodeRowWith,
   hasRowPer,
   orDieUnless,
