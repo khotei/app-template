@@ -101,7 +101,8 @@ on create; Pulumi updates the queue in place.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/services/<model>.queue.ts`, reading
-   `name` from the entry; for a bucket, `S3BucketFromConfig` reads it from
+   `name` from the entry, and its row in the worker's route (`apps/worker/worker.handler.ts`),
+   which typecheck asks for; for a bucket, `S3BucketFromConfig` reads it from
    `resources.buckets`.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
