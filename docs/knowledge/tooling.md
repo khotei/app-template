@@ -432,6 +432,11 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   session left behind carries the label `app-template.mcp-tree=<the tree's path>`, and
   `make reset` removes the tree's ones, so a worktree's go before it is removed.
 
+### The libraries' agent files
+
+- **A package's own `CLAUDE.md` is skipped** (`claudeMdExcludes` in `.claude/settings.json`): it
+  loads on a read beside it, and Bun's types ship one that prescribes `bun test` and `bun check`.
+
 ## Git hooks and CI
 
 `bun install` runs the `prepare` script (`husky && effect-tsgo patch`), which installs the hooks and

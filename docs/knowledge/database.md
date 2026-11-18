@@ -300,7 +300,8 @@ chat's title) is the one the worker reads
 ## Migrations
 
 The schema changes only through SQL migrations that drizzle-kit generates from the table files
-and that are committed.
+and that are committed. drizzle-kit's own guide to the folder, its snapshots, branches and errors,
+at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
 
 | Command | Does |
 |---|---|

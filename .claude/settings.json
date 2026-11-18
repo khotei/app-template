@@ -138,5 +138,6 @@
     "context7@anthropic-plugin-directory": false
   },
   "worktree": { "baseRef": "head" },
+  "claudeMdExcludes": ["**/node_modules/**"],
   "disableClaudeAiConnectors": true
 }

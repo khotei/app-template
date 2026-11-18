@@ -967,15 +967,6 @@ What its third verification left open
 - **Costs:** a step or two in a later toolkit ticket; the rate makes a no-op run five times longer.
 - **Check first:** the R4 line by a no-op run of five on S8.1, with the line and without it.
 
-### Drizzle's agent skill
-
-- **Brings:** Drizzle's own skill (`drizzle-kit skills`) on choosing a migration workflow, telling
-  a rename from a data loss, and resolving conflicts, which `database.md` does not cover.
-- **Costs:** its description in every session; the installer fetches from the network.
-- **Check first:** where it writes its files, and that it targets the pinned `drizzle-kit`.
-- Raised on 2026-11-03 by `lean-instructions`' research of plugins and MCP servers; the Drizzle
-  MCP was skipped, since `make migration` and `make migration-check` cover it.
-
 ### Post-edit type diagnostics
 
 For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-codes-lsp)).
