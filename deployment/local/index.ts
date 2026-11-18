@@ -18,7 +18,7 @@ const queues = createQueues(provider, stage)
 createWorker(provider, stage, queues, {
   role: 'arn:aws:iam::000000000000:role/worker',
   environment: {
-    MINISTACK_LAMBDA_PROXY_URL: `http://host.docker.internal:${settings.worker.port}/events`,
+    MINISTACK_LAMBDA_PROXY_URL: `http://host.docker.internal:${settings.workerPort}/events`,
   },
 })
 const database = createDatabase(provider, { stage, ...localDatabase })

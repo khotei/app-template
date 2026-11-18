@@ -4,7 +4,7 @@ import { Array as Arr, Effect, Layer, Option, Stream, Struct } from 'effect'
 
 import { buildResourceName, resources } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
-import { AwsConfig } from '@app-template/kernel/config'
+import { awsConfig } from '@app-template/kernel/config'
 import { png } from '@app-template/packages/testing'
 
 import { FileRepository } from '#kernel/data/file/file.repository'
@@ -29,7 +29,7 @@ describe('FileRepository on AwsTest', () => {
         Effect.gen(function* () {
           const files = yield* FileRepository
           const s3 = yield* S3Service
-          const { stage } = yield* AwsConfig
+          const { stage } = yield* awsConfig
           const id = fileId(1)
 
           const size = yield* files.insert(file(id))
@@ -50,7 +50,7 @@ describe('FileRepository on AwsTest', () => {
     it.effect("selectOne signs a URL that serves attachments/<id> from the endpoint's host", () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
-        const { endpoint } = yield* AwsConfig
+        const { endpoint } = yield* awsConfig
         const id = fileId(4)
         yield* files.insert(file(id))
 

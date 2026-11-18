@@ -31,8 +31,8 @@ paths:
 - Its key is `'@app-template/<folder>/<Name>'`, `<folder>` its file's folder from the repository
   root, so the key says where to look.
 - One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:
-  the explicit `Shape` keeps the contract and its docs. A one-expression build (`Config.all`) goes
-  straight into `Layer.effect`.
+  the explicit `Shape` keeps the contract and its docs. A one-expression build
+  (`<Client>.useSync(…)`) goes straight into `Layer.effect`.
 
 ## Layers
 

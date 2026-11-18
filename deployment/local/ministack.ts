@@ -41,7 +41,7 @@ export const ministack = new docker.Container(
       // RDS instances run as containers on the host's Docker; their data in a named volume.
       'MINISTACK_RDS_PUBLIC_ENDPOINT=1',
       'RDS_PERSIST=1',
-      `RDS_BASE_PORT=${settings.ministack.rdsBasePort}`,
+      `RDS_BASE_PORT=${settings.rdsBasePort}`,
     ],
     // The worker's proxy URL names the host; Docker Desktop resolves it alone, Linux needs this.
     hosts: [{ host: 'host.docker.internal', ip: 'host-gateway' }],

@@ -287,7 +287,7 @@ Layer.provide(Db.layer), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
    settings as options and never reads the environment.
 2. **The data layer** takes its service from the context in the repository's `layer`, and
    imports nothing of the rest of the kernel ([Dependency rules](#dependency-rules)).
-3. **The kernel** reads the settings in a config service of `kernel/config` and builds
+3. **The kernel** reads the settings from the `Config` values of `kernel/config` and builds
    `<Client>FromConfig` in its part (`kernel/<store>/<store>.client.ts`); a resource's name comes
    from the inventory in `kernel/aws/resources`.
 4. **Each process** provides it in its `layer.ts`; a missing one is a type error in the layer's
@@ -353,7 +353,7 @@ The import forms below break an import rule and pass every import guard, so only
 them:
 
 - **A type import inside an expression in web client code.** `export type X =
-  import('@app-template/kernel/config').ApiConfig['Service']` in `app/`, `features/` or
+  import('@app-template/kernel/config').AwsConfig` in `app/`, `features/` or
   `shared/` passes Biome's `noRestrictedImports`, which does not see `import()` inside a type,
   and `tsc -b`, because web declares `@app-template/kernel` for its server entry. The type is
   erased, so nothing reaches the browser, but the client then depends on the shape of the server

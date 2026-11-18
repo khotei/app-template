@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Layer, Option, pipe, Record } from 'effect'
+import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 import { assistantMessageQueue, chatTitleQueue } from '@app-template/application/chat'
@@ -7,7 +7,7 @@ import {
   GenerateChatTitleUseCase,
 } from '@app-template/application/use-cases'
 import { buildResourceName, type resources } from '@app-template/kernel/aws'
-import { AwsConfig } from '@app-template/kernel/config'
+import { awsConfig } from '@app-template/kernel/config'
 import { buildQueueName, consumeQueue, SqsEvent } from '@app-template/packages/queue'
 
 type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name']
@@ -18,7 +18,7 @@ type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name'
  */
 export const WorkerHandler = HttpRouter.use(
   Effect.fn(function* (router) {
-    const { stage } = yield* AwsConfig
+    const { stage } = yield* awsConfig
     const assistantMessage = yield* GenerateAssistantMessageUseCase
     const chatTitle = yield* GenerateChatTitleUseCase
 
@@ -45,4 +45,4 @@ export const WorkerHandler = HttpRouter.use(
       }),
     )
   }),
-).pipe(Layer.provide(AwsConfig.layer))
+)

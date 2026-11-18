@@ -16,7 +16,7 @@ const buildEndpointArgs = (url: URL): aws.ProviderArgs => ({
   skipMetadataApiCheck: true,
 })
 
-export const createProvider = (config: AwsConfig['Service'], options?: pulumi.ResourceOptions) =>
+export const createProvider = (config: AwsConfig, options?: pulumi.ResourceOptions) =>
   new aws.Provider(
     'aws',
     {

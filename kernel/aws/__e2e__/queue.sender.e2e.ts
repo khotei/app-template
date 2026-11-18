@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Exit, Layer, Schema, UndefinedOr } from 'effect'
 
-import { AwsConfig } from '@app-template/kernel/config'
+import { awsConfig } from '@app-template/kernel/config'
 import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
 
 import { QueueSenderOfStage } from '#kernel/aws/aws.client'
@@ -28,7 +28,7 @@ const send = QueueSender.use((sender) =>
 )
 
 const queueUrl = Effect.gen(function* () {
-  const { stage } = yield* AwsConfig
+  const { stage } = yield* awsConfig
   const sqs = yield* SQSService
 
   return yield* sqs
@@ -74,7 +74,7 @@ describe('QueueSender', { concurrent: false }, () => {
 
   it.live('a send SQS refuses fails with QueueError, and the next looks the URL up again', () =>
     Effect.gen(function* () {
-      const { stage } = yield* AwsConfig
+      const { stage } = yield* awsConfig
       const sqs = yield* SQSService
       const url = yield* queueUrl
       yield* sqs.deleteQueue({ QueueUrl: url })

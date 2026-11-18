@@ -13,7 +13,8 @@ and the resource code it runs); the e2e support, [tooling.md › Tests](tooling.
 `deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
 the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
-only once MiniStack answers. The program reads `AwsConfig` from `.env` (how `make up` passes it:
+only once MiniStack answers. The program reads `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` from
+`.env` (how `make up` passes it:
 [tooling.md › Environment](tooling.md#environment)): MiniStack's default region is `AWS_REGION`,
 its 4566 is published on the endpoint's port, and the container is named
 `app-template-<STAGE>-ministack`, so the stacks of several trees share no port, container or state.
@@ -55,8 +56,8 @@ local program and the tests' container both read.
 An `up` that fails midway keeps what it created in the stack's state; the next `make up` goes on
 from there, and `make reset` starts afresh.
 
-`AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read through `AwsConfig` in
-`@app-template/kernel/config`; the Pulumi program and the apps' S3 and SQS clients read it,
+`AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` are read together in
+`@app-template/kernel/config`; the Pulumi program and the apps' S3 and SQS clients read them,
 so the apps need `make up`. Credentials never pass through it: the SDK's default provider chain
 reads `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` from `.env` locally (any value satisfies
 MiniStack) and the role on AWS, whose session token rotates. With an endpoint set, S3 uses
@@ -168,8 +169,8 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
 
 The e2e run's one MiniStack, and where its harnesses live: [tooling.md › Tests](tooling.md#tests).
 `AwsTest` gives each test a stage of its own (`e2e` and eight hex digits),
-provisions the inventory's bucket and queues under it and provides `AwsConfig` over the endpoint
-and that stage, so the kernel's clients build their names as in production; it
+provisions the inventory's bucket and queues under it and provides a `ConfigProvider` naming the
+region, the endpoint and that stage, so the kernel's clients build their names as in production; it
 publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The e2e
 through the api add the worker's function and its mappings with `provisionWorker`, its proxy on
 the stand's worker, and the `s3` suite creates one bucket, named as a stage is, for its

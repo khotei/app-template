@@ -1,7 +1,6 @@
-import { Effect, Layer, Option } from 'effect'
+import { ConfigProvider, Effect, Layer } from 'effect'
 import { inject } from 'vitest'
 
-import { AwsConfig } from '@app-template/kernel/config'
 import {
   generateStage,
   ministackRegion,
@@ -23,11 +22,13 @@ export const AwsTest = Layer.unwrap(
     yield* provision(resources, stage)
     return S3BucketOfStage.pipe(
       Layer.provideMerge(
-        Layer.succeed(AwsConfig, {
-          region: ministackRegion,
-          endpoint: Option.some(new URL(inject('awsEndpoint'))),
-          stage,
-        }),
+        ConfigProvider.layer(
+          ConfigProvider.fromUnknown({
+            AWS_REGION: ministackRegion,
+            AWS_ENDPOINT_URL: inject('awsEndpoint'),
+            STAGE: stage,
+          }),
+        ),
       ),
     )
   }),

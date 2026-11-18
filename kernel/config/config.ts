@@ -1,112 +1,42 @@
-import {
-  Config,
-  Context,
-  Effect,
-  Layer,
-  type LogLevel,
-  type Option,
-  type Redacted,
-  References,
-  Struct,
-} from 'effect'
+import { Config, Layer, References } from 'effect'
 
-export class ApiConfig extends Context.Service<ApiConfig, { readonly port: number }>()(
-  '@app-template/kernel/config/ApiConfig',
-) {
-  static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('API_PORT') }))
-}
+export const apiPort = Config.Port('API_PORT')
 
-export class WorkerConfig extends Context.Service<WorkerConfig, { readonly port: number }>()(
-  '@app-template/kernel/config/WorkerConfig',
-) {
-  static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WORKER_PORT') }))
-}
+export const workerPort = Config.Port('WORKER_PORT')
 
-export class WebConfig extends Context.Service<WebConfig, { readonly port: number }>()(
-  '@app-template/kernel/config/WebConfig',
-) {
-  static readonly layer = Layer.effect(this, Config.all({ port: Config.Port('WEB_PORT') }))
-}
+export const webPort = Config.Port('WEB_PORT')
 
-export class DatabaseConfig extends Context.Service<
-  DatabaseConfig,
-  { readonly url: Redacted.Redacted }
->()('@app-template/kernel/config/DatabaseConfig') {
-  static readonly layer = Layer.effect(this, Config.all({ url: Config.Redacted('DATABASE_URL') }))
-}
+export const databaseUrl = Config.Redacted('DATABASE_URL')
 
 /** `endpoint` is set for MiniStack and absent on AWS; credentials stay with the SDK's own chain. */
-export class AwsConfig extends Context.Service<
-  AwsConfig,
-  { readonly region: string; readonly endpoint: Option.Option<URL>; readonly stage: string }
->()('@app-template/kernel/config/AwsConfig') {
-  static readonly layer = Layer.effect(
-    this,
-    Config.all({
-      region: Config.String('AWS_REGION'),
-      endpoint: Config.option(Config.URL('AWS_ENDPOINT_URL')),
-      stage: Config.String('STAGE'),
-    }),
-  )
-}
+export const awsConfig = Config.all({
+  region: Config.String('AWS_REGION'),
+  endpoint: Config.option(Config.URL('AWS_ENDPOINT_URL')),
+  stage: Config.String('STAGE'),
+})
+export type AwsConfig = Config.Success<typeof awsConfig>
 
 /** The local stand only: the host port MiniStack gives its first RDS instance. */
-export class MiniStackConfig extends Context.Service<
-  MiniStackConfig,
-  { readonly rdsBasePort: number }
->()('@app-template/kernel/config/MiniStackConfig') {
-  static readonly layer = Layer.effect(
-    this,
-    Config.all({ rdsBasePort: Config.Port('RDS_BASE_PORT') }),
-  )
-}
+export const rdsBasePort = Config.Port('RDS_BASE_PORT')
 
 /** The local stand only: where the telemetry backend takes OTLP and serves Grafana. */
-export class TelemetryConfig extends Context.Service<
-  TelemetryConfig,
-  { readonly otlpEndpoint: URL; readonly grafanaPort: number }
->()('@app-template/kernel/config/TelemetryConfig') {
-  static readonly layer = Layer.effect(
-    this,
-    Config.all({
-      otlpEndpoint: Config.URL('OTEL_EXPORTER_OTLP_ENDPOINT'),
-      grafanaPort: Config.Port('GRAFANA_PORT'),
-    }),
-  )
-}
+export const telemetryConfig = Config.all({
+  otlpEndpoint: Config.URL('OTEL_EXPORTER_OTLP_ENDPOINT'),
+  grafanaPort: Config.Port('GRAFANA_PORT'),
+})
 
-const nodeEnvs = ['development', 'test', 'production'] as const
+export const nodeEnv = Config.Literals(['development', 'test', 'production'], 'NODE_ENV').pipe(
+  Config.withDefault('development'),
+)
 
-export class RuntimeConfig extends Context.Service<
-  RuntimeConfig,
-  { readonly nodeEnv: (typeof nodeEnvs)[number]; readonly logLevel: LogLevel.LogLevel }
->()('@app-template/kernel/config/RuntimeConfig') {
-  static readonly layer = Layer.effect(
-    this,
-    Config.all({
-      nodeEnv: Config.Literals(nodeEnvs, 'NODE_ENV').pipe(Config.withDefault('development')),
-      logLevel: Config.LogLevel('LOG_LEVEL').pipe(Config.withDefault('Info')),
-    }),
-  )
-}
+export const logLevel = Config.LogLevel('LOG_LEVEL').pipe(Config.withDefault('Info'))
 
 /** Anthropic's key and the models that answer replies and titles. */
-export class LlmConfig extends Context.Service<
-  LlmConfig,
-  { readonly apiKey: Redacted.Redacted; readonly replyModel: string; readonly titleModel: string }
->()('@app-template/kernel/config/LlmConfig') {
-  static readonly layer = Layer.effect(
-    this,
-    Config.all({
-      apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
-      replyModel: Config.String('LLM_REPLY_MODEL'),
-      titleModel: Config.String('LLM_TITLE_MODEL'),
-    }),
-  )
-}
+export const llmConfig = Config.all({
+  apiKey: Config.Redacted('ANTHROPIC_API_KEY'),
+  replyModel: Config.String('LLM_REPLY_MODEL'),
+  titleModel: Config.String('LLM_TITLE_MODEL'),
+})
+export type LlmConfig = Config.Success<typeof llmConfig>
 
-export const MinimumLogLevelFromConfig = RuntimeConfig.pipe(
-  Effect.map(Struct.get('logLevel')),
-  Layer.effect(References.MinimumLogLevel),
-  Layer.provide(RuntimeConfig.layer),
-)
+export const MinimumLogLevelFromConfig = Layer.effect(References.MinimumLogLevel, logLevel)

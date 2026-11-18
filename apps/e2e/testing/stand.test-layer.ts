@@ -8,7 +8,7 @@ import { AssistantReply, ChatTitle } from '@app-template/application/chat'
 import { recordAssistant } from '@app-template/application/chat/testing'
 import { resources } from '@app-template/kernel/aws'
 import { AwsTest, provisionWorker } from '@app-template/kernel/aws/testing/e2e'
-import { AwsConfig } from '@app-template/kernel/config'
+import { awsConfig } from '@app-template/kernel/config'
 import { FileRepository } from '@app-template/kernel/data'
 import { LambdaClientTest } from '@app-template/packages/aws/testing/e2e'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
@@ -22,18 +22,16 @@ const findFreePort = Effect.sync(() => {
   return port
 })
 
-/** The processes' environment: the test's database and stage, the rest as `.env.example` has it. */
+/**
+ * The processes' environment beside `AwsTest`'s, which answers first: the test's database, the
+ * rest as `.env.example` has it.
+ */
 const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, workerPort: number) {
   const { config } = yield* PgClient.PgClient
-  const { region, endpoint, stage } = yield* AwsConfig
   const databaseUrl = yield* Effect.fromNullishOr(config.url)
-  const awsEndpoint = yield* Effect.fromOption(endpoint)
 
   return ConfigProvider.fromUnknown({
     DATABASE_URL: Redacted.value(databaseUrl),
-    AWS_REGION: region,
-    AWS_ENDPOINT_URL: awsEndpoint.href,
-    STAGE: stage,
     API_PORT: apiPort,
     WORKER_PORT: workerPort,
     NODE_ENV: 'test',
@@ -69,7 +67,7 @@ export const StandTest = Layer.unwrap(
   Effect.gen(function* () {
     const apiPort = yield* findFreePort
     const workerPort = yield* findFreePort
-    const { stage } = yield* AwsConfig
+    const { stage } = yield* awsConfig
     yield* provisionWorker(resources, {
       stage,
       proxyUrl: `http://host.docker.internal:${workerPort}/events`,
@@ -79,7 +77,7 @@ export const StandTest = Layer.unwrap(
     const browser = layerApiClient(`http://localhost:${apiPort}`).pipe(
       Layer.provide(FetchHttpClient.layer),
     )
-    return Layer.merge(Apps, browser).pipe(Layer.provide(ConfigProvider.layer(provider)))
+    return Layer.merge(Apps, browser).pipe(Layer.provide(ConfigProvider.layerAdd(provider)))
   }).pipe(Effect.orDie),
 ).pipe(
   Layer.provideMerge(FileRepository.layer),

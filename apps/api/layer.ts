@@ -19,12 +19,7 @@ import {
   S3BucketFromConfig,
   SQSServiceFromConfig,
 } from '@app-template/kernel/aws'
-import {
-  ApiConfig,
-  AwsConfig,
-  MinimumLogLevelFromConfig,
-  RuntimeConfig,
-} from '@app-template/kernel/config'
+import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import {
   AttachmentRepository,
   ChatRepository,
@@ -58,13 +53,13 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     FileAttachmentService.layer,
     CreateUserMessageUseCase.layer,
     RetryRunUseCase.layer,
-    RuntimeConfig.layer,
   ]),
 )
 
-const BunHttpServerFromConfig = Layer.unwrap(
-  ApiConfig.useSync(({ port }) => BunHttpServer.layer({ port })),
-).pipe(Layer.provide(ApiConfig.layer))
+const BunHttpServerFromConfig = apiPort.pipe(
+  Effect.map((port) => BunHttpServer.layer({ port })),
+  Layer.unwrap,
+)
 
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
@@ -79,7 +74,7 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
     FileRepository.layer,
   ]),
   Layer.provide(Db.layer),
-  Layer.provide([PgClientFromConfig, S3BucketFromConfig, SQSServiceFromConfig, AwsConfig.layer]),
+  Layer.provide([PgClientFromConfig, S3BucketFromConfig, SQSServiceFromConfig]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
   Layer.provide(

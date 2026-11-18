@@ -9,7 +9,7 @@ import {
   GenerateChatTitleUseCase,
 } from '@app-template/application/use-cases'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
-import { MinimumLogLevelFromConfig, WorkerConfig } from '@app-template/kernel/config'
+import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import {
   ChatRepository,
   Db,
@@ -27,9 +27,10 @@ export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
   Layer.provide(Transaction.layer),
 )
 
-const BunHttpServerFromConfig = Layer.unwrap(
-  WorkerConfig.useSync(({ port }) => BunHttpServer.layer({ port })),
-).pipe(Layer.provide(WorkerConfig.layer))
+const BunHttpServerFromConfig = workerPort.pipe(
+  Effect.map((port) => BunHttpServer.layer({ port })),
+  Layer.unwrap,
+)
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Effect.andThen(Effect.addFinalizer(() => Effect.logInfo('worker stopped'))),

@@ -5,8 +5,9 @@ How the assistant asks a language model for a reply or a title, which parts of `
 code: `AssistantLlmFromConfig`, the chat module's adapter of its `Assistant` port (the prompts,
 the schemas, one language model per purpose with its settings, the
 finish-reason hook, the retries and the failure mapping); `createLanguageModel` in the kernel
-(Anthropic's, with the key and the models `LlmConfig` reads); the Anthropic builder in
-`packages/llm`; and `LlmConfig` in `@app-template/kernel/config`. The adapter's suite runs over a
+(Anthropic's, with the key and the models of `ANTHROPIC_API_KEY`, `LLM_REPLY_MODEL` and
+`LLM_TITLE_MODEL`); the Anthropic builder in `packages/llm`; and those settings in
+`@app-template/kernel/config`. The adapter's suite runs over a
 fake `HttpClient` that answers canned Anthropic bodies, so no test needs a key or the network.
 
 Every module named here is unstable at the pinned version: check an API against the vendored
@@ -18,7 +19,7 @@ before using it, and read this page again after an upgrade.
 ```mermaid
 graph LR
   P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlmFromConfig<br/>Prompt.make · generateObject"]
-  L -->|"reply · title"| K["createLanguageModel<br/>the models by LlmConfig"]
+  L -->|"reply · title"| K["createLanguageModel<br/>the models by LLM_*_MODEL"]
   K --> A["AnthropicLanguageModel<br/>AnthropicClient · HttpClient"]
 ```
 

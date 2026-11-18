@@ -3,7 +3,7 @@ import { HttpApiBuilder } from 'effect/http-api'
 
 import { UserService } from '@app-template/application/identity'
 import { Api, Auth } from '@app-template/http-api'
-import { RuntimeConfig } from '@app-template/kernel/config'
+import { nodeEnv } from '@app-template/kernel/config'
 
 import { buildApiUser } from '#api/user/user.mapper'
 
@@ -17,7 +17,7 @@ export const UserHandler = HttpApiBuilder.group(
   'users',
   Effect.fnUntraced(function* (handlers) {
     const users = yield* UserService
-    const { nodeEnv } = yield* RuntimeConfig
+    const env = yield* nodeEnv
 
     return handlers.handle(
       'ensure',
@@ -31,7 +31,7 @@ export const UserHandler = HttpApiBuilder.group(
           httpOnly: true,
           sameSite: 'lax',
           maxAge: cookieMaxAge,
-          secure: nodeEnv === 'production',
+          secure: env === 'production',
         })
         return user
       }, Effect.map(buildApiUser)),
