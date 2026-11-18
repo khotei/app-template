@@ -150,141 +150,140 @@ export class S3Bucket extends Context.Service<
     readonly deleteMany: (keys: ReadonlyArray<string>) => Effect.Effect<void>
   }
 >()('@app-template/packages/s3/S3Bucket', {
-  make: ({ bucket }: { readonly bucket: string }) =>
-    Effect.gen(function* () {
-      const s3 = yield* S3Service
+  make: Effect.fnUntraced(function* ({ bucket }: { readonly bucket: string }) {
+    const s3 = yield* S3Service
 
-      const buildObjectRef = (key: string) => ({ Bucket: bucket, Key: key })
+    const buildObjectRef = (key: string) => ({ Bucket: bucket, Key: key })
 
-      function createUpload(key: string, options: PutOptions) {
-        const ref = buildObjectRef(key)
-        const headers = buildObjectHeaders(options)
+    function createUpload(key: string, options: PutOptions) {
+      const ref = buildObjectRef(key)
+      const headers = buildObjectHeaders(options)
 
-        function abortUnlessCompleted(uploadId: string, exit: Exit.Exit<unknown, unknown>) {
-          if (Exit.isSuccess(exit)) return Effect.void
-          return s3.abortMultipartUpload({ ...ref, UploadId: uploadId }).pipe(Effect.orDie)
-        }
-
-        const openUpload = Effect.acquireRelease(
-          s3
-            .createMultipartUpload({ ...ref, ...headers })
-            .pipe(Effect.flatMap(({ UploadId }) => Effect.fromNullishOr(UploadId))),
-          abortUnlessCompleted,
-        )
-
-        /** Opens the multipart upload on the first part; the fold's scope aborts it on a failure. */
-        const sendPart = Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
-          const uploadId = yield* Option.match(state.uploadId, {
-            onNone: () => openUpload,
-            onSome: Effect.succeed,
-          })
-          const PartNumber = state.parts.length + 1
-          const { ETag } = yield* s3.uploadPart({
-            ...ref,
-            UploadId: uploadId,
-            PartNumber,
-            Body: bytes,
-          })
-          return {
-            ...state,
-            uploadId: Option.some(uploadId),
-            parts: Arr.append(state.parts, { PartNumber, ETag }),
-          }
-        })
-
-        const receivePart = Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
-          const size = state.size + bytes.length
-          if (Option.isNone(state.held)) return { ...state, held: Option.some(bytes), size }
-
-          const sent = yield* sendPart(state, state.held.value)
-          return { ...sent, held: Option.some(bytes), size }
-        }, Effect.orDie)
-
-        // Runs only after the stream ended: a part held back on a failure stays unsent.
-        const finishUpload = Effect.fnUntraced(function* (state: UploadState) {
-          const last = Option.getOrElse(state.held, () => new Uint8Array())
-          if (Option.isNone(state.uploadId)) {
-            yield* s3.putObject({ ...ref, ...headers, Body: last })
-            return state.size
-          }
-
-          const sent = yield* sendPart(state, last)
-          yield* s3.completeMultipartUpload({
-            ...ref,
-            UploadId: state.uploadId.value,
-            MultipartUpload: { Parts: Arr.copy(sent.parts) },
-          })
-          return state.size
-        }, Effect.orDie)
-
-        return { receivePart, finishUpload }
+      function abortUnlessCompleted(uploadId: string, exit: Exit.Exit<unknown, unknown>) {
+        if (Exit.isSuccess(exit)) return Effect.void
+        return s3.abortMultipartUpload({ ...ref, UploadId: uploadId }).pipe(Effect.orDie)
       }
 
-      const put = Effect.fn('S3Bucket.put')(
-        <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) => {
-          const upload = createUpload(key, options)
-          return content.pipe(
-            cutParts,
-            Stream.runFoldEffect(() => initialUploadState, upload.receivePart),
-            Effect.flatMap(upload.finishUpload),
-            Effect.scoped,
-          )
-        },
+      const openUpload = Effect.acquireRelease(
+        s3
+          .createMultipartUpload({ ...ref, ...headers })
+          .pipe(Effect.flatMap(({ UploadId }) => Effect.fromNullishOr(UploadId))),
+        abortUnlessCompleted,
       )
 
-      const download = Effect.fn('S3Bucket.download')((key: string) =>
-        s3.getObject(buildObjectRef(key)).pipe(
-          Effect.flatMap((object) =>
-            Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
-          ),
-          Effect.map(Option.some),
-          Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
-          Effect.orDie,
-        ),
-      )
-
-      const head = Effect.fn('S3Bucket.head')((key: string) =>
-        s3.headObject(buildObjectRef(key)).pipe(
-          Effect.flatMap(decodeObjectHead),
-          Effect.map(Option.some),
-          Effect.catchTag('NotFound', () => Effect.succeedNone),
-          Effect.orDie,
-        ),
-      )
-
-      const url = Effect.fn('S3Bucket.url')(function* (key: string, lifetime: Duration.Duration) {
-        const now = yield* DateTime.nowAsDate
-        const signed = yield* s3
-          .getObject(buildObjectRef(key), {
-            presigned: true,
-            expiresIn: Duration.toSeconds(lifetime),
-            signingDate: now,
-          })
-          .pipe(Effect.orDie)
-        return new URL(signed)
+      /** Opens the multipart upload on the first part; the fold's scope aborts it on a failure. */
+      const sendPart = Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
+        const uploadId = yield* Option.match(state.uploadId, {
+          onNone: () => openUpload,
+          onSome: Effect.succeed,
+        })
+        const PartNumber = state.parts.length + 1
+        const { ETag } = yield* s3.uploadPart({
+          ...ref,
+          UploadId: uploadId,
+          PartNumber,
+          Body: bytes,
+        })
+        return {
+          ...state,
+          uploadId: Option.some(uploadId),
+          parts: Arr.append(state.parts, { PartNumber, ETag }),
+        }
       })
 
-      const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
-        s3
-          .deleteObjects({
-            Bucket: bucket,
-            Delete: { Objects: Arr.map(keys, (Key) => ({ Key })), Quiet: true },
-          })
-          .pipe(
-            Effect.filterOrFail(
-              Predicate.not(hasKeptKeys),
-              ({ Errors }) => new Error('S3 kept keys asked to delete', { cause: Errors }),
-            ),
-            Effect.asVoid,
-            Effect.orDie,
-          )
+      const receivePart = Effect.fnUntraced(function* (state: UploadState, bytes: Uint8Array) {
+        const size = state.size + bytes.length
+        if (Option.isNone(state.held)) return { ...state, held: Option.some(bytes), size }
 
-      const deleteMany = Effect.fn('S3Bucket.deleteMany')((keys: ReadonlyArray<string>) =>
-        pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
-      )
+        const sent = yield* sendPart(state, state.held.value)
+        return { ...sent, held: Option.some(bytes), size }
+      }, Effect.orDie)
 
-      return { put, download, head, url, deleteMany }
-    }),
+      // Runs only after the stream ended: a part held back on a failure stays unsent.
+      const finishUpload = Effect.fnUntraced(function* (state: UploadState) {
+        const last = Option.getOrElse(state.held, () => new Uint8Array())
+        if (Option.isNone(state.uploadId)) {
+          yield* s3.putObject({ ...ref, ...headers, Body: last })
+          return state.size
+        }
+
+        const sent = yield* sendPart(state, last)
+        yield* s3.completeMultipartUpload({
+          ...ref,
+          UploadId: state.uploadId.value,
+          MultipartUpload: { Parts: Arr.copy(sent.parts) },
+        })
+        return state.size
+      }, Effect.orDie)
+
+      return { receivePart, finishUpload }
+    }
+
+    const put = Effect.fn('S3Bucket.put')(
+      <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) => {
+        const upload = createUpload(key, options)
+        return content.pipe(
+          cutParts,
+          Stream.runFoldEffect(() => initialUploadState, upload.receivePart),
+          Effect.flatMap(upload.finishUpload),
+          Effect.scoped,
+        )
+      },
+    )
+
+    const download = Effect.fn('S3Bucket.download')((key: string) =>
+      s3.getObject(buildObjectRef(key)).pipe(
+        Effect.flatMap((object) =>
+          Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
+        ),
+        Effect.map(Option.some),
+        Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
+        Effect.orDie,
+      ),
+    )
+
+    const head = Effect.fn('S3Bucket.head')((key: string) =>
+      s3.headObject(buildObjectRef(key)).pipe(
+        Effect.flatMap(decodeObjectHead),
+        Effect.map(Option.some),
+        Effect.catchTag('NotFound', () => Effect.succeedNone),
+        Effect.orDie,
+      ),
+    )
+
+    const url = Effect.fn('S3Bucket.url')(function* (key: string, lifetime: Duration.Duration) {
+      const now = yield* DateTime.nowAsDate
+      const signed = yield* s3
+        .getObject(buildObjectRef(key), {
+          presigned: true,
+          expiresIn: Duration.toSeconds(lifetime),
+          signingDate: now,
+        })
+        .pipe(Effect.orDie)
+      return new URL(signed)
+    })
+
+    const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
+      s3
+        .deleteObjects({
+          Bucket: bucket,
+          Delete: { Objects: Arr.map(keys, (Key) => ({ Key })), Quiet: true },
+        })
+        .pipe(
+          Effect.filterOrFail(
+            Predicate.not(hasKeptKeys),
+            ({ Errors }) => new Error('S3 kept keys asked to delete', { cause: Errors }),
+          ),
+          Effect.asVoid,
+          Effect.orDie,
+        )
+
+    const deleteMany = Effect.fn('S3Bucket.deleteMany')((keys: ReadonlyArray<string>) =>
+      pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
+    )
+
+    return { put, download, head, url, deleteMany }
+  }),
 }) {
   static readonly layer = (options: {
     readonly bucket: string
