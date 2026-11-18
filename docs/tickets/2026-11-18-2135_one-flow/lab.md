@@ -49,6 +49,19 @@ The shape, from §1 of the panel's final design, which the owner took:
 
 ### Notes
 
+[N:ai] Roadmap entries 8, 25 and 29 are already done on this base: `refactor/design-audit`'s
+`docs(docs): Cut the roadmap's finished entries to rows` marked them and cut their sections
+(`docs/knowledge/roadmap.md:42`, `:59`, `:62`), so L1 marks nothing.
+[N:ai] The rebase probe, in a `git clone --local` under the session's scratch directory with
+Docker running: `git rebase -x` over `feat/shared-files`' 34 commits, its L0.1 to its L3.3, the
+exec running `make check` and logging each commit's exit code and time so that one red would
+not stop the rest. All 34 exit 0, each with both the unit and the e2e suite run, 14–34 s a
+commit, 630 s in all; the picks fast-forwarded, so no commit changed. The clone needed no `N`:
+the e2e suites start their containers by testcontainers on free ports, and none was left after
+the run. By the Shape's rule, no red commit: the main session needs no `make check` Stop hook.
+[N:ai] The replays R1–R5 run apart, by other agents, on `refactor/design-audit` and on
+`chore/one-flow`; their table lands in Output.
+
 ### Output
 
 ## L2 — The toolkit
