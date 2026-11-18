@@ -6,17 +6,15 @@ import {
   Effect,
   Function as Fn,
   Layer,
-  MutableRef,
   Option,
   pipe,
   Schedule,
   Schema,
   SchemaTransformation,
   String as Str,
-  Struct,
   UndefinedOr,
 } from 'effect'
-import { AiError, Prompt, Response, Telemetry } from 'effect/ai'
+import { AiError, Prompt, Response } from 'effect/ai'
 import type { HttpClient } from 'effect/http'
 
 import { llmModels } from '@app-template/kernel/config'
@@ -51,13 +49,6 @@ const systemPrompt = [
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-// On the key: `annotate` would land on the field's check, which the JSON Schema leaves out.
-const ReplyAnswer = Schema.Struct({
-  text: AssistantReply.fields.text.annotateKey({
-    description: 'The reply the user reads, as plain text.',
-  }),
-})
-
 const toMessage = ({ message, attachments }: HistoryMessage): Prompt.MessageEncoded => ({
   role: message.author,
   content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
@@ -89,55 +80,46 @@ const buildTitlePrompt = (text: string): Prompt.Prompt =>
 
 const EarlyFinish = Response.FinishReason.pick(['content-filter', 'length'])
 
-type EarlyFinish = typeof EarlyFinish.Type
-
-const isEarlyFinishPart = Schema.is(
-  Schema.Struct({ type: Schema.Literal('finish'), reason: EarlyFinish }),
-)
+const isEarlyFinish = Schema.is(EarlyFinish)
 
 const earlyFinishReasons = {
   'content-filter': AiError.ContentPolicyError,
   length: AiError.InvalidOutputError,
 } as const satisfies Record<
-  EarlyFinish,
+  typeof EarlyFinish.Type,
   new (props: {
     readonly description: string
   }) => AiError.AiErrorReason
 >
 
-/** Fails a request whose model refused or was cut, read from its finish part, decoded or not. */
-const failOnEarlyFinish = Effect.fnUntraced(function* <A>(
-  request: Effect.Effect<A, AiError.AiError>,
-) {
-  const earlyFinish = MutableRef.make(Option.none<EarlyFinish>())
-  // `generateObject` hands every response part to the span transformer before it decodes,
-  // and `StructuredOutputError` carries no finish reason, so this hook is where a refusal shows.
-  const keepEarlyFinish: Telemetry.SpanTransformer = ({ response }) => {
-    const reason = pipe(
-      response,
-      Arr.findFirst(isEarlyFinishPart),
-      Option.map(Struct.get('reason')),
-    )
-    MutableRef.set(earlyFinish, reason)
-  }
-
-  const answer = yield* request.pipe(
-    Effect.provideService(Telemetry.CurrentSpanTransformer, keepEarlyFinish),
-    Effect.result,
-  )
-
-  const stopped = MutableRef.get(earlyFinish)
-  if (Option.isSome(stopped)) {
+/** Fails an answer whose model refused or was cut; a cut one fails even when it reads whole. */
+const failOnEarlyFinish = Effect.fnUntraced(function* <
+  A extends { readonly finishReason: Response.FinishReason },
+>(answer: A) {
+  const reason = answer.finishReason
+  if (isEarlyFinish(reason)) {
     return yield* AiError.make({
       module: 'AssistantLlm',
-      method: 'generateObject',
-      reason: new earlyFinishReasons[stopped.value]({
-        description: `The model stopped with finish reason ${stopped.value}`,
+      method: 'failOnEarlyFinish',
+      reason: new earlyFinishReasons[reason]({
+        description: `The model stopped with finish reason ${reason}`,
       }),
     })
   }
-  return yield* Effect.fromResult(answer)
+  return answer
 })
+
+/** A blank text fails as an output a retry can fix. */
+const decodeReply = ({ text }: { readonly text: string }) =>
+  Schema.decodeEffect(AssistantReply)({ text }).pipe(
+    Effect.mapError((error) =>
+      AiError.make({
+        module: 'AssistantLlm',
+        method: 'decodeReply',
+        reason: AiError.InvalidOutputError.fromSchemaError(error),
+      }),
+    ),
+  )
 
 const longestRetryAfter = Duration.seconds(30)
 
@@ -167,7 +149,6 @@ const askWithin =
   (retries: number) =>
   <A>(request: Effect.Effect<A, AiError.AiError>): Effect.Effect<A, AssistantError> =>
     request.pipe(
-      failOnEarlyFinish,
       Effect.retry({ schedule: retrySchedule(retries), while: isWorthRetrying }),
       Effect.mapError(toAssistantError),
     )
@@ -200,17 +181,16 @@ export const AssistantLlmFromConfig: Layer.Layer<
   assistantModels.pipe(
     Effect.map((models) =>
       Assistant.of({
-        reply: Effect.fn('Assistant.reply')(function* (history) {
-          const response = yield* models.reply
-            .generateObject({ prompt: buildChatPrompt(history), schema: ReplyAnswer })
-            .pipe(askWithin(2))
-          return new AssistantReply(response.value)
-        }),
+        reply: Effect.fn('Assistant.reply')((history) =>
+          models.reply
+            .generateText({ prompt: buildChatPrompt(history) })
+            .pipe(Effect.flatMap(failOnEarlyFinish), Effect.flatMap(decodeReply), askWithin(2)),
+        ),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
           if (isBlank(text)) return Option.none()
           const response = yield* models.title
             .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
-            .pipe(askWithin(4))
+            .pipe(Effect.flatMap(failOnEarlyFinish), askWithin(4))
           return Option.some(response.value.title)
         }),
       }),

@@ -9,10 +9,11 @@ request; a *span* is one timed operation in it.
 The api's `POST` is the trace's root. Under it come the services' `Effect.fn('<Service>.<method>')`
 spans, `sql.transaction` and each statement with `db.query.text`, then `QueueSender.send`. The
 worker's `process <queue>` span (kind `consumer`, named after OTel's messaging conventions) hangs
-under that send, and under it the use case, its SQL and `LanguageModel.generateObject` with
-`gen_ai.*` attributes (model, response id, tokens). A failure is a span event `exception` with its
-type, message and stack. Every log line carries `trace_id` and `span_id`. Tempo derives
-`calls_total` and `latency_bucket` per span name and status; the apps send no metrics of their own.
+under that send, and under it the use case, its SQL and `LanguageModel.generateText` (a reply)
+or `LanguageModel.generateObject` (a title) with `gen_ai.*` attributes (model, response id,
+tokens). A failure is a span event `exception` with its type, message and stack. Every log line
+carries `trace_id` and `span_id`. Tempo derives `calls_total` and `latency_bucket` per span name
+and status; the apps send no metrics of their own.
 
 Every incoming HTTP request is a trace root, so the worker's `POST /events` and the web's polls
 are traces of their own beside the user's; filter them out in the query

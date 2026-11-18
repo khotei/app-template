@@ -130,7 +130,7 @@ describe('AssistantLlmFromConfig', () => {
   it.effect(
     'reply asks the reply model for at most 16 000 tokens, with the prefix cached and the default effort and thinking',
     () => {
-      const { bodies, layer } = recordAnthropic(() => message('{"text":"Hello"}'))
+      const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
         yield* reply(hi)
 
@@ -186,7 +186,7 @@ describe('AssistantLlmFromConfig', () => {
   it.effect(
     'reply sends the fixed system prompt, then user turns with text and images and assistant turns as their text',
     () => {
-      const { bodies, layer } = recordAnthropic(() => message('{"text":"Hello"}'))
+      const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
         yield* reply([
           {
@@ -213,20 +213,8 @@ describe('AssistantLlmFromConfig', () => {
     },
   )
 
-  it.effect("reply's JSON Schema tells the model what its text field means", () => {
-    const { bodies, layer } = recordAnthropic(() => message('{"text":"Hello"}'))
-    return Effect.gen(function* () {
-      yield* reply(hi)
-
-      const [body] = yield* bodies
-      assert.deepStrictEqual(body?.output_config?.format?.schema.properties, {
-        text: { type: 'string', description: 'The reply the user reads, as plain text.' },
-      })
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect("reply answers the text of the model's JSON", () => {
-    const { layer } = recordAnthropic(() => message('{"text":"Hello"}'))
+  it.effect("reply answers the model's text", () => {
+    const { layer } = recordAnthropic(() => message('Hello'))
     return Effect.gen(function* () {
       const answer = yield* reply(hi)
 
@@ -241,26 +229,20 @@ describe('AssistantLlmFromConfig', () => {
     error: AssistantError['_tag']
   }>([
     {
-      name: 'a refusal whose text is whole JSON',
-      answer: () => message('{"text":"Hello"}', 'refusal'),
-      sentAt: [0],
-      error: 'AssistantRefusedError',
-    },
-    {
-      name: 'a refusal whose text is not JSON',
+      name: 'a refusal',
       answer: () => message('I cannot help with that.', 'refusal'),
       sentAt: [0],
       error: 'AssistantRefusedError',
     },
     {
       name: 'an answer cut by max_tokens',
-      answer: () => message('{"text":"Hello"}', 'max_tokens'),
+      answer: () => message('Hello', 'max_tokens'),
       sentAt: [0, 1_000, 3_000],
       error: 'AssistantFailedError',
     },
     {
       name: 'a blank text',
-      answer: () => message('{"text":" \\n"}'),
+      answer: () => message(' \n'),
       sentAt: [0, 1_000, 3_000],
       error: 'AssistantFailedError',
     },
