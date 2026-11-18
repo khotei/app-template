@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schema } from 'effect'
+import { Schema } from 'effect'
 
 import { SecretHash } from '#identity/domain/user.model'
 
@@ -10,11 +10,11 @@ describe('SecretHash', () => {
     assert.isTrue(Schema.is(SecretHash)(hash))
   })
 
-  it.effect.each([
+  it.each([
     { name: 'upper-case hex', value: hash.toUpperCase() },
     { name: '63 hex characters', value: hash.slice(1) },
     { name: 'a base64url 32-byte secret', value: 'q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4' },
-  ])('rejects $name', ({ value }) =>
-    Effect.sync(() => assert.isFalse(Schema.is(SecretHash)(value))),
-  )
+  ])('rejects $name', ({ value }) => {
+    assert.isFalse(Schema.is(SecretHash)(value))
+  })
 })

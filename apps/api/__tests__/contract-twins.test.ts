@@ -31,17 +31,18 @@ const twinsOf = (domain: Rec.ReadonlyRecord<string, unknown>) =>
 const representationOf = flow(Schema.toRepresentation, SchemaRepresentation.toJson)
 
 describe('the contract twins', () => {
-  it.effect.each(Rec.collect(modules, (name, domain) => ({ name, domain })))(
+  it.each(Rec.collect(modules, (name, domain) => ({ name, domain })))(
     '$name shares a twin with the contract',
-    ({ domain }) => Effect.sync(() => assert.isNotEmpty(twinsOf(domain))),
+    ({ domain }) => {
+      assert.isNotEmpty(twinsOf(domain))
+    },
   )
 
-  it.effect.each(pipe(modules, Rec.values, Arr.flatMap(twinsOf)))(
+  it.each(pipe(modules, Rec.values, Arr.flatMap(twinsOf)))(
     "$name: the contract declares the domain's checks",
-    ({ contract, domain }) =>
-      Effect.sync(() =>
-        assert.deepStrictEqual(representationOf(contract), representationOf(domain)),
-      ),
+    ({ contract, domain }) => {
+      assert.deepStrictEqual(representationOf(contract), representationOf(domain))
+    },
   )
 
   it.effect('the contract encodes a domain error instance', () =>

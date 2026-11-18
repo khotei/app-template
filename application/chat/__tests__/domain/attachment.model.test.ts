@@ -39,26 +39,26 @@ describe('Attachment', () => {
   }
   const decode = Schema.decodeUnknownExit(Attachment)
 
-  it.effect.each([
+  it.each([
     { mediaType: 'application/pdf' },
     { mediaType: 'image/svg+xml' },
     { mediaType: 'application/vnd.ms-excel' },
-  ])('decodes the media type $mediaType', ({ mediaType }) =>
-    Effect.sync(() => assert.isTrue(Exit.isSuccess(decode({ ...encoded, mediaType })))),
-  )
+  ])('decodes the media type $mediaType', ({ mediaType }) => {
+    assert.isTrue(Exit.isSuccess(decode({ ...encoded, mediaType })))
+  })
 
   it('rejects an empty file name', () => {
     assert.isTrue(Exit.isFailure(decode({ ...encoded, fileName: '' })))
   })
 
-  it.effect.each([
+  it.each([
     { mediaType: 'pdf' },
     { mediaType: 'application/' },
     { mediaType: '/pdf' },
     { mediaType: 'image/png extra' },
-  ])('rejects the media type $mediaType', ({ mediaType }) =>
-    Effect.sync(() => assert.isTrue(Exit.isFailure(decode({ ...encoded, mediaType })))),
-  )
+  ])('rejects the media type $mediaType', ({ mediaType }) => {
+    assert.isTrue(Exit.isFailure(decode({ ...encoded, mediaType })))
+  })
 })
 
 const unbound = buildAttachment({
@@ -96,12 +96,12 @@ describe('buildAttachmentFrom', () => {
 })
 
 describe('buildFileId', () => {
-  it.effect.each([
+  it.each([
     { name: 'its own id for an attachment with no source', attachment: unbound },
     { name: "its source's id for a record", attachment: record },
-  ])('is $name', ({ attachment }) =>
-    Effect.sync(() => assert.strictEqual(buildFileId(attachment), unbound.id)),
-  )
+  ])('is $name', ({ attachment }) => {
+    assert.strictEqual(buildFileId(attachment), unbound.id)
+  })
 })
 
 describe('ensureAllReachableFrom', () => {

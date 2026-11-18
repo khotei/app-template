@@ -58,22 +58,23 @@ const reply = buildAssistantMessage({
 const runAt = (status: RunStatus) => new Run({ ...queued, status })
 
 describe('buildRun', () => {
-  it.effect('builds a queued Run with no failure, last moved when built', () =>
-    Effect.sync(() => assertSchemaEquals(Run, buildRun(queued), queued)),
-  )
+  it('builds a queued Run with no failure, last moved when built', () => {
+    assertSchemaEquals(Run, buildRun(queued), queued)
+  })
 })
 
-it.effect.each([
+it.each([
   { status: 'queued', active: true, started: false },
   { status: 'preparing', active: true, started: true },
   { status: 'generating', active: true, started: true },
   { status: 'done', active: false, started: false },
   { status: 'failed', active: false, started: false },
-] as const)('a $status Run is active: $active, started: $started', ({ status, active, started }) =>
-  Effect.sync(() => {
+] as const)(
+  'a $status Run is active: $active, started: $started',
+  ({ status, active, started }) => {
     assert.strictEqual(isActiveRun(runAt(status)), active)
     assert.strictEqual(isStartedRun(runAt(status)), started)
-  }),
+  },
 )
 
 /** Each move and the statuses it leaves from; it refuses every other one. */
@@ -153,15 +154,14 @@ describe('completeRun', () => {
 })
 
 describe('buildRunFailure', () => {
-  it.effect.each([
+  it.each([
     { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
     { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
   ] as const)(
     "fails a Run the assistant ended with $error._tag as $reason with the error's cause",
-    ({ error, reason }) =>
-      Effect.sync(() =>
-        assert.deepStrictEqual(buildRunFailure(error), { reason, cause: error.cause }),
-      ),
+    ({ error, reason }) => {
+      assert.deepStrictEqual(buildRunFailure(error), { reason, cause: error.cause })
+    },
   )
 })
 

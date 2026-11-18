@@ -70,8 +70,8 @@ Where each kind of test and its support live, and what a test may import:
 - A model fixture builds the model with `DateTime` values and ids as `<Model>Id.make('<uuid>')`;
   a test that decodes a model passes its row's values (`null`, a `Date`), since a model's
   encoded side is its row.
-- The cases of one rule run with `it.effect.each` over objects (a name template over `$field`),
-  never a `for` loop around `it` or a lookup by key.
+- The cases of one rule run with `it.each` over objects (a name template over `$field`),
+  `it.effect.each` when a case is an effect, never a `for` loop around `it` or a lookup by key.
 - A test of logging asserts the level with the message.
 - Configuration comes from `ConfigProvider.fromUnknown({ … })`
   ([tooling.md › Environment](../../docs/knowledge/tooling.md#environment)).

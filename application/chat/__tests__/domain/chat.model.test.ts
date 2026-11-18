@@ -69,17 +69,17 @@ describe('renameChat', () => {
 })
 
 describe('ChatTitle', () => {
-  it.effect.each([{ title: 'Trip' }, { title: 'a'.repeat(120) }])('accepts $title', ({ title }) =>
-    Effect.sync(() => assert.isTrue(Schema.is(ChatTitle)(title))),
-  )
+  it.each([{ title: 'Trip' }, { title: 'a'.repeat(120) }])('accepts $title', ({ title }) => {
+    assert.isTrue(Schema.is(ChatTitle)(title))
+  })
 
-  it.effect.each([
+  it.each([
     { title: '' },
     { title: '  ' },
     { title: ' Trip' },
     { title: 'a'.repeat(121) },
     { title: 'a\u0000b' },
-  ])('rejects $title', ({ title }) =>
-    Effect.sync(() => assert.isFalse(Schema.is(ChatTitle)(title))),
-  )
+  ])('rejects $title', ({ title }) => {
+    assert.isFalse(Schema.is(ChatTitle)(title))
+  })
 })
