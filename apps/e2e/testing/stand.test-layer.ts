@@ -6,11 +6,11 @@ import { FetchHttpClient } from 'effect/http'
 import { ApiLayer, layerApiClient } from '@app-template/api/testing'
 import { AssistantReply, ChatTitle } from '@app-template/application/chat'
 import { recordAssistant } from '@app-template/application/chat/testing'
-import { buildResourceName, resources } from '@app-template/kernel/aws'
-import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
+import { resources } from '@app-template/kernel/aws'
+import { AwsTest, provisionWorker } from '@app-template/kernel/aws/testing/e2e'
 import { AwsConfig } from '@app-template/kernel/config'
 import { FileRepository } from '@app-template/kernel/data'
-import { LambdaClientTest, provisionWorker } from '@app-template/packages/aws/testing/e2e'
+import { LambdaClientTest } from '@app-template/packages/aws/testing/e2e'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { WorkerProcess } from '@app-template/worker/testing'
 
@@ -71,7 +71,7 @@ export const StandTest = Layer.unwrap(
     const workerPort = yield* findFreePort
     const { stage } = yield* AwsConfig
     yield* provisionWorker(resources, {
-      buildName: (name) => buildResourceName(stage, name),
+      stage,
       proxyUrl: `http://host.docker.internal:${workerPort}/events`,
     })
     const provider = yield* buildConfigProvider(apiPort, workerPort)

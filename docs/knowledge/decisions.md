@@ -333,8 +333,9 @@ no app.
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/),
   [styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/)).
 - **Rejected:** a package per kernel part: a manifest per part for one app's tools. `packages/aws`
-  moved whole: the queue package's e2e would import the kernel, so the generic provisioner stays
-  and the inventory and its naming rule moved.
+  moved whole: the inventory, its naming rule and the provisioner moved to `kernel/aws`; the
+  inventory's types and the dead-letter naming rule stay, imported by the kernel and by
+  `deployment/aws/`.
 - **Cost:** one manifest declares every client's dependency, so the linker no longer stops a
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take

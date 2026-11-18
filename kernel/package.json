@@ -29,6 +29,7 @@
     "type-fest": "catalog:runtime"
   },
   "devDependencies": {
+    "@effect-aws/client-lambda": "catalog:effect-aws",
     "@effect/vitest": "catalog:effect",
     "@testcontainers/postgresql": "catalog:runtime",
     "testcontainers": "catalog:runtime",

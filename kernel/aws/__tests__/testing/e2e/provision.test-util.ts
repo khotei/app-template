@@ -3,14 +3,16 @@ import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
 import { Effect, pipe, Record as Rec } from 'effect'
 
-import { buildDeadLetterName } from '#aws/naming'
-import type { BucketResource, QueueResource, Resources } from '#aws/resources'
+import { buildDeadLetterName, type Resources } from '@app-template/packages/aws'
 
-type BuildName = (name: string) => string
+import { buildResourceName } from '#kernel/aws/resources/naming'
+
+type BucketResource = Resources['buckets'][string]
+type QueueResource = Resources['queues'][string]
 
 // A bucket this account holds already is the one asked for: CreateBucket never updates one.
-const provisionBucket = (buildName: BuildName) => (bucket: BucketResource) =>
-  S3Service.use((s3) => s3.createBucket({ Bucket: buildName(bucket.name) })).pipe(
+const provisionBucket = (stage: string) => (bucket: BucketResource) =>
+  S3Service.use((s3) => s3.createBucket({ Bucket: buildResourceName(stage, bucket.name) })).pipe(
     Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void),
   )
 
@@ -18,10 +20,10 @@ const provisionBucket = (buildName: BuildName) => (bucket: BucketResource) =>
 const buildRedrivePolicy = (deadLetterTargetArn: string, maxReceiveCount: number): string =>
   JSON.stringify({ deadLetterTargetArn, maxReceiveCount })
 
-const provisionQueuePair = (buildName: BuildName) =>
+const provisionQueuePair = (stage: string) =>
   Effect.fnUntraced(function* (queue: QueueResource) {
     const sqs = yield* SQSService
-    const name = buildName(queue.name)
+    const name = buildResourceName(stage, queue.name)
 
     const deadLetter = yield* sqs.createQueue({ QueueName: buildDeadLetterName(name) })
     const { Attributes } = yield* sqs.getQueueAttributes({
@@ -38,30 +40,29 @@ const provisionQueuePair = (buildName: BuildName) =>
     })
   })
 
-/** Creates each bucket under `buildName(name)`, without lifecycle rules; reruns change nothing. */
+/** Creates each bucket named for `stage`, without lifecycle rules; reruns change nothing. */
 const provisionBuckets = Effect.fn('provisionBuckets')(
-  (buckets: Resources['buckets'], buildName: BuildName) =>
-    pipe(buckets, Rec.values, Effect.forEach(provisionBucket(buildName), { discard: true })),
+  (buckets: Resources['buckets'], stage: string) =>
+    pipe(buckets, Rec.values, Effect.forEach(provisionBucket(stage), { discard: true })),
 )
 
 /**
- * Creates each queue with its dead-letter queue under `buildName(name)`; a second run on the same
+ * Creates each queue with its dead-letter queue, named for `stage`; a second run on the same
  * queues changes nothing.
  *
  * A queue whose attributes drifted from the inventory fails with `QueueNameExists`: SQS never
  * updates on create, and `make reset` is the local way back.
  */
-const provisionQueues = Effect.fn('provisionQueues')(
-  (queues: Resources['queues'], buildName: BuildName) =>
-    pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(buildName), { discard: true })),
+const provisionQueues = Effect.fn('provisionQueues')((queues: Resources['queues'], stage: string) =>
+  pipe(queues, Rec.values, Effect.forEach(provisionQueuePair(stage), { discard: true })),
 )
 
-const mapQueue = (buildName: BuildName, functionName: string) =>
+const mapQueue = (stage: string, functionName: string) =>
   Effect.fnUntraced(function* (queue: QueueResource) {
     const sqs = yield* SQSService
     const lambda = yield* LambdaService
 
-    const { QueueUrl } = yield* sqs.getQueueUrl({ QueueName: buildName(queue.name) })
+    const { QueueUrl } = yield* sqs.getQueueUrl({ QueueName: buildResourceName(stage, queue.name) })
     const { Attributes } = yield* sqs.getQueueAttributes({ QueueUrl, AttributeNames: ['QueueArn'] })
     yield* lambda.createEventSourceMapping({
       EventSourceArn: yield* Effect.fromNullishOr(Attributes?.QueueArn),
@@ -71,16 +72,16 @@ const mapQueue = (buildName: BuildName, functionName: string) =>
   })
 
 /**
- * Creates the worker's function under `buildName(name)`, whose every invoke MiniStack hands to
+ * Creates the worker's function named for `stage`, whose every invoke MiniStack hands to
  * `proxyUrl` instead of running its code, and one mapping per queue that invokes it; the queues
  * must exist.
  */
 export const provisionWorker = Effect.fn('provisionWorker')(function* (
   { worker, queues }: Resources,
-  { buildName, proxyUrl }: { readonly buildName: BuildName; readonly proxyUrl: string },
+  { stage, proxyUrl }: { readonly stage: string; readonly proxyUrl: string },
 ) {
   const lambda = yield* LambdaService
-  const functionName = buildName(worker.name)
+  const functionName = buildResourceName(stage, worker.name)
 
   yield* lambda.createFunction({
     FunctionName: functionName,
@@ -92,17 +93,12 @@ export const provisionWorker = Effect.fn('provisionWorker')(function* (
     Timeout: worker.timeoutSeconds,
     Environment: { Variables: { MINISTACK_LAMBDA_PROXY_URL: proxyUrl } },
   })
-  yield* pipe(
-    queues,
-    Rec.values,
-    Effect.forEach(mapQueue(buildName, functionName), { discard: true }),
-  )
+  yield* pipe(queues, Rec.values, Effect.forEach(mapQueue(stage, functionName), { discard: true }))
 })
 
-/** The whole inventory under `buildName(name)`: the buckets and the queues. */
-export const provision = Effect.fn('provision')(
-  ({ buckets, queues }: Resources, buildName: BuildName) =>
-    Effect.all([provisionBuckets(buckets, buildName), provisionQueues(queues, buildName)], {
-      discard: true,
-    }),
+/** The whole inventory named for `stage` by `buildResourceName`: the buckets and the queues. */
+export const provision = Effect.fn('provision')(({ buckets, queues }: Resources, stage: string) =>
+  Effect.all([provisionBuckets(buckets, stage), provisionQueues(queues, stage)], {
+    discard: true,
+  }),
 )

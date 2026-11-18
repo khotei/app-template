@@ -3,7 +3,7 @@
 This app's configuration of its tools (its settings, its resources and the rule that names them,
 the clients built from them, the queues' sender named for the stage) and its
 data in `data/`. A package takes what is this app's as a parameter (a resource's name reaches the
-provisioner as a function). Where each part sits in the rings and what it may import:
+queue sender as a function). Where each part sits in the rings and what it may import:
 [architecture.md › Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
 - A client or tool any app could use goes to `packages/*`; the kernel only configures it.
