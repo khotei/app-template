@@ -1,92 +1,151 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Struct } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Schema, Stream } from 'effect'
 
 import {
   Attachment,
   AttachmentBoundError,
+  AttachmentId,
   AttachmentNotFoundError,
-  buildAssistantMessage,
+  buildAttachment,
   buildRun,
   buildUserMessage,
   Chat,
   ChatBusyError,
-  type ChatId,
-  ChatService,
   ChatTitle,
   chatTitleQueue,
-  completeRun,
+  FileName,
+  FileSize,
   GenerateAssistantMessage,
   GenerateChatTitle,
-  generateRun,
-  Message,
-  MessageId,
+  MediaType,
+  MessageFields,
   type MessageInput,
-  prepareRun,
-  type Run,
+  Run,
+  RunFields,
   type RunId,
 } from '@app-template/application/chat'
 import {
   chat,
-  insertMessage,
+  firstMessage,
   owner,
-  selectAttachments,
-  selectChat,
-  selectMessages,
-  stranger,
-  updateRun,
-  upload,
+  queuedRun,
+  unknownChatId,
 } from '@app-template/application/chat/testing'
-import { ChatRepository, FileRepository } from '@app-template/kernel/data'
+import {
+  type AttachmentEntity,
+  FileRepository,
+  type MessageColumns,
+  type RunColumns,
+} from '@app-template/kernel/data'
+import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { assertSchemaEquals, epoch, isUuidV7, recordLogs } from '@app-template/packages/testing'
+import {
+  assertSchemaEquals,
+  epoch,
+  isUuidV7,
+  png,
+  recordLogs,
+} from '@app-template/packages/testing'
 
-import { ChatTest } from '#testing/use-cases/chat.test-layer'
+import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
-
-/** The one attachment the chat's messages hold. */
-const selectSentAttachment = (chatId: ChatId) =>
-  selectMessages(chatId).pipe(Effect.map(Arr.flatMap(Struct.get('attachments'))), Effect.head)
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 
-/**
- * Settles a queued Run as done with its reply, walking it through its statuses as the worker
- * would, freeing its chat for the next create.
- */
-const settle = (run: Run) =>
-  Effect.gen(function* () {
-    const at = yield* DateTime.now
-    const prepared = yield* prepareRun(run, at)
-    const generating = yield* generateRun(prepared, at)
-    // The Run's id serves its reply too: one reply per Run, so no two collide.
-    const reply = buildAssistantMessage({
-      id: MessageId.make(run.id),
-      chatId: run.chatId,
-      text: 'Sure.',
-      createdAt: at,
-    })
+/** An unbound attachment of `owner` in the library. */
+const photo = buildAttachment({
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
+  userId: owner,
+  fileName: FileName.make('photo.png'),
+  mediaType: MediaType.make('image/png'),
+  size: FileSize.make(png.length),
+  createdAt: epoch,
+})
 
-    yield* insertMessage(reply)
-    yield* completeRun(generating, { reply, at }).pipe(Effect.flatMap(updateRun))
-  })
+/** `chat`'s record of `photo`, sent with `firstMessage`. */
+const record = new Attachment({
+  ...photo,
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+  messageId: Option.some(firstMessage.id),
+  chatId: Option.some(chat.id),
+  sourceId: Option.some(photo.id),
+})
+
+/** Stores `photo`'s bytes, as its upload left them. */
+const storePhotoBytes = FileRepository.use((files) =>
+  files.insert({ ...photo, content: Stream.make(png) }),
+)
+
+/** The reads of `read`, the chat the send names, and of `attachments`, those it asks for. */
+const sendingTo = (read: Chat, ...attachments: ReadonlyArray<Attachment>) =>
+  ({
+    chats: { selectOne: () => encodeRowWith(Chat)(read).pipe(Effect.map(Option.some)) },
+    attachments: {
+      selectMany: () => Effect.forEach(attachments, (each) => encodeRowWith(Attachment)(each)),
+    },
+  }) satisfies ChatRepositoryMocks
+
+/** The rows a send hands each repository's `insert`. */
+interface Inserts {
+  readonly messages: Array<MessageColumns>
+  readonly attachments: Array<AttachmentEntity>
+  readonly runs: Array<RunColumns>
+}
+
+/** `mocks` whose inserts keep each row they are handed in `inserts`. */
+const insertingInto = (
+  inserts: Inserts,
+  mocks: ReturnType<typeof sendingTo>,
+): ChatRepositoryMocks => ({
+  ...mocks,
+  messages: {
+    insert: (row) =>
+      Effect.sync(() => {
+        inserts.messages.push(row)
+      }),
+  },
+  attachments: {
+    ...mocks.attachments,
+    insert: (row) =>
+      Effect.sync(() => {
+        inserts.attachments.push(row)
+      }),
+  },
+  runs: {
+    insert: (row) =>
+      Effect.sync(() => {
+        inserts.runs.push(row)
+      }),
+  },
+})
+
+const noInserts = (): Inserts => ({ messages: [], attachments: [], runs: [] })
 
 const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
   message: new GenerateAssistantMessage({ runId }),
 })
 
+const titledChat = new Chat({ ...chat, title: Option.some(ChatTitle.make('Trip')) })
+
+const answeredChat = new Chat({
+  ...chat,
+  run: Option.some(new Run({ ...queuedRun, status: 'done' })),
+})
+
+const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
+
 describe('CreateUserMessageUseCase', () => {
   it.live(
-    'create stores the user message with a record of its library attachment and its queued Run, keeping the title',
+    'create inserts the user message, a record of its library attachment and its queued Run, writing no chat',
     () => {
       const jobs = recordMessages()
+      const inserts = noInserts()
       return Effect.gen(function* () {
-        const chats = yield* ChatRepository
         const createUserMessage = yield* CreateUserMessageUseCase
-        const photo = yield* upload(owner)
-        yield* chats.update({ title: 'Trip' }, { id: chat.id })
+        yield* storePhotoBytes
 
         const run = yield* createUserMessage.create(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
@@ -98,16 +157,6 @@ describe('CreateUserMessageUseCase', () => {
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
         assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
         assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
-        const sent = yield* selectSentAttachment(chat.id)
-        assert.isTrue(isUuidV7(sent.id) && DateTime.isGreaterThan(sent.createdAt, epoch))
-        const record = new Attachment({
-          ...photo,
-          id: sent.id,
-          messageId: Option.some(userMessage.id),
-          chatId: Option.some(chat.id),
-          sourceId: Option.some(photo.id),
-          createdAt: sent.createdAt,
-        })
         assertEquals(
           run,
           buildRun({
@@ -122,101 +171,110 @@ describe('CreateUserMessageUseCase', () => {
             createdAt: run.createdAt,
           }),
         )
-        assertEquals(yield* selectMessages(chat.id), [
-          new Message({ ...userMessage, attachments: [record], run: Option.some(run) }),
-        ])
-        assertEquals(yield* selectAttachments([photo.id]), [photo])
-        assertEquals(
-          yield* selectChat(chat.id),
-          Option.some(
-            new Chat({
-              ...chat,
-              title: Option.some(ChatTitle.make('Trip')),
-              attachments: [record],
-              run: Option.some(run),
-            }),
+        assert.deepStrictEqual(inserts.messages, [yield* encodeRowWith(MessageFields)(userMessage)])
+        assert.deepStrictEqual(inserts.runs, [yield* encodeRowWith(RunFields)(run)])
+        const sent = yield* decodeRowWith(Schema.Array(Attachment))(inserts.attachments)
+        assert.isTrue(
+          Arr.every(
+            sent,
+            (each) => isUuidV7(each.id) && DateTime.isGreaterThan(each.createdAt, epoch),
           ),
         )
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
-    },
-  )
-
-  it.effect(
-    'the first create queues the reply job and the title job, a later one the reply only',
-    () => {
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
-
-        const first = yield* createUserMessage.create(
-          owner,
-          chat.id,
-          ask('Plan a weekend in Lisbon'),
+        assertEquals(
+          sent,
+          Arr.map(
+            sent,
+            (each) =>
+              new Attachment({
+                ...record,
+                id: each.id,
+                messageId: Option.some(userMessage.id),
+                createdAt: each.createdAt,
+              }),
+          ),
         )
-        yield* settle(first)
-        const second = yield* createUserMessage.create(owner, chat.id, ask('And in Porto?'))
-
-        assertEquals(yield* jobs.sent, [
-          replyJob(first.id),
-          {
-            queue: 'chat-title',
-            message: new GenerateChatTitle({ messageId: first.userMessageId }),
-          },
-          replyJob(second.id),
-        ])
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+        assert.lengthOf(sent, 1)
+      }).pipe(
+        Effect.provide(
+          layerChatTest(insertingInto(inserts, sendingTo(titledChat, photo))).pipe(
+            Layer.provide(jobs.layer),
+          ),
+        ),
+      )
     },
   )
+
+  it.effect.each([
+    { name: 'the first create queues the reply job and the title job', read: chat, title: true },
+    {
+      name: 'a create after an answered one queues the reply job only',
+      read: answeredChat,
+      title: false,
+    },
+  ])('$name', ({ read, title }) => {
+    const jobs = recordMessages()
+    return Effect.gen(function* () {
+      const createUserMessage = yield* CreateUserMessageUseCase
+
+      const run = yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
+
+      const titleJob = {
+        queue: 'chat-title',
+        message: new GenerateChatTitle({ messageId: run.userMessageId }),
+      }
+      assertEquals(yield* jobs.sent, title ? [replyJob(run.id), titleJob] : [replyJob(run.id)])
+    }).pipe(
+      Effect.provide(
+        layerChatTest(insertingInto(noInserts(), sendingTo(read))).pipe(Layer.provide(jobs.layer)),
+      ),
+    )
+  })
 
   it.effect('a title job SQS refuses is logged with its chat and message', () => {
     const { logs, layer: logger } = recordLogs('chatId', 'messageId')
-    const RefusingTitleQueueTest = Layer.succeed(
-      QueueSender,
-      QueueSender.of({
-        send: ({ name }) =>
-          name === chatTitleQueue.name
-            ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
-            : Effect.void,
-      }),
-    )
+    const RefusingTitleQueueTest = Layer.mock(QueueSender, {
+      send: ({ name }) =>
+        name === chatTitleQueue.name
+          ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
+          : Effect.void,
+    })
     return Effect.gen(function* () {
       const createUserMessage = yield* CreateUserMessageUseCase
 
       const run = yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
       assert.deepStrictEqual(logs, [['Error', 'chat title not queued', chat.id, run.userMessageId]])
-    }).pipe(Effect.provide([Layer.provide(ChatTest, RefusingTitleQueueTest), logger]))
+    }).pipe(
+      Effect.provide([
+        layerChatTest(insertingInto(noInserts(), sendingTo(chat))).pipe(
+          Layer.provide(RefusingTitleQueueTest),
+        ),
+        logger,
+      ]),
+    )
   })
 
-  it.effect('create while a Run is in work is ChatBusyError before any message or job', () => {
+  it.effect('create while a Run is in work is ChatBusyError before any write or job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
       const createUserMessage = yield* CreateUserMessageUseCase
-      yield* createUserMessage.create(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
       const error = yield* createUserMessage
         .create(owner, chat.id, ask('And in Porto?'))
         .pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-      assert.lengthOf(yield* selectMessages(chat.id), 1)
-      assert.lengthOf(yield* jobs.sent, 2)
-    }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+      assertEquals(yield* jobs.sent, [])
+    }).pipe(Effect.provide(layerChatTest(sendingTo(busyChat)).pipe(Layer.provide(jobs.layer))))
   })
 
   it.effect(
-    'create with an attachment a message of the chat holds is AttachmentBoundError before any message',
+    'create with an attachment a message of the chat holds is AttachmentBoundError before any write',
     () => {
       const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
-        const photo = yield* upload(owner)
-        const first = yield* createUserMessage.create(owner, chat.id, {
-          text: 'Look',
-          attachmentIds: [photo.id],
-        })
-        yield* settle(first)
-        const record = yield* selectSentAttachment(chat.id)
+        yield* storePhotoBytes
 
         const error = yield* createUserMessage
           .create(owner, chat.id, { text: 'Again', attachmentIds: [record.id] })
@@ -227,87 +285,43 @@ describe('CreateUserMessageUseCase', () => {
           error,
           new AttachmentBoundError({ id: record.id, chatIds: [chat.id] }),
         )
-        // The first send's message and its reply, and nothing of the refused one.
-        assert.lengthOf(yield* selectMessages(chat.id), 2)
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+      }).pipe(
+        Effect.provide(layerChatTest(sendingTo(chat, record)).pipe(Layer.provide(jobs.layer))),
+      )
     },
   )
 
-  it.effect(
-    'create with an attachment of another chat is AttachmentNotFoundError before any message',
-    () => {
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
-        const other = yield* ChatService.use((chats) => chats.create(owner))
-        const photo = yield* upload(owner)
-        yield* createUserMessage.create(owner, chat.id, {
-          text: 'Look',
-          attachmentIds: [photo.id],
-        })
-        const record = yield* selectSentAttachment(chat.id)
-
-        const error = yield* createUserMessage
-          .create(owner, other.id, { text: 'Look', attachmentIds: [record.id] })
-          .pipe(Effect.flip)
-
-        assertSchemaEquals(
-          AttachmentNotFoundError,
-          error,
-          new AttachmentNotFoundError({ ids: [record.id] }),
-        )
-        assertEquals(yield* selectMessages(other.id), [])
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+  it.effect.each([
+    {
+      name: 'held by another chat',
+      ids: Arr.make(record.id),
+      found: [new Attachment({ ...record, chatId: Option.some(unknownChatId) })],
+      bytes: true,
     },
-  )
-
-  it.effect(
-    "create with another user's attachment is AttachmentNotFoundError before any message or job",
-    () => {
+    {
+      name: 'the store finds none of, as for another user',
+      ids: Arr.make(photo.id),
+      found: [],
+      bytes: true,
+    },
+    { name: 'whose bytes are gone', ids: Arr.make(photo.id), found: [photo], bytes: false },
+  ])(
+    'create with an attachment $name is AttachmentNotFoundError before any write or job',
+    ({ ids, found, bytes }) => {
       const jobs = recordMessages()
       return Effect.gen(function* () {
         const createUserMessage = yield* CreateUserMessageUseCase
-        const photo = yield* upload(stranger)
+        if (bytes) yield* storePhotoBytes
 
         const error = yield* createUserMessage
-          .create(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+          .create(owner, chat.id, { text: 'Look', attachmentIds: ids })
           .pipe(Effect.flip)
 
-        assertSchemaEquals(
-          AttachmentNotFoundError,
-          error,
-          new AttachmentNotFoundError({ ids: [photo.id] }),
-        )
-        assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* selectAttachments([photo.id]), [photo])
+        assertSchemaEquals(AttachmentNotFoundError, error, new AttachmentNotFoundError({ ids }))
         assertEquals(yield* jobs.sent, [])
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
-    },
-  )
-
-  it.effect(
-    'create with an attachment whose bytes are gone is AttachmentNotFoundError before any message or bind',
-    () => {
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        const files = yield* FileRepository
-        const createUserMessage = yield* CreateUserMessageUseCase
-        const photo = yield* upload(owner)
-        yield* files.delete({ id: [photo.id] })
-
-        const error = yield* createUserMessage
-          .create(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
-          .pipe(Effect.flip)
-
-        assertSchemaEquals(
-          AttachmentNotFoundError,
-          error,
-          new AttachmentNotFoundError({ ids: [photo.id] }),
-        )
-        assertEquals(yield* selectMessages(chat.id), [])
-        assertEquals(yield* selectAttachments([photo.id]), [photo])
-        assertEquals(yield* jobs.sent, [])
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+      }).pipe(
+        Effect.provide(layerChatTest(sendingTo(chat, ...found)).pipe(Layer.provide(jobs.layer))),
+      )
     },
   )
 })

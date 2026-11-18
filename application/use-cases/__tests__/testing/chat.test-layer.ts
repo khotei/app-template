@@ -1,7 +1,6 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
-import { ChatService, FileAttachmentService } from '@app-template/application/chat'
 import { chat, insertChatLayer } from '@app-template/application/chat/testing'
 import {
   AttachmentRepository,
@@ -19,21 +18,6 @@ import { TransactionTest } from '@app-template/packages/db/testing'
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
 import { GenerateAssistantMessageUseCase } from '#use-cases/chat/generate-assistant-message.use-case'
 import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
-
-/**
- * The chat services and use cases over the memory layers, on fresh rows where `chat` exists, the
- * identity transaction; the `QueueSender` is the test's, `recordMessages()`.
- */
-export const ChatTest = Layer.mergeAll(
-  ChatService.layer,
-  FileAttachmentService.layer,
-  CreateUserMessageUseCase.layer,
-  RetryRunUseCase.layer,
-).pipe(
-  Layer.provideMerge(insertChatLayer(chat)),
-  Layer.provideMerge(Layer.merge(RepositoryStackTest, TransactionTest)),
-  Layer.provide(BunCrypto.layer),
-)
 
 /**
  * The reply use case over the memory layers, on fresh rows where `chat` exists, the attachments'
