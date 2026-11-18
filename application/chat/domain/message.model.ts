@@ -39,10 +39,16 @@ export const buildUserMessage = (
   fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
 ): Message => new Message({ ...fields, author: 'user', attachments: [] })
 
-/** The reply a done Run writes. */
+/** The reply a done Run writes, without the U+0000 its `text` refuses: a reply is not refused. */
 export const buildAssistantMessage = (
   fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, author: 'assistant', attachments: [] })
+): Message =>
+  new Message({
+    ...fields,
+    text: Str.replaceAll('\u0000', '')(fields.text),
+    author: 'assistant',
+    attachments: [],
+  })
 
 export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
 

@@ -181,6 +181,21 @@ describe('GenerateAssistantMessageUseCase', () => {
     },
   )
 
+  it.effect('generate completes the Run with a reply holding U+0000, without it', () => {
+    const assistant = recordAssistant({
+      reply: Effect.succeed(new AssistantReply({ text: 'a\u0000b' })),
+    })
+    return Effect.gen(function* () {
+      yield* insertQueued
+
+      yield* generate
+      const run = yield* selectQueuedRun
+
+      assert.strictEqual(run.status, 'done')
+      assert.strictEqual(Option.getOrThrow(run.assistantMessage).text, 'ab')
+    }).pipe(Effect.provide(Layer.provide(AssistantMessageTest, assistant.layer)))
+  })
+
   it.effect('generate dies with the assistant and fails the Run first', () => {
     const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
     return Effect.gen(function* () {
