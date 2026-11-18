@@ -146,11 +146,11 @@ Which suite runs where:
 
   Open the link to get breakpoints, the console and profiling. Editors attach to the
   `ws://localhost:6499/<session>` address printed under it. Debug mode keeps the app's reload mode,
-  so `debug-api` still hot-reloads.
+  so `debug-api` restarts on an edit as `dev-api` does.
 
 ### `--hot` vs `--watch`, and why there is no `--dev`
 
-| | `--hot` (`api`, `web`) | `--watch` (`worker`) |
+| | `--hot` (`web`) | `--watch` (`api`, `worker`) |
 |---|---|---|
 | On change | re-evaluates the changed files inside the running process | re-executes the process into a fresh runtime |
 | PID | the same | may stay the same: Bun restarts by `exec` |
@@ -160,10 +160,9 @@ Which suite runs where:
 
 Under `--hot`, `Bun.serve` swaps its routes in place, which is all `web` needs. An Effect runtime
 is not swapped: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
-one, whose scope, fibers and finalizers live on. So `apps/api/main.ts` keeps a stop handle on
-`globalThis`, the one thing a reload keeps, and each evaluation first stops the previous runtime
-and waits for its finalizers. The worker keeps no handle and runs under `--watch`: a re-exec
-leaves nothing to stop, so `apps/worker/main.ts` is one `runMain`.
+one. So the api and the worker run under `--watch`: a re-exec leaves nothing to stop, and each
+`main.ts` is one `runMain`. While the api re-execs its port is closed, about 0.3 s from
+`api stopped` to `Listening on`, and a request the web proxies then answers `500`.
 
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
