@@ -25,8 +25,8 @@ the module that owns it, or the flow into a use case. Refuse too:
   part or a package one above it, a module's infrastructure the use cases);
 - test support (`<folder>/testing`, `#testing/<unit>/…`) in source, and e2e support
   (`<folder>/testing/e2e`) in a unit test;
-- of the kernel, more than its configuration in the web server's entry, than it and the inventory
-  in the data's tests, than those and the files' key in `deployment`.
+- of the kernel, more than its configuration and the inventory in the data's tests, than those
+  and the files' key in `deployment`.
 
 Records: [Module contracts](../../docs/knowledge/decisions.md#module-contracts),
 [Guards are configuration](../../docs/knowledge/decisions.md#guards-are-configuration),

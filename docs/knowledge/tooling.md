@@ -219,7 +219,9 @@ ports, and the database's volume stays.
   CI runs.
 - **Reading settings.** Only `@app-template/kernel/config` reads the environment: a setting is a
   `Config` value of `effect/Config` (`API_PORT` a `Config.Port`), settings read together one
-  `Config.all`, and a reader yields it where it builds its layer. Tests provide a
+  `Config.all`, and a reader yields it where it builds its layer. The one exception is the web
+  server, `apps/web/main.ts`, which declares its three settings itself, since the web declares no
+  kernel. Tests provide a
   `ConfigProvider.fromUnknown` record, so they never need `.env`; a test process reads no `.env`
   either, so a test without its record fails with a `ConfigError`.
 

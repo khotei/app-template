@@ -61,7 +61,6 @@
       "name": "@app-template/web",
       "dependencies": {
         "@app-template/http-api": "workspace:*",
-        "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
         "effect": "catalog:effect",
       },

@@ -81,7 +81,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
 | `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data |
 | `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✓ | `apps/web/**`; `make bundle-check` |
-| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | `/config` only | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, a module, `use-cases`; review, the rest |
+| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, a module, `use-cases`, the kernel; review, `http-api` and a package but `ui` |
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
 | `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
 
@@ -355,11 +355,10 @@ The import forms below break an import rule and pass every import guard, so only
 them:
 
 - **A type import inside an expression in web client code.** `export type X =
-  import('@app-template/kernel/config').AwsConfig` in `app/`, `features/` or
+  import('@app-template/packages/db').Transaction` in `app/`, `features/` or
   `shared/` passes Biome's `noRestrictedImports`, which does not see `import()` inside a type,
-  and `tsc -b`, because web declares `@app-template/kernel` for its server entry. The type is
-  erased, so nothing reaches the browser, but the client then depends on the shape of the server
-  config.
+  and `tsc -b`, because web declares `@app-template/packages` for `ui`. The type is erased, so
+  nothing reaches the browser, but the client then depends on the shape of server code.
 - **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
   only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
   `Data.<Name>` then reaches what the names were refused for.

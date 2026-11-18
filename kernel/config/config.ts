@@ -4,8 +4,6 @@ export const apiPort = Config.Port('API_PORT')
 
 export const workerPort = Config.Port('WORKER_PORT')
 
-export const webPort = Config.Port('WEB_PORT')
-
 export const databaseUrl = Config.Redacted('DATABASE_URL')
 
 /** `endpoint` is set for MiniStack and absent on AWS; credentials stay with the SDK's own chain. */

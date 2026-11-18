@@ -1,10 +1,14 @@
 import { Config, Effect } from 'effect'
 
-import { apiPort, nodeEnv, webPort } from '@app-template/kernel/config'
-
 import index from '#web/index.html'
 
-const config = Config.all({ apiPort, webPort, nodeEnv }).pipe(Effect.runSync)
+const config = Config.all({
+  apiPort: Config.Port('API_PORT'),
+  webPort: Config.Port('WEB_PORT'),
+  nodeEnv: Config.Literals(['development', 'test', 'production'], 'NODE_ENV').pipe(
+    Config.withDefault('development'),
+  ),
+}).pipe(Effect.runSync)
 const apiOrigin = `http://localhost:${config.apiPort}`
 
 function proxyToApi(request: Request): Promise<Response> {
