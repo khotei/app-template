@@ -66,4 +66,5 @@ return shipped                                           // the value built: no 
   each read; one a model function derives from the one row its read already nests stays derived
   ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
 - Plumbing is a pipeable, never `if (…) return yield* Effect.die(…)`; an import cycle is broken by
-  widening a type, never by a new file.
+  widening a type, or, where two models nest each other's fields, by a `<name>-fields.model.ts`
+  that both import.
