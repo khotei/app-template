@@ -50,18 +50,16 @@ const { layer: AssistantTest } = recordAssistant({
   suggestTitle: Effect.succeed(Option.some(scriptedAnswers.title)),
 })
 
+/** Fresh, so the apps share no layer with the test and run on the clients their config builds. */
 const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(
   Layer.provide([BunCrypto.layer, AssistantTest]),
+  Layer.fresh,
 )
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the assistant scripted,
  * with an `ApiClient` on the api; `SqlClient` and `FileRepository` stay in context for what the
  * test reads behind the apps.
- *
- * `PgClientTest`, not `DbTest`: a layer is built once per runtime, so `DbTest`'s `Db.layer` would
- * also serve the apps, bound to the test's client while their `Transaction` holds their own, and
- * every write would commit outside the transaction.
  */
 export const StandTest = Layer.unwrap(
   Effect.gen(function* () {

@@ -34,9 +34,9 @@ Where each kind of test and its support live, and what a test may import:
   row and no job is kept. A race sends the rival requests with `Effect.all(…, { concurrency:
   'unbounded' })` and asserts an outcome that holds whichever wins; a probe that removes the guard
   turns it red.
-- Never put `DbTest` in one runtime with an app's layer: a layer is built once per runtime, so
-  its `Db.layer` would serve both, and the app's writes would commit outside the test's
-  transaction.
+- An app's layer in a test's runtime ends in `Layer.fresh`
+  (`repos/effect/migration/layer-memoization.md`): it then shares no layer with the test's own,
+  builds its clients from its config, and keeps its writes in its own transaction.
 
 ## Test support
 
