@@ -24,13 +24,13 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   `infrastructure/` the adapters of its ports; its `contract/`, once another module needs one,
   what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
-  configured clients (`/config`, `/postgres`, `/aws`, `/queue`, `/llm`), each module's
+  configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, `http-api`, the API contract the api implements and the web client calls,
   which declares the wire itself and imports only `effect`, and the apps, thin entry points that
   assemble the layers and provide the clients. Nothing of `application/` reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
-provisions the stores, locally and on AWS ([aws.md](aws.md)). What each ring and layer may import:
+provisions the stores of the local stand ([aws.md](aws.md)). What each ring and layer may import:
 [Dependency rules](#dependency-rules). The records:
 [Modules by capability](decisions.md#modules-by-capability),
 [A module's layers](decisions.md#a-modules-layers), [One kernel](decisions.md#one-kernel),
@@ -227,14 +227,15 @@ export class PlaceOrderUseCase extends Context.Service<PlaceOrderUseCase, {
 An entity is the data layer's record; its model is the module's. Follow the files of `chat` from the
 data outward, write each test before its code and run `make check` after each step. `<entity>` is
 the kebab name (`document`), `<Name>` the Pascal one of the data layer's names, `<Model>` the
-model's.
+model's. A new module starts with its entry ([Add a module](#add-a-module)), which the model's
+imports need.
 
 1. **The data.** `kernel/data/<store>/`, a store's folder (messages share `chat/`):
    `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Insert`,
    `Where` and `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an
    `index.ts`, re-exported by `kernel/data/index.ts`; the table in
-   `kernel/data/relations.ts`; `make migration` writes the migration
-   ([database.md](database.md)). What a table and an entity may import and declare:
+   `kernel/data/relations.ts`; the one `init` migration regenerated
+   ([database.md](database.md#migrations)). What a table and an entity may import and declare:
    [kernel/CLAUDE.md](../../kernel/CLAUDE.md). Ownership is a field of the `<Name>EntityWhere`
    the reads take, so a record of another owner reads as absent, never a check after the read.
    Test the repository on `DbTest`, and add its memory repository with a twin of every guard
@@ -250,9 +251,11 @@ model's.
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.
-5. **The flows.** A flow over two services or a job is a [use case](#a-use-case); asynchronous
-   work is a queue definition in the module's `services/` and a handler in `apps/worker/`
-   ([database.md › The sends](database.md#the-sends)).
+5. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
+   queue to the inventory and its definition to the module's `services/`
+   ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
+   ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
+   worker's route.
 6. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape
    in `api-<entity>.model.ts`, its errors in `api-<entity>.error.ts` and its ids in
    `http-api/shared/ids.ts`, as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
@@ -260,8 +263,8 @@ model's.
    added before it; its handler in `apps/api/<entity>/` and its mappers in
    `apps/api/<entity>/<entity>.mapper.ts`, the handler added to `ApiRoutes` and its services to
    `ApiHttp`, the repository's layer to `ApiLayer`. Test only what HTTP adds, on the api test
-   layer; a flow new to both apps joins the journey. A browser feature calls it through
-   `ApiClient` from `apps/web/features/<entity>/`.
+   layer; a new module's journey case goes in a file of its own on `StandTest`. A browser
+   feature calls it through `ApiClient` from `apps/web/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).
@@ -312,7 +315,9 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
    the `application/*/contract/**` override already covers it. Record:
    [Module contracts](decisions.md#module-contracts).
 4. **The consumers** declare `@app-template/application` in their `package.json`; the browser is
-   none, and `make bundle-check` refuses the module in its bundle with no edit.
+   none, and `make bundle-check` refuses the module in its bundle with no edit. The api's twins
+   test names the modules it compares with the contract: add the new one, since no check sees
+   a module the test leaves out.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a record if the cut is a
    decision ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
@@ -337,16 +342,10 @@ Why each rule sits with its guard, and what that costs:
 [Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard reads the build's metafile, which lists every input the bundle keeps with its
-imports, so it sees what the bundle holds however Bun applies `"sideEffects"`, and names no
-folder of the repository: an input under `node_modules` belongs to the package its last
-`node_modules/<name>` names, any other to its nearest `package.json`, plus the subpath of the
-export whose folder holds it (`@app-template/packages/ui`). The entry's own workspace is implied.
-A type-only import is erased and passes, as it should. `apps/web` imports only `http-api` and
-`packages/ui`, and the contract imports only `effect`, so a leak comes through a package the list
-allows growing a server import, which the guard refuses with its chain. A metafile without
-`inputs`, `outputs` or one entry point, or a manifest it cannot find, stops it with exit 2, never
-a clean pass.
+The bundle guard passes a type-only import, which the build erases, as it should. `apps/web`
+imports only `http-api` and `packages/ui`, and the contract imports only `effect`, so a leak
+comes through a package the list allows growing a server import, which the guard refuses with
+its chain.
 
 ### Known gaps
 
@@ -369,7 +368,8 @@ them:
   review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. Purity rests on
-  review alone: no check looks for `Date.now`, `new Date(` or `randomUUID`.
+  review: the Effect language service has the checks (`globalDate`, `cryptoRandomUUID`,
+  `globalFetch`, `processEnv`, each with its `…InEffect` twin), switched off.
 - **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
   its tests, so `@effect/vitest`, a `/testing` entry and, in a module's services,
   `@effect/platform-bun` pass in the layer's source too. A module's test support

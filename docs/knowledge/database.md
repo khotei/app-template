@@ -13,10 +13,11 @@ an `Effect`, never a promise.
 ## Schema and entity files
 
 The data layer, `kernel/data/<store>/`, declares each table in `<name>.table.ts`, with its
-columns' schema `<Name>Columns` (`createSelectSchema(<table>)`), and its entities, the schemas
-read from it, in `<name>.entity.ts`; what each may import: [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
+columns' schema `<Name>Columns` (`createSelectSchema(<table>)`) where a neighbour's entity nests
+it, and its entities, the schemas read from it, in `<name>.entity.ts`; what each may import:
+[kernel/CLAUDE.md](../../kernel/CLAUDE.md).
 The tables form a DAG and import no entity, so an entity nests a neighbour's `<Name>Columns`
-from the table file without a cycle: `RunEntity` nests `ChatColumns` and `MessageColumns`, and
+from the table file without a cycle: `RunEntity` nests `MessageColumns`, and
 `ChatEntity` and `MessageEntity` nest `RunColumns`, where the entities would import each other.
 The tables are the one declaration of the schema: the migrations are generated from them and
 the entities derived from them.
@@ -70,12 +71,12 @@ the entities derived from them.
 
 ## Entities and mappers
 
-An entity file lays its entity over the table's `<Name>Columns`, in the data layer's own types
+An entity file lays its entity over the table's columns, in the data layer's own types
 (`string`, `string | null`, `Date`), with `createInsertSchema` from `drizzle-orm/effect-schema`
 for its `Insert`, beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and writes
 filter and change by. An entity is the shape every read returns, one level deep: a chat's and a
-message's nest their attachments and their Run's columns, a Run's its chat's and its messages'
-columns, and the nested columns nest nothing:
+message's nest their attachments and their Run's columns, a Run's its messages' columns, and
+the nested columns nest nothing:
 
 ```ts
 export const ChatEntity = Schema.Struct({
@@ -99,6 +100,7 @@ with the second and encode with the first, since a write holds the model's own f
 export const ChatFieldsFromColumns = Schema.Struct({
   ...ChatColumns.fields,
   id: ChatId,
+  userId: UserId,
   title: Schema.OptionFromNullOr(ChatTitle),
   createdAt: Schema.DateTimeUtcFromDate,
   updatedAt: Schema.DateTimeUtcFromDate,
@@ -287,7 +289,7 @@ chat's title) is the one the worker reads
 ([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the message through the
-  definition's schema to a JSON string and sends it, with no attribute, to the definition's queue;
+  definition's schema to a JSON string and sends it to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
@@ -315,12 +317,12 @@ at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
   table changed without a committed migration fails the build.
 - Commit `migration.sql` and `snapshot.json` together. The ledger `drizzle.__drizzle_migrations`
   records each migration once, so an edit never reaches a database that already applied it.
-- **Until a deployed database holds data, the migrations stay one `init`.** A change that
-  drizzle-kit cannot write alone (a rename it asks about, values to carry over) deletes
-  `kernel/data/migrations/` and regenerates it with `make migration NAME=init`, never a
-  rename by `--hints` or hand-written SQL; a local database rebuilds by `make reset && make up`.
+- **Until a deployed database holds data, the migrations stay one `init`.** Every change to a
+  table deletes `kernel/data/migrations/` and regenerates it with `make migration NAME=init`,
+  never a second migration, a rename by `--hints` or hand-written SQL; a local database then
+  rebuilds by `make reset && make up`. Two branches that both regenerated it merge as two
+  folders, which `make migration-check` refuses: regenerate once more.
   The first deployed database ends this: from then on a committed migration is never edited.
-  A database migrated before `init` replaced the two earlier migrations needs `make reset` once.
 - The apps neither migrate nor check the schema at startup; only `make migrate` and the tests'
   setup apply migrations.
 - Biome skips `kernel/data/migrations/`: the files are drizzle-kit's output, and a

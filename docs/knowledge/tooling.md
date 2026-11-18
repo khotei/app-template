@@ -12,31 +12,9 @@ Everything runs through the root `Makefile` (GNU Make 3.81, the macOS default). 
 and `make up`, and the Pulumi CLI, for `make up`; `make check` needs only Docker,
 and `make setup` and `make test-unit` need neither.
 
-| Target | Runs | Use |
-|---|---|---|
-| `make setup` | `bun install`, the Claude Code plugin `mattpocock-skills` when `claude` is on the `PATH`, then copies `.env.example` to `.env` if missing | first clone; installs the git hooks too; needs no Pulumi CLI; safe to rerun |
-| `make up` · `down` · `reset` · `stack` | Pulumi on `deployment/local/`, then `make migrate` · Docker | the local stand, MiniStack with the database, the bucket and the queues; what each target does: [aws.md › The local stand-in](aws.md#the-local-stand-in) |
-| `make worktree N=<n> NAME=<name>` | `.claude/skills/ticket-implement/worktree.sh` | inside a new worktree: names it, `bun install`, writes its `.env` with the ports and stage of `N` ([Worktrees](#worktrees)) |
-| `make dev` | `make migrate`, then `bun --filter './apps/*' dev` | every app's process, interleaved output; stops first on a stand behind its migrations |
-| `make dev-api` · `dev-worker` · `dev-web` | one app's `dev` script, the api's and the worker's after `make migrate` | one process |
-| `make debug-api` · `debug-worker` · `debug-web` | one app's `debug` script | the same mode plus `--inspect` |
-| `make check` | `doc-lint`, `sh-lint`, `lint`, `typecheck`, `api-check`, `migration-check`, `test`, `bundle-check` | the gate before every commit and step report |
-| `make doc-lint` | `markdownlint-cli2` with `.misc/lint/markdownlint-cli2.mjs` over the Markdown outside `docs/tickets/`, `repos/` and the ignored files: MD013 at 100 and four rules of its own, every other markdownlint rule off | a prose line over 100 (tables, fences, headings and a line with no space past 100 pass); a backticked repo path that does not exist, the roadmap skipped; a source path in a `CLAUDE.md`, a rule, a skill or an agent ([decisions.md › Instructions name patterns](decisions.md#instructions-name-patterns)); a rule `paths:` filter that matches no file through git's glob, a brace included; a `CLAUDE.md` or a rule over its limit ([decisions.md › Instructions within size limits](decisions.md#instructions-within-size-limits)). Each fails the gate naming file and line; a reworded limits line stops it with exit 2, naming the line it expects |
-| `make sh-lint` | ShellCheck from its image, pinned in the `Makefile`, with `.misc/lint/shellcheckrc`, over the `*.sh` files outside `repos/` that git tracks or does not ignore, a deleted one skipped | every optional check on, the masked return of a command substitution (SC2312) among them, and braces around every variable (SC2250) and a default branch in every `case` (SC2249) off; a deliberate exception is a `# shellcheck disable=<code> # <reason>` line above its command; needs Docker |
-| `make review-rules` | `bun .misc/lint/rule-filters.mjs`, the doc lint's reader of each rule's `paths:`, then `git diff $(BASE) --no-renames --name-only` and `git ls-files --others --exclude-standard` for each filter; `BASE` defaults to `HEAD` | lists the rules that bind the diff from `BASE` to the working tree, those without a filter included: `/ticket-implement` passes the parent of the step's first round and gives the list to the Standards reviewer; not part of `check` |
-| `make lint` | `biome check` (CI: `make lint BIOME=ci`, `biome ci`) with `.misc/lint/biome.base.json` and its GritQL plugins `biome-imports.grit` (imports) and `biome-effect.grit` (the Effect style of [effect-style.md › Composition](../../.claude/rules/effect-style.md#composition) and [effect.md](../../.claude/rules/effect.md); what each list flags: the plugin's comments) | lint, format and import order, without writing; a plugin that errors on a file, which Biome only notes and skips, fails it with exit 2 |
-| `make fmt` | `biome check --write` | apply formatting, import sorting and safe fixes |
-| `make typecheck` | `bunx tsc -b`, the patched `tsc` | typecheck every workspace through the project references, Effect diagnostics included |
-| `make migrate` · `migration NAME=<name>` · `migration-check` | the kernel's migrate program · `drizzle-kit generate` | apply, generate and check migrations: [database.md › Migrations](database.md#migrations) |
-| `make api-check` · `api-snapshot` | `bun apps/api/openapi.ts <file>`, which writes the OpenAPI document of `Api` to the file, then `diff -u` against `http-api/openapi.json` · the same, moved over the snapshot once it succeeded | a route, a schema, a status or an error's field that changes on the wire fails the gate until the snapshot moves with it, in the commit that changes the contract; Biome skips the generated snapshot |
-| `make test-unit` | `bun --bun vitest run --project unit` | every `__tests__/**/*.test.ts`; no Docker ([Tests](#tests)) |
-| `make test-e2e` | `bun --bun vitest run --project e2e` | every `__e2e__/**/*.e2e.ts` and `apps/e2e/**/*.e2e.ts`; needs a running Docker daemon for the run's own Postgres and MiniStack containers ([Tests](#tests)) |
-| `make test` | `test-unit`, then `test-e2e` | both projects |
-| `make bundle-check` | `bun build` of the web entry into `node_modules/.cache/web-bundle` with a metafile, then `bun .misc/lint/bundle-check.mjs` over it | fails when the bundle holds a package outside `browserPackages` in `apps/web/package.json`, naming the package and the import chain that brought it: [architecture.md › Boundary guards](architecture.md#boundary-guards); a metafile or a manifest it cannot read stops it with exit 2 |
-| `make outdated` | `bun outdated --recursive` | newer versions for every workspace |
-| `make vendor-effect` | `git subtree pull --squash --prefix repos/effect` of the `effect@<pin>` tag | update `repos/effect` to the catalog pin; it commits, so run it on a clean tree. First time: `git subtree add` with the same arguments |
-| `make vendor-drizzle` | `git subtree add`, then `pull`, `--squash --prefix repos/drizzle` of the `v<pin>` tag of `drizzle-orm` | the same for `repos/drizzle`: the whole Drizzle monorepo, since `git subtree` takes no subfolder; the source is under `repos/drizzle/drizzle-orm/src` |
-| `make clean` | removes every `node_modules` and `coverage` | a clean reinstall: follow with `make setup` |
+`make help` lists every target with what it does; a recipe, and why it is so, is in the
+`Makefile`. `make check` runs every gate, in the order its recipe lists, before every commit and
+step report.
 
 The lint configuration lives in `.misc/lint/`, the folder for what serves the repo and not the
 application; a lint rule is written only there. `make doc-lint` hands `markdownlint-cli2` its
@@ -63,7 +41,7 @@ Scripts live only where `make` calls them: the root `package.json` holds `prepar
 and `test` (`make lint` calls Biome itself); each process app (`api`, `worker`, `web`) holds
 `dev`, `debug` and `start`; `apps/e2e` and the library workspaces hold none.
 
-### Tests
+## Tests
 
 Tests run on vitest, on the Bun runtime (`bun --bun`), so `Bun.serve` and the other Bun APIs work
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
@@ -124,37 +102,19 @@ Which suite runs where:
   shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and `sequence`
   itself, and the root sets no `globalSetup`, so a unit run starts no container. A new workspace
   needs no test config, and the vendored suites and the worktrees' copies stay out.
-- **One Postgres and one MiniStack per e2e run, a database and a stage per test.**
-  The `globalSetup`, in the data layer's e2e support, starts one Postgres container and migrates
-  a template database in it with `migrateDatabase(folder)`, as `make migrate` does, and one
-  MiniStack container beside it (about two seconds for both); it hands the endpoint to the tests
-  through `inject('awsEndpoint')`, and `SqsClientTest` and `S3ClientTest` from
-  `@app-template/packages/aws/testing/e2e` are clients on that MiniStack. Each test provides
-  `PgClientTest` from `@app-template/packages/db/testing/e2e`: a fresh database copied from the
-  template and dropped when the test ends, about 40 ms in all; a test on S3 or SQS
-  (`FileRepository`'s beside `DbTest`, `QueueSender`'s, the e2e through the api) provides
-  `AwsTest` from the kernel's `aws` e2e support: a stage of its own on the run's MiniStack, its
-  bucket and queues provisioned ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
-  The unit suites run on neither: `FileRepositoryTest` (in `RepositoryStackTest`) and `recordMessages()`
-  stand in for S3 and SQS. A test therefore sees only its own rows and resources, even through a
-  query that reads a whole table, and files run in parallel. E2e tests need Docker and nothing else:
-  no `.env`, no `make up`.
-- **Two worktrees at once.** Testcontainers maps each container to a free host port and names it
-  itself, so two trees run `make test-e2e` side by side, and beside their local stands, with
-  nothing to configure; a unit run starts nothing at all.
-- **The journey, in the `apps/e2e` test app.** Its suite drives a user, a chat, an upload and a
-  send over HTTP and reads the reply and the title back once the worker has written them; the use
-  cases' races share its stand, and their rollbacks are requests too, each on a stand of its
-  own, since it alters the schema to make Postgres refuse a write: `StandTest`, in the test
-  app's support, runs `ApiLayer` and `WorkerProcess` (the worker but its `Assistant`), the apps'
-  layers that their `./testing` re-exports under their own names (a `Test` suffix names a test
-  double alone), in the test's own runtime over a `PgClientTest` database, an `AwsTest` stage and
-  the chat module's scripted `Assistant` (`recordAssistant`), under one `ConfigProvider` that
-  names them, so the apps' own adapters and config code are the ones under test, but the
-  assistant's, which its own suite covers ([ai.md](ai.md)). The api takes a free port the layer
-  finds, since `Config.Port` refuses `0`, so two runs share nothing. The apps' SDK clients read
-  credentials from the environment, which the `e2e` project sets to the fixed test pair MiniStack
-  accepts. The journey proves the wiring; every rule keeps its lower seam.
+- **One Postgres and one MiniStack per e2e run, a database and a stage per test.** The run's
+  `globalSetup`, in the data layer's e2e support, starts both containers and migrates a template
+  database; each test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`, a
+  fresh database copied from the template, and a test on S3 or SQS `AwsTest` from the kernel's
+  `aws` e2e support, a stage of its own ([aws.md › Tests on Docker](aws.md#tests-on-docker)).
+  The unit suites run on neither. E2e tests need Docker and nothing else: no `.env`, no
+  `make up`, and two trees run them side by side.
+- **The journey, in the `apps/e2e` test app.** `StandTest`, in the test app's support, runs the
+  api's and the worker's layers in the test's runtime over a `PgClientTest` database, an
+  `AwsTest` stage and the chat module's scripted `Assistant` ([ai.md](ai.md)). The use cases'
+  races share its stand, and each rollback takes a stand of its own, since it alters the schema
+  to make Postgres refuse a write. The journey proves the wiring; every rule keeps its lower
+  seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
   test owns its database and its stage, nothing is shared between tests. The journey's block
   opts out, since its tests share one stand.
@@ -168,13 +128,9 @@ Which suite runs where:
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
   reporter; `bun run test --reporter=default` forces it.
-- **Errors are compared by their encoded form.** JSC gives every `Error` its own `line`, `column`
-  and `sourceURL` keys (`originalLine` and `originalColumn` too, outside vitest), which hold the
-  real position only once the JIT compiles the code that builds the error. `Equal.equals` drops
-  only `stack` from an `Error`, so two errors with equal fields differ at random, more often as the
-  suite grows. Tests therefore compare errors with `assertSchemaEquals` from
-  `@app-template/packages/testing`, which encodes both through the error's schema and sees only
-  its fields.
+- **Errors are compared by their encoded form,** with `assertSchemaEquals` from
+  `@app-template/packages/testing`: under Bun two errors with equal fields differ at random (why:
+  its TSDoc).
 
 ## Run and debug
 
@@ -203,24 +159,12 @@ Which suite runs where:
 | Top-level state of a file (a cache, a counter) | rebuilt, so data is lost | rebuilt |
 | Timers and open connections | survive the reload | gone |
 
-Checked by experiment: a file that bumps a counter on `globalThis` and starts a `setInterval`
-logging it. After one edit under `--hot`, the counter read 2 and **both** intervals kept ticking,
-the old code next to the new one, with the PID unchanged. Under `--watch` the counter read 1 and
-only the new interval ran.
-
-That is why the worker uses `--watch`: its queue consumers are fibers of an Effect runtime, and
-under `--hot` every edit would start a second runtime, and a second consumer of each queue, beside
-the old one. A re-exec leaves nothing to stop, so `apps/worker/main.ts` is one `runMain` and the
-scope's finalizers (SIGTERM hands back the job in hand and logs `worker stopped`) are the whole
-shutdown; an edit runs the same finalizers before the re-exec, so the old runtime logs `worker
-stopped` ([aws.md › Queues](aws.md#queues)). `Bun.serve` handles
-`--hot` natively by swapping its routes, so `api` and `web` keep the faster reload. An Effect
-runtime does not: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
+Under `--hot`, `Bun.serve` swaps its routes in place, which is all `web` needs. An Effect runtime
+is not swapped: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
 one, whose scope, fibers and finalizers live on. So `apps/api/main.ts` keeps a stop handle on
-`globalThis` (the one thing a reload keeps): each evaluation first stops the previous runtime and
-waits for its finalizers, then launches its own. Checked with a probe layer that ticked every
-second: without the handle, two edits left three tickers and SIGTERM ran three finalizers; with it,
-one ticker at a time, each finalized before the next `Listening on`.
+`globalThis`, the one thing a reload keeps, and each evaluation first stops the previous runtime
+and waits for its finalizers. The worker keeps no handle and runs under `--watch`: a re-exec
+leaves nothing to stop, so `apps/worker/main.ts` is one `runMain`.
 
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
@@ -265,7 +209,6 @@ ports, and the database's volume stays.
   and lists what the code reads from it, plus the variables a client SDK reads from the
   environment itself, such as the AWS credentials, which never pass through
   `@app-template/kernel/config` ([aws.md › The local stand-in](aws.md#the-local-stand-in)).
-  Variables of clients that are still stubs stay commented out.
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
 - **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
   relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
@@ -277,7 +220,7 @@ ports, and the database's volume stays.
   building a config layer, with Effect's `ConfigError` naming the first missing or invalid
   variable. Variables exported in the shell work without a file, which is how CI runs.
 - **Reading settings.** Only `@app-template/kernel/config` reads the environment: each area is a
-  `Context.Service` (`ApiConfig`, `QueueConfig`, …) with a `layer` on `effect/Config`. Tests
+  `Context.Service` with a `layer` on `effect/Config`. Tests
   provide a `ConfigProvider.fromUnknown` record, so they never need `.env`.
 
 ## Dependencies
@@ -375,10 +318,9 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all
   run it. `repos/` is never walked: no reference points into it.
 - **`unstableApiUsage` is a suggestion, and suggestions stay in the editor.** The project uses
-  modules marked `@stability unstable` by choice (`effect/persistence`, the HTTP and AI modules,
-  all of `@effect/vitest`), pinned exactly; at the rule's default `warning`, each import of one
-  fails `tsc -b`. `includeSuggestionsInTsc: false` keeps suggestion-level hints out of the gate's
-  output.
+  modules marked `@stability unstable` by choice, pinned exactly; at the rule's default
+  `warning`, each import of one fails `tsc -b`. `includeSuggestionsInTsc: false` keeps
+  suggestion-level hints out of the gate's output.
 - **`bun check` is not a gate.** Bun's native typechecker is faster and emits nothing, but it
   ignores tsconfig `plugins`, so it passes an Effect value that is neither yielded nor assigned.
 - **`tsc -b` writes only into `node_modules/.cache/tsc/<workspace>`.** `composite` cannot be
@@ -453,7 +395,7 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 
 | Job | Runs |
 |---|---|
-| `static` | `bun install --frozen-lockfile`, `make lint BIOME=ci`, `make doc-lint`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
+| `static` | `bun install --frozen-lockfile`, `make lint BIOME=ci`, `make doc-lint`, `make sh-lint`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make api-check` (`pinned` only), `make migration-check`, `make bundle-check` |
 | `test` | `bun install --frozen-lockfile`, `bun run test` |
 | `links` | `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
 

@@ -233,7 +233,7 @@ domain's errors as they are; the web calls it. Nothing of `application/` reaches
 
 `Status` belongs to `chat`.
 
-- **Why:** only the chat and the message use it.
+- **Why:** only the chat and the Run use it.
 - **Sources:** the ticket's survey of its users.
 - **Rejected:** `Status` in a shared place: a vocabulary owned by no module.
 - **Cost:** none today.
@@ -743,16 +743,16 @@ that go through a changed interface, and the setup of a moved client.
 
 ### One initial migration
 
-The migrations restarted as one initial migration generated from the data layer; every database
-was recreated (`make reset`).
+Until a deployed database holds data, the schema is one migration, `init`: a change to a table
+regenerates it, and every local database is recreated
+([database.md › Migrations](database.md#migrations)).
 
 - **Why:** the app is not in production, so no deployed row needs a migration path; one migration
-  reads as the schema, and the rename to `jobs` cost nothing.
+  reads as the schema.
 - **Sources:** `docs/knowledge/database.md`.
-- **Rejected:** the old migrations kept and `outbox` renamed in a third: a history no deployed
-  database needs.
-- **Cost:** every database was recreated once, losing its rows; the old migrations live only in
-  `git log`.
+- **Rejected:** a migration per change before production: a history no deployed database needs.
+- **Cost:** every schema change recreates each local database, losing its rows; two branches
+  that both changed a table meet as two `init` folders, regenerated once more.
 - **Guarded by:** `make migration-check` (the data layer matches the migrations).
 - **If reversed:** nothing to undo; once the app is in production, every change is a migration
   again.

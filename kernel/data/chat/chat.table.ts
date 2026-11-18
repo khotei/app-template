@@ -29,6 +29,6 @@ export const chats = snakeCase.table(
   ],
 )
 
-/** The columns of a chat, as the entities of its neighbours nest them. */
+/** The columns of a chat, which its entity extends. */
 export const ChatColumns = createSelectSchema(chats)
 export type ChatColumns = typeof ChatColumns.Type

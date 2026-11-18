@@ -76,14 +76,15 @@ path-style addressing; without one, the SDK's own endpoints.
 
 ## The inventory
 
-`kernel/aws/resources/resources.ts` lists every bucket and queue as plain data, keyed by an
-identifier and carrying its logical `name`. Physical names are `buildResourceName(stage, name)`:
-`app-template-<stage>-<name>`, so `local`, every e2e test and every AWS stage hold their own set.
+`kernel/aws/resources/resources.ts` lists every bucket and queue, and the worker's function, as
+plain data, keyed by an identifier and carrying its logical `name`. Physical names are
+`buildResourceName(stage, name)`: `app-template-<stage>-<name>`, so `local`, every e2e test and
+every AWS stage hold their own set.
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | a bucket | its `lifecycle` days | the bucket and its lifecycle rule, which aborts incomplete multipart uploads. |
-| a queue | `maxReceiveCount` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` from here, so the two cannot disagree. |
+| a queue | `maxReceiveCount`, `visibilityTimeoutSeconds` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `services/` reads its `name` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with

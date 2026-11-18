@@ -21,7 +21,6 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-/** A chat's own fields: what a Run nests of it. */
 export const ChatFields = Schema.Struct({
   id: ChatId,
   userId: UserId,

@@ -60,7 +60,8 @@ Requires Bun at the version in `package.json › packageManager`, GNU Make, Dock
 
 ```sh
 make setup   # bun install, git hooks, the Claude Code plugin, .env from .env.example
-make up      # MiniStack with Postgres, the bucket and the queues inside it; migrates
+make up      # MiniStack with Postgres, the bucket and the queues inside it, and Grafana; migrates
+             # (the first run downloads several GB: the provider plugins and the Grafana image)
 make dev     # runs make migrate, then api, worker and web together; needs make up's stand
 ```
 
@@ -73,6 +74,7 @@ make dev     # runs make migrate, then api, worker and web together; needs make 
 | `apps/api` | <http://localhost:3000> | `/health` |
 | `apps/web` | <http://localhost:3001> | the health panel; `/api/*` is proxied to the api |
 | `apps/worker` | <http://localhost:3002> | `POST /events`, the batches MiniStack's SQS mappings send |
+| Grafana | <http://localhost:3003> | `admin`/`admin`: one trace per message, its logs inside ([observability.md](docs/knowledge/observability.md)) |
 
 A whole conversation from the shell, with the cookie kept in a jar:
 
@@ -100,10 +102,10 @@ changes it.
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
 | `http-api/` | the HTTP contract the api serves and the web client calls |
 | `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
-| `kernel/` | the configured clients (`config`, `postgres`, `aws`, `queue`, `llm`) and `kernel/data`: every table, migration and repository |
+| `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
 | `packages/` | generic tools that know no app: database, S3, queue and model clients, UI, test helpers |
-| `deployment/` | Pulumi programs that provision the stores, in MiniStack locally and on AWS |
-| `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, tooling, process, decisions, glossary, roadmap |
+| `deployment/` | the Pulumi program that provisions the stores in MiniStack, from resource code an AWS stack can call |
+| `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, telemetry, tooling, process, decisions, glossary, roadmap |
 | `docs/tickets/` | one folder per ticket: its requirements, design, plan and verification |
 | `.claude/` | the agent toolkit: the project's `CLAUDE.md`, skills, agents, hooks, rules and settings |
 | `repos/` | Effect's and Drizzle's source at the pinned versions, to read rather than guess |
@@ -115,8 +117,7 @@ The code is cut in three rings, and every dependency points inward:
 
 ```mermaid
 graph LR
-  B["🌐 boundary<br/>apps · http-api · kernel clients · adapters"] --> U["application/use-cases"]
-  U --> M["⚙️ behaviour<br/>application/chat · application/identity"]
+  B["🌐 boundary<br/>apps · http-api · kernel clients · adapters"] --> M["⚙️ behaviour<br/>application/chat · application/identity · application/use-cases"]
   M --> D["🗄️ data<br/>kernel/data"]
 ```
 
@@ -191,7 +192,7 @@ change needs, what each skill does under the hood and the plugin it wraps:
 | run the unit suites only, in seconds | `make test-unit` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
 | run one test file or one test | `vitest` on the file, with `-t` | [tooling.md › Commands](docs/knowledge/tooling.md#commands) |
 | fix formatting and import order | `make fmt` | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
-| change a table | edit its `.table.ts`, then `make migration NAME=<name>` and `make migrate` | [database.md › Migrations](docs/knowledge/database.md#migrations) |
+| change a table | edit its `.table.ts`, regenerate the one `init` migration, rebuild the local database | [database.md › Migrations](docs/knowledge/database.md#migrations) |
 | start over with an empty database | `make reset && make up` | [tooling.md › Environment](docs/knowledge/tooling.md#environment) |
 | work on two branches at once | a worktree with its own ports and containers | [tooling.md › Worktrees](docs/knowledge/tooling.md#worktrees) |
 | learn why a check failed | the symptom table | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
@@ -225,6 +226,7 @@ which order: [roadmap.md](docs/knowledge/roadmap.md).
 | How are records stored, guarded, migrated and tested? | [docs/knowledge/database.md](docs/knowledge/database.md) |
 | How do the apps reach S3 and SQS, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
 | How does the assistant ask the model for a reply or a title? | [docs/knowledge/ai.md](docs/knowledge/ai.md) |
+| How do I follow one message through the api and the worker? | [docs/knowledge/observability.md](docs/knowledge/observability.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
 | How is a change specified, planned, implemented and verified? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |

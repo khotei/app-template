@@ -46,10 +46,10 @@ _Avoid_: Pending run, current reply
 
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
-`preparing` and `generating` run it in stages, `running` in one, `done` and `failed` end it.
+`preparing` and `generating` run it in stages, `done` and `failed` end it.
 Every status picks its subset of `Status` (the Run's, the chat's), and a check on one value
 reads the shared predicate.
-_Avoid_: State, stage, in progress; a new word for one of the seven
+_Avoid_: State, stage, in progress; a new word for one of the six
 
 **Chat status**:
 What the chat's newest Run makes of it: `queued` while that Run is active, `failed` after it
@@ -218,5 +218,5 @@ _Avoid_: Segment, step, event
 
 **Telemetry backend**:
 The service that receives telemetry and shows it; locally a container `make up` starts beside the
-others when `.env` asks for it, elsewhere whatever the environment names.
+others, elsewhere whatever the environment names.
 _Avoid_: Collector (it is one part), monitoring tool, APM

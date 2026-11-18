@@ -27,7 +27,7 @@ stage verification and no `next`: its steps run straight to `/ticket-verify`
 
 Every artifact lives in a ticket folder named by `.claude/rules/sdd.md`, started from
 [docs/tickets/_template/](../tickets/_template/feature.md). The domain glossary is
-`docs/knowledge/glossary.md`, created when the first term is settled.
+`docs/knowledge/glossary.md`.
 
 An older `Refs:` line may name a folder before its rename: the slug is unchanged, and
 `git log --follow` on a file of the current folder reaches the commits made under the old name.

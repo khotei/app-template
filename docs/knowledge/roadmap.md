@@ -40,7 +40,7 @@ graph LR
 | 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
 | 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
-| 8 | [`observability`](#8-observability) | `feat` | 3 | in progress: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
+| 8 | [`observability`](#8-observability) | `feat` | 3 | done, as `telemetry-minimal`: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
@@ -57,10 +57,10 @@ graph LR
 | 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
-| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
+| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | done: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 | 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 | 27 | [`rules-from-attachment-work`](#27-rules-from-attachment-work) | `docs` | 24 | planned |
-| 29 | [`sdd-stages`](#29-sdd-stages) | `chore` | 2 | in progress: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
+| 29 | [`sdd-stages`](#29-sdd-stages) | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
 in [Re-homing `effect-setup`](#re-homing-effect-setup).
@@ -332,7 +332,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `docker-compose`; structured logging conventions; health and readiness endpoints; a
   `docs/knowledge/observability.md`.
 - **Out of scope.** Dashboards and alerting in AWS (9).
-- **Status.** In progress, narrowed to the least code: the `api`'s and the `worker`'s export, one
+- **Status.** Done, narrowed to the least code: the `api`'s and the `worker`'s export, one
   trace per user message across the queue, and a Grafana per tree:
   [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md).
   Later: `web` in the trace, Effect DevTools, health and readiness, log conventions, and
@@ -779,7 +779,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `docs/tickets/` or filters findings by a confidence score; a second artifact store.
 - **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
   the overlapping ones off and keeps here what they did better.
-- **Status.** In progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md).
+- **Status.** Done: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md).
 
 ### 26. `domain-from-data`
 
@@ -867,8 +867,8 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   every step; the low level is written one stage of about three steps at a time, after its facts
   are checked, and each stage ends with a review. The owner answers only on a change or a real
   choice.
-- **Number.** 28 is `lambda-processes`, on its own branch; it is the first ticket to use stages.
-- **Status.** In progress:
+- **Number.** 28 is `lambda-processes`; it is the first ticket to use stages.
+- **Status.** Done:
   [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md).
 
 ## Later
@@ -887,6 +887,9 @@ and deletes it here.
   default and unset in the inventory). Ways out to weigh: the handler gets the undecodable body
   to fail its own work, a consumer of the dead-letter queues, or a sweep of active replies
   ([database.md › Stuck Runs](database.md#stuck-runs)).
+- A third writer of a failed Run, such as a consumer of the dead-letter queues, takes the reply
+  use case's fail or adds `RunService.fail`; with the two writers of today the method was built
+  at +40 -36 and adds more than it removes.
 
 ### From `reply-run`
 
@@ -934,6 +937,19 @@ and deletes it here.
   (`application/chat/infrastructure/assistant.llm.ts:159`); `UserUnknownError` stays empty, so no
   secret reaches a reply or a log. Left: the lab's step for it was skipped. First check, by a
   run, which of an error's fields reach the api's and the worker's logs and spans.
+
+### From `telemetry-minimal`
+
+- (2026-11-15) Tempo's metrics per route and status lump every `POST` route into one line: its
+  span metrics count by span name and status, and the api's server span is named by the method
+  alone (`POST`), so `http.route` and `http.response.status_code` need dimensions in
+  `otel-lgtm`'s metrics-generator config. Left: the minimal feature reads traces, not metrics.
+  Ways out to weigh: those dimensions in the generator's config, or a server span named
+  `<method> <route>`.
+- (2026-11-15) The api's first `QueueSender.send` spends 281 ms of its 288 in
+  `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
+  looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
+  resolve the queue's URL once when the layer is built.
 
 ## Ideas to weigh
 
@@ -1139,16 +1155,3 @@ Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
   stay thin: outbox relay, SQS and S3 adapters, multipart-to-S3 sink, Lambda event adapter,
   per-test database isolation. Covered by Effect with only glue: SSE chat stream, multipart
   parsing, typed client, OTLP export, config from `.env` and the environment.
-
-### From `telemetry-minimal`
-
-- (2026-11-15) Tempo's metrics per route and status lump every `POST` route into one line: its
-  span metrics count by span name and status, and the api's server span is named by the method
-  alone (`POST`), so `http.route` and `http.response.status_code` need dimensions in
-  `otel-lgtm`'s metrics-generator config. Left: the minimal feature reads traces, not metrics.
-  Ways out to weigh: those dimensions in the generator's config, or a server span named
-  `<method> <route>`.
-- (2026-11-15) The api's first `QueueSender.send` spends 281 ms of its 288 in
-  `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
-  looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
-  resolve the queue's URL once when the layer is built.
