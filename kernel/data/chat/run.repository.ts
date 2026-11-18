@@ -1,11 +1,10 @@
 import { eq, inArray } from 'drizzle-orm'
 import { QueryBuilder } from 'drizzle-orm/pg-core'
-import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, identity, Layer, Option, UndefinedOr } from 'effect'
 
 import {
   buildSet,
   buildWhere,
-  decodeOptionalRow,
   orDieUnless,
   orDieWithSqlError,
   skipUndefined,
@@ -14,7 +13,7 @@ import {
 import { chats } from '#kernel/data/chat/chat.table'
 import {
   newestFirst,
-  RunEntity,
+  type RunEntity,
   type RunEntityInsert,
   type RunEntitySet,
   type RunEntityWhere,
@@ -82,7 +81,7 @@ export class RunRepository extends Context.Service<
                 orderBy: newestFirst,
                 with: withMessages,
               })
-              .pipe(Effect.flatMap(decodeOptionalRow(RunEntity))),
+              .pipe(Effect.map(Option.fromUndefinedOr)),
           orDieWithSqlError,
         ),
       }),

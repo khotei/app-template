@@ -1,14 +1,14 @@
-import { Array as Arr, Context, Effect, Layer, type Option } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { decodeOptionalRow, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
+import { orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
-import {
+import type {
   UserEntity,
-  type UserEntityCredential,
-  type UserEntityInsert,
-  type UserEntityWhere,
+  UserEntityCredential,
+  UserEntityInsert,
+  UserEntityWhere,
 } from '#kernel/data/user/user.entity'
 import { credentials, users } from '#kernel/data/user/user.table'
 
@@ -48,7 +48,7 @@ export class UserRepository extends Context.Service<
         (where: UserEntityWhere) =>
           db.query.users
             .findFirst({ where: filterOf(where) })
-            .pipe(Effect.flatMap(decodeOptionalRow(UserEntity))),
+            .pipe(Effect.map(Option.fromUndefinedOr)),
         orDieWithSqlError,
       ),
     }

@@ -41,10 +41,6 @@ export class Transaction extends Context.Service<
   )
 }
 
-/** Decodes the row a read found, or answers `Option.none()` when it found none. */
-export const decodeOptionalRow = <S extends Schema.Constraint>(schema: S) =>
-  Schema.decodeEffect(Schema.OptionFromNullishOr(schema))
-
 /**
  * Encodes a model through its mapper and decodes the result with the row's insert schema, which
  * drops the fields the table lacks and checks the row; a failure is a defect.

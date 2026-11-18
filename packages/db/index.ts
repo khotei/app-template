@@ -10,7 +10,6 @@ export {
 export {
   createDb,
   decodeManyWith,
-  decodeOptionalRow,
   decodeOptionalWith,
   encodeRowWith,
   hasRowPer,

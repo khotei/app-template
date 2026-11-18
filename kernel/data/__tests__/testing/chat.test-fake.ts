@@ -22,7 +22,7 @@ import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity
 import type { ChatEntity, ChatEntityWhere } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
-import { MessageEntityFromRead, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
+import { buildMessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import type { RunEntity, RunEntityWhere } from '#kernel/data/chat/run.entity'
@@ -141,7 +141,7 @@ const newestRunWhere = (
 
 /**
  * The message with its attachments and both of its Run relations, as `withAttachments` and
- * `withRun` read them; `MessageEntityFromRead` keeps the Run its author has.
+ * `withRun` read them; `buildMessageEntity` keeps the Run its author has.
  */
 const readMessage = (rows: Tables) =>
   flow(
@@ -160,8 +160,7 @@ const readMessage = (rows: Tables) =>
         Option.getOrNull,
       ),
     }),
-    Schema.decodeEffect(MessageEntityFromRead),
-    Effect.orDie,
+    buildMessageEntity,
   )
 
 /** The Run with its messages, as `withMessages` nests them; the keys keep them. */
@@ -283,10 +282,10 @@ export const MessageRepositoryTest = Layer.effect(
 
     const selectMany = (where: MessageEntityWhere) =>
       read.pipe(
-        Effect.flatMap((rows) =>
-          Effect.forEach(
+        Effect.map((rows) =>
+          pipe(
             inCreationOrderWhere(rows.messages, holdsMessageWhere(rows.chats, where)),
-            readMessage(rows),
+            Arr.map(readMessage(rows)),
           ),
         ),
       )

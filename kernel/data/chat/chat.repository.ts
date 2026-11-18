@@ -1,19 +1,9 @@
 import { eq } from 'drizzle-orm'
-import {
-  Array as Arr,
-  Context,
-  Effect,
-  identity,
-  Layer,
-  type Option,
-  Schema,
-  UndefinedOr,
-} from 'effect'
+import { Array as Arr, Context, Effect, identity, Layer, Option, UndefinedOr } from 'effect'
 
 import {
   buildSet,
   buildWhere,
-  decodeOptionalRow,
   eqOrIsNull,
   orDieUnless,
   orDieWithSqlError,
@@ -21,7 +11,7 @@ import {
 } from '@app-template/packages/db'
 
 import {
-  ChatEntity,
+  type ChatEntity,
   type ChatEntityInsert,
   type ChatEntitySet,
   type ChatEntityWhere,
@@ -50,8 +40,6 @@ const select = (where: ChatEntityWhere) =>
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
     with: { ...withAttachments, ...withRun },
   }) as const
-
-const decodeChats = Schema.decodeEffect(Schema.Array(ChatEntity))
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -89,16 +77,11 @@ export class ChatRepository extends Context.Service<
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
           (where) =>
-            db.query.chats
-              .findFirst(select(where))
-              .pipe(Effect.flatMap(decodeOptionalRow(ChatEntity))),
+            db.query.chats.findFirst(select(where)).pipe(Effect.map(Option.fromUndefinedOr)),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('ChatRepository.selectMany')(
-          (where) =>
-            db.query.chats
-              .findMany({ ...select(where), orderBy: { createdAt: 'desc' } })
-              .pipe(Effect.flatMap(decodeChats)),
+          (where) => db.query.chats.findMany({ ...select(where), orderBy: { createdAt: 'desc' } }),
           orDieWithSqlError,
         ),
         delete: Effect.fn('ChatRepository.delete')(

@@ -83,10 +83,10 @@ export const ChatEntity = Schema.Struct({
 })
 ```
 
-Where a read's shape is not the entity's, the entity file holds the codec from the one to the
+Where a read's shape is not the entity's, the entity file holds the function from the one to the
 other: a message's Run comes from two relations, the newest that answers a user's message and
-the one that wrote an assistant's, so `MessageEntityFromRead` keeps the one its author has and
-the repository decodes every read with it.
+the one that wrote an assistant's, so `buildMessageEntity` keeps the one its author has and the
+repository maps every read through it.
 
 A mapper, `<model>.mapper.ts` in the module's `services/`, lays the model's schemas over the
 columns as `<Model>FieldsFromColumns`, the codec of the model's own fields, and nests the
@@ -128,8 +128,8 @@ export const encodeChat = encodeRowWith(ChatFieldsFromColumns, ChatEntityInsert)
 The data layer declares the relations once, with `defineRelations` over every table, and `Db` is
 built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is typed. A relation
 names its columns (`from`, `to`) and joins on their equality only, and holds no order: a query
-states it with `orderBy`. A relational query returns nested rows of the same shape as a
-`select`, so they decode with the same entities:
+states it with `orderBy`. A relational query returns nested rows typed as the entity, so a
+repository answers them as they are:
 
 ```ts
 const rows = yield* db.query.messages.findMany({
@@ -170,8 +170,8 @@ models; a mapping failure dies.
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a
 `findFirst`, which emits the `limit 1` itself, even where a key makes the row unique, so the query
-states its intent; `decodeOptionalRow(<Name>Entity)` from `@app-template/packages/db` decodes the
-row it found, or answers `Option.none()` for the `undefined` or `null` of none. A filter on a
+states its intent; the row it finds is the entity as Drizzle types it, answered with no decode,
+and `Option.fromUndefinedOr` turns the `undefined` of none into `Option.none()`. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
 A write of some fields under a condition maps its `<Name>EntitySet` and `<Name>EntityWhere` onto

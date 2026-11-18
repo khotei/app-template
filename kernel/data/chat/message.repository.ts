@@ -1,19 +1,14 @@
 import { eq, inArray } from 'drizzle-orm'
 import { QueryBuilder } from 'drizzle-orm/pg-core'
-import { Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, flow, Layer, Option, UndefinedOr } from 'effect'
 
-import {
-  buildWhere,
-  decodeOptionalRow,
-  orDieWithSqlError,
-  skipUndefined,
-} from '@app-template/packages/db'
+import { buildWhere, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import {
+  buildMessageEntity,
   inCreationOrder,
   type MessageEntity,
-  MessageEntityFromRead,
   type MessageEntityInsert,
   type MessageEntityWhere,
   withAttachments,
@@ -44,8 +39,6 @@ const select = (where: MessageEntityWhere) =>
     with: { ...withAttachments, ...withRun },
   }) as const
 
-const decodeMessages = Schema.decodeEffect(Schema.Array(MessageEntityFromRead))
-
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
@@ -69,11 +62,12 @@ export class MessageRepository extends Context.Service<
           (where) =>
             db.query.messages
               .findFirst(select(where))
-              .pipe(Effect.flatMap(decodeOptionalRow(MessageEntityFromRead))),
+              .pipe(Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity)))),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('MessageRepository.selectMany')(
-          (where) => db.query.messages.findMany(select(where)).pipe(Effect.flatMap(decodeMessages)),
+          (where) =>
+            db.query.messages.findMany(select(where)).pipe(Effect.map(Arr.map(buildMessageEntity))),
           orDieWithSqlError,
         ),
       }),

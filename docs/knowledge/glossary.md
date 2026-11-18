@@ -94,8 +94,8 @@ word has one meaning here; the `_Avoid_` lists name the synonyms the sources use
 A record as the data layer reads and writes it, derived from its table in the data layer's own
 types (`ChatEntity`, with its `Insert`, `Where` and `Set`): the one shape every read of its store
 returns, nesting a neighbour's `<Name>Columns` one level deep. Where a read's shape differs, the
-entity file's `<Name>EntityFromRead` codec turns the read into it. Never a model; a module's
-mapper turns it into one.
+entity file's `build<Name>Entity` turns the read into it. Never a model; a module's mapper turns
+it into one.
 _Avoid_: Model, row type, record class, DTO
 
 **Data layer**:
