@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
+import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
@@ -20,7 +21,7 @@ import {
   prepareRun,
   Run,
 } from '#chat/domain/run.model'
-import { ActiveRunStatus, RunFailure, RunStatus } from '#chat/domain/run-fields.model'
+import { RunFailure, RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
@@ -83,16 +84,16 @@ const moves: ReadonlyArray<{
   readonly from: ReadonlyArray<RunStatus>
   readonly move: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
 }> = [
-  { to: 'preparing', from: ActiveRunStatus.literals, move: (run) => prepareRun(run, later) },
+  { to: 'preparing', from: activeRunStatuses, move: (run) => prepareRun(run, later) },
   { to: 'generating', from: ['preparing'], move: (run) => generateRun(run, later) },
   {
     to: 'done',
-    from: ActiveRunStatus.literals,
+    from: activeRunStatuses,
     move: (run) => completeRun(run, { reply, at: later }),
   },
   {
     to: 'failed',
-    from: ActiveRunStatus.literals,
+    from: activeRunStatuses,
     move: (run) => failRun(run, { reason: 'ReplyFailed', cause, at: later }),
   },
 ]

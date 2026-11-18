@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect'
 
-import { activeRunStatuses, runFailureReasons, runStatuses } from '@app-template/kernel/data'
+import { runFailureReasons, runStatuses } from '@app-template/kernel/data'
 
 import { ReplyProvenance } from '#chat/domain/assistant.port'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
@@ -8,9 +8,6 @@ import { Status } from '#chat/domain/status.model'
 
 export const RunStatus = Status.pick(runStatuses)
 export type RunStatus = typeof RunStatus.Type
-
-export const ActiveRunStatus = RunStatus.pick(activeRunStatuses)
-export type ActiveRunStatus = typeof ActiveRunStatus.Type
 
 export const RunFailureReason = Schema.Literals(runFailureReasons)
 export type RunFailureReason = typeof RunFailureReason.Type

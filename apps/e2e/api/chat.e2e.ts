@@ -1,21 +1,14 @@
 import { assert, describe, it, layer } from '@effect/vitest'
-import { Array as Arr, Effect, Option, Order, Schedule, Schema } from 'effect'
+import { Array as Arr, Effect, Option, Order, Predicate, Schedule } from 'effect'
 import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
-import {
-  ActiveRunStatus,
-  AttachmentId,
-  type ChatId,
-  type RunId,
-} from '@app-template/application/chat'
+import { AttachmentId, type ChatId, isActiveRun, type RunId } from '@app-template/application/chat'
 import { ApiClient, AttachmentBoundError, AttachmentNotFoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
 import { StandTest, scriptedAnswers } from '#testing/stand.test-layer'
-
-const isActiveStatus = Schema.is(ActiveRunStatus)
 
 const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =>
   self.pipe(
@@ -26,7 +19,7 @@ const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =
 /** Reads the Run until the worker has settled it, as the browser's polling does. */
 const pollSettledRun = (chatId: ChatId, runId: RunId) =>
   ApiClient.use((api) =>
-    poll(api.chats.getRun({ params: { chatId, runId } }), (run) => !isActiveStatus(run.status)),
+    poll(api.chats.getRun({ params: { chatId, runId } }), Predicate.not(isActiveRun)),
   )
 
 const pollTitledChat = (chatId: ChatId) =>
