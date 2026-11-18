@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Order, Schema } from 'effect'
-import { HttpClient } from 'effect/http'
+import { HttpBody, HttpClient } from 'effect/http'
 
 import { failRun } from '@app-template/application/chat'
 import { selectRun, updateRun } from '@app-template/application/chat/testing'
@@ -185,6 +185,25 @@ describe('chats', () => {
         yield* busy.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatBusyError))),
         new ChatBusyError({ id: chat.id }),
       )
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
+  it.effect('a title or a text holding U+0000 is 400, and nothing is stored', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      const chat = yield* openChat
+
+      const renamed = yield* http.patch(`/chats/${chat.id}`, {
+        body: HttpBody.jsonUnsafe({ title: 'a\u0000b' }),
+      })
+      const sent = yield* http.post(`/chats/${chat.id}/messages`, {
+        body: HttpBody.jsonUnsafe({ text: 'a\u0000b', attachmentIds: [] }),
+      })
+
+      assert.deepStrictEqual([renamed.status, sent.status], [400, 400])
+      assert.isTrue(Option.isNone((yield* api.chats.get({ params: { chatId: chat.id } })).title))
+      assert.isEmpty(yield* api.chats.listMessages({ params: { chatId: chat.id } }))
     }).pipe(Effect.provide(ApiTest)),
   )
 

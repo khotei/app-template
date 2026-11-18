@@ -8,6 +8,9 @@ import { users } from '#kernel/data/user/user.table'
 
 export const maxTitleLength = 120
 
+/** What a `text` column stores: Postgres refuses U+0000 in it. */
+export const textPattern = /^[^\0]*$/u
+
 export const chats = snakeCase.table(
   'chats',
   {

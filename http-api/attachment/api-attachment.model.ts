@@ -3,7 +3,10 @@ import { Schema } from 'effect'
 import { AttachmentId, ChatId, MessageId, UserId } from '#http-api/shared/ids'
 import * as limits from '#http-api/shared/limits'
 
-export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
+export const FileName = Schema.String.check(
+  Schema.isNonEmpty(),
+  Schema.isPattern(limits.textPattern),
+).pipe(Schema.brand('FileName'))
 export type FileName = typeof FileName.Type
 
 /** A `type/subtype` pair of RFC 6838 restricted-name characters, without parameters. */

@@ -1,11 +1,11 @@
-import { describe, it } from '@effect/vitest'
-import { Effect } from 'effect'
+import { assert, describe, it } from '@effect/vitest'
+import { Effect, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
-import { ensureMessageInput } from '#chat/domain/message.model'
+import { ensureMessageInput, MessageFields } from '#chat/domain/message.model'
 
 const attachmentId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000003')
 
@@ -38,4 +38,10 @@ describe('ensureMessageInput', () => {
   it.effect('accepts text without attachments', () =>
     ensureMessageInput({ text: 'Hello', attachmentIds: [] }),
   )
+})
+
+describe('MessageFields', () => {
+  it('rejects a text holding U+0000, which Postgres refuses', () => {
+    assert.isFalse(Schema.is(MessageFields.fields.text)('a\u0000b'))
+  })
 })

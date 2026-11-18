@@ -8,6 +8,7 @@ export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
   Schema.isNonEmpty(),
   Schema.isMaxLength(limits.chat.maxTitleLength),
+  Schema.isPattern(limits.textPattern),
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 

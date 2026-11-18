@@ -111,6 +111,36 @@ describe('attachments', () => {
       }).pipe(Effect.provide(ApiTest)),
   )
 
+  it.effect('POST /attachments with a file name decoding to U+0000 is 400', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+      const http = yield* HttpClient.HttpClient
+      yield* api.users.ensure()
+      const body = [
+        '--b',
+        `Content-Disposition: form-data; name="files"; filename*=UTF-8''a%00b.png`,
+        'Content-Type: image/png',
+        '',
+        'png',
+        '--b--',
+        '',
+      ].join('\r\n')
+
+      const response = yield* http.post('/attachments', {
+        body: HttpBody.text(body, 'multipart/form-data; boundary=b'),
+      })
+
+      assert.strictEqual(response.status, 400)
+      assertSchemaEquals(
+        UploadError,
+        yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(UploadError))),
+        new RequestInvalidError({
+          issues: [{ path: ['files', 0], message: 'Expected a file name' }],
+        }),
+      )
+    }).pipe(Effect.provide(ApiTest)),
+  )
+
   it.effect(
     'an uploaded attachment reads back with Option and DateTime, and null and ISO on the wire',
     () =>

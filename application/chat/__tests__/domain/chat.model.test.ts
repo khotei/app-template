@@ -73,8 +73,13 @@ describe('ChatTitle', () => {
     Effect.sync(() => assert.isTrue(Schema.is(ChatTitle)(title))),
   )
 
-  it.effect.each([{ title: '' }, { title: '  ' }, { title: ' Trip' }, { title: 'a'.repeat(121) }])(
-    'rejects $title',
-    ({ title }) => Effect.sync(() => assert.isFalse(Schema.is(ChatTitle)(title))),
+  it.effect.each([
+    { title: '' },
+    { title: '  ' },
+    { title: ' Trip' },
+    { title: 'a'.repeat(121) },
+    { title: 'a\u0000b' },
+  ])('rejects $title', ({ title }) =>
+    Effect.sync(() => assert.isFalse(Schema.is(ChatTitle)(title))),
   )
 })

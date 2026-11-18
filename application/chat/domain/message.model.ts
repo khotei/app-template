@@ -1,6 +1,6 @@
 import { Array as Arr, Effect, flow, Schema, String as Str, type Types } from 'effect'
 
-import { messageAuthors } from '@app-template/kernel/data'
+import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
 import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
@@ -17,7 +17,7 @@ export const MessageFields = Schema.Struct({
   chatId: ChatId,
   author: MessageAuthor,
   /** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
-  text: Schema.String,
+  text: Schema.String.check(Schema.isPattern(textPattern)),
   createdAt: Schema.DateTimeUtcFromDate,
 })
 export type MessageFields = typeof MessageFields.Type

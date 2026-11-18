@@ -14,3 +14,6 @@ export const attachment = {
 export const message = { maxTextLength: 20_000 } as const
 
 export const chat = { maxTitleLength: 120 } as const
+
+/** What the stored text may hold: no U+0000. */
+export const textPattern = /^[^\0]*$/u

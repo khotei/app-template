@@ -117,7 +117,12 @@
                           "type": "string",
                           "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
                           "minLength": 1,
-                          "maxLength": 120
+                          "maxLength": 120,
+                          "allOf": [
+                            {
+                              "pattern": "^[^\\0]*$"
+                            }
+                          ]
                         },
                         {
                           "type": "null"
@@ -191,7 +196,8 @@
                           },
                           "fileName": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "pattern": "^[^\\0]*$"
                           },
                           "mediaType": {
                             "type": "string"
@@ -293,7 +299,12 @@
                             "type": "string",
                             "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
                             "minLength": 1,
-                            "maxLength": 120
+                            "maxLength": 120,
+                            "allOf": [
+                              {
+                                "pattern": "^[^\\0]*$"
+                              }
+                            ]
                           },
                           {
                             "type": "null"
@@ -367,7 +378,8 @@
                             },
                             "fileName": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^[^\\0]*$"
                             },
                             "mediaType": {
                               "type": "string"
@@ -481,7 +493,12 @@
                           "type": "string",
                           "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
                           "minLength": 1,
-                          "maxLength": 120
+                          "maxLength": 120,
+                          "allOf": [
+                            {
+                              "pattern": "^[^\\0]*$"
+                            }
+                          ]
                         },
                         {
                           "type": "null"
@@ -555,7 +572,8 @@
                           },
                           "fileName": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "pattern": "^[^\\0]*$"
                           },
                           "mediaType": {
                             "type": "string"
@@ -676,7 +694,12 @@
                           "type": "string",
                           "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
                           "minLength": 1,
-                          "maxLength": 120
+                          "maxLength": 120,
+                          "allOf": [
+                            {
+                              "pattern": "^[^\\0]*$"
+                            }
+                          ]
                         },
                         {
                           "type": "null"
@@ -750,7 +773,8 @@
                           },
                           "fileName": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "pattern": "^[^\\0]*$"
                           },
                           "mediaType": {
                             "type": "string"
@@ -1012,7 +1036,8 @@
                             },
                             "fileName": {
                               "type": "string",
-                              "minLength": 1
+                              "minLength": 1,
+                              "pattern": "^[^\\0]*$"
                             },
                             "mediaType": {
                               "type": "string"
@@ -1420,7 +1445,8 @@
                 "properties": {
                   "text": {
                     "type": "string",
-                    "maxLength": 20000
+                    "maxLength": 20000,
+                    "pattern": "^[^\\0]*$"
                   },
                   "attachmentIds": {
                     "type": "array",
@@ -1817,7 +1843,8 @@
                           },
                           "fileName": {
                             "type": "string",
-                            "minLength": 1
+                            "minLength": 1,
+                            "pattern": "^[^\\0]*$"
                           },
                           "mediaType": {
                             "type": "string"
@@ -2259,7 +2286,8 @@
                       },
                       "fileName": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "pattern": "^[^\\0]*$"
                       },
                       "mediaType": {
                         "type": "string"
@@ -2424,7 +2452,8 @@
                       },
                       "fileName": {
                         "type": "string",
-                        "minLength": 1
+                        "minLength": 1,
+                        "pattern": "^[^\\0]*$"
                       },
                       "mediaType": {
                         "type": "string"
@@ -2557,7 +2586,8 @@
                     },
                     "fileName": {
                       "type": "string",
-                      "minLength": 1
+                      "minLength": 1,
+                      "pattern": "^[^\\0]*$"
                     },
                     "mediaType": {
                       "type": "string"

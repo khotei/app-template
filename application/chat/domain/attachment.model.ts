@@ -11,13 +11,16 @@ import {
 } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
-import { mediaTypePattern, minFileSize } from '@app-template/kernel/data'
+import { mediaTypePattern, minFileSize, textPattern } from '@app-template/kernel/data'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 
-export const FileName = Schema.String.check(Schema.isNonEmpty()).pipe(Schema.brand('FileName'))
+export const FileName = Schema.String.check(
+  Schema.isNonEmpty(),
+  Schema.isPattern(textPattern),
+).pipe(Schema.brand('FileName'))
 export type FileName = typeof FileName.Type
 
 /** A `type/subtype` pair of RFC 6838 restricted-name characters, without parameters. */

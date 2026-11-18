@@ -49,7 +49,10 @@ export class ChatHttp extends HttpApiGroup.make('chats')
     HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
       params: chatPath,
       payload: Schema.Struct({
-        text: Schema.String.check(Schema.isMaxLength(limits.message.maxTextLength)),
+        text: Schema.String.check(
+          Schema.isMaxLength(limits.message.maxTextLength),
+          Schema.isPattern(limits.textPattern),
+        ),
         attachmentIds: Schema.Array(AttachmentId).check(
           Schema.isMaxLength(limits.attachment.maxFiles),
         ),

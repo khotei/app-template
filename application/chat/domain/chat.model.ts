@@ -1,7 +1,7 @@
 import { type DateTime, Effect, Option, Schema, type Types } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
-import { maxTitleLength } from '@app-template/kernel/data'
+import { maxTitleLength, textPattern } from '@app-template/kernel/data'
 
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatBusyError } from '#chat/domain/chat.error'
@@ -18,6 +18,7 @@ export const ChatTitle = Schema.String.check(
   Schema.isTrimmed(),
   Schema.isNonEmpty(),
   Schema.isMaxLength(maxTitleLength),
+  Schema.isPattern(textPattern),
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
