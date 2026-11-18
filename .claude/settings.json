@@ -67,11 +67,19 @@
       "mcp__postgres"
     ],
     "ask": [
-      "Bash(git push*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)",
+      "Bash(git push * +*)",
+      "Bash(git push --delete*)",
+      "Bash(git push -d *)",
+      "Bash(git push * --delete*)",
+      "Bash(git push * -d *)",
+      "Bash(git push * :*)",
       "Bash(gh pr create*)",
       "Bash(gh pr merge*)",
       "Bash(gh repo create*)",
-      "Bash(gh api*)",
       "Bash(git reset --hard*)",
       "Bash(git clean*)",
       "Bash(git stash clear*)"
