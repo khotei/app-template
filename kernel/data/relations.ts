@@ -10,17 +10,14 @@ export const relations = defineRelations(
   { users, credentials, chats, messages, runs, attachments },
   (r) => ({
     users: {
-      chats: r.many.chats({ from: r.users.id, to: r.chats.userId }),
       credentials: r.many.credentials({ from: r.users.id, to: r.credentials.userId }),
     },
     chats: {
-      messages: r.many.messages({ from: r.chats.id, to: r.messages.chatId }),
       attachments: r.many.attachments({ from: r.chats.id, to: r.attachments.chatId }),
       // One of many, so a read orders it: one lateral join.
       run: r.one.runs({ from: r.chats.id, to: r.runs.chatId }),
     },
     messages: {
-      chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),
       attachments: r.many.attachments({ from: r.messages.id, to: r.attachments.messageId }),
       // A user's message: the newest of the Runs that answer it, ordered by the read.
       latestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
