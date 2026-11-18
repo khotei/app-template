@@ -26,6 +26,8 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
 - **`main` changes only through a squash-merged PR.** A ticket is one branch `<type>/<slug>` cut
   from `main`; commit on that branch, never on `main`
   ([sdd.md › Roadmap and history](../docs/knowledge/sdd.md#roadmap-and-history)).
+- Before opening or pushing to a PR, read `.claude/rules/pull-requests.md`: its body and the
+  inline explanations it posts.
 - **The domain glossary is `docs/knowledge/glossary.md`.** Never create `GLOSSARY.md`,
   `CONTEXT.md` or `docs/adr/`, even when a skill asks for them.
 - **The architecture decisions are `docs/knowledge/decisions.md`.** Asked to change a module

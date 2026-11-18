@@ -50,7 +50,8 @@ its section below says. Gates: `.claude/rules/sdd.md`.
    changes only `.claude/` or `docs/`, they land without a second `/ticket-verify` unless one
    changes what a requirement asks
    ([the cycles](../../../docs/knowledge/sdd.md#when-to-run-which-cycle)). On `pass` and the
-   user's agreement, propose the PR (`.claude/rules/pull-requests.md`).
+   user's agreement, propose the PR (`.claude/rules/pull-requests.md`, its explanations
+   included).
 
 Fix nothing during a whole-ticket run. Commit `verification.md`, and open the PR, under the
 commit gate of `.claude/rules/sdd.md`.
