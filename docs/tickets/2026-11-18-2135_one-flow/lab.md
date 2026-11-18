@@ -32,8 +32,8 @@ The shape, from §1 of the panel's final design, which the owner took:
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | Baseline: today's toolkit measured before it changes · visible: L1's table of replays and the rebase probe | minimal | learn | in progress |
-| L2 | The toolkit: one skill, its agents and `make numbers`; the five-phase cycle gone · visible: `make check`; `git grep` of each removed name outside `docs/tickets/` answers only the new record | minimal | build | todo |
-| L3 | The stops: a before → after pair in `stops.md` for each recorded owner stop whose before and after the record holds, each on the owner's OK · visible: `.claude/skills/lab/stops.md` | minimal | build | todo |
+| L2 | The toolkit: one skill, its agents and `make numbers`; the five-phase cycle gone · visible: `make check`; `git grep` of each removed name outside `docs/tickets/` answers only the new record | minimal | build | in progress |
+| L3 | The stops: a before → after pair in `stops.md` for each recorded owner stop whose before and after the record holds, each on the owner's OK · visible: `.claude/skills/lab/stops.md` | minimal | build | in progress |
 | L4 | Acceptance: R1–R5 on the new toolkit beside L1's table; a case that got worse is fixed or its part reverted · visible: the table | right | learn | todo |
 | L5 | Later: the items of the open list the owner picks | hard | build | todo |
 
@@ -72,6 +72,10 @@ Then `/lab review L2`; Rules also gets `mattpocock-skills:writing-for-agents`.
 
 ### Notes
 
+[N:ai] L2.1–L2.5 are the five units; each state passed
+`make doc-lint link-check sh-lint lint`. `stops.md` came in L2.2 with its questions alone; its
+three seeded pairs are L3.1's. `/lab review L2` waits.
+
 ### Output
 
 ## L3 — The stops
@@ -83,6 +87,32 @@ and after the record holds (lambda 2, reply-run 2, shared-files 4; telemetry's o
 each on the owner's OK. Three are seeded by the design.
 
 ### Notes
+
+[N:ai] L3.1 writes the design's three seeded pairs into `stops.md`, each still on the owner's OK:
+"One noun, and the path says what a delete means" (shared-files L0.3, the owner's stop on the
+`/files` routes and the word File); "A use case writes only what its own actor owns" (lambda,
+the rollback of piece 1, whose send still reserved the reply's id); "Reuse by a record that
+names its source" (shared-files L0.15–L0.19: one table of links, then a copy of the bytes, gave
+way to a record per use that names its source).
+[N:ai] The other recorded stops, each with its before and after from the record; an accepted one
+is written on an `Order` like the three.
+[Q:ai] reply-run L2, the owner's stop "minimal working code base, without this massive checks":
+before, a recovery after the commit (`failReply` with its `catchTag`, `Effect.uninterruptible`,
+a log of the title send); after, a refused send dies with `500` and leaves the reply queued, as a
+process that dies does. A pair "A failure after the commit is not recovered in place: it dies as
+a crashed process would"?
+[Q:ai] reply-run L2.2, the owner's stop "why we need this id?": before, `JobSender.send` takes
+the caller's `{ id }` for a later `onFail`; after, the job keeps its own id, and only its body
+`{ runId }` ties it to the Run. A pair "A job keeps its own id; what it works on is named in its
+body"?
+[Q:ai] shared-files L0.16, the bind to a chat, after the owner's answer to the audit's
+duplicates: before, an attachment bound to a chat beside its binds to messages, so a chat read
+it once per bind; after, a file hangs on a message and a
+chat's files are its messages', as in Claude's Compliance API. Shared-files L3.1 later let a
+chat hold an unsent upload, so this pair's after needs your wording. A pair "One bind per use;
+a chat reads its files through what holds them"?
+[Q:ai] lambda, the stopped researcher ("no need, just split it as planned"): a stop of a move,
+with no shape before or after. I propose no pair.
 
 ### Output
 
