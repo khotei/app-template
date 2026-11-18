@@ -48,7 +48,6 @@ export class AttachmentHttp extends HttpApiGroup.make('attachments').add(
   }),
   HttpApiEndpoint.delete('delete', '/attachments/:attachmentId', {
     params: attachmentPath,
-    success: HttpApiSchema.NoContent,
     error: [
       AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
       AttachmentBoundError.pipe(HttpApiSchema.status(409)),

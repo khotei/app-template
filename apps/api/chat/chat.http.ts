@@ -49,7 +49,6 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
   }),
   HttpApiEndpoint.delete('delete', '/chats/:chatId', {
     params: chatPath,
-    success: HttpApiSchema.NoContent,
     error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
   }),
   HttpApiEndpoint.get('listMessages', '/chats/:chatId/messages', {
