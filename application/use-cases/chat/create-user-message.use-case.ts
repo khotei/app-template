@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option } from 'effect'
+import { Context, Effect, Layer } from 'effect'
 
 import {
   type Attachment,
@@ -15,6 +15,7 @@ import {
   ensureMessageInput,
   FileAttachmentService,
   GenerateChatTitle,
+  isNewChat,
   type MessageInput,
   type MessageInputInvalidError,
   MessageService,
@@ -92,9 +93,9 @@ export class CreateUserMessageUseCase extends Context.Service<
         transaction.run,
       )
 
-      // Every user message starts a Run, so a chat with none had no message before this one. The
-      // title job goes first: a reply job SQS refuses fails the create, and no retry sends a title.
-      if (Option.isNone(chat.run)) {
+      // The title job goes first: a reply job SQS refuses fails the create, and no retry sends a
+      // title.
+      if (isNewChat(chat)) {
         const messageId = run.userMessageId
         yield* queue
           .send(chatTitleQueue, new GenerateChatTitle({ messageId }))

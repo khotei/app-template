@@ -10,6 +10,7 @@ import {
   Chat,
   ChatTitle,
   ensureChatNotBusy,
+  isNewChat,
   renameChat,
 } from '#chat/domain/chat.model'
 import type { RunStatus } from '#chat/domain/run-fields.model'
@@ -35,6 +36,16 @@ describe('buildChatStatus', () => {
       assert.strictEqual(buildChatStatus(chatAt(status)), chatStatus)
     },
   )
+})
+
+describe('isNewChat', () => {
+  it('reads a chat no send has reached as new', () => {
+    assert.isTrue(isNewChat(chat))
+  })
+
+  it('reads a chat with a Run as not new', () => {
+    assert.isFalse(isNewChat(chatAt('done')))
+  })
 })
 
 describe('ensureChatNotBusy', () => {

@@ -52,6 +52,9 @@ const chatStatuses = {
 export const buildChatStatus = (chat: Chat): ChatStatus =>
   Option.match(chat.run, { onNone: () => 'idle', onSome: (run) => chatStatuses[run.status] })
 
+/** True while no send has reached the chat: every user message starts a Run, so it has none. */
+export const isNewChat = (chat: Chat): boolean => Option.isNone(chat.run)
+
 /** A send takes a chat with no Run in work; one with a Run in work is `ChatBusyError`. */
 export const ensureChatNotBusy = Effect.fn('ensureChatNotBusy')(function* (chat: Chat) {
   if (buildChatStatus(chat) === 'queued') {
