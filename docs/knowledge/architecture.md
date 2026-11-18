@@ -255,15 +255,15 @@ imports need.
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route.
-5. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape
-   in `api-<entity>.model.ts`, its errors in `api-<entity>.error.ts` and its ids in
-   `http-api/shared/ids.ts`, as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to
-   `Api` in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups
-   added before it; its handler in `apps/api/<entity>/`, with a mapper in
-   `apps/api/<entity>/<entity>.mapper.ts` only for a wire shape that adds or renames a field,
-   the handler added to `ApiRoutes` and its services to `ApiHttp`. Test only what HTTP adds, on
-   the api test layer; a new module's journey case goes in a file of its own on `StandTest`. A
-   browser feature calls it through `ApiClient` from `apps/web/features/<entity>/`.
+5. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape in
+   `api-<entity>.model.ts`, its errors in `api-<entity>.error.ts` and its ids in
+   `http-api/shared/ids.ts`, as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to `Api`
+   in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups added
+   before it; its handler in `apps/api/<entity>/`, with a mapper in
+   `apps/api/<entity>/<entity>.mapper.ts` only for a wire shape that adds or renames a field, the
+   handler added to `ApiRoutes`, its group providing the services and use cases it reads. Test only
+   what HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
+   `StandTest`. A browser feature calls it through `ApiClient` from `apps/web/features/<entity>/`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).

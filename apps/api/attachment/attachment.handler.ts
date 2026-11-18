@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
+import { Array as Arr, Effect, Layer, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
@@ -105,4 +105,4 @@ export const AttachmentHandler = HttpApiBuilder.group(
         }),
       )
   }),
-)
+).pipe(Layer.provide([AttachmentService.layer, FileAttachmentService.layer]))

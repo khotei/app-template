@@ -1,4 +1,4 @@
-import { Array as Arr, Effect } from 'effect'
+import { Array as Arr, Effect, Layer } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService, RunService } from '@app-template/application/chat'
@@ -71,4 +71,12 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
     })
   }),
+).pipe(
+  Layer.provide([
+    ChatService.layer,
+    MessageService.layer,
+    RunService.layer,
+    CreateUserMessageUseCase.layer,
+    RetryRunUseCase.layer,
+  ]),
 )
