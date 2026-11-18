@@ -435,8 +435,7 @@ and patterns, and the models import them to check the same rules on their side.
   the model's side may add to the check (trimming every whitespace, counting UTF-16 units),
   never accept less.
 - **Guarded by:** the data layer exports each limit, pattern and enum's values from its table and
-  the model imports it; a mapper's unit test round-trips the model's extreme values through the
-  mapper, and the data layer's e2e check the table's side
+  the model imports it; the data layer's e2e check the table's side
   ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
@@ -700,24 +699,22 @@ test app `apps/e2e`. Test support lives with the unit that uses it. The layout, 
 what a test may import: [tooling.md › Tests](tooling.md#tests).
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
-  checks: the behaviour runs over memory, the real stores are tested in the kernel, a mapper
-  beside itself, the flow a user starts through the api. A part's
-  tests and support sit with the part they test or build, as a package's do.
+  checks: the behaviour runs over memory, the real stores are tested in the kernel, the flow a
+  user starts through the api. A part's tests and support sit with the part they test or build,
+  as a package's do.
 - **Sources:** `.claude/rules/effect-tests.md`; `vitest.config.ts` selects by folder.
 - **Rejected:** test folders at a workspace's top: support beside the source folders. The
   kernel's tests in one pair of test folders at its top: a part's tests away from it, and one
   support barrel for every part. Every package's support in `packages/testing`: a package's own
   harness away from it, behind a barrel every unit imports. The use cases' e2e in
-  `application`, a use case called on Postgres: a call, not the flow a user starts. The mappers'
-  round trips on Postgres, in `application/<module>/__e2e__/`: an e2e for what a unit test over
-  the schemas and the data layer's e2e of its checks already prove. The e2e in each app: the
-  journey would make
-  the api import the worker, and apps never import each other. The e2e workspace at the root: a
-  test of the processes away from them. The workspace as an `__e2e__/` folder in `apps/`: such
-  a folder everywhere else holds the e2e of its own folder's source. The e2e support in
-  `__e2e__/testing/`, exported under a name of its own: a third test folder, and an import name no
-  folder carries. A label in the file name (`<name>.e2e-layer.ts`) beside the unit test support:
-  the label is lost behind the `/testing` entry, which every unit test may import.
+  `application`, a use case called on Postgres: a call, not the flow a user starts. The e2e
+  in each app: the journey would make the api import the worker, and apps never import each
+  other. The e2e workspace at the root: a test of the processes away from them. The workspace as
+  an `__e2e__/` folder in `apps/`: such a folder everywhere else holds the e2e of its own
+  folder's source. The e2e support in `__e2e__/testing/`, exported under a name of its own: a
+  third test folder, and an import name no folder carries. A label in the file name
+  (`<name>.e2e-layer.ts`) beside the unit test support: the label is lost behind the `/testing`
+  entry, which every unit test may import.
 - **Cost:** a use case's race or rollback runs through the api with both processes up, slower than a
   call of the use case. The kernel declares an alias per part's support, and an export where another
   unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the

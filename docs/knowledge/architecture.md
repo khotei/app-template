@@ -246,8 +246,7 @@ imports need.
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), `<entity>.error.ts`,
    each with its unit test.
 3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
-   model's schemas over the entity's fields; its unit test encodes the model's extreme values
-   through the mapper and reads them back.
+   model's schemas over the entity's fields.
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.

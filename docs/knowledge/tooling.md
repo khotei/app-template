@@ -78,7 +78,7 @@ Which suite runs where:
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/<module>/testing`), `TransactionTest`; a mapper's round trip |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: the kernel's memory repositories (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
@@ -89,11 +89,8 @@ Which suite runs where:
   `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
   the `SqlError` of a refused statement, comes from `@app-template/packages/db/testing/e2e`. What
   they check: [database.md › Tests](database.md#tests). A limit, a pattern or an enum's values
-  is declared once, in its table, and the model imports it. The mapper's `.mapper.test.ts` in
-  `application/<module>/__tests__/services/` encodes the model's extreme value and every value
-  of an enum the model holds (a status, an author) through the mapper and reads it back.
-  The data layer's e2e refuse a limit plus one by its constant and accept the limit itself, and
-  accept a pattern's extreme value.
+  is declared once, in its table, and the model imports it. The data layer's e2e refuse a limit
+  plus one by its constant and accept the limit itself, and accept a pattern's extreme value.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the

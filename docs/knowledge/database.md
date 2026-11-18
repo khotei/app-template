@@ -339,5 +339,5 @@ index) and reads the `SqlError` of a refused statement with `flipSqlError`. A me
 each [guard](#guards) the database adds, the cascades of its
 [foreign keys](#schema-and-entity-files) included, and each has its twin in a repository suite
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). Where each
-suite and its support live, the mappers' round trip of a model's extreme values and the e2e of a
-use case's transaction: [tooling.md › Tests](tooling.md#tests).
+suite and its support live and the e2e of a use case's transaction:
+[tooling.md › Tests](tooling.md#tests).
