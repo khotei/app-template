@@ -178,14 +178,25 @@ bundle-check: ## Fail when the web bundle holds a package outside browserPackage
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive
 
-vendor-effect: EFFECT_TAG = effect@$(shell bun pm pkg get catalogs.effect.effect 2>/dev/null | tr -d '"')
-vendor-effect: ## Pull Effect-TS/effect at the catalog pin into repos/effect (commits)
-	git subtree pull --squash --prefix repos/effect https://github.com/Effect-TS/effect.git \
-		$(EFFECT_TAG) -m ':wrench: chore(deps): Vendor effect at $(EFFECT_TAG)'
+# A vendored library is a slice of its repository at the catalog pin: its guides, sources, examples
+# and agent skills, not its tests, changelogs or tooling. $(call vendor,<url>,<tag>,<folder>,<paths>)
+# fetches the tag at depth 1 into a throwaway bare repository, empties the folder and exports the
+# paths into it; commit the result with the catalog bump.
+define vendor
+	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && git init -q --bare "$$tmp" && \
+	git -C "$$tmp" fetch -q --depth 1 --no-tags $(1) tag $(2) && \
+	git -C "$$tmp" archive -o "$$tmp/slice.tar" $(2) -- $(4) && \
+	rm -rf $(3) && mkdir -p $(3) && tar -x -f "$$tmp/slice.tar" -C $(3) && \
+	echo "$(3): $$(find $(3) -type f | wc -l | tr -d ' ') files of $(2)"
+endef
 
-# The first run adds the subtree, later runs pull it.
-vendor-drizzle: DRIZZLE_TAG = v$(shell bun pm pkg get catalogs.drizzle.drizzle-orm 2>/dev/null | tr -d '"')
-vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/drizzle (commits)
-	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \
-		https://github.com/drizzle-team/drizzle-orm.git $(DRIZZLE_TAG) \
-		-m ':wrench: chore(deps): Vendor drizzle-orm at $(DRIZZLE_TAG)'
+EFFECT_SLICE = LLMS.md MIGRATION.md ':(glob)migration/*.md' ai-docs .agents \
+  ':(glob)packages/**/src/**' ':(glob)packages/**/*.md' ':(exclude,glob)**/CHANGELOG.md'
+DRIZZLE_SLICE = ':(glob)*.md' docs drizzle-orm/src drizzle-kit/src drizzle-kit/skills \
+  ':(glob)drizzle-kit/*.md'
+
+vendor-effect: ## Export Effect-TS/effect's slice at the catalog pin into repos/effect
+	$(call vendor,https://github.com/Effect-TS/effect.git,effect@$(shell bun pm pkg get catalogs.effect.effect | tr -d '"'),repos/effect,$(EFFECT_SLICE))
+
+vendor-drizzle: ## Export drizzle-team/drizzle-orm's slice at the catalog pin into repos/drizzle
+	$(call vendor,https://github.com/drizzle-team/drizzle-orm.git,v$(shell bun pm pkg get catalogs.drizzle.drizzle-orm | tr -d '"'),repos/drizzle,$(DRIZZLE_SLICE))

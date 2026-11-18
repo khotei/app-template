@@ -297,12 +297,12 @@ package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `i
 2. Edit the version in the root `catalogs`. It is the only place a version lives.
 3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`.
 4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
-   on the now clean tree. `git subtree` refuses any uncommitted change, so the bump and the
-   vendoring are two commits of the same PR.
-   Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
-   outside its HTML comment: the squash merge drops them, and the next pull needs them.
+   and commit `repos/<lib>` with the bump. The target fetches the pinned tag at depth 1, empties
+   the folder and exports the library's slice into it: its guides, sources, examples and agent
+   skills, not its tests, changelogs or tooling (the path list is `EFFECT_SLICE` or
+   `DRIZZLE_SLICE` in the `Makefile`).
 
-Another repository vendored under `repos/` gets one more target of the same shape.
+Another repository vendored under `repos/` gets one more path list and target of the same shape.
 
 Upgrading Bun means bumping `packageManager` and `@types/bun` together, so CI uses the new
 version.
