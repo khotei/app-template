@@ -22,7 +22,8 @@ pattern unary() {
     r"Str\.(?:isEmpty|isNonEmpty|trim|toLowerCase)",
     r"Stream\.(?:runCollect|runDrain|runLast)",
     r"Layer\.(?:build|launch|orDie|unwrap)",
-    r"(?:Record|Rec)\.(?:keys|values|toEntries)"
+    r"(?:Record|Rec)\.(?:keys|values|toEntries)",
+    r"Num\.(?:sumAll|multiplyAll)"
   }
 }
 

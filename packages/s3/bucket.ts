@@ -97,7 +97,11 @@ const buildObjectHeaders = ({ contentType, fileName }: PutOptions) => ({
 })
 
 const sizeOf = (chunks: ReadonlyArray<Uint8Array>) =>
-  Num.sumAll(Arr.map(chunks, (chunk) => chunk.length))
+  pipe(
+    chunks,
+    Arr.map((chunk) => chunk.length),
+    Num.sumAll,
+  )
 
 const appendChunk = (chunks: ReadonlyArray<Uint8Array>, chunk: Uint8Array) =>
   Effect.succeed(Arr.append(chunks, chunk))
