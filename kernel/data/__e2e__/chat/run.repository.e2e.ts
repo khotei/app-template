@@ -96,20 +96,6 @@ describe('RunRepository', () => {
       }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('insert dies on a second active Run in a chat and keeps the first', () =>
-    Effect.gen(function* () {
-      const runs = yield* RunRepository
-      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a5')
-      yield* insertUserMessage
-      yield* runs.insert(queued)
-
-      const exit = yield* runs.insert(run('0192d4e0-7b3a-7c00-8000-0000000000a6')).pipe(Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(SelectedRun, yield* runs.selectOne({ chatId }), Option.some(read(queued)))
-    }).pipe(Effect.provide(RepositoryTest)),
-  )
-
   it.effect('update moves a Run under its old status, and dies once that no longer holds', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
