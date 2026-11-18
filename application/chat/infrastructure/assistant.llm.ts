@@ -6,7 +6,6 @@ import {
   Effect,
   Function as Fn,
   Layer,
-  Option,
   pipe,
   Schedule,
   Schema,
@@ -29,7 +28,6 @@ import {
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Assistant, type AttachmentBytes, type HistoryMessage } from '#chat/domain/assistant.port'
 import { ChatTitle } from '#chat/domain/chat.model'
-import { isBlank } from '#chat/domain/message.model'
 
 const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
   type: 'file',
@@ -187,11 +185,10 @@ export const AssistantLlmFromConfig: Layer.Layer<
             .pipe(Effect.flatMap(failOnEarlyFinish), Effect.flatMap(decodeReply), askWithin(2)),
         ),
         suggestTitle: Effect.fn('Assistant.suggestTitle')(function* (text) {
-          if (isBlank(text)) return Option.none()
           const response = yield* models.title
             .generateObject({ prompt: buildTitlePrompt(text), schema: TitleAnswer })
             .pipe(Effect.flatMap(failOnEarlyFinish), askWithin(4))
-          return Option.some(response.value.title)
+          return response.value.title
         }),
       }),
     ),

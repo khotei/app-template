@@ -1,4 +1,4 @@
-import { Context, type Effect, type Option } from 'effect'
+import { Context, type Effect } from 'effect'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
 import type { AssistantReply } from '#chat/domain/assistant.model'
@@ -24,9 +24,9 @@ export class Assistant extends Context.Service<
       history: ReadonlyArray<HistoryMessage>,
     ) => Effect.Effect<AssistantReply, AssistantError>
     /**
-     * A title for a chat opened by `text`, none only for a blank `text`; an answer that fails the
-     * title's schema is asked again, then fails.
+     * A title for a chat opened by `text`, which is never blank; an answer that fails the title's
+     * schema is asked again, then fails.
      */
-    readonly suggestTitle: (text: string) => Effect.Effect<Option.Option<ChatTitle>, AssistantError>
+    readonly suggestTitle: (text: string) => Effect.Effect<ChatTitle, AssistantError>
   }
 >()('@app-template/application/chat/domain/Assistant') {}

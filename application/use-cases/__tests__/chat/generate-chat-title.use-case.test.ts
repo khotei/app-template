@@ -8,6 +8,7 @@ import {
   Chat,
   ChatTitle,
   GenerateChatTitle,
+  Message,
 } from '@app-template/application/chat'
 import {
   type AssistantCallHold,
@@ -37,8 +38,7 @@ const generate = GenerateChatTitleUseCase.use((useCase) =>
   useCase.generate(new GenerateChatTitle({ messageId })),
 )
 
-const heldAnswer = (held: AssistantCallHold) =>
-  held.hold.pipe(Effect.andThen(Effect.succeedSome(lisbonWeekend)))
+const heldAnswer = (held: AssistantCallHold) => held.hold.pipe(Effect.as(lisbonWeekend))
 
 const changesWhileAnswering = [
   { name: 'renamed', change: renameChat, log: 'chat deleted or titled', title: Option.some(trip) },
@@ -52,7 +52,7 @@ const changesWhileAnswering = [
 
 describe('GenerateChatTitleUseCase', () => {
   it.effect('titles an untitled chat from its first message', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
+    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessage(firstMessage)
@@ -71,7 +71,7 @@ describe('GenerateChatTitleUseCase', () => {
   })
 
   it.effect('keeps the title the user set and logs the skip', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
+    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* insertMessage(firstMessage)
@@ -88,7 +88,7 @@ describe('GenerateChatTitleUseCase', () => {
   })
 
   it.effect('logs a deleted chat when its first message is gone, without asking', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeedSome(lisbonWeekend) })
+    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* generate
@@ -98,15 +98,16 @@ describe('GenerateChatTitleUseCase', () => {
     }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
   })
 
-  it.effect('leaves the chat untitled and logs the skip when the assistant answers none', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeedNone })
+  it.effect('leaves the chat untitled when its first message is blank, without asking', () => {
+    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* insertMessage(firstMessage)
+      yield* insertMessage(new Message({ ...firstMessage, text: ' \n ' }))
 
       yield* generate
 
       assertEquals(yield* selectChat(chatId), Option.some(chat))
+      assertEquals(yield* assistant.calls, [])
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
     }).pipe(Effect.provide([ChatTitleTest.pipe(Layer.provide(assistant.layer)), logger]))
   })

@@ -1,5 +1,5 @@
 import { PgClient } from '@effect/sql-pg'
-import { ConfigProvider, Effect, Layer, Option, Redacted } from 'effect'
+import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer, layerApiClient } from '@app-template/api/testing'
@@ -46,7 +46,7 @@ export const scriptedAnswers = {
 
 const { layer: AssistantTest } = recordAssistant({
   reply: Effect.succeed(scriptedAnswers.reply),
-  suggestTitle: Effect.succeed(Option.some(scriptedAnswers.title)),
+  suggestTitle: Effect.succeed(scriptedAnswers.title),
 })
 
 /** Fresh, so the apps share no layer with the test and run on the clients their config builds. */

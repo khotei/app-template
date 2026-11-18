@@ -6,6 +6,7 @@ import {
   ChatService,
   decodeMessage,
   type GenerateChatTitle,
+  isBlank,
 } from '@app-template/application/chat'
 import { MessageRepository } from '@app-template/kernel/data'
 
@@ -45,13 +46,13 @@ export class GenerateChatTitleUseCase extends Context.Service<
         .selectOne({ id: job.messageId })
         .pipe(Effect.flatMap(decodeMessage))
       if (Option.isNone(first)) return yield* titleSkipLogs.chatDeleted
+      if (isBlank(first.value.text)) return yield* titleSkipLogs.nothingToTitle
 
       const title = yield* assistant.suggestTitle(first.value.text)
-      if (Option.isNone(title)) return yield* titleSkipLogs.nothingToTitle
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
       yield* chatService
-        .rename({ id: first.value.chatId, title: Option.none() }, title.value)
+        .rename({ id: first.value.chatId, title: Option.none() }, title)
         .pipe(Effect.catchTag('ChatNotFoundError', () => titleSkipLogs.deletedOrTitled))
     }, Effect.catch(logAssistantFailure))
 

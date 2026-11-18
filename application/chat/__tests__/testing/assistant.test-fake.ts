@@ -1,13 +1,4 @@
-import {
-  Array as Arr,
-  Deferred,
-  Effect,
-  Function as Fn,
-  Layer,
-  type Option,
-  Ref,
-  UndefinedOr,
-} from 'effect'
+import { Array as Arr, Deferred, Effect, Function as Fn, Layer, Ref, UndefinedOr } from 'effect'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
 import type { AssistantReply } from '#chat/domain/assistant.model'
@@ -16,7 +7,7 @@ import type { ChatTitle } from '#chat/domain/chat.model'
 
 export interface AssistantScript {
   readonly reply?: Effect.Effect<AssistantReply, AssistantError>
-  readonly suggestTitle?: Effect.Effect<Option.Option<ChatTitle>, AssistantError>
+  readonly suggestTitle?: Effect.Effect<ChatTitle, AssistantError>
 }
 
 /** A call the recording assistant took, with what the caller handed it. */

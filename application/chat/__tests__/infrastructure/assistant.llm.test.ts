@@ -360,7 +360,7 @@ describe('AssistantLlmFromConfig', () => {
     return Effect.gen(function* () {
       const title = yield* suggestTitle('Plan a weekend in Lisbon')
 
-      assertEquals(title, Option.some(ChatTitle.make('Lisbon weekend')))
+      assert.strictEqual(title, ChatTitle.make('Lisbon weekend'))
     }).pipe(Effect.provide(layer))
   })
 
@@ -412,14 +412,4 @@ describe('AssistantLlmFromConfig', () => {
       }).pipe(Effect.provide(recorded.layer))
     },
   )
-
-  it.effect('suggestTitle answers none for blank text without asking the model', () => {
-    const { bodies, layer } = recordAnthropic(() => message('Lisbon weekend'))
-    return Effect.gen(function* () {
-      const title = yield* suggestTitle(' \n ')
-
-      assertEquals(title, Option.none())
-      assertEquals(yield* bodies, [])
-    }).pipe(Effect.provide(layer))
-  })
 })
