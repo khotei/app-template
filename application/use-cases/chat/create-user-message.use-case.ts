@@ -1,6 +1,7 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
 import {
+  type Attachment,
   type AttachmentBoundError,
   type AttachmentNotFoundError,
   type ChatBusyError,
@@ -58,19 +59,12 @@ export class CreateUserMessageUseCase extends Context.Service<
     const queue = yield* QueueSender
     const transaction = yield* Transaction
 
-    /**
-     * The user's message, the attachments it names bound to it; one of another chat or one a
-     * message holds is refused first.
-     */
+    /** The user's message with `requested` bound to it. */
     const createUserMessage = Effect.fnUntraced(function* (
-      userId: UserId,
       chatId: ChatId,
       input: MessageInput,
+      requested: ReadonlyArray<Attachment>,
     ) {
-      const requested = yield* fileAttachments
-        .getMany({ id: input.attachmentIds, userId })
-        .pipe(Effect.flatMap(ensureAllReachableFrom(chatId)), Effect.flatMap(ensureAllUnbound))
-
       // The bind follows the message, since its key to the message is not deferrable.
       const message = yield* messageService.create({ chatId, text: input.text })
       yield* fileAttachments.bind(requested, message)
@@ -86,9 +80,14 @@ export class CreateUserMessageUseCase extends Context.Service<
       const chat = yield* chatService
         .getOne({ id: chatId, userId })
         .pipe(Effect.tap(ensureChatNotBusy))
+      // Read before the transaction, so its S3 heads run outside it; the bind's write dies on one
+      // a send bound since.
+      const requested = yield* fileAttachments
+        .getMany({ id: input.attachmentIds, userId })
+        .pipe(Effect.flatMap(ensureAllReachableFrom(chatId)), Effect.flatMap(ensureAllUnbound))
 
       // The message, its bind and its Run commit together: a Run that loses the race keeps none.
-      const run = yield* createUserMessage(userId, chatId, input).pipe(
+      const run = yield* createUserMessage(chatId, input, requested).pipe(
         Effect.flatMap(runService.create),
         transaction.run,
       )

@@ -8,6 +8,7 @@ import {
   RunRepository,
 } from '@app-template/kernel/data'
 import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testing'
+import type { Transaction } from '@app-template/packages/db'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
@@ -36,12 +37,15 @@ const mockRepositories = ({
   )
 
 /**
- * The send and retry use cases over `mocks`, the memory files and the identity transaction; the
- * files stay in context, and the `QueueSender` is the test's, `recordMessages()`.
+ * The send and retry use cases over `mocks`, the memory files and `transaction`, the identity one
+ * by default; the files stay in context, and the `QueueSender` is the test's, `recordMessages()`.
  */
-export const layerChatTest = (mocks: ChatRepositoryMocks) =>
+export const layerChatTest = (
+  mocks: ChatRepositoryMocks,
+  transaction: Layer.Layer<Transaction> = TransactionTest,
+) =>
   Layer.mergeAll(CreateUserMessageUseCase.layer, RetryRunUseCase.layer).pipe(
-    Layer.provide([mockRepositories(mocks), TransactionTest, BunCrypto.layer]),
+    Layer.provide([mockRepositories(mocks), transaction, BunCrypto.layer]),
     Layer.provideMerge(FileRepositoryTest),
     Layer.provideMerge(FileObjects.layer),
   )

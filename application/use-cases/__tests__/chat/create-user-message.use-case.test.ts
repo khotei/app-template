@@ -40,7 +40,7 @@ import {
   type MessageColumns,
   type RunColumns,
 } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
+import { decodeRowWith, encodeRowWith, Transaction } from '@app-template/packages/db'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import {
@@ -205,6 +205,40 @@ describe('CreateUserMessageUseCase', () => {
       )
     },
   )
+
+  it.effect('create reads its attachments before it opens the transaction', () => {
+    const steps: Array<string> = []
+    const reads = sendingTo(chat, photo)
+    const RecordingTransactionTest = Layer.succeed(
+      Transaction,
+      Transaction.of({
+        run: (self) => Effect.sync(() => steps.push('transaction')).pipe(Effect.andThen(self)),
+      }),
+    )
+    return Effect.gen(function* () {
+      const createUserMessage = yield* CreateUserMessageUseCase
+      yield* storePhotoBytes
+
+      yield* createUserMessage.create(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+
+      assert.deepStrictEqual(steps, ['attachments read', 'transaction'])
+    }).pipe(
+      Effect.provide(
+        layerChatTest(
+          insertingInto(noInserts(), {
+            ...reads,
+            attachments: {
+              selectMany: () =>
+                Effect.sync(() => steps.push('attachments read')).pipe(
+                  Effect.andThen(reads.attachments.selectMany()),
+                ),
+            },
+          }),
+          RecordingTransactionTest,
+        ).pipe(Layer.provide(recordMessages().layer)),
+      ),
+    )
+  })
 
   it.effect.each([
     { name: 'the first create queues the title job, then the reply job', read: chat, title: true },
