@@ -1,9 +1,8 @@
 import { eq, inArray } from 'drizzle-orm'
 import { QueryBuilder } from 'drizzle-orm/pg-core'
-import { Array as Arr, Context, Effect, identity, Layer, Option, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
 
 import {
-  buildSet,
   buildWhere,
   orDieUnless,
   orDieWithSqlError,
@@ -16,17 +15,11 @@ import {
   type RunEntity,
   type RunEntitySet,
   type RunEntityWhere,
+  runSetColumns,
   withMessages,
 } from '#kernel/data/chat/run.entity'
 import { type RunColumns, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
-
-const encodeSet = buildSet<RunEntitySet, typeof runs>({
-  status: identity,
-  failure: identity,
-  assistantMessageId: identity,
-  updatedAt: identity,
-})
 
 // Built on the table a query names, as a relational query aliases `runs`; `userId` is the owner
 // of the Run's chat, so a Run of another user's chat reads as absent.
@@ -66,7 +59,7 @@ export class RunRepository extends Context.Service<
           (set, where) =>
             db
               .update(runs)
-              .set(encodeSet(set))
+              .set(Struct.pick(set, runSetColumns))
               .where(encodeWhere(runs)(where))
               .returning({ id: runs.id })
               .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated')),

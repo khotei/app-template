@@ -175,16 +175,15 @@ states its intent; the row it finds is the entity as Drizzle types it, answered 
 and `Option.fromUndefinedOr` turns the `undefined` of none into `Option.none()`. A filter on a
 relation (`{ credentials: { kind, hash } }`) renders as `exists (…)`.
 
-A write of some fields under a condition maps its `<Name>EntitySet` and `<Name>EntityWhere` onto
-the table through the column mappers of `@app-template/packages/db`, one per field.
-`buildSet<Fields, Table>(columns)` takes a `SetColumns<Fields, Table>`, each mapper typed by the
-table's column (`PgUpdateSetSource<Table>`), and answers the row Drizzle's `set` takes;
-`buildWhere<Fields>(columns)` takes a `WhereColumns<Fields>`, each mapper answering
-`SQL | undefined`, and joins them with `and`. A mapper answering the wrong shape, a field the
-type gains without a mapper, and a mapper for a field the table has no column for all fail
-typecheck. The builders walk the mapper table's keys, so a whole entity passed as a set writes
-only the fields it may change; an absent field maps to `undefined` (`UndefinedOr.map`), which
-Drizzle's `set` and `and` skip.
+A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`.
+The entity file lists the columns an update may write once, as `<name>SetColumns`, and derives
+the `Set` type from it over the table's columns, so a name that is no column fails typecheck; the
+repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
+only those columns, and an `undefined` field is skipped by Drizzle's `set`.
+`buildWhere<Fields>(columns)` from `@app-template/packages/db` takes a `WhereColumns<Fields>`,
+one mapper per field answering `SQL | undefined`, and joins them with `and`, which skips an
+absent field (`UndefinedOr.map`); a mapper answering the wrong shape and a field the type gains
+without a mapper fail typecheck.
 A nullable field's mapper is `eqOrIsNull(column)`, which renders `null` as `IS NULL`, since
 SQL's `=` never matches it.
 
@@ -218,10 +217,10 @@ touches no row:
   `AttachmentEntitySet`: `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck)
   where the rows match `where` (`ChatEntityWhere`, `AttachmentEntityWhere`: a key, one id or a
   list of them for attachments, and optionally a field the row must still hold, `null` rendering
-  `IS NULL`). The repository maps each side through `buildSet` and `buildWhere` (above); a
-  service encodes the changed model through its mapper and writes the set's fields from the row,
-  and `encodeChatWhere` turns the `Option` of a chat's `where` into `null`. Both die when they
-  write nothing.
+  `IS NULL`). The repository picks the set's columns and maps the `where` through `buildWhere`
+  (above); a service encodes the changed model through its mapper and writes the set's fields
+  from the row, and `encodeChatWhere` turns the `Option` of a chat's `where` into `null`. Both
+  die when they write nothing.
   - `ChatService.rename` reads the chat by the caller's `where` to name a refusal
     (`ChatNotFoundError`), then writes under the same `where`. The title job passes `title:
     none`, so a rename landing between the two wins and the title job dies and fails.

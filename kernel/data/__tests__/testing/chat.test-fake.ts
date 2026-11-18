@@ -19,13 +19,17 @@ import { constTrue } from 'effect/Function'
 import { orDieUnless } from '@app-template/packages/db'
 
 import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import type { ChatEntity, ChatEntityWhere } from '#kernel/data/chat/chat.entity'
+import {
+  type ChatEntity,
+  type ChatEntityWhere,
+  chatSetColumns,
+} from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
 import { buildMessageEntity, type MessageEntityWhere } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { MessageColumns } from '#kernel/data/chat/message.table'
-import type { RunEntity, RunEntityWhere } from '#kernel/data/chat/run.entity'
+import { type RunEntity, type RunEntityWhere, runSetColumns } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
 import { activeRunStatuses, RunColumns } from '#kernel/data/chat/run.table'
 import { AttachmentRows } from '#testing/data/attachment.test-fake'
@@ -257,7 +261,7 @@ export const ChatRepositoryTest = Layer.effect(
       update: (set, where) =>
         updateRows(chats, {
           where: holdsChatWhere(where),
-          update: writeSet({ title: true, updatedAt: true }, set),
+          update: writeSet(chatSetColumns, set),
         }).pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated')),
       selectOne: (where) => selectMany(where).pipe(Effect.map(Arr.head)),
       selectMany,
@@ -326,10 +330,7 @@ export const RunRepositoryTest = Layer.effect(
           Effect.flatMap((rows) =>
             updateRows(runs, {
               where: holdsRunWhere(rows.chats, where),
-              update: writeSet(
-                { status: true, failure: true, assistantMessageId: true, updatedAt: true },
-                set,
-              ),
+              update: writeSet(runSetColumns, set),
               accepts: holdsRunGuards,
             }),
           ),

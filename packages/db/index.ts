@@ -1,5 +1,4 @@
 export {
-  buildSet,
   buildWhere,
   createdAt,
   eqOrIsNull,

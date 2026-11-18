@@ -20,6 +20,7 @@ import { hasRowPer, orDieUnless } from '@app-template/packages/db'
 import {
   AttachmentEntity,
   type AttachmentEntitySelectWhere,
+  attachmentSetColumns,
 } from '#kernel/data/attachment/attachment.entity'
 import { AttachmentRepository } from '#kernel/data/attachment/attachment.repository'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
@@ -117,7 +118,7 @@ export const AttachmentRepositoryTest = Layer.effect(
           orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no attachment was inserted'),
         ),
       update: (set, where) => {
-        const update = writeSet({ messageId: true, chatId: true }, set)
+        const update = writeSet(attachmentSetColumns, set)
         // Refused before it writes: in Postgres the die rolls back the caller's transaction,
         // which `TransactionTest` cannot.
         return Ref.get(rows).pipe(

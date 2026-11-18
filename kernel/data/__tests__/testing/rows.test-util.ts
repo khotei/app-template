@@ -102,17 +102,11 @@ export const deleteRows = <Id, Row>(
   })
 
 /**
- * The row with the fields of `set` that `columns` names, as `buildSet` writes them: `columns`
- * names every field of the set, a field outside it is dropped, an `undefined` one keeps the row's.
+ * The row with the fields of `set` that `columns` names, as a repository's `update` writes them:
+ * a field outside them is dropped, an `undefined` one keeps the row's.
  */
-export function writeSet<Set extends object>(
-  columns: { readonly [Key in keyof Required<Set>]: true },
-  set: Set,
-) {
-  const defined = pipe(
-    Struct.keys(columns),
-    Arr.filter((key) => Predicate.isNotUndefined(set[key])),
-  )
+export function writeSet<Set extends object>(columns: ReadonlyArray<keyof Set>, set: Set) {
+  const defined = Arr.filter(columns, (key) => Predicate.isNotUndefined(set[key]))
   const written = Struct.pick(set, defined)
   return <Row extends Set>(row: Row): Row => ({ ...row, ...written })
 }

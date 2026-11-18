@@ -21,8 +21,11 @@ export type ChatEntityWhere = Types.Simplify<
   RequireAtLeastOne<Pick<ChatEntity, 'id' | 'userId'>> & Partial<Pick<ChatEntity, 'title'>>
 >
 
+/** The columns an update may write. */
+export const chatSetColumns = ['title', 'updatedAt'] as const
+
 export type ChatEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<ChatEntity, 'title' | 'updatedAt'>>
+  RequireAtLeastOne<Pick<ChatColumns, (typeof chatSetColumns)[number]>>
 >
 
 /** The newest Run: the relation is one of many, so the read orders it. */

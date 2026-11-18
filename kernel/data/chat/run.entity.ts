@@ -24,8 +24,11 @@ export type RunEntityWhere = Types.Simplify<
     }>
 >
 
+/** The columns an update may write. */
+export const runSetColumns = ['status', 'failure', 'assistantMessageId', 'updatedAt'] as const
+
 export type RunEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<RunEntity, 'status' | 'failure' | 'assistantMessageId' | 'updatedAt'>>
+  RequireAtLeastOne<Pick<RunColumns, (typeof runSetColumns)[number]>>
 >
 
 export const newestFirst = { createdAt: 'desc', id: 'desc' } as const

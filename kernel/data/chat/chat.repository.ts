@@ -1,8 +1,7 @@
 import { eq } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, identity, Layer, Option, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
 
 import {
-  buildSet,
   buildWhere,
   eqOrIsNull,
   orDieUnless,
@@ -14,16 +13,12 @@ import {
   type ChatEntity,
   type ChatEntitySet,
   type ChatEntityWhere,
+  chatSetColumns,
   withRun,
 } from '#kernel/data/chat/chat.entity'
 import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
 import { withAttachments } from '#kernel/data/chat/message.entity'
 import { Db } from '#kernel/data/db.client'
-
-const encodeSet = buildSet<ChatEntitySet, typeof chats>({
-  title: identity,
-  updatedAt: identity,
-})
 
 // Built on the table a query names: a relational query aliases `chats`, so a condition on the
 // `chats` constant would reference a table the query does not have.
@@ -68,7 +63,7 @@ export class ChatRepository extends Context.Service<
           (set, where) =>
             db
               .update(chats)
-              .set(encodeSet(set))
+              .set(Struct.pick(set, chatSetColumns))
               .where(encodeWhere(chats)(where))
               .returning({ id: chats.id })
               .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated')),

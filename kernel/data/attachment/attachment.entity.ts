@@ -24,6 +24,9 @@ export type AttachmentEntitySelectWhere = Types.Simplify<
     Partial<Pick<AttachmentEntity, 'messageId' | 'chatId' | 'sourceId'>>
 >
 
+/** The columns an update may write. */
+export const attachmentSetColumns = ['messageId', 'chatId'] as const
+
 export type AttachmentEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<AttachmentEntity, 'messageId' | 'chatId'>>
+  RequireAtLeastOne<Pick<AttachmentEntity, (typeof attachmentSetColumns)[number]>>
 >

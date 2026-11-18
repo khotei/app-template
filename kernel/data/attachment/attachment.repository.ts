@@ -1,8 +1,7 @@
 import { eq, inArray } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, identity, Layer, type Option, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, Layer, type Option, Struct, UndefinedOr } from 'effect'
 
 import {
-  buildSet,
   buildWhere,
   eqOrIsNull,
   hasRowPer,
@@ -10,19 +9,15 @@ import {
   orDieWithSqlError,
 } from '@app-template/packages/db'
 
-import type {
-  AttachmentEntity,
-  AttachmentEntitySelectWhere,
-  AttachmentEntitySet,
-  AttachmentEntityWhere,
+import {
+  type AttachmentEntity,
+  type AttachmentEntitySelectWhere,
+  type AttachmentEntitySet,
+  type AttachmentEntityWhere,
+  attachmentSetColumns,
 } from '#kernel/data/attachment/attachment.entity'
 import { attachments } from '#kernel/data/attachment/attachment.table'
 import { Db } from '#kernel/data/db.client'
-
-const encodeSet = buildSet<AttachmentEntitySet, typeof attachments>({
-  messageId: identity,
-  chatId: identity,
-})
 
 const encodeWhere = buildWhere<AttachmentEntitySelectWhere>({
   id: UndefinedOr.map((id) => inArray(attachments.id, Arr.ensure(id))),
@@ -71,7 +66,7 @@ export class AttachmentRepository extends Context.Service<
         (set: AttachmentEntitySet, where: AttachmentEntityWhere) =>
           db
             .update(attachments)
-            .set(encodeSet(set))
+            .set(Struct.pick(set, attachmentSetColumns))
             .where(encodeWhere(where))
             .returning({ id: attachments.id })
             .pipe(orDieUnless(hasRowPer(where.id), 'an attachment named was not updated')),
