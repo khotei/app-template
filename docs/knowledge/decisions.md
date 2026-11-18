@@ -331,41 +331,26 @@ repository only reads, calls it and writes.
 - **If reversed:** the rules move back into the services' bodies, and their tests need layers.
 - **Revisit when:** a model's pieces outgrow one file, or a combination is never reused.
 
-### Layered services of one model
+### One service per model
 
-A model's records may be served by domain services layered over each other, each named for what
-it adds: `<Model>Service` holds the plain records (a read by key with its `*NotFoundError`, a
-read of many, a delete of many under the full `where` its caller passes), and
-`File<Model>Service` over it stores, serves and removes the bytes with the record, checking the
-rule a delete needs and passing its guard into the plain delete's `where`. A layer sees only the
-layers of its own model below it; another model's service stays a use case's.
+A model's records are served by one domain service, `<Model>Service`, the bytes it stores with
+them included: the record as stored (`getOne`, a list) beside the reads and writes that hold the
+bytes too (an upload, a download, the records whose bytes are stored, a bind, a delete).
 
-```ts
-// the bytes' layer reads through the plain one, pipes the model's guard and passes it on
-const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
-  yield* orders.getOne(where).pipe(ensureUnpaid)
-  yield* orders.delete({ ...where, paidAt: null })
-})
-```
-
-- **Why:** a read's name says what it answers: the plain service answers the records as stored,
-  and the bytes are stored and removed with their record in one service.
-- **Sources:** `.claude/rules/layering.md › Ports and domain services`;
-  `.claude/rules/deep-modules.md › The tests` (a name per variation is the last resort).
-- **Rejected:** a layer per rule between the two (`Live<Model>Service`): shallow, two reads over
-  the plain ones, and a wrapper once its rule goes.
-- **Cost:** it breaks the line that a domain service never sees another one, and the line that a
-  domain service's `layer` leaves every dependency open: a layer provides the one below it. Two
-  services and two layers for one model; a handler of the model takes both. A rule over the
-  reads is piped by each caller that reads, and one that forgets the pipe skips the rule. The
-  plain `getMany` leaves an absent id out, so only the file layer's error names every absent id
-  at once.
-- **Guarded by:** review, by `layering.md`; `noImportCycles` refuses a lower layer that imports
-  an upper one; nothing refuses a service of another model.
-- **If reversed:** the file methods fold back into one `<Model>Service`, and a caller that needs
-  the plain record reads the repository.
-- **Revisit when:** a rule over the same reads gains a second caller, so a layer named for the
-  rule would hold the pipe once, or a layer is left with one caller.
+- **Why:** the plain service under the bytes' one kept two methods only the upper one called,
+  each a forward to the repository, one of them with a guard no caller reached, and a second
+  entry in the provide list of the handler group that took both.
+- **Sources:** `.claude/rules/deep-modules.md › The tests` (deletion).
+- **Rejected:** `File<Model>Service` over the plain `<Model>Service`: two services for one model,
+  and an exception to the line that a domain service never sees another one. A layer per rule
+  between them (`Live<Model>Service`): shallow.
+- **Cost:** one service answers the record as stored (`getOne`) and the records whose bytes are
+  stored (`getMany`), so each method's TSDoc says which.
+- **Guarded by:** review, by `layering.md`.
+- **If reversed:** the byte methods move into `File<Model>Service` over the plain one, which
+  provides it.
+- **Revisit when:** a caller needs a model's records but never its bytes, so the store of the
+  bytes is a dependency it does not use.
 
 ## The kernel and the data
 

@@ -171,6 +171,11 @@ pieces left  the bind's rule above, with `upload` taking the place, a chat's own
   - [N:ai] Read as: the proposal above is accepted and becomes L3's next piece. Its contract
     is in the Shape, its two lines in Knowledge, the class per state in Later; no code is
     written in this round.
+- [N:ai] `FileAttachmentService` is folded into `AttachmentService`, its method bodies unchanged
+  (`docs/knowledge/decisions.md › One service per model`): where this file names
+  `FileAttachmentService` or `file-attachment.service.ts`, read `AttachmentService` and
+  `attachment.service.ts`, and the Knowledge line on two services reads one. Whether this lands
+  before L3's next piece is the owner's word.
 
 ### Pieces
 

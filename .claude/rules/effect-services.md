@@ -42,10 +42,9 @@ paths:
 - A service's layers are statics on the class. `static readonly layer = Layer.effect(this,
   this.make)` provides each dependency that has one implementation and leaves open the leaves
   that vary (a port, a client, a platform service); a domain service's leaves every dependency
-  open but the services of its model it is layered over (`layering.md`). There is no
-  `layerNoDeps`. A variant that closes a leaf is `static layer<Variant>`, a function when it
-  takes options; a layer for a service declared elsewhere (a domain port) is a constant in the
-  workspace that implements it (`naming.md`).
+  open (`layering.md`). There is no `layerNoDeps`. A variant that closes a leaf is
+  `static layer<Variant>`, a function when it takes options; a layer for a service declared
+  elsewhere (a domain port) is a constant in the workspace that implements it (`naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward; `Layer.provide([a, b])` only for

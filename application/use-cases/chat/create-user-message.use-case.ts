@@ -4,6 +4,7 @@ import {
   type Attachment,
   type AttachmentBoundError,
   type AttachmentNotFoundError,
+  AttachmentService,
   type ChatBusyError,
   type ChatId,
   type ChatNotFoundError,
@@ -13,7 +14,6 @@ import {
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
-  FileAttachmentService,
   GenerateChatTitle,
   isNewChat,
   type MessageInput,
@@ -53,7 +53,7 @@ export class CreateUserMessageUseCase extends Context.Service<
 >()('@app-template/application/use-cases/chat/CreateUserMessageUseCase', {
   make: Effect.gen(function* () {
     const chatService = yield* ChatService
-    const fileAttachments = yield* FileAttachmentService
+    const attachments = yield* AttachmentService
     const messageService = yield* MessageService
     const runService = yield* RunService
     const replySender = yield* AssistantMessageSender
@@ -68,7 +68,7 @@ export class CreateUserMessageUseCase extends Context.Service<
     ) {
       // The bind follows the message, since its key to the message is not deferrable.
       const message = yield* messageService.create({ chatId, text: input.text })
-      yield* fileAttachments.bind(requested, message)
+      yield* attachments.bind(requested, message)
       return message
     })
 
@@ -83,7 +83,7 @@ export class CreateUserMessageUseCase extends Context.Service<
         .pipe(Effect.tap(ensureChatNotBusy))
       // Read before the transaction, so its S3 heads run outside it; the bind's write dies on one
       // a send bound since.
-      const requested = yield* fileAttachments
+      const requested = yield* attachments
         .getMany({ id: input.attachmentIds, userId })
         .pipe(Effect.flatMap(ensureAllReachableFrom(chatId)), Effect.flatMap(ensureAllUnbound))
 
@@ -114,8 +114,8 @@ export class CreateUserMessageUseCase extends Context.Service<
   static readonly layer = Layer.effect(this, this.make).pipe(
     Layer.provide([
       AssistantMessageSender.layer,
+      AttachmentService.layer,
       ChatService.layer,
-      FileAttachmentService.layer,
       MessageService.layer,
       RunService.layer,
     ]),

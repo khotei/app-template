@@ -18,12 +18,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   entities and codes them through the model itself, with `encodeRowWith` and `decodeRowWith`.
 - A domain service owns its model's records for every caller above it: the reads a rule needs and
   the plain reads and writes a handler asks for (a list, a create, a record by key with its
-  `*NotFoundError`). It sees the repositories, its ports, the clock and `Crypto`, and the
-  services of its own model it is layered over; never another model's service, the queue or the
-  transaction, which are a use case's.
-- A model that stores bytes with its records → `File<Model>Service` over the plain
-  `<Model>Service`. Record:
-  [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
+  `*NotFoundError`), and the bytes it stores with them. It sees the repositories, its ports, the
+  clock and `Crypto`; never another service, the queue or the transaction, which are a use
+  case's. Record: [One service per model](../../docs/knowledge/decisions.md#one-service-per-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
   service, use case or repository only reads, calls it and writes
