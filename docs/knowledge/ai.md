@@ -24,10 +24,10 @@ graph LR
 ```
 
 1. `reply` turns the chat's messages into a `Prompt`: the fixed system prompt first, then
-   each user turn as its text and files, each assistant turn as its text. A failed Run leaves no
-   reply, so two user turns may follow each other: `@effect/ai-anthropic` folds them into one,
-   and the Messages API takes either shape. `suggestTitle` sends
-   the title instruction and the opening message.
+   each user turn as its text (none when blank) and files, each assistant turn as its text. A
+   failed Run leaves no reply, so two user turns may follow each other: `@effect/ai-anthropic`
+   folds them into one, and the Messages API takes either shape. `suggestTitle` sends the title
+   instruction and the opening message.
 2. `reply` calls `generateText` on the reply model and decodes the text as the domain's
    `AssistantReply`, so a blank reply fails as `InvalidOutputError` and is asked again.
    `suggestTitle` calls `generateObject` on the title model with `TitleAnswer`. Nothing streams:

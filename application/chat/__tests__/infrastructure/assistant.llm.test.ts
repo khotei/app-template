@@ -110,7 +110,7 @@ const imageBlock = {
 
 describe('AssistantLlmFromConfig', () => {
   it.effect(
-    "reply asks the reply model with the system prompt, user turns as their text and images and assistant turns as their text, and answers the model's text",
+    "reply asks the reply model with the system prompt, user turns as their text and images, a blank text left out, and assistant turns as their text, and answers the model's text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
@@ -120,7 +120,7 @@ describe('AssistantLlmFromConfig', () => {
             attachments: [{ attachment: photo, bytes: png }],
           },
           { message: assistantMessageAt(2, 'A photo.'), attachments: [] },
-          { message: userMessageAt(3, ''), attachments: [{ attachment: photo, bytes: png }] },
+          { message: userMessageAt(3, ' \n'), attachments: [{ attachment: photo, bytes: png }] },
         ])
 
         const [body] = yield* bodies
