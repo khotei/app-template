@@ -7,7 +7,6 @@
     "#lint/*": "./.misc/lint/*.mjs"
   },
   "workspaces": [
-    "http-api",
     "application",
     "kernel",
     "packages",

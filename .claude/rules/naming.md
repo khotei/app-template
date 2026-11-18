@@ -18,19 +18,18 @@ paths:
 
 ## Files
 
-`kebab-case`, `<name>.<role>.ts`, one role suffix, `<name>` singular like its folder; a file of
-a contract group `api-<name>.<role>.ts`, so it never shares a name with its domain twin; a file
+`kebab-case`, `<name>.<role>.ts`, one role suffix, `<name>` singular like its folder; a file
 with no role keeps a bare name (`layer.ts`), a tool's file the name its tool reads, and a file a
 tool writes from another `<name>.generated.ts`. Where a test
 and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests).
 
 | Suffix | Role |
 |---|---|
-| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors; the contract declares its own beside its `.http`, under the domain's export names |
+| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<layer>-<model>.service.ts` for one layered over it, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
-| `.handler` | api: one contract group's handlers · worker: its one route, each queue's use case |
+| `.handler` | api: one HTTP group's handlers · worker: its one route, each queue's use case |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
 | `.table` · `.entity` | a table · `<Name>Entity` with its `Where` and `Set`, an `Insert` only where an insert is no table's row, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
 | `.mapper` | api: `buildApi<Model>`, a model handed to a wire shape that adds or renames a field; a model's row needs none, it is its own codec |

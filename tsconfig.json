@@ -1,7 +1,6 @@
 {
   "files": [],
   "references": [
-    { "path": "./http-api" },
     { "path": "./application" },
     { "path": "./kernel" },
     { "path": "./packages" },

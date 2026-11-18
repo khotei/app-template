@@ -4,7 +4,6 @@ import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
-import { Api } from '@app-template/http-api'
 import {
   QueueSenderOfStage,
   S3BucketFromConfig,
@@ -15,15 +14,16 @@ import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/d
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
+import { Api } from '#api/api'
 import { AttachmentHandler } from '#api/attachment/attachment.handler'
 import { ChatHandler } from '#api/chat/chat.handler'
 import { HealthHandler } from '#api/health/health.handler'
-import { AuthUserService, SchemaErrorsRequestInvalid } from '#api/shared/security'
+import { Auth, SchemaErrors } from '#api/shared/security'
 import { UserHandler } from '#api/user/user.handler'
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide([HealthHandler, UserHandler, ChatHandler, AttachmentHandler]),
-  Layer.provide([AuthUserService, SchemaErrorsRequestInvalid]),
+  Layer.provide([Auth.layer, SchemaErrors.layer]),
 )
 
 export const ApiHttp = HttpRouter.serve(ApiRoutes)

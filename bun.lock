@@ -33,7 +33,6 @@
       "name": "@app-template/api",
       "dependencies": {
         "@app-template/application": "workspace:*",
-        "@app-template/http-api": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
         "@effect/platform-bun": "catalog:effect",
@@ -48,7 +47,6 @@
       "devDependencies": {
         "@app-template/api": "workspace:*",
         "@app-template/application": "workspace:*",
-        "@app-template/http-api": "workspace:*",
         "@app-template/kernel": "workspace:*",
         "@app-template/packages": "workspace:*",
         "@app-template/worker": "workspace:*",
@@ -89,12 +87,6 @@
         "@pulumi/aws": "catalog:pulumi",
         "@pulumi/docker": "catalog:pulumi",
         "@pulumi/pulumi": "catalog:pulumi",
-        "effect": "catalog:effect",
-      },
-    },
-    "http-api": {
-      "name": "@app-template/http-api",
-      "dependencies": {
         "effect": "catalog:effect",
       },
     },
@@ -184,8 +176,6 @@
     "@app-template/deployment": ["@app-template/deployment@workspace:deployment"],
 
     "@app-template/e2e": ["@app-template/e2e@workspace:apps/e2e"],
-
-    "@app-template/http-api": ["@app-template/http-api@workspace:http-api"],
 
     "@app-template/kernel": ["@app-template/kernel@workspace:kernel"],
 

@@ -26,9 +26,9 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
-  `infrastructure/`, `http-api`, the API contract the api implements and the web's client is
-  generated from, which declares the wire itself and imports only `effect`, and the apps, thin
-  entry points that assemble the layers and provide the clients. Nothing of `application/`
+  `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
+  clients; the api declares the HTTP contract from the domain's schemas and writes it as
+  `apps/api/openapi.json`, from which the web's client is generated. Nothing of `application/`
   reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
@@ -37,13 +37,12 @@ provisions the stores of the local stand ([aws.md](aws.md)). What each ring and 
 [Modules by capability](decisions.md#modules-by-capability),
 [A module's layers](decisions.md#a-modules-layers), [One kernel](decisions.md#one-kernel),
 [The data at the centre](decisions.md#the-data-at-the-centre),
-[The API contract on its own](decisions.md#the-api-contract-on-its-own).
+[The API contract in the api](decisions.md#the-api-contract-in-the-api).
 
 ```mermaid
 graph TD
   subgraph boundary["boundary"]
     apps["apps/*"]
-    httpApi["http-api"]
     infra["a module's infrastructure/"]
     clients["the kernel's clients"]
   end
@@ -68,23 +67,22 @@ process, starts no process of its own, and nothing imports it.
 Each row lists what its code may import (✓ allowed, ✗ refused), and the last column the guard
 that refuses the row's ✗, each guard described in [Boundary guards](#boundary-guards):
 
-| From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | `http-api` | Refused by |
-|---|---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | ✗ | `application/*/domain/**`, `kernel/data` by name |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `db` only | ✗ | `application/*/services/**` |
-| a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | ✗ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
-| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
-| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | ✗ | `application/use-cases/**`; review, `/testing` |
-| `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | ✗ | `kernel/data/**` |
-| rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | ✗ | TS2307, a module, `use-cases`, `http-api`; a part above it: `noImportCycles` on a cycle, else review |
-| `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | ✗ | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
-| `http-api` | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | — | `http-api/**` |
-| `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
-| `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, `http-api`; review, the data |
-| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✗ | `apps/web/**`; TS2307, any workspace but `packages`; `make bundle-check` |
-| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | ✗ | `biome-imports.grit`, another app and `deployment`; TS2307, any workspace but `packages`; review, a package but `ui` |
-| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | ✗ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
-| `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
+| From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
+|---|---|---|---|---|---|---|---|
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | `application/*/domain/**`, `kernel/data` by name |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `db` only | `application/*/services/**` |
+| a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
+| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | ✓ | ✗ | ✓ | `application/use-cases/**`; review, `/testing` |
+| `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
+| rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above it: `noImportCycles` on a cycle, else review |
+| `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
+| `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
+| `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
+| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `apps/web/**`; TS2307, any workspace but `packages`; `make bundle-check` |
+| `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `biome-imports.grit`, another app and `deployment`; TS2307, any workspace but `packages`; review, a package but `ui` |
+| `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
+| `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
 
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
@@ -96,10 +94,10 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **`http-api` imports only `effect`:** it declares every id, constrained string, model shape
-  and error itself ([The API contract on its own](decisions.md#the-api-contract-on-its-own)).
-  **A contract
-  imports only `effect`** too (and `type-fest` for types), **a module's `domain/` also the values
+- **The api's HTTP groups take the domain's schemas** through the modules' entries; the web
+  takes none of them, only its generated client
+  ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
+  imports only `effect`** (and `type-fest` for types), **a module's `domain/` also the values
   its tables declare** (a limit, a pattern, an enum's values, from
   `@app-template/kernel/data`), and none of them nor a module's `services/` import an
   `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
@@ -160,7 +158,8 @@ Using the files of `chat` as the map:
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
-| contract group | `http-api/chat/api-chat.http.ts`, the wire shapes and errors in one `api-<model>.model.ts` and `api-<model>.error.ts` per model (`api-chat.model.ts`, `api-message.error.ts`); the ids in `http-api/shared/ids.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Schema.Struct`); the domain's twins under its names: `ChatTitle`, `ChatStatus`, `ChatNotFoundError` |
+| HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.mapFields(…)`) |
+| the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat` |
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
@@ -260,16 +259,16 @@ imports need.
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route.
-5. **The boundary.** A contract group in `http-api/<entity>/api-<entity>.http.ts`, its wire shape in
-   `api-<entity>.model.ts`, its errors in `api-<entity>.error.ts` and its ids in
-   `http-api/shared/ids.ts`, as [http-api/CLAUDE.md](../../http-api/CLAUDE.md) says, added to `Api`
-   in `http-api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups added
-   before it; its handler in `apps/api/<entity>/`, with a mapper in
-   `apps/api/<entity>/<entity>.mapper.ts` only for a wire shape that adds or renames a field, the
-   handler added to `ApiRoutes`, its group providing the services and use cases it reads. Test only
-   what HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
-   `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through the web's
-   `ApiClient`, as `<group><Endpoint>`, after `make api-snapshot`.
+5. **The boundary.** A group in `apps/api/<entity>/<entity>.http.ts` over the domain's ids,
+   models and errors, each error with its status where its endpoint lists it, a wire shape only
+   where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
+   `apps/api/api.ts` before `.middleware(SchemaErrors)`, which reaches only the groups added
+   before it; its handler beside it, with a mapper in `apps/api/<entity>/<entity>.mapper.ts` only
+   where the wire adds a field, the handler added to `ApiRoutes`, its group providing the services
+   and use cases it reads; then `make api-snapshot`. Test only what HTTP adds, on the api test
+   layer; a new module's journey case goes in a file of its own on `StandTest`. A browser feature
+   calls it from `apps/web/features/<entity>/` through the web's `ApiClient`, as
+   `<group><Endpoint>`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).
@@ -320,9 +319,7 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
    the `application/*/contract/**` override already covers it. Record:
    [Module contracts](decisions.md#module-contracts).
 4. **The consumers** declare `@app-template/application` in their `package.json`; the browser is
-   none, and `make bundle-check` refuses the module in its bundle with no edit. The api's twins
-   test names the modules it compares with the contract: add the new one, since no check sees
-   a module the test leaves out.
+   none, and `make bundle-check` refuses the module in its bundle with no edit.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a record if the cut is a
    decision ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 

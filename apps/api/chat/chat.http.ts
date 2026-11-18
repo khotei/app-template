@@ -1,0 +1,121 @@
+import { flow, Schema, Struct } from 'effect'
+import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
+
+import {
+  AttachmentBoundError,
+  AttachmentId,
+  AttachmentNotFoundError,
+  Chat,
+  ChatBusyError,
+  ChatId,
+  ChatNotFoundError,
+  ChatStatus,
+  ChatTitle,
+  Message,
+  MessageFields,
+  MessageId,
+  MessageInputInvalidError,
+  MessageNotFoundError,
+  Run,
+  RunFailure,
+  RunFields,
+  RunId,
+  RunNotFoundError,
+  RunNotQueuedError,
+  RunNotRetryableError,
+} from '@app-template/application/chat'
+
+import { maxFiles } from '#api/attachment/attachment.http'
+import { Auth } from '#api/shared/security'
+
+/** A Run's failure on the wire: its user-facing sentence, never its cause. */
+const ApiRunFailure = Schema.OptionFromNullOr(RunFailure.mapFields(Struct.omit(['cause'])))
+
+const ApiRunFields = RunFields.mapFields(
+  flow(
+    Struct.omit(['userMessageId', 'assistantMessageId']),
+    Struct.assign({ failure: ApiRunFailure }),
+  ),
+)
+
+const ApiRun = Run.mapFields(
+  flow(
+    Struct.omit(['userMessageId', 'assistantMessageId']),
+    Struct.assign({ failure: ApiRunFailure }),
+  ),
+)
+
+const ApiMessage = Message.mapFields(Struct.assign({ run: Schema.OptionFromNullOr(ApiRunFields) }))
+
+/** A chat with the status its newest Run gives it, in place of that Run. */
+export const ApiChat = Chat.mapFields(
+  flow(Struct.omit(['run']), Struct.assign({ status: ChatStatus })),
+)
+export type ApiChat = typeof ApiChat.Type
+
+const chatPath = { chatId: ChatId }
+
+export class ChatHttp extends HttpApiGroup.make('chats')
+  .add(
+    HttpApiEndpoint.post('create', '/chats', { success: ApiChat.pipe(HttpApiSchema.status(201)) }),
+    HttpApiEndpoint.get('list', '/chats', { success: Schema.Array(ApiChat) }),
+    HttpApiEndpoint.get('get', '/chats/:chatId', {
+      params: chatPath,
+      success: ApiChat,
+      error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+    }),
+    HttpApiEndpoint.patch('rename', '/chats/:chatId', {
+      params: chatPath,
+      payload: Schema.Struct({ title: Schema.Trim.pipe(Schema.decodeTo(ChatTitle)) }),
+      success: ApiChat,
+      error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+    }),
+    HttpApiEndpoint.delete('delete', '/chats/:chatId', {
+      params: chatPath,
+      success: HttpApiSchema.NoContent,
+      error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+    }),
+    HttpApiEndpoint.get('listMessages', '/chats/:chatId/messages', {
+      params: chatPath,
+      success: Schema.Array(ApiMessage),
+      error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+    }),
+    HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
+      params: chatPath,
+      payload: Schema.Struct({
+        text: MessageFields.fields.text.check(Schema.isMaxLength(20_000)),
+        attachmentIds: Schema.Array(AttachmentId).check(Schema.isMaxLength(maxFiles)),
+      }),
+      success: ApiRun.pipe(HttpApiSchema.status(202)),
+      error: [
+        MessageInputInvalidError.pipe(HttpApiSchema.status(400)),
+        ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+        ChatBusyError.pipe(HttpApiSchema.status(409)),
+        AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
+        AttachmentBoundError.pipe(HttpApiSchema.status(409)),
+        RunNotQueuedError.pipe(HttpApiSchema.status(503)),
+      ],
+    }),
+    HttpApiEndpoint.post('retryRun', '/chats/:chatId/messages/:userMessageId/runs', {
+      params: { ...chatPath, userMessageId: MessageId },
+      success: ApiRun.pipe(HttpApiSchema.status(202)),
+      error: [
+        MessageNotFoundError.pipe(HttpApiSchema.status(404)),
+        ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+        ChatBusyError.pipe(HttpApiSchema.status(409)),
+        RunNotRetryableError.pipe(HttpApiSchema.status(409)),
+        RunNotQueuedError.pipe(HttpApiSchema.status(503)),
+      ],
+    }),
+    HttpApiEndpoint.get('getMessage', '/chats/:chatId/messages/:messageId', {
+      params: { ...chatPath, messageId: MessageId },
+      success: ApiMessage,
+      error: MessageNotFoundError.pipe(HttpApiSchema.status(404)),
+    }),
+    HttpApiEndpoint.get('getRun', '/chats/:chatId/runs/:runId', {
+      params: { ...chatPath, runId: RunId },
+      success: ApiRun,
+      error: RunNotFoundError.pipe(HttpApiSchema.status(404)),
+    }),
+  )
+  .middleware(Auth) {}

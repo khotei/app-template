@@ -3,9 +3,10 @@ import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService, RunService } from '@app-template/application/chat'
 import { CreateUserMessageUseCase, RetryRunUseCase } from '@app-template/application/use-cases'
-import { Api, CurrentUser } from '@app-template/http-api'
 
+import { Api } from '#api/api'
 import { buildApiChat } from '#api/chat/chat.mapper'
+import { CurrentUser } from '#api/shared/security'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,

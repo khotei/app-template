@@ -7,9 +7,7 @@ import {
 import { it } from '@effect/vitest'
 import { Effect } from 'effect'
 
-const spec = JSON.parse(
-  readFileSync(new URL('../../../../http-api/openapi.json', import.meta.url), 'utf8'),
-)
+const spec = JSON.parse(readFileSync(new URL('../../../api/openapi.json', import.meta.url), 'utf8'))
 
 // The file-snapshot matcher exists only on vitest's `expect`, taken from the test's context.
 it.effect('the client matches the api OpenAPI snapshot', ({ expect }) =>

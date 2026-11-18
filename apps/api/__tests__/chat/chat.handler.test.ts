@@ -7,23 +7,21 @@ import {
   AttachmentId,
   buildAttachment,
   Chat,
+  ChatNotFoundError,
   FileName,
   FileSize,
   MediaType,
   Message,
+  MessageNotFoundError,
   Run,
+  RunNotFoundError,
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
-import {
-  ChatNotFoundError,
-  MessageNotFoundError,
-  RequestInvalidError,
-  RunNotFoundError,
-  UserUnknownError,
-} from '@app-template/http-api'
+import { UserUnknownError } from '@app-template/application/identity'
 import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
+import { RequestInvalidError } from '#api/shared/security'
 import {
   type ApiRepositoryMocks,
   layerApiTest,
@@ -303,7 +301,7 @@ describe('chats', () => {
       assert.nestedProperty(wire, 'failure.message')
       assert.notNestedProperty(wire, 'failure.cause')
       assert.deepInclude(chatWire, { status: 'failed' })
-      assert.notProperty(chatWire, 'latestRun')
+      assert.notProperty(chatWire, 'run')
     }).pipe(
       Effect.provide(
         asOwner({

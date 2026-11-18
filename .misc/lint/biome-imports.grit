@@ -21,11 +21,9 @@ pattern specifier($source) {
   }
 }
 
-// The last ring folder on the absolute $filename (apps/<app>, application, deployment, http-api,
-// kernel, packages) names the ring whose workspaces the ring rules below check.
-pattern ring($ring) {
-  r".*/(apps/[a-z0-9-]+|application|deployment|http-api|kernel|packages)/.*"($ring)
-}
+// The last ring folder on the absolute $filename (apps/<app>, application, deployment, kernel,
+// packages) names the ring whose workspaces the ring rules below check.
+pattern ring($ring) { r".*/(apps/[a-z0-9-]+|application|deployment|kernel|packages)/.*"($ring) }
 
 // $filename is absolute: the last application/, kernel/ or packages/ folder on the path names the
 // unit; a #<unit>/…, #kernel/<unit>/… or #testing/<unit>/… specifier names the unit it reaches.
@@ -54,11 +52,10 @@ or {
     $source <: r"['\"`]@app-template/([a-z0-9-]+).*['\"`]"($workspace),
     not $workspace <: or {
       "application",
-      "http-api",
       "kernel",
       "packages"
     },
-    register_diagnostic(span=$source, message="an app imports no other app and no deployment, whatever its manifest declares: only @app-template/{application,http-api,kernel,packages}/… (decisions.md › Independent apps)")
+    register_diagnostic(span=$source, message="an app imports no other app and no deployment, whatever its manifest declares: only @app-template/{application,kernel,packages}/… (decisions.md › Independent apps)")
   },
   specifier($source) where {
     $filename <: ring($ring),

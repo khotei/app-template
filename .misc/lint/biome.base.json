@@ -13,7 +13,7 @@
       "!bun.lock",
       "!repos",
       "!kernel/data/migrations",
-      "!http-api/openapi.json",
+      "!apps/api/openapi.json",
       "!apps/web/shared/api.generated.ts"
     ]
   },
@@ -68,33 +68,6 @@
   },
   "overrides": [
     {
-      "includes": ["http-api/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noRestrictedImports": {
-              "level": "error",
-              "options": {
-                "patterns": [
-                  {
-                    "group": [
-                      "**",
-                      "!effect",
-                      "!effect/*",
-                      "!#http-api/**",
-                      "#http-api/**/..",
-                      "#http-api/**/../**"
-                    ],
-                    "message": "the API contract imports only effect, effect/<module> and its own files through #http-api/…: no workspace, no other package, no node: or bun built-in (decisions.md › The API contract on its own; Guards are configuration)"
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["apps/web/**", "!apps/web/main.ts"],
       "linter": {
         "rules": {
@@ -105,7 +78,7 @@
                 "patterns": [
                   {
                     "group": ["@app-template/**", "!@app-template/packages/ui"],
-                    "message": "web client code may import only @app-template/packages/ui and its generated client: it ships to the browser (decisions.md › The API contract on its own; Guards are configuration)"
+                    "message": "web client code may import only @app-template/packages/ui and its generated client: it ships to the browser (decisions.md › The API contract in the api; Guards are configuration)"
                   }
                 ]
               }
@@ -263,7 +236,7 @@
                       "!@app-template/packages/*",
                       "!@app-template/packages/*/testing"
                     ],
-                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*: no http-api, app or deployment above them, no client the processes provide (/config, /postgres, /aws, /llm); their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
+                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data) and packages/*: no app or deployment above them, no client the processes provide (/config, /postgres, /aws, /llm); their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; Guards are configuration)"
                   }
                 ]
               }

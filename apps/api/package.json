@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@app-template/application": "workspace:*",
-    "@app-template/http-api": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
     "@effect/platform-bun": "catalog:effect",

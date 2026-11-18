@@ -11,16 +11,16 @@ import {
   MediaType,
 } from '@app-template/application/chat'
 import { owner } from '@app-template/application/chat/testing'
-import {
-  AttachmentTooLargeError,
-  AttachmentTypeUnsupportedError,
-  limits,
-  RequestInvalidError,
-} from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals, epoch, png as pngBytes } from '@app-template/packages/testing'
 
+import {
+  AttachmentTooLargeError,
+  AttachmentTypeUnsupportedError,
+  maxFiles,
+} from '#api/attachment/attachment.http'
+import { RequestInvalidError } from '#api/shared/security'
 import { layerApiTest, ownerCookie, signedIn } from '#testing/api.test-layer'
 
 const mebibyte = 1024 * 1024
@@ -81,7 +81,7 @@ const refusedUploads = [
   },
   {
     name: 'six files',
-    form: () => formOf(...Arr.makeBy(limits.attachment.maxFiles + 1, (i) => png(`${i}.png`))),
+    form: () => formOf(...Arr.makeBy(maxFiles + 1, (i) => png(`${i}.png`))),
     status: 400,
     error: new RequestInvalidError({
       issues: [{ path: ['files'], message: 'Expected at most 5 files' }],

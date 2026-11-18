@@ -6,18 +6,26 @@ import {
   AttachmentService,
   FileAttachmentService,
   FileName,
-  type MediaType,
+  MediaType,
 } from '@app-template/application/chat'
+
+import { Api } from '#api/api'
 import {
-  Api,
-  AttachmentMediaType,
   AttachmentTooLargeError,
   AttachmentTypeUnsupportedError,
-  CurrentUser,
-  limits,
-  RequestInvalidError,
-  type RequestIssue,
-} from '@app-template/http-api'
+  maxFiles,
+} from '#api/attachment/attachment.http'
+import { CurrentUser, RequestInvalidError, type RequestIssue } from '#api/shared/security'
+
+/** A media type an upload may declare; the part's `contentType` is client-supplied. */
+const AttachmentMediaType = Schema.Literals([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+]).pipe(Schema.decodeTo(MediaType))
 
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })
@@ -29,9 +37,7 @@ const refuseMultipart = {
   BodyTooLarge: () => Effect.fail(new AttachmentTooLargeError()),
   FieldTooLarge: () => Effect.fail(buildRequestInvalid(['files'], 'Expected a file, not a field')),
   TooManyParts: () =>
-    Effect.fail(
-      buildRequestInvalid(['files'], `Expected at most ${limits.attachment.maxFiles} files`),
-    ),
+    Effect.fail(buildRequestInvalid(['files'], `Expected at most ${maxFiles} files`)),
   Parse: () => Effect.fail(buildRequestInvalid([], 'Expected a multipart body')),
   InternalError: (error) => Effect.die(error),
 } as const satisfies Record<

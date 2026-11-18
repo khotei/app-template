@@ -116,7 +116,7 @@ service calls the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
   data cannot sit there. Nothing of it reaches the browser any more
-  ([The API contract on its own](#the-api-contract-on-its-own)), so it takes from the data layer
+  ([The API contract in the api](#the-api-contract-in-the-api)), so it takes from the data layer
   the values its tables declare (a limit, a pattern, an enum's values) instead of declaring them
   again, and keeps its own brands, models and refinements: the vocabulary is the domain's, and
   the data layer stays free of models ([The data at the centre](#the-data-at-the-centre)). The
@@ -134,8 +134,8 @@ service calls the data layer's repository directly.
   the data layer's schemas too: the tables would first declare a brand and a checked column for
   every id and constrained string, and own the domain's vocabulary, against
   [.claude/rules/modules.md › A service rule or a model in the kernel](../../.claude/rules/modules.md#a-service-rule-or-a-model-in-the-kernel).
-  A leaf package of shared values for the data layer, the domain and the API contract: the
-  contract would import a workspace ([The API contract on its own](#the-api-contract-on-its-own)).
+  A leaf package of shared values for the data layer and the domain: the values would leave
+  the tables that check them, and the wire takes them through the domain's schemas.
   The domain's own copies kept: a value could drift between the two declarations. The queues'
   definitions in `services/`: the services' guard would admit `@app-template/kernel/aws` and
   `@app-template/packages/queue`.
@@ -148,10 +148,9 @@ service calls the data layer's repository directly.
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
   it only a value's name (`<name>Pattern`, `<name>Statuses`), the services' admitting neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue`: the rows of a module's layers
-  and of `http-api` in [architecture.md › Dependency rules](architecture.md#dependency-rules);
-  `make bundle-check`, which reads the web bundle's metafile and refuses the module's package in
-  it;
+  `@app-template/kernel/aws` nor `@app-template/packages/queue`: the rows of a module's layers in
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
+  which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path; a domain without the
@@ -161,11 +160,12 @@ service calls the data layer's repository directly.
 
 ### HTTP outside the modules
 
-The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalidError` stays in
-`http-api`; `generateId` lives in `packages/db`, beside the `id()` column.
+The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError` and the
+upload's two) live in `apps/api`, outside the modules; `generateId` lives in `packages/db`,
+beside the `id()` column.
 
 - **Why:** a handler needs the assembled `Api`, which imports the groups, so a module owning its
-  handler would make a cycle. No module raises `RequestInvalidError`. `generateId` knows no app (a
+  handler would make a cycle. No module raises them. `generateId` knows no app (a
   `Crypto` and a brand's `make` in, a UUIDv7 out), only services, use cases and handlers call it,
   and beside `id()` the id format lives in one file.
 - **Sources:** departs from the guide's "Keep internal layering per module (API → domain →
@@ -175,59 +175,85 @@ The HTTP groups stay in `http-api` and the handlers in the apps; `RequestInvalid
 - **Rejected:** `generateId` spelled out at each call, or copied per module: two copies of a rule
   no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's.
 - **Cost:** a module's HTTP shape lives outside the module.
-- **Guarded by:** the `http-api` and `apps/web` rows of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`.
+- **Guarded by:** the `apps/api` row of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules); no module's manifest
+  declares `@app-template/api`, so an import of it fails TS2307.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
   HTTP surface.
 
-### The API contract on its own
+### The API contract in the api
 
-`http-api` declares the wire itself and imports only `effect`: every id, constrained string,
-status list and error restates the domain's under the same name, a model's wire shape is an
-`Api<Model>` `Schema.Struct`, and an error carries its status on the class. The api implements
-it, handing it the domain's models and errors as they are, through a `buildApi<Model>` only where
-the wire adds a field (`buildApiChat` adds `status`); the web calls the api through a client
-generated from the contract's OpenAPI snapshot. Nothing of `application/` reaches the browser.
+The api declares its HTTP surface in its own files, one group per entity beside its handler,
+assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
+the domain's own; every error gets its status where an endpoint or a middleware lists it
+(`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
+which omits fields by name or swaps them, and a mapper adds only what the model lacks
+(`buildApiChat` adds `status`). Its unit test writes `apps/api/openapi.json`; the web reads that
+file by path and keeps the client `@effect/openapi-generator` writes from it, checked in. Nothing
+of `application/` reaches the browser, and the web declares no workspace of the app but
+`packages`.
 
-- **Why:** the web's freedom from server code rested on tree shaking, which a lost side-effects
-  flag undoes in one build; the backend kept rules for the web's sake, and the bundle check was
-  rewritten on every rename. A struct encodes any object that has its fields and writes only
-  them, so an internal field stays off the wire with no code, and the contract's error class
-  encodes the domain's instance by the class marker Effect puts on it, so no handler translates
-  an error.
-- **Sources:** the guide's "design contracts around use cases, not around internal entity
-  models"
-  ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
-  the prototype of `docs/tickets/2026-11-04-1131_client-publishing/`, where renaming a nested
-  domain field on the wire broke 8 of 13 handlers without a mapper.
-- **Rejected:** the contract's DTOs as `mapFields` over the domain's schemas, while the web
-  imported the contract: the browser bundle held whatever the bundler failed to drop, and the
-  domain had to stay browser-safe for it. A module `contract/` that ships to the browser: every
-  module would carry the browser's constraints, and the web would import `application/`. A
-  translation per handler from a domain error to the contract's: a place per handler for the
-  wire to drift. An identity `buildApi<Model>` per response model: `tsc` refuses the drift at
-  the handler without it.
-- **Cost:** every id, constrained string, status list and error is declared twice, in the domain
-  and in the contract, held in step by the twins test only under one name; a wire field costs a
-  line more; `openapi.json`'s component names follow the contract's identifiers; a drifted field
-  is named at every handler that returns its model, not once per model. The class
-  marker is internal to Effect, so an upgrade that drops it turns every domain error into a
-  `500`. The web's client knows no brands, `DateTime`, `Option` or error classes, and its
-  endpoints are named by their operationIds.
-- **Guarded by:** the `http-api/**` override, an allow-list that refuses every import but
-  `effect`, `effect/<module>` and the contract's own `#http-api/…` files; `"types": []` in its
-  `tsconfig.json`, so a `Bun` or `process` global fails `tsc`; the api's twins test, which
-  compares each contract schema with the domain export of the same name by its representation
-  and encodes a domain error through the contract's class; `HttpApiBuilder` and `CurrentUser`
-  under `tsc`, which type each handler's result against its endpoint's success schema, so a
-  brand, tag, literal or field drifted on one side no longer typechecks (`fileName` renamed in
-  `ApiAttachment` fails `TS2322` at the attachment group's `upload`, `list` and `get`, the chat
-  group's `listMessages` and `getMessage`, and `buildApiChat`); `make bundle-check`.
-- **If reversed:** the contract imports the modules again; one commit per group, back to
-  `mapFields` over the domain.
-- **Revisit when:** a second consumer of the contract appears.
+- **Why:** a contract of its own declared each id, constrained string, status list and error a
+  second time (23 twins of the domain's, 5 ids among them, with the tables' limits, patterns
+  and enums' values copied into them), held in step by a test that compared only exports of one
+  name, over a module list no check saw; the browser needs none of it, since its generated
+  client imports only `effect`. A struct writes only its own fields, so `mapFields` keeps a
+  field off the wire with no code, and the domain's error classes encode themselves, so no
+  handler translates one and no class marker internal to Effect is relied on.
+- **Sources:** Effect's HTTP API guide, whose fixture group takes the domain's schemas
+  (`repos/effect/ai-docs/src/51_http-server/fixtures/api/Users.ts`) and gives an error its
+  status both on the domain's class
+  (`repos/effect/ai-docs/src/51_http-server/fixtures/domain/UserErrors.ts`) and at an endpoint
+  with `HttpApiSchema.status`; the api takes the second form only. The owner's decision of the
+  design audit (Track B). A run of the derived contract against the twins' snapshot: the same 17
+  operations, statuses and bodies. Departs from the guide's "design contracts around use cases,
+  not around internal entity models"
+  ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/)):
+  the wire is the models' encoded side, held by the snapshot test. In the prototype of
+  `docs/tickets/2026-11-04-1131_client-publishing/`, renaming a nested domain field on the wire
+  broke 8 of 13 handlers without a mapper; here a renamed model field renames the wire field with
+  no handler edit, and the api's snapshot test stops it.
+- **Rejected:** the contract as a workspace importing only `effect`: the twins, a test to hold
+  them, guards for a browser that no longer imports it. A status on the domain's class: an HTTP
+  fact in a `domain/` the worker loads too. A status on the class only for an error HTTP alone
+  raises: two forms for one fact. A constant per error with its status: a second name for one
+  class, where `.claude/rules/deep-modules.md` spells a one-line expression at each use. A `pick`
+  of the wire's fields: every field listed again. `Model.Class` variants: every domain class
+  rewritten as a `Model`, whose select, insert and update variants restate the row the Drizzle
+  table and the model as its row's codec already state ([Entity names](#entity-names)), and
+  whose json variants are a second field list per model. A client generated at build time:
+  typecheck, the bundle check and the editor would need a step first. The web importing the
+  api's `Api`: it would install the api and the modules. The api's tests on the web's generated
+  client: they assert the domain's brands, `DateTime` and error classes. The snapshot in a folder
+  below both apps: the api's test would write outside its workspace. A name per endpoint
+  (`OpenApi.Identifier`): an operationId is unique across groups, so it repeats its group
+  anyway. A translation per handler, an identity `buildApi<Model>`: `tsc` refuses the drift
+  without them.
+- **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
+  dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
+  what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
+  code points where the api counts UTF-16 units, a rename's title the snapshot gives as a bare
+  string; a media type's pattern, whose `i` flag JSON Schema lacks, is left out. A model's
+  encoded side is its row's ([Entity names](#entity-names)), and the wire is that side under
+  Effect's JSON codec: a row form changed for the store changes the wire too, unless the wire
+  shape swaps the field. A field added to a model, a secret included, reaches the wire unless its
+  wire shape omits it; the snapshot test stops it until `make api-snapshot` writes it into the
+  diff, and only review of that diff refuses it. An error's status is spelled at each listing
+  (25 for 13 errors), and a listing without `HttpApiSchema.status` answers `500`, which likewise
+  only review of the snapshot diff refuses. The web's endpoints are `<group><Endpoint>`, the
+  components follow the domain's classes (`UserEncoded`), two checked-in files move with every
+  wire change, and the web keeps a generator.
+- **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
+  model lacks fails `TS2322` at each handler that returns it); the api's snapshot test and the
+  web's, both rewritten by `make api-snapshot`; the web's manifest, which declares `packages`
+  alone, so an import of the app fails `TS2307`; the `apps/web/**` override; `make bundle-check`.
+- **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
+  test to compare them, and the web imports it instead of the generated client.
+- **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
+  side; a client outside this repository needs the contract as code; or a model's row form must
+  differ from what the wire carries.
 
 ### Status owned by chat
 
@@ -418,8 +444,8 @@ schemas over that store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
-  without an import cycle. A stored field is declared in the table, the model and the wire, with
-  no fourth list in a mapper.
+  without an import cycle. A stored field is declared in the table and the model, which the wire
+  takes as it is, with no third list in a mapper.
 - **Sources:** the ticket's naming survey; `.claude/rules/naming.md`.
 - **Rejected:** a flat entity beside a second one with its attachments: a second name for the one
   shape every read returns. The service composing a chat from two repositories: two queries and a
@@ -684,8 +710,8 @@ what:
 A file imports its own unit's files through the workspace's `#…` subpaths, never a relative path,
 and another unit only through that unit's entry, even inside one workspace. A unit of the
 kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
-is one workspace with one export per unit, its `index.ts`, and its test support. `http-api` and
-the apps keep their package names. The forms, with examples:
+is one workspace with one export per unit, its `index.ts`, and its test support. The apps keep
+their package names. The forms, with examples:
 [architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
 - **Why:** an import tells where its code lives, and one entry per unit is all a caller must know;
@@ -718,13 +744,16 @@ the apps keep their package names. The forms, with examples:
 ### Independent apps
 
 `apps/api`, `apps/worker` and `apps/web` never import each other or `deployment`; what two apps
-share lives in a ring below them.
+share lives in a ring below them, and the web reads the api's OpenAPI snapshot by path, a file,
+never code.
 
 - **Why:** each app is one process with its own deployment; an import between them ships one
   process's code and dependencies inside another.
 - **Sources:** `apps/CLAUDE.md`; `deployment/aws` deploys the worker as a function of its own.
 - **Rejected:** a shared helper in one app imported by another: it couples their releases.
-- **Cost:** a helper both processes need moves down into a module, the kernel or a package.
+- **Cost:** a helper both processes need moves down into a module, the kernel or a package; the
+  web takes the api's wire only as a file, so its client is generated from the snapshot and
+  checked in.
 - **Guarded by:** the apps' rows of
   [architecture.md › Dependency rules](architecture.md#dependency-rules); the journey e2e that
   runs both processes lives in the `apps/e2e` test app.

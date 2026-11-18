@@ -5,12 +5,12 @@ import { SqlClient } from 'effect/sql'
 
 import { ApiClient } from '@app-template/api/testing'
 import {
+  AttachmentBoundError,
   type AttachmentId,
   type ChatId,
   isActiveRun,
   type RunId,
 } from '@app-template/application/chat'
-import { AttachmentBoundError } from '@app-template/http-api'
 import { FileRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, png } from '@app-template/packages/testing'
 

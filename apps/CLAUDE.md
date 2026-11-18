@@ -11,6 +11,11 @@ Thin entry points: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its 
 - **The web declares no workspace of the app but `packages`:** its client is generated from the
   API contract's OpenAPI snapshot, which it reads by path, and checked in; `make api-snapshot`
   rewrites both, never by hand.
+- **An api group takes the domain's schemas as they are** (ids, checks, models, errors): every
+  error gets its status where an endpoint or a middleware lists it (`HttpApiSchema.status`),
+  never on its class, and a model goes on the wire whole or as `<Model>.mapFields(…)`, which
+  omits by name what stays off the wire or swaps a field. Record:
+  [The API contract in the api](../docs/knowledge/decisions.md#the-api-contract-in-the-api).
 - **`apps/e2e` is a test app, not a fourth process:** it starts nothing of its own, and its
   suites run the apps' layers in the test's runtime; what it may import:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).

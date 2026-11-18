@@ -120,9 +120,9 @@ entry: its ids, its errors and the shapes they carry, with no implementation.
 _Avoid_: Public API, interface, SDK, client
 
 **API contract**:
-The HTTP API described on its own, `http-api`: its routes and the shapes and errors on the wire.
-It imports nothing of the app; the api implements it, and the web's client is generated from its
-OpenAPI snapshot. Never a module contract.
+The api's HTTP surface: the one `Api` of groups `apps/api` declares from the domain's schemas,
+and the OpenAPI document it writes, `apps/api/openapi.json`, from which the web's client is
+generated. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:

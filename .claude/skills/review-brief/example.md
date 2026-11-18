@@ -54,7 +54,7 @@ read:  Order { …, latestShipment: Option<Shipment> }
 **Contracts.**
 
 ```diff
-// http-api/order/order.http.ts
+// apps/api/order/order.http.ts
 - POST /orders/:orderId/ship → 202 ApiOrder { status: 'shipped' }
 + POST /orders/:orderId/ship → 202 ApiShipment { status: 'queued', order }
 ```

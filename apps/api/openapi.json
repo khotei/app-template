@@ -63,7 +63,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/User"
+                  "$ref": "#/components/schemas/UserEncoded"
                 }
               }
             }
@@ -129,14 +129,6 @@
                         }
                       ]
                     },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "idle",
-                        "queued",
-                        "failed"
-                      ]
-                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -146,94 +138,26 @@
                     "attachments": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "userId": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "messageId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "chatId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "sourceId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "fileName": {
-                            "type": "string",
-                            "minLength": 1,
-                            "pattern": "^[^\\0]*$"
-                          },
-                          "mediaType": {
-                            "type": "string"
-                          },
-                          "size": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 9007199254740991
-                          },
-                          "createdAt": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "userId",
-                          "messageId",
-                          "chatId",
-                          "sourceId",
-                          "fileName",
-                          "mediaType",
-                          "size",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
+                        "$ref": "#/components/schemas/AttachmentEncoded"
                       }
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "idle",
+                        "queued",
+                        "failed"
+                      ]
                     }
                   },
                   "required": [
                     "id",
                     "userId",
                     "title",
-                    "status",
                     "createdAt",
                     "updatedAt",
-                    "attachments"
+                    "attachments",
+                    "status"
                   ],
                   "additionalProperties": false
                 }
@@ -311,14 +235,6 @@
                           }
                         ]
                       },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "idle",
-                          "queued",
-                          "failed"
-                        ]
-                      },
                       "createdAt": {
                         "type": "string"
                       },
@@ -328,94 +244,26 @@
                       "attachments": {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                              "format": "uuid"
-                            },
-                            "userId": {
-                              "type": "string",
-                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                              "format": "uuid"
-                            },
-                            "messageId": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                  "format": "uuid"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "chatId": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                  "format": "uuid"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "sourceId": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                  "format": "uuid"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "fileName": {
-                              "type": "string",
-                              "minLength": 1,
-                              "pattern": "^[^\\0]*$"
-                            },
-                            "mediaType": {
-                              "type": "string"
-                            },
-                            "size": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
-                            },
-                            "createdAt": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "userId",
-                            "messageId",
-                            "chatId",
-                            "sourceId",
-                            "fileName",
-                            "mediaType",
-                            "size",
-                            "createdAt"
-                          ],
-                          "additionalProperties": false
+                          "$ref": "#/components/schemas/AttachmentEncoded"
                         }
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "idle",
+                          "queued",
+                          "failed"
+                        ]
                       }
                     },
                     "required": [
                       "id",
                       "userId",
                       "title",
-                      "status",
                       "createdAt",
                       "updatedAt",
-                      "attachments"
+                      "attachments",
+                      "status"
                     ],
                     "additionalProperties": false
                   }
@@ -505,14 +353,6 @@
                         }
                       ]
                     },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "idle",
-                        "queued",
-                        "failed"
-                      ]
-                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -522,94 +362,26 @@
                     "attachments": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "userId": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "messageId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "chatId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "sourceId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "fileName": {
-                            "type": "string",
-                            "minLength": 1,
-                            "pattern": "^[^\\0]*$"
-                          },
-                          "mediaType": {
-                            "type": "string"
-                          },
-                          "size": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 9007199254740991
-                          },
-                          "createdAt": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "userId",
-                          "messageId",
-                          "chatId",
-                          "sourceId",
-                          "fileName",
-                          "mediaType",
-                          "size",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
+                        "$ref": "#/components/schemas/AttachmentEncoded"
                       }
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "idle",
+                        "queued",
+                        "failed"
+                      ]
                     }
                   },
                   "required": [
                     "id",
                     "userId",
                     "title",
-                    "status",
                     "createdAt",
                     "updatedAt",
-                    "attachments"
+                    "attachments",
+                    "status"
                   ],
                   "additionalProperties": false
                 }
@@ -706,14 +478,6 @@
                         }
                       ]
                     },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "idle",
-                        "queued",
-                        "failed"
-                      ]
-                    },
                     "createdAt": {
                       "type": "string"
                     },
@@ -723,94 +487,26 @@
                     "attachments": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "userId": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "messageId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "chatId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "sourceId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "fileName": {
-                            "type": "string",
-                            "minLength": 1,
-                            "pattern": "^[^\\0]*$"
-                          },
-                          "mediaType": {
-                            "type": "string"
-                          },
-                          "size": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 9007199254740991
-                          },
-                          "createdAt": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "userId",
-                          "messageId",
-                          "chatId",
-                          "sourceId",
-                          "fileName",
-                          "mediaType",
-                          "size",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
+                        "$ref": "#/components/schemas/AttachmentEncoded"
                       }
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "idle",
+                        "queued",
+                        "failed"
+                      ]
                     }
                   },
                   "required": [
                     "id",
                     "userId",
                     "title",
-                    "status",
                     "createdAt",
                     "updatedAt",
-                    "attachments"
+                    "attachments",
+                    "status"
                   ],
                   "additionalProperties": false
                 }
@@ -978,7 +674,8 @@
                         ]
                       },
                       "text": {
-                        "type": "string"
+                        "type": "string",
+                        "pattern": "^[^\\0]*$"
                       },
                       "createdAt": {
                         "type": "string"
@@ -986,83 +683,7 @@
                       "attachments": {
                         "type": "array",
                         "items": {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                              "format": "uuid"
-                            },
-                            "userId": {
-                              "type": "string",
-                              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                              "format": "uuid"
-                            },
-                            "messageId": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                  "format": "uuid"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "chatId": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                  "format": "uuid"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "sourceId": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                  "format": "uuid"
-                                },
-                                {
-                                  "type": "null"
-                                }
-                              ]
-                            },
-                            "fileName": {
-                              "type": "string",
-                              "minLength": 1,
-                              "pattern": "^[^\\0]*$"
-                            },
-                            "mediaType": {
-                              "type": "string"
-                            },
-                            "size": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 9007199254740991
-                            },
-                            "createdAt": {
-                              "type": "string"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "userId",
-                            "messageId",
-                            "chatId",
-                            "sourceId",
-                            "fileName",
-                            "mediaType",
-                            "size",
-                            "createdAt"
-                          ],
-                          "additionalProperties": false
+                          "$ref": "#/components/schemas/AttachmentEncoded"
                         }
                       },
                       "run": {
@@ -1291,7 +912,8 @@
                           ]
                         },
                         "text": {
-                          "type": "string"
+                          "type": "string",
+                          "pattern": "^[^\\0]*$"
                         },
                         "createdAt": {
                           "type": "string"
@@ -1329,7 +951,8 @@
                               ]
                             },
                             "text": {
-                              "type": "string"
+                              "type": "string",
+                              "pattern": "^[^\\0]*$"
                             },
                             "createdAt": {
                               "type": "string"
@@ -1445,8 +1068,8 @@
                 "properties": {
                   "text": {
                     "type": "string",
-                    "maxLength": 20000,
-                    "pattern": "^[^\\0]*$"
+                    "pattern": "^[^\\0]*$",
+                    "maxLength": 20000
                   },
                   "attachmentIds": {
                     "type": "array",
@@ -1585,7 +1208,8 @@
                           ]
                         },
                         "text": {
-                          "type": "string"
+                          "type": "string",
+                          "pattern": "^[^\\0]*$"
                         },
                         "createdAt": {
                           "type": "string"
@@ -1623,7 +1247,8 @@
                               ]
                             },
                             "text": {
-                              "type": "string"
+                              "type": "string",
+                              "pattern": "^[^\\0]*$"
                             },
                             "createdAt": {
                               "type": "string"
@@ -1785,7 +1410,8 @@
                       ]
                     },
                     "text": {
-                      "type": "string"
+                      "type": "string",
+                      "pattern": "^[^\\0]*$"
                     },
                     "createdAt": {
                       "type": "string"
@@ -1793,83 +1419,7 @@
                     "attachments": {
                       "type": "array",
                       "items": {
-                        "type": "object",
-                        "properties": {
-                          "id": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "userId": {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          "messageId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "chatId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "sourceId": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                                "format": "uuid"
-                              },
-                              {
-                                "type": "null"
-                              }
-                            ]
-                          },
-                          "fileName": {
-                            "type": "string",
-                            "minLength": 1,
-                            "pattern": "^[^\\0]*$"
-                          },
-                          "mediaType": {
-                            "type": "string"
-                          },
-                          "size": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 9007199254740991
-                          },
-                          "createdAt": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "id",
-                          "userId",
-                          "messageId",
-                          "chatId",
-                          "sourceId",
-                          "fileName",
-                          "mediaType",
-                          "size",
-                          "createdAt"
-                        ],
-                        "additionalProperties": false
+                        "$ref": "#/components/schemas/AttachmentEncoded"
                       }
                     },
                     "run": {
@@ -2109,7 +1659,8 @@
                           ]
                         },
                         "text": {
-                          "type": "string"
+                          "type": "string",
+                          "pattern": "^[^\\0]*$"
                         },
                         "createdAt": {
                           "type": "string"
@@ -2147,7 +1698,8 @@
                               ]
                             },
                             "text": {
-                              "type": "string"
+                              "type": "string",
+                              "pattern": "^[^\\0]*$"
                             },
                             "createdAt": {
                               "type": "string"
@@ -2236,83 +1788,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      "userId": {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      "messageId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "chatId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sourceId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fileName": {
-                        "type": "string",
-                        "minLength": 1,
-                        "pattern": "^[^\\0]*$"
-                      },
-                      "mediaType": {
-                        "type": "string"
-                      },
-                      "size": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9007199254740991
-                      },
-                      "createdAt": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "userId",
-                      "messageId",
-                      "chatId",
-                      "sourceId",
-                      "fileName",
-                      "mediaType",
-                      "size",
-                      "createdAt"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/AttachmentEncoded"
                   }
                 }
               }
@@ -2402,83 +1878,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      "userId": {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      "messageId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "chatId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "sourceId": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                            "format": "uuid"
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "fileName": {
-                        "type": "string",
-                        "minLength": 1,
-                        "pattern": "^[^\\0]*$"
-                      },
-                      "mediaType": {
-                        "type": "string"
-                      },
-                      "size": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 9007199254740991
-                      },
-                      "createdAt": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "userId",
-                      "messageId",
-                      "chatId",
-                      "sourceId",
-                      "fileName",
-                      "mediaType",
-                      "size",
-                      "createdAt"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/AttachmentEncoded"
                   }
                 }
               }
@@ -2532,87 +1932,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Attachment",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "messageId": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                          "format": "uuid"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "chatId": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                          "format": "uuid"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "sourceId": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                          "format": "uuid"
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "fileName": {
-                      "type": "string",
-                      "minLength": 1,
-                      "pattern": "^[^\\0]*$"
-                    },
-                    "mediaType": {
-                      "type": "string"
-                    },
-                    "size": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "userId",
-                    "messageId",
-                    "chatId",
-                    "sourceId",
-                    "fileName",
-                    "mediaType",
-                    "size",
-                    "createdAt"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/AttachmentEncoded"
                 }
               }
             }
@@ -2905,6 +2229,85 @@
         ],
         "additionalProperties": false
       },
+      "AttachmentEncoded": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "messageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chatId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sourceId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[^\\0]*$"
+          },
+          "mediaType": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "messageId",
+          "chatId",
+          "sourceId",
+          "fileName",
+          "mediaType",
+          "size",
+          "createdAt"
+        ],
+        "additionalProperties": false
+      },
       "AttachmentTypeUnsupportedErrorEncoded": {
         "type": "object",
         "properties": {
@@ -3091,7 +2494,7 @@
         ],
         "additionalProperties": false
       },
-      "User": {
+      "UserEncoded": {
         "type": "object",
         "properties": {
           "id": {

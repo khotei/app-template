@@ -8,7 +8,6 @@
   "devDependencies": {
     "@app-template/api": "workspace:*",
     "@app-template/application": "workspace:*",
-    "@app-template/http-api": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
     "@app-template/worker": "workspace:*",
