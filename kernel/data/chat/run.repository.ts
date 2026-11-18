@@ -11,7 +11,6 @@ import {
 
 import { chats } from '#kernel/data/chat/chat.table'
 import {
-  newestFirst,
   type RunEntity,
   type RunEntitySet,
   type RunEntityWhere,
@@ -42,7 +41,7 @@ export class RunRepository extends Context.Service<
     readonly insert: (run: RunColumns) => Effect.Effect<void>
     /** Writes the fields of `set` a Run may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: RunEntitySet, where: RunEntityWhere) => Effect.Effect<void>
-    /** Returns the Run where `where` holds, the newest when several do. */
+    /** Returns the Run where `where` holds. */
     readonly selectOne: (where: RunEntityWhere) => Effect.Effect<Option.Option<RunEntity>>
   }
 >()('@app-template/kernel/data/chat/RunRepository') {
@@ -69,7 +68,6 @@ export class RunRepository extends Context.Service<
             db.query.runs
               .findFirst({
                 where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
-                orderBy: newestFirst,
                 with: { userMessage: true, assistantMessage: true },
               })
               .pipe(Effect.map(Option.fromUndefinedOr)),

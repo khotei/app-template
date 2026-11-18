@@ -17,8 +17,9 @@ export type RunEntity = typeof RunEntity.Type
 
 /** `userId` is the owner of the Run's chat, not a column of `runs`. */
 export type RunEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<RunEntity, 'id' | 'chatId'>> &
+  Pick<RunEntity, 'id'> &
     Partial<{
+      readonly chatId: RunEntity['chatId']
       readonly userId: string
       readonly status: ReadonlyArray<RunEntity['status']>
     }>

@@ -58,8 +58,6 @@ const read = (row: RunRow, assistantMessage: MessageColumns | null = null): RunE
 
 const SelectedRun = Schema.Option(RunEntity)
 
-const active = ['queued', 'preparing', 'generating'] as const
-
 const insertUserMessage = Db.use((db) =>
   db
     .insert(users)
@@ -73,27 +71,20 @@ const insertUserMessage = Db.use((db) =>
 )
 
 describe('RunRepository', () => {
-  it.effect(
-    "selects a Run by id for its owner, as the chat's active one, none for a stranger",
-    () =>
-      Effect.gen(function* () {
-        const runs = yield* RunRepository
-        const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a3')
-        const strangerId = '0192d4e0-7b3a-7c00-8000-0000000000af'
-        yield* insertUserMessage
-        yield* runs.insert(queued)
+  it.effect('selects a Run by id for its owner, none for a stranger', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a3')
+      const strangerId = '0192d4e0-7b3a-7c00-8000-0000000000af'
+      yield* insertUserMessage
+      yield* runs.insert(queued)
 
-        const owned = yield* runs.selectOne({ id: queued.id, userId })
-        const inFlight = yield* runs.selectOne({ chatId, status: active })
-        const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
+      const owned = yield* runs.selectOne({ id: queued.id, userId })
+      const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
 
-        assertSchemaEquals(
-          Schema.Array(SelectedRun),
-          [owned, inFlight],
-          [Option.some(read(queued)), Option.some(read(queued))],
-        )
-        assert.deepStrictEqual(foreign, Option.none())
-      }).pipe(Effect.provide(RepositoryTest)),
+      assertSchemaEquals(SelectedRun, owned, Option.some(read(queued)))
+      assert.deepStrictEqual(foreign, Option.none())
+    }).pipe(Effect.provide(RepositoryTest)),
   )
 
   it.effect('update moves a Run under its old status, and dies once that no longer holds', () =>
