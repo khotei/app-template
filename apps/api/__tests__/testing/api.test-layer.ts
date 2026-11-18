@@ -11,11 +11,7 @@ import {
   RunRepository,
   UserRepository,
 } from '@app-template/kernel/data'
-import {
-  FileObjects,
-  FileRepositoryTest,
-  RepositoryStackTest,
-} from '@app-template/kernel/data/testing'
+import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
@@ -24,21 +20,6 @@ import { ApiHttp } from '#api/layer'
 
 /** The whole api process, clients and all, for the e2e journey that runs it beside the worker. */
 export { ApiLayer } from '#api/layer'
-
-/**
- * The api on an ephemeral port over the memory layers: fresh rows and files, the identity
- * transaction and a queue that only records. Its `HttpClient` targets that port, and the
- * repositories stay in context for arranging what only the worker writes.
- *
- * A real server, not `HttpApiTest`: its client takes no cookie jar, and a defect is no response
- * there.
- */
-export const ApiServerTest = ApiHttp.pipe(
-  Layer.provide([TransactionTest, recordMessages().layer]),
-  Layer.provideMerge(BunHttpServer.layerTest),
-  Layer.provideMerge(RepositoryStackTest),
-  Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
-)
 
 /**
  * An `ApiClient` on `baseUrl` with a cookie jar of its own that starts from `cookies`, as a
@@ -56,9 +37,6 @@ export const layerApiClient = (baseUrl = '', cookies = Cookies.empty) =>
       ),
     ),
   )
-
-/** One browser on an api of the test's own: no row, object or server is shared with another test. */
-export const ApiTest = layerApiClient().pipe(Layer.provideMerge(ApiServerTest))
 
 /** What each repository answers in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ApiRepositoryMocks {
