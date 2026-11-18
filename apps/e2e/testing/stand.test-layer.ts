@@ -1,4 +1,3 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { PgClient } from '@effect/sql-pg'
 import { ConfigProvider, Effect, Layer, Option, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
@@ -51,10 +50,7 @@ const { layer: AssistantTest } = recordAssistant({
 })
 
 /** Fresh, so the apps share no layer with the test and run on the clients their config builds. */
-const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(
-  Layer.provide([BunCrypto.layer, AssistantTest]),
-  Layer.fresh,
-)
+const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(Layer.provide(AssistantTest), Layer.fresh)
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the assistant scripted,
