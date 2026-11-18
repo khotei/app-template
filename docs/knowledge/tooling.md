@@ -191,8 +191,7 @@ container and volume after the stage:
 another live worktree's `.env` holds as its stage; a rerun with the same `N` passes. It renames
 the worktree's branch `wt/<name>`; with `KEEP=1` the branch keeps its name, for a lab's worktree,
 which stands on its ticket branch so accepted code needs no moving
-([`/lab`](../../.claude/skills/lab/SKILL.md)). How parallel steps use it:
-[`ticket-implement` › Parallel steps](../../.claude/skills/ticket-implement/parallel-steps.md).
+([`/lab`](../../.claude/skills/lab/SKILL.md)).
 Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
 ports, and the database's volume stays.
 

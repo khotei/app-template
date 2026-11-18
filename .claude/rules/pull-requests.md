@@ -11,8 +11,8 @@ the body is the PR description. **GitHub keeps HTML comments in that body**, so 
 `gh pr merge <n> --squash --body-file <file>`, where the file is the description without its
 `<!-- … -->` block. The PR description *is* the permanent history.
 
-The format is owned by `commits.md`; one PR per ticket and the commits of a step, by `sdd.md ›
-Gates`. This file only adapts them to the PR surface.
+The format is owned by `commits.md`, and a change is one branch and one PR. This file only
+adapts them to the PR surface.
 
 - **PR title** = a `commits.md` subject line. Only the title sets the squash subject.
 - **PR body** = the template's sections: **Summary** (what and why) · **What changed** ·
@@ -23,12 +23,12 @@ Gates`. This file only adapts them to the PR surface.
   screenshots), which the merge leaves out. Never nest comments, and never write a literal `-->`
   inside one: it closes the block early and leaks review notes into history.
 - **`main` is the only long-lived branch.** The squash merge deletes the ticket branch; the
-  steps stay in the merged PR's commit list and the ticket's `plan.md`
+  rounds stay in the merged PR's commit list and the lab's `lab.md`
   ([sdd.md › Roadmap and history](../../docs/knowledge/sdd.md#roadmap-and-history)).
 - **One PR merges at a time, on the latest `main`.** When `main` has moved since a PR's branch was
   last updated on it, update the branch on `main`, let `make check` and CI pass again, then merge;
   with several PRs ready, merge one and repeat for the next.
-- When a push, a PR or a merge may happen: the commit gate in `sdd.md › Gates`.
+- A PR opens and merges on the owner's word.
 
 Template: `.github/PULL_REQUEST_TEMPLATE.md`. A filled PR and the commit it produces:
 `.github/PULL_REQUEST_example.md`. Required repo setting: *Settings → Pull Requests → Allow squash

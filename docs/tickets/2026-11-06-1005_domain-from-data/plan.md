@@ -54,7 +54,7 @@
   imported values, and the equality assertions they replace are the ones deleted.
 - **Verify:**
   - `make check` — green (unit and e2e).
-  - Probes of the domain override, per [guard-probes.md](../../../.claude/skills/ticket-plan/guard-probes.md),
+  - Probes of the domain override, per `ticket-plan/guard-probes.md` (removed by the one-flow change),
     each reverted after:
     - `import { maxTitleLength } from '@app-template/kernel/data'` in
       `application/chat/domain/chat.model.ts` — fails `make lint` today, passes after;

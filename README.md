@@ -11,10 +11,10 @@ the worked example; what a new project inherits is around it:
   not a reviewer, refusing an import that points the wrong way.
 - 🧱 **A stack wired end to end.** Postgres through Drizzle, files in S3 and jobs in SQS (MiniStack
   locally), Pulumi to provision the stores, a language model behind a port.
-- 🤖 **A development process run with AI agents.** Every change of substance is a ticket that
-  Claude Code agents specify, design, plan, implement and verify, while you decide at each gate.
-  The ticket's reasoning is committed next to its code, so a project started from here inherits
-  the why along with the what.
+- 🤖 **A development process run with AI agents.** Every change of substance runs through one
+  skill, `/lab`: you set the intent and the shape, agents find the facts, write test first and
+  review in a fresh context, and every round is a green commit you read alone. The reasoning is
+  committed next to its code, so a project started from here inherits the why with the what.
 
 It is not a framework, and nothing here is generated: every layer is plain code meant to be read,
 copied and changed.
@@ -105,7 +105,7 @@ changes it.
 | `packages/` | generic tools that know no app: database, S3, queue and model clients, UI, test helpers |
 | `deployment/` | the Pulumi program that provisions the stores in MiniStack, from resource code an AWS stack can call |
 | `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, telemetry, tooling, process, decisions, glossary, roadmap |
-| `docs/tickets/` | one folder per ticket: its requirements, design, plan and verification |
+| `docs/tickets/` | one folder per ticket: its `lab.md` (intent, steps, shapes, decisions); older ones keep their requirements, design, plan and verification |
 | `.claude/` | the agent toolkit: the project's `CLAUDE.md`, skills, agents, hooks, rules and settings |
 | `repos/` | Effect's and Drizzle's source at the pinned versions, to read rather than guess |
 | `CLAUDE.md` in a folder | the rules of that layer, written for the agent and short enough for you |
@@ -145,42 +145,24 @@ boundary holds, what it costs and what breaks if it is reversed:
 
 ## 🤖 How work gets done
 
-You work in this repository with Claude Code. A change of substance becomes a ticket on its own
-branch, and five skills you type carry it from an idea to a pull request. The agents do the
-reading, writing and reviewing; you answer their questions and approve what lands.
-
-```mermaid
-graph LR
-  F["/ticket-feature"] --> A["/ticket-architecture"] --> P["/ticket-plan"]
-  P --> I["/ticket-implement<br/>(once per step)"]
-  I -->|next step| I
-  I --> V["/ticket-verify"]
-  V -->|fixes become steps| I
-  V -->|pass| PR[PR · squash merge]
-```
-
-| Skill | What it produces | What you decide |
-|---|---|---|
-| `/ticket-feature` | `feature.md`: the requirements, as testable `WHEN … THE SYSTEM SHALL …` sentences | the answers to its questions, the domain terms |
-| `/ticket-architecture` | `architecture.md`: the seams to test at and the decisions | the seams and each decision |
-| `/ticket-plan` | `plan.md`: a skeleton of every step, then one stage of about three steps at a time, each step small enough for one session and with its first test | the skeleton and the first stage, in the one heavy review; a later stage only when its preparation asks |
-| `/ticket-implement` | one step, written test-first, committed round by round, then reviewed | whether it closes, what to fix first, or which round to reject |
-| `/ticket-verify` | `verification.md`: every requirement checked against observable behaviour | the fixes to make, and whether to open the PR |
+You work in this repository with Claude Code. Every change of substance goes through `/lab`,
+sized once: a **micro** change (one session, no new decision) is a branch built from a plan of
+five lines and reviewed once; a **macro** one gets a `lab.md` in its ticket folder, with your
+intent, its steps and the shape of each, built with you in the session or handed to an
+`implementer` once the shape is settled. A typo, a version bump or a doc fix needs neither.
 
 What keeps the agents honest:
 
-- 🧪 **An `implementer` cannot finish red.** A hook runs `make check` when it stops and sends it
-  back until it passes; the only other way out is to report itself blocked, which reaches you.
-- 🔍 **Every round is a commit you read alone, and every step is reviewed before it closes,** by
-  read-only `reviewer` agents in a fresh context, each owning one kind of finding.
-- ✅ **Every requirement is verified** by `verifier` agents that see the behaviour, not the
-  implementer's report.
-- 📜 **The reasoning stays.** The ticket folder and the commit messages keep each decision, its
-  rejected alternatives and its cost; `main` holds one squash commit per ticket.
+- 🧪 **Red, then green.** Each behaviour starts as a failing test; an `implementer` cannot
+  finish red, since a hook runs `make check` when it stops.
+- 🔍 **Every round is a commit you read alone,** your own edits a round of their own, and each
+  step is reviewed once by read-only `reviewer` agents in a fresh context: against the intent,
+  for silent failures and against the rules.
+- 👀 **Done is visible:** a command you can repeat, and the whole feature played before the PR.
+- 📜 **The reasoning stays.** The lab's file and the commit messages keep each decision and its
+  rejected alternatives; `main` holds one squash commit per change.
 
-A typo or a version bump needs no ticket, and a small fix skips the architecture: which cycle a
-change needs, what each skill does under the hood and the plugin it wraps:
-[sdd.md](docs/knowledge/sdd.md).
+Why it is cut so: [sdd.md](docs/knowledge/sdd.md).
 
 ## 🛠️ Daily development
 
@@ -227,10 +209,10 @@ which order: [roadmap.md](docs/knowledge/roadmap.md).
 | How does the assistant ask the model for a reply or a title? | [docs/knowledge/ai.md](docs/knowledge/ai.md) |
 | How do I follow one message through the api and the worker? | [docs/knowledge/observability.md](docs/knowledge/observability.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
-| How is a change specified, planned, implemented and verified? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
+| How does a change get built, and why that way? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
 | What is built next, and in which order? | [docs/knowledge/roadmap.md](docs/knowledge/roadmap.md) |
 | What are the rules for one layer? | the `CLAUDE.md` in its folder, and `.claude/rules/` |
-| How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/rounds.md](.claude/rules/rounds.md) (a ticket's), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
+| How are commits and pull requests written? | [.claude/rules/commits.md](.claude/rules/commits.md), [.claude/rules/pull-requests.md](.claude/rules/pull-requests.md) |
 | Why is it built this way? | [docs/knowledge/decisions.md](docs/knowledge/decisions.md): each binding decision with its reason, its rejected alternatives and what a reversal breaks; its history in the ticket that made it, under `docs/tickets/` |
 
 How a merged ticket's steps and reasoning stay findable in the history:

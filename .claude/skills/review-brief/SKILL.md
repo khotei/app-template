@@ -1,7 +1,7 @@
 ---
 name: review-brief
 description: "A brief before you review a range of commits: its meaning, flows, entities and a reading path"
-argument-hint: "[L<n> | S<n> | <base>..<head> | all]"
+argument-hint: "[L<n> | <base>..<head> | all]"
 disable-model-invocation: true
 ---
 
@@ -11,14 +11,14 @@ code and spawns no agent. It takes one session's reading, about ten tool calls.
 
 ## Steps
 
-1. **The range.** `L<n>` or `S<n>`: from the parent of the oldest commit the subject search of
-   `.claude/rules/rounds.md` finds for the step to `HEAD`; `<base>..<head>`
-   as given; `all`: from `git merge-base main HEAD`; none: the Map's step in progress, else
+1. **The range.** `L<n>`: from the parent of the oldest commit the subject search of
+   `.claude/skills/lab/SKILL.md › Rounds` finds for the step to `HEAD`; `<base>..<head>` as
+   given; `all`: from `git merge-base main HEAD`; none: the Map's step in progress, else
    `all`. Done when `git log --oneline` and `git diff --shortstat` of the range are in hand, the
    lines split into code, tests, docs and generated files (migrations, snapshots).
-2. **The intent.** Read what the range was asked to do: the step's Shape, Notes and Pieces in
-   `lab.md`, or its `plan.md` step, and the commits' `Decision:` paragraphs. Done when each
-   deviation from the Shape or plan is listed with the commit that made it.
+2. **The intent.** Read what the range was asked to do: the step's Shape and Notes in `lab.md`,
+   or a micro change's request in its first commit, and the commits' `Decision:` paragraphs. Done
+   when each deviation from the Shape or the request is listed with the commit that made it.
 3. **The facts.** Read the diff of the schema (tables, the migration's SQL), the contracts (ports,
    services' shapes, the HTTP contract), the models and the use cases; tests and docs only by
    `--stat`. Every claim carries a `path:line` at `HEAD` or a command and its output; the last

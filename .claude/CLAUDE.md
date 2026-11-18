@@ -20,12 +20,13 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
 - **Composition: a unit keeps its one job; new behaviour wraps or composes it.** Before shaping
   a model, service, util or use case, in a plan as in code, read `.claude/rules/composition.md`.
 - Update `docs/knowledge/` in the commit that changes the behaviour it describes.
-- **A change of substance runs through the `/ticket-*` skills; their artifacts live only in
-  `docs/tickets/`.** Which change is one:
-  [sdd.md › When to run which cycle](../docs/knowledge/sdd.md#when-to-run-which-cycle). Ignore
-  artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`, an issue tracker). The
-  gates: `.claude/rules/sdd.md`; the guide: [sdd.md](../docs/knowledge/sdd.md).
-- **`main` changes only through a squash-merged PR.** A ticket is one branch `<type>/<slug>` cut
+- **A change of substance runs through the lab, `.claude/skills/lab/SKILL.md`: micro on a branch
+  alone, macro with a `lab.md` in `docs/tickets/`.** The owner starts it with `/lab`; asked for
+  such a change without it, read that file and follow it as if `/lab <request>` had been typed.
+  A typo, a version bump, a doc fix and a task in an agent's brief are no change of substance.
+  Ignore artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`, an issue
+  tracker). Why it is cut so: [sdd.md](../docs/knowledge/sdd.md).
+- **`main` changes only through a squash-merged PR.** A change is one branch `<type>/<slug>` cut
   from `main`; commit on that branch, never on `main`
   ([sdd.md › Roadmap and history](../docs/knowledge/sdd.md#roadmap-and-history)).
 - Before opening or pushing to a PR, read `.claude/rules/pull-requests.md`: its body and the

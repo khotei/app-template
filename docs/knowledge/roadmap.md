@@ -4,31 +4,29 @@ The tickets that turn this repository into **App Template**: a chat clone (user 
 assistant reply, with attachments) built as a worked example of an Effect v4 modular monolith on
 Bun, with Postgres, AWS and Pulumi, so that a new enterprise project starts from it in minutes.
 
-This file is the **only place a future ticket exists** before its `/ticket-feature` runs. SDD knows
-no "draft ticket": each entry below holds what a ticket is *for* (goal, scope, out of scope,
-dependencies, inherited requirements, open questions); the *how* is decided by
-`/ticket-architecture` inside the ticket. When a ticket starts, `/ticket-feature <slug>` reads its
-entry, grills from there, and the entry's `Status` becomes a link to the ticket folder. When its
-PR merges, the row is marked done and the entry's section goes.
+This file is the **only place a future ticket exists** before `/lab init <slug>` starts it: each
+entry below holds what a ticket is *for* (goal, scope, out of scope, dependencies, inherited
+requirements, open questions); the *how* is decided in its lab. `init` seeds the lab's Intent from
+the entry, and the entry's `Status` becomes a link to the ticket folder. When its PR merges, the
+row is marked done and the entry's section goes.
 
 ## How a ticket flows
 
 ```mermaid
 graph LR
-  R["roadmap entry<br/>(status: planned)"] --> F["/ticket-feature &lt;slug&gt;<br/>docs/tickets/&lt;date&gt;_&lt;slug&gt;/"]
-  F --> A["/ticket-architecture"] --> P["/ticket-plan"] --> I["/ticket-implement ×N"] --> V["/ticket-verify"]
-  V --> PR["squash PR → main"]
+  R["roadmap entry<br/>(status: planned)"] --> F["/lab init &lt;slug&gt;<br/>docs/tickets/&lt;date&gt;_&lt;slug&gt;/lab.md"]
+  F --> S["/lab step, implement, review, close ×N"] --> C["/lab close"]
+  C --> PR["squash PR → main"]
   PR --> R2["roadmap entry<br/>(status: done, link)"]
 ```
 
-- **One ticket = one branch `<type>/<slug>` cut from `main` = one squash-merged PR.** Unchanged
-  from `.claude/rules/sdd.md`.
+- **One ticket = one branch `<type>/<slug>` cut from `main` = one squash-merged PR.**
 - **`main` is the only long-lived branch:** the steps of a merged ticket stay in its PR's commit
-  list and its `plan.md`; see [sdd.md › Roadmap and history](./sdd.md#roadmap-and-history).
+  list and its `lab.md`; see [sdd.md › Roadmap and history](./sdd.md#roadmap-and-history).
 - **Order below is the default, dependencies are the law.** A ticket may start when every entry in
   its `Depends on` is done. Two independent tickets may run in parallel on separate branches.
-- **Facts expire.** Every `Facts` line carries the date it was checked; `/ticket-feature`
-  re-verifies the ones it relies on and moves them into the ticket's `feature.md › Context`.
+- **Facts expire.** Every `Facts` line carries the date it was checked; `/lab init` has a
+  `researcher` re-check the ones it relies on.
 
 ## Tickets
 
@@ -425,7 +423,7 @@ left.
   one entity shape, a service names what it guarantees, a use case reads and composes. A lesson is
   worth a line only if it keeps the next change from being moved a second time.
 - **Scope.** One line, or one mechanical check, per lesson, each in a named rule or skill and
-  applied on the user's OK ([sdd.md › Gates](../knowledge/sdd.md)):
+  applied on the user's OK:
   - **A rule is a pure function of its model, and no other layer builds its refusal.** It recurred
     three times: the lost-bytes check inside `getMany`, `AttachmentService` building
     `AttachmentNotFoundError` twice, an expiry filter inside a read. `layering.md` states the rule;
@@ -451,9 +449,7 @@ left.
     probe through another verb (done in `file-repository-verbs`; this entry checks that the rule
     and its record say it).
   - **The workflow.** Check the code before stating a cause (the "expired draft" claim was wrong);
-    research a usage tree before a refactor; a small refactor skips the feature and architecture
-    phases ([sdd.md › When to run which cycle](../knowledge/sdd.md#when-to-run-which-cycle)); an
-    answer of "yes" to two questions is two answers.
+    research a usage tree before a refactor; an answer of "yes" to two questions is two answers.
   - **A plain layer takes its filters from the caller.** The plain `delete` hardcoded the unbound
     guard, the plain `getMany` hid the live check: each is a rule in a layer named for records.
     The layer that checked the rule passes its guard in the `where`
@@ -474,7 +470,7 @@ left.
     what it adds.
   - **A step's Test first is checked against the interface it changes.** S2 planned a red case
     for a list `update` already took, and S1's probe expected two red cases where four were red.
-    `ticket-plan` asks the plan to read the current signature before it promises a red case.
+    A step reads the current signature before it promises a red case.
 - **Out of scope.** New domain behaviour; rewriting a rule the session did not touch.
 
 ## Later
@@ -575,17 +571,8 @@ What its third verification left open
     in `reviewer.md` would ask it to follow the hidden failure to what the caller returns.
   - **A rate, not one run:** a requirement on what a model does passes when it holds in N of M
     runs (say 3 of 5). Otherwise R4 passes and fails by chance.
-  - **The review loop closes:** at verification only a hard violation or an unmet requirement
-    starts a step; a judgement finding (the simplifications below) goes here. After two runs the
-    ticket closes, with its known limits in `verification.md`.
-  - **Its lessons L1–L3:**
-    - a step that reverses a decision lists the record in its Files;
-    - a lesson about an agent's tool habit proposes a check of the output, never a hook;
-    - plus L2, the R4 line above.
-  - **Its simplifications:**
-    - `researcher.md` gets one bullet on where it may write;
-    - `ticket-implement` defines a behaviour step once;
-    - the probe-worktree recipe moves into `ticket-plan/guard-probes.md`.
+  - **Its lesson L3:** a lesson about an agent's tool habit proposes a check of the output, never
+    a hook.
 - **Costs:** a step or two in a later toolkit ticket; the rate makes a no-op run five times longer.
 - **Check first:** the R4 line by a no-op run of five on S8.1, with the line and without it.
 

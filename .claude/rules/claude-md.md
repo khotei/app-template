@@ -21,7 +21,9 @@ What passes: binding decisions plus the rejected alternative (the ones a reader 
 back) · invariants types cannot express · cross-workspace coupling · non-obvious gotchas
 (ordering, version quirks) · boundaries (import direction, ownership) · one pointer to the file
 where a surface lives. What fails: behaviour narration (per-function descriptions, signatures,
-test walkthroughs). When in doubt, cut.
+test walkthroughs). When in doubt, cut. A dispute over whether a line changes what an agent does
+is settled by a run, never argued
+([how](../../docs/knowledge/sdd.md#evaluating-the-toolkit)).
 
 ## The owner
 
@@ -33,14 +35,14 @@ Each fact has one author; every other file links it by name and never restates i
 | Repo-wide conventions | `.claude/rules/*.md` |
 | How the system works, for humans | `docs/knowledge/*.md` |
 | Why a boundary holds, what guards it, what its reversal breaks | `docs/knowledge/decisions.md` |
-| One ticket's what, why and how | its folder in `docs/tickets/` (`sdd.md`) |
+| One change's intent, steps and decisions | its `lab.md` in `docs/tickets/` |
 | What changed and why | `git log` |
 
 A `CLAUDE.md` or rule states only the *currently binding* constraint and links its record: its
-history lives in commit `Decision:` paragraphs and the ticket's `architecture.md › Decisions`, so
-no dates, superseded chains, ticket numbers or tombstones. Refresh a doc only when a real change
-lands, inside that change's commit. A lesson learned from building changes a skill, a rule or a
-check, never a `CLAUDE.md`, and only on the user's OK.
+history lives in commit `Decision:` paragraphs and the lab's Knowledge, so no dates, superseded
+chains, ticket numbers or tombstones. Refresh a doc only when a real change lands, inside that
+change's commit. A lesson learned from building changes a skill, a rule or a check, never a
+`CLAUDE.md`, only on the user's OK, and a line it adds names the line it replaces.
 
 ## The pattern
 
@@ -63,11 +65,11 @@ line, don't update it.
 
 ## The toolkit
 
-How the skills, agents and plugin fit, and what each uses: `docs/knowledge/sdd.md`, whose
-dependency map a commit updates when it changes what a skill or agent uses. Two constraints it
-does not hold:
-
-- Procedures are skills in `.claude/skills/ticket-<phase>/SKILL.md`, beside the lab's `lab` and
-  `lab-review`: a colon is reserved for plugin namespaces, and there is no `.claude/commands/`.
-- Tool limits live on the agent (`disallowedTools`); an agent that cannot edit or spawn
-  agents has its skill persist its output.
+- One procedure, `/lab` in `.claude/skills/lab/`, and three agents in `.claude/agents/`; why it
+  is cut so: `docs/knowledge/sdd.md`. Procedures are skills: a colon is reserved for plugin
+  namespaces, and there is no `.claude/commands/`.
+- Tool limits live on the agent (`disallowedTools`); an agent that cannot edit has its skill
+  persist its output.
+- A change to the skill, an agent or this rule runs the replays of
+  [sdd.md › Evaluating the toolkit](../../docs/knowledge/sdd.md#evaluating-the-toolkit) before
+  and after it, and lands only when no replay gets worse.
