@@ -56,9 +56,10 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Handlers
 
-- A handler decodes the input, calls one domain service method or one use case, returns a model
-  through its `buildApi<Model>` and fails with the domain's errors as they are. It holds no rule
-  and imports no repository or data layer: only the process's `layer.ts` provides them.
+- A handler decodes the input, calls one domain service method or one use case, returns the
+  model, through its `buildApi<Model>` where the wire shape adds or renames a field, and fails
+  with the domain's errors as they are. It holds no rule and imports no repository or data
+  layer: only the process's `layer.ts` provides them.
 
 ## Concurrency
 

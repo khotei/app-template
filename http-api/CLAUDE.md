@@ -15,8 +15,9 @@ and the auth middleware. Why:
   is compared with nothing, so review refuses it.
 - **A model's wire shape is `Api<Model>`, a `Schema.Struct`,** never a class: it encodes the
   domain's instance as it is and writes only its own fields, so an internal field stays off the
-  wire. An `Option` is `Schema.OptionFromNullOr`. The api hands it the model through its
-  `buildApi<Model>`, which typechecks only while the two shapes match.
+  wire. An `Option` is `Schema.OptionFromNullOr`. The api's handler returns the model, which
+  typechecks only while the two shapes match, through a `buildApi<Model>` only where the wire
+  adds or renames a field.
 - **An error is a `Schema.TaggedError` with the domain's tag and its status on the class**
   (`{ httpApiStatus: <code> }`): the contract's class encodes the domain's instance, so a
   handler fails with the domain's errors as they are.

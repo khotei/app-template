@@ -19,8 +19,6 @@ import {
   type RequestIssue,
 } from '@app-template/http-api'
 
-import { buildApiAttachment } from '#api/attachment/attachment.mapper'
-
 const buildRequestInvalid = (path: RequestIssue['path'], message: string) =>
   new RequestInvalidError({ issues: [{ path, message }] })
 
@@ -69,36 +67,30 @@ export const AttachmentHandler = HttpApiBuilder.group(
 
     return handlers
       .handleAll({
-        upload: Effect.fn('AttachmentHandler.upload')(
-          function* ({ payload }) {
-            const user = yield* CurrentUser
+        upload: Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
+          const user = yield* CurrentUser
 
-            return yield* fileAttachments
-              .upload(user.id, Stream.mapEffect(payload, decodeUpload))
-              .pipe(
-                Effect.catchTag(
-                  'MultipartError',
-                  (error): Effect.Effect<never, UploadRefusal> =>
-                    refuseMultipart[error.reason._tag](error),
-                ),
-                Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
-                  buildRequestInvalid(['files'], 'Expected at least 1 file'),
-                ),
-              )
-          },
-          Effect.map(Arr.map(buildApiAttachment)),
-        ),
-        list: Effect.fn('AttachmentHandler.list')(
-          function* () {
-            const user = yield* CurrentUser
-            return yield* attachments.list(user.id)
-          },
-          Effect.map(Arr.map(buildApiAttachment)),
-        ),
+          return yield* fileAttachments
+            .upload(user.id, Stream.mapEffect(payload, decodeUpload))
+            .pipe(
+              Effect.catchTag(
+                'MultipartError',
+                (error): Effect.Effect<never, UploadRefusal> =>
+                  refuseMultipart[error.reason._tag](error),
+              ),
+              Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty, () =>
+                buildRequestInvalid(['files'], 'Expected at least 1 file'),
+              ),
+            )
+        }),
+        list: Effect.fn('AttachmentHandler.list')(function* () {
+          const user = yield* CurrentUser
+          return yield* attachments.list(user.id)
+        }),
         get: Effect.fn('AttachmentHandler.get')(function* ({ params }) {
           const user = yield* CurrentUser
           return yield* attachments.getOne({ id: params.attachmentId, userId: user.id })
-        }, Effect.map(buildApiAttachment)),
+        }),
         delete: Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
           const user = yield* CurrentUser
           yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
