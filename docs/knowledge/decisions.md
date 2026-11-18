@@ -609,6 +609,25 @@ sent and logged in its use case.
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 
+### One initial migration
+
+Until a deployed database holds data, the schema is one migration, `init`: a change to a table
+regenerates it, and every local database is recreated
+([database.md › Migrations](database.md#migrations)).
+
+- **Why:** the app is not in production, so no deployed row needs a migration path; one migration
+  reads as the schema.
+- **Sources:** `docs/knowledge/database.md`.
+- **Rejected:** a migration per change before production: a history no deployed database needs.
+- **Cost:** every schema change recreates each local database, losing its rows; two branches
+  that both changed a table meet as two `init` folders, regenerated once more.
+- **Guarded by:** `make migration-check` (the data layer matches the migrations).
+- **If reversed:** nothing to undo; once the app is in production, every change is a migration
+  again.
+- **Revisit when:** the app reaches production: restarting the migrations is then forbidden.
+
+## Guards, tests and the workflow
+
 ### Guards are configuration
 
 The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
@@ -783,23 +802,6 @@ a double and the port's real layer.
   test support gets an exception.
 - **Revisit when:** a drift of a leaf double hides a defect (a unit test green on what the real
   layer refuses), or `Assistant` gets a second real layer.
-
-### One initial migration
-
-Until a deployed database holds data, the schema is one migration, `init`: a change to a table
-regenerates it, and every local database is recreated
-([database.md › Migrations](database.md#migrations)).
-
-- **Why:** the app is not in production, so no deployed row needs a migration path; one migration
-  reads as the schema.
-- **Sources:** `docs/knowledge/database.md`.
-- **Rejected:** a migration per change before production: a history no deployed database needs.
-- **Cost:** every schema change recreates each local database, losing its rows; two branches
-  that both changed a table meet as two `init` folders, regenerated once more.
-- **Guarded by:** `make migration-check` (the data layer matches the migrations).
-- **If reversed:** nothing to undo; once the app is in production, every change is a migration
-  again.
-- **Revisit when:** the app reaches production: restarting the migrations is then forbidden.
 
 ### Decisions recorded in one page
 
