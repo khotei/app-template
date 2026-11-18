@@ -14,7 +14,6 @@ import {
   ensureMessageInput,
   FileAttachmentService,
   GenerateChatTitle,
-  Message,
   type MessageInput,
   type MessageInputInvalidError,
   MessageService,
@@ -60,8 +59,8 @@ export class CreateUserMessageUseCase extends Context.Service<
     const transaction = yield* Transaction
 
     /**
-     * The user's message with the attachments it names bound to it; one of another chat or one
-     * a message holds is refused first.
+     * The user's message, the attachments it names bound to it; one of another chat or one a
+     * message holds is refused first.
      */
     const createUserMessage = Effect.fnUntraced(function* (
       userId: UserId,
@@ -74,8 +73,8 @@ export class CreateUserMessageUseCase extends Context.Service<
 
       // The bind follows the message, since its key to the message is not deferrable.
       const message = yield* messageService.create({ chatId, text: input.text })
-      const attachments = yield* fileAttachments.bind(requested, message)
-      return new Message({ ...message, attachments })
+      yield* fileAttachments.bind(requested, message)
+      return message
     })
 
     const create = Effect.fn('CreateUserMessageUseCase.create')(function* (

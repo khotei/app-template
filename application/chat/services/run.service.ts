@@ -5,7 +5,7 @@ import { RunRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
 import { RunId } from '#chat/domain/chat.id'
-import type { Message } from '#chat/domain/message.model'
+import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { buildRun, type Run } from '#chat/domain/run.model'
 import { decodeRun, encodeRun } from '#chat/services/run.mapper'
@@ -20,7 +20,7 @@ export class RunService extends Context.Service<
      * Stores the queued Run that answers the user's message; dies when its chat has an active Run
      * already, a send that lost the race to another.
      */
-    readonly create: (userMessage: Message) => Effect.Effect<Run>
+    readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
   }
 >()('@app-template/application/chat/services/RunService', {
@@ -28,7 +28,7 @@ export class RunService extends Context.Service<
     const runs = yield* RunRepository
     const crypto = yield* Crypto.Crypto
 
-    const create = Effect.fn('RunService.create')(function* (userMessage: Message) {
+    const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
       const id = yield* generateId(crypto, RunId.make)
       const createdAt = yield* DateTime.now
       const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })

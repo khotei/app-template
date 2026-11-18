@@ -113,14 +113,11 @@ describe('CreateUserMessageUseCase', () => {
           buildRun({
             id: run.id,
             chatId: chat.id,
-            userMessage: new Message({
-              ...buildUserMessage({
-                id: userMessage.id,
-                chatId: chat.id,
-                text: 'Plan a weekend in Lisbon',
-                createdAt: sentAt,
-              }),
-              attachments: [record],
+            userMessage: buildUserMessage({
+              id: userMessage.id,
+              chatId: chat.id,
+              text: 'Plan a weekend in Lisbon',
+              createdAt: sentAt,
             }),
             createdAt: run.createdAt,
           }),
