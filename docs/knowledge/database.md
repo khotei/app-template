@@ -309,7 +309,7 @@ at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
 |---|---|
 | `make migration NAME=<name>` | `drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root, whose paths it resolves against the working directory: compares the table files with the last snapshot and writes `kernel/data/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
 | `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)` on `DatabaseConfig`; with none pending it logs `nothing to apply`; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
-| `make migration-check` | generates into the folder and fails, printing the missing SQL, if a new folder appeared; it removes that folder |
+| `make migration-check` | drizzle-kit's dry run (`generate --explain`): fails when the table files differ from the migrations, printing the missing SQL and how to regenerate `init`; it writes nothing |
 
 - **`make migration-check` is soft locally and strict in CI.** In `make check` it counts every
   folder in the tree, committed or not, so a step that adds a migration stays green before its

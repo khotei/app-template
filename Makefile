@@ -84,19 +84,15 @@ migration: ## Generate a migration from the entities, with no database: NAME=<na
 	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
 	bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name $(NAME)
 
-# Compares folder listings, not git; soft here, strict in CI (docs/knowledge/database.md ›
-# Migrations). Closed stdin makes a rename prompt fail the target instead of hanging it.
+# drizzle-kit's dry run: the JSON status decides, the text run shows the SQL, its stdin closed so a
+# rename is reported, not asked. Soft here, strict in CI: docs/knowledge/database.md › Migrations.
 migration-check: ## Fail when an entity changed without a migration
-	@dir=kernel/data/migrations; before=$$(ls $$dir); \
-	out=$$(bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name unmigrated </dev/null 2>&1) || \
-		{ echo "$$out"; exit 1; }; \
-	new=$$(ls $$dir | grep -vxF "$$before"); \
-	if [ -n "$$new" ]; then \
-		cat $$dir/$$new/migration.sql; rm -rf $$dir/$$new; \
-		echo; echo "The entities differ from $$dir (above: the missing SQL)."; \
-		echo 'Run make migration NAME=<name> and commit the folder.'; \
+	@bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --explain --output json 2>/dev/null | grep -q '"status":"no_changes"' || { \
+		bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --explain </dev/null; \
+		echo; echo 'The entities differ from kernel/data/migrations (above). Regenerate the one init:'; \
+		echo 'delete that folder and run make migration NAME=init (docs/knowledge/database.md › Migrations).'; \
 		exit 1; \
-	fi
+	}
 
 api-snapshot: ## Rewrite the HTTP contract's OpenAPI snapshot, which a unit test compares with the code
 	bun --bun vitest run --project unit apps/api/__tests__/openapi.test.ts -u
