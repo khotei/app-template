@@ -3,8 +3,8 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
-  debug-worker debug-web check doc-lint sh-lint review-rules lint \
-  fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
+  debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
+  fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
   migrate migration migration-check api-snapshot
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -118,49 +118,34 @@ debug-worker: ## Run the worker with --inspect and --watch
 debug-web: ## Run the web dev server with --inspect
 	bun --filter @app-template/web debug
 
-check: doc-lint sh-lint lint typecheck migration-check test bundle-check ## Run every gate: the docs, the shell scripts, lint and the Effect style, types, migrations, tests with the HTTP contract's snapshot, the web bundle
+check: typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
 	@bunx markdownlint-cli2 --config .misc/lint/markdownlint-cli2.mjs
 
-# The image by version and by the digest of its multi-arch index, so a moved tag changes nothing.
-# The files: tracked and untracked, not ignored, still on disk (a deleted script awaits its commit),
-# listed NUL-separated into a file, so a space or a glob in a path stays one name and a failed git
-# stops the target instead of linting nothing. No script left runs no ShellCheck, which would exit 3.
+# Each image by version and by the digest of its multi-arch index, so a moved tag changes nothing.
 SHELLCHECK_IMAGE = koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
-SH_LINT_FILES = node_modules/.cache/sh-lint-files
+LYCHEE_IMAGE = lycheeverse/lychee:0.24.2@sha256:eaff3e0a13603c9a701accfcc84f44158bb77bf36ecfa4622b626056c3463892
 
-sh-lint: ## Lint the shell scripts outside repos/ with ShellCheck (Docker running)
-	@mkdir -p $(dir $(SH_LINT_FILES))
-	@git ls-files -z -co --exclude-standard -- '*.sh' ':!:repos/' > $(SH_LINT_FILES)
-	@xargs -0 sh -c 'for f do shift; [ ! -f "$$f" ] || set -- "$$@" "$$f"; done; \
-		[ $$# -gt 0 ] || exit 0; \
-		exec docker run --rm -v "$$PWD:/mnt" -w /mnt $(SHELLCHECK_IMAGE) \
-			--rcfile .misc/lint/shellcheckrc "$$@"' sh < $(SH_LINT_FILES)
+sh-lint: ## Lint the shell scripts outside repos/ and docs/tickets/ with ShellCheck (Docker running)
+	@git ls-files -z -co --exclude-standard -- '*.sh' ':!:repos/' ':!:docs/tickets/' | xargs -0 -r \
+		docker run --rm -v "$(CURDIR):/mnt" -w /mnt $(SHELLCHECK_IMAGE) --rcfile .misc/lint/shellcheckrc
 
-# The rules a review holds the diff from BASE to the working tree to: each rule without paths:, and
-# each whose filter matches a file the diff adds, changes or deletes (both sides of a rename),
-# untracked files included. /ticket-implement passes the parent of the step's first round as BASE
-# and hands this list to the Standards reviewer. The filters are read by
-# .misc/lint/rule-filters.mjs, the doc lint's reader.
+link-check: ## Check the relative links of README.md, docs/ and .claude/ with lychee (Docker running)
+	@docker run --rm -v "$(CURDIR):/input:ro" -w /input $(LYCHEE_IMAGE) --offline --no-progress \
+		--exclude-path '^\.claude/worktrees/' README.md 'docs/**/*.md' '.claude/**/*.md'
+
+# /ticket-implement passes the parent of the step's first round as BASE and hands the list to the
+# Standards reviewer.
 BASE = HEAD
 
 review-rules: ## List the rules that bind the diff from BASE (default HEAD): no paths: filter, or one it matches
-	@filters=$$(bun .misc/lint/rule-filters.mjs) || exit 2; \
-	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
-		[ -n "$$filter" ] || continue; \
-		files=$$(git diff '$(BASE)' --no-renames --name-only -- ":(glob)$$filter" && \
-			git ls-files --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
-		[ -z "$$files" ] || echo "$$rule"; \
-	done) || exit 2; \
-	{ for rule in $$(find .claude/rules -name '*.md'); do \
-		printf '%s\n' "$$filters" | cut -d' ' -f1 | grep -qxF "$$rule" || echo "$$rule"; \
-	done; printf '%s\n' "$$bound"; } | grep . | sort -u
+	@bun .misc/lint/rule-filters.mjs '$(BASE)'
 
 # A plugin that errors on a file is skipped there with a notice, `  i <plugin> errored: <reason>`,
 # and Biome still exits 0: that line stops the run with 2. The pattern is anchored, as the output
-# also quotes source lines. CI runs `make lint BIOME=ci`.
+# also quotes source lines. CI runs `make -k check BIOME=ci`.
 BIOME = check
 
 lint: ## Lint and format-check with Biome and its plugins, failing on a plugin that errored
@@ -173,12 +158,12 @@ lint: ## Lint and format-check with Biome and its plugins, failing on a plugin t
 	exit $$status
 
 fmt: ## Apply Biome formatting and safe fixes
-	bun run format
+	bunx biome check --write
 
-# The patched tsc, not bun check: bun check ignores tsconfig plugins, so it misses every Effect
-# diagnostic.
+# The Effect compiler by its own path, so the gate holds on an install whose prepare did not patch
+# tsc; not bun check, which ignores tsconfig plugins and so misses every Effect diagnostic.
 typecheck: ## Typecheck every workspace with Effect diagnostics
-	bunx tsc -b
+	"$$(bunx effect-tsgo get-exe-path)" -b
 
 test: test-unit test-e2e ## Run the unit and the e2e tests
 
@@ -196,10 +181,6 @@ WEB_BUNDLE = node_modules/.cache/web-bundle
 bundle-check: ## Fail when the web bundle holds a package outside browserPackages in apps/web/package.json, naming its import chain
 	bun build apps/web/app/main.ts --outdir $(WEB_BUNDLE) --target browser --metafile=$(WEB_BUNDLE)/meta.json
 	@bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json
-
-clean: ## Remove installed dependencies, build caches and coverage
-	find . -name node_modules -type d -prune -exec rm -rf {} +
-	rm -rf coverage
 
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive

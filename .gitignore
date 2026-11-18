@@ -6,10 +6,6 @@ out
 dist
 *.tgz
 
-# code coverage
-coverage
-*.lcov
-
 # local data (MiniStack's state, the Pulumi backend)
 .data
 

@@ -33,12 +33,11 @@ file, Docker running; `vitest` without `run` watches):
 bun --bun vitest run --project unit <workspace>/__tests__/<path>.test.ts -t <name>
 ```
 
-The root `test` script, `bun --bun vitest run`, runs both projects at once (CI's `bun run test`);
-`bun test` would instead start Bun's own test runner, which ignores the vitest projects and
-their setup.
+`bun --bun vitest run` runs both projects at once; `bun test` would instead start Bun's own test
+runner, which ignores the vitest projects and their setup.
 
-Scripts live only where `make` calls them: the root `package.json` holds `prepare`, `format`
-and `test` (`make lint` calls Biome itself); each process app (`api`, `worker`, `web`) holds
+Scripts live only where `make` calls them: the root `package.json` holds `prepare` (`make lint`
+and `make fmt` call Biome themselves); each process app (`api`, `worker`, `web`) holds
 `dev`, `debug` and `start`; `apps/e2e` and the library workspaces hold none.
 
 ## Tests
@@ -127,7 +126,7 @@ Which suite runs where:
   checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
-  reporter; `bun run test --reporter=default` forces it.
+  reporter; `bun --bun vitest run --reporter=default` forces it.
 - **Errors are compared by their encoded form,** with `assertSchemaEquals` from
   `@app-template/packages/testing`: under Bun two errors with equal fields differ at random (why:
   its TSDoc).
@@ -313,10 +312,12 @@ new version. CI also runs a non-blocking job on Bun `latest`, which shows the ne
   project, one per workspace. Each is a `composite` project that references what it imports;
   inside `kernel/`, `packages/` and `application/` the plugin `biome-imports.grit` tells the
   units apart.
-- **The patched `tsc -b` is the only typecheck gate.** It walks the references, reports every
-  type error, and runs the Effect language service, whose errors and warnings both fail it
-  (`ignoreEffectWarningsInTscExitCode` stays `false`). `make typecheck`, `pre-commit` and CI all
-  run it. `repos/` is never walked: no reference points into it.
+- **The Effect compiler's `tsc -b` is the only typecheck gate,** started by its own path
+  (`effect-tsgo get-exe-path`), so it holds on an install whose `prepare` did not patch `tsc`.
+  It walks the references, reports every type error, and runs the Effect language service,
+  whose errors and warnings both fail it (`ignoreEffectWarningsInTscExitCode` stays
+  `false`). `make typecheck`, `pre-commit` and CI all run it. `repos/` is never walked: no
+  reference points into it.
 - **`unstableApiUsage` is a suggestion, and suggestions stay in the editor.** The project uses
   modules marked `@stability unstable` by choice, pinned exactly; at the rule's default
   `warning`, each import of one fails `tsc -b`. `includeSuggestionsInTsc: false` keeps
@@ -393,14 +394,9 @@ Never skip a hook with `--no-verify`. CI runs the same checks, so a skipped hook
 
 CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`:
 
-| Job | Runs |
-|---|---|
-| `static` | `bun install --frozen-lockfile`, `make lint BIOME=ci`, `make doc-lint`, `make sh-lint`, `tsc --version \| grep effect-tsgo`, `make typecheck`, `make migration-check`, `make bundle-check` |
-| `test` | `bun install --frozen-lockfile`, `bun run test` |
-| `links` | `lychee --offline` on `README.md`, `docs/**/*.md` and `.claude/**/*.md` |
-
-`static` and `test` run on two Bun versions: `pinned` (from `packageManager`) blocks the merge, and
-`latest` only reports. The link check keeps relative links between documents from rotting.
+`bun install --frozen-lockfile`, then `make -k check BIOME=ci`, so its gates are the `Makefile`'s
+list and one run reports every red gate. The job runs on two Bun versions: `pinned` (from
+`packageManager`) blocks the merge, and `latest` only reports.
 
 ## Troubleshooting
 
@@ -416,7 +412,6 @@ CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `mai
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |
 | `<file>:<line> - error TS377001: … effect(floatingEffect)`, or another `effect(<rule>)` | the Effect language service flags a misuse; the name in parentheses is the rule | fix the code (here: yield or assign the Effect). A rule's severity is set in the plugin's `diagnosticSeverity` in `tsconfig.base.json` |
-| CI `Assert the patched tsc` fails: `grep` finds no `effect-tsgo` | `tsc` is the stock build, because `bun install` ran without the `prepare` script; it reports no Effect diagnostics | run `bun install`, so `prepare` runs `effect-tsgo patch`; `bunx tsc --version` then reports `+effect-tsgo` |
 | CI `Install`: `lockfile had changes, but lockfile is frozen` | `package.json` or a catalog changed without `bun install` | run `bun install` locally and commit `bun.lock` |
 | an app exits at startup with `ConfigError: SchemaError(… at ["API_PORT"])` | `.env` is missing or that variable is invalid; Bun ignores a missing `--env-file` without a warning | `make setup`, or fix the named variable in `.env` and rerun until it starts |
 | `… at ["LOG_LEVEL"]` on a `.env` that used to work | `LOG_LEVEL` is case-sensitive since the Effect config: `Info`, not `info` | set `LOG_LEVEL="Info"` (see `.env.example`) |

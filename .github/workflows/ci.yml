@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static:
-    name: lint · typecheck (bun ${{ matrix.bun }})
+  check:
+    name: make check (bun ${{ matrix.bun }})
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.bun == 'latest' }}
     strategy:
@@ -47,88 +47,7 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
-      - name: Lint
-        run: make lint BIOME=ci
-
-      - name: Lint the docs
-        run: make doc-lint
-
-      # ShellCheck runs from its pinned image, on the runner's Docker.
-      - name: Lint the shell scripts
-        run: make sh-lint
-
-      # prepare patches tsc on install; an install without it silently drops Effect diagnostics.
-      - name: Assert the patched tsc
-        run: bunx tsc --version | grep effect-tsgo
-
-      - name: Typecheck
-        run: make typecheck
-
-      # Strict here: docs/knowledge/database.md › Migrations.
-      - name: Migrations match the entities
-        run: make migration-check
-
-      - name: No service, port or adapter in the web bundle
-        run: make bundle-check
-
-  test:
-    name: test (bun ${{ matrix.bun }})
-    runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.bun == 'latest' }}
-    strategy:
-      fail-fast: false
-      matrix:
-        bun: [pinned, latest]
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup Bun (pinned)
-        if: matrix.bun == 'pinned'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-
-      - name: Setup Bun (latest)
-        if: matrix.bun == 'latest'
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Cache Bun install
-        uses: actions/cache@v6
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ matrix.bun }}-${{ hashFiles('bun.lock') }}
-          restore-keys: ${{ runner.os }}-bun-${{ matrix.bun }}-
-
-      - name: Install
-        run: bun install --frozen-lockfile
-
-      # Tests pass their env explicitly, so CI needs no .env file.
-      - name: Test
-        run: bun run test
-
-  # Guards the drift vector of a link-don't-restate doc strategy: a renamed target
-  # is a broken relative link. --offline checks only links inside the repo.
-  links:
-    name: docs link check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Check links
-        uses: lycheeverse/lychee-action@v2
-        with:
-          args: >-
-            --offline
-            --no-progress
-            --exclude-path '^repos/'
-            README.md
-            'docs/**/*.md'
-            '.claude/**/*.md'
-          fail: true
-
-# Deferred CI jobs (they depend on later tickets, not on this scaffold):
-#   - integration tests against Postgres / MiniStack containers
-#   - production build of apps/web and the server bundles
-#   - deploy preview of the Pulumi stack
+      # The gates are the Makefile's list; -k runs the rest past a red one. A fresh checkout makes
+      # the migration gate strict: docs/knowledge/database.md › Migrations.
+      - name: Check
+        run: make -k check BIOME=ci

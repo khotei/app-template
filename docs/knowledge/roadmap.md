@@ -314,7 +314,7 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
   service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
   the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
-  Bun's today), clear the output dir before each build, and run it in CI's `static` job.
+  Bun's today), clear the output dir before each build, and keep it in `make check`, which CI runs.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
