@@ -69,9 +69,10 @@ the entities derived from them.
 ## Entities and mappers
 
 An entity file lays its entity over the table's columns, in the data layer's own types
-(`string`, `string | null`, `Date`), with `createInsertSchema` from `drizzle-orm/effect-schema`
-for its `Insert`, beside the `<Name>EntityWhere` and `<Name>EntitySet` its reads and writes
-filter and change by. An entity is the shape every read returns, one level deep: a chat's and a
+(`string`, `string | null`, `Date`), beside the `<Name>EntityWhere` and `<Name>EntitySet` its
+reads and writes filter and change by. A repository's `insert` takes the table's full row, its
+`<Name>Columns` (the entity itself where it nests nothing), so a row that leaves a column out
+fails typecheck. An entity is the shape every read returns, one level deep: a chat's and a
 message's nest their attachments and their Run's columns, a Run's its messages' columns, and
 the nested columns nest nothing:
 
@@ -107,7 +108,7 @@ export const ChatFromEntity = Schema.Struct({
   attachments: Schema.Array(AttachmentFromEntity.from),
   run: Schema.OptionFromNullOr(RunFieldsFromColumns),
 }).pipe(Schema.decodeTo(Chat))
-export const encodeChat = encodeRowWith(ChatFieldsFromColumns, ChatEntityInsert)
+export const encodeChat = encodeRowWith(ChatFieldsFromColumns)
 ```
 
 - A refinement given as a schema replaces the column's schema whole: nothing adds `NullOr` or
@@ -116,9 +117,9 @@ export const encodeChat = encodeRowWith(ChatFieldsFromColumns, ChatEntityInsert)
 - A model class nested in another (an attachment in a chat) is laid by its encoded side,
   `AttachmentFromEntity.from`, since encoding the parent hands it plain fields; a nested
   `Schema.Struct` codec (`RunFieldsFromColumns`) is laid as is.
-- A service writes a model encoded through its `<Model>FieldsFromColumns` and decoded with
-  `<Name>EntityInsert`, which checks the row. A value already in the data layer's
-  types (brands, literals) is passed as is: `UserRepository.insert` takes the credential with
+- A service writes a model encoded through its `<Model>FieldsFromColumns` into the row the
+  repository's `insert` takes. A value already in the data layer's types (brands, literals) is
+  passed as is: `UserRepository.insert` takes the credential with
   no mapper and writes `{ hash, kind, userId }`, the user's id from the row it inserted.
 - A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
@@ -151,8 +152,9 @@ on the `chats` constant.
 A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
 `kernel/data/<store>/`, `FileRepository` over the attachments' objects among them
-([aws.md › Attachments](aws.md#attachments)), speak entities: they take a `<Name>EntityInsert`,
-a `<Name>EntitySet` and a `<Name>EntityWhere` and answer `<Name>Entity`. A module's service
+([aws.md › Attachments](aws.md#attachments)), speak entities: they take a table's row (an
+object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
+`<Name>Entity`. A module's service
 calls one directly, with no port in front, and maps with its module's mapper (`UserService` over
 `UserRepository`). A method that writes several tables runs them in one `sql.withTransaction`,
 passed to `Effect.fn` as a pipeable:
@@ -163,9 +165,8 @@ in the e2e), so the transaction runs on the connection `Db` uses. Every method e
 
 A module's services and the use cases call the data layer's repositories through the
 `<Model>FromEntity` mappers of the module's `services/`: a write encodes the model through its
-mapper and decodes the row with `<Name>EntityInsert`, the set takes its fields from that row,
-the service maps each `Option` of a `where` to `null`, and a read decodes the entities into
-models; a mapping failure dies.
+mapper into the row, the set takes its fields from that row, the service maps each `Option` of a
+`where` to `null`, and a read decodes the entities into models; a mapping failure dies.
 
 Reads go through relational queries (`db.query.<table>.findFirst` and `findMany`), writes
 through the core builder (`db.insert`, `db.update`, `db.delete`). A read of at most one row is a

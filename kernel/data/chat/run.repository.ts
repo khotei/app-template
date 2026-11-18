@@ -14,12 +14,11 @@ import { chats } from '#kernel/data/chat/chat.table'
 import {
   newestFirst,
   type RunEntity,
-  type RunEntityInsert,
   type RunEntitySet,
   type RunEntityWhere,
   withMessages,
 } from '#kernel/data/chat/run.entity'
-import { runs } from '#kernel/data/chat/run.table'
+import { type RunColumns, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 
 const encodeSet = buildSet<RunEntitySet, typeof runs>({
@@ -48,7 +47,7 @@ export class RunRepository extends Context.Service<
   RunRepository,
   {
     /** Dies when the Run is active and its chat already has one. */
-    readonly insert: (run: typeof RunEntityInsert.Type) => Effect.Effect<void>
+    readonly insert: (run: RunColumns) => Effect.Effect<void>
     /** Writes the fields of `set` a Run may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: RunEntitySet, where: RunEntityWhere) => Effect.Effect<void>
     /** Returns the Run where `where` holds, the newest when several do. */

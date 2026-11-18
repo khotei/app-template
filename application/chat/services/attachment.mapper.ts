@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
-import { AttachmentEntity, AttachmentEntityInsert } from '@app-template/kernel/data'
+import { AttachmentEntity } from '@app-template/kernel/data'
 import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { AttachmentId } from '#chat/domain/attachment.id'
@@ -21,7 +21,7 @@ export const AttachmentFromEntity = Schema.Struct({
   createdAt: Schema.DateTimeUtcFromDate,
 }).pipe(Schema.decodeTo(Attachment))
 
-export const encodeAttachment = encodeRowWith(AttachmentFromEntity, AttachmentEntityInsert)
+export const encodeAttachment = encodeRowWith(AttachmentFromEntity)
 
 export const decodeAttachment = decodeOptionalWith(AttachmentFromEntity)
 

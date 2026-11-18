@@ -31,7 +31,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services |
 | `.handler` | api: one contract group's handlers · worker: its one route, each queue's use case |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
-| `.table` · `.entity` | a table · `<Name>Entity` with its `Insert`, `Where` and `Set`, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
+| `.table` · `.entity` | a table · `<Name>Entity` with its `Where` and `Set`, an `Insert` only where an insert is no table's row, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
 | `.mapper` | `<Model>FromEntity`, an entity's codec into a model · api: `buildApi<Model>`, a model handed to its wire shape, one per response model |
 | `.client` · `.http` | client wiring · one resource's routes |
 | `.sender` · `.consumer` | the service that sends a queue's messages · the one that runs a queue's handlers on what it delivers |

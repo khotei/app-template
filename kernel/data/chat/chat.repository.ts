@@ -12,12 +12,11 @@ import {
 
 import {
   type ChatEntity,
-  type ChatEntityInsert,
   type ChatEntitySet,
   type ChatEntityWhere,
   withRun,
 } from '#kernel/data/chat/chat.entity'
-import { chats } from '#kernel/data/chat/chat.table'
+import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
 import { withAttachments } from '#kernel/data/chat/message.entity'
 import { Db } from '#kernel/data/db.client'
 
@@ -44,7 +43,7 @@ const select = (where: ChatEntityWhere) =>
 export class ChatRepository extends Context.Service<
   ChatRepository,
   {
-    readonly insert: (chat: typeof ChatEntityInsert.Type) => Effect.Effect<void>
+    readonly insert: (chat: ChatColumns) => Effect.Effect<void>
     /** Writes the fields of `set` a chat may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: ChatEntitySet, where: ChatEntityWhere) => Effect.Effect<void>
     readonly selectOne: (where: ChatEntityWhere) => Effect.Effect<Option.Option<ChatEntity>>

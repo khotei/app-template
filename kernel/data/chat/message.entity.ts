@@ -1,9 +1,8 @@
-import { createInsertSchema } from 'drizzle-orm/effect-schema'
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { MessageColumns, messages } from '#kernel/data/chat/message.table'
+import { MessageColumns } from '#kernel/data/chat/message.table'
 import { newestFirst } from '#kernel/data/chat/run.entity'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
@@ -18,8 +17,6 @@ export const MessageEntity = Schema.Struct({
   run: Schema.NullOr(RunColumns),
 })
 export type MessageEntity = typeof MessageEntity.Type
-
-export const MessageEntityInsert = createInsertSchema(messages)
 
 /** `userId` is the owner of the row's chat, not a column of `messages`. */
 export type MessageEntityWhere = Types.Simplify<

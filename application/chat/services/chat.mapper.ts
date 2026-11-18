@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
-import { ChatColumns, ChatEntityInsert } from '@app-template/kernel/data'
+import { ChatColumns } from '@app-template/kernel/data'
 import { decodeManyWith, decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { ChatId } from '#chat/domain/chat.id'
@@ -26,7 +26,7 @@ export const ChatFromEntity = Schema.Struct({
 }).pipe(Schema.decodeTo(Chat))
 
 /** Encodes a chat's own fields as its row; its attachments and Run are read, never written. */
-export const encodeChat = encodeRowWith(ChatFieldsFromColumns, ChatEntityInsert)
+export const encodeChat = encodeRowWith(ChatFieldsFromColumns)
 
 export const decodeChat = decodeOptionalWith(ChatFromEntity)
 

@@ -79,7 +79,7 @@ export const runs = snakeCase.table(
 export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
 
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
-export const runJsonColumns = {
+const runJsonColumns = {
   failure: () => RunFailureJson,
   provenance: () => RunProvenanceJson,
 }

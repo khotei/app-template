@@ -8,8 +8,8 @@ import { attachments } from '#kernel/data/attachment/attachment.table'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
-import type { RunEntityInsert } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
+import type { RunColumns } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -77,7 +77,7 @@ const run = (
     assistantMessageId: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
-  }) satisfies typeof RunEntityInsert.Type
+  }) satisfies RunColumns
 
 const Messages = Schema.Array(MessageEntity)
 

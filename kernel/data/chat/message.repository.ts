@@ -9,12 +9,11 @@ import {
   buildMessageEntity,
   inCreationOrder,
   type MessageEntity,
-  type MessageEntityInsert,
   type MessageEntityWhere,
   withAttachments,
   withRun,
 } from '#kernel/data/chat/message.entity'
-import { messages } from '#kernel/data/chat/message.table'
+import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
 import { Db } from '#kernel/data/db.client'
 
 // Built on the table a query names, as a relational query aliases `messages`; `userId` is the
@@ -43,7 +42,7 @@ export class MessageRepository extends Context.Service<
   MessageRepository,
   {
     /** Writes the message's own fields, never its attachments; a message is never changed. */
-    readonly insert: (message: typeof MessageEntityInsert.Type) => Effect.Effect<void>
+    readonly insert: (message: MessageColumns) => Effect.Effect<void>
     /** Returns the first row in creation order where `where` holds. */
     readonly selectOne: (where: MessageEntityWhere) => Effect.Effect<Option.Option<MessageEntity>>
     /** Returns the rows where `where` holds, in creation order, a tie broken by id. */

@@ -1,6 +1,5 @@
 import { Schema } from 'effect'
 
-import { RunEntityInsert } from '@app-template/kernel/data'
 import { decodeOptionalWith, encodeRowWith } from '@app-template/packages/db'
 
 import { Run } from '#chat/domain/run.model'
@@ -14,6 +13,6 @@ export const RunFromEntity = Schema.Struct({
 }).pipe(Schema.decodeTo(Run))
 
 /** Encodes a Run's own fields as its row; the nested messages are read, never written. */
-export const encodeRun = encodeRowWith(RunFieldsFromColumns, RunEntityInsert)
+export const encodeRun = encodeRowWith(RunFieldsFromColumns)
 
 export const decodeRun = decodeOptionalWith(RunFromEntity)

@@ -1,9 +1,8 @@
-import { createInsertSchema } from 'drizzle-orm/effect-schema'
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { ChatColumns, chats } from '#kernel/data/chat/chat.table'
+import { ChatColumns } from '#kernel/data/chat/chat.table'
 import { newestFirst } from '#kernel/data/chat/run.entity'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
@@ -17,8 +16,6 @@ export const ChatEntity = Schema.Struct({
   run: Schema.NullOr(RunColumns),
 })
 export type ChatEntity = typeof ChatEntity.Type
-
-export const ChatEntityInsert = createInsertSchema(chats)
 
 export type ChatEntityWhere = Types.Simplify<
   RequireAtLeastOne<Pick<ChatEntity, 'id' | 'userId'>> & Partial<Pick<ChatEntity, 'title'>>

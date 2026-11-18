@@ -231,8 +231,8 @@ model's. A new module starts with its entry ([Add a module](#add-a-module)), whi
 imports need.
 
 1. **The data.** `kernel/data/<store>/`, a store's folder (messages share `chat/`):
-   `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Insert`,
-   `Where` and `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an
+   `<entity>.table.ts` (the table), `<entity>.entity.ts` (`<Name>Entity` with its `Where` and
+   `Set`), `<entity>.repository.ts` (`<Name>Repository` over `Db`), and an
    `index.ts`, re-exported by `kernel/data/index.ts`; the table in
    `kernel/data/relations.ts`; the one `init` migration regenerated
    ([database.md](database.md#migrations)). What a table and an entity may import and declare:
@@ -247,7 +247,7 @@ imports need.
    each with its unit test.
 3. **The mapper.** `application/<module>/services/<entity>.mapper.ts`: `<Model>FromEntity` lays the
    model's schemas over the entity's fields; its unit test encodes the model's extreme values
-   through the entity's insert schema and reads them back.
+   through the mapper and reads them back.
 4. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, the one owner every handler goes through, tested over the memory repositories.
    The layers' barrels re-export the new files.

@@ -400,7 +400,7 @@ its clients from the context. The tables stay in `public` with their foreign key
 
 ### Entity names
 
-The data layer's names end in `Entity` (`ChatEntity`, `ChatEntityInsert`, its `Where` and `Set`);
+The data layer's names end in `Entity` (`ChatEntity`, its `Where` and `Set`);
 its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its entities in
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their attachments. A module maps with `<Model>FromEntity` in
@@ -436,7 +436,7 @@ and patterns, and the models import them to check the same rules on their side.
   never accept less.
 - **Guarded by:** the data layer exports each limit, pattern and enum's values from its table and
   the model imports it; a mapper's unit test round-trips the model's extreme values through the
-  entity, and the data layer's e2e check the table's side
+  mapper, and the data layer's e2e check the table's side
   ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.

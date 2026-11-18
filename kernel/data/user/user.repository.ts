@@ -7,7 +7,6 @@ import { Db } from '#kernel/data/db.client'
 import type {
   UserEntity,
   UserEntityCredential,
-  UserEntityInsert,
   UserEntityWhere,
 } from '#kernel/data/user/user.entity'
 import { credentials, users } from '#kernel/data/user/user.table'
@@ -23,10 +22,7 @@ export class UserRepository extends Context.Service<
   UserRepository,
   {
     /** Writes the user and its credential, or neither. */
-    readonly insert: (
-      user: typeof UserEntityInsert.Type,
-      credential: UserEntityCredential,
-    ) => Effect.Effect<void>
+    readonly insert: (user: UserEntity, credential: UserEntityCredential) => Effect.Effect<void>
     readonly selectOne: (where: UserEntityWhere) => Effect.Effect<Option.Option<UserEntity>>
   }
 >()('@app-template/kernel/data/user/UserRepository', {
@@ -35,7 +31,7 @@ export class UserRepository extends Context.Service<
     const sql = yield* SqlClient.SqlClient
     return {
       insert: Effect.fn('UserRepository.insert')(
-        function* (user: typeof UserEntityInsert.Type, { kind, hash }: UserEntityCredential) {
+        function* (user: UserEntity, { kind, hash }: UserEntityCredential) {
           const inserted = yield* db.insert(users).values(user).returning({ userId: users.id })
           yield* db
             .insert(credentials)

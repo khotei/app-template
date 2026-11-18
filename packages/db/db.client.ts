@@ -41,17 +41,9 @@ export class Transaction extends Context.Service<
   )
 }
 
-/**
- * Encodes a model through its mapper and decodes the result with the row's insert schema, which
- * drops the fields the table lacks and checks the row; a failure is a defect.
- */
-export const encodeRowWith = <
-  Row extends Schema.Constraint,
-  Mapper extends Schema.ConstraintCodec<unknown, Row['Encoded'], unknown, unknown>,
->(
-  mapper: Mapper,
-  row: Row,
-) => flow(Schema.encodeEffect(mapper), Effect.flatMap(Schema.decodeEffect(row)), Effect.orDie)
+/** Encodes a model through its mapper into the row its table takes; a failure is a defect. */
+export const encodeRowWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
+  flow(Schema.encodeEffect(mapper), Effect.orDie)
 
 /** Decodes the entity a read found, if any, through its mapper; a failure is a defect. */
 export const decodeOptionalWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>

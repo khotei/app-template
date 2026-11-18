@@ -12,7 +12,6 @@ import {
 
 import type {
   AttachmentEntity,
-  AttachmentEntityInsert,
   AttachmentEntitySelectWhere,
   AttachmentEntitySet,
   AttachmentEntityWhere,
@@ -36,7 +35,7 @@ const encodeWhere = buildWhere<AttachmentEntitySelectWhere>({
 export class AttachmentRepository extends Context.Service<
   AttachmentRepository,
   {
-    readonly insert: (attachment: typeof AttachmentEntityInsert.Type) => Effect.Effect<void>
+    readonly insert: (attachment: AttachmentEntity) => Effect.Effect<void>
     /** Writes `set` where `where` holds, in one statement; dies when it misses a row `where.id` names. */
     readonly update: (set: AttachmentEntitySet, where: AttachmentEntityWhere) => Effect.Effect<void>
     /** The first row `selectMany` reads. */
@@ -64,7 +63,7 @@ export class AttachmentRepository extends Context.Service<
 
     return {
       insert: Effect.fn('AttachmentRepository.insert')(
-        (attachment: typeof AttachmentEntityInsert.Type) =>
+        (attachment: AttachmentEntity) =>
           db.insert(attachments).values(attachment).pipe(Effect.asVoid),
         orDieWithSqlError,
       ),
