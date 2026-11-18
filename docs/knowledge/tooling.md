@@ -209,9 +209,11 @@ ports, and the database's volume stays.
   environment itself, such as the AWS credentials, which never pass through
   `@app-template/kernel/config` ([aws.md › The local stand-in](aws.md#the-local-stand-in)).
 - **Quoting.** Strings are double-quoted (`LOG_LEVEL="Info"`), numbers are bare (`API_PORT=3000`).
-- **Loading.** Each app script passes `--env-file=../../.env --env-file=../../.env.pulumi`, paths
-  relative to the app folder, and `make migrate` the same two files; the second wins, and Bun
-  skips a missing one. This works from `make` at the root and from `bun run dev` inside the app.
+- **Loading.** `env = false` in `bunfig.toml` turns off Bun's own loading of `.env` files, so a
+  process reads only the files its command names. Each app script passes
+  `--env-file=../../.env --env-file=../../.env.pulumi`, paths relative to the app folder, and
+  `make migrate` the same two files; the second wins, and Bun skips a missing one. This works from
+  `make` at the root and from `bun run dev` inside the app.
   The one exception is `make up`: Pulumi starts `deployment/local/index.ts` itself, so no
   `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The
   shell reads the file as its own syntax, so a value with a space must be quoted.
@@ -220,7 +222,8 @@ ports, and the database's volume stays.
   variable. Variables exported in the shell work without a file, which is how CI runs.
 - **Reading settings.** Only `@app-template/kernel/config` reads the environment: each area is a
   `Context.Service` with a `layer` on `effect/Config`. Tests
-  provide a `ConfigProvider.fromUnknown` record, so they never need `.env`.
+  provide a `ConfigProvider.fromUnknown` record, so they never need `.env`; a test process reads
+  no `.env` either, so a test without its record fails with a `ConfigError`.
 
 ## Dependencies
 
