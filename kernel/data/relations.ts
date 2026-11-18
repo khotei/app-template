@@ -16,13 +16,13 @@ export const relations = defineRelations(
     chats: {
       messages: r.many.messages({ from: r.chats.id, to: r.messages.chatId }),
       attachments: r.many.attachments({ from: r.chats.id, to: r.attachments.chatId }),
-      // One of many, so a read orders it (`withRun` in `chat.entity.ts`): one lateral join.
+      // One of many, so a read orders it: one lateral join.
       run: r.one.runs({ from: r.chats.id, to: r.runs.chatId }),
     },
     messages: {
       chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),
       attachments: r.many.attachments({ from: r.messages.id, to: r.attachments.messageId }),
-      // A user's message: the newest of the Runs that answer it, ordered by `withRun`.
+      // A user's message: the newest of the Runs that answer it, ordered by the read.
       latestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
       // An assistant's message: the Run that wrote it.
       replyOf: r.one.runs({ from: r.messages.id, to: r.runs.assistantMessageId }),

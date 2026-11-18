@@ -14,10 +14,10 @@ import {
   type ChatEntitySet,
   type ChatEntityWhere,
   chatSetColumns,
-  withRun,
 } from '#kernel/data/chat/chat.entity'
 import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
 import { withAttachments } from '#kernel/data/chat/message.entity'
+import { newestFirst } from '#kernel/data/chat/run.entity'
 import { Db } from '#kernel/data/db.client'
 
 // Built on the table a query names: a relational query aliases `chats`, so a condition on the
@@ -32,7 +32,7 @@ const encodeWhere = (table: typeof chats) =>
 const select = (where: ChatEntityWhere) =>
   ({
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
-    with: { ...withAttachments, ...withRun },
+    with: { ...withAttachments, run: { orderBy: newestFirst } },
   }) as const
 
 export class ChatRepository extends Context.Service<

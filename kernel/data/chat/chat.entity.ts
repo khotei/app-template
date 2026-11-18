@@ -3,12 +3,11 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
-import { newestFirst } from '#kernel/data/chat/run.entity'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
 /**
  * A chat with its attachments, in upload order, and its newest Run, flat, none before its first
- * send: every read nests them (`withAttachments` in `message.entity.ts`, `withRun`).
+ * send: every read nests them.
  */
 export const ChatEntity = Schema.Struct({
   ...ChatColumns.fields,
@@ -29,6 +28,3 @@ export const chatSetColumns = ['title', 'updatedAt'] as const satisfies Readonly
 export type ChatEntitySet = Types.Simplify<
   RequireAtLeastOne<Pick<ChatColumns, (typeof chatSetColumns)[number]>>
 >
-
-/** The newest Run: the relation is one of many, so the read orders it. */
-export const withRun = { run: { orderBy: newestFirst } } as const

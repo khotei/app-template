@@ -5,8 +5,8 @@ import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
 /**
- * A Run with the message it answers and its reply, none until it is done: every read nests them
- * (`withMessages`), flat, without their attachments.
+ * A Run with the message it answers and its reply, none until it is done: every read nests them,
+ * flat, without their attachments.
  */
 export const RunEntity = Schema.Struct({
   ...RunColumns.fields,
@@ -37,5 +37,3 @@ export type RunEntitySet = Types.Simplify<
 >
 
 export const newestFirst = { createdAt: 'desc', id: 'desc' } as const
-
-export const withMessages = { userMessage: true, assistantMessage: true } as const

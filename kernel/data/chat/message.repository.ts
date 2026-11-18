@@ -11,9 +11,9 @@ import {
   type MessageEntity,
   type MessageEntityWhere,
   withAttachments,
-  withRun,
 } from '#kernel/data/chat/message.entity'
 import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
+import { newestFirst } from '#kernel/data/chat/run.entity'
 import { Db } from '#kernel/data/db.client'
 
 // Built on the table a query names, as a relational query aliases `messages`; `userId` is the
@@ -35,7 +35,7 @@ const select = (where: MessageEntityWhere) =>
   ({
     where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
     orderBy: inCreationOrder,
-    with: { ...withAttachments, ...withRun },
+    with: { ...withAttachments, latestRun: { orderBy: newestFirst }, replyOf: true },
   }) as const
 
 export class MessageRepository extends Context.Service<

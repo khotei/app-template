@@ -3,13 +3,12 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { MessageColumns } from '#kernel/data/chat/message.table'
-import { newestFirst } from '#kernel/data/chat/run.entity'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
 /**
  * A message with its attachments, in upload order, and its Run, flat: a user's the newest that
- * answers it, an assistant's the one that wrote it. Every read nests them (`withAttachments`,
- * `withRun`) and picks the Run with `buildMessageEntity`.
+ * answers it, an assistant's the one that wrote it. Every read nests them and picks the Run with
+ * `buildMessageEntity`.
  */
 export const MessageEntity = Schema.Struct({
   ...MessageColumns.fields,
@@ -27,9 +26,6 @@ export type MessageEntityWhere = Types.Simplify<
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
 
 export const withAttachments = { attachments: { orderBy: inCreationOrder } } as const
-
-/** The two relations a read fills; `buildMessageEntity` keeps the one the author has. */
-export const withRun = { latestRun: { orderBy: newestFirst }, replyOf: true } as const
 
 interface MessageRead extends Omit<MessageEntity, 'run'> {
   readonly latestRun: RunColumns | null

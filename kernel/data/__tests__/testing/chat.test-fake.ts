@@ -144,8 +144,8 @@ const newestRunWhere = (
 ) => pipe(inCreationOrderWhere(runs, where), Arr.last)
 
 /**
- * The message with its attachments and both of its Run relations, as `withAttachments` and
- * `withRun` read them; `buildMessageEntity` keeps the Run its author has.
+ * The message with its attachments and both of its Run relations, as the repository's read
+ * nests them; `buildMessageEntity` keeps the Run its author has.
  */
 const readMessage = (rows: Tables) =>
   flow(
@@ -167,7 +167,7 @@ const readMessage = (rows: Tables) =>
     buildMessageEntity,
   )
 
-/** The Run with its messages, as `withMessages` nests them; the keys keep them. */
+/** The Run with its messages, as the repository's read nests them; the keys keep them. */
 const readRun =
   (rows: Tables) =>
   (run: RunRow): RunEntity => ({
