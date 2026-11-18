@@ -43,7 +43,7 @@ setup: ## Install dependencies and the Claude Code plugins, create .env from .en
 
 stack: ## Create the tree's Pulumi file backend and select or create the local stack
 	@mkdir -p .data/pulumi
-	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
+	@$(PULUMI) stack select --create local
 
 # Refreshes the containers alone: docs/knowledge/aws.md. A wildcard target, unlike a full URN,
 # passes on a stack that holds none yet.
@@ -93,22 +93,22 @@ api-snapshot: ## Rewrite the HTTP contract's OpenAPI snapshot, which a unit test
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
-dev-api: migrate ## Run the api with --hot
+dev-api: migrate ## Run the api
 	bun --filter @app-template/api dev
 
-dev-worker: migrate ## Run the worker with --watch
+dev-worker: migrate ## Run the worker
 	bun --filter @app-template/worker dev
 
-dev-web: ## Run the web dev server with HMR
+dev-web: ## Run the web dev server
 	bun --filter @app-template/web dev
 
-debug-api: ## Run the api with --inspect and --hot
+debug-api: ## Run the api with the inspector
 	bun --filter @app-template/api debug
 
-debug-worker: ## Run the worker with --inspect and --watch
+debug-worker: ## Run the worker with the inspector
 	bun --filter @app-template/worker debug
 
-debug-web: ## Run the web dev server with --inspect
+debug-web: ## Run the web dev server with the inspector
 	bun --filter @app-template/web debug
 
 check: typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
