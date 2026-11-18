@@ -182,11 +182,9 @@ export class GenerateAssistantMessageUseCase extends Context.Service<
     const generate = Effect.fn('GenerateAssistantMessageUseCase.generate')(
       (job: GenerateAssistantMessage) => selectActive(job.runId).pipe(Effect.flatMap(answer)),
       Effect.catchTag('ReplySkipped', ({ why }) => replySkipLogs[why]),
-      // A status the model refused means another worker moved the Run first and settles it, so
-      // the refusal is logged, never returned to the queue.
-      Effect.catch((error) =>
-        Effect.logWarning('assistant reply ended by a refused status', error),
-      ),
+      // A race is decided by the write's guard on the status its mover read, whose update dies
+      // on a Run another worker moved, not by this refusal; a refused move is a bug and dies too.
+      Effect.catchTag('RunStatusInvalidError', Effect.die),
     )
 
     return { generate }
