@@ -28,7 +28,7 @@ import { maxFiles } from '#api/attachment/attachment.http'
 /** A chat with the status its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.mapFields(
   flow(Struct.omit(['run']), Struct.assign({ status: ChatStatus })),
-)
+).annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 
 const chatPath = { chatId: ChatId }

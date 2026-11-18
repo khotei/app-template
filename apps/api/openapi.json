@@ -19,71 +19,11 @@
         ],
         "responses": {
           "201": {
-            "description": "Success",
+            "description": "ApiChat",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
-                          "minLength": 1,
-                          "maxLength": 120,
-                          "allOf": [
-                            {
-                              "pattern": "^[^\\0]*$"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    },
-                    "attachments": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/AttachmentEncoded"
-                      }
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "idle",
-                        "queued",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "userId",
-                    "title",
-                    "createdAt",
-                    "updatedAt",
-                    "attachments",
-                    "status"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiChat"
                 }
               }
             }
@@ -129,67 +69,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      "userId": {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      "title": {
-                        "anyOf": [
-                          {
-                            "type": "string",
-                            "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
-                            "minLength": 1,
-                            "maxLength": 120,
-                            "allOf": [
-                              {
-                                "pattern": "^[^\\0]*$"
-                              }
-                            ]
-                          },
-                          {
-                            "type": "null"
-                          }
-                        ]
-                      },
-                      "createdAt": {
-                        "type": "string"
-                      },
-                      "updatedAt": {
-                        "type": "string"
-                      },
-                      "attachments": {
-                        "type": "array",
-                        "items": {
-                          "$ref": "#/components/schemas/AttachmentEncoded"
-                        }
-                      },
-                      "status": {
-                        "type": "string",
-                        "enum": [
-                          "idle",
-                          "queued",
-                          "failed"
-                        ]
-                      }
-                    },
-                    "required": [
-                      "id",
-                      "userId",
-                      "title",
-                      "createdAt",
-                      "updatedAt",
-                      "attachments",
-                      "status"
-                    ],
-                    "additionalProperties": false
+                    "$ref": "#/components/schemas/ApiChat"
                   }
                 }
               }
@@ -243,71 +123,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "ApiChat",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
-                          "minLength": 1,
-                          "maxLength": 120,
-                          "allOf": [
-                            {
-                              "pattern": "^[^\\0]*$"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    },
-                    "attachments": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/AttachmentEncoded"
-                      }
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "idle",
-                        "queued",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "userId",
-                    "title",
-                    "createdAt",
-                    "updatedAt",
-                    "attachments",
-                    "status"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiChat"
                 }
               }
             }
@@ -368,71 +188,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "ApiChat",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "userId": {
-                      "type": "string",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                      "format": "uuid"
-                    },
-                    "title": {
-                      "anyOf": [
-                        {
-                          "type": "string",
-                          "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
-                          "minLength": 1,
-                          "maxLength": 120,
-                          "allOf": [
-                            {
-                              "pattern": "^[^\\0]*$"
-                            }
-                          ]
-                        },
-                        {
-                          "type": "null"
-                        }
-                      ]
-                    },
-                    "createdAt": {
-                      "type": "string"
-                    },
-                    "updatedAt": {
-                      "type": "string"
-                    },
-                    "attachments": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/AttachmentEncoded"
-                      }
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "idle",
-                        "queued",
-                        "failed"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "userId",
-                    "title",
-                    "createdAt",
-                    "updatedAt",
-                    "attachments",
-                    "status"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/ApiChat"
                 }
               }
             }
@@ -2143,6 +1903,69 @@
         },
         "required": [
           "_tag"
+        ],
+        "additionalProperties": false
+      },
+      "ApiChat": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "userId": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\S[\\s\\S]*\\S$|^\\S$|^$",
+                "minLength": 1,
+                "maxLength": 120,
+                "allOf": [
+                  {
+                    "pattern": "^[^\\0]*$"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentEncoded"
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "idle",
+              "queued",
+              "failed"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "userId",
+          "title",
+          "createdAt",
+          "updatedAt",
+          "attachments",
+          "status"
         ],
         "additionalProperties": false
       }

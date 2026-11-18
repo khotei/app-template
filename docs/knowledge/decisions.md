@@ -193,12 +193,12 @@ The api declares its HTTP surface in its own files, one group per entity beside 
 assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
 the domain's own; every error gets its status where an endpoint or a middleware lists it
 (`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
-which omits fields by name or swaps them, and a mapper adds only what the model lacks
-(`buildApiChat` adds `status`). A field no client may see stays out of the model: a failed Run's
-cause goes to the worker's log. Its unit test writes `apps/api/openapi.json`; the web reads that
-file by path and keeps the client `@effect/openapi-generator`'s command writes from it, checked
-in. Nothing of `application/` reaches the browser, and the web declares no workspace of the app
-but `packages`.
+which omits fields by name or swaps them, named by an `identifier` so the snapshot holds it once,
+and a mapper adds only what the model lacks (`buildApiChat` adds `status`). A field no client may
+see stays out of the model: a failed Run's cause goes to the worker's log. Its unit test writes
+`apps/api/openapi.json`; the web reads that file by path and keeps the client
+`@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
+reaches the browser, and the web declares no workspace of the app but `packages`.
 
 - **Why:** a contract of its own declared each id, constrained string, status list and error a
   second time (23 twins of the domain's, 5 ids among them, with the tables' limits, patterns
@@ -259,12 +259,12 @@ but `packages`.
   only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserEncoded`), and a class answered through more than one schema, the bare class and each
-  `.pipe(HttpApiSchema.status(…))` counting as one, gets a numbered component (`RunEncoded_2` for
-  the Run's three); two checked-in files move with every wire change, and the web keeps a
-  generator, with its command's peer `@effect/platform-node` pinned. A failed reply's cause
-  lives only in the worker's log (`assistant reply failed`, annotated with `runId`, `reason` and
-  `cause`), as long as the log keeps it.
+  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class answered through more
+  than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
+  a numbered component (`RunEncoded_2` for the Run's three). Two checked-in files move with every
+  wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
+  pinned. A failed reply's cause lives only in the worker's log (`assistant reply failed`,
+  annotated with `runId`, `reason` and `cause`), as long as the log keeps it.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
