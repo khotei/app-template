@@ -109,7 +109,7 @@ const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeRowWith(Sc
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insert` takes the credential with no codec and writes
   `{ hash, kind, userId }`, the user's id from the row it inserted.
-- A `jsonb` column carries its shape's type (`jsonb().$type<typeof MessageFailureJson.Type>()`),
+- A `jsonb` column carries its shape's type (`jsonb().$type<typeof RunFailureJson.Type>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
 ## Relations
