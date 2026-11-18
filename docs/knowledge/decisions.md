@@ -840,7 +840,7 @@ and no commit the user has seen is rewritten before the PR.
   by the id, which counts apart from its 50 characters; a commit takes 1.3 s for docs and 2.5 s
   for code with the pre-commit hook. Every reader of the step's diff reads a committed range
   (`make review-rules BASE=<base>`, the parallel steps' pick, the claimed finding's worktree), and
-  `git revert` is in the allow list of `.claude/settings.json`. A rejection after later work rests
+  `git revert` is allowed by `.claude/settings.json`. A rejection after later work rests
   on a round fixes forward, since a revert there would pull the base from under that work.
 - **Guarded by:** review against `.claude/rules/commits.md` and `.claude/rules/sdd.md`; nothing
   checks a subject's id.
