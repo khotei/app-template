@@ -23,12 +23,12 @@ import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
 import { RequestInvalidError } from '#api/shared/security'
 import {
+  ApiClient,
   type ApiRepositoryMocks,
   layerApiTest,
   ownerCookie,
   signedIn,
 } from '#testing/api.test-layer'
-import { ApiClient } from '#testing/api-client.test-layer'
 
 /** An api where `owner` is signed in, over the stores `mocks` give. */
 const asOwner = (mocks: ApiRepositoryMocks = {}) =>

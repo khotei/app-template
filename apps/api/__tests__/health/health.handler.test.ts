@@ -1,8 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { layerApiTest } from '#testing/api.test-layer'
-import { ApiClient } from '#testing/api-client.test-layer'
+import { ApiClient, layerApiTest } from '#testing/api.test-layer'
 
 describe('health', () => {
   it.effect('GET /health is ok', () =>
