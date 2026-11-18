@@ -17,6 +17,7 @@
   │  ── Author self-check (tick before requesting review) ──                 │
   │  [ ] Title is a commits.md subject (gitmoji + type(scope) + imperative ≤50)
   │  [ ] `make check` passes                                                 │
+  │  [ ] How to read filled; inline explanations posted (pull-requests.md)   │
   │  [ ] New dependency pinned in a named catalog (tooling.md › Catalogs)    │
   │  [ ] Ticket docs (feature / architecture / plan) and docs/knowledge/     │
   │      updated if behaviour or conventions changed                         │
@@ -42,6 +43,11 @@ Understandable on its own — not a restatement of the ticket title.
 ## How it works
 
 Short note on the mechanism. Keep a diagram only if it earns its place.
+
+How to read (the order, and each main change's links; .claude/rules/pull-requests.md):
+
+1. `<path>`: what it does. Calls [`<path>#L<a>-L<b>`](<permalink at the head sha>);
+   docs: [<library or docs/knowledge anchor>](<link>).
 
 <details><summary>Architecture / flow diagram (optional)</summary>
 
