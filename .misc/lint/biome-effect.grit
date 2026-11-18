@@ -21,7 +21,7 @@ pattern unary() {
     r"Arr\.(?:head|last|getSomes|flatten|isReadonlyArrayEmpty|isReadonlyArrayNonEmpty)",
     r"Str\.(?:isEmpty|isNonEmpty|trim|toLowerCase)",
     r"Stream\.(?:runCollect|runDrain|runLast)",
-    r"Layer\.(?:build|launch|orDie)",
+    r"Layer\.(?:build|launch|orDie|unwrap)",
     r"Record\.(?:keys|values|toEntries)"
   }
 }
