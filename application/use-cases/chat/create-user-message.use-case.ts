@@ -5,8 +5,7 @@ import {
   AttachmentService,
   type ChatId,
   ChatService,
-  ensureAllReachableFrom,
-  ensureAllUnbound,
+  ensureAllAttachmentsFound,
   ensureChatNotBusy,
   ensureMessageInput,
   isNewChat,
@@ -48,13 +47,10 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   yield* ensureMessageInput(input)
   const chat = yield* chats.getOne({ id: chatId, userId }).pipe(Effect.tap(ensureChatNotBusy))
-  // The bind's write dies on one a send bound since the read.
+  // The bind's write dies on one a message holds, read so or bound since the read.
   const requested = yield* attachments
     .getMany({ id: input.attachmentIds, userId })
-    .pipe(
-      Effect.flatMap(ensureAllReachableFrom(chatId, input.attachmentIds)),
-      Effect.flatMap(ensureAllUnbound),
-    )
+    .pipe(Effect.flatMap(ensureAllAttachmentsFound(input.attachmentIds)))
 
   const run = yield* storeUserMessage(chatId, input, requested)
 

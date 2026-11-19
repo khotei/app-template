@@ -398,9 +398,9 @@ left.
     composed over `<Model>Service` see it, and `decisions.md › Layered services of one model`
     records the split.
   - **A use case reads, then pipes the model's rules.** The send reads its attachments through
-    `AttachmentService.getMany`, then pipes `ensureAllReachableFrom`, which names each asked id
-    the read left out or another chat holds, and `ensureAllUnbound` on the answer: each read a
-    service call, each rule one pipe step, no branch or refusal of its own.
+    `AttachmentService.getMany`, then pipes `ensureAllAttachmentsFound`, which names each asked
+    id the read left out: each read a service call, each rule one pipe step, no branch or
+    refusal of its own.
     `layering.md › Use cases` and `modules.md › A rule or a capability in a use case` get the
     example as a neutral pattern, not the live names.
   - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported

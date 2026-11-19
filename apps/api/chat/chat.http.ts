@@ -2,7 +2,6 @@ import { flow, Schema, Struct } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import {
-  AttachmentBoundError,
   AttachmentId,
   AttachmentNotFoundError,
   Chat,
@@ -90,7 +89,6 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatBusyError.pipe(HttpApiSchema.status(409)),
       AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
-      AttachmentBoundError.pipe(HttpApiSchema.status(409)),
       ApiRunNotQueuedError.pipe(HttpApiSchema.status(503)),
     ],
   }),

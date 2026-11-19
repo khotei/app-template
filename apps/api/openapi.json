@@ -454,18 +454,11 @@
             }
           },
           "409": {
-            "description": "ChatBusyError | AttachmentBoundError",
+            "description": "ChatBusyError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatBusyErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/AttachmentBoundErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ChatBusyErrorEncoded"
                 }
               }
             }

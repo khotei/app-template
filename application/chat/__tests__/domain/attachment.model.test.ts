@@ -11,7 +11,7 @@ import {
   bindAttachment,
   buildBytesId,
   copyAttachment,
-  ensureAllReachableFrom,
+  ensureAllAttachmentsFound,
   ensureUnbound,
   ensureUnused,
   FileName,
@@ -97,33 +97,7 @@ describe('buildBytesId', () => {
   })
 })
 
-describe('ensureAllReachableFrom', () => {
-  const found = [unbound, copy]
-
-  it.effect('answers the attachments of the library and of the chat', () =>
-    Effect.gen(function* () {
-      assertEquals(yield* pipe(found, ensureAllReachableFrom(chatId, [unbound.id, copy.id])), found)
-    }),
-  )
-
-  it.effect('fails AttachmentNotFoundError naming an attachment of another chat', () =>
-    Effect.gen(function* () {
-      const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021')
-
-      const error = yield* pipe(
-        found,
-        ensureAllReachableFrom(otherChatId, [unbound.id, copy.id]),
-        Effect.flip,
-      )
-
-      assertSchemaEquals(
-        AttachmentNotFoundError,
-        error,
-        new AttachmentNotFoundError({ ids: [copy.id] }),
-      )
-    }),
-  )
-
+describe('ensureAllAttachmentsFound', () => {
   it.effect(
     'fails AttachmentNotFoundError naming an id the read left out, in the order asked',
     () =>
@@ -132,7 +106,7 @@ describe('ensureAllReachableFrom', () => {
 
         const error = yield* pipe(
           [unbound],
-          ensureAllReachableFrom(chatId, [absent, unbound.id]),
+          ensureAllAttachmentsFound([absent, unbound.id]),
           Effect.flip,
         )
 

@@ -253,6 +253,10 @@ source.>
     two attachments.
 - Rename an attachment (`PATCH /attachments/:attachmentId`); until then, delete and upload
   again. Open.
+- The send keeps only "each asked id is found" (design audit, 2026-11-19): with no upload into a
+  chat, every chat's attachment is a message's, and the bind's `messageId: null` guard refuses
+  it with a 500. When the upload into a chat lands, the send needs the chat filter back, or
+  `bind` writes `messageId` alone, so the pair key refuses another chat's attachment. Open.
 - Pages, search and a filter by media type for `GET /attachments`. Open.
 - `GET /attachments` filters by `user_id`, which no index covers
   (`kernel/data/attachment/attachment.table.ts:45`), so it scans the table. Open.

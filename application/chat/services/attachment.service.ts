@@ -67,9 +67,9 @@ export class AttachmentService extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<Attachment>>
     /**
      * Binds the chat's attachments to the stored message and adds the chat's copy of each
-     * library attachment, which stays in the library. Takes unbound attachments, refused first
-     * by `ensureAllUnbound`: a bound one dies on the write, as does one a send bound, or a
-     * library one a delete removed, since it was read.
+     * library attachment, which stays in the library. Takes unbound attachments: a bound one
+     * dies on the write, as does one a send bound, or a library one a delete removed, since it
+     * was read.
      */
     readonly bind: (
       attachments: ReadonlyArray<Attachment>,

@@ -4,7 +4,6 @@ import { Array as Arr, DateTime, Effect, Layer, Option, Schema } from 'effect'
 
 import {
   Attachment,
-  AttachmentBoundError,
   AttachmentId,
   AttachmentNotFoundError,
   assistantMessageQueue,
@@ -34,7 +33,6 @@ import {
   layerChatTest,
   owner,
   queuedRun,
-  unknownChatId,
 } from '@app-template/application/chat/testing'
 import type { AttachmentEntity, MessageColumns, RunColumns } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, Transaction } from '@app-template/packages/db'
@@ -77,7 +75,6 @@ const copy = new Attachment({
 const CreateRefusal = Schema.Union([
   MessageInputInvalidError,
   ChatBusyError,
-  AttachmentBoundError,
   AttachmentNotFoundError,
 ])
 
@@ -328,20 +325,6 @@ describe('createUserMessage', () => {
       found: [],
       input: ask('And in Porto?'),
       error: new ChatBusyError({ id: chat.id }),
-    },
-    {
-      name: 'with an attachment a message of the chat holds',
-      read: chat,
-      found: [copy],
-      input: look(copy.id),
-      error: new AttachmentBoundError({ id: copy.id, chatIds: [chat.id] }),
-    },
-    {
-      name: 'with an attachment held by another chat',
-      read: chat,
-      found: [new Attachment({ ...copy, chatId: Option.some(unknownChatId) })],
-      input: look(copy.id),
-      error: new AttachmentNotFoundError({ ids: [copy.id] }),
     },
     {
       name: 'with an attachment the store finds none of, as for another user',

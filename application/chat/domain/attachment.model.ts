@@ -1,4 +1,13 @@
-import { Array as Arr, Effect, Option, Predicate, pipe, Schema, Struct, type Types } from 'effect'
+import {
+  Array as Arr,
+  Effect,
+  Option,
+  type Predicate,
+  pipe,
+  Schema,
+  Struct,
+  type Types,
+} from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { mediaTypePattern, minFileSize, textPattern } from '@app-template/kernel/data'
@@ -77,22 +86,12 @@ const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
 export const isInLibrary: Predicate.Predicate<Attachment> = (attachment) =>
   Option.isNone(attachment.chatId)
 
-const isInChat =
-  (chatId: ChatId): Predicate.Predicate<Attachment> =>
-  (attachment) =>
-    Option.contains(attachment.chatId, chatId)
-
 /**
- * The attachments read for `ids` when each id has one in the library or in the chat `chatId`;
- * else `AttachmentNotFoundError` naming each id that has none, in the order asked.
+ * The attachments read for `ids` when each id has one; else `AttachmentNotFoundError` naming
+ * each id that has none, in the order asked.
  */
-export const ensureAllReachableFrom =
-  (chatId: ChatId, ids: ReadonlyArray<AttachmentId>) => (attachments: ReadonlyArray<Attachment>) =>
-    pipe(
-      attachments,
-      Arr.filter(Predicate.or(isInLibrary, isInChat(chatId))),
-      ensureAllFound(ids, (missing) => new AttachmentNotFoundError({ ids: missing })),
-    )
+export const ensureAllAttachmentsFound = (ids: ReadonlyArray<AttachmentId>) =>
+  ensureAllFound(ids, (missing) => new AttachmentNotFoundError({ ids: missing }))
 
 /** Fails `AttachmentBoundError` for an attachment a message holds. */
 export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundError>(
@@ -118,10 +117,6 @@ export const ensureUnused =
           }),
         ),
     })
-
-/** The attachments when no message holds any; else `AttachmentBoundError` naming the first bound. */
-export const ensureAllUnbound = (attachments: ReadonlyArray<Attachment>) =>
-  Effect.forEach(attachments, (attachment) => Effect.succeed(attachment).pipe(ensureUnbound))
 
 /** Binds the unbound attachment to the message and its chat. */
 export const bindAttachment = (
