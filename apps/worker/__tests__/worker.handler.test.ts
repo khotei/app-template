@@ -3,7 +3,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
-import { messageId, recordAssistant } from '@app-template/application/chat/testing'
+import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
+import { messageId } from '@app-template/application/chat/testing'
 import {
   AttachmentRepository,
   ChatRepository,
@@ -40,7 +41,8 @@ describe('POST /events', () => {
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
         Layer.mock(FileRepository, {}),
-        recordAssistant({}).layer,
+        Layer.mock(MessageAssistant, {}),
+        Layer.mock(ChatAssistant, {}),
         TransactionTest,
         BunCrypto.layer,
       ]),

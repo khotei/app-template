@@ -151,14 +151,15 @@ the language model, which keeps both words.
 _Avoid_: Entity, DTO, row
 
 **Port**:
-A contract the domain declares for what it needs from outside the process (the assistant), in
-the domain's words, with no layer of its own; a store's repository is the data
-layer's, no port.
+A contract the domain declares for what it needs from outside the process, in the domain's
+words, with no layer of its own, for a need with several implementations or a domain service
+that reaches out; a store's repository is the data layer's, and a service in `infrastructure/`
+with one implementation (the assistants) is its own contract, so neither is a port.
 _Avoid_: Interface, client, gateway, driver, store
 
 **Adapter**:
-An implementation of a port over a client, in a module's `infrastructure/`: the assistant
-(`AssistantLlmFromConfig`).
+An implementation of a port over a client, in a module's `infrastructure/`; none stands
+today, as the assistants are services of their own (`MessageAssistant`, `ChatAssistant`).
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
@@ -194,8 +195,8 @@ configures it for this one.
 _Avoid_: Library (for a workspace), lib, helper, kernel
 
 **Unit test**:
-A test over mocks of the repositories and memory layers of the ports, needing no process outside
-the test runner.
+A test over mocks of the repositories and memory layers of the leaves (the assistants, the
+queue's sender, the files), needing no process outside the test runner.
 _Avoid_: Fast test, isolated test, mock test
 
 **E2E test**:
@@ -203,8 +204,9 @@ A test over the containers the run starts (Postgres, MiniStack).
 _Avoid_: Integration test, system test, functional test
 
 **Memory layer**:
-A layer of a port, or of the object store's `FileRepository`, over a `Ref`, one per service
-(`recordAssistant`, `recordMessages`, `FileRepositoryTest`): the unit tests' double of a leaf
+A layer of a leaf service, an assistant, the queue's sender or the object store's
+`FileRepository`, over a `Ref`, one per service (`recordMessageAssistant`,
+`recordChatAssistant`, `recordMessages`, `FileRepositoryTest`): the unit tests' double of a leaf
 whose whole promise it keeps.
 _Avoid_: Mock, stub, in-memory repository
 

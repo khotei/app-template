@@ -66,9 +66,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   alone reads keeps the alias and no entry. Suites compose these barrels instead of copying them.
   A unit test mocks each repository it calls with `Layer.mock`, in the test; the memory
   `FileRepositoryTest` lives in `kernel/data/__tests__/testing/`, and a module's memory layers of
-  its ports in that module's. The shared `packages/testing` holds only the support several units
-  use; a package's own (its Postgres or MiniStack clients) lives in that package, as a kernel
-  part's does.
+  its ports and infrastructure services in that module's. The shared `packages/testing` holds
+  only the support several units use; a package's own (its Postgres or MiniStack clients) lives
+  in that package, as a kernel part's does.
 - **What a test may import.** A unit test imports its workspace's source and the `/testing` of
   the units its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
   imports e2e support. The `apps/e2e` test app holds e2e alone, the suites through the api in
@@ -79,11 +79,11 @@ Which suite runs where:
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's memory layers of its ports (`@app-template/application/<module>/testing`), `TransactionTest` |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's memory layers of its ports and infrastructure services (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
-| boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an adapter's suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the adapter over a recording client |
+| boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the assistants over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the ports; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and the memory layers of the ports |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -108,7 +108,7 @@ Which suite runs where:
   `make up`, and two trees run them side by side.
 - **The journey, in the `apps/e2e` test app.** `StandTest`, in the test app's support, runs the
   api's and the worker's layers in the test's runtime over a `PgClientTest` database, an
-  `AwsTest` stage and the chat module's scripted `Assistant` ([ai.md](ai.md)). The use cases'
+  `AwsTest` stage and the chat module's scripted assistants ([ai.md](ai.md)). The use cases'
   races share its stand, and each rollback takes a stand of its own, since it alters the schema
   to make Postgres refuse a write. The journey proves the wiring; every rule keeps its lower
   seam.

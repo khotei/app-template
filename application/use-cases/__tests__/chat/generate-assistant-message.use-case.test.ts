@@ -42,7 +42,7 @@ import {
   layerChatTest,
   owner,
   queuedRun,
-  recordAssistant,
+  recordMessageAssistant,
   userMessageAt,
 } from '@app-template/application/chat/testing'
 import {
@@ -181,7 +181,7 @@ describe('generateAssistantMessage', () => {
     () => {
       const held = holdAssistantCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
-      const assistant = recordAssistant({ reply: slowReply })
+      const assistant = recordMessageAssistant(slowReply)
       const { logs, layer: logger } = recordLogs()
       const writes = noWrites()
       return Effect.gen(function* () {
@@ -232,7 +232,7 @@ describe('generateAssistantMessage', () => {
   )
 
   it.effect('generate dies with the assistant and fails the Run it reads again first', () => {
-    const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
+    const assistant = recordMessageAssistant(Effect.die('provider exploded'))
     const { logs, layer: logger } = recordLogs('cause')
     const writes = noWrites()
     const generating = new Run({ ...queuedRun, status: 'generating' })
@@ -254,7 +254,7 @@ describe('generateAssistantMessage', () => {
 
   it.effect('generate interrupted while the assistant answers fails the Run it reads again', () => {
     const held = holdAssistantCall()
-    const assistant = recordAssistant({ reply: held.hold.pipe(Effect.as(sure)) })
+    const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
     const writes = noWrites()
     const generating = new Run({ ...queuedRun, status: 'generating' })
     return Effect.gen(function* () {
@@ -275,14 +275,14 @@ describe('generateAssistantMessage', () => {
   it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
     'generate fails a $status Run a dead worker left, without asking the assistant',
     ({ status }) => {
-      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
       return Effect.gen(function* () {
         yield* generate
 
         assert.deepStrictEqual(moves(writes), [`${status} → failed`])
         assert.strictEqual(lastWrite(writes).reason, 'ReplyFailed')
-        assertEquals(yield* assistant.calls, [])
+        assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
           layerChatTest(
@@ -302,7 +302,7 @@ describe('generateAssistantMessage', () => {
   ] as const)(
     "generate fails the Run with $reason after one call, logs the error's cause and writes no reply",
     ({ error, reason }) => {
-      const assistant = recordAssistant({ reply: Effect.fail(error) })
+      const assistant = recordMessageAssistant(Effect.fail(error))
       const { logs, layer: logger } = recordLogs('reason', 'cause')
       const writes = noWrites()
       return Effect.gen(function* () {
@@ -310,7 +310,7 @@ describe('generateAssistantMessage', () => {
 
         assert.deepStrictEqual(lastWrite(writes), { move: 'generating → failed', reason })
         assert.deepStrictEqual(logs, [['Warn', 'assistant reply failed', reason, error.cause]])
-        assert.strictEqual((yield* assistant.calls).length, 1)
+        assert.strictEqual((yield* assistant.histories).length, 1)
         assert.deepStrictEqual(writes.messages, [])
       }).pipe(
         Effect.provide([
@@ -326,7 +326,7 @@ describe('generateAssistantMessage', () => {
   it.effect(
     "generate prompts with the chat's messages in order and the bytes of their attachments",
     () => {
-      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const withPhoto = new Message({ ...whatIsThis, attachments: [photo] })
       const withSketch = new Message({ ...attachmentsOnly, attachments: [sketch] })
       return Effect.gen(function* () {
@@ -334,16 +334,13 @@ describe('generateAssistantMessage', () => {
 
         yield* generate
 
-        assertEquals(yield* assistant.calls, [
-          {
-            method: 'reply',
-            history: [
-              { message: withPhoto, attachments: [{ attachment: photo, bytes: png }] },
-              { message: aPhoto, attachments: [] },
-              { message: andAgain, attachments: [] },
-              { message: withSketch, attachments: [{ attachment: sketch, bytes: png }] },
-            ],
-          },
+        assertEquals(yield* assistant.histories, [
+          [
+            { message: withPhoto, attachments: [{ attachment: photo, bytes: png }] },
+            { message: aPhoto, attachments: [] },
+            { message: andAgain, attachments: [] },
+            { message: withSketch, attachments: [{ attachment: sketch, bytes: png }] },
+          ],
         ])
       }).pipe(
         Effect.provide(
@@ -359,7 +356,7 @@ describe('generateAssistantMessage', () => {
   )
 
   it.effect("generate prompts with the bytes a record's source holds", () => {
-    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+    const assistant = recordMessageAssistant(Effect.succeed(sure))
     const source = new Attachment({
       ...sketch,
       id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000042'),
@@ -374,11 +371,8 @@ describe('generateAssistantMessage', () => {
 
       yield* generate
 
-      assertEquals(yield* assistant.calls, [
-        {
-          method: 'reply',
-          history: [{ message: withRecord, attachments: [{ attachment: record, bytes: png }] }],
-        },
+      assertEquals(yield* assistant.histories, [
+        [{ message: withRecord, attachments: [{ attachment: record, bytes: png }] }],
       ])
     }).pipe(
       Effect.provide(
@@ -392,15 +386,13 @@ describe('generateAssistantMessage', () => {
   it.effect(
     "generate prompts without an attachment whose bytes are gone and logs a warning with its, the chat's and the Run's ids",
     () => {
-      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const { logs, layer: logger } = recordLogs('attachmentId', 'chatId', 'runId')
       const withSketch = new Message({ ...attachmentsOnly, attachments: [sketch] })
       return Effect.gen(function* () {
         yield* generate
 
-        assertEquals(yield* assistant.calls, [
-          { method: 'reply', history: [{ message: withSketch, attachments: [] }] },
-        ])
+        assertEquals(yield* assistant.histories, [[{ message: withSketch, attachments: [] }]])
         assert.deepStrictEqual(logs, [
           ['Warn', 'attachment skipped: file missing', sketch.id, chatId, queuedRun.id],
         ])
@@ -418,7 +410,7 @@ describe('generateAssistantMessage', () => {
   it.effect(
     'generate dies on a done write the store refuses, and skips the Run it then reads settled',
     () => {
-      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const { logs, layer: logger } = recordLogs()
       const writes = noWrites()
       const mocks = replyingTo(writes, { runs: readsInTurn(queuedRun, doneElsewhere) })
@@ -449,12 +441,12 @@ describe('generateAssistantMessage', () => {
   )
 
   it.effect('generate skips a Run settled before it, without asking the assistant', () => {
-    const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+    const assistant = recordMessageAssistant(Effect.succeed(sure))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* generate
 
-      assertEquals(yield* assistant.calls, [])
+      assertEquals(yield* assistant.histories, [])
       assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
     }).pipe(
       Effect.provide([
@@ -469,12 +461,12 @@ describe('generateAssistantMessage', () => {
   it.effect(
     'generate skips a Run the store finds none of, as for a deleted chat, without asking',
     () => {
-      const assistant = recordAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const { logs, layer: logger } = recordLogs()
       return Effect.gen(function* () {
         yield* generate
 
-        assertEquals(yield* assistant.calls, [])
+        assertEquals(yield* assistant.histories, [])
         assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
       }).pipe(
         Effect.provide([

@@ -5,15 +5,16 @@ import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Ref } from '
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
+import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { epoch, png } from '@app-template/packages/testing'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
-import { AssistantReply } from '#chat/domain/assistant.model'
-import { Assistant, type HistoryMessage } from '#chat/domain/assistant.port'
+import { AssistantReply, type HistoryMessage } from '#chat/domain/assistant.model'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { buildAttachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
 import { ChatTitle } from '#chat/domain/chat.model'
-import { AssistantLlmFromConfig } from '#chat/infrastructure/assistant.llm'
+import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
+import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { assistantMessageAt, owner, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
@@ -23,7 +24,7 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** `AssistantLlmFromConfig` over an `HttpClient` that keeps each request body and its time, and answers it by `respond`. */
+/** Both assistants over Anthropic's client and an `HttpClient` that keeps each request body and its time, and answers it by `respond`. */
 function recordAnthropic(respond: () => Response) {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
@@ -34,7 +35,8 @@ function recordAnthropic(respond: () => Response) {
       Effect.as(HttpClientResponse.fromWeb(request, respond())),
     ),
   )
-  const layer = AssistantLlmFromConfig.pipe(
+  const layer = Layer.mergeAll(MessageAssistant.layer, ChatAssistant.layer).pipe(
+    Layer.provide(AnthropicClientFromConfig),
     Layer.provide([
       Layer.succeed(HttpClient.HttpClient, httpClient),
       ConfigProvider.layer(
@@ -84,9 +86,10 @@ const apiError = (
   )
 
 const reply = (history: ReadonlyArray<HistoryMessage>) =>
-  Assistant.use((assistant) => assistant.reply(history))
+  MessageAssistant.use((assistant) => assistant.reply(history))
 
-const suggestTitle = (text: string) => Assistant.use((assistant) => assistant.suggestTitle(text))
+const suggestTitle = (text: string) =>
+  ChatAssistant.use((assistant) => assistant.suggestTitle(text))
 
 const hi: ReadonlyArray<HistoryMessage> = [{ message: userMessageAt(1, 'Hi'), attachments: [] }]
 
@@ -108,7 +111,7 @@ const imageBlock = {
   cache_control: null,
 } as const
 
-describe('AssistantLlmFromConfig', () => {
+describe('MessageAssistant and ChatAssistant', () => {
   it.effect(
     "reply asks the reply model with the system prompt, user turns as their text and images, a blank text left out, and assistant turns as their text, and answers the model's text",
     () => {
@@ -159,7 +162,7 @@ describe('AssistantLlmFromConfig', () => {
 
   it.effect.each<{
     name: string
-    ask: Effect.Effect<unknown, AssistantError, Assistant>
+    ask: Effect.Effect<unknown, AssistantError, MessageAssistant | ChatAssistant>
     answer: () => Response
     sentAt: ReadonlyArray<number>
     error: AssistantError['_tag']

@@ -1,5 +1,6 @@
 import { identity, Predicate, Schema, SchemaTransformation, String as Str } from 'effect'
 
+import type { Attachment } from '#chat/domain/attachment.model'
 import { isBlank, MessageFields } from '#chat/domain/message.model'
 
 /** Decoding drops the U+0000 a message's `text` refuses, as a reply is not refused for it. */
@@ -15,3 +16,13 @@ export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply
     ),
   ),
 }) {}
+
+export interface AttachmentBytes {
+  readonly attachment: Attachment
+  readonly bytes: Uint8Array
+}
+
+export interface HistoryMessage {
+  readonly message: MessageFields
+  readonly attachments: ReadonlyArray<AttachmentBytes>
+}

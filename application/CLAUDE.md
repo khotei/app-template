@@ -12,13 +12,13 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
 - **A module's `domain/` is pure:** it imports `effect`, another module's contract and the data
   layer's values (a table's limit, pattern or enum values, never a table, entity or repository),
   no other workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and
-  services only in `services/`, never beside a model.
+  domain services only in `services/`, never beside a model.
   Record: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
-- **Each port has one memory layer** in its module's test support, for every workspace's unit
-  tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
+- **Each port and infrastructure service has one memory layer** in its module's test support,
+  for every workspace's unit tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
-  ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter is a `Layer` of a port,
-  so callers never see the client: the prompts stay inside the adapter.
+  ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a service
+  a use case calls there, keeps its client and prompts inside, so callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds only queue definitions; only the use cases'
   level calls `send`, through each job's `send<Job>` in `use-cases/<object>/<object>.sender.ts`,
   and no adapter wraps the worker.

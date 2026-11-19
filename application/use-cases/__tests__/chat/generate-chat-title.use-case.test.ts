@@ -16,7 +16,7 @@ import {
   firstMessage,
   layerChatTest,
   messageId,
-  recordAssistant,
+  recordChatAssistant,
 } from '@app-template/application/chat/testing'
 import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
@@ -34,7 +34,7 @@ const generate = generateChatTitle(new GenerateChatTitle({ messageId }))
 
 describe('generateChatTitle', () => {
   it.effect('titles the chat of its first message while the chat is untitled', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
+    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     return Effect.gen(function* () {
@@ -46,9 +46,7 @@ describe('generateChatTitle', () => {
           { id: chatId, title: null },
         ],
       ])
-      assertEquals(yield* assistant.calls, [
-        { method: 'suggestTitle', text: 'Plan a weekend in Lisbon' },
-      ])
+      assertEquals(yield* assistant.texts, ['Plan a weekend in Lisbon'])
       assert.deepStrictEqual(logs, [])
     }).pipe(
       Effect.provide([
@@ -68,7 +66,7 @@ describe('generateChatTitle', () => {
   })
 
   it.effect('skips a chat the store finds titled or gone by the rename, and logs it', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
+    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* generate
@@ -86,12 +84,12 @@ describe('generateChatTitle', () => {
   })
 
   it.effect('logs a deleted chat when its first message is gone, without asking', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
+    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* generate
 
-      assertEquals(yield* assistant.calls, [])
+      assertEquals(yield* assistant.texts, [])
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: chat deleted']])
     }).pipe(
       Effect.provide([
@@ -104,12 +102,12 @@ describe('generateChatTitle', () => {
   })
 
   it.effect('leaves the chat untitled when its first message is blank, without asking', () => {
-    const assistant = recordAssistant({ suggestTitle: Effect.succeed(lisbonWeekend) })
+    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* generate
 
-      assertEquals(yield* assistant.calls, [])
+      assertEquals(yield* assistant.texts, [])
       assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
     }).pipe(
       Effect.provide([
@@ -125,7 +123,7 @@ describe('generateChatTitle', () => {
     { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }) },
     { error: new AssistantFailedError({ cause: '529 overloaded' }) },
   ])('leaves the chat untitled and logs the $error._tag', ({ error }) => {
-    const assistant = recordAssistant({ suggestTitle: Effect.fail(error) })
+    const assistant = recordChatAssistant(Effect.fail(error))
     const { logs, layer: logger } = recordLogs('error', 'cause')
     return Effect.gen(function* () {
       yield* generate

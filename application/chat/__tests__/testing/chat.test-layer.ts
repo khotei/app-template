@@ -27,8 +27,8 @@ export interface ChatRepositoryMocks {
 
 /**
  * Chat's services over `mocks`, the memory files and `transaction`, the identity one by default,
- * each in context for the case; the `QueueSender` and the `Assistant` are the test's,
- * `recordMessages()` and `recordAssistant()`.
+ * each in context for the case; the `QueueSender` and the assistants are the test's,
+ * `recordMessages()`, `recordMessageAssistant()` and `recordChatAssistant()`.
  */
 export const layerChatTest = (
   { chats = {}, messages = {}, runs = {}, attachments = {} }: ChatRepositoryMocks,

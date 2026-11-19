@@ -4,16 +4,18 @@ import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
-  AssistantLlmFromConfig,
   AttachmentService,
+  ChatAssistant,
   ChatService,
   FileAttachmentService,
+  MessageAssistant,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
 import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/data'
+import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
@@ -39,7 +41,7 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Layer.effectDiscard,
 )
 
-/** The worker process but its `Assistant`, which the e2e stand scripts. */
+/** The worker process but its assistants, which the e2e stand scripts. */
 export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([PostgresRepositories, FileRepository.layer, Transaction.layer]),
   Layer.provide([Db.layer, S3BucketFromConfig]),
@@ -49,7 +51,8 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
 )
 
 export const WorkerLayer = WorkerProcess.pipe(
-  Layer.provide(AssistantLlmFromConfig),
+  Layer.provide([MessageAssistant.layer, ChatAssistant.layer]),
+  Layer.provide(AnthropicClientFromConfig),
   Layer.provide(Otlp.layerFromConfig({ resource: { serviceName: 'worker' } })),
   Layer.provide([FetchHttpClient.layer, OtlpSerialization.layerProtobuf]),
 )

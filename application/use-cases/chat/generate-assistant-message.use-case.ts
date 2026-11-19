@@ -1,7 +1,6 @@
 import { Array as Arr, Cause, Data, Effect, Exit } from 'effect'
 
 import {
-  Assistant,
   type AssistantReply,
   type Attachment,
   buildRunFailureReason,
@@ -14,6 +13,7 @@ import {
   isActiveRun,
   isStartedRun,
   type Message,
+  MessageAssistant,
   MessageService,
   prepareRun,
   type Run,
@@ -79,7 +79,7 @@ const settleFailed = Effect.fnUntraced(function* (
 })
 
 const reply = Effect.fnUntraced(function* (taken: Run) {
-  const assistant = yield* Assistant
+  const assistant = yield* MessageAssistant
   const runs = yield* RunService
 
   const prepared = yield* runs.move(taken, prepareRun)

@@ -1,6 +1,5 @@
 export * from '#chat/domain/assistant.error'
 export * from '#chat/domain/assistant.model'
-export * from '#chat/domain/assistant.port'
 export * from '#chat/domain/attachment.error'
 export * from '#chat/domain/attachment.id'
 export * from '#chat/domain/attachment.model'

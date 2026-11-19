@@ -146,8 +146,9 @@ A module holds `domain/`, `services/` and, once it reaches the environment, `inf
 behind one entry, its `index.ts`, which re-exports every layer; its files reach each other
 through aliases that name the module (`#<module>/domain/*`). A module's `infrastructure/` holds
 everything of the module that connects to the environment (a language model, a queue, a
-bucket): the adapters of its ports and its queues' definitions. A repository is no port: a
-service calls the data layer's repository directly.
+bucket): the adapters of its ports, the services a use case calls over a client
+([The language model in the kernel](#the-language-model-in-the-kernel)) and its queues'
+definitions. A repository is no port: a service calls the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
   data cannot sit there. Nothing of it reaches the browser any more
@@ -493,31 +494,48 @@ no app.
 ### The language model in the kernel
 
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
-`ANTHROPIC_API_KEY`, a 10-minute wait for a byte); `chat`'s `AssistantLlmFromConfig` builds its
-two models over that client with `AnthropicLanguageModel.make`, each with its model of
-`LLM_REPLY_MODEL` or `LLM_TITLE_MODEL` and its request settings, beside its prompts; its test
-builds the adapter from those settings.
+`ANTHROPIC_API_KEY`, a 10-minute wait for a byte). Over it `chat`'s `infrastructure/` holds one
+service per job, each a `Context.Service` with its `static layer`: `MessageAssistant` answers
+the chat's next message from its history, `ChatAssistant` the chat's title from its opening
+text. Each builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
+`LLM_TITLE_MODEL`, beside its prompt and request settings; both compose one function for the
+retries, the finish-reason check and the failure mapping (`askModel`). The domain keeps only what
+they take and answer (`HistoryMessage`, `AssistantReply`) and their errors; no port stands in
+front of them. A use case yields the service it needs, a unit test swaps that service's layer,
+and the suite builds both layers over a recording client.
 
-- **Why:** the kernel configures this client as it does Postgres (`PgClientFromConfig`), and the
-  adapter, which holds Anthropic's request settings anyway, builds its models where it uses them.
-  The two functions that stood between them, `createLanguageModel` in the kernel and
-  `createLanguageModelAnthropic` in a package of its own, only forwarded their arguments:
-  pass-throughs. The test takes the path the app takes.
-- **Sources:** `docs/knowledge/ai.md`; the roadmap's `openai-provider` and `bedrock-provider`.
-- **Rejected:** a builder in `kernel/llm` taking a purpose: its parameter was typed by Anthropic's
-  request settings, so the adapter held one provider's settings all the same. A provider layer
-  kept only for the test: an interface only a test uses. The test building the models itself: it
-  would copy chat's settings and check its copy.
-- **Cost:** chat's adapter names the provider's package, and `@effect/ai-anthropic` is a runtime
-  dependency of the application workspace and of the kernel; a second provider changes both,
-  its client layer in `kernel/llm` and its models in the adapter. No test checks the 10-minute
-  wait, nor a request setting beside the model.
-- **Guarded by:** the row of a module's `services/` in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); the
-  `AssistantLlmFromConfig` suite over a recording client.
-- **If reversed:** a function between the adapter and the library comes back, and its signature
-  carries the provider's request settings.
-- **Revisit when:** a second provider lands.
+- **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a
+  title's schema and low effort) and are called by different use cases, so one service holding
+  both gave each caller a method it never uses and each fake a branch for it. With one
+  implementation each, a port in `domain/` and an adapter constant only restated the service's
+  shape: the class with its `layer` is the contract, and `Layer.succeed` of the same class is
+  the double. The shared plumbing lives once, as a function both pipe, so neither service copies
+  it and neither is folded into the other. The kernel configures the client as it does Postgres
+  (`PgClientFromConfig`), and the services, which hold Anthropic's request settings anyway,
+  build their models where they use them; the client stays a leaf the worker provides once.
+- **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
+  are statics, the client a leaf left open); `.claude/rules/composition.md` (one job per unit);
+  the roadmap's `openai-provider` and `bedrock-provider`.
+- **Rejected:** one `Assistant` port with `reply` and `suggestTitle` and one adapter
+  (`AssistantLlmFromConfig`): two jobs in one unit, an interface with one implementation, and a
+  fake scripted per method. A base class or a shared service holding the retries: an
+  inheritance or a third service for what one function does. Each service closing the client
+  in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
+  a purpose: its parameter was typed by Anthropic's request settings, so the services held one
+  provider's settings all the same.
+- **Cost:** the use cases import a class whose file names the provider's package, so loading
+  them loads `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service,
+  not a second adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the
+  application workspace and of the kernel. No test checks the 10-minute wait, nor a request
+  setting beside the model.
+- **Guarded by:** the rows of a module's `services/` and `infrastructure/` in
+  [architecture.md › Dependency rules](architecture.md#dependency-rules) (no service imports
+  the infrastructure, so only a use case reaches the assistants); the assistants' suite over a
+  recording client.
+- **If reversed:** a port per job comes back in `domain/` with an adapter constant each that
+  only builds the same shape, or one port of two methods with a fake branch per method.
+- **Revisit when:** a second provider lands, or a domain service, which may not import the
+  infrastructure, needs an assistant: then a port in `domain/` returns for that call.
 
 ### The data at the centre
 
@@ -933,25 +951,25 @@ that go through a changed interface, and the setup of a moved client.
 
 ### Leaf doubles without a contract suite
 
-The three leaf doubles, `recordAssistant` for `Assistant`, `recordMessages` for `QueueSender` and
-`FileRepositoryTest` for `FileRepository`, have no contract suite: no set of cases runs on both
-a double and the port's real layer.
+The leaf doubles, `recordMessageAssistant` for `MessageAssistant`, `recordChatAssistant` for
+`ChatAssistant`, `recordMessages` for `QueueSender` and `FileRepositoryTest` for `FileRepository`,
+have no contract suite: no set of cases runs on both a double and the leaf's real layer.
 
 - **Why:** a suite run on a double tests test support, which `.claude/rules/effect-tests.md`
-  › What to test refuses; each of the three ports has one real layer.
+  › What to test refuses; each leaf has one real layer.
 - **Sources:** Andrew Trenk and Dillon Bly, "Test Doubles", chapter 13 of *Software Engineering
   at Google* (2020), asks for a fake's own tests run against the real implementation; this record
   departs from it.
-- **Rejected:** one suite per port, run on the double and on the real layer: a test of test
+- **Rejected:** one suite per leaf, run on the double and on the real layer: a test of test
   support.
 - **Cost:** a double can drift from its real layer unseen. One drift stands: `recordMessages`
   keeps the message as given, while `QueueSender.layer` encodes it by its definition's schema,
   so a unit test passes a message the real sender cannot encode.
 - **Guarded by:** review alone; nothing compares a double with its real layer.
-- **If reversed:** each port gains a suite of cases run on both, and the rule line against testing
+- **If reversed:** each leaf gains a suite of cases run on both, and the rule line against testing
   test support gets an exception.
 - **Revisit when:** a drift of a leaf double hides a defect (a unit test green on what the real
-  layer refuses), or `Assistant` gets a second real layer.
+  layer refuses), or an assistant gets a second real layer.
 
 ### Decisions recorded in one page
 

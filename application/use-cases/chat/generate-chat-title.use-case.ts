@@ -1,8 +1,8 @@
 import { Effect, Option } from 'effect'
 
 import {
-  Assistant,
   type AssistantError,
+  ChatAssistant,
   ChatService,
   type GenerateChatTitle,
   isBlank,
@@ -19,7 +19,7 @@ const logAssistantFailure = (error: AssistantError) =>
  * error, is logged and skipped.
  */
 export const generateChatTitle = Effect.fn('generateChatTitle')(function* (job: GenerateChatTitle) {
-  const assistant = yield* Assistant
+  const assistant = yield* ChatAssistant
   const chats = yield* ChatService
   const messages = yield* MessageService
 

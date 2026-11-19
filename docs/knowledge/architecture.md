@@ -21,7 +21,8 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
   that reach outside; its `services/` the domain services, each model's `<Model>Service` over the
   data layer's repositories and the services composed over it; its `infrastructure/` everything
-  of it that connects to the environment, the adapters of its ports and its queues' definitions
+  of it that connects to the environment, the adapters of its ports, the services a use case
+  calls over a client (the assistants) and its queues' definitions
   ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once another module
   needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
@@ -148,11 +149,11 @@ Using the files of `chat` as the map:
 | branded id | `application/chat/domain/chat.id.ts` | `ChatId`, `MessageId` |
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
-| port | `application/chat/domain/assistant.port.ts` | `Assistant` (`Context.Service` with no layer) |
+| what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `HistoryMessage`, `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | service composed over another of its model | `application/chat/services/file-attachment.service.ts` | `FileAttachmentService`, over `AttachmentService` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
-| adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
+| service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping `askModel` of `assistant.llm.ts` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
 | job sender: sends a job and settles or logs a send SQS refuses | `application/use-cases/chat/chat.sender.ts` | `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
@@ -164,7 +165,7 @@ Using the files of `chat` as the map:
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat` |
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its `Assistant`, `WorkerLayer` with it; `main.ts` runs them |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.ts` | `Api`, `ApiClient` |
 

@@ -264,10 +264,10 @@ left.
   images, PDF and text and has no `container_upload`; its generated Files API calls are awkward
   for binary uploads.
 - **Inherits from `modular-monolith` (2026-11-02).** The prompts and the Anthropic calls live in
-  chat's adapter `AssistantLlmFromConfig` (`application/chat/infrastructure/`), the provider's
-  settings in `kernel/llm`; a produced file is stored through `FileRepository` in the data layer,
-  its bytes kept before the row that binds them, since S3 joins no transaction. Files outside a chat
-  reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
+  chat's assistants `MessageAssistant` and `ChatAssistant` (`application/chat/infrastructure/`),
+  the provider's settings in `kernel/llm`; a produced file is stored through `FileRepository` in
+  the data layer, its bytes kept before the row that binds them, since S3 joins no transaction.
+  Files outside a chat reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
 - **Facts on AWS (2026-10-29).** Claude on Bedrock has no code execution, Files API, Skills, web
   search or Message Batches. Bedrock Converse `DocumentBlock` takes `docx`, `xlsx`, `csv`, `md`,
   `html` (how they are converted is undocumented). Bedrock Knowledge Bases answer with retrieved

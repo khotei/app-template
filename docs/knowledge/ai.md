@@ -2,12 +2,14 @@
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or the title's
-schema. The code: `AssistantLlmFromConfig`, the chat module's adapter of its `Assistant` port
-(the prompts, the title's schema, one `AnthropicLanguageModel` per purpose with its model of
-`LLM_REPLY_MODEL` or `LLM_TITLE_MODEL` and its settings, the finish-reason check, the retries
-and the failure mapping); `AnthropicClientFromConfig` in `@app-template/kernel/llm` (Anthropic's
+schema. The code: the chat module's two services in its `infrastructure/`, one per job,
+`MessageAssistant` (the reply: the system prompt and the reply model of `LLM_REPLY_MODEL`) and
+`ChatAssistant` (the title: its instruction, its schema and the title model of
+`LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings, and the one function
+both pipe, `askModel` (the retries, the finish-reason check and the failure mapping);
+`AnthropicClientFromConfig` in `@app-template/kernel/llm` (Anthropic's
 client with the key of `ANTHROPIC_API_KEY`); and those settings in `@app-template/kernel/config`.
-The adapter's suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no
+The assistants' suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no
 test needs a key or the network.
 
 Every module named here is unstable at the pinned version: check an API against the vendored
@@ -18,27 +20,30 @@ before using it, and read this page again after an upgrade.
 
 ```mermaid
 graph LR
-  P["Assistant port<br/>reply · suggestTitle"] -.-> L["AssistantLlmFromConfig<br/>generateText · generateObject"]
-  L -->|"reply · title"| A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
+  M["MessageAssistant.reply<br/>generateText"] --> R["askModel<br/>retries · finish reason · errors"]
+  T["ChatAssistant.suggestTitle<br/>generateObject"] --> R
+  R --> A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
 
 1. Each model sends its fixed prompt as the request's `system`, set in its `config`: the system
    prompt for a reply, the title instruction for a title. A prompt that asks the model to show
    its reasoning invites a refusal.
-2. `reply` calls `generateText` on the reply model with the chat's messages: each user turn as
-   its text (none when blank) and files, each assistant turn as its text. A failed Run leaves no
-   reply, so two user turns may follow each other: `@effect/ai-anthropic` folds them into one,
-   and the Messages API takes either shape. The text is decoded as the domain's
+2. `MessageAssistant.reply` calls `generateText` on the reply model with the chat's messages:
+   each user turn as its text (none when blank) and files, each assistant turn as its text. A
+   failed Run leaves no reply, so two user turns may follow each other: `@effect/ai-anthropic`
+   folds them into one, and the Messages API takes either shape. The text is decoded as the domain's
    `AssistantReply`, which drops U+0000 (a text column refuses it), then fails a blank reply.
    Nothing streams: the answer arrives whole.
-3. `suggestTitle` calls `generateObject` on the title model with the opening message and
-   `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's native
-   structured output). The schema's checks are not sent: the instruction states the language and
-   the 120-character bound; the decode of the JSON answer trims the title and enforces the bound.
+3. `ChatAssistant.suggestTitle` calls `generateObject` on the title model with the opening
+   message and `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's
+   native structured output). The schema's checks are not sent: the instruction states the
+   language and the 120-character bound; the decode of the JSON answer trims the title and
+   enforces the bound.
 
-The e2e journey runs no language model: its stand gives the worker a scripted `Assistant`
-([tooling.md › Tests](tooling.md#tests)), so only the adapter's suite covers these steps.
+The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
+and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite
+covers these steps.
 
 ## Request settings per purpose
 
@@ -58,8 +63,8 @@ The e2e journey runs no language model: its stand gives the worker a scripted `A
 
 ## Failures and retries
 
-`AssistantLlmFromConfig` asks again in place only what the provider marks retryable, and lets out
-of the port only a final failure, as `AssistantRefusedError` or `AssistantFailedError`; the use
+`askModel` asks again in place only what the provider marks retryable, and lets out of either
+assistant only a final failure, as `AssistantRefusedError` or `AssistantFailedError`; the use
 cases turn them into a failed Run (`ReplyRefused` or `ReplyFailed`) or an untitled chat. A
 job is never retried ([aws.md › Queues](aws.md#queues)).
 
@@ -77,7 +82,7 @@ so it never reaches the wire.
 
 ### The finish reason
 
-The adapter reads `finishReason` after its retries, so an answer that did not finish fails at
+`askModel` reads `finishReason` after its retries, so an answer that did not finish fails at
 once, even when its text reads whole. A title cut at `max_tokens` inside its JSON, or refused as
 prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
 it is asked again as a malformed answer and ends as `AssistantFailedError`, a refusal too. The
@@ -102,8 +107,8 @@ title's use case logs either and leaves the chat untitled.
 ## Modules left unused
 
 Four modules a reader would reach for are left alone on purpose: `Chat`, since the history lives
-in the database and every request is rebuilt from it; `Model`, since the adapter holds two
-`LanguageModel` values, one per purpose; `ResponseIdTracker`, since Anthropic's Messages API keeps
+in the database and every request is rebuilt from it; `Model`, since each assistant holds
+its one `LanguageModel` value; `ResponseIdTracker`, since Anthropic's Messages API keeps
 no server-side conversation; and `AnthropicConfig`, since the wait is set once, on
 `AnthropicClient.layer`, for every request. What every other module of the two vendored folders
 is: its first comment.
