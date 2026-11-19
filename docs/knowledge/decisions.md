@@ -589,7 +589,7 @@ service's layer, and the suite builds both layers over a recording client.
   client stays a leaf the worker provides once.
 - **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
   are statics, the client a leaf left open); `.claude/rules/composition.md` (one job per unit);
-  the roadmap's `openai-provider` and `bedrock-provider`.
+  the roadmap's `bedrock-provider`.
 - **Rejected:** one `Assistant` port with `reply` and `suggestTitle` and one adapter
   (`AssistantLlmFromConfig`): two jobs in one unit, an interface with one implementation, and a
   fake scripted per method. A base class or a shared service holding the retries: an

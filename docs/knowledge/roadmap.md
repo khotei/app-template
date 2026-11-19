@@ -42,23 +42,19 @@ graph LR
 | 8 | `observability` | `feat` | 3 | done, as `telemetry-minimal`: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
 | 10 | `client-publishing` | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
-| 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
 | 13 | `ticket-folder-order` | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | `toolkit-reading` | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | `architecture-audit` | `refactor` | 4 | done: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | paused: attachments removed, to be rethought ([docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md)) |
 | 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
-| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
-| 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
+| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | paused: attachments removed, to be rethought |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
-| 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
 | 23 | `modular-monolith` | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | `attachment-storage-failures` | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
 | 25 | `toolkit-quality` | `chore` | 17 | done: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 | 26 | `domain-from-data` | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
-| 27 | [`rules-from-attachment-work`](#27-rules-from-attachment-work) | `docs` | 24 | planned |
 | 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
@@ -183,19 +179,6 @@ left.
   [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws) the
   CloudWatch and X-Ray path.
 
-### 11. `workflow-cluster`
-
-- **Goal.** Decide, with a running example, whether `effect/workflow` and `effect/cluster` belong
-  in the template: a durable multi-step flow (for instance: upload → extract text → summarise →
-  notify) that survives restarts, compared with the plain job queue.
-- **Scope.** A spike on `ClusterWorkflowEngine` with `SqlMessageStorage` and `SingleRunner`; the
-  comparison written to `docs/knowledge/`; adoption or removal, recorded as a decision.
-- **Out of scope.** Multi-node sharding in AWS.
-- **Facts (2026-10-17).** Both modules are in `effect@4.0.5` (`@stability unstable`); the cluster
-  runtime has HTTP and socket runners, SQL message storage and Kubernetes discovery, but no SQS
-  transport.
-- **To weigh.** [Ideas to weigh › Workflow on top of the queue](#workflow-on-top-of-the-queue).
-
 ### 12. `template-handoff`
 
 - **Goal.** "Use this template" to a running, renamed project in ten minutes.
@@ -284,17 +267,6 @@ left.
   turn Office files into text on our side.
 - **Status.** Planned.
 
-### 19. `openai-provider`
-
-- **Goal.** OpenAI as a second value of the provider setting, behind the same structured reply.
-- **Scope.** `@effect/ai-openai` layers; the reply and title schemas through OpenAI's structured
-  output; its error mapping (a 429 for an exhausted quota is `QuotaExhaustedError`, not a rate
-  limit).
-- **Facts (2026-10-29).** `@effect/ai-openai@4.0.6` peers `effect ^4.0.6` and targets the Responses
-  API; it rejects `text/plain` files and silently drops a PDF given as a plain base64 string, and
-  OpenAI caps a request at 50 MB of files.
-- **Status.** Planned.
-
 ### 20. `context-window`
 
 - **Goal.** A long chat keeps answering: the history sent to the model is trimmed to the model's
@@ -338,102 +310,6 @@ left.
   and does not emulate the Messages endpoint, so local runs call Anthropic.
 - **Status.** Planned.
 
-### 22. `jobs`
-
-- **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
-  failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
-  however many files it holds: the request deletes rows only, and a job deletes the bytes.
-- **Starts from.** No table holds a job today: a ledger re-opens
-  [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose *Rejected* names a table
-  of jobs. A chat's delete removes rows only today; once files return, a delete
-  that removes bytes does it after the rows, inside the request.
-- **Open questions for its feature phase.** The retention of finished rows; whether a failed
-  job is re-run by hand; how a deletion job of a very large chat splits its ids; what the
-  worker does when Postgres refuses an outcome SQS has already settled.
-- **Related, not in scope.** A chat with millions of messages: a soft delete (`chats.deleted_at`
-  hiding the chat's reads) and a purge in batches, so the request deletes one row. Uploads into a
-  chat with keys `chats/<chatId>/…`, which a delete clears by prefix listing.
-- **Inherits from `lambda` (2026-11-09) and `reply-run` (2026-11-11).** The Runs no worker
-  settles: [Later › From `lambda-processes`](#from-lambda-processes) and
-  [› From `reply-run`](#from-reply-run).
-- **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
-  metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
-  `DeleteObjects` takes 1000 keys a request.
-- **To weigh first.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres):
-  Effect's `PersistedQueue` would give most of this ledger and delete our queue, at the cost of
-  SQS. Decide it before this ticket's design.
-- **Status.** Planned.
-
-### 27. `rules-from-attachment-work`
-
-- **Goal.** The rules, skills and checks say what the attachment refactors taught (entries 24 and
-  26 and the PRs after them; the attachment code itself is removed, so its examples live in
-  `git log`), so the next change puts each rule in its model and names each read
-  for what it answers the first time, without the user restating it.
-- **Sources.** The `Decision:` paragraphs of the commits `git log` holds for the work: the
-  attachment fixes (`78349910f9`, `2de1db4f5a`, the model-rules refactor), the domain taking its
-  values from the tables (`fb1b52383a`), the API contract (`e0bafb32ca`) and the file repository
-  (`file-repository-verbs`). A later commit's decision replaces an earlier one it rejects (the
-  bytes check moved from `getMany` to a model function and then to the send), so a rule is taken
-  from the last standing decision, not the first.
-- **Intent of the work.** Each change moved a decision to the place whose name states it, and made
-  what a call costs or drops visible in its name: the model decides, a repository answers data in
-  one entity shape, a service names what it guarantees, a use case reads and composes. A lesson is
-  worth a line only if it keeps the next change from being moved a second time.
-- **Scope.** One line, or one mechanical check, per lesson, each in a named rule or skill and
-  applied on the user's OK:
-  - **A rule is a pure function of its model, and no other layer builds its refusal.** It recurred
-    three times: the lost-bytes check inside `getMany`, `AttachmentService` building
-    `AttachmentNotFoundError` twice, an expiry filter inside a read. `layering.md` states the rule;
-    the proposal is a check: a value import of a domain error class (a type import stays) is
-    refused in `services/` and `use-cases/`, as a Biome `noRestrictedImports` pattern. A
-    not-found is a read's answer, not a rule's refusal: its reader builds it
-    (`Effect.fromOption(() => new <Model>NotFoundError(…))`, `effect-schema.md › Failures`), so
-    the check would spare that error.
-  - **A read's name says what it answers.** `getMany` dropped expired attachments without a word
-    and a reader learned it from the source. A method applies no rule its name does not state; a
-    rule goes to the caller (`getOne(where).pipe(ensure<Rule>(at))`) or to a service named for it
-    (`Live<Model>Service`, over the plain one).
-  - **A service over another service of the same model.** Done: `layering.md` lets a service
-    composed over `<Model>Service` see it, and `decisions.md › Layered services of one model`
-    records the split.
-  - **A use case reads, then pipes the model's rules.** The send reads its attachments through
-    `AttachmentService.getMany`, then pipes `ensureAllAttachmentsFound`, which names each asked
-    id the read left out: each read a service call, each rule one pipe step, no branch or
-    refusal of its own.
-    `layering.md › Use cases` and `modules.md › A rule or a capability in a use case` get the
-    example as a neutral pattern, not the live names.
-  - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported
-    guard is `ensure<All><State>` with the same shape, and a one-element rule takes the element,
-    not an `Option`.
-  - **Repository reads.** A value the store derives is a field, presence is `selectMany`, never a
-    probe through another verb (done in `file-repository-verbs`; this entry checks that the rule
-    and its record say it).
-  - **The workflow.** Check the code before stating a cause (the "expired draft" claim was wrong);
-    research a usage tree before a refactor; an answer of "yes" to two questions is two answers.
-  - **A plain layer takes its filters from the caller.** The plain `delete` hardcoded the unbound
-    guard, the plain `getMany` hid the live check: each is a rule in a layer named for records.
-    The layer that checked the rule passes its guard in the `where`
-    (`records.delete({ id, userId, messageId: null })`); `layering.md` says so beside the
-    layered-services line.
-  - **A set goes through one call, though the rule exists.** `layering.md` already asks for one
-    batch call, and it recurred three times: `files.url` per attachment, a `forEach` of single
-    `update`s, a `forEach` of reads. The proposal is a review-rules line naming the symptom
-    (`Effect.forEach` whose callback is one repository call over an id) and, if it finds no false
-    positive on the tree, a GritQL pattern.
-  - **A verb that takes a list is tested with one id missing.** The fake and the e2e twin each
-    covered the whole list only: the order of `selectMany` (S1.2) and a partial `delete` (S3.4)
-    were found by review. `effect-tests.md` gets one line: a verb over a list has a case for a
-    list with one id that misses, in the repository's e2e.
-  - **A split moves tests with the methods.** After the service split the new service's tests
-    repeated the expiry and not-found cases of the services below (S3.2). `effect-tests.md` has
-    "a rule once, at the lowest seam"; the line adds that a wrapping service's test holds only
-    what it adds.
-  - **A step's Test first is checked against the interface it changes.** S2 planned a red case
-    for a list `update` already took, and S1's probe expected two red cases where four were red.
-    A step reads the current signature before it promises a red case.
-- **Out of scope.** New domain behaviour; rewriting a rule the session did not touch.
-
 ## Later
 
 What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
@@ -462,7 +338,7 @@ moves it into its own `Later` and deletes it here.
   called by `application/use-cases/chat/create-user-message.use-case.ts` and
   `application/use-cases/chat/retry-run.use-case.ts`): a send SQS refuses fails the Run, but no
   handler runs in a dead process or past an interrupt. Ways out to weigh: a send that cannot be
-  interrupted (the abort only), the job ledger of entry 22, a sweep of active Runs. The owner
+  interrupted (the abort only), a ledger of jobs, a sweep of active Runs. The owner
   refused a rule by a Run's age.
 - (2026-11-13) Two sends or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that resends) both pass `ensureChatNotBusy`; the
@@ -633,7 +509,7 @@ For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-code
 
 ### Queue on SQS or in Postgres
 
-For `jobs` (22) and `aws-deployment` (9), and the record
+For `aws-deployment` (9), and the record
 [Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
@@ -679,7 +555,7 @@ For `jobs` (22) and `aws-deployment` (9), and the record
 
 ### Workflow on top of the queue
 
-For `workflow-cluster` (11).
+For a future ticket on durable workflows.
 
 - **What it is.** The durable engine is `ClusterWorkflowEngine.layer` (needs `Sharding` and
   `MessageStorage`; `WorkflowEngine.layerMemory` is for tests). One process runs it on
