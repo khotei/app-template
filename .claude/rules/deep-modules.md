@@ -7,8 +7,8 @@ paths:
 
 # Deep modules
 
-A module earns its place by depth: much behaviour behind a small interface (methods, argument and
-answer shapes, error modes).
+A unit earns its place by a job of its own ([composition.md](composition.md)); its interface stays
+deep: much behaviour behind few methods, argument and answer shapes, error modes.
 
 ## The tests
 
@@ -16,9 +16,9 @@ answer shapes, error modes).
   they go through (a model's records, a seam) → a pass-through: delete it, its callers taking the
   unit below. Its job reappears in a caller, however few its callers and however short its body →
   it earns its place ([composition.md](composition.md)).
-- Interface: a variation inside a unit's job is a value a method it has already takes (a `where`
-  field, a model field), never a new name; another job is a new unit that wraps or composes it,
-  never a method or an option stretched to hold it.
+- Interface: a variation of a method's question is a value it already takes (a `where` field, a
+  model field), never a new name; an operation the unit's job lacks is a method of it; another job
+  is a new unit that wraps or composes it, never a method or an option stretched to hold it.
 - Caller: what only tests use is no interface; delete it with its mapper, fake branch and test.
 
 ## A deep repository
@@ -65,7 +65,7 @@ return shipped                                           // the value built: no 
   repository. Two methods that differ by their `where`, `set` or step are one, taking them from
   the caller, with arguments as narrow as it uses.
 - A copy per model is one function over the varying part (an id generator given the brand's
-  `make`); a one-line expression, such as an id's schema, is spelled at each use.
+  `make`); a one-line expression that names a rule or a step keeps its name, however short.
 - A value another table implies is a column the transactions that change it move, not derived on
   each read; one a model function derives from the one row its read already nests stays derived
   ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).

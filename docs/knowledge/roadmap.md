@@ -435,9 +435,9 @@ left.
     and a reader learned it from the source. A method applies no rule its name does not state; a
     rule goes to the caller (`getOne(where).pipe(ensure<Rule>(at))`) or to a service named for it
     (`Live<Model>Service`, over the plain one).
-  - **A service over another service of the same model.** `layering.md` forbids a domain service
-    that sees another one; the layered split (plain records, `Live…` reads, `File…` bytes) needs
-    the exception worded in the rule and recorded in `decisions.md`.
+  - **A service over another service of the same model.** Done: `layering.md` lets a service
+    composed over `<Model>Service` see it, and `decisions.md › Layered services of one model`
+    records the split.
   - **A use case reads, then pipes the model's rules.** The send reads the live attachments
     (`getMany`), asks the repository which have bytes (`selectMany`), then runs
     `pipe(live, ensureAllStored(ids, stored))`: each read a named value, each rule one pipe step,

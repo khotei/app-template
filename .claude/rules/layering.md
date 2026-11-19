@@ -35,8 +35,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Use cases
 
-- A flow becomes a use case as soon as it composes two domain services or sends a job, needs one
-  transaction or one ordering of writes across them, or needs an exception to a rule here.
+- A flow becomes a use case as soon as it composes the services of two models or sends a job,
+  needs one transaction or one ordering of writes across them, or needs an exception to a rule
+  here.
 - An `Effect.fn` that yields the domain services, ports and `Transaction` it composes; the
   process provides them after `HttpRouter.serve`, and a unit test from its mocks. Record:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).

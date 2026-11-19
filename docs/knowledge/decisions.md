@@ -498,8 +498,8 @@ builds the adapter from those settings.
 - **Why:** the kernel configures this client as it does Postgres (`PgClientFromConfig`), and the
   adapter, which holds Anthropic's request settings anyway, builds its models where it uses them.
   The two functions that stood between them, `createLanguageModel` in the kernel and
-  `createLanguageModelAnthropic` in a package of its own, had one caller each and forwarded its
-  arguments. The test takes the path the app takes.
+  `createLanguageModelAnthropic` in a package of its own, only forwarded their arguments:
+  pass-throughs. The test takes the path the app takes.
 - **Sources:** `docs/knowledge/ai.md`; the roadmap's `openai-provider` and `bedrock-provider`.
 - **Rejected:** a builder in `kernel/llm` taking a purpose: its parameter was typed by Anthropic's
   request settings, so the adapter held one provider's settings all the same. A provider layer
@@ -563,8 +563,8 @@ schemas over that store's columns.
   shape every read returns. The service composing a chat from two repositories: two queries and a
   grouping where one relational read serves. A mapper that lays the model's schemas over the
   columns (`<Model>FromEntity`): a second list of the model's fields. A mapper that only names
-  the model's codec pair (`encode<Model>`, `decode<Model>`): a file and three names per model,
-  each over one generic call.
+  the model's codec pair (`encode<Model>`, `decode<Model>`): a pass-through over one generic call,
+  which the deletion test removes.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
   a value (`null`, a `Date`), and a column the model lacks is dropped by a read. Each call names
   its codec and the read's shape (`decodeRowWith(Schema.Option(<Model>))`), and a write encoded
