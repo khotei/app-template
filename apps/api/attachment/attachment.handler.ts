@@ -2,7 +2,12 @@ import { Array as Arr, Effect, Option, Schema, Stream } from 'effect'
 import { HttpServerResponse, Mime, Multipart } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { AttachmentService, FileName, MediaType } from '@app-template/application/chat'
+import {
+  AttachmentService,
+  FileAttachmentService,
+  FileName,
+  MediaType,
+} from '@app-template/application/chat'
 
 import { Api } from '#api/api'
 import {
@@ -64,12 +69,13 @@ export const AttachmentHandler = HttpApiBuilder.group(
   'attachments',
   Effect.fnUntraced(function* (handlers) {
     const attachments = yield* AttachmentService
+    const fileAttachments = yield* FileAttachmentService
 
     return handlers.handleAll({
       upload: Effect.fn('AttachmentHandler.upload')(function* ({ payload }) {
         const user = yield* CurrentUser
 
-        return yield* attachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
+        return yield* fileAttachments.upload(user.id, Stream.mapEffect(payload, decodeUpload)).pipe(
           Effect.catchTag(
             'MultipartError',
             (error): Effect.Effect<never, UploadRefusal> =>
@@ -90,11 +96,11 @@ export const AttachmentHandler = HttpApiBuilder.group(
       }),
       delete: Effect.fn('AttachmentHandler.delete')(function* ({ params }) {
         const user = yield* CurrentUser
-        yield* attachments.delete({ id: params.attachmentId, userId: user.id })
+        yield* fileAttachments.delete({ id: params.attachmentId, userId: user.id })
       }),
       download: Effect.fn('AttachmentHandler.download')(function* ({ params }) {
         const user = yield* CurrentUser
-        const url = yield* attachments.download({ id: params.attachmentId, userId: user.id })
+        const url = yield* fileAttachments.download({ id: params.attachmentId, userId: user.id })
         return HttpServerResponse.redirect(url)
       }),
     })

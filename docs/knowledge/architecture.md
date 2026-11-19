@@ -19,9 +19,9 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   attachments' objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
-  that reach outside; its `services/` the domain services, over the data layer's repositories;
-  its `infrastructure/` everything of it that connects to the environment, the adapters of its
-  ports and its queues' definitions
+  that reach outside; its `services/` the domain services, each model's `<Model>Service` over the
+  data layer's repositories and the services composed over it; its `infrastructure/` everything
+  of it that connects to the environment, the adapters of its ports and its queues' definitions
   ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once another module
   needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
@@ -150,6 +150,7 @@ Using the files of `chat` as the map:
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | port | `application/chat/domain/assistant.port.ts` | `Assistant` (`Context.Service` with no layer) |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
+| service composed over another of its model | `application/chat/services/file-attachment.service.ts` | `FileAttachmentService`, over `AttachmentService` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | adapter implementing a port | `application/chat/infrastructure/assistant.llm.ts` | `AssistantLlmFromConfig` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
@@ -245,7 +246,8 @@ imports need.
    repository, coding its rows through the model with `encodeRowWith` and `decodeRowWith`, the
    one owner every handler goes through, tested over mocks of the repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
-   the new files.
+   the new files. A job the service was not made for comes later as a service composed over it,
+   never as an edit of it ([Composition: wrap or compose](decisions.md#composition-wrap-or-compose)).
 4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
    queue to the inventory and its definition to the module's `infrastructure/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send

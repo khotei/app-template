@@ -137,7 +137,8 @@ _Avoid_: Edge, shell, outer layer, infrastructure layer
 
 **Aggregate**:
 The models whose records change together under one invariant: a chat with its messages, an
-attachment, a user. Each model of it has its own domain service.
+attachment, a user. Each model of it has its own domain services: `<Model>Service` and those
+composed over it.
 _Avoid_: Entity group, root, aggregate root
 
 **Model**:
@@ -161,7 +162,8 @@ _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
-guards goes through it.
+guards goes through it. A model starts with `<Model>Service` over its repository; a job past it
+is a service composed over it, named for what it adds.
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Composition**:

@@ -404,26 +404,45 @@ repository only reads, calls it and writes.
 - **If reversed:** the rules move back into the services' bodies, and their tests need layers.
 - **Revisit when:** a model's pieces outgrow one file.
 
-### One service per model
+### Layered services of one model
 
-A model's records are served by one domain service, `<Model>Service`, the bytes it stores with
-them included: the record as stored (`getOne`, a list) beside the reads and writes that hold the
-bytes too (an upload, a download, the records whose bytes are stored, a bind, a delete).
+A model's records are served by domain services layered over each other, each named for what it
+adds: `<Model>Service` holds the plain records (a read by key with its `*NotFoundError`, a read of
+many, the writes that change records alone, a delete of many under the full `where` its caller
+passes), and `File<Model>Service`, composed over it, stores, serves and removes the bytes with the
+record, checking the rule a delete needs and passing its guard into the plain delete's `where`. A
+layer sees only the layers of its own model below it; another model's service stays a use case's.
+How a service grows: [Composition: wrap or compose](#composition-wrap-or-compose).
 
-- **Why:** the plain service under the bytes' one kept two methods only the upper one called,
-  each a forward to the repository, one of them with a guard no caller reached, and a second
-  entry in the provide list of the handler group that took both.
-- **Sources:** `.claude/rules/deep-modules.md › The tests` (deletion).
-- **Rejected:** `File<Model>Service` over the plain `<Model>Service`: two services for one model,
-  and an exception to the line that a domain service never sees another one. A layer per rule
-  between them (`Live<Model>Service`): shallow.
-- **Cost:** one service answers the record as stored (`getOne`) and the records whose bytes are
-  stored (`getMany`), so each method's TSDoc says which.
-- **Guarded by:** review, by `layering.md`.
-- **If reversed:** the byte methods move into `File<Model>Service` over the plain one, which
-  provides it.
-- **Revisit when:** a caller needs a model's records but never its bytes, so the store of the
-  bytes is a dependency it does not use.
+```ts
+// the bytes' layer reads through the plain one, pipes the model's guard, passes it on, then
+// removes the bytes once the row is gone
+const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
+  yield* orders.getOne(where).pipe(ensureUnpaid)
+  yield* orders.delete({ ...where, paidAt: null })
+  yield* files.delete({ id: [where.id] })
+})
+```
+
+- **Why:** a read's name says what it answers: the plain service answers the records as stored,
+  and the bytes are stored and removed with their record in one service; a holder that needs the
+  records alone (a list, a bind) holds no byte store.
+- **Sources:** `.claude/rules/composition.md`; `.claude/rules/layering.md › Ports and domain
+  services`.
+- **Rejected:** one service per model, the bytes in `<Model>Service`: two reasons to change in one
+  unit, and a byte store every holder of the records depends on.
+- **Cost:** two services and two layers for one model; a handler of the model takes both; a layer
+  provides the one below it, the one exception to a domain service's `layer` leaving every
+  dependency open. A rule over the reads that one flow applies is piped there, and a flow that
+  forgets the pipe skips it; a rule every reader must apply is a layer named for it. The plain
+  `getMany` leaves an absent id out, so only the file layer's error names every absent id at once.
+- **Guarded by:** review, by `layering.md` and `composition.md`; `noImportCycles` refuses a lower
+  layer that imports an upper one; nothing refuses a service of another model.
+- **If reversed:** the file methods fold into one `<Model>Service`, and every holder of the records
+  depends on the byte store.
+- **Revisit when:** a rule over the reads must reach every reader, so a layer named for it takes
+  the pipe; or the two layers change together in every change, so they hold one job, which the
+  owner then merges.
 
 ## The kernel and the data
 

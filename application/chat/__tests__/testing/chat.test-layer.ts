@@ -13,6 +13,7 @@ import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { AttachmentService } from '#chat/services/attachment.service'
 import { ChatService } from '#chat/services/chat.service'
+import { FileAttachmentService } from '#chat/services/file-attachment.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
@@ -36,6 +37,7 @@ export const layerChatTest = (
   Layer.mergeAll(
     AttachmentService.layer,
     ChatService.layer,
+    FileAttachmentService.layer,
     MessageService.layer,
     RunService.layer,
   ).pipe(

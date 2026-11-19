@@ -7,6 +7,7 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 import {
   AttachmentService,
   ChatService,
+  FileAttachmentService,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
@@ -38,6 +39,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     AttachmentService.layer,
     ChatService.layer,
+    FileAttachmentService.layer,
     MessageService.layer,
     RunService.layer,
   ]),

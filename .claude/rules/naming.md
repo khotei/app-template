@@ -27,7 +27,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 |---|---|
 | `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
-| `.service` | a domain service: `<model>.service.ts`, or `<operation>.service.ts` for one operation of no model |
+| `.service` | a domain service: `<model>.service.ts`, `<aspect>-<model>.service.ts` for one composed over it, named for what it adds, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services, the function `<verb><Object>` |
 | `.handler` | api: one HTTP group's handlers · worker: its one route, each queue's use case |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
@@ -42,7 +42,8 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 ## Symbols
 
 - Types are `PascalCase` `<Name><Role>`: `<Model><Problem>Error`, a port's `<Port><Problem>Error`,
-  `<Model>Service` or, for one operation of no model, that operation.
+  `<Model>Service` (`<Aspect><Model>Service` composed over it) or, for one operation of no model,
+  that operation.
 - Functions are verb-first, and the verb marks the kind of work:
   - `create<Thing>`: a factory that takes dependencies and wires them, or a write that takes a
     new record's fields and stores it (a domain service's `create`, a use case's step over it);
