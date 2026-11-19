@@ -655,7 +655,7 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
-only, and its callers code its row with the generic `encodeRowWith` and `decodeRowWith`, with
+only, and its callers code its row with the generic `encodeWith` and `decodeWith`, with
 no mapper per model. A second stored form of a model brings back a mapper that lays the model's
 schemas over that store's columns.
 
@@ -672,7 +672,7 @@ schemas over that store's columns.
   which the deletion test removes.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
   a value (`null`, a `Date`), and a column the model lacks is dropped by a read. Each call names
-  its codec and the read's shape (`decodeRowWith(Schema.Option(<Model>))`), and a write encoded
+  its codec and the read's shape (`decodeWith(Schema.Option(<Model>))`), and a write encoded
   with the whole model instead of its `<Model>Fields` compiles and runs, encoding the nested
   records for nothing, since the insert takes only the table's columns.
 - **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the

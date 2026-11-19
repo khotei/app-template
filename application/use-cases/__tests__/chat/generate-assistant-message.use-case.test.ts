@@ -25,7 +25,7 @@ import {
 } from '@app-template/application/chat/testing'
 import type { MessageColumns, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
-import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { recordLogs } from '@app-template/packages/testing'
 
 import { generateAssistantMessage } from '#use-cases/chat/generate-assistant-message.use-case'
@@ -63,7 +63,7 @@ const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {
     Effect.sync(() =>
       Arr.get(reads, turn++).pipe(Option.getOrElse(() => Arr.lastNonEmpty(reads))),
     ).pipe(
-      Effect.flatMap((run) => encodeRowWith(Run)(run)),
+      Effect.flatMap((run) => encodeWith(Run)(run)),
       Effect.map(Option.some),
     )
 }
@@ -92,7 +92,7 @@ const replyingTo = (
       }),
   },
   messages: {
-    selectMany: () => Effect.forEach(history, (message) => encodeRowWith(Message)(message)),
+    selectMany: () => Effect.forEach(history, (message) => encodeWith(Message)(message)),
     insert: (row) =>
       Effect.sync(() => {
         writes.messages.push(row)
@@ -141,7 +141,7 @@ describe('generateAssistantMessage', () => {
         const generating = ['queued → preparing', 'preparing → generating']
         assert.deepStrictEqual(asked, generating)
         assert.deepStrictEqual(halfway, generating)
-        const reply = yield* decodeRowWith(Schema.Array(MessageFields))(writes.messages).pipe(
+        const reply = yield* decodeWith(Schema.Array(MessageFields))(writes.messages).pipe(
           Effect.head,
         )
         const message = new Message({
@@ -151,7 +151,7 @@ describe('generateAssistantMessage', () => {
           text: 'Sure.',
           createdAt: at(1000),
         })
-        assert.deepStrictEqual(writes.messages, [yield* encodeRowWith(MessageFields)(message)])
+        assert.deepStrictEqual(writes.messages, [yield* encodeWith(MessageFields)(message)])
         const done = new Run({
           ...queuedRun,
           status: 'done',
@@ -160,7 +160,7 @@ describe('generateAssistantMessage', () => {
           assistantMessage: Option.some(message),
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
-          yield* encodeRowWith(RunFields)(done),
+          yield* encodeWith(RunFields)(done),
           { id: queuedRun.id, status: ['generating'] },
         ])
         assert.deepStrictEqual(logs, [])

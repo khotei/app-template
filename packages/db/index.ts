@@ -8,8 +8,6 @@ export {
 } from '#db/columns'
 export {
   createDb,
-  decodeRowWith,
-  encodeRowWith,
   orDieUnless,
   orDieWithSqlError,
   Transaction,

@@ -159,6 +159,7 @@ Using the files of `chat` as the map:
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
+| codecs that turn a failure into a defect | `packages/schema/` | `encodeWith`, `decodeWith` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
@@ -244,7 +245,7 @@ imports need.
    [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`,
    each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
-   repository, coding its rows through the model with `encodeRowWith` and `decodeRowWith`, the
+   repository, coding its rows through the model with `encodeWith` and `decodeWith`, the
    one owner every handler goes through, tested over mocks of the repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A job the service was not made for comes later as a service composed over it,

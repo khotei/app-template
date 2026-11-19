@@ -13,7 +13,7 @@ import {
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { UserUnknownError } from '@app-template/application/identity'
 import type { MessageEntityWhere, RunEntityWhere } from '@app-template/kernel/data'
-import { encodeRowWith } from '@app-template/packages/db'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { RequestInvalidError } from '#api/shared/security'
@@ -31,9 +31,9 @@ const asOwner = (mocks: ApiRepositoryMocks = {}) =>
 
 /** Reads that answer the value given as their one row. */
 const reads = {
-  chat: (value: Chat) => () => encodeRowWith(Chat)(value).pipe(Effect.map(Option.some)),
-  message: (value: Message) => () => encodeRowWith(Message)(value).pipe(Effect.map(Option.some)),
-  run: (value: Run) => () => encodeRowWith(Run)(value).pipe(Effect.map(Option.some)),
+  chat: (value: Chat) => () => encodeWith(Chat)(value).pipe(Effect.map(Option.some)),
+  message: (value: Message) => () => encodeWith(Message)(value).pipe(Effect.map(Option.some)),
+  run: (value: Run) => () => encodeWith(Run)(value).pipe(Effect.map(Option.some)),
 }
 
 const hello = { text: 'Hello' }
@@ -151,7 +151,7 @@ describe('chats', () => {
           chats: { selectOne: reads.chat(chat) },
           messages: {
             selectMany: () =>
-              encodeRowWith(Message)(
+              encodeWith(Message)(
                 new Message({ ...firstMessage, run: Option.some(refusedRun) }),
               ).pipe(Effect.map(Arr.of)),
           },

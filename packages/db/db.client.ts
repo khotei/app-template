@@ -2,7 +2,7 @@ import type { PgClient } from '@effect/sql-pg'
 import type { AnyRelations } from 'drizzle-orm'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Cause, Context, Effect, flow, Layer, type Predicate, Schema } from 'effect'
+import { Cause, Context, Effect, Layer, type Predicate, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 /**
@@ -40,17 +40,6 @@ export class Transaction extends Context.Service<
     ),
   )
 }
-
-/** Encodes a model through its codec into the row its table takes; a failure is a defect. */
-export const encodeRowWith = <Codec extends Schema.Constraint>(codec: Codec) =>
-  flow(Schema.encodeEffect(codec), Effect.orDie)
-
-/**
- * Decodes what a read answered through the codec of its shape, `Schema.Option(<Model>)` for one
- * row and `Schema.Array(<Model>)` for many; a failure is a defect.
- */
-export const decodeRowWith = <Codec extends Schema.Constraint>(codec: Codec) =>
-  flow(Schema.decodeEffect(codec), Effect.orDie)
 
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the

@@ -5,7 +5,7 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { encodeRowWith } from '@app-template/packages/db'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
@@ -22,7 +22,7 @@ const chatServiceOver = ({
 }) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
 
 /** A `selectOne` that answers `found` as its row. */
-const selectsOne = (found: Chat) => () => encodeRowWith(Chat)(found).pipe(Effect.map(Option.some))
+const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
 
 const trip = ChatTitle.make('Trip')
 
@@ -128,7 +128,7 @@ describe('ChatService', () => {
               Effect.sync(() => {
                 wheres.push(where)
               }).pipe(
-                Effect.andThen(encodeRowWith(Chat)(chat)),
+                Effect.andThen(encodeWith(Chat)(chat)),
                 Effect.map((row) => [row]),
               ),
           },

@@ -13,14 +13,14 @@ import {
 } from '@app-template/application/chat/testing'
 import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
 import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
-import { encodeRowWith } from '@app-template/packages/db'
+import { encodeWith } from '@app-template/packages/schema'
 import { epoch, recordLogs } from '@app-template/packages/testing'
 
 import { generateChatTitle } from '#use-cases/chat/generate-chat-title.use-case'
 
 /** A message read that answers `message` as its row. */
 const selectsMessage = (message: Message) => () =>
-  encodeRowWith(Message)(message).pipe(Effect.map(Option.some))
+  encodeWith(Message)(message).pipe(Effect.map(Option.some))
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
@@ -47,7 +47,7 @@ describe('generateChatTitle', () => {
         layerChatTest({
           messages: { selectOne: selectsMessage(firstMessage) },
           chats: {
-            selectOne: () => encodeRowWith(Chat)(chat).pipe(Effect.map(Option.some)),
+            selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
             update: (...update) =>
               Effect.sync(() => {
                 updates.push(update)

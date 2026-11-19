@@ -2,7 +2,8 @@ import { Context, Crypto, DateTime, Effect, Layer, Schema, type Types } from 'ef
 
 import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
+import { generateId } from '@app-template/packages/db'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
@@ -44,7 +45,7 @@ export class RunService extends Context.Service<
       const id = yield* generateId(crypto, RunId.make)
       const createdAt = yield* DateTime.now
       const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })
-      const row = yield* encodeRowWith(RunFields)(run)
+      const row = yield* encodeWith(RunFields)(run)
 
       yield* runs.insert(row)
       return run
@@ -54,7 +55,7 @@ export class RunService extends Context.Service<
       runs
         .selectOne(where)
         .pipe(
-          Effect.flatMap(decodeRowWith(Schema.Option(Run))),
+          Effect.flatMap(decodeWith(Schema.Option(Run))),
           Effect.flatMap(Effect.fromOption(() => new RunNotFoundError({ id: where.id }))),
         ),
     )
@@ -62,7 +63,7 @@ export class RunService extends Context.Service<
     const move = Effect.fn('RunService.move')(function* (run: Run, transition: RunTransition) {
       const at = yield* DateTime.now
       const moved = yield* transition(run, at)
-      const row = yield* encodeRowWith(RunFields)(moved)
+      const row = yield* encodeWith(RunFields)(moved)
 
       yield* runs.update(row, { id: run.id, status: [run.status] })
       return moved

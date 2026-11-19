@@ -2,7 +2,8 @@ import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted, Schema } fr
 import { Base64Url, Hex } from 'effect/encoding'
 
 import { UserRepository } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
+import { generateId } from '@app-template/packages/db'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { UserId } from '#identity/contract/user.id'
 import { UserUnknownError } from '#identity/domain/user.error'
@@ -32,7 +33,7 @@ export class UserService extends Context.Service<
     const authenticate = Effect.fn('UserService.authenticate')((secret: UserSecret) =>
       hashSecret(secret).pipe(
         Effect.flatMap((credential) => users.selectOne({ credential })),
-        Effect.flatMap(decodeRowWith(Schema.Option(User))),
+        Effect.flatMap(decodeWith(Schema.Option(User))),
         Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
       ),
     )
@@ -45,7 +46,7 @@ export class UserService extends Context.Service<
 
       const user = new User({ id, createdAt })
       const credential = yield* hashSecret(secret)
-      const row = yield* encodeRowWith(User)(user)
+      const row = yield* encodeWith(User)(user)
       yield* users.insert(row, credential)
       return { user, secret }
     })

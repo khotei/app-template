@@ -15,7 +15,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A port speaks the domain's words, never a client's type or error; which failures it declares:
   [effect-schema.md › Failures](effect-schema.md#failures).
 - No port in front of a repository: a service calls the data layer's `<Name>Repository` in
-  entities and codes them through the model itself, with `encodeRowWith` and `decodeRowWith`.
+  entities and codes them through the model itself, with `encodeWith` and `decodeWith`.
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
   key with its `*NotFoundError`), coding the rows through the model. It sees the repositories,

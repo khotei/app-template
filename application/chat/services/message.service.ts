@@ -2,7 +2,8 @@ import { Context, Crypto, DateTime, Effect, Layer, Option, Schema, type Types } 
 
 import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
+import { generateId } from '@app-template/packages/db'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
@@ -34,7 +35,7 @@ export class MessageService extends Context.Service<
       const id = yield* generateId(crypto, MessageId.make)
       const createdAt = yield* DateTime.now
       const message = new Message({ ...fields, id, createdAt })
-      const row = yield* encodeRowWith(MessageFields)(message)
+      const row = yield* encodeWith(MessageFields)(message)
 
       yield* messages.insert(row)
       return message
@@ -42,7 +43,7 @@ export class MessageService extends Context.Service<
 
     const getOne = Effect.fn('MessageService.getOne')((where: MessageWhere) =>
       messages.selectOne(where).pipe(
-        Effect.flatMap(decodeRowWith(Schema.Option(Message))),
+        Effect.flatMap(decodeWith(Schema.Option(Message))),
         Effect.flatMap(
           Effect.fromOption(
             () =>
@@ -57,7 +58,7 @@ export class MessageService extends Context.Service<
 
     const getMany = Effect.fn('MessageService.getMany')(
       (where: Types.Simplify<Pick<Message, 'chatId'>>) =>
-        messages.selectMany(where).pipe(Effect.flatMap(decodeRowWith(Schema.Array(Message)))),
+        messages.selectMany(where).pipe(Effect.flatMap(decodeWith(Schema.Array(Message)))),
     )
 
     return { create, getOne, getMany }

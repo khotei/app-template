@@ -27,9 +27,9 @@ import {
   queuedRun,
 } from '@app-template/application/chat/testing'
 import type { MessageColumns, RunColumns } from '@app-template/kernel/data'
-import { encodeRowWith } from '@app-template/packages/db'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7, recordLogs } from '@app-template/packages/testing'
 
 import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
@@ -42,7 +42,7 @@ const CreateRefusal = Schema.Union([MessageInputInvalidError, ChatBusyError])
 /** The read of `read`, the chat the send names. */
 const sendingTo = (read: Chat) =>
   ({
-    chats: { selectOne: () => encodeRowWith(Chat)(read).pipe(Effect.map(Option.some)) },
+    chats: { selectOne: () => encodeWith(Chat)(read).pipe(Effect.map(Option.some)) },
   }) satisfies ChatRepositoryMocks
 
 /** The rows a send hands each repository's `insert`. */
@@ -114,8 +114,8 @@ describe('createUserMessage', () => {
           createdAt: run.createdAt,
         }),
       )
-      assert.deepStrictEqual(inserts.messages, [yield* encodeRowWith(MessageFields)(userMessage)])
-      assert.deepStrictEqual(inserts.runs, [yield* encodeRowWith(RunFields)(run)])
+      assert.deepStrictEqual(inserts.messages, [yield* encodeWith(MessageFields)(userMessage)])
+      assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
     }).pipe(
       Effect.provide(
         layerChatTest(insertingInto(inserts, sendingTo(titledChat))).pipe(

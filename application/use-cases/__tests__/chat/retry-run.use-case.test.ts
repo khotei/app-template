@@ -23,18 +23,18 @@ import {
   queuedRun,
 } from '@app-template/application/chat/testing'
 import type { MessageEntityWhere, RunColumns } from '@app-template/kernel/data'
-import { encodeRowWith } from '@app-template/packages/db'
 import { recordMessages } from '@app-template/packages/queue/testing'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
 /** The reads of a chat whose newest Run is `newest`, with the message that Run answers. */
 const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
-  messages: { selectOne: () => encodeRowWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
+  messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
   chats: {
     selectOne: () =>
-      encodeRowWith(Chat)(new Chat({ ...chat, run: Option.some(newest) })).pipe(
+      encodeWith(Chat)(new Chat({ ...chat, run: Option.some(newest) })).pipe(
         Effect.map(Option.some),
       ),
   },
@@ -76,7 +76,7 @@ describe('retryRun', () => {
             createdAt: retried.createdAt,
           }),
         )
-        assert.deepStrictEqual(inserts, [yield* encodeRowWith(RunFields)(retried)])
+        assert.deepStrictEqual(inserts, [yield* encodeWith(RunFields)(retried)])
         assertEquals(yield* jobs.sent, [
           {
             queue: 'assistant-message',
