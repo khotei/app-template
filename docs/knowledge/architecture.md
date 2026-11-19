@@ -146,9 +146,8 @@ Using the files of `chat` as the map:
 
 | What | File | Named |
 |---|---|---|
-| branded id | `application/chat/domain/chat.id.ts` | `ChatId`, `MessageId` |
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
-| util: a pure step with no domain meaning that the module's code shares | `application/chat/domain/text.util.ts`, `id.util.ts` | `isBlank`, `ensureAllFound` |
+| util: a model's branded id and its pure steps with no domain meaning that the module's code shares | `application/chat/domain/chat.util.ts`, `message.util.ts`, `attachment.util.ts` | `ChatId`, `MessageId`, `isBlank`, `ensureAllFound` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `HistoryMessage`, `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
@@ -238,9 +237,9 @@ imports need.
    reads as absent, never a check after the read. Test the repository on `DbTest`, every guard
    the database adds included; the unit tests above it mock it
    ([tooling.md › Tests](tooling.md#tests)).
-2. **The model.** `application/<module>/domain/`: `<entity>.id.ts`, `<entity>.model.ts` (a
-   `Schema.Class` with its pure operations; time and ids come in as input; a limit, a pattern or
-   an enum's values imported from its table, never declared again,
+2. **The model.** `application/<module>/domain/`: `<entity>.util.ts` (its id),
+   `<entity>.model.ts` (a `Schema.Class` with its pure operations; time and ids come in as input;
+   a limit, a pattern or an enum's values imported from its table, never declared again,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
    [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`,

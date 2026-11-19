@@ -10,7 +10,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Ports and domain services
 
-- A model imports of another aggregate only its `.id` file, save a model it holds as a field it
+- A model imports of another aggregate only its `.util` file, save a model it holds as a field it
   never writes; a port may `import type` another aggregate's model.
 - A port speaks the domain's words, never a client's type or error; which failures it declares:
   [effect-schema.md › Failures](effect-schema.md#failures).

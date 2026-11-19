@@ -5,7 +5,7 @@ import { maxTitleLength, textPattern } from '@app-template/kernel/data'
 
 import { Attachment } from '#chat/domain/attachment.model'
 import { ChatBusyError } from '#chat/domain/chat.error'
-import { ChatId } from '#chat/domain/chat.id'
+import { ChatId } from '#chat/domain/chat.util'
 import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { Status } from '#chat/domain/status.model'
 

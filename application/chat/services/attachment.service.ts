@@ -16,13 +16,13 @@ import { AttachmentRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import { AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   bindAttachment,
   copyAttachment,
   isInLibrary,
 } from '#chat/domain/attachment.model'
+import { AttachmentId } from '#chat/domain/attachment.util'
 import type { Message } from '#chat/domain/message.model'
 
 /** The user's attachment; another user's reads as absent. */

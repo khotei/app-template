@@ -1,7 +1,7 @@
 import { Schema } from 'effect'
 
-import { AttachmentId } from '#chat/domain/attachment.id'
-import { ChatId } from '#chat/domain/chat.id'
+import { AttachmentId } from '#chat/domain/attachment.util'
+import { ChatId } from '#chat/domain/chat.util'
 
 export class AttachmentNotFoundError extends Schema.TaggedError<AttachmentNotFoundError>()(
   'AttachmentNotFoundError',

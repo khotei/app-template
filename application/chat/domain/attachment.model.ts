@@ -4,9 +4,9 @@ import { UserId } from '@app-template/application/identity'
 import { mediaTypePattern, minFileSize, textPattern } from '@app-template/kernel/data'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import { AttachmentId } from '#chat/domain/attachment.id'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
-import { ensureAllFound } from '#chat/domain/id.util'
+import { AttachmentId, ensureAllFound } from '#chat/domain/attachment.util'
+import { ChatId } from '#chat/domain/chat.util'
+import { MessageId } from '#chat/domain/message.util'
 
 export const FileName = Schema.String.check(
   Schema.isNonEmpty(),

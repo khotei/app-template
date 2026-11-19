@@ -151,10 +151,10 @@ the language model, which keeps both words.
 _Avoid_: Entity, DTO, row
 
 **Util**:
-A pure function with no domain meaning, generic over its types, in a `<value>.util.ts` beside the
-code that calls it: it names no model, model's id, error or word of this glossary, so a refusal it
-raises comes from its caller. A function that names a word of this glossary, a refusal or a
-lifecycle move is a model's, however short.
+A pure function with no domain meaning, generic over its types, in the `<model>.util.ts` of the
+model whose code calls it, beside that model's branded id: it names no model, error or word of
+this glossary, so a refusal it raises comes from its caller. A function that names a word of
+this glossary, a refusal or a lifecycle move is a model's, however short.
 _Avoid_: Helper, lib (and library, the user's attachments), common, shared
 
 **Port**:

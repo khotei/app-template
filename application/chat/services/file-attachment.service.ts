@@ -5,7 +5,6 @@ import { FileRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
 import { type AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   type Attachment,
   buildBytesId,
@@ -13,6 +12,7 @@ import {
   ensureUnused,
   FileSize,
 } from '#chat/domain/attachment.model'
+import { AttachmentId } from '#chat/domain/attachment.util'
 import {
   type AttachmentGetManyWhere,
   AttachmentService,

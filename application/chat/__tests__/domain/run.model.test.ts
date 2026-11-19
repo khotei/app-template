@@ -4,8 +4,9 @@ import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { ChatId } from '#chat/domain/chat.util'
 import { Message, MessageFields } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
@@ -18,6 +19,7 @@ import {
   prepareRun,
   Run,
 } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
 import { RunFailure, RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')

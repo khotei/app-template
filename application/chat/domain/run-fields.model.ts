@@ -2,7 +2,9 @@ import { Effect, Schema } from 'effect'
 
 import { RunFailure, runStatuses } from '@app-template/kernel/data'
 
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
+import { ChatId } from '#chat/domain/chat.util'
+import { MessageId } from '#chat/domain/message.util'
+import { RunId } from '#chat/domain/run.util'
 import { Status } from '#chat/domain/status.model'
 
 export const RunStatus = Status.pick(runStatuses)

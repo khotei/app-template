@@ -1,8 +1,9 @@
-import { Array as Arr, Effect, flow, pipe, Schema, Struct } from 'effect'
+import { Array as Arr, Effect, flow, pipe, Struct } from 'effect'
 
-export const buildIdSchema = <const B extends string>(
-  brand: Parameters<typeof Schema.brand<B>>[0],
-) => Schema.String.check(Schema.isUUID()).pipe(Schema.brand<B>(brand))
+import { buildIdSchema } from '#chat/domain/chat.util'
+
+export const AttachmentId = buildIdSchema('AttachmentId')
+export type AttachmentId = typeof AttachmentId.Type
 
 /** `found` when it holds a value of each id of `ids`; else `onMissing` of the ids it lacks, in the order asked. */
 export const ensureAllFound =

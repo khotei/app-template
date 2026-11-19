@@ -1,6 +1,7 @@
 import { Schema } from 'effect'
 
-import { MessageId, RunId } from '#chat/domain/chat.id'
+import { MessageId } from '#chat/domain/message.util'
+import { RunId } from '#chat/domain/run.util'
 import { Status } from '#chat/domain/status.model'
 
 export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidError>()(

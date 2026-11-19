@@ -6,7 +6,6 @@ import { UserId } from '@app-template/application/identity'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   bindAttachment,
@@ -19,7 +18,8 @@ import {
   FileSize,
   MediaType,
 } from '#chat/domain/attachment.model'
-import { ChatId } from '#chat/domain/chat.id'
+import { AttachmentId } from '#chat/domain/attachment.util'
+import { ChatId } from '#chat/domain/chat.util'
 import { chatId, messageId } from '#testing/chat/chat.test-fixture'
 
 describe('Attachment', () => {

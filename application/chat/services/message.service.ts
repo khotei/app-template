@@ -4,9 +4,9 @@ import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
-import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
 
 /** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
 export type MessageWhere = Types.Simplify<

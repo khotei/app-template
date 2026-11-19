@@ -25,8 +25,8 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 
 | Suffix | Role |
 |---|---|
-| `.id` · `.model` · `.error` | branded ids · `Schema.Class`es and their pure operations, split by the value they act on · domain errors |
-| `.util` | `<value>.util.ts`, named for the value it acts on: pure functions with no domain meaning, generic over their types, that the module's code shares; it imports only `effect` and takes a refusal or a value it builds from its caller. Never a rename of one built-in call, nor a rule, a refusal or a lifecycle move, however short: those are a `.model`'s. Where it lives: [record](../../docs/knowledge/decisions.md#utils-apart-from-models) |
+| `.model` · `.error` | `Schema.Class`es and their pure operations, split by the value they act on · domain errors |
+| `.util` | `<model>.util.ts`, one per model that needs one: the model's branded id and its generic helpers, pure functions with no domain meaning, generic over their types, that the module's code shares; it imports only `effect` and other `.util` files, never a model, and takes a refusal or a value it builds from its caller. Never a rename of one built-in call, nor a rule, a refusal or a lifecycle move, however short: those are a `.model`'s. Where it lives: [record](../../docs/knowledge/decisions.md#utils-apart-from-models) |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<aspect>-<model>.service.ts` for one composed over it, named for what it adds, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services, the function `<verb><Object>` |

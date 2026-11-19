@@ -9,8 +9,8 @@ import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import type { ChatId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import type { ChatId } from '#chat/domain/chat.util'
 import { ChatService } from '#chat/services/chat.service'
 import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 

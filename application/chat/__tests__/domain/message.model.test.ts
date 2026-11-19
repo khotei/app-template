@@ -3,7 +3,7 @@ import { Effect, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { AttachmentId } from '#chat/domain/attachment.id'
+import { AttachmentId } from '#chat/domain/attachment.util'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
 import { ensureMessageInput, MessageFields } from '#chat/domain/message.model'
 

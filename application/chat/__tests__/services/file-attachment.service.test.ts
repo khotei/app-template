@@ -19,8 +19,8 @@ import {
 } from '@app-template/packages/testing'
 
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
-import { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
+import { AttachmentId } from '#chat/domain/attachment.util'
 import { FileAttachmentService } from '#chat/services/file-attachment.service'
 import { chatId, messageId, owner } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'

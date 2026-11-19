@@ -17,8 +17,8 @@ import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { ChatId } from '#chat/domain/chat.id'
 import { buildChat, Chat, ChatFields, type ChatTitle, renameChat } from '#chat/domain/chat.model'
+import { ChatId } from '#chat/domain/chat.util'
 
 /** The user's chat; another user's reads as absent. */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>

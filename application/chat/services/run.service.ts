@@ -4,10 +4,10 @@ import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
-import { RunId } from '#chat/domain/chat.id'
 import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
 import { buildRun, Run } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
 
 /** A Run by id; `userId` limits it to the user's chats, which every api caller passes. */

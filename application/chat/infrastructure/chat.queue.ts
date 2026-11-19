@@ -3,7 +3,8 @@ import { Schema } from 'effect'
 import { resources } from '@app-template/kernel/aws'
 import type { QueueDefinition } from '@app-template/packages/queue'
 
-import { MessageId, RunId } from '#chat/domain/chat.id'
+import { MessageId } from '#chat/domain/message.util'
+import { RunId } from '#chat/domain/run.util'
 
 const { assistantMessage, chatTitle } = resources.queues
 

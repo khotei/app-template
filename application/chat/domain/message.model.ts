@@ -2,12 +2,12 @@ import { Array as Arr, Effect, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
-import type { AttachmentId } from '#chat/domain/attachment.id'
 import { Attachment } from '#chat/domain/attachment.model'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
+import type { AttachmentId } from '#chat/domain/attachment.util'
+import { ChatId } from '#chat/domain/chat.util'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
+import { isBlank, MessageId } from '#chat/domain/message.util'
 import { RunFields } from '#chat/domain/run-fields.model'
-import { isBlank } from '#chat/domain/text.util'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type

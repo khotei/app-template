@@ -411,7 +411,7 @@ list and one run reports every red gate, on the Bun that `packageManager` pins.
 | Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
 | Biome `plugin`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<unit>/<path>`, for example `#chat/domain/chat.model` |
 | Biome `plugin`: `a unit reaches its own files …` | a file of another module, kernel part or package, through its `#…` alias | import that unit's entry, `@app-template/<folder>/<unit>`, or its `/testing` |
-| Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two files import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.id.ts`, never its model |
+| Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two files import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.util.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |
 | a push is rejected after test output | the `pre-push` hook failed | fix the tests; never use `--no-verify` |

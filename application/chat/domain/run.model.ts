@@ -2,8 +2,8 @@ import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'ef
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
-import type { MessageId } from '#chat/domain/chat.id'
 import { MessageFields } from '#chat/domain/message.model'
+import type { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import { type RunFailure, RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { hasStatus, isPreparing } from '#chat/domain/status.model'

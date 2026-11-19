@@ -2,7 +2,7 @@ import { identity, Predicate, Schema, SchemaTransformation, String as Str } from
 
 import type { Attachment } from '#chat/domain/attachment.model'
 import { MessageFields } from '#chat/domain/message.model'
-import { isBlank } from '#chat/domain/text.util'
+import { isBlank } from '#chat/domain/message.util'
 
 /** Decoding drops the U+0000 a message's `text` refuses, as a reply is not refused for it. */
 export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply')({

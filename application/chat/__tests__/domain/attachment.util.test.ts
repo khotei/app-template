@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, identity, pipe } from 'effect'
 
-import { ensureAllFound } from '#chat/domain/id.util'
+import { ensureAllFound } from '#chat/domain/attachment.util'
 
 describe('ensureAllFound', () => {
   const found = [{ id: 'b' }, { id: 'a' }]

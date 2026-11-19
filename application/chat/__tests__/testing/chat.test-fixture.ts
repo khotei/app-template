@@ -3,10 +3,12 @@ import { DateTime } from 'effect'
 import { UserId } from '@app-template/application/identity'
 import { epoch } from '@app-template/packages/testing'
 
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildChat } from '#chat/domain/chat.model'
+import { ChatId } from '#chat/domain/chat.util'
 import { Message } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
 import { buildRun } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
