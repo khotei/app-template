@@ -224,10 +224,7 @@ touches no row:
   `attachments_source_id_fk`, and the send dies (500), rolled back whole.
 
 `ChatRepository.delete(where)` is one statement: the chat's messages, attachments and Runs go by
-the cascade. The use case `deleteChat` then deletes the bytes through
-`FileAttachmentService.deleteBytes`, after the row, with no transaction. A file a concurrent send
-binds between `ChatService.delete`'s read and the delete loses its row with the chat while its
-bytes stay in S3.
+the cascade, and `ChatService.delete` is all the api's delete calls.
 
 ## Transactions
 

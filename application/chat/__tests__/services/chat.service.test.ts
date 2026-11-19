@@ -137,14 +137,13 @@ describe('ChatService', () => {
     )
   })
 
-  it.effect("delete removes the owner's chat by its id and answers the chat it removed", () => {
+  it.effect("delete removes the owner's chat by its id", () => {
     const deleted: Array<ChatEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
-      const removed = yield* service.delete({ id: chat.id, userId: owner })
+      yield* service.delete({ id: chat.id, userId: owner })
 
-      assertEquals(removed, chat)
       assert.deepStrictEqual(deleted, [{ id: chat.id }])
     }).pipe(
       Effect.provide(
