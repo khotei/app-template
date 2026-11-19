@@ -35,12 +35,12 @@ export const layerChatTest = (
   transaction: Layer.Layer<Transaction> = TransactionTest,
 ) =>
   Layer.mergeAll(
-    AttachmentService.layer,
     ChatService.layer,
     FileAttachmentService.layer,
     MessageService.layer,
     RunService.layer,
   ).pipe(
+    Layer.provideMerge(AttachmentService.layer),
     Layer.provideMerge(
       Layer.mergeAll(
         Layer.mock(ChatRepository, chats),

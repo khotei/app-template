@@ -5,6 +5,7 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
   AssistantLlmFromConfig,
+  AttachmentService,
   ChatService,
   FileAttachmentService,
   MessageService,
@@ -25,6 +26,7 @@ export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
     MessageService.layer,
     RunService.layer,
   ]),
+  Layer.provide(AttachmentService.layer),
 )
 
 const BunHttpServerFromConfig = workerPort.pipe(

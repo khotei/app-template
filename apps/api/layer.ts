@@ -37,12 +37,12 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
 // the handler calls reads its services so, and a handler group's provide never reaches them.
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
-    AttachmentService.layer,
     ChatService.layer,
     FileAttachmentService.layer,
     MessageService.layer,
     RunService.layer,
   ]),
+  Layer.provide(AttachmentService.layer),
 )
 
 const BunHttpServerFromConfig = apiPort.pipe(

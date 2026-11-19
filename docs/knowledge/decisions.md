@@ -443,8 +443,9 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 - **Cost:** two services and two layers for one model; a handler of the model takes both; the
   plain `create`, `getMany` and `delete` have one caller, the file service, and `delete` only
   forwards to the repository with its span: they stay as the records' one owner, which a test that
-  counts callers would delete. A service's layer provides the one below it, as
-  [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers) allows. A rule
+  counts callers would delete. Each process provides the plain service once, below the file
+  service, so a wrap of it reaches both:
+  [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule
   over the reads that one flow applies is piped there, and a flow that forgets the pipe skips it;
   a rule every reader must apply is a service named for it. The plain `getMany` leaves an absent
   id out, so only the file service's error names every absent id at once.

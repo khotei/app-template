@@ -170,5 +170,5 @@ export class FileAttachmentService extends Context.Service<
     return { upload, download, getBytes, getMany, deleteBytes, delete: remove }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(AttachmentService.layer))
+  static readonly layer = Layer.effect(this, this.make)
 }
