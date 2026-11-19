@@ -1,6 +1,6 @@
 # One flow
 
-Flow: lab · Base: 76c71ea595 · Worktree: /Users/v/lab/app-template/.claude/worktrees/one-flow
+Flow: lab · Base: 85b6e84463 · Worktree: /Users/v/lab/app-template/.claude/worktrees/one-flow
 (N=50)
 
 ## Intent
@@ -106,6 +106,15 @@ own edit dropped; a troubleshooting row for auto mode, moot once the gate holds 
 template's smaller repeats of the skill, which guide each new `lab.md`; a micro's yield in
 `make numbers`, since a micro has no `lab.md` and its yield goes into its PR body.
 [Q:ai] Do these verifiers stand for `/lab review L2`, or does it run over L2.1–L2.19?
+[N:ai] Rebased from 76c71ea595 onto `refactor/design-audit` at 85b6e84463, its composition work
+(`.claude/rules/composition.md`, its record in `docs/knowledge/decisions.md` and the rule edits);
+the Base moved with it. One conflict: L2.4 deletes
+`.claude/skills/ticket-implement/design-examples.md`, which the composition work edited. The
+deletion stands, since the rules hold those examples now: its question 4 ("no wrapper" → "no
+pass-through") lands in `stops.md` by L2.22, and its rewritten combinator example rests on
+`effect-style.md › Composition`, which stays. Every other file merged without a conflict; each
+rebased commit passes `make doc-lint link-check lint`, and the tip `make check`. Commit messages
+unchanged; the old tip is `backup/one-flow-pre-rebase`.
 
 ### Output
 
