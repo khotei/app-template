@@ -4,8 +4,8 @@ import {
   Crypto,
   DateTime,
   Effect,
+  Filter,
   Layer,
-  Predicate,
   Ref,
   Schema,
   Stream,
@@ -179,8 +179,7 @@ export class AttachmentService extends Context.Service<
       message: Pick<Message, 'id' | 'chatId'>,
     ) {
       const createdAt = yield* DateTime.now
-      const held = Arr.filter(requested, Predicate.not(isInLibrary))
-      const sources = Arr.filter(requested, isInLibrary)
+      const [sources, held] = Arr.partition(requested, Filter.fromPredicate(isInLibrary))
       const bound = yield* Effect.forEach(held, (attachment) => bindAttachment(attachment, message))
       const records = yield* Effect.forEach(sources, (source) =>
         randomAttachmentId.pipe(
