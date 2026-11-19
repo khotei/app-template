@@ -47,7 +47,7 @@ graph LR
 | 13 | `ticket-folder-order` | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | `toolkit-reading` | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | `architecture-audit` | `refactor` | 4 | done: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
-| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | planned |
+| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | in progress: [docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md) |
 | 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
@@ -179,9 +179,9 @@ left.
   [aws.md › Queues](aws.md#queues) logs and acknowledges unrun. The reply and title jobs lost `chatId`
   this way.
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
-  decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
-  runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
-  the CloudWatch and X-Ray path.
+  decides whether the worker is a Lambda on SQS or a long-running poller;
+  [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws) the
+  CloudWatch and X-Ray path.
 
 ### 11. `workflow-cluster`
 
@@ -201,12 +201,10 @@ left.
 - **Goal.** "Use this template" to a running, renamed project in ten minutes.
 - **Scope.** `make rename SCOPE=@acme NAME="Acme"`; a checklist of what to delete (`docs/tickets/`
   of the template, the example domain if unwanted) and what to keep (`docs/knowledge/`, rules,
-  skills); a fresh-clone rehearsal in CI; the README's "History and new projects" rewritten; the
-  GitHub template flag verified; the toolkit items that matter only when the
-  template changes hands, inherited from `claude-toolkit` (2): `claude plugin eval` cases for the
-  `ticket-*` skills (they must be wrapped as a plugin to load), `/skill-doctor` as a periodic
-  check, pinning `mattpocock-skills` by `sha`, `skillOverrides` for the plugin skills the wrappers
-  never use, agent `memory`, `SessionStart` and `PostToolUse` hooks.
+  skills); a fresh-clone rehearsal in CI; the README's "Starting a new project" rewritten; the
+  GitHub template flag verified; the toolkit items that matter only when the template changes
+  hands, inherited from `claude-toolkit` (2): `/skill-doctor` as a periodic check, pinning
+  `mattpocock-skills` by `sha`, agent `memory`, `SessionStart` and `PostToolUse` hooks.
 - **Out of scope.** A generator or CLI.
 
 ### 16. `shared-files`
@@ -235,7 +233,8 @@ left.
   ticket.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
   whether deleting a chat deletes its linked files or only the links; the quota per user.
-- **Status.** Planned.
+- **Status.** In progress:
+  [docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md).
 
 ### 18. `assistant-files`
 
@@ -344,58 +343,17 @@ left.
 - **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
   failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
   however many files it holds: the request deletes rows only, and a job deletes the bytes.
-- **Scope.**
-  - The table `jobs` (renamed from `outbox` by `modular-monolith`) keeps one row per job with
-    `status`, `attempts`, the last `error`,
-    `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
-    finds a chat's jobs.
-  - The statuses, the shared `Status` of `application/chat/domain/status.model.ts` whole:
-    `idle` (written by `QueueSenderJobs.send`, not yet in SQS) → `queued` (the
-    relay sent it; the job is in work) → `done` (the handler succeeded) or `failed` (its last
-    attempt or its dead letter, with the error). The relay takes `idle` rows under `FOR UPDATE
-    SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
-    deleting them. A run needs no status of its own: the queue's lock covers it.
-  - The worker writes each outcome back by `queue` and `job_id`, which SQS carries in the
-    message's attributes: a wrapper of `consumeQueue` in `kernel/queue`, since
-    `packages/queue` knows no database.
-  - Attachment deletions are jobs of this ledger: a statement-level trigger `AFTER DELETE ON
-    attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
-    ids and their `chatId`, `messageId` and `userId`, whichever path deleted them (a chat's
-    cascade, a message's, a user's delete of an unbound file), in the deleting statement. Its
-    handler deletes the bytes by `FileRepository.delete`. `deleteChat` drops its
-    `FileAttachmentService.deleteBytes` call; the repository's e2e checks the job the trigger
-    writes.
-  - The Run keeps its own status, its subset of the shared `Status`: it is the work's state,
-    which the client polls and the guards read, not the job's; a message has none since
-    `reply-run`.
-  - The relay gets attempts and a dead letter of its own: today a job SQS refuses forever blocks
-    its batch and re-sends the jobs before it on every poll.
-- **Why a trigger.** It catches every path in the same statement, including a file a concurrent
-  send binds between the attachments' read and the chat's delete, whose bytes today stay in S3,
-  bound and never expired.
-- **Open questions for its feature phase.** The retention of `done` rows; whether a `failed`
-  job returns to `idle` by hand; how a deletion job of a very large chat splits its ids; what the
+- **Starts from.** No table holds a job today: a ledger re-opens
+  [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose *Rejected* names a table
+  of jobs. A chat's or a file's delete removes the bytes after the rows, inside the request
+  (`deleteChat`, `FileAttachmentService.delete`).
+- **Open questions for its feature phase.** The retention of finished rows; whether a failed
+  job is re-run by hand; how a deletion job of a very large chat splits its ids; what the
   worker does when Postgres refuses an outcome SQS has already settled.
 - **Related, not in scope.** A chat with millions of messages: a soft delete (`chats.deleted_at`
   hiding the chat's reads) and a purge in batches, so the request deletes one row. Uploads into a
   chat (`POST /chats/:chatId/attachments`) with keys `chats/<chatId>/…`, which a delete clears by
   prefix listing.
-- **Inherits from `llm-providers` (2026-10-30).** The relay already keeps its rows: it sets
-  `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`. The ledger's
-  statuses replace `sent_at`; nothing removes sent rows yet, which the retention question above
-  now settles for every row.
-- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** The table is `jobs`, read
-  and written by `JobRepository` in `kernel/data/job`, so the statuses and the trigger are the
-  data layer's, in this ticket's migration, the second since the schema restarted as one;
-  `QueueSenderJobs`, the consumer and the relay live in `kernel/queue` over it, so the outcome
-  write-back lands there; the handler of a deletion job calls `FileRepository.delete`. A deletion
-  job carries work that outlives the request, which
-  [Use cases above the modules](decisions.md#use-cases-above-the-modules) allows, never a
-  module's reaction to another's write. `Status` belongs to `chat` (the chat's and the message's
-  states); the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for
-  a job and "reply in work" for a message. The statuses rewrite
-  [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose
-  *Revisit when* names this ticket.
 - **Inherits from `lambda` (2026-11-09) and `reply-run` (2026-11-11).** The Runs no worker
   settles: [Later › From `lambda-processes`](#from-lambda-processes) and
   [› From `reply-run`](#from-reply-run).
@@ -443,8 +401,8 @@ left.
     `layering.md › Use cases` and `modules.md › A rule or a capability in a use case` get the
     example as a neutral pattern, not the live names.
   - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported
-    guard is `ensure<All><State>` with the same shape (`ensureLive` beside `ensureAllLive`), and a
-    one-element rule takes the element, not an `Option`.
+    guard is `ensure<All><State>` with the same shape, and a one-element rule takes the element,
+    not an `Option`.
   - **Repository reads.** A value the store derives is a field, presence is `selectMany`, never a
     probe through another verb (done in `file-repository-verbs`; this entry checks that the rule
     and its record say it).
@@ -476,8 +434,8 @@ left.
 ## Later
 
 What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
-questions. One section per ticket; each item says what goes wrong, with its `path:line`, why it
-was left, and the ways out to weigh. A ticket that takes an item moves it into its own `Later`
+questions. One section per ticket; each item says what goes wrong, with its file and symbol, why
+it was left, and the ways out to weigh. A ticket that takes an item moves it into its own `Later`
 and deletes it here.
 
 ### From `lambda-processes`
@@ -496,8 +454,8 @@ and deletes it here.
 ### From `reply-run`
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies or the client
-  aborts the request between the commit and the reply's send (the `queue.send` of
-  `application/use-cases/chat/create-user-message.use-case.ts` and
+  aborts the request between the commit and the reply's send (`sendGenerateAssistantMessage`,
+  called by `application/use-cases/chat/create-user-message.use-case.ts` and
   `application/use-cases/chat/retry-run.use-case.ts`): a send SQS refuses fails the Run, but no
   handler runs in a dead process or past an interrupt. Ways out to weigh: a send that cannot be
   interrupted (the abort only), the job ledger of entry 22, a sweep of active Runs. The owner
@@ -529,9 +487,10 @@ and deletes it here.
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `MessageInputInvalidError` covers two reasons alike
-  (`application/chat/domain/message.model.ts:51`, `:55`), `AttachmentTooLargeError` names neither
-  the limit nor the file (`apps/api/attachment/attachment.handler.ts:30`),
-  `AttachmentTypeUnsupportedError` not the type sent (`:50`), `RunNotRetryableError` not why,
+  (`ensureMessageInput` in `application/chat/domain/message.model.ts`), `AttachmentTooLargeError`
+  names neither the limit nor the file (`refuseMultipart` in
+  `apps/api/attachment/attachment.handler.ts`), `AttachmentTypeUnsupportedError` not the type
+  sent (`decodeDeclaredType`, same file), `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
   (`toFailedError` in `application/chat/infrastructure/assistant.llm.ts`); `UserUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
@@ -599,14 +558,14 @@ For `jobs` (22) and `aws-deployment` (9), and the record
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
   the jobs in a Postgres table and replaces our queue: `packages/queue` (`consumeQueue`,
-  `QueueSender`, `QueueTransport` over SQS), `kernel/queue` (`QueueSenderJobs`, `JobRelay`,
-  `QueueConsumerSqs`), `kernel/data/job`, the dead-letter handlers and definitions, the SQS queues
-  in `deployment/`, three queue variables: about 610 lines of code and 960 of tests.
+  `QueueSender` over SQS), the queues' senders beside the use cases, and the SQS queues, their
+  dead letters and the worker's event source mapping in `deployment/`.
 - **What Postgres would bring.**
-  - No relay: `offer` writes through the current `SqlClient`, so inside the send's transaction
-    the job commits with the message (assumed from the code, to prove by one e2e). One system
-    holds a job's whole state, so 22's question "what the worker does when Postgres refuses an
-    outcome SQS has already settled" disappears.
+  - The job commits with its message: `offer` writes through the current `SqlClient`, so inside
+    the send's transaction (assumed from the code, to prove by one e2e), and a process that dies
+    after the commit no longer leaves its Run queued unsent. One system holds a job's whole
+    state, so 22's question "what the worker does when Postgres refuses an outcome SQS has
+    already settled" disappears.
   - Per row `state` (`pending` → `processing` → `completed` or `failed`), `attempts` and
     `last_failure`: most of 22's ledger without writing it. `layerCleanup` for retention.
   - Retries by `maxAttempts` and a `retrySchedule` replayed from the stored attempt count;
@@ -622,8 +581,7 @@ For `jobs` (22) and `aws-deployment` (9), and the record
     backlog and to zero, billed per use. A Postgres queue needs a long-running poller (ECS), paid
     while idle.
   - A database that can sleep: Aurora Serverless v2 pauses at 0 ACU, which 9 weighs; a poller
-    every second never lets it. Today's `JobRelay` also polls Postgres, so this holds for the
-    current design too until 9 says where the relay runs.
+    every second never lets it.
   - Load kept off the database: a backlog's receives, retries and locks hit SQS, not the rows
     the api reads; a queue table updated on every attempt needs its vacuum watched.
   - Other AWS services can send or consume (EventBridge Pipes, SNS) without database access.
@@ -631,13 +589,13 @@ For `jobs` (22) and `aws-deployment` (9), and the record
 - **What Postgres would cost besides.** `@stability unstable` (may change in a minor of
   `effect`); the library creates its own table (`CREATE TABLE IF NOT EXISTS`), outside the one
   Drizzle migration ([One initial migration](decisions.md#one-initial-migration)); the job body
-  is `TEXT`, not `jsonb`, so 22's search `body @> '{"chatId": …}'` needs an index of ours; 22's
-  trigger would write into the library's private table; it reverses `aws-local` D1.
+  is `TEXT`, not `jsonb`, so 22's search of a job by what it is about needs an index of ours; it
+  reverses `aws-local` D1.
 - **Rejected already.** Postgres locally and SQS on AWS: `aws-local` D1 refused two queue
   semantics under one interface.
-- **Check before deciding.** An e2e that a rolled-back send leaves no job; where the relay runs
-  if the worker becomes a Lambda; the cost of an always-on ECS worker against Lambda at this
-  template's load; whether CloudWatch's SQS metrics are something the team would really watch.
+- **Check before deciding.** An e2e that a rolled-back send leaves no job; the lines of code and
+  tests it would delete; the cost of an always-on ECS worker against Lambda at this template's
+  load; whether CloudWatch's SQS metrics are something the team would really watch.
 
 ### Workflow on top of the queue
 
