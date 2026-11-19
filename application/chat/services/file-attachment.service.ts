@@ -25,7 +25,10 @@ export interface AttachmentUpload<E> extends Pick<Attachment, 'mediaType' | 'fil
   readonly content: Stream.Stream<Uint8Array, E>
 }
 
-/** An attachment's record and its bytes, stored and removed as one. */
+/**
+ * An attachment's record and its bytes, stored and removed as one; or its bytes alone, once a
+ * cascade removed its row.
+ */
 export class FileAttachmentService extends Context.Service<
   FileAttachmentService,
   {
@@ -53,10 +56,11 @@ export class FileAttachmentService extends Context.Service<
       where: AttachmentGetManyWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
     /**
-     * Removes the bytes held under the attachments' own ids, the uploads among them; a record's
-     * bytes are its source's and stay. For the attachments whose rows are already gone.
+     * Removes the bytes held under the user's attachments' own ids, the uploads' among them; a
+     * record's bytes are its source's and stay. Dies while a row of one remains: the bytes go
+     * once their rows are gone.
      */
-    readonly deleteBytes: (attachments: ReadonlyArray<Attachment>) => Effect.Effect<void>
+    readonly deleteBytes: (where: AttachmentGetManyWhere) => Effect.Effect<void>
     /**
      * Removes the user's attachment, then its bytes, while no message holds it or a record sent
      * from it; dies when a send binds it, or adds a record of it, after the check.
@@ -147,12 +151,21 @@ export class FileAttachmentService extends Context.Service<
       yield* files.delete({ id: [where.id] })
     })
 
-    // By the ids read, never by `buildFileId`: a record's bytes are its source's, and stay in the
-    // library.
-    const deleteBytes = Effect.fn('FileAttachmentService.deleteBytes')(
-      (attachments: ReadonlyArray<Attachment>) =>
-        files.delete({ id: Arr.map(attachments, Struct.get('id')) }),
-    )
+    // By the ids given, never by `buildFileId`: a record's bytes are its source's, and stay in
+    // the library.
+    const deleteBytes = Effect.fn('FileAttachmentService.deleteBytes')(function* (
+      where: AttachmentGetManyWhere,
+    ) {
+      // A row left would name bytes no longer stored.
+      yield* attachmentService
+        .getMany(where)
+        .pipe(
+          Effect.filterOrElse(Arr.isReadonlyArrayEmpty, () =>
+            Effect.die('the bytes of an attachment whose row remains'),
+          ),
+        )
+      yield* files.delete({ id: where.id })
+    })
 
     return { upload, download, getBytes, getMany, deleteBytes, delete: remove }
   }),

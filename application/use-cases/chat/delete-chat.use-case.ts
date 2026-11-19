@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Array as Arr, Effect, Struct } from 'effect'
 
 import { type ChatId, ChatService, FileAttachmentService } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
@@ -13,5 +13,5 @@ export const deleteChat = Effect.fn('deleteChat')(function* (userId: UserId, cha
 
   // The bytes once the rows are gone, since the object store joins no transaction.
   const chat = yield* chats.delete({ id: chatId, userId })
-  yield* fileAttachments.deleteBytes(chat.attachments)
+  yield* fileAttachments.deleteBytes({ userId, id: Arr.map(chat.attachments, Struct.get('id')) })
 })

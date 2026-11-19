@@ -43,7 +43,14 @@ const record = new Attachment({
   sourceId: Option.some(inLibrary.id),
 })
 
-const withAttachments = new Chat({ ...chat, attachments: [upload, record] })
+/** An upload `chat` holds unsent, its bytes its own. */
+const unsent = new Attachment({
+  ...inLibrary,
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000027'),
+  chatId: Option.some(chat.id),
+})
+
+const withAttachments = new Chat({ ...chat, attachments: [upload, record, unsent] })
 
 const storeBytes = (id: AttachmentId) =>
   FileRepository.use((files) => files.insert({ ...photo, id, content: Stream.make(png) }))
@@ -55,17 +62,19 @@ const selectsChat = () => encodeRowWith(Chat)(withAttachments).pipe(Effect.map(O
 
 describe('deleteChat', () => {
   it.effect(
-    "deletes the owner's chat, then its upload's bytes, keeping a record's source in the library",
+    "deletes the owner's chat, then its uploads' bytes, sent or not, keeping a record's source",
     () => {
       const deleted: Array<ChatEntityWhere> = []
       return Effect.gen(function* () {
         yield* storeBytes(upload.id)
+        yield* storeBytes(unsent.id)
         yield* storeBytes(inLibrary.id)
 
         yield* deleteChat(owner, chat.id)
 
         assert.deepStrictEqual(deleted, [{ id: chat.id }])
         assert.isFalse(yield* hasBytes(upload.id))
+        assert.isFalse(yield* hasBytes(unsent.id))
         assert.isTrue(yield* hasBytes(inLibrary.id))
       }).pipe(
         Effect.provide(
@@ -77,6 +86,7 @@ describe('deleteChat', () => {
                   deleted.push(where)
                 }),
             },
+            attachments: { selectMany: () => Effect.succeed([]) },
           }),
         ),
       )

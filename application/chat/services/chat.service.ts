@@ -46,8 +46,8 @@ export class ChatService extends Context.Service<
       title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /**
-     * Removes the user's chat with its messages and their attachments' records, and answers the
-     * chat it removed; the bytes stay, for the caller to delete.
+     * Removes the user's chat with its messages and the attachments' records it holds, sent or
+     * not, and answers the chat it removed; the bytes stay, for the caller to delete.
      */
     readonly delete: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
   }
@@ -96,7 +96,7 @@ export class ChatService extends Context.Service<
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
       const chat = yield* getOne(where)
 
-      // The cascade takes the messages and their attachments.
+      // The cascade takes the messages and the chat's attachments, by their `chat_id`.
       yield* chats.delete({ id: chat.id })
       return chat
     })

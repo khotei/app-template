@@ -415,7 +415,8 @@ adds: `<Model>Service` holds the plain records (a create, a read by key with its
 `*NotFoundError`, a read of many, the writes that change records alone, a delete of many under the
 full `where` its caller passes), coding every row through the model, and `File<Model>Service`,
 composed over it, stores, serves and removes the bytes with the record, checking the rule a delete
-needs and passing its guard into the plain delete's `where`. A service sees only the services of
+needs and passing its guard into the plain delete's `where`, and removes the bytes alone once a
+cascade took their rows, dying while one remains. A service sees only the services of
 its own model below it and reaches the records only through the plain one; another model's
 service stays a use case's. How a service grows:
 [Composition: wrap or compose](#composition-wrap-or-compose).

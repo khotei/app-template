@@ -250,6 +250,47 @@ describe('FileAttachmentService', () => {
     )
   })
 
+  it.effect("getBytes of a record answers its source's bytes", () =>
+    Effect.gen(function* () {
+      const service = yield* FileAttachmentService
+      yield* storeBytes
+
+      assert.deepStrictEqual(yield* service.getBytes(record), png)
+    }).pipe(Effect.provide(fileAttachmentServiceOver({}))),
+  )
+
+  it.effect(
+    "deleteBytes removes an upload's bytes once its row is gone, a record's source's stay",
+    () => {
+      const upload = new Attachment({
+        ...bound,
+        id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000026'),
+      })
+      return Effect.gen(function* () {
+        const service = yield* FileAttachmentService
+        yield* storeBytes
+        yield* FileRepository.use((files) => files.insert({ ...photoUpload, id: upload.id }))
+
+        yield* service.deleteBytes({ id: [upload.id, record.id], userId: owner })
+
+        assert.deepStrictEqual(yield* downloadBytes(upload.id), Option.none())
+        assert.deepStrictEqual(yield* downloadBytes(stored.id), Option.some(png))
+      }).pipe(Effect.provide(fileAttachmentServiceOver({ selectMany: selectsMany() })))
+    },
+  )
+
+  it.effect('deleteBytes of an attachment whose row remains dies, keeping the bytes', () =>
+    Effect.gen(function* () {
+      const service = yield* FileAttachmentService
+      yield* storeBytes
+
+      const exit = yield* service.deleteBytes({ id: [stored.id], userId: owner }).pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(exit))
+      assert.deepStrictEqual(yield* downloadBytes(stored.id), Option.some(png))
+    }).pipe(Effect.provide(fileAttachmentServiceOver({ selectMany: selectsMany(stored) }))),
+  )
+
   it.effect('delete removes the row only while unbound, then the bytes', () => {
     const deleted: Array<AttachmentEntityWhere> = []
     return Effect.gen(function* () {
