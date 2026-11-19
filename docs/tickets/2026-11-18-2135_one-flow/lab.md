@@ -95,15 +95,16 @@ three seeded pairs are L3.1's. `/lab review L2` waits.
 place of `/lab review L2`'s passes. Their findings, fixed as L2.6–L2.19 (REVIEW) and L4.1: the
 implementer's gate was inert in auto mode and let a "No such file" red through in manual mode; a
 `BLOCKED:` report went back to the agent; the ask list missed `--mirror`, `--prune`, `-uf` and a
-push to `main`, and its `:*` refspec pattern matched nothing; a micro had no fix form, no home for
-its notes and no clean cut; a `claimed` bug could be rejected on argument; a lab cut from another
-branch reviewed and counted from `main`; the Hunt's yield dropped out of Numbers; the guard-probe
-lessons went with `guard-probes.md`; a spawned agent started outside the lab's tree; the marker
-search found the skill itself; the roadmap row was marked by no move; the record and the guide
-claimed more than the replays showed; and smaller leftovers. Rejected: rail 8's wording for a
-push to `main`, since the ask list holds it; `gh api` on the ask list, which the owner's own edit
-dropped; a troubleshooting row for auto mode, moot once the gate holds there; the template's
-smaller repeats of the skill, which guide each new `lab.md`.
+push to `main`, and its `:*` refspec pattern matched no delete refspec; a micro had no fix form,
+no home for its notes and no clean cut; a `claimed` bug could be rejected on argument; a lab cut
+from another branch reviewed and counted from `main`; the Hunt's yield dropped out of Numbers; the
+guard-probe lessons went with `guard-probes.md`; a spawned agent started outside the lab's tree;
+the marker search found the skill itself; the roadmap row was marked by no move; the record and
+the guide claimed more than the replays showed; and smaller leftovers. Rejected: rail 8's wording
+for a push to `main`, since the ask list holds it; `gh api` on the ask list, which the owner's
+own edit dropped; a troubleshooting row for auto mode, moot once the gate holds there; the
+template's smaller repeats of the skill, which guide each new `lab.md`; a micro's yield in
+`make numbers`, since a micro has no `lab.md` and its yield goes into its PR body.
 [Q:ai] Do these verifiers stand for `/lab review L2`, or does it run over L2.1–L2.19?
 
 ### Output
@@ -165,7 +166,7 @@ subagents); costs are per run.
 |---|---|---|---|---|
 | R1 | micro #24: lines within ±30% of +67 −10, no ticket file, no gate red that was green | the record: +67 −10 and a 74-line `plan.md` | 3 of 3: +64–65 −10, no file under `docs/`, each sized micro and waited once for the go; $2.11–2.62, 314–478 s | pass |
 | R2 | the hunt names the Binary `traceparent` at least as often as old | 0 of 3; $2.03–2.38, 333–392 s | 3 of 3, Intent too; $3.38–4.20, 453–943 s | pass |
-| R3 | Intent names `{id}` → `{ids}` and the race's 500 with its widened assertion, 2 of 3 | the record: one verifier run named all three | 2 of 3, the third missed the widened assertion; the Hunt named the manifest gap 0 of 3; $4.24–5.09, 878–1049 s | pass |
+| R3 | Intent names `{id}` → `{ids}` and the race's 500 with its widened assertion, 2 of 3 | the record: one verifier run named all three | 2 of 3, the first missed the widened assertion; the Hunt named the manifest gap 0 of 3; $4.24–5.09, 878–1049 s | pass |
 | R4 | no second noun, link table or copy of bytes in 2 of 3, fewer faults than old | 3 faults: a link table in each run, one noun in each; $0.68–1.13, 268–391 s | 6 faults: a second noun and a link table in each, `stops.md` never read; $0.54–0.69, 126–145 s | worse |
 | R4 at L4.1 | the same | | 0 faults in 3 of 3: one noun, a record naming its source, the bytes once; `stops.md` read in each; $0.66–0.80, 100–135 s | pass |
 | R5 | "cap the read of an error body" goes to `Later` or to deleting its cause, never into a fix, 2 of 3 | 0 of 3: two put a timeout into the fix, one never raised it; $2.87–4.38, 8–10 min | 3 of 3 to `Later`, two recommending to delete the cause; $2.56–2.73, 10–10.5 min | pass |
@@ -179,12 +180,15 @@ shows it read and changing nothing.
 [N:ai] The Intent's "Replay R3 holds this" holds for the first catch only; the second, a guard an
 import gets past, now rests on the guard-probe line of `.claude/rules/tooling.md` (L2.13), with no
 replay.
-[N:ai] R5 new-2's code round, red in its after-check's e2e while six runs shared the machine,
-passed `make test-e2e` alone: 110 of 110. The replay check's pattern could not match
-`[test-e2e]`; it is fixed in the scratch scripts.
+[N:ai] The replay check's pattern could not match `[test-e2e]`, so it named no new red gate; it
+is fixed in the scratch scripts. Read with it, three after-checks failed an e2e suite that passed
+at their baseline, while other runs shared the machine: R1 new-2 (7 of 104, each "Test timed out
+in 5000ms" in `packages/db` and `kernel/data`), R5 new-2 and R5 new-3. Run alone, R1 new-2's code
+passed `make test-e2e`, 104 of 104, and R5 new-2's, 110 of 110; R5 new-3 committed docs alone.
 [N:ai] The implementer's gate, live in this worktree in auto mode: a probe agent whose
-frontmatter wires the hook on SubagentHandback to deny once handed back twice, "pong" denied and
-"pong2" delivered. The replays cannot show it: an untrusted clone runs no frontmatter hook.
+frontmatter wires the hook on SubagentHandback that denies once; it handed back twice, "pong"
+denied and "pong2" delivered. The replays cannot show it: an untrusted clone runs no frontmatter
+hook.
 
 ### Output
 
@@ -206,7 +210,7 @@ proceed, 2026-11-18; each is the owner's `[D]` once the owner confirms it:
 
 - The ask patterns with a wildcard in the middle (`Bash(git push * --force*)`) are not tried
   against a live prompt — L2 — done in L2.7: tried in a headless session, which also showed
-  `Bash(git push * :*)` matching nothing
+  `Bash(git push * :*)` matching no delete refspec
 - R1, R2, R3 and R5 ran before L2.6–L2.19 changed the skill again; only R4 ran after — L4 —
   open
 - After the merge, the main tree's uncommitted edit of `.claude/settings.json` is restored with
