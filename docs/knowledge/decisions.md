@@ -235,8 +235,7 @@ the domain's own; every error gets its status where an endpoint or a middleware 
 which omits fields by name or swaps them, named by an `identifier` so the snapshot holds it once,
 and a mapper adds only what the model lacks (`buildApiChat` adds `status`). A field no client may
 see is omitted by each wire shape that carries it: a failed Run's cause stays in its row, off the
-wire of `ApiRun`, `ApiMessage` and the failure they nest, and `RunNotQueuedError`'s, the queue's
-error, off its `503` body. Its unit test writes
+wire of `ApiRun`, `ApiMessage` and the failure they nest. Its unit test writes
 `apps/api/openapi.json`; the web reads that file by path and keeps the client
 `@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
 reaches the browser, and the web declares no workspace of the app but `packages`.
@@ -340,7 +339,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
 ### A failed Run named by its failure
 
 A failed Run's `reason` is the tag of the failure that ended it, an open non-empty string: an
-`LlmError`'s (`LlmRefusedError`, `LlmFailedError`), `RunNotQueuedError` when SQS refuses its job,
+`LlmError`'s (`LlmRefusedError`, `LlmFailedError`), `QueueError` when SQS refuses its job,
 and `RunAborted` where no error names the end (a defect, an interrupt, a worker that died). Its
 `cause` is the failure's own text, which the wire omits
 ([The API contract in the api](#the-api-contract-in-the-api)); the web picks the user's text by
@@ -835,8 +834,8 @@ record (the Run, the chat's title), which the worker reads to run it once, to se
 worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
 goes through its sender beside the use cases, which settles a send SQS refuses on the work's
-record or logs it: the reply's fails its Run, which the api answers `503 RunNotQueuedError`; the
-title's logs it.
+record or logs it: the reply's logs it and fails its Run with the queue's error, `QueueError`, as
+its reason and cause, and the request answers `202` with that failed Run; the title's logs it.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -856,10 +855,12 @@ title's logs it.
   unsent work: a schedule and a route of its own, and a reply up to a minute late. Retries with a
   delay per attempt: a failed reply the user waits on through every attempt, and code that counts
   them. The title's send inline in its use case: the send's policy, its log and its annotations
-  in a flow, and a second form of the sending rule beside the reply's sender.
+  in a flow, and a second form of the sending rule beside the reply's sender. A domain error
+  wrapping `QueueError` and a `503` for a refused reply: a second name for one failure, which the
+  Run already holds, and a retry is the client's next step either way.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
-  send answers `503` for a stored message, which a reload shows with its failed Run.
+  send answers `202`, so a client reads the failure from the Run's status, not the response's.
 - **Guarded by:** the `QueueSender` e2e; the reply sender's and the create flow's unit tests;
   the `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.

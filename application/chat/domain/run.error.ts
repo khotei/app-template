@@ -17,9 +17,3 @@ export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableErro
   'RunNotRetryableError',
   { chatId: ChatId },
 ) {}
-
-/** SQS refused the Run's job; `cause` is the queue's error, which the api keeps off the wire. */
-export class RunNotQueuedError extends Schema.TaggedError<RunNotQueuedError>()(
-  'RunNotQueuedError',
-  { id: RunId, cause: Schema.Defect() },
-) {}

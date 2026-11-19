@@ -1,11 +1,10 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Layer } from 'effect'
 
-import { RunNotQueuedError } from '@app-template/application/chat'
 import { layerChatTest, queuedRun } from '@app-template/application/chat/testing'
 import type { RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
-import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { sendGenerateAssistantMessage } from '#use-cases/chat/chat.sender'
 
@@ -16,18 +15,14 @@ const RefusingQueueTest = Layer.mock(QueueSender, { send: () => Effect.fail(refu
 
 describe('sendGenerateAssistantMessage', () => {
   it.effect(
-    'a send SQS refuses fails the queued Run with RunNotQueuedError and its cause, and fails with it',
+    "a send SQS refuses is logged, and fails the queued Run with the queue's error and answers it",
     () => {
       const { logs, layer: logger } = recordLogs('chatId', 'runId')
       const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
       return Effect.gen(function* () {
-        const error = yield* sendGenerateAssistantMessage(queuedRun).pipe(Effect.flip)
+        const run = yield* sendGenerateAssistantMessage(queuedRun)
 
-        assertSchemaEquals(
-          RunNotQueuedError,
-          error,
-          new RunNotQueuedError({ id: queuedRun.id, cause: refused }),
-        )
+        assert.strictEqual(run.status, 'failed')
         assert.deepStrictEqual(
           Arr.map(updates, ([set, where]) => ({
             status: set.status,
@@ -37,7 +32,7 @@ describe('sendGenerateAssistantMessage', () => {
           [
             {
               status: 'failed',
-              reason: 'RunNotQueuedError',
+              reason: 'QueueError',
               where: { id: queuedRun.id, status: ['queued'] },
             },
           ],

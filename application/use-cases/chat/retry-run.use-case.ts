@@ -27,7 +27,5 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
     author: 'user',
   })
 
-  const run = yield* runs.create(userMessage)
-  yield* sendGenerateAssistantMessage(run)
-  return run
+  return yield* runs.create(userMessage).pipe(Effect.flatMap(sendGenerateAssistantMessage))
 })

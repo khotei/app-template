@@ -23,8 +23,7 @@ import {
   MessageInputInvalidError,
   Run,
   RunFields,
-  RunId,
-  RunNotQueuedError,
+  type RunId,
 } from '@app-template/application/chat'
 import {
   type ChatRepositoryMocks,
@@ -275,41 +274,34 @@ describe('createUserMessage', () => {
     )
   })
 
-  it.effect('a first create whose reply job SQS refuses still queues the title job', () => {
-    const queued: Array<string> = []
-    const refused = new QueueError({ cause: new Error('SQS is unavailable') })
-    const RefusingReplyQueueTest = Layer.mock(QueueSender, {
-      send: ({ name }) =>
-        name === assistantMessageQueue.name
-          ? Effect.fail(refused)
-          : Effect.sync(() => {
-              queued.push(name)
-            }),
-    })
-    const inserts = noInserts()
-    const mocks = insertingInto(inserts, sendingTo(chat))
-    return Effect.gen(function* () {
-      const error = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon')).pipe(
-        Effect.flip,
-      )
+  it.effect(
+    'a first create whose reply job SQS refuses answers the failed Run and queues the title job',
+    () => {
+      const queued: Array<string> = []
+      const RefusingReplyQueueTest = Layer.mock(QueueSender, {
+        send: ({ name }) =>
+          name === assistantMessageQueue.name
+            ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
+            : Effect.sync(() => {
+                queued.push(name)
+              }),
+      })
+      const mocks = insertingInto(noInserts(), sendingTo(chat))
+      return Effect.gen(function* () {
+        const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
-      assertSchemaEquals(
-        Schema.Array(RunNotQueuedError),
-        [error],
-        Arr.map(
-          inserts.runs,
-          (row) => new RunNotQueuedError({ id: RunId.make(row.id), cause: refused }),
+        assert.strictEqual(run.status, 'failed')
+        assert.strictEqual(Option.getOrThrow(run.failure).reason, 'QueueError')
+        assert.deepStrictEqual(queued, [chatTitleQueue.name])
+      }).pipe(
+        Effect.provide(
+          layerChatTest({ ...mocks, runs: { ...mocks.runs, update: () => Effect.void } }).pipe(
+            Layer.provideMerge(RefusingReplyQueueTest),
+          ),
         ),
       )
-      assert.deepStrictEqual(queued, [chatTitleQueue.name])
-    }).pipe(
-      Effect.provide(
-        layerChatTest({ ...mocks, runs: { ...mocks.runs, update: () => Effect.void } }).pipe(
-          Layer.provideMerge(RefusingReplyQueueTest),
-        ),
-      ),
-    )
-  })
+    },
+  )
 
   it.effect.each([
     {

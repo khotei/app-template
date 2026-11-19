@@ -54,9 +54,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   const run = yield* storeUserMessage(chatId, input, requested)
 
-  // The title job goes first: a reply job SQS refuses fails the create, and no retry sends a
-  // title.
+  // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
-  yield* sendGenerateAssistantMessage(run)
-  return run
+  return yield* sendGenerateAssistantMessage(run)
 })
