@@ -1,9 +1,8 @@
 # The owner's stops
 
-`/lab` reads this file at every Shape and asks its questions aloud; the Design pass reads it
-too. Each pair below is a fix the owner accepted after a stop in a lab, added at its step's close:
-a before → after on an `Order`, which stands for any model, and one line why. A pair a code rule
-comes to state is deleted here: the rule is its author.
+Each pair below is a fix the owner accepted after a stop in a lab: a before → after on an
+`Order`, which stands for any model, and one line why. A pair a code rule comes to state is
+deleted here: the rule is its author.
 
 ## The questions
 

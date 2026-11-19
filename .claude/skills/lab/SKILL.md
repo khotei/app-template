@@ -81,7 +81,10 @@ When no lab holds the change, size it once and say which in one line; the owner'
 4. **Markers in code:**
    `git grep -nE '\[(Q|A|R|DO|D|!)\]' -- ':!docs/tickets' ':!repos' ':!.claude/skills/lab'`;
    move each into its step's Notes with its `path:line`, and delete the comment.
-5. **The move**, below. After each write to `lab.md`, one chat line says what it wrote.
+5. **Before a Shape or a design** this move drafts, settles or builds on (a `[DO]`, `step`,
+   `implement`, a micro's plan), read [stops.md](stops.md) whole and ask its questions aloud; one
+   that fails becomes a `[Q:ai]`.
+6. **The move**, below. After each write to `lab.md`, one chat line says what it wrote.
 
 ## The file
 
@@ -119,9 +122,8 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   fork in an unfamiliar area, a second on the same brief; where they differ, show both and the
   run that would decide. Each answer lands as an `[A:ai]` with its sources.
 - **`implement [L<n>]`:** the step named, else the Map's step in progress. It needs the owner's
-  Shape; without one, ask, or draft it on a `[DO]`. At every Shape, read [stops.md](stops.md)
-  and ask its questions aloud; one that fails becomes a `[Q:ai]`. A learn step's draft lives in
-  its own worktree (`git worktree add -b wt/<name> .claude/worktrees/<name> HEAD`, then
+  Shape; without one, ask, or draft it on a `[DO]`. A learn step's draft lives in its own
+  worktree (`git worktree add -b wt/<name> .claude/worktrees/<name> HEAD`, then
   `make worktree N=<n> NAME=<name>` inside it) and never reaches the ticket branch; only its
   answer and proof come back, a command or a snippet of at most 20 lines. A build step goes one
   piece at a time: its test (rail 4), its body, its rounds, a `Later` line for each issue it
