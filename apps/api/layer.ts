@@ -11,6 +11,7 @@ import {
   MessageService,
   RunService,
 } from '@app-template/application/chat'
+import { UserService } from '@app-template/application/identity'
 import {
   QueueSenderOfStage,
   S3BucketFromConfig,
@@ -41,6 +42,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     FileAttachmentService.layer,
     MessageService.layer,
     RunService.layer,
+    UserService.layer,
   ]),
   Layer.provide(AttachmentService.layer),
 )

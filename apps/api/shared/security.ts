@@ -39,7 +39,7 @@ export class Auth extends HttpApiMiddleware.Service<Auth, { provides: CurrentUse
           Effect.provideServiceEffect(httpEffect, CurrentUser, users.authenticate(credential)),
       }),
     ),
-  ).pipe(Layer.provide(UserService.layer))
+  )
 }
 
 /** Request parts become a `400`; a response that fails to encode stays the built-in `500`. */

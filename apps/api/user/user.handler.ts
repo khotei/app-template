@@ -1,4 +1,4 @@
-import { Duration, Effect, Layer, Option, Redacted } from 'effect'
+import { Duration, Effect, Option, Redacted } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { UserService } from '@app-template/application/identity'
@@ -37,4 +37,4 @@ export const UserHandler = HttpApiBuilder.group(
       }),
     )
   }),
-).pipe(Layer.provide(UserService.layer))
+)

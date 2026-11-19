@@ -103,8 +103,7 @@ inferred. The process provides the services it reads: the api in `ApiHttp`, afte
 - **Cost:** a flow that reads a service its process lacks fails `tsc` at the process's `main.ts`
   and its tests, not at the flow; a unit test merges its doubles into the layer it provides
   (`Layer.provideMerge`), since the flow reads them itself; the worker's route test mocks the
-  leaves, not the use cases; a span is the function's name; the api provides services two ways,
-  `ApiHttp` those a use case reads and a group or a middleware one only it reads.
+  leaves, not the use cases; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
   list, a job's failure at `consumeQueue`.
 - **If reversed:** each use case and the sender become a `Context.Service` whose layer provides
