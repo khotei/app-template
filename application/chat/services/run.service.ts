@@ -10,7 +10,10 @@ import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.e
 import { buildRun, Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
 
-export type RunWhere = Types.Simplify<Pick<Run, 'id' | 'chatId'> & { readonly userId: UserId }>
+/** A Run by id; `userId` limits it to the user's chats, which every api caller passes. */
+export type RunWhere = Types.Simplify<
+  Pick<Run, 'id'> & Partial<Pick<Run, 'chatId'> & { readonly userId: UserId }>
+>
 
 /** A model's move of a Run at the time it is given (`prepareRun`, `failRun` given its reason). */
 export type RunTransition = (

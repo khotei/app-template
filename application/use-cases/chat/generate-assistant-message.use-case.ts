@@ -18,12 +18,12 @@ import {
   MessageFields,
   MessageId,
   prepareRun,
-  Run,
+  type Run,
   type RunFailureReason,
   type RunId,
   RunService,
 } from '@app-template/application/chat'
-import { FileRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
+import { FileRepository, MessageRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId, Transaction } from '@app-template/packages/db'
 
 class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
@@ -106,16 +106,15 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
 })
 
 // The cascade takes the Run with its chat, so a missing one means a deleted chat.
-const selectActive = (id: RunId) =>
-  RunRepository.use((runs) => runs.selectOne({ id })).pipe(
-    Effect.flatMap(decodeRowWith(Schema.Option(Run))),
-    Effect.flatMap(Effect.fromOption(() => new ReplySkipped({ why: 'chat deleted' }))),
+const getActive = (id: RunId) =>
+  RunService.use((runs) => runs.getOne({ id })).pipe(
+    Effect.mapError(() => new ReplySkipped({ why: 'chat deleted' })),
     Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'already settled' })),
   )
 
 const fail = Effect.fnUntraced(
   function* (runId: RunId, cause: Cause.Cause<unknown>) {
-    const active = yield* selectActive(runId)
+    const active = yield* getActive(runId)
     yield* settleFailed(active, { reason: 'ReplyFailed', cause: Cause.pretty(cause) })
   },
   Effect.catchTag('ReplySkipped', logSkipped),
@@ -146,7 +145,7 @@ const answer = Effect.fnUntraced(function* (active: Run) {
  * unrun, as that worker has died.
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
-  (job: GenerateAssistantMessage) => selectActive(job.runId).pipe(Effect.flatMap(answer)),
+  (job: GenerateAssistantMessage) => getActive(job.runId).pipe(Effect.flatMap(answer)),
   Effect.catchTag('ReplySkipped', logSkipped),
   // A race is decided by the write's guard on the status its mover read, whose update dies
   // on a Run another worker moved, not by this refusal; a refused move is a bug and dies too.
