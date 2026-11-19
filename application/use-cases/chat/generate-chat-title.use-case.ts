@@ -34,7 +34,7 @@ export const generateChatTitle = Effect.fn('generateChatTitle')(function* (job: 
 
   // Only an untitled chat takes the title, so a rename by the user always wins.
   yield* chats
-    .rename({ id: first.value.chatId, title: Option.none() }, title)
+    .update({ title: Option.some(title) }, { id: first.value.chatId, title: Option.none() })
     .pipe(
       Effect.catchTag('ChatNotFoundError', () =>
         Effect.logInfo('chat title skipped: chat deleted or titled'),

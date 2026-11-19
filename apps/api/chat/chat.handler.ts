@@ -1,4 +1,4 @@
-import { Array as Arr, Effect } from 'effect'
+import { Array as Arr, Effect, Option } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService, RunService } from '@app-template/application/chat'
@@ -34,7 +34,10 @@ export const ChatHandler = HttpApiBuilder.group(
       }, Effect.map(buildApiChat)),
       rename: Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
         const user = yield* CurrentUser
-        return yield* chatService.rename({ id: params.chatId, userId: user.id }, payload.title)
+        return yield* chatService.update(
+          { title: Option.some(payload.title) },
+          { id: params.chatId, userId: user.id },
+        )
       }, Effect.map(buildApiChat)),
       delete: Effect.fn('ChatHandler.delete')(function* ({ params }) {
         const user = yield* CurrentUser

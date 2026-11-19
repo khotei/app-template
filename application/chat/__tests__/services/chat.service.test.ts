@@ -37,30 +37,34 @@ type ChatCall = (
 const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall }> = [
   { name: 'getOne', call: (service, userId, chatId) => service.getOne({ id: chatId, userId }) },
   {
-    name: 'rename',
-    call: (service, userId, chatId) => service.rename({ id: chatId, userId }, trip),
+    name: 'update',
+    call: (service, userId, chatId) =>
+      service.update({ title: Option.some(trip) }, { id: chatId, userId }),
   },
   { name: 'delete', call: (service, userId, chatId) => service.delete({ id: chatId, userId }) },
 ]
 
 describe('ChatService', () => {
   it.live(
-    "rename writes the title and a moved updatedAt under the owner's where, and returns the chat",
+    "update writes the title and a moved updatedAt under the owner's where, and returns the chat",
     () => {
       const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
-        const renamed = yield* service.rename({ id: chat.id, userId: owner }, trip)
+        const updated = yield* service.update(
+          { title: Option.some(trip) },
+          { id: chat.id, userId: owner },
+        )
 
-        assert.isTrue(DateTime.isGreaterThan(renamed.updatedAt, epoch))
+        assert.isTrue(DateTime.isGreaterThan(updated.updatedAt, epoch))
         assertEquals(
-          renamed,
-          new Chat({ ...chat, title: Option.some(trip), updatedAt: renamed.updatedAt }),
+          updated,
+          new Chat({ ...chat, title: Option.some(trip), updatedAt: updated.updatedAt }),
         )
         assert.deepStrictEqual(updates, [
           [
-            { title: trip, updatedAt: DateTime.toDateUtc(renamed.updatedAt) },
+            { title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
             { id: chat.id, userId: owner },
           ],
         ])
@@ -81,15 +85,18 @@ describe('ChatService', () => {
   )
 
   it.effect(
-    'rename where the title is none reads and writes only while the chat is untitled',
+    'update where the title is none reads and writes only while the chat is untitled',
     () => {
       const wheres: Array<ChatEntityWhere> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
-        const renamed = yield* service.rename({ id: chat.id, title: Option.none() }, lisbonWeekend)
+        const updated = yield* service.update(
+          { title: Option.some(lisbonWeekend) },
+          { id: chat.id, title: Option.none() },
+        )
 
-        assertEquals(renamed.title, Option.some(lisbonWeekend))
+        assertEquals(updated.title, Option.some(lisbonWeekend))
         assert.deepStrictEqual(wheres, [
           { id: chat.id, title: null },
           { id: chat.id, title: null },

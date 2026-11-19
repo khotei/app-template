@@ -16,14 +16,14 @@ import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatFields, type ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatFields } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 
 /** The user's chat; another user's reads as absent. */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
-/** The chat a rename finds: by its owner, or only while it is still untitled. */
-export type ChatRenameWhere = Types.Simplify<
+/** The chat an update finds: by its owner, or only while it is still untitled. */
+export type ChatUpdateWhere = Types.Simplify<
   Pick<Chat, 'id'> & RequireAtLeastOne<Pick<Chat, 'userId' | 'title'>>
 >
 
@@ -39,10 +39,10 @@ export class ChatService extends Context.Service<
     /** The user's chats, the newest created first. */
     readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
     readonly getOne: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Titles the chat `where` finds and moves its `updatedAt`. */
-    readonly rename: (
-      where: ChatRenameWhere,
-      title: ChatTitle,
+    /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
+    readonly update: (
+      fields: Types.Simplify<Pick<Chat, 'title'>>,
+      where: ChatUpdateWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the user's chat with its messages and Runs. */
     readonly delete: (where: ChatWhere) => Effect.Effect<void, ChatNotFoundError>
@@ -75,18 +75,18 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const rename = Effect.fn('ChatService.rename')(function* (
-      where: ChatRenameWhere,
-      title: ChatTitle,
+    const update = Effect.fn('ChatService.update')(function* (
+      fields: Types.Simplify<Pick<Chat, 'title'>>,
+      where: ChatUpdateWhere,
     ) {
       const chat = yield* getOne(where)
-      const at = yield* DateTime.now
-      const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt: at })
-      const row = yield* encodeWith(ChatFields)(renamed)
+      const updatedAt = yield* DateTime.now
+      const updated = new Chat({ ...chat, ...fields, updatedAt })
+      const row = yield* encodeWith(ChatFields)(updated)
 
-      // Only the renamed fields, under the `where` again: a change landing after the read is kept.
+      // Only the set fields, under the `where` again: a change landing after the read is kept.
       yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
-      return renamed
+      return updated
     })
 
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
@@ -96,7 +96,7 @@ export class ChatService extends Context.Service<
       yield* chats.delete({ id: chat.id })
     })
 
-    return { create, list, getOne, rename, delete: remove }
+    return { create, list, getOne, update, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
