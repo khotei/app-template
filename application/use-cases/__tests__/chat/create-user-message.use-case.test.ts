@@ -9,8 +9,8 @@ import {
   AttachmentNotFoundError,
   assistantMessageQueue,
   buildAttachment,
+  buildMessage,
   buildRun,
-  buildUserMessage,
   Chat,
   ChatBusyError,
   ChatTitle,
@@ -181,7 +181,8 @@ describe('createUserMessage', () => {
           buildRun({
             id: run.id,
             chatId: chat.id,
-            userMessage: buildUserMessage({
+            userMessage: buildMessage({
+              author: 'user',
               id: userMessage.id,
               chatId: chat.id,
               text: 'Plan a weekend in Lisbon',

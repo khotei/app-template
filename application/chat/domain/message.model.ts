@@ -35,25 +35,9 @@ export interface MessageInput {
   readonly attachmentIds: ReadonlyArray<AttachmentId>
 }
 
-export const buildUserMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, author: 'user', attachments: [] })
-
-export const buildAssistantMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, author: 'assistant', attachments: [] })
-
-const messageBuilders = {
-  user: buildUserMessage,
-  assistant: buildAssistantMessage,
-} as const satisfies Record<MessageAuthor, typeof buildUserMessage>
-
-/** The message its author's builder makes of `fields`. */
-export const buildMessage = ({
-  author,
-  ...fields
-}: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt' | 'author'>>): Message =>
-  messageBuilders[author](fields)
+export const buildMessage = (
+  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'author' | 'text' | 'createdAt'>>,
+): Message => new Message({ ...fields, attachments: [] })
 
 export const isBlank = (text: string) => pipe(text, Str.trim, Str.isEmpty)
 

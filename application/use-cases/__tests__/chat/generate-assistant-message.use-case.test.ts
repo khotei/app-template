@@ -20,8 +20,8 @@ import {
   AssistantReply,
   Attachment,
   AttachmentId,
-  buildAssistantMessage,
   buildAttachment,
+  buildMessage,
   buildRun,
   FileName,
   FileSize,
@@ -200,7 +200,8 @@ describe('generateAssistantMessage', () => {
         const reply = yield* decodeRowWith(Schema.Array(MessageFields))(writes.messages).pipe(
           Effect.head,
         )
-        const message = buildAssistantMessage({
+        const message = buildMessage({
+          author: 'assistant',
           id: reply.id,
           chatId,
           text: 'Sure.',

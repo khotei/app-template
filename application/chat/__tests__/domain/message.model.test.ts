@@ -1,12 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Schema } from 'effect'
 
-import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AttachmentId } from '#chat/domain/attachment.id'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
-import { buildMessage, ensureMessageInput, MessageFields } from '#chat/domain/message.model'
+import { ensureMessageInput, MessageFields } from '#chat/domain/message.model'
 
 const attachmentId = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000003')
 
@@ -44,22 +43,5 @@ describe('ensureMessageInput', () => {
 describe('MessageFields', () => {
   it('rejects a text holding U+0000, which Postgres refuses', () => {
     assert.isFalse(Schema.is(MessageFields.fields.text)('a\u0000b'))
-  })
-})
-
-describe('buildMessage', () => {
-  it.each([
-    { author: 'user', text: 'Hello', built: 'Hello' },
-    { author: 'assistant', text: 'Sure.', built: 'Sure.' },
-  ] as const)("builds the $author's message by its author's builder", ({ author, text, built }) => {
-    const message = buildMessage({
-      id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030'),
-      chatId: ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020'),
-      text,
-      createdAt: epoch,
-      author,
-    })
-
-    assert.deepStrictEqual([message.author, message.text], [author, built])
   })
 })

@@ -6,7 +6,7 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import { buildAssistantMessage, buildUserMessage, MessageFields } from '#chat/domain/message.model'
+import { buildMessage, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
@@ -27,7 +27,8 @@ const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002')
 
-const userMessage = buildUserMessage({
+const userMessage = buildMessage({
+  author: 'user',
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
   chatId,
   text: 'Hi',
@@ -47,7 +48,8 @@ const queued = new Run({
   assistantMessage: Option.none(),
 })
 
-const reply = buildAssistantMessage({
+const reply = buildMessage({
+  author: 'assistant',
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
   chatId,
   text: 'Hello',
