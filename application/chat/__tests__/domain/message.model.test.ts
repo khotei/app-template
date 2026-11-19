@@ -50,7 +50,7 @@ describe('MessageFields', () => {
 describe('buildMessage', () => {
   it.each([
     { author: 'user', text: 'Hello', built: 'Hello' },
-    { author: 'assistant', text: 'a\u0000b', built: 'ab' },
+    { author: 'assistant', text: 'Sure.', built: 'Sure.' },
   ] as const)("builds the $author's message by its author's builder", ({ author, text, built }) => {
     const message = buildMessage({
       id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030'),

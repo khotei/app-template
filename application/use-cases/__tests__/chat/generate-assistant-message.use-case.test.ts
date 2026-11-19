@@ -230,28 +230,6 @@ describe('generateAssistantMessage', () => {
     },
   )
 
-  it.effect('generate writes a reply holding U+0000 without it, and the Run done', () => {
-    const assistant = recordAssistant({
-      reply: Effect.succeed(new AssistantReply({ text: 'a\u0000b' })),
-    })
-    const writes = noWrites()
-    return Effect.gen(function* () {
-      yield* generate
-
-      assert.deepStrictEqual(
-        Arr.map(writes.messages, ({ text }) => text),
-        ['ab'],
-      )
-      assert.strictEqual(lastWrite(writes).move, 'generating → done')
-    }).pipe(
-      Effect.provide(
-        layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
-          Layer.provideMerge(assistant.layer),
-        ),
-      ),
-    )
-  })
-
   it.effect('generate dies with the assistant and fails the Run it reads again first', () => {
     const assistant = recordAssistant({ reply: Effect.die('provider exploded') })
     const { logs, layer: logger } = recordLogs('cause')

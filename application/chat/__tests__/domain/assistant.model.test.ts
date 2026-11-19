@@ -10,7 +10,17 @@ describe('AssistantReply', () => {
     assert.isTrue(decodeReply({ text }).pipe(Option.isSome))
   })
 
-  it.each([{ text: '' }, { text: ' \n\t ' }])('rejects the blank text $text', ({ text }) => {
-    assert.isTrue(decodeReply({ text }).pipe(Option.isNone))
+  it('decodes the text without its U+0000', () => {
+    assert.deepStrictEqual(
+      decodeReply({ text: 'a\u0000b' }),
+      Option.some(new AssistantReply({ text: 'ab' })),
+    )
   })
+
+  it.each([{ text: '' }, { text: ' \n\t ' }, { text: '\u0000 ' }])(
+    'rejects the blank text $text',
+    ({ text }) => {
+      assert.isTrue(decodeReply({ text }).pipe(Option.isNone))
+    },
+  )
 })

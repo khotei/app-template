@@ -30,7 +30,8 @@ graph LR
    its text (none when blank) and files, each assistant turn as its text. A failed Run leaves no
    reply, so two user turns may follow each other: `@effect/ai-anthropic` folds them into one,
    and the Messages API takes either shape. The text is decoded as the domain's
-   `AssistantReply`, so a blank reply fails. Nothing streams: the answer arrives whole.
+   `AssistantReply`, which drops U+0000 (a text column refuses it), then fails a blank reply.
+   Nothing streams: the answer arrives whole.
 3. `suggestTitle` calls `generateObject` on the title model with the opening message and
    `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's native
    structured output). The schema's checks are not sent: the instruction states the language and
