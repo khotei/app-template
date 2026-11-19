@@ -1,4 +1,4 @@
-import { Array as Arr, type DateTime, Effect, Option, Schema, type Types } from 'effect'
+import { Array as Arr, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
@@ -58,37 +58,23 @@ const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
 const move = Effect.fnUntraced(function* (
   run: Run,
   to: Exclude<RunStatus, 'queued'>,
-  fields: Types.Simplify<
-    Pick<Run, 'updatedAt'> &
-      Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>>
-  >,
+  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>> = {},
 ) {
   yield* ensureRunMove(run, to)
   return new Run({ ...run, ...fields, status: to })
 })
 
-export const prepareRun = Effect.fn('prepareRun')((run: Run, at: DateTime.Utc) =>
-  move(run, 'preparing', { updatedAt: at }),
-)
+export const prepareRun = Effect.fn('prepareRun')((run: Run) => move(run, 'preparing'))
 
-export const generateRun = Effect.fn('generateRun')((run: Run, at: DateTime.Utc) =>
-  move(run, 'generating', { updatedAt: at }),
-)
+export const generateRun = Effect.fn('generateRun')((run: Run) => move(run, 'generating'))
 
-/** The reply a Run settled with and when. */
-export type RunCompletion = { readonly reply: MessageFields; readonly at: DateTime.Utc }
-
-export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: RunCompletion) =>
+export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
   move(run, 'done', {
-    updatedAt: at,
     assistantMessageId: Option.some(reply.id),
     assistantMessage: Option.some(reply),
   }),
 )
 
-/** Why a Run failed and when. */
-export type RunFailureInput = Types.Simplify<RunFailure & { readonly at: DateTime.Utc }>
-
-export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: RunFailureInput) =>
-  move(run, 'failed', { updatedAt: at, failure: Option.some({ reason, cause }) }),
+export const failRun = Effect.fn('failRun')((run: Run, failure: RunFailure) =>
+  move(run, 'failed', { failure: Option.some(failure) }),
 )

@@ -26,7 +26,7 @@ const settleCompleted = Effect.fnUntraced(
     // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
     // its update, and the transaction takes the reply back.
     const reply = yield* messages.create({ chatId: generating.chatId, text, author: 'assistant' })
-    yield* runs.move(generating, (run, at) => completeRun(run, { reply, at }))
+    yield* runs.move(generating, (run) => completeRun(run, reply))
   },
   // The reply and the Run's `done` land together, or neither does.
   (settle) => Transaction.use((transaction) => transaction.run(settle)),
@@ -38,7 +38,7 @@ const settleFailed = Effect.fnUntraced(function* (active: Run, { reason, cause }
   yield* Effect.logWarning('assistant reply failed').pipe(
     Effect.annotateLogs({ runId: active.id, reason, cause }),
   )
-  yield* runs.move(active, (run, at) => failRun(run, { reason, cause, at }))
+  yield* runs.move(active, (run) => failRun(run, { reason, cause }))
 })
 
 const reply = Effect.fnUntraced(function* (taken: Run) {

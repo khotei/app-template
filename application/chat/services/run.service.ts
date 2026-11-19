@@ -15,11 +15,8 @@ export type RunWhere = Types.Simplify<
   Pick<Run, 'id'> & Partial<Pick<Run, 'chatId'> & { readonly userId: UserId }>
 >
 
-/** A model's move of a Run at the time it is given (`prepareRun`, `failRun` given its reason). */
-export type RunTransition = (
-  run: Run,
-  at: DateTime.Utc,
-) => Effect.Effect<Run, RunStatusInvalidError>
+/** A model's move of a Run (`prepareRun`, `failRun` given its reason). */
+export type RunTransition = (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
 
 export class RunService extends Context.Service<
   RunService,
@@ -27,8 +24,8 @@ export class RunService extends Context.Service<
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /**
-     * Moves the Run by `transition` at the current time and writes it under the status it was
-     * read in, so a Run another worker moved since dies on the write.
+     * Moves the Run by `transition`, stamps it with the current time and writes it under the
+     * status it was read in, so a Run another worker moved since dies on the write.
      */
     readonly move: (
       run: Run,
@@ -68,7 +65,9 @@ export class RunService extends Context.Service<
 
     const move = Effect.fn('RunService.move')(function* (run: Run, transition: RunTransition) {
       const at = yield* DateTime.now
-      const moved = yield* transition(run, at)
+      const moved = yield* transition(run).pipe(
+        Effect.map((transitioned) => new Run({ ...transitioned, updatedAt: at })),
+      )
       const row = yield* encodeWith(RunFields)(moved)
 
       yield* runs.update(row, { id: run.id, status: [run.status] })

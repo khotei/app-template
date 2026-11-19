@@ -77,17 +77,17 @@ const moves: ReadonlyArray<{
   readonly from: ReadonlyArray<RunStatus>
   readonly move: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
 }> = [
-  { to: 'preparing', from: ['queued'], move: (run) => prepareRun(run, later) },
-  { to: 'generating', from: ['preparing'], move: (run) => generateRun(run, later) },
+  { to: 'preparing', from: ['queued'], move: (run) => prepareRun(run) },
+  { to: 'generating', from: ['preparing'], move: (run) => generateRun(run) },
   {
     to: 'done',
     from: ['generating'],
-    move: (run) => completeRun(run, { reply, at: later }),
+    move: (run) => completeRun(run, reply),
   },
   {
     to: 'failed',
     from: activeRunStatuses,
-    move: (run) => failRun(run, { reason: 'LlmFailedError', cause: '529 overloaded', at: later }),
+    move: (run) => failRun(run, { reason: 'LlmFailedError', cause: '529 overloaded' }),
   },
 ]
 
@@ -96,13 +96,12 @@ const cases = Arr.flatMap(moves, ({ to, from, move }) =>
 )
 
 it.effect.each(Arr.filter(cases, (move) => move.allowed))(
-  'a move from $status to $to moves the Run and when it last moved',
+  'a move from $status to $to moves the Run',
   ({ to, status, move }) =>
     Effect.gen(function* () {
       const moved = yield* move(runAt(status))
 
       assert.strictEqual(moved.status, to)
-      assert.strictEqual(moved.updatedAt, later)
     }),
 )
 
@@ -123,7 +122,7 @@ it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
 it.effect('failRun keeps the reason and the cause', () =>
   Effect.gen(function* () {
     const failure = { reason: 'LlmRefusedError', cause: 'stop_reason refusal' }
-    const failed = yield* failRun(runAt('generating'), { ...failure, at: later })
+    const failed = yield* failRun(runAt('generating'), failure)
 
     assertSchemaEquals(Schema.Option(RunFailure), failed.failure, Option.some(failure))
   }),
@@ -132,7 +131,7 @@ it.effect('failRun keeps the reason and the cause', () =>
 describe('completeRun', () => {
   it.effect('keeps the reply it settled with', () =>
     Effect.gen(function* () {
-      const done = yield* completeRun(runAt('generating'), { reply, at: later })
+      const done = yield* completeRun(runAt('generating'), reply)
 
       assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
     }),
