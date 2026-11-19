@@ -7,8 +7,8 @@ Bun, with Postgres, AWS and Pulumi, so that a new enterprise project starts from
 This file is the **only place a future ticket exists** before `/lab init <slug>` starts it: each
 entry below holds what a ticket is *for* (goal, scope, out of scope, dependencies, inherited
 requirements, open questions); the *how* is decided in its lab. `init` seeds the lab's Intent from
-the entry, and the entry's `Status` becomes a link to the ticket folder. When its PR merges, the
-row is marked done and the entry's section goes.
+the entry, and the entry's `Status` becomes a link to the ticket folder. At the lab's close, the
+row is marked done and the entry's section goes, so the PR's squash carries both.
 
 ## How a ticket flows
 
