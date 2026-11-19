@@ -127,29 +127,27 @@ describe('chats', () => {
     ),
   )
 
-  it.effect(
-    'POST /chats/:chatId/messages/:messageId/runs after a failed Run is 202 with a queued Run',
-    () =>
-      Effect.gen(function* () {
-        const api = yield* ApiClient
+  it.effect('POST /chats/:chatId/runs after a failed Run is 202 with a queued Run', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
 
-        const [retried, response] = yield* api.chats.retryRun({
-          params: { chatId: chat.id, userMessageId: firstMessage.id },
-          responseMode: 'decoded-and-response',
-        })
+      const [retried, response] = yield* api.chats.retryRun({
+        params: { chatId: chat.id },
+        responseMode: 'decoded-and-response',
+      })
 
-        assert.strictEqual(response.status, 202)
-        assert.strictEqual(retried.status, 'queued')
-        assert.deepInclude(retried.userMessage, { id: firstMessage.id, text: firstMessage.text })
-      }).pipe(
-        Effect.provide(
-          asOwner({
-            chats: { selectOne: reads.chat(failedChat) },
-            messages: { selectOne: reads.message(firstMessage) },
-            runs: { insert: () => Effect.void },
-          }),
-        ),
+      assert.strictEqual(response.status, 202)
+      assert.strictEqual(retried.status, 'queued')
+      assert.deepInclude(retried.userMessage, { id: firstMessage.id, text: firstMessage.text })
+    }).pipe(
+      Effect.provide(
+        asOwner({
+          chats: { selectOne: reads.chat(failedChat) },
+          messages: { selectOne: reads.message(firstMessage) },
+          runs: { insert: () => Effect.void },
+        }),
       ),
+    ),
   )
 
   it.effect('GET /chats/:chatId/messages lists a message with its failed Run', () =>

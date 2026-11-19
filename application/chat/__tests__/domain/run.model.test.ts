@@ -147,27 +147,26 @@ describe('completeRun', () => {
 })
 
 describe('ensureRunRetryable', () => {
-  it.effect('takes a failed newest Run of the message', () =>
-    ensureRunRetryable(Option.some(runAt('failed')), userMessage.id),
+  it.effect('answers a failed newest Run', () =>
+    Effect.gen(function* () {
+      const newest = runAt('failed')
+
+      assert.strictEqual(
+        yield* ensureRunRetryable({ id: chatId, run: Option.some(newest) }),
+        newest,
+      )
+    }),
   )
 
   it.effect.each([
     { name: 'no Run', newest: Option.none() },
     { name: 'a done Run', newest: Option.some(runAt('done')) },
     { name: 'a queued Run', newest: Option.some(runAt('queued')) },
-    {
-      name: 'a failed Run of another message',
-      newest: Option.some(new Run({ ...runAt('failed'), userMessageId: reply.id })),
-    },
   ])('refuses $name with RunNotRetryableError', ({ newest }) =>
     Effect.gen(function* () {
-      const error = yield* ensureRunRetryable(newest, userMessage.id).pipe(Effect.flip)
+      const error = yield* ensureRunRetryable({ id: chatId, run: newest }).pipe(Effect.flip)
 
-      assertSchemaEquals(
-        RunNotRetryableError,
-        error,
-        new RunNotRetryableError({ userMessageId: userMessage.id }),
-      )
+      assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError({ chatId }))
     }),
   )
 })

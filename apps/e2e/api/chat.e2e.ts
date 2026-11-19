@@ -303,9 +303,7 @@ describe('a write Postgres refuses, through the api', () => {
         yield* pollSettledRun(chat.id, sent.id)
         yield* client.unsafe('ALTER TABLE messages DROP CONSTRAINT refuse_reply').pipe(Effect.orDie)
 
-        const retried = yield* api.chats.retryRun({
-          params: { chatId: chat.id, userMessageId: sent.userMessage.id },
-        })
+        const retried = yield* api.chats.retryRun({ params: { chatId: chat.id } })
         const settled = yield* pollSettledRun(chat.id, retried.id)
         const failed = yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } })
         const reloaded = yield* api.chats.listMessages({ params: { chatId: chat.id } })

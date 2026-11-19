@@ -29,7 +29,7 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
-/** The reads of a chat whose newest Run is `newest`, with the message the retry names. */
+/** The reads of a chat whose newest Run is `newest`, with the message that Run answers. */
 const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
   messages: { selectOne: () => encodeRowWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
   chats: {
@@ -55,7 +55,7 @@ const doneRun = new Run({
   assistantMessage: Option.some(reply),
 })
 
-const retry = retryRun(owner, chat.id, firstMessage.id)
+const retry = retryRun(owner, chat.id)
 
 describe('retryRun', () => {
   it.effect(
@@ -111,24 +111,27 @@ describe('retryRun', () => {
     )
   })
 
-  it.effect('retry of an answered message is RunNotRetryableError before any Run or job', () => {
-    const jobs = recordMessages()
-    return Effect.gen(function* () {
-      const error = yield* retry.pipe(Effect.flip)
+  it.effect(
+    "retry when the chat's newest Run is done is RunNotRetryableError before any job",
+    () => {
+      const jobs = recordMessages()
+      return Effect.gen(function* () {
+        const error = yield* retry.pipe(Effect.flip)
 
-      assertSchemaEquals(
-        RunNotRetryableError,
-        error,
-        new RunNotRetryableError({ userMessageId: firstMessage.id }),
+        assertSchemaEquals(
+          RunNotRetryableError,
+          error,
+          new RunNotRetryableError({ chatId: chat.id }),
+        )
+        assertEquals(yield* jobs.sent, [])
+      }).pipe(
+        Effect.provide(layerChatTest(chatWithRun(doneRun)).pipe(Layer.provideMerge(jobs.layer))),
       )
-      assertEquals(yield* jobs.sent, [])
-    }).pipe(
-      Effect.provide(layerChatTest(chatWithRun(doneRun)).pipe(Layer.provideMerge(jobs.layer))),
-    )
-  })
+    },
+  )
 
   it.effect(
-    "retry asks the store for the user's message and answers its none as MessageNotFoundError",
+    "retry asks the store for the failed Run's message and answers its none as MessageNotFoundError",
     () => {
       const jobs = recordMessages()
       const wheres: Array<MessageEntityWhere> = []
@@ -147,6 +150,7 @@ describe('retryRun', () => {
       }).pipe(
         Effect.provide(
           layerChatTest({
+            chats: chatWithRun(failedRun).chats,
             messages: {
               selectOne: (where) =>
                 Effect.sync(() => {

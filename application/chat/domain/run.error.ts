@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { MessageId } from '#chat/domain/message.util'
+import { ChatId } from '#chat/domain/chat.util'
 import { RunId } from '#chat/domain/run.util'
 import { Status } from '#chat/domain/status.model'
 
@@ -15,7 +15,7 @@ export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('Ru
 
 export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableError>()(
   'RunNotRetryableError',
-  { userMessageId: MessageId },
+  { chatId: ChatId },
 ) {}
 
 /** SQS refused the Run's job; `cause` is the queue's error, which the api keeps off the wire. */

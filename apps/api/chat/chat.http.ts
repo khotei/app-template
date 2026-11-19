@@ -92,8 +92,8 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
       ApiRunNotQueuedError.pipe(HttpApiSchema.status(503)),
     ],
   }),
-  HttpApiEndpoint.post('retryRun', '/chats/:chatId/messages/:userMessageId/runs', {
-    params: { ...chatPath, userMessageId: MessageId },
+  HttpApiEndpoint.post('retryRun', '/chats/:chatId/runs', {
+    params: chatPath,
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
       MessageNotFoundError.pipe(HttpApiSchema.status(404)),
