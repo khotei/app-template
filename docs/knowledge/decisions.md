@@ -329,6 +329,31 @@ reaches the browser, and the web declares no workspace of the app but `packages`
 - **If reversed:** a shared `Status` couples every module that reads it to chat's states.
 - **Revisit when:** a second module's model needs a status.
 
+### A failed Run named by its failure
+
+A failed Run's `reason` is the tag of the failure that ended it, an open non-empty string: an
+`LlmError`'s (`LlmRefusedError`, `LlmFailedError`), `RunNotQueuedError` when SQS refuses its job,
+and `RunAborted` where no error names the end (a defect, an interrupt, a worker that died). Its
+user-facing sentence is one rule in `failRun`: the refusal's for `LlmRefusedError`, else one
+offering a retry.
+
+- **Why:** the reason only says what happened, and every path already has that name; no reader
+  branches on it but the sentence, which tells only a refusal from the rest.
+- **Sources:** the owner's call in the design audit ("let it be any error").
+- **Rejected:** a closed list of reasons (`ReplyFailed`, `ReplyRefused`) with a table from the
+  errors' tags to it: a rename of names that already exist, and a table per new failure. Each
+  path's tag in a closed list: the list and a sentence table grow with every path, for the same
+  two sentences.
+- **Cost:** neither the wire nor the column lists the reasons: a client reads it as a string, and
+  a typo in a new path's name passes `tsc`. A failure's tag is now a stored and wire value, so
+  renaming an error changes them.
+- **Guarded by:** `RunFailure`'s schema (a non-empty string), and the use cases' tests, which
+  assert each path's reason.
+- **If reversed:** the closed list returns in `kernel/data/chat/run.table.ts`, with a table from
+  each failure to it.
+- **Revisit when:** a reader must branch on the reason beyond the refusal's sentence, or a
+  client must list the reasons.
+
 ### Records open, rules called
 
 A module reads and writes any record through the data layer's repositories; a rule another
@@ -504,8 +529,9 @@ answers the chat's next message from its history, `ChatAssistant` the chat's tit
 opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
 `LLM_REPLY_MODEL` or `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes
 `askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
-(`HistoryMessage`, `AssistantReply`) and maps the errors' tags to a `RunFailureReason`; no port
-stands in front of the services. A use case yields the service it needs, a unit test swaps that
+(`HistoryMessage`, `AssistantReply`), and a failed Run takes the error's tag as its reason
+([A failed Run named by its failure](#a-failed-run-named-by-its-failure)); no port stands in
+front of the services. A use case yields the service it needs, a unit test swaps that
 service's layer, and the suite builds both layers over a recording client.
 
 - **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a

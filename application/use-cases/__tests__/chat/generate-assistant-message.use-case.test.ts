@@ -239,7 +239,7 @@ describe('generateAssistantMessage', () => {
       const exit = yield* generate.pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'ReplyFailed' })
+      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'RunAborted' })
       assert.include(String(logs[0]?.[2]), 'provider exploded')
     }).pipe(
       Effect.provide([
@@ -261,7 +261,7 @@ describe('generateAssistantMessage', () => {
       yield* held.asked
       yield* Fiber.interrupt(running)
 
-      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'ReplyFailed' })
+      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'RunAborted' })
     }).pipe(
       Effect.provide(
         layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
@@ -280,7 +280,7 @@ describe('generateAssistantMessage', () => {
         yield* generate
 
         assert.deepStrictEqual(moves(writes), [`${status} → failed`])
-        assert.strictEqual(lastWrite(writes).reason, 'ReplyFailed')
+        assert.strictEqual(lastWrite(writes).reason, 'RunAborted')
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
@@ -293,11 +293,8 @@ describe('generateAssistantMessage', () => {
   )
 
   it.effect.each([
-    {
-      error: new LlmRefusedError({ cause: 'stop_reason refusal' }),
-      reason: 'ReplyRefused',
-    },
-    { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+    { error: new LlmRefusedError({ cause: 'stop_reason refusal' }), reason: 'LlmRefusedError' },
+    { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'LlmFailedError' },
   ] as const)(
     "generate fails the Run with $reason after one call, logs the error's cause and writes no reply",
     ({ error, reason }) => {

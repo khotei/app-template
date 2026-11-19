@@ -70,7 +70,7 @@ const run = (
     failure: (
       {
         queued: null,
-        failed: { reason: 'ReplyFailed', message: 'Try again.' },
+        failed: { reason: 'LlmFailedError', message: 'Try again.' },
       } as const
     )[status],
     assistantMessageId: null,

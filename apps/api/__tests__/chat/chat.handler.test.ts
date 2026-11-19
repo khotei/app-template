@@ -48,7 +48,7 @@ const refusedRun = new Run({
   ...queuedRun,
   status: 'failed',
   failure: Option.some({
-    reason: 'ReplyRefused',
+    reason: 'LlmRefusedError',
     message: 'The assistant declined to answer this message.',
   }),
 })
@@ -169,7 +169,7 @@ describe('chats', () => {
 
       assert.deepInclude(listed, { id: firstMessage.id, author: 'user' })
       assert.deepInclude(Option.getOrThrow(listed.run), { id: refusedRun.id, status: 'failed' })
-      assert.nestedPropertyVal(wire, '[0].run.failure.reason', 'ReplyRefused')
+      assert.nestedPropertyVal(wire, '[0].run.failure.reason', 'LlmRefusedError')
     }).pipe(
       Effect.provide(
         asOwner({
@@ -299,7 +299,7 @@ describe('chats', () => {
 
       assert.deepNestedInclude(wire, {
         status: 'failed',
-        'failure.reason': 'ReplyRefused',
+        'failure.reason': 'LlmRefusedError',
         assistantMessage: null,
       })
       assert.nestedProperty(wire, 'failure.message')

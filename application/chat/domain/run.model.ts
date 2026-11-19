@@ -1,17 +1,12 @@
 import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
-import type { LlmError } from '@app-template/kernel/llm/error'
+import type { LlmRefusedError } from '@app-template/kernel/llm/error'
 
 import type { MessageId } from '#chat/domain/chat.id'
 import { MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
-import {
-  type RunFailure,
-  type RunFailureReason,
-  RunFields,
-  type RunStatus,
-} from '#chat/domain/run-fields.model'
+import { type RunFailure, RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { hasStatus, isPreparing } from '#chat/domain/status.model'
 
 /**
@@ -99,12 +94,16 @@ export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: Ru
   }),
 )
 
-const failureMessages = {
-  ReplyFailed: 'The assistant could not reply. Please try again.',
-  ReplyRefused: 'The assistant declined to answer this message.',
-} as const satisfies Record<RunFailureReason, string>
+const refusedReason: LlmRefusedError['_tag'] = 'LlmRefusedError'
 
-/** Why a Run failed and when; the user-facing text comes from `failureMessages`. */
+/** The user's sentence for a failure: the refusal's, else one offering a retry. */
+function buildFailureMessage(reason: string) {
+  return reason === refusedReason
+    ? 'The assistant declined to answer this message.'
+    : 'The assistant could not reply. Please try again.'
+}
+
+/** Why a Run failed and when; the user-facing text comes from `buildFailureMessage`. */
 export type RunFailureInput = Types.Simplify<
   Pick<RunFailure, 'reason'> & { readonly at: DateTime.Utc }
 >
@@ -113,14 +112,6 @@ export const failRun = Effect.fn('failRun')((run: Run, { reason, at }: RunFailur
   move(run, {
     to: 'failed',
     at,
-    patch: { failure: Option.some({ reason, message: failureMessages[reason] }) },
+    patch: { failure: Option.some({ reason, message: buildFailureMessage(reason) }) },
   }),
 )
-
-const failureReasons = {
-  LlmRefusedError: 'ReplyRefused',
-  LlmFailedError: 'ReplyFailed',
-} as const satisfies Record<LlmError['_tag'], RunFailureReason>
-
-export const buildRunFailureReason = (error: LlmError): RunFailureReason =>
-  failureReasons[error._tag]

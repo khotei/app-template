@@ -18,11 +18,9 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
 
-export const runFailureReasons = ['ReplyFailed', 'ReplyRefused'] as const
-
 /** Why a Run failed, as the column `failure` holds it. */
 export const RunFailureJson = Schema.Struct({
-  reason: Schema.Literals(runFailureReasons),
+  reason: Schema.NonEmptyString,
   message: Schema.String,
 })
 

@@ -43,7 +43,7 @@ const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
 const failedRun = new Run({
   ...queuedRun,
   status: 'failed',
-  failure: Option.some({ reason: 'ReplyFailed', message: 'Try again.' }),
+  failure: Option.some({ reason: 'LlmFailedError', message: 'Try again.' }),
 })
 
 const reply = assistantMessageAt(1, 'Sure.')

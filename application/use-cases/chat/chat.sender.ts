@@ -15,11 +15,13 @@ import { QueueSender } from '@app-template/packages/queue'
 
 const failUnsent = Effect.fnUntraced(function* (run: Run) {
   const runs = yield* RunService
+  const error = new RunNotQueuedError({ id: run.id })
+
   // The Run was stored queued a moment before, so a refused move is a defect.
   yield* runs
-    .move(run, (queued, at) => failRun(queued, { reason: 'ReplyFailed', at }))
+    .move(run, (queued, at) => failRun(queued, { reason: error._tag, at }))
     .pipe(Effect.orDie)
-  return yield* new RunNotQueuedError({ id: run.id })
+  return yield* error
 })
 
 /**

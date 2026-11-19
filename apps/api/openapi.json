@@ -1499,10 +1499,7 @@
                 "properties": {
                   "reason": {
                     "type": "string",
-                    "enum": [
-                      "ReplyFailed",
-                      "ReplyRefused"
-                    ]
+                    "minLength": 1
                   },
                   "message": {
                     "type": "string"
@@ -1739,10 +1736,7 @@
                         "properties": {
                           "reason": {
                             "type": "string",
-                            "enum": [
-                              "ReplyFailed",
-                              "ReplyRefused"
-                            ]
+                            "minLength": 1
                           },
                           "message": {
                             "type": "string"

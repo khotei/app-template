@@ -16,7 +16,7 @@ const RefusingQueueTest = Layer.mock(QueueSender, {
 
 describe('sendGenerateAssistantMessage', () => {
   it.effect(
-    'a send SQS refuses fails the queued Run with ReplyFailed and is RunNotQueuedError',
+    'a send SQS refuses fails the queued Run with RunNotQueuedError and fails with it',
     () => {
       const { logs, layer: logger } = recordLogs('chatId', 'runId')
       const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
@@ -33,7 +33,7 @@ describe('sendGenerateAssistantMessage', () => {
           [
             {
               status: 'failed',
-              reason: 'ReplyFailed',
+              reason: 'RunNotQueuedError',
               where: { id: queuedRun.id, status: ['queued'] },
             },
           ],

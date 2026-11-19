@@ -1,9 +1,8 @@
-import { Array as Arr, Cause, Data, Effect, Exit } from 'effect'
+import { Array as Arr, Cause, Data, Effect, Exit, Option } from 'effect'
 
 import {
   type AssistantReply,
   type Attachment,
-  buildRunFailureReason,
   completeRun,
   FileAttachmentService,
   failRun,
@@ -17,7 +16,6 @@ import {
   MessageService,
   prepareRun,
   type Run,
-  type RunFailureReason,
   type RunId,
   RunService,
 } from '@app-template/application/chat'
@@ -68,7 +66,7 @@ const settleCompleted = Effect.fnUntraced(
 
 const settleFailed = Effect.fnUntraced(function* (
   active: Run,
-  { reason, cause }: { readonly reason: RunFailureReason; readonly cause: string },
+  { reason, cause }: { readonly reason: string; readonly cause: string },
 ) {
   const runs = yield* RunService
 
@@ -89,8 +87,7 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
   yield* assistant.reply(history).pipe(
     Effect.matchEffect({
       onSuccess: (answer) => settleCompleted(generating, answer),
-      onFailure: (error) =>
-        settleFailed(generating, { reason: buildRunFailureReason(error), cause: error.cause }),
+      onFailure: (error) => settleFailed(generating, { reason: error._tag, cause: error.cause }),
     }),
   )
 })
@@ -102,10 +99,18 @@ const getActive = (id: RunId) =>
     Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'already settled' })),
   )
 
+/** The reason of a Run that ended with no error to name it: a defect, an interrupt, a dead worker. */
+const abortedReason = 'RunAborted'
+
+const reasonOf = (cause: Cause.Cause<{ readonly _tag: string }>) =>
+  Cause.findErrorOption(cause).pipe(
+    Option.match({ onNone: () => abortedReason, onSome: ({ _tag }) => _tag }),
+  )
+
 const fail = Effect.fnUntraced(
-  function* (runId: RunId, cause: Cause.Cause<unknown>) {
+  function* (runId: RunId, cause: Cause.Cause<{ readonly _tag: string }>) {
     const active = yield* getActive(runId)
-    yield* settleFailed(active, { reason: 'ReplyFailed', cause: Cause.pretty(cause) })
+    yield* settleFailed(active, { reason: reasonOf(cause), cause: Cause.pretty(cause) })
   },
   Effect.catchTag('ReplySkipped', logSkipped),
 )
@@ -113,7 +118,7 @@ const fail = Effect.fnUntraced(
 const answer = Effect.fnUntraced(function* (active: Run) {
   if (isStartedRun(active)) {
     return yield* settleFailed(active, {
-      reason: 'ReplyFailed',
+      reason: abortedReason,
       cause: 'the worker that started the Run stopped before it ended',
     })
   }
@@ -130,9 +135,9 @@ const answer = Effect.fnUntraced(function* (active: Run) {
 
 /**
  * Prepares and generates the Run, then completes it with the assistant's message, or fails it
- * with the reason the assistant's error maps to, or with `ReplyFailed` on any other outcome, an
- * interrupt included; a settled Run is skipped. A Run some worker already started is failed
- * unrun, as that worker has died.
+ * with the failure's tag as its reason, `RunAborted` where no error names it, an interrupt
+ * included; a settled Run is skipped. A Run some worker already started is failed unrun, as
+ * that worker has died.
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
   (job: GenerateAssistantMessage) => getActive(job.runId).pipe(Effect.flatMap(answer)),

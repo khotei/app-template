@@ -264,9 +264,9 @@ chat's title) is the one the worker reads
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
 - **A send SQS refuses** is logged with the job's id and its chat's. The reply's sender beside
-  the use cases also fails its Run with `ReplyFailed` and answers `503 RunNotQueuedError`, the
-  message stored and shown failed with its retry; the title's sender only logs it. A send that
-  never happens after the commit: [Stuck Runs](#stuck-runs).
+  the use cases also fails its Run with that error's tag as its reason and answers
+  `503 RunNotQueuedError`, the message stored and shown failed with its retry; the title's sender
+  only logs it. A send that never happens after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 

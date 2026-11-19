@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
-import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
@@ -10,7 +9,6 @@ import { buildMessage, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
-  buildRunFailureReason,
   completeRun,
   ensureRunRetryable,
   failRun,
@@ -94,7 +92,7 @@ const moves: ReadonlyArray<{
   {
     to: 'failed',
     from: activeRunStatuses,
-    move: (run) => failRun(run, { reason: 'ReplyFailed', at: later }),
+    move: (run) => failRun(run, { reason: 'LlmFailedError', at: later }),
   },
 ]
 
@@ -128,10 +126,10 @@ it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
 )
 
 it.effect.each([
-  { reason: 'ReplyFailed', sentence: 'The assistant could not reply. Please try again.' },
-  { reason: 'ReplyRefused', sentence: 'The assistant declined to answer this message.' },
+  { reason: 'LlmRefusedError', sentence: 'The assistant declined to answer this message.' },
+  { reason: 'RunNotQueuedError', sentence: 'The assistant could not reply. Please try again.' },
 ] as const)(
-  'failRun for $reason keeps the reason and a sentence of its own',
+  'failRun for $reason keeps the reason and the sentence it chooses',
   ({ reason, sentence }) =>
     Effect.gen(function* () {
       const failed = yield* failRun(runAt('generating'), { reason, at: later })
@@ -151,18 +149,6 @@ describe('completeRun', () => {
 
       assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
     }),
-  )
-})
-
-describe('buildRunFailureReason', () => {
-  it.each([
-    { error: new LlmRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
-    { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
-  ] as const)(
-    'fails a Run the assistant ended with $error._tag as $reason',
-    ({ error, reason }) => {
-      assert.strictEqual(buildRunFailureReason(error), reason)
-    },
   )
 })
 
