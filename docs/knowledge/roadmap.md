@@ -512,6 +512,93 @@ and deletes it here.
 - Entry 8's scope that the ticket narrowed away: `web` in the trace, Effect DevTools, health and
   readiness endpoints, and log conventions.
 
+### From the last design audit
+
+- (2026-11-19, verified) The reply job's exit handler (`generate-assistant-message.use-case.ts`)
+  cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
+  `Exit.filterCause` can, in 3 lines in place of 8.
+- (2026-11-19, verified) The replay duty is stated with three scopes (`claude-md.md › The toolkit`,
+  `sdd.md`, `decisions.md`); one author in `claude-md.md`, and tags for the four anchors `main`
+  lacks.
+- (2026-11-19, verified) Biome admits `kernel/data` in use-case and handler sources, so only review
+  keeps a repository out; split the use cases' override from their suites and add one for the apps.
+- (2026-11-19, verified) The message input's rules sit in three files (`message.model.ts`,
+  `chat.http.ts`, `attachment.http.ts`); one branded `MessageInput` schema, which changes one 400
+  body.
+- (2026-11-19, verified) The send's up to 5 `HeadObject` guard a state no app path makes, and
+  `FileEntity`'s metadata has no reader; drop both, in three ordered commits, `packages/s3` last.
+- (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
+  `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
+  owner's decision.
+- (2026-11-19, verified) `buildRun`'s and `buildChat`'s defaults, `ChatService.create` and the
+  untitled-chat `where` (`chat.repository.ts`) have no case at their own seam; a planted bug in each
+  passes.
+- (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
+  the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
+  once.
+- (2026-11-19, verified) No case accepts a name without a known extension (`attachment.handler.ts`),
+  and the accepted media types are chat's fact; one 201 case, and the list moves into chat's domain.
+- (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
+  that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
+  composition fact.
+- (2026-11-19, verified) The `reviewer` and `researcher` agents' model defaults contradict the lab
+  skill and every spawn overrides them; delete the defaults. The implementer's `tdd` precedence
+  stays unproven.
+- (2026-11-19) The toolkit edit L2.22 of `one-flow` (agents, the lab skill, `stops.md`) landed
+  without the replays `claude-md.md › The toolkit` asks for; R4 and R5 are the ones it can move.
+- (2026-11-19) One `ChatServices` layer that leaves `AttachmentService` open (found by the last
+  audit, not verified).
+- (2026-11-19) The CI Claude review runs once per PR, is documented, and drops its boilerplate
+  (found by the last audit, not verified).
+- (2026-11-19) Unused exports, a dead branch and small readability fixes in the source (found by the
+  last audit, not verified).
+- (2026-11-19) The Design pass reads the rules `make review-rules` prints; `stops.md` question 5
+  goes (found by the last audit, not verified).
+- (2026-11-19) Small doc fixes: duplicate pointers, dates in records, a lost verb, extension entries
+  (found by the last audit, not verified).
+- (2026-11-19) The e2e provisioner drops its guard against reruns that never happen (found by the
+  last audit, not verified).
+- (2026-11-19) A list write that names no row passes, and the caller guards it forced go (found by
+  the last audit, not verified).
+- (2026-11-19) The imports plugin drops six loader forms no file uses (found by the last audit, not
+  verified).
+- (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
+  (found by the last audit, not verified).
+- (2026-11-19) Decide shared-files L3's half-built paths once: the chat delete's bytes, the bind's
+  held branch (found by the last audit, not verified).
+- (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
+  it (found by the last audit, not verified).
+- (2026-11-19) Generated files count apart in `make numbers`; a micro's PR follows the `Later` rule
+  (found by the last audit, not verified).
+- (2026-11-19) Lab skill rails: `/cd`, a new module's test folder, standing owner edits, stacked
+  labs (found by the last audit, not verified).
+- (2026-11-19) `migrateDatabase` stops counting Drizzle's private ledger (found by the last audit,
+  not verified).
+- (2026-11-19) Scope the pattern-only rule to instruction files (the owner's call) (found by the
+  last audit, not verified).
+- (2026-11-19) Delete tests of the framework and cases a lower seam already owns (found by the last
+  audit, not verified).
+- (2026-11-19) Drop the 11 parameter annotations that restate a repository's Shape (found by the
+  last audit, not verified).
+- (2026-11-19) `review-brief` stops citing the owner's private style file and Russian literals
+  (found by the last audit, not verified).
+- (2026-11-19) `Status` takes the Run statuses from their table; Run predicates and types in the Run
+  model (found by the last audit, not verified).
+- (2026-11-19) One attachment fixture in `chat.test-fixture.ts` replaces nine copies (found by the
+  last audit, not verified).
+- (2026-11-19) `"sideEffects": false` weighed against its record's 27 KB clause (found by the last
+  audit, not verified).
+- (2026-11-19) Tables of effects drop the type scaffolding `effect-style.md` forces (found by the
+  last audit, not verified).
+- (2026-11-19) Trim test leftovers: dead sleeps, duplicate cases, one-caller support, change
+  detectors (found by the last audit, not verified).
+- (2026-11-19) Toolkit housekeeping: Makefile defaults, a stale template field, wording,
+  `worktree.sh` (found by the last audit, not verified).
+- (2026-11-19) Drop the `SecretHash` brand no field carries and the `RETURNING` read-back of a known
+  id (found by the last audit, not verified).
+- (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
+  last audit, not verified).
+
 ## Ideas to weigh
 
 Options raised outside a ticket, **not decided**: the plan above stands until a ticket's feature
