@@ -14,7 +14,8 @@ import { provision } from '#testing/aws/e2e/provision.test-util'
 
 /**
  * A stage of its own per test on the run's MiniStack, its bucket and queues provisioned fresh.
- * Publishes the clients too, as the processes' `*FromConfig` layers do, and the stage's bucket.
+ * Publishes the SDK clients too, which the kernel's `*FromConfig` layers keep closed, and the
+ * stage's bucket.
  */
 export const AwsTest = Layer.unwrap(
   Effect.gen(function* () {

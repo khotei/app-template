@@ -174,7 +174,8 @@ The e2e run's one MiniStack, and where its harnesses live: [tooling.md › Tests
 `AwsTest` gives each test a stage of its own (`e2e` and eight hex digits),
 provisions the inventory's bucket and queues under it and provides a `ConfigProvider` naming the
 region, the endpoint and that stage, so the kernel's clients build their names as in production; it
-publishes the clients too, as the `*FromConfig` layers do, and the stage's `S3Bucket`. The e2e
+publishes the SDK clients too, which the kernel's `*FromConfig` layers keep closed, and the
+stage's `S3Bucket`. The e2e
 through the api add the worker's function and its mappings with `provisionWorker`, its proxy on
 the stand's worker, and the `s3` suite creates one bucket, named as a stage is, for its
 `S3Bucket`. Nothing cleans a stage up: the container goes with the run. The Pulumi
