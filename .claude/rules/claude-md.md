@@ -35,7 +35,7 @@ Each fact has one author; every other file links it by name and never restates i
 | Repo-wide conventions | `.claude/rules/*.md` |
 | How the system works, for humans | `docs/knowledge/*.md` |
 | Why a boundary holds, what guards it, what its reversal breaks | `docs/knowledge/decisions.md` |
-| One change's intent, steps and decisions | its `lab.md` in `docs/tickets/` |
+| One change's intent, steps and decisions | its `lab.md` in `docs/tickets/`, or a micro's first commit |
 | What changed and why | `git log` |
 
 A `CLAUDE.md` or rule states only the *currently binding* constraint and links its record: its
@@ -65,11 +65,11 @@ line, don't update it.
 
 ## The toolkit
 
-- One procedure, `/lab` in `.claude/skills/lab/`, and three agents in `.claude/agents/`; why it
-  is cut so: `docs/knowledge/sdd.md`. Procedures are skills: a colon is reserved for plugin
-  namespaces, and there is no `.claude/commands/`.
+- Procedures are skills: a colon is reserved for plugin namespaces, and there is no
+  `.claude/commands/`. Why the toolkit is cut so: `docs/knowledge/sdd.md`.
 - Tool limits live on the agent (`disallowedTools`); an agent that cannot edit has its skill
   persist its output.
-- A change to the skill, an agent or this rule runs the replays of
+- A change to the skill (a pair a close adds to `stops.md` aside), an agent or this rule runs
+  the replays of
   [sdd.md › Evaluating the toolkit](../../docs/knowledge/sdd.md#evaluating-the-toolkit) before
   and after it, and lands only when no replay gets worse.
