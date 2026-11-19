@@ -10,7 +10,6 @@ import {
   inCreationOrder,
   type MessageEntity,
   type MessageEntityWhere,
-  withAttachments,
 } from '#kernel/data/chat/message.entity'
 import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
 import { newestFirst } from '#kernel/data/chat/run.entity'
@@ -35,13 +34,13 @@ const select = (where: MessageEntityWhere) =>
   ({
     where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
     orderBy: inCreationOrder,
-    with: { ...withAttachments, latestRun: { orderBy: newestFirst }, replyOf: true },
+    with: { latestRun: { orderBy: newestFirst }, replyOf: true },
   }) as const
 
 export class MessageRepository extends Context.Service<
   MessageRepository,
   {
-    /** Writes the message's own fields, never its attachments; a message is never changed. */
+    /** A message is never changed. */
     readonly insert: (message: MessageColumns) => Effect.Effect<void>
     /** Returns the first row in creation order where `where` holds. */
     readonly selectOne: (where: MessageEntityWhere) => Effect.Effect<Option.Option<MessageEntity>>

@@ -16,7 +16,6 @@ export type MessageWhere = Types.Simplify<
 export class MessageService extends Context.Service<
   MessageService,
   {
-    /** Stores the message as its author sent it, with no attachments: a bind adds them. */
     readonly create: (fields: Pick<Message, 'chatId' | 'text' | 'author'>) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     /** The chat's messages in creation order. */

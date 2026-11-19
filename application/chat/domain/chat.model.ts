@@ -3,7 +3,6 @@ import { type DateTime, Effect, Option, Schema, type Types } from 'effect'
 import { UserId } from '@app-template/application/identity'
 import { maxTitleLength, textPattern } from '@app-template/kernel/data'
 
-import { Attachment } from '#chat/domain/attachment.model'
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
 import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
@@ -34,8 +33,6 @@ export type ChatFields = typeof ChatFields.Type
 
 export class Chat extends Schema.Class<Chat>('Chat')({
   ...ChatFields.fields,
-  /** Bound to the chat's messages, in upload order; the chat's own writes never touch them. */
-  attachments: Schema.Array(Attachment).pipe(Schema.withConstructorDefault(Effect.succeed([]))),
   /** The newest Run, flat, read with the chat and never written; none before its first send. */
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}

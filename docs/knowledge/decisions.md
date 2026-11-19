@@ -657,7 +657,7 @@ its clients from the context. The tables stay in `public` with their foreign key
 The data layer's names end in `Entity` (`ChatEntity`, its `Where` and `Set`);
 its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its entities in
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
-`MessageEntity` nest their attachments. The domain's records are models, and a model is the
+`MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
 only, and its callers code its row with the generic `encodeRowWith` and `decodeRowWith`, with
 no mapper per model. A second stored form of a model brings back a mapper that lays the model's
@@ -668,7 +668,7 @@ schemas over that store's columns.
   without an import cycle. A stored field is declared in the table and the model, which the wire
   takes as it is, with no third list in a mapper.
 - **Sources:** the ticket's naming survey; `.claude/rules/naming.md`.
-- **Rejected:** a flat entity beside a second one with its attachments: a second name for the one
+- **Rejected:** a flat entity beside a second one with its Run: a second name for the one
   shape every read returns. The service composing a chat from two repositories: two queries and a
   grouping where one relational read serves. A mapper that lays the model's schemas over the
   columns (`<Model>FromEntity`): a second list of the model's fields. A mapper that only names

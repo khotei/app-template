@@ -73,13 +73,12 @@ An entity file lays its entity over the table's columns, in the data layer's own
 reads and writes filter and change by. A repository's `insert` takes the table's full row, its
 `<Name>Columns` (the entity itself where it nests nothing), so a row that leaves a column out
 fails typecheck. An entity is the shape every read returns, one level deep: a chat's and a
-message's nest their attachments and their Run's columns, a Run's its messages' columns, and
-the nested columns nest nothing:
+message's nest their Run's columns, a Run's its messages' columns, and the nested columns nest
+nothing:
 
 ```ts
 export const ChatEntity = Schema.Struct({
   ...ChatColumns.fields,
-  attachments: Schema.Array(AttachmentEntity),
   run: Schema.NullOr(RunColumns),
 })
 ```
@@ -121,14 +120,12 @@ states it with `orderBy`. A relational query returns nested rows typed as the en
 repository answers them as they are:
 
 ```ts
-const rows = yield* db.query.messages.findMany({
-  with: { attachments: { orderBy: { createdAt: 'asc', id: 'asc' } } },
-})
-// rows: [{ id, chatId, …, attachments: [{ id, userId, messageId, … }] }]
+const rows = yield* db.query.runs.findMany({ with: { userMessage: true } })
+// rows: [{ id, chatId, …, userMessage: { id, chatId, author, … } }]
 ```
 
 A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
-in one relational query, and never a nested `with`: `Chat.attachments`, `Chat.run`,
+in one relational query, and never a nested `with`: `Chat.run`,
 `Run.userMessage` and `Message.run` are model fields another table holds, read and never written by
 their own writes. A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: {
 orderBy: newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query

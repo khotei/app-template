@@ -6,7 +6,7 @@ import { RunColumns } from '#kernel/data/chat/run.table'
 
 /**
  * A Run with the message it answers and its reply, none until it is done: every read nests them,
- * flat, without their attachments.
+ * flat.
  */
 export const RunEntity = Schema.Struct({
   ...RunColumns.fields,

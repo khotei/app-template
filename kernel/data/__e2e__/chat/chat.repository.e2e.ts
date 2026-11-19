@@ -1,10 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
-import { eq } from 'drizzle-orm'
 import { Effect, Exit, Layer, Option, Schema, Struct } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { attachments } from '#kernel/data/attachment/attachment.table'
 import { ChatEntity } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity } from '#kernel/data/chat/message.entity'
@@ -31,7 +29,6 @@ const chat = (id: string, userId: string): ChatEntity => ({
   title: null,
   createdAt,
   updatedAt: createdAt,
-  attachments: [],
   run: null,
 })
 
@@ -41,7 +38,6 @@ const question = (id: string, chatId: string): MessageEntity => ({
   author: 'user',
   text: 'Hi',
   createdAt,
-  attachments: [],
   run: null,
 })
 
@@ -212,7 +208,7 @@ describe('ChatRepository', () => {
       yield* insertUser(cy)
       yield* Effect.forEach([kept, deleted], chats.insert)
       yield* Effect.forEach([keptQuestion, deletedQuestion], (each) =>
-        messages.insert(Struct.omit(each, ['attachments', 'run'])),
+        messages.insert(Struct.omit(each, ['run'])),
       )
       yield* runs.insert(deletedRun)
 
@@ -245,82 +241,6 @@ describe('ChatRepository', () => {
         SelectedChat,
         yield* chats.selectOne({ id: stored.id }),
         Option.some(stored),
-      )
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect(
-    'delete keeps the library attachment a sent record of the chat names as its source',
-    () =>
-      Effect.gen(function* () {
-        const db = yield* Db
-        const chats = yield* ChatRepository
-        const messages = yield* MessageRepository
-        const fay = '0192d4e0-7b3a-7c00-8000-000000000017'
-        const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003a', fay)
-        const withPhoto = question('0192d4e0-7b3a-7c00-8000-000000000053', stored.id)
-        const library = {
-          id: '0192d4e0-7b3a-7c00-8000-000000000022',
-          userId: fay,
-          messageId: null,
-          chatId: null,
-          sourceId: null,
-          fileName: 'photo.png',
-          mediaType: 'image/png',
-          size: 1024,
-          createdAt,
-        }
-        const record = {
-          ...library,
-          id: '0192d4e0-7b3a-7c00-8000-000000000023',
-          messageId: withPhoto.id,
-          chatId: stored.id,
-          sourceId: library.id,
-        }
-        yield* insertUser(fay)
-        yield* chats.insert(stored)
-        yield* messages.insert(withPhoto)
-        yield* db.insert(attachments).values([library, record])
-
-        yield* chats.delete({ id: stored.id })
-
-        assert.deepStrictEqual(
-          yield* db.select().from(attachments).where(eq(attachments.userId, fay)),
-          [library],
-        )
-      }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect("delete takes the chat's attachments, sent or not, by the cascade", () =>
-    Effect.gen(function* () {
-      const db = yield* Db
-      const chats = yield* ChatRepository
-      const messages = yield* MessageRepository
-      const eve = '0192d4e0-7b3a-7c00-8000-000000000014'
-      const stored = chat('0192d4e0-7b3a-7c00-8000-000000000037', eve)
-      const withPhoto = question('0192d4e0-7b3a-7c00-8000-000000000052', stored.id)
-      const sent = {
-        id: '0192d4e0-7b3a-7c00-8000-000000000020',
-        userId: eve,
-        messageId: withPhoto.id,
-        chatId: stored.id,
-        fileName: 'photo.png',
-        mediaType: 'image/png',
-        size: 1024,
-        createdAt,
-      }
-      const unsent = { ...sent, id: '0192d4e0-7b3a-7c00-8000-000000000021', messageId: null }
-      yield* insertUser(eve)
-      yield* chats.insert(stored)
-      yield* messages.insert(withPhoto)
-      yield* db.insert(attachments).values([sent, unsent])
-
-      yield* chats.delete({ id: stored.id })
-
-      assert.deepStrictEqual(yield* messages.selectMany({ chatId: stored.id }), [])
-      assert.deepStrictEqual(
-        yield* db.select().from(attachments).where(eq(attachments.userId, eve)),
-        [],
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )

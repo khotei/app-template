@@ -2,7 +2,6 @@ import { Effect, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
-import { Attachment } from '#chat/domain/attachment.model'
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
 import { isBlank, MessageId } from '#chat/domain/message.util'
@@ -24,8 +23,6 @@ export type MessageFields = typeof MessageFields.Type
 
 export class Message extends Schema.Class<Message>('Message')({
   ...MessageFields.fields,
-  /** Bound by the send, in upload order; the message's own writes never touch them. */
-  attachments: Schema.Array(Attachment).pipe(Schema.withConstructorDefault(Effect.succeed([]))),
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}

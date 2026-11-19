@@ -1,15 +1,10 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Effect, Option, Schema } from 'effect'
 import { HttpBody, HttpClient } from 'effect/http'
 
 import {
-  Attachment,
-  AttachmentId,
   Chat,
   ChatNotFoundError,
-  FileName,
-  FileSize,
-  MediaType,
   Message,
   MessageNotFoundError,
   Run,
@@ -19,7 +14,7 @@ import { chat, firstMessage, owner, queuedRun } from '@app-template/application/
 import { UserUnknownError } from '@app-template/application/identity'
 import type { MessageEntityWhere, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
-import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { RequestInvalidError } from '#api/shared/security'
 import {
@@ -50,18 +45,6 @@ const refusedRun = new Run({
 })
 
 const failedChat = new Chat({ ...chat, run: Option.some(refusedRun) })
-
-const copy = new Attachment({
-  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
-  userId: owner,
-  fileName: FileName.make('photo.png'),
-  mediaType: MediaType.make('image/png'),
-  size: FileSize.make(png.length),
-  createdAt: epoch,
-  messageId: Option.some(firstMessage.id),
-  chatId: Option.some(chat.id),
-  sourceId: Option.some(AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024')),
-})
 
 const getJson = (url: string) =>
   HttpClient.HttpClient.use((http) => http.get(url)).pipe(
@@ -171,34 +154,6 @@ describe('chats', () => {
               encodeRowWith(Message)(
                 new Message({ ...firstMessage, run: Option.some(refusedRun) }),
               ).pipe(Effect.map(Arr.of)),
-          },
-        }),
-      ),
-    ),
-  )
-
-  it.effect('a chat and its message carry a sent attachment on the wire', () =>
-    Effect.gen(function* () {
-      const wires = yield* Effect.forEach(
-        [`/chats/${chat.id}`, `/chats/${chat.id}/messages/${firstMessage.id}`],
-        getJson,
-      )
-
-      Arr.forEach(wires, (wire) =>
-        assert.deepNestedInclude(wire, {
-          'attachments[0].sourceId': '0192d4e0-7b3a-7c00-8000-000000000024',
-          'attachments[0].messageId': firstMessage.id,
-          'attachments[0].chatId': chat.id,
-          'attachments[0].fileName': 'photo.png',
-          'attachments[0].createdAt': DateTime.formatIso(epoch),
-        }),
-      )
-    }).pipe(
-      Effect.provide(
-        asOwner({
-          chats: { selectOne: reads.chat(new Chat({ ...chat, attachments: [copy] })) },
-          messages: {
-            selectOne: reads.message(new Message({ ...firstMessage, attachments: [copy] })),
           },
         }),
       ),

@@ -16,7 +16,6 @@ import {
   chatSetColumns,
 } from '#kernel/data/chat/chat.entity'
 import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
-import { withAttachments } from '#kernel/data/chat/message.entity'
 import { newestFirst } from '#kernel/data/chat/run.entity'
 import { Db } from '#kernel/data/db.client'
 
@@ -32,7 +31,7 @@ const encodeWhere = (table: typeof chats) =>
 const select = (where: ChatEntityWhere) =>
   ({
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
-    with: { ...withAttachments, run: { orderBy: newestFirst } },
+    with: { run: { orderBy: newestFirst } },
   }) as const
 
 export class ChatRepository extends Context.Service<
@@ -45,8 +44,8 @@ export class ChatRepository extends Context.Service<
     /** Rows where `where` holds, the newest created first, then the greater id. */
     readonly selectMany: (where: ChatEntityWhere) => Effect.Effect<ReadonlyArray<ChatEntity>>
     /**
-     * Removes the chats `where` finds with their messages and attachments, in one statement; dies
-     * when it removes nothing.
+     * Removes the chats `where` finds with their messages and Runs, in one statement; dies when it
+     * removes nothing.
      */
     readonly delete: (where: ChatEntityWhere) => Effect.Effect<void>
   }

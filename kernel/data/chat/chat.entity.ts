@@ -1,17 +1,12 @@
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
-/**
- * A chat with its attachments, in upload order, and its newest Run, flat, none before its first
- * send: every read nests them.
- */
+/** A chat with its newest Run, flat, none before its first send: every read nests it. */
 export const ChatEntity = Schema.Struct({
   ...ChatColumns.fields,
-  attachments: Schema.Array(AttachmentEntity),
   run: Schema.NullOr(RunColumns),
 })
 export type ChatEntity = typeof ChatEntity.Type
