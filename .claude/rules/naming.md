@@ -32,11 +32,11 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services, the function `<verb><Object>` |
 | `.settle` | `<model>.settle.ts` beside the use cases: the settlement they share of a job send SQS refuses, on the work's record |
 | `.handler` | api: one HTTP group's handlers · worker: its one route, each queue's use case |
-| `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · queue definitions and their job schemas |
+| `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · a module's queues: their definitions, job schemas and each job's `send<Job>` |
 | `.table` · `.entity` | a table · `<Name>Entity` with its `Where` and `Set`, an `Insert` only where an insert is no table's row, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
 | `.mapper` | api: `buildApi<Model>`, a model handed to a wire shape that adds or renames a field; a model's row needs none, it is its own codec |
 | `.client` · `.http` | client wiring · one resource's routes |
-| `.sender` · `.consumer` | in a module's `infrastructure/`, `send<Job>`, the function that only sends a queue's job · the function that runs a queue's handler on what it delivers |
+| `.consumer` | the function that runs a queue's handler on what it delivers |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers |
 | `.test-fixture` · `.test-util` | sample values, no Effect, no layer · an assertion or value helper, no layer |
 | `.test-fake` · `.test-layer` · `.test-setup` | a port's or service's test implementation · real services over fakes or containers · a vitest `globalSetup` |

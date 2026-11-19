@@ -151,8 +151,7 @@ Using the files of `chat` as the map:
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
-| job sender: sends a job, failing with `QueueError` or logging it | `application/chat/infrastructure/chat.sender.ts` | `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
+| a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema; `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
 | service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
 | the use cases' settlement of a job send SQS refuses | `application/use-cases/chat/run.settle.ts` | `failUnsentRun`, which fails the Run |

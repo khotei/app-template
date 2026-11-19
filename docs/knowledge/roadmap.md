@@ -513,7 +513,7 @@ For `aws-deployment` (9), and the record
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
   the jobs in a Postgres table and replaces our queue: `packages/queue` (`consumeQueue`,
-  `QueueSender` over SQS), the queues' senders in the module's infrastructure, and the SQS
+  `QueueSender` over SQS), the jobs' sends beside the queues' definitions, and the SQS
   queues, their dead letters and the worker's event source mapping in `deployment/`.
 - **What Postgres would bring.**
   - The job commits with its message: `offer` writes through the current `SqlClient`, so inside

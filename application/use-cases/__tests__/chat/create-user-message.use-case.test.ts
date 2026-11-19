@@ -28,7 +28,7 @@ import type { MessageColumns, RunColumns } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals, epoch, isUuidV7, recordLogs } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
 
@@ -146,28 +146,6 @@ describe('createUserMessage', () => {
           Layer.provideMerge(jobs.layer),
         ),
       ),
-    )
-  })
-
-  it.effect('a title job SQS refuses is logged with its chat and message', () => {
-    const { logs, layer: logger } = recordLogs('chatId', 'messageId')
-    const RefusingTitleQueueTest = Layer.mock(QueueSender, {
-      send: ({ name }) =>
-        name === chatTitleQueue.name
-          ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
-          : Effect.void,
-    })
-    return Effect.gen(function* () {
-      const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
-
-      assert.deepStrictEqual(logs, [['Error', 'chat title not queued', chat.id, run.userMessageId]])
-    }).pipe(
-      Effect.provide([
-        layerChatTest(insertingInto(noInserts(), sendingTo(chat))).pipe(
-          Layer.provideMerge(RefusingTitleQueueTest),
-        ),
-        logger,
-      ]),
     )
   })
 

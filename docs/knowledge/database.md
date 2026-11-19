@@ -249,7 +249,7 @@ chat's title) is the one the worker reads
 - **A send SQS refuses** is logged with the job's id and its chat's. The reply's settlement at
   the use cases' level, `failUnsentRun`, also fails its Run with the queue's error, `QueueError`,
   as its reason and cause, and the request answers `202` with that failed Run; the message is
-  stored and shown failed with its retry, `POST /chats/:chatId/runs`. The title's sender only
+  stored and shown failed with its retry, `POST /chats/:chatId/runs`. The title's send only
   logs it. A send that never happens after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations

@@ -212,7 +212,7 @@
                 "patterns": [
                   {
                     "group": ["#*/services/**"],
-                    "message": "a module's infrastructure holds what connects to the environment, the adapters of its domain's ports, the services a use case calls over a client, its queues' definitions and their jobs' senders, and imports none of its services (decisions.md › A module's layers)"
+                    "message": "a module's infrastructure holds what connects to the environment, the adapters of its domain's ports, the services a use case calls over a client, its queues' definitions with each job's send, and imports none of its services (decisions.md › A module's layers)"
                   }
                 ]
               }

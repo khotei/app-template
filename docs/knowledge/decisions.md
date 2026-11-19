@@ -82,7 +82,7 @@ in its module's models and services
 
 ### Use cases as functions
 
-A use case, and a job's sender, is an `Effect.fn` that yields what it composes, its type
+A use case, and a job's `send<Job>`, is an `Effect.fn` that yields what it composes, its type
 inferred. The process provides the services it reads: the api in `ApiHttp`, after
 `HttpRouter.serve`, the worker in its layer.
 
@@ -105,7 +105,7 @@ inferred. The process provides the services it reads: the api in `ApiHttp`, afte
   leaves, not the use cases; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
   list, a job's failure at `consumeQueue`.
-- **If reversed:** each use case and the sender become a `Context.Service` whose layer provides
+- **If reversed:** each use case and each `send<Job>` become a `Context.Service` whose layer provides
   the services it composes, and each handler group and the worker's route provide those layers.
 - **Revisit when:** a use case needs a second implementation, a test double or state of its own.
 
@@ -147,7 +147,7 @@ through aliases that name the module (`#<module>/domain/*`). A module's `infrast
 everything of the module that connects to the environment (a language model, a queue, a
 bucket): the adapters of its ports, the services a use case calls over a client
 ([The language model in the kernel](#the-language-model-in-the-kernel)), its queues'
-definitions and the senders of their jobs. A repository is no port: a service calls the data
+definitions with the send of each job. A repository is no port: a service calls the data
 layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
@@ -862,19 +862,19 @@ A job is a message on its queue, and no table holds it: the work it asks for kee
 record (the Run, the chat's title), which the worker reads to run it once, to settle a Run whose
 worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
-goes through its sender in its module's infrastructure, beside the queues' definitions, which
-only sends it. A send SQS refuses is settled on the work's record at the use cases' level: the
-reply's settlement, which both use cases that send it share, logs it and fails its Run with the
-queue's error, `QueueError`, as its reason and cause, and the request answers `202` with that
-failed Run; the title's sender logs it, as its work has no record to settle.
+goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
+definition, which only sends it. A send SQS refuses is settled on the work's record at the use
+cases' level: the reply's settlement, which both use cases that send it share, logs it and fails
+its Run with the queue's error, `QueueError`, as its reason and cause, and the request answers
+`202` with that failed Run; the title's send logs it, as its work has no record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
-  send connects to the environment, so it sits in infrastructure; failing the Run needs
-  `RunService`, which infrastructure may not import, so that settlement is one function at the
-  use cases' level, and the Run's write is `RunService.update`'s.
+  send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
+  has no use apart from its queue; failing the Run needs `RunService`, which infrastructure may
+  not import, so that settlement is one function at the use cases' level, and the Run's write is `RunService.update`'s.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -888,7 +888,7 @@ failed Run; the title's sender logs it, as its work has no record to settle.
   of its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply
   the user waits on through every attempt, and code that counts them. The title's send inline in
   its use case: the send's policy, its log and its annotations in a flow, and a second form of
-  the sending rule beside the reply's sender. A domain error wrapping `QueueError` and a `503`
+  the sending rule beside the reply's send. A domain error wrapping `QueueError` and a `503`
   for a refused reply: a second name for one failure, which the Run already holds, and a retry is
   the client's next step either way.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
