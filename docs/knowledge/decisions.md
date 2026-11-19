@@ -870,7 +870,7 @@ its reason and cause, and the request answers `202` with that failed Run; the ti
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry; the
   reply's sender keeps that settlement out of the two use cases that send it, and the use cases'
-  level already holds the queue; the Run's move is `RunService.move`'s.
+  level already holds the queue; the Run's write is `RunService.update`'s.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second

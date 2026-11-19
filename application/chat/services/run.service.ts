@@ -5,7 +5,7 @@ import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
-import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
+import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
@@ -15,22 +15,16 @@ export type RunWhere = Types.Simplify<
   Pick<Run, 'id'> & Partial<Pick<Run, 'chatId'> & { readonly userId: UserId }>
 >
 
-/** A model's move of a Run (`prepareRun`, `failRun` given its reason). */
-export type RunTransition = (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
-
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /**
-     * Moves the Run by `transition`, stamps it with the current time and writes it under the
-     * status it was read in, so a Run another worker moved since dies on the write.
+     * Writes `after`, stamped with the current time, under the status `before` was read in, so a
+     * Run another worker moved since dies on the write.
      */
-    readonly move: (
-      run: Run,
-      transition: RunTransition,
-    ) => Effect.Effect<Run, RunStatusInvalidError>
+    readonly update: (before: Run, after: Run) => Effect.Effect<Run>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -63,18 +57,16 @@ export class RunService extends Context.Service<
         ),
     )
 
-    const move = Effect.fn('RunService.move')(function* (run: Run, transition: RunTransition) {
-      const at = yield* DateTime.now
-      const moved = yield* transition(run).pipe(
-        Effect.map((transitioned) => new Run({ ...transitioned, updatedAt: at })),
-      )
-      const row = yield* encodeWith(RunFields)(moved)
+    const update = Effect.fn('RunService.update')(function* (before: Run, after: Run) {
+      const updatedAt = yield* DateTime.now
+      const stamped = new Run({ ...after, updatedAt })
+      const row = yield* encodeWith(RunFields)(stamped)
 
-      yield* runs.update(row, { id: run.id, status: [run.status] })
-      return moved
+      yield* runs.update(row, { id: before.id, status: [before.status] })
+      return stamped
     })
 
-    return { create, getOne, move }
+    return { create, getOne, update }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
