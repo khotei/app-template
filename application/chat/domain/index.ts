@@ -1,7 +1,4 @@
 export * from '#chat/domain/assistant.model'
-export * from '#chat/domain/attachment.error'
-export * from '#chat/domain/attachment.model'
-export * from '#chat/domain/attachment.util'
 export * from '#chat/domain/chat.error'
 export * from '#chat/domain/chat.model'
 export * from '#chat/domain/chat.util'

@@ -147,11 +147,10 @@ Using the files of `chat` as the map:
 | What | File | Named |
 |---|---|---|
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
-| util: a model's branded id and its pure steps with no domain meaning that the module's code shares | `application/chat/domain/chat.util.ts`, `message.util.ts`, `attachment.util.ts` | `ChatId`, `MessageId`, `isBlank`, `ensureAllFound` |
+| util: a model's branded id and its pure steps with no domain meaning that the module's code shares | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| service composed over another of its model | `application/chat/services/file-attachment.service.ts` | `FileAttachmentService`, over `AttachmentService` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
 | service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |

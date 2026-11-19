@@ -447,13 +447,13 @@ repository only reads, calls it and writes.
 ### Utils apart from models
 
 A model's file holds its schemas and its rules, each naming a word of the glossary, a refusal or a
-lifecycle move. Beside it, one `<model>.util.ts` per model that needs one holds the model's
-branded id and the pure steps with no domain meaning, generic over their types, that the module's
-code shares, in the file of the model that calls them (`isBlank` in `message.util.ts`,
-`ensureAllFound` in `attachment.util.ts`); the module's one id-schema helper sits in the
-aggregate root's util (`chat.util.ts`). A util file imports only `effect` and other util files,
-never a model, so a model takes another model's id from its util file and no import cycle forms.
-A util that would only rename one built-in call is not written; the built-in is called.
+lifecycle move. Beside it, one `<model>.util.ts` per model that needs one holds the model's branded
+id and the pure steps with no domain meaning, generic over their types, that the module's code
+shares, in the file of the model that calls them (`isBlank` in `message.util.ts`); the module's one
+id-schema helper sits in the aggregate root's util (`chat.util.ts`). A util file imports only
+`effect` and other util files, never a model, so a model takes another model's id from its util file
+and no import cycle forms. A util that would only rename one built-in call is not written; the
+built-in is called.
 
 - **Why:** a reader of a model sees only the rules it states, where `Option` and `Array` plumbing
   beside them read as rules; a util generic over its types is tested once with plain values, and a
@@ -465,12 +465,12 @@ A util that would only rename one built-in call is not written; the built-in is 
   *.lib where we well hold utils like this", and the owner's review of commit 62e5aea2e5 (util
   files per model, not per value); `.claude/rules/composition.md`; `.claude/rules/effect.md`
   (write with effect's modules).
-- **Rejected:** `*.lib.ts`: "Library" is the glossary's word for the attachments no chat holds,
-  and "lib" is on Package's avoid list. Utils in `packages/` from the start: the domain's guard
-  would admit a package for helpers one module calls. A `utils.ts` per module: a file with no
-  value in its name collects anything. A util file per value (`text.util.ts`, `id.util.ts`) and a
-  separate `.id` file per aggregate: two kinds of leaf file for one role, and a value's name a
-  reader has to guess. A rename of a built-in (`Effect.fromOption`): a second name for one call.
+- **Rejected:** `*.lib.ts`: "lib" is on Package's avoid list. Utils in `packages/` from the start:
+  the domain's guard would admit a package for helpers one module calls. A `utils.ts` per module: a
+  file with no value in its name collects anything. A util file per value (`text.util.ts`,
+  `id.util.ts`) and a separate `.id` file per aggregate: two kinds of leaf file for one role, and a
+  value's name a reader has to guess. A rename of a built-in (`Effect.fromOption`): a second name
+  for one call.
 - **Cost:** a judgement per function, rule or util, which review makes and the owner settles; a
   helper two models share sits in one of them, the one that calls it first, and the other imports
   that util file. A util a second workspace needs moves into a package, and the domain's Biome

@@ -1,19 +1,11 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
-import {
-  AttachmentRepository,
-  ChatRepository,
-  MessageRepository,
-  RunRepository,
-} from '@app-template/kernel/data'
-import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testing'
+import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
 import type { Transaction } from '@app-template/packages/db'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
-import { AttachmentService } from '#chat/services/attachment.service'
 import { ChatService } from '#chat/services/chat.service'
-import { FileAttachmentService } from '#chat/services/file-attachment.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
@@ -22,35 +14,25 @@ export interface ChatRepositoryMocks {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
   readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>
   readonly runs?: Layer.PartialEffectful<RunRepository['Service']>
-  readonly attachments?: Layer.PartialEffectful<AttachmentRepository['Service']>
 }
 
 /**
- * Chat's services over `mocks`, the memory files and `transaction`, the identity one by default,
+ * Chat's services over `mocks` and `transaction`, the identity one by default,
  * each in context for the case; the `QueueSender` and the assistants are the test's,
  * `recordMessages()`, `recordMessageAssistant()` and `recordChatAssistant()`.
  */
 export const layerChatTest = (
-  { chats = {}, messages = {}, runs = {}, attachments = {} }: ChatRepositoryMocks,
+  { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   transaction: Layer.Layer<Transaction> = TransactionTest,
 ) =>
-  Layer.mergeAll(
-    ChatService.layer,
-    FileAttachmentService.layer,
-    MessageService.layer,
-    RunService.layer,
-  ).pipe(
-    Layer.provideMerge(AttachmentService.layer),
+  Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
         Layer.mock(ChatRepository, chats),
         Layer.mock(MessageRepository, messages),
         Layer.mock(RunRepository, runs),
-        Layer.mock(AttachmentRepository, attachments),
         transaction,
         BunCrypto.layer,
       ),
     ),
-    Layer.provideMerge(FileRepositoryTest),
-    Layer.provideMerge(FileObjects.layer),
   )
