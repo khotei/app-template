@@ -364,8 +364,8 @@ left.
     attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
     ids and their `chatId`, `messageId` and `userId`, whichever path deleted them (a chat's
     cascade, a message's, a user's delete of an unbound file), in the deleting statement. Its
-    handler deletes the bytes by `FileRepository.delete`. `ChatService.delete` drops its
-    attachment read and its bucket call; the repository's e2e checks the job the trigger
+    handler deletes the bytes by `FileRepository.delete`. `deleteChat` drops its
+    `FileAttachmentService.deleteBytes` call; the repository's e2e checks the job the trigger
     writes.
   - The Run keeps its own status, its subset of the shared `Status`: it is the work's state,
     which the client polls and the guards read, not the job's; a message has none since

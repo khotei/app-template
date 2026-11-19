@@ -4,57 +4,25 @@ import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import {
-  type ChatEntitySet,
-  type ChatEntityWhere,
-  ChatRepository,
-  type FileEntityWhere,
-  FileRepository,
-} from '@app-template/kernel/data'
+import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
-import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
-import { AttachmentId } from '#chat/domain/attachment.id'
-import {
-  Attachment,
-  buildAttachment,
-  FileName,
-  FileSize,
-  MediaType,
-} from '#chat/domain/attachment.model'
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import type { ChatId } from '#chat/domain/chat.id'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { ChatService } from '#chat/services/chat.service'
-import { chat, firstMessage, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
+import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 
-/** The service over repositories that answer only the methods the case gives; any other dies. */
+/** The service over a repository that answers only the methods the case gives; any other dies. */
 const chatServiceOver = ({
   chats = {},
-  files = {},
 }: {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
-  readonly files?: Layer.PartialEffectful<FileRepository['Service']>
-}) =>
-  ChatService.layer.pipe(
-    Layer.provide([
-      Layer.mock(ChatRepository, chats),
-      Layer.mock(FileRepository, files),
-      BunCrypto.layer,
-    ]),
-  )
+}) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
 
 /** A `selectOne` that answers `found` as its row. */
 const selectsOne = (found: Chat) => () => encodeRowWith(Chat)(found).pipe(Effect.map(Option.some))
-
-const uploaded = buildAttachment({
-  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
-  userId: owner,
-  fileName: FileName.make('photo.png'),
-  mediaType: MediaType.make('image/png'),
-  size: FileSize.make(png.length),
-  createdAt: epoch,
-})
 
 const trip = ChatTitle.make('Trip')
 
@@ -169,52 +137,23 @@ describe('ChatService', () => {
     )
   })
 
-  it.effect.each([
-    { name: 'its own upload', attachment: uploaded },
-    {
-      name: 'a library upload, by the record and never the source',
-      attachment: new Attachment({
-        ...uploaded,
-        id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
-        sourceId: Option.some(uploaded.id),
-      }),
-    },
-  ])("delete removes the owner's chat by its id, then the bytes of $name", ({ attachment }) => {
-    const calls: Array<readonly ['chats', ChatEntityWhere] | readonly ['files', FileEntityWhere]> =
-      []
-    const sent = new Chat({
-      ...chat,
-      attachments: [
-        new Attachment({
-          ...attachment,
-          messageId: Option.some(firstMessage.id),
-          chatId: Option.some(chat.id),
-        }),
-      ],
-    })
+  it.effect("delete removes the owner's chat by its id and answers the chat it removed", () => {
+    const deleted: Array<ChatEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
-      yield* service.delete({ id: chat.id, userId: owner })
+      const removed = yield* service.delete({ id: chat.id, userId: owner })
 
-      assert.deepStrictEqual(calls, [
-        ['chats', { id: chat.id }],
-        ['files', { id: [attachment.id] }],
-      ])
+      assertEquals(removed, chat)
+      assert.deepStrictEqual(deleted, [{ id: chat.id }])
     }).pipe(
       Effect.provide(
         chatServiceOver({
           chats: {
-            selectOne: selectsOne(sent),
+            selectOne: selectsOne(chat),
             delete: (where) =>
               Effect.sync(() => {
-                calls.push(['chats', where])
-              }),
-          },
-          files: {
-            delete: (where) =>
-              Effect.sync(() => {
-                calls.push(['files', where])
+                deleted.push(where)
               }),
           },
         }),

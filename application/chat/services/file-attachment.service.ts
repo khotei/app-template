@@ -53,6 +53,11 @@ export class FileAttachmentService extends Context.Service<
       where: AttachmentGetManyWhere,
     ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
     /**
+     * Removes the bytes held under the attachments' own ids, the uploads among them; a record's
+     * bytes are its source's and stay. For the attachments whose rows are already gone.
+     */
+    readonly deleteBytes: (attachments: ReadonlyArray<Attachment>) => Effect.Effect<void>
+    /**
      * Removes the user's attachment, then its bytes, while no message holds it or a record sent
      * from it; dies when a send binds it, or adds a record of it, after the check.
      */
@@ -142,7 +147,14 @@ export class FileAttachmentService extends Context.Service<
       yield* files.delete({ id: [where.id] })
     })
 
-    return { upload, download, getBytes, getMany, delete: remove }
+    // By the ids read, never by `buildFileId`: a record's bytes are its source's, and stay in the
+    // library.
+    const deleteBytes = Effect.fn('FileAttachmentService.deleteBytes')(
+      (attachments: ReadonlyArray<Attachment>) =>
+        files.delete({ id: Arr.map(attachments, Struct.get('id')) }),
+    )
+
+    return { upload, download, getBytes, getMany, deleteBytes, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(AttachmentService.layer))

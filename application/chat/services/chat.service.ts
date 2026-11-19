@@ -1,5 +1,4 @@
 import {
-  Array as Arr,
   Context,
   Crypto,
   DateTime,
@@ -14,7 +13,7 @@ import {
 import type { RequireAtLeastOne } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntityWhere, ChatRepository, FileRepository } from '@app-template/kernel/data'
+import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
@@ -46,13 +45,15 @@ export class ChatService extends Context.Service<
       where: ChatRenameWhere,
       title: ChatTitle,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Removes the user's chat with its messages, their attachments and the bytes. */
-    readonly delete: (where: ChatWhere) => Effect.Effect<void, ChatNotFoundError>
+    /**
+     * Removes the user's chat with its messages and their attachments' records, and answers the
+     * chat it removed; the bytes stay, for the caller to delete.
+     */
+    readonly delete: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const files = yield* FileRepository
     const crypto = yield* Crypto.Crypto
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
@@ -95,10 +96,9 @@ export class ChatService extends Context.Service<
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
       const chat = yield* getOne(where)
 
-      // The cascade takes the messages and their attachments; the bytes go by the ids read, never
-      // by `buildFileId`: a record's bytes are its source's, and stay in the library.
+      // The cascade takes the messages and their attachments.
       yield* chats.delete({ id: chat.id })
-      yield* files.delete({ id: Arr.map(chat.attachments, Struct.get('id')) })
+      return chat
     })
 
     return { create, list, getOne, rename, delete: remove }
