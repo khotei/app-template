@@ -5,6 +5,7 @@ import { maxTitleLength, textPattern } from '@app-template/kernel/data'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
+import { isActiveRun } from '#chat/domain/run.model'
 import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { Status } from '#chat/domain/status.model'
 
@@ -46,18 +47,21 @@ const chatStatuses = {
   failed: 'failed',
 } as const satisfies Record<RunStatus, ChatStatus>
 
-export const buildChatStatus = (chat: Chat): ChatStatus =>
-  Option.match(chat.run, { onNone: () => 'idle', onSome: (run) => chatStatuses[run.status] })
+export const buildChatStatus = (latestRun: Option.Option<RunFields>): ChatStatus =>
+  Option.match(latestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
 
 /** True while no send has reached the chat: every user message starts a Run, so it has none. */
 export const isNewChat = (chat: Chat): boolean => Option.isNone(chat.run)
 
-/** A send takes a chat with no Run in work; one with a Run in work is `ChatBusyError`. */
-export const ensureChatNotBusy = Effect.fn('ensureChatNotBusy')(function* (chat: Chat) {
-  if (buildChatStatus(chat) === 'queued') {
-    return yield* new ChatBusyError({ id: chat.id })
-  }
-})
+/** A send takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
+export const ensureChatNotBusy = (latestRun: Option.Option<RunFields>) =>
+  latestRun.pipe(
+    Option.filter<RunFields>(isActiveRun),
+    Option.match({
+      onNone: () => Effect.void,
+      onSome: (run) => Effect.fail(new ChatBusyError({ id: run.chatId })),
+    }),
+  )
 
 export const renameChat = (
   chat: Chat,

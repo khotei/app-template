@@ -118,11 +118,7 @@ describe('retryRun', () => {
       return Effect.gen(function* () {
         const error = yield* retry.pipe(Effect.flip)
 
-        assertSchemaEquals(
-          RunNotRetryableError,
-          error,
-          new RunNotRetryableError({ chatId: chat.id }),
-        )
+        assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError())
         assertEquals(yield* jobs.sent, [])
       }).pipe(
         Effect.provide(layerChatTest(chatWithRun(doneRun)).pipe(Layer.provideMerge(jobs.layer))),

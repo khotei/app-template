@@ -151,10 +151,7 @@ describe('ensureRunRetryable', () => {
     Effect.gen(function* () {
       const newest = runAt('failed')
 
-      assert.strictEqual(
-        yield* ensureRunRetryable({ id: chatId, run: Option.some(newest) }),
-        newest,
-      )
+      assert.strictEqual(yield* ensureRunRetryable(Option.some(newest)), newest)
     }),
   )
 
@@ -164,9 +161,9 @@ describe('ensureRunRetryable', () => {
     { name: 'a queued Run', newest: Option.some(runAt('queued')) },
   ])('refuses $name with RunNotRetryableError', ({ newest }) =>
     Effect.gen(function* () {
-      const error = yield* ensureRunRetryable({ id: chatId, run: newest }).pipe(Effect.flip)
+      const error = yield* ensureRunRetryable(newest).pipe(Effect.flip)
 
-      assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError({ chatId }))
+      assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError())
     }),
   )
 })

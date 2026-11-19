@@ -16,12 +16,13 @@ import {
 import type { RunStatus } from '#chat/domain/run-fields.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
-const chatAt = (status: RunStatus) =>
-  new Chat({ ...chat, run: Option.some({ ...queuedRun, status }) })
+const runAt = (status: RunStatus) => Option.some({ ...queuedRun, status })
+
+const chatAt = (status: RunStatus) => new Chat({ ...chat, run: runAt(status) })
 
 describe('buildChatStatus', () => {
   it('reads a chat no send has reached as idle', () => {
-    assert.strictEqual(buildChatStatus(chat), 'idle')
+    assert.strictEqual(buildChatStatus(Option.none()), 'idle')
   })
 
   it.each([
@@ -33,7 +34,7 @@ describe('buildChatStatus', () => {
   ] as const)(
     'reads a chat whose newest Run is $status as $chatStatus',
     ({ status, chatStatus }) => {
-      assert.strictEqual(buildChatStatus(chatAt(status)), chatStatus)
+      assert.strictEqual(buildChatStatus(runAt(status)), chatStatus)
     },
   )
 })
@@ -49,9 +50,11 @@ describe('isNewChat', () => {
 })
 
 describe('ensureChatNotBusy', () => {
+  it.effect('takes a chat no send has reached', () => ensureChatNotBusy(Option.none()))
+
   it.effect.each([{ status: 'done' }, { status: 'failed' }] as const)(
     'takes a chat whose newest Run is $status',
-    ({ status }) => ensureChatNotBusy(chatAt(status)),
+    ({ status }) => ensureChatNotBusy(runAt(status)),
   )
 
   it.effect.each([
@@ -60,7 +63,7 @@ describe('ensureChatNotBusy', () => {
     { status: 'generating' },
   ] as const)('refuses a chat whose newest Run is $status with ChatBusyError', ({ status }) =>
     Effect.gen(function* () {
-      const error = yield* ensureChatNotBusy(chatAt(status)).pipe(Effect.flip)
+      const error = yield* ensureChatNotBusy(runAt(status)).pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
     }),

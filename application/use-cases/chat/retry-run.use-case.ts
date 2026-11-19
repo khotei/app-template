@@ -18,8 +18,9 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
   const messages = yield* MessageService
   const runs = yield* RunService
 
-  const chat = yield* chats.getOne({ id: chatId, userId }).pipe(Effect.tap(ensureChatNotBusy))
-  const failed = yield* ensureRunRetryable(chat)
+  const chat = yield* chats.getOne({ id: chatId, userId })
+  yield* ensureChatNotBusy(chat.run)
+  const failed = yield* ensureRunRetryable(chat.run)
   const userMessage = yield* messages.getOne({
     id: failed.userMessageId,
     chatId,

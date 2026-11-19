@@ -36,7 +36,8 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   const chats = yield* ChatService
 
   yield* ensureMessageInput(input)
-  const chat = yield* chats.getOne({ id: chatId, userId }).pipe(Effect.tap(ensureChatNotBusy))
+  const chat = yield* chats.getOne({ id: chatId, userId })
+  yield* ensureChatNotBusy(chat.run)
 
   const run = yield* storeUserMessage(chatId, input)
 

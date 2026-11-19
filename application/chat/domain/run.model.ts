@@ -2,7 +2,6 @@ import { type DateTime, Effect, Option, type Predicate, Schema, type Types } fro
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
-import type { ChatId } from '#chat/domain/chat.util'
 import { MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import { type RunFailure, RunFields, type RunStatus } from '#chat/domain/run-fields.model'
@@ -36,13 +35,10 @@ const isFailedRun = hasStatus(['failed'])
  * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
  * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = (chat: {
-  readonly id: ChatId
-  readonly run: Option.Option<RunFields>
-}) =>
-  chat.run.pipe(
+export const ensureRunRetryable = (latestRun: Option.Option<RunFields>) =>
+  latestRun.pipe(
     Option.filter<RunFields>(isFailedRun),
-    Effect.fromOption(() => new RunNotRetryableError({ chatId: chat.id })),
+    Effect.fromOption(() => new RunNotRetryableError()),
   )
 
 /** Which Runs may enter each status; `queued` is only ever built, never entered. */

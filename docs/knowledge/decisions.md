@@ -763,8 +763,8 @@ pass-through`).
 - **Why:** the Run holds the status already; a column would be its second copy, written by each
   of the Run's moves (its creation, a retry, `preparing`, `generating`, `done`, `failed`) in that
   move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
-  since the read nests the Run, and one pure function serves the api and the rules
-  (`ensureChatNotBusy`); a client derives it the same way from the Run it reads.
+  since the read nests the Run: the api and the rules (`ensureChatNotBusy`) take that Run alone,
+  not the chat, and a client derives it the same way from the Run it reads.
 - **Sources:** the owner's choice, in the Knowledge of
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
 - **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
