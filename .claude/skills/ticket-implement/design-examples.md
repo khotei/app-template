@@ -17,7 +17,7 @@ The lab asks them aloud of every contract:
 1. What breaks if this is removed?
 2. Is it already in Effect, or in the code?
 3. Is the rule a pure function in the model?
-4. Is each method named for what it answers, with no wrapper and no probe?
+4. Is each method named for what it answers, with no pass-through and no probe?
 5. Does each test helper sit beside its one test?
 
 ## A narrower interface
@@ -87,18 +87,18 @@ function price(order: Order, tier: Tier) {
 }
 ```
 
-**Don't: a combinator for one caller, so the step "composes".**
-Rests on: [effect-services.md › Functions](../../rules/effect-services.md#functions) and the
-deletion test of [deep-modules.md › The tests](../../rules/deep-modules.md#the-tests).
+**Don't: a function that takes the step to add its plumbing.**
+Rests on: [effect-style.md › Composition](../../rules/effect-style.md#composition), plumbing
+piped onto the step it serves, and [effect-services.md › Functions](../../rules/effect-services.md#functions).
 
 ```ts
-// proposed: a wrapper that adds a span and a log annotation
+// proposed: a function taking the step, to add a span and a log annotation
 const orderStep =
   <A, E, R>(name: string, step: (order: Order) => Effect.Effect<A, E, R>) =>
   (order: Order) =>
     step(order).pipe(Effect.withSpan(name), Effect.annotateLogs({ orderId: order.id }))
 
-const ship = orderStep('ship', shipOrder) // its only caller
+const ship = orderStep('ship', shipOrder)
 ```
 
 ## A pure function taken out of an effect

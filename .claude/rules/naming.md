@@ -54,7 +54,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
   - `generate`: an impure function that makes a fresh value; `is` / `has`: a predicate;
   - `getOne` / `getMany`: a domain service's read over a `where`, answering the records or their
     `*NotFoundError`; `get<Payload>` a payload a record's store holds (its bytes), or its
-    `*NotFoundError`;
+    `*NotFoundError`; `delete<Payload>` that payload's removal, the record's left to its owner;
   - `list`: a domain service's read by the user alone, with no `where`, of the set a user browses;
   - `select<One|Many>` / `insert` / `update` / `delete`: a repository's; `update` never creates.
 - Other constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant

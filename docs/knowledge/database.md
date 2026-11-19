@@ -236,8 +236,9 @@ the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.with
 every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every
 race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3
-stays outside the transaction: the bytes are kept before the bind and deleted before the commit,
-so a rollback restores rows that a retry still finds. SQS joins none either: the sends follow the
+stays outside the transaction: the bytes are kept before the row that binds them and deleted once
+the rows are gone, so no row names bytes that are gone; a failure between the two leaves only
+bytes no row names. SQS joins none either: the sends follow the
 commit ([The sends](#the-sends)).
 
 ## Stuck Runs

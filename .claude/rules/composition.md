@@ -49,8 +49,8 @@ static readonly layerAudited = Layer.effect(
   flag added to a piece for one caller.
 - **Domain service:** `<Model>Service` starts as its model's records
   ([layering.md › Ports and domain services](layering.md#ports-and-domain-services)); a job past
-  that wraps it (`layer<Variant>`) or is a service composed over it, built only from services of
-  its own model.
+  that wraps it (`layer<Variant>`) or is a service composed over it, built from services of its
+  own model and a repository only for what it adds.
 - **Util:** a variation inside its job is a value it takes; another job is a function over it.
 - **Use case:** the composer; it holds only its flow
   ([layering.md › Use cases](layering.md#use-cases)). A step two use cases share lives once, as a
