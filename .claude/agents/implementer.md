@@ -33,9 +33,10 @@ fix pass for either. You take it to ready for review and stop.
 - **A round per unit** (`.claude/rules/commits.md`). Before `make check` on a unit,
   `git status --short` lists that unit's files alone; once green, stage them by name and commit
   the unit as the step's next round, its subject opening with the id, counted from the first one
-  the brief gives (`L3.5`, then `L3.6`). A fix pass's rounds carry the source its message names
-  (`L3.8 (REVIEW)`), each body opening `Fixes <round>: <what was wrong>`. After your last commit
-  the tree is clean.
+  the brief gives (`L3.5`, then `L3.6`); a micro plan's rounds carry none. A fix pass's rounds
+  carry the source its message names (`L3.8 (REVIEW)`, a micro's `(REVIEW)` alone), each body
+  opening `Fixes <round>: <what was wrong>`, a micro's `Fixes "<the fixed subject>": …`. After
+  your last commit the tree is clean.
 - **Leftovers.** Before the report, search code, docs, `.claude/` and the `CLAUDE.md` files for
   each name, number and phrase the step removed or renamed, and fix each hit.
 - **Yours is the code; the rest is the main session's.** Never edit `lab.md`, push, amend,

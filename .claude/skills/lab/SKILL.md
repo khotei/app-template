@@ -55,12 +55,16 @@ When no lab holds the change, size it once and say which in one line; the owner'
 - **Micro** fits one session: at most ~400 changed lines of code and tests; no new dependency, and
   no new table, route or message that another process reads; every choice in it already settled
   by the owner's words or the code; a signature the owner can write now. Moving code within a
-  module is micro. No ticket folder: cut `<type>/<slug>` from `main`, say the plan in at most five
-  lines (the pieces, each one's test and visible check) and wait for the go. Then build the pieces
-  through to the end without waiting between them, here or handed to an `implementer` as `run`
-  does; the owner's request stands for Intent and Shape and is quoted in the first commit's body.
-  Then `review all`, and show the diff's stat, the review and `make numbers`; the PR carries the
-  last two. A subject carries the area as its scope and a source alone (`(OWNER)`, `(REVIEW)`).
+  module is micro. No ticket folder: once `git status --short` is empty, cut `<type>/<slug>` from
+  `main`, say the plan in at most five lines (the pieces, each one's test and visible check) and
+  wait for the go. Then build the pieces through to the end without waiting between them, here or
+  handed to an `implementer` as `run` does; the owner's request stands for Intent and Shape and is
+  quoted in the first commit's body. Then `review all`, and show the diff's stat, the review and
+  `make numbers`; its `Later` lines, `[D:ai]` blocks and stops go into that report, and the PR
+  carries the review's yield, `make numbers` and the open `Later` lines. A subject carries the
+  area as its scope and, past the first pass, opens with its source alone
+  (`(REVIEW) Read the row first`); a fix's body opens
+  `Fixes "<the fixed commit's subject>": <what was wrong>`, never a hash.
 - **Macro** is everything else: `init`. A micro that breaks a condition midway stops, says which,
   and becomes macro on its branch, its commits so far standing as `L1`.
 
