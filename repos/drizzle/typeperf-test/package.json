@@ -1,0 +1,29 @@
+{
+	"name": "typeperf-tests",
+	"version": "1.0.0",
+	"description": "Type performance tests for drizzle-orm",
+	"type": "module",
+	"scripts": {
+		"bench": "tsx test",
+		"build": "echo skip...",
+		"build:artifact": "echo skip...",
+		"pack": "echo skip...",
+		"pack:artifact": "echo skip...",
+		"test:types": "tsc --noEmit"
+	},
+	"keywords": [],
+	"author": "Drizzle Team",
+	"license": "Apache-2.0",
+	"private": true,
+	"devDependencies": {
+		"@ark/attest": "^0.56.0",
+		"tsx": "^4.19.0"
+	},
+	"dependencies": {
+		"drizzle-beta": "npm:drizzle-orm@1.0.0-beta.21",
+		"drizzle-seed": "workspace:../drizzle-seed/dist",
+		"drizzle-typebox": "workspace:../drizzle-typebox/dist",
+		"drizzle-valibot": "workspace:../drizzle-valibot/dist",
+		"drizzle-zod": "workspace:../drizzle-zod/dist"
+	}
+}

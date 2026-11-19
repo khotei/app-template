@@ -96,9 +96,9 @@ Which suite runs where:
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the
-  shared `exclude` (`.claude/worktrees/**` added to the default) and `sequence` itself, and the
-  root sets no `globalSetup`, so a unit run starts no container. A new workspace needs no test
-  config, and the worktrees' copies stay out; `repos/` holds no tests.
+  shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and `sequence`
+  itself, and the root sets no `globalSetup`, so a unit run starts no container. A new workspace
+  needs no test config, and the vendored suites and the worktrees' copies stay out.
 - **One Postgres and one MiniStack per e2e run, a database and a stage per test.** The run's
   `globalSetup`, in the data layer's e2e support, starts both containers and migrates a template
   database; each test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`, a
@@ -301,12 +301,12 @@ package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `i
    `effect` bump, run `make api-snapshot` before `make check`: the api's snapshot and the web's
    client both come from effect's code.
 4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
-   and commit `repos/<lib>` with the bump. The target fetches the pinned tag at depth 1, empties
-   the folder and exports the library's slice into it: its guides, sources, examples and agent
-   skills, not its tests, changelogs or tooling (the path list is `EFFECT_SLICE` or
-   `DRIZZLE_SLICE` in the `Makefile`).
+   on the now clean tree. `git subtree` refuses any uncommitted change, so the bump and the
+   vendoring are two commits of the same PR.
+   Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
+   outside its HTML comment: the squash merge drops them, and the next pull needs them.
 
-Another repository vendored under `repos/` gets one more path list and target of the same shape.
+Another repository vendored under `repos/` gets one more target of the same shape.
 
 Upgrading Bun means bumping `packageManager` and `@types/bun` together, so CI uses the new
 version.

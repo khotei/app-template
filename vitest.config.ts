@@ -1,6 +1,6 @@
 import { configDefaults, defineConfig } from 'vitest/config'
 
-const exclude = [...configDefaults.exclude, '.claude/worktrees/**']
+const exclude = [...configDefaults.exclude, 'repos/**', '.claude/worktrees/**']
 const sequence = { concurrent: true }
 
 export default defineConfig({
