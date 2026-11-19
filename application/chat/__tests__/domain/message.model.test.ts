@@ -9,13 +9,13 @@ import { ensureMessageInput, MessageFields } from '#chat/domain/message.model'
 describe('ensureMessageInput', () => {
   it.effect.each([{ text: '' }, { text: '  \n\t ' }])('rejects the blank text $text', ({ text }) =>
     Effect.gen(function* () {
-      const error = yield* ensureMessageInput({ text }).pipe(Effect.flip)
+      const error = yield* ensureMessageInput(text).pipe(Effect.flip)
 
       assertSchemaEquals(MessageInputInvalidError, error, new MessageInputInvalidError())
     }),
   )
 
-  it.effect('accepts a text', () => ensureMessageInput({ text: 'Hello' }))
+  it.effect('accepts a text', () => ensureMessageInput('Hello'))
 })
 
 describe('MessageFields', () => {

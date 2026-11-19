@@ -27,12 +27,8 @@ export class Message extends Schema.Class<Message>('Message')({
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
-export interface MessageInput {
-  readonly text: string
-}
-
-export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (isBlank(input.text)) {
+export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (text: string) {
+  if (isBlank(text)) {
     return yield* new MessageInputInvalidError()
   }
 })

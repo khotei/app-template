@@ -6,7 +6,6 @@ import {
   ensureChatNotBusy,
   ensureMessageInput,
   isNewChat,
-  type MessageInput,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
@@ -17,11 +16,11 @@ import { sendGenerateAssistantMessage, sendGenerateChatTitle } from '#use-cases/
 
 /** The message and its Run commit together: a Run that loses the race keeps no message. */
 const storeUserMessage = Effect.fnUntraced(
-  function* (chatId: ChatId, input: MessageInput) {
+  function* (chatId: ChatId, text: string) {
     const messages = yield* MessageService
     const runs = yield* RunService
 
-    const message = yield* messages.create({ chatId, text: input.text, author: 'user' })
+    const message = yield* messages.create({ chatId, text, author: 'user' })
     return yield* runs.create(message)
   },
   (writes) => Transaction.use((transaction) => transaction.run(writes)),
@@ -31,15 +30,15 @@ const storeUserMessage = Effect.fnUntraced(
 export const createUserMessage = Effect.fn('createUserMessage')(function* (
   userId: UserId,
   chatId: ChatId,
-  input: MessageInput,
+  text: string,
 ) {
   const chats = yield* ChatService
 
-  yield* ensureMessageInput(input)
+  yield* ensureMessageInput(text)
   const chat = yield* chats.getOne({ id: chatId, userId })
   yield* ensureChatNotBusy(chat.run)
 
-  const run = yield* storeUserMessage(chatId, input)
+  const run = yield* storeUserMessage(chatId, text)
 
   // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)

@@ -12,7 +12,6 @@ import {
   GenerateChatTitle,
   Message,
   MessageFields,
-  type MessageInput,
   MessageInputInvalidError,
   Run,
   RunFields,
@@ -32,8 +31,6 @@ import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7, recordLogs } from '@app-template/packages/testing'
 
 import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
-
-const ask = (text: string): MessageInput => ({ text })
 
 /** Every refusal a send answers before its first write. */
 const CreateRefusal = Schema.Union([MessageInputInvalidError, ChatBusyError])
@@ -91,7 +88,7 @@ describe('createUserMessage', () => {
     const jobs = recordMessages()
     const inserts = noInserts()
     return Effect.gen(function* () {
-      const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
+      const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
       const { userMessage } = run
       const sentAt = userMessage.createdAt
@@ -136,7 +133,7 @@ describe('createUserMessage', () => {
   ])('$name', ({ read, title }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
+      const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
       const titleJob = {
         queue: 'chat-title',
@@ -161,7 +158,7 @@ describe('createUserMessage', () => {
           : Effect.void,
     })
     return Effect.gen(function* () {
-      const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
+      const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
       assert.deepStrictEqual(logs, [['Error', 'chat title not queued', chat.id, run.userMessageId]])
     }).pipe(
@@ -188,7 +185,7 @@ describe('createUserMessage', () => {
       })
       const mocks = insertingInto(noInserts(), sendingTo(chat))
       return Effect.gen(function* () {
-        const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
+        const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
         assert.strictEqual(run.status, 'failed')
         assert.strictEqual(Option.getOrThrow(run.failure).reason, 'QueueError')
@@ -207,19 +204,19 @@ describe('createUserMessage', () => {
     {
       name: 'with a blank text',
       read: chat,
-      input: ask(' '),
+      text: ' ',
       error: new MessageInputInvalidError(),
     },
     {
       name: 'while a Run is in work',
       read: busyChat,
-      input: ask('And in Porto?'),
+      text: 'And in Porto?',
       error: new ChatBusyError({ id: chat.id }),
     },
-  ])('create $name is refused before any write or job', ({ read, input, error }) => {
+  ])('create $name is refused before any write or job', ({ read, text, error }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* createUserMessage(owner, chat.id, input).pipe(Effect.flip)
+      const refused = yield* createUserMessage(owner, chat.id, text).pipe(Effect.flip)
 
       assertSchemaEquals(CreateRefusal, refused, error)
       assertEquals(yield* jobs.sent, [])
