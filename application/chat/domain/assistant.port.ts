@@ -6,12 +6,14 @@ import type { Attachment } from '#chat/domain/attachment.model'
 import type { ChatTitle } from '#chat/domain/chat.model'
 import type { MessageFields } from '#chat/domain/message.model'
 
+export interface AttachmentBytes {
+  readonly attachment: Attachment
+  readonly bytes: Uint8Array
+}
+
 export interface HistoryMessage {
   readonly message: MessageFields
-  readonly attachments: ReadonlyArray<{
-    readonly attachment: Attachment
-    readonly bytes: Uint8Array
-  }>
+  readonly attachments: ReadonlyArray<AttachmentBytes>
 }
 
 export class Assistant extends Context.Service<

@@ -5,6 +5,7 @@ import {
   Duration,
   Effect,
   Layer,
+  pipe,
   Schedule,
   Schema,
   SchemaTransformation,
@@ -18,7 +19,7 @@ import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 
 import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { Assistant, type HistoryMessage } from '#chat/domain/assistant.port'
+import { Assistant, type AttachmentBytes, type HistoryMessage } from '#chat/domain/assistant.port'
 import { ChatTitle } from '#chat/domain/chat.model'
 import { isBlank } from '#chat/domain/message.model'
 
@@ -29,19 +30,25 @@ const systemPrompt = [
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-/** A blank text says nothing and an empty text block is refused, so it sends only its files. */
+function toFilePart({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded {
+  return {
+    type: 'file',
+    mediaType: attachment.mediaType,
+    fileName: attachment.fileName,
+    data: bytes,
+  }
+}
+
+/** A blank text says nothing and an empty text block is refused, so it sends no text part. */
+function toTextParts(text: string): ReadonlyArray<Prompt.TextPartEncoded> {
+  return isBlank(text) ? [] : [{ type: 'text', text }]
+}
+
 function toMessage({ message, attachments }: HistoryMessage): Prompt.MessageEncoded {
-  const files = Arr.map(
-    attachments,
-    ({ attachment, bytes }): Prompt.FilePartEncoded => ({
-      type: 'file',
-      mediaType: attachment.mediaType,
-      fileName: attachment.fileName,
-      data: bytes,
-    }),
-  )
-  const text: Prompt.TextPartEncoded = { type: 'text', text: message.text }
-  return { role: message.author, content: isBlank(message.text) ? files : Arr.prepend(files, text) }
+  return {
+    role: message.author,
+    content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
+  }
 }
 
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
@@ -64,20 +71,22 @@ function toUnfinishedError({ finishReason }: { readonly finishReason: Response.F
 const toFailedError = (error: { readonly message: string }) =>
   new AssistantFailedError({ cause: error.message })
 
+const retryAfterOf = ({ retryAfter }: AiError.AiError) => retryAfter ?? Duration.zero
+
 /** A `retryAfter` over 30 s, such as a daily token limit's, would outlast the job. */
+const isWorthRetrying = (error: AiError.AiError) =>
+  error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), Duration.seconds(30))
+
+/** 1, 2 … s apart, each wait at least the provider's `retryAfter`. */
+const retrySchedule = Schedule.exponential('1 second').pipe(
+  Schedule.setInputType<AiError.AiError>(),
+  Schedule.modifyDelay(({ input, duration }) =>
+    Effect.succeed(Duration.max(duration, retryAfterOf(input))),
+  ),
+)
+
 const retryPassing = <A>(request: Effect.Effect<A, AiError.AiError>) =>
-  Effect.retry(request, {
-    times: 2,
-    while: (error) =>
-      error.isRetryable &&
-      Duration.isLessThanOrEqualTo(error.retryAfter ?? Duration.zero, Duration.seconds(30)),
-    schedule: Schedule.exponential('1 second').pipe(
-      Schedule.setInputType<AiError.AiError>(),
-      Schedule.modifyDelay(({ input, duration }) =>
-        Effect.succeed(Duration.max(duration, input.retryAfter ?? Duration.zero)),
-      ),
-    ),
-  })
+  Effect.retry(request, { times: 2, while: isWorthRetrying, schedule: retrySchedule })
 
 export const AssistantLlmFromConfig: Layer.Layer<
   Assistant,
