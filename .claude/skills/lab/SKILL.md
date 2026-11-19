@@ -202,9 +202,9 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
   lab itself, its start and its close. Past the first pass a source follows: `(OWNER)` the
   owner's word or edit, `(REVIEW)` a review's finding. A fix's body opens
   `Fixes L<n>.<r>: <what was wrong>`; a revert's subject names each round it reverts.
-- **A step's rounds**, by subject:
-  `git log -E --grep='^:[a-z0-9_-]+: [a-z]+\([^)]*\): (L[0-9]+\+)*L2(\+L[0-9]+)*[. ]'` finds
-  `L2.1` and `L1+L2`, not `L21`.
+- **A step's rounds**, by subject, since the Base `lab.md` names, else `main`:
+  `git log -E --grep='^:[a-z0-9_-]+: [a-z]+\(<slug>\): (L[0-9]+\+)*L2(\+L[0-9]+)*[. ]' <Base>..HEAD`
+  finds `L2.1` and `L1+L2`, not `L21`.
 
 ## Lessons
 

@@ -11,11 +11,12 @@ code and spawns no agent. It takes one session's reading, about ten tool calls.
 
 ## Steps
 
-1. **The range.** `L<n>`: from the parent of the oldest commit the subject search of
-   `.claude/skills/lab/SKILL.md › Rounds` finds for the step to `HEAD`; `<base>..<head>` as
-   given; `all`: from `git merge-base main HEAD`; none: the Map's step in progress, else
-   `all`. Done when `git log --oneline` and `git diff --shortstat` of the range are in hand, the
-   lines split into code, tests, docs and generated files (migrations, snapshots).
+1. **The range.** `L<n>`: from the parent of the step's oldest round to its newest, both found
+   by the subject search of `.claude/skills/lab/SKILL.md › Rounds`; `<base>..<head>` as given;
+   `all`: from the Base `lab.md` names, else `git merge-base main HEAD`, to `HEAD`; none: the
+   Map's step in progress, else `all`. Done when `git log --oneline` and `git diff --shortstat`
+   of the range are in hand, the lines split into code, tests, docs and generated files
+   (migrations, snapshots).
 2. **The intent.** Read what the range was asked to do: the step's Shape and Notes in `lab.md`,
    or a micro change's request in its first commit, and the commits' `Decision:` paragraphs. Done
    when each deviation from the Shape or the request is listed with the commit that made it.
