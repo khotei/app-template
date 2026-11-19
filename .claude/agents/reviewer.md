@@ -24,7 +24,8 @@ more only when the diff touches a contract they do not quote, and say so.
 - **Hunt:** correctness bugs and silent failures. Of each construct that absorbs an error (a
   catch-all, a fallback, a default for an absent value, a retry, an error folded into a refusal,
   a discarded result such as a write's answer of what it changed), name the failure it hides and
-  who learns of it. Of each guard or check the range adds, name a form of the break it lets pass.
+  who learns of it. Of each guard or check the range adds or changes, name a form of the break it
+  lets pass (a re-export, a path alias, a dependency a manifest declares).
 - **Rules:** a break of a line of the rules and `CLAUDE.md` files the brief lists, cited by that
   line; read each whole, and name each in the report with its findings or `none`. No finding
   without a line to cite, and none on the shape. On an instruction file, also judge it by

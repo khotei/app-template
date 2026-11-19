@@ -160,7 +160,8 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
    change, from the Base `lab.md` names, else `git merge-base main HEAD`, to `HEAD`.
 3. **A `reviewer` per pass, in parallel**, each brief naming its pass, the range, its sources, the
    word limit of 400 and the findings already rejected on this range, and nothing else. A range
-   of docs, config or moves alone gets Intent and Rules.
+   of docs, config or moves alone gets Intent and Rules, and Hunt too when it changes a guard (a
+   lint config or plugin, a manifest's `exports` or dependencies, a permission list, a hook).
    - **Intent**, on `opus high`: the step's goal, Shape and Knowledge (for `all`, the Intent, the
      Map and Knowledge; for a micro change, the owner's request quoted), the range's files and
      their callers;
