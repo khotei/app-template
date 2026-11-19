@@ -34,7 +34,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 | `.table` · `.entity` | a table · `<Name>Entity` with its `Where` and `Set`, an `Insert` only where an insert is no table's row, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |
 | `.mapper` | api: `buildApi<Model>`, a model handed to a wire shape that adds or renames a field; a model's row needs none, it is its own codec |
 | `.client` · `.http` | client wiring · one resource's routes |
-| `.sender` · `.consumer` | `send<Job>`, the function that sends a queue's job and settles its refusal · the function that runs a queue's handler on what it delivers |
+| `.sender` · `.consumer` | `send<Job>`, the function that sends a queue's job and settles or logs its refusal · the function that runs a queue's handler on what it delivers |
 | `.test` · `.e2e` | a unit test, no process outside vitest · a test on the run's containers |
 | `.test-fixture` · `.test-util` | sample values, no Effect, no layer · an assertion or value helper, no layer |
 | `.test-fake` · `.test-layer` · `.test-setup` | a port's or service's test implementation · real services over fakes or containers · a vitest `globalSetup` |

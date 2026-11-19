@@ -20,5 +20,5 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter is a `Layer` of a port,
   so callers never see the client: the prompts stay inside the adapter.
 - A `<model>.queue.ts` in `infrastructure/` holds only queue definitions; only the use cases'
-  level calls `send`, a `send<Job>` in `use-cases/<object>/<object>.sender.ts` where a refused
-  send changes a record, and no adapter wraps the worker.
+  level calls `send`, through each job's `send<Job>` in `use-cases/<object>/<object>.sender.ts`,
+  and no adapter wraps the worker.

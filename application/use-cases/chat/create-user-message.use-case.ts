@@ -5,13 +5,11 @@ import {
   AttachmentService,
   type ChatId,
   ChatService,
-  chatTitleQueue,
   ensureAllReachableFrom,
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
   FileAttachmentService,
-  GenerateChatTitle,
   isNewChat,
   type MessageInput,
   MessageService,
@@ -19,9 +17,8 @@ import {
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import { Transaction } from '@app-template/packages/db'
-import { QueueSender } from '@app-template/packages/queue'
 
-import { sendGenerateAssistantMessage } from '#use-cases/chat/chat.sender'
+import { sendGenerateAssistantMessage, sendGenerateChatTitle } from '#use-cases/chat/chat.sender'
 
 /** The message, its bind and its Run commit together: a Run that loses the race keeps none. */
 const storeUserMessage = Effect.fnUntraced(
@@ -49,7 +46,6 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 ) {
   const chats = yield* ChatService
   const fileAttachments = yield* FileAttachmentService
-  const queue = yield* QueueSender
 
   yield* ensureMessageInput(input)
   const chat = yield* chats.getOne({ id: chatId, userId }).pipe(Effect.tap(ensureChatNotBusy))
@@ -63,15 +59,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   // The title job goes first: a reply job SQS refuses fails the create, and no retry sends a
   // title.
-  if (isNewChat(chat)) {
-    const messageId = run.userMessageId
-    yield* queue
-      .send(chatTitleQueue, new GenerateChatTitle({ messageId }))
-      .pipe(
-        Effect.ignore({ log: 'Error', message: 'chat title not queued' }),
-        Effect.annotateLogs({ chatId, messageId }),
-      )
-  }
+  if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
   yield* sendGenerateAssistantMessage(run)
   return run
 })

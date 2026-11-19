@@ -2,8 +2,11 @@ import { Effect } from 'effect'
 
 import {
   assistantMessageQueue,
+  chatTitleQueue,
   failRun,
   GenerateAssistantMessage,
+  GenerateChatTitle,
+  type MessageFields,
   type Run,
   RunNotQueuedError,
   RunService,
@@ -31,4 +34,15 @@ export const sendGenerateAssistantMessage = Effect.fn('sendGenerateAssistantMess
     Effect.catchTag('QueueError', () => failUnsent(run)),
     Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
   ),
+)
+
+/** Sends the job that titles the message's chat; one SQS refuses is logged, and the send goes on. */
+export const sendGenerateChatTitle = Effect.fn('sendGenerateChatTitle')(
+  (message: Pick<MessageFields, 'id' | 'chatId'>) =>
+    QueueSender.use((queue) =>
+      queue.send(chatTitleQueue, new GenerateChatTitle({ messageId: message.id })),
+    ).pipe(
+      Effect.ignore({ log: 'Error', message: 'chat title not queued' }),
+      Effect.annotateLogs({ chatId: message.chatId, messageId: message.id }),
+    ),
 )
