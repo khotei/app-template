@@ -435,8 +435,9 @@ left.
 
 What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
 questions. One section per ticket; each item says what goes wrong, with its file and symbol, why
-it was left, and the ways out to weigh. A ticket that takes an item moves it into its own `Later`
-and deletes it here.
+it was left, and the ways out to weigh. A design audit has a section too, whose findings no
+verifier has checked stand by title alone, marked so, until one does. A ticket that takes an item
+moves it into its own `Later` and deletes it here.
 
 ### From `lambda-processes`
 
@@ -512,7 +513,7 @@ and deletes it here.
 - Entry 8's scope that the ticket narrowed away: `web` in the trace, Effect DevTools, health and
   readiness endpoints, and log conventions.
 
-### From the last design audit
+### From the design audit of 2026-11-19
 
 - (2026-11-19, verified) The reply job's exit handler (`generate-assistant-message.use-case.ts`)
   cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
@@ -549,55 +550,55 @@ and deletes it here.
 - (2026-11-19) One `ChatServices` layer that leaves `AttachmentService` open (found by the last
   audit, not verified).
 - (2026-11-19) The CI Claude review runs once per PR, is documented, and drops its boilerplate
-  (found by the last audit, not verified).
+  (found by the audit, not verified).
 - (2026-11-19) Unused exports, a dead branch and small readability fixes in the source (found by the
-  last audit, not verified).
+  audit, not verified).
 - (2026-11-19) The Design pass reads the rules `make review-rules` prints; `stops.md` question 5
-  goes (found by the last audit, not verified).
+  goes (found by the audit, not verified).
 - (2026-11-19) Small doc fixes: duplicate pointers, dates in records, a lost verb, extension entries
-  (found by the last audit, not verified).
+  (found by the audit, not verified).
 - (2026-11-19) The e2e provisioner drops its guard against reruns that never happen (found by the
-  last audit, not verified).
-- (2026-11-19) A list write that names no row passes, and the caller guards it forced go (found by
-  the last audit, not verified).
-- (2026-11-19) The imports plugin drops six loader forms no file uses (found by the last audit, not
+  audit, not verified).
+- (2026-11-19) A list write that names no row should pass, so the callers' guards against it can
+  go (found by the audit, not verified).
+- (2026-11-19) The imports plugin drops six loader forms no file uses (found by the audit, not
   verified).
 - (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
-  (found by the last audit, not verified).
+  (found by the audit, not verified).
 - (2026-11-19) Decide shared-files L3's half-built paths once: the chat delete's bytes, the bind's
-  held branch (found by the last audit, not verified).
+  held branch (found by the audit, not verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
-  it (found by the last audit, not verified).
+  it (found by the audit, not verified).
 - (2026-11-19) Generated files count apart in `make numbers`; a micro's PR follows the `Later` rule
-  (found by the last audit, not verified).
+  (found by the audit, not verified).
 - (2026-11-19) Lab skill rails: `/cd`, a new module's test folder, standing owner edits, stacked
-  labs (found by the last audit, not verified).
-- (2026-11-19) `migrateDatabase` stops counting Drizzle's private ledger (found by the last audit,
+  labs (found by the audit, not verified).
+- (2026-11-19) `migrateDatabase` stops counting Drizzle's private ledger (found by the audit,
   not verified).
 - (2026-11-19) Scope the pattern-only rule to instruction files (the owner's call) (found by the
-  last audit, not verified).
+  audit, not verified).
 - (2026-11-19) Delete tests of the framework and cases a lower seam already owns (found by the last
   audit, not verified).
 - (2026-11-19) Drop the 11 parameter annotations that restate a repository's Shape (found by the
-  last audit, not verified).
+  audit, not verified).
 - (2026-11-19) `review-brief` stops citing the owner's private style file and Russian literals
-  (found by the last audit, not verified).
+  (found by the audit, not verified).
 - (2026-11-19) `Status` takes the Run statuses from their table; Run predicates and types in the Run
-  model (found by the last audit, not verified).
+  model (found by the audit, not verified).
 - (2026-11-19) One attachment fixture in `chat.test-fixture.ts` replaces nine copies (found by the
-  last audit, not verified).
+  audit, not verified).
 - (2026-11-19) `"sideEffects": false` weighed against its record's 27 KB clause (found by the last
   audit, not verified).
 - (2026-11-19) Tables of effects drop the type scaffolding `effect-style.md` forces (found by the
-  last audit, not verified).
+  audit, not verified).
 - (2026-11-19) Trim test leftovers: dead sleeps, duplicate cases, one-caller support, change
-  detectors (found by the last audit, not verified).
+  detectors (found by the audit, not verified).
 - (2026-11-19) Toolkit housekeeping: Makefile defaults, a stale template field, wording,
-  `worktree.sh` (found by the last audit, not verified).
+  `worktree.sh` (found by the audit, not verified).
 - (2026-11-19) Drop the `SecretHash` brand no field carries and the `RETURNING` read-back of a known
-  id (found by the last audit, not verified).
+  id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
-  last audit, not verified).
+  audit, not verified).
 
 ## Ideas to weigh
 
