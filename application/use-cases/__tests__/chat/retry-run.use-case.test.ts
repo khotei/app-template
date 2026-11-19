@@ -3,7 +3,6 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer, Option } from 'effect'
 
 import {
-  buildRun,
   Chat,
   ChatBusyError,
   GenerateAssistantMessage,
@@ -69,11 +68,13 @@ describe('retryRun', () => {
         assertSchemaEquals(
           Run,
           retried,
-          buildRun({
+          new Run({
             id: retried.id,
             chatId: chat.id,
             userMessage: firstMessage,
+            userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
+            updatedAt: retried.createdAt,
           }),
         )
         assert.deepStrictEqual(inserts, [yield* encodeWith(RunFields)(retried)])

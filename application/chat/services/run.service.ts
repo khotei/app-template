@@ -6,7 +6,7 @@ import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/sche
 
 import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
-import { buildRun, Run } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
 
@@ -43,7 +43,14 @@ export class RunService extends Context.Service<
     const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
       const id = yield* generateId(RunId)
       const createdAt = yield* DateTime.now
-      const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })
+      const run = new Run({
+        id,
+        chatId: userMessage.chatId,
+        userMessage,
+        userMessageId: userMessage.id,
+        createdAt,
+        updatedAt: createdAt,
+      })
       const row = yield* encodeWith(RunFields)(run)
 
       yield* runs.insert(row)

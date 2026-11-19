@@ -16,7 +16,7 @@ import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { buildChat, Chat, ChatFields, type ChatTitle, renameChat } from '#chat/domain/chat.model'
+import { Chat, ChatFields, type ChatTitle } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 
 /** The user's chat; another user's reads as absent. */
@@ -55,7 +55,7 @@ export class ChatService extends Context.Service<
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
       const id = yield* generateId(ChatId)
       const createdAt = yield* DateTime.now
-      const chat = buildChat({ id, userId, createdAt })
+      const chat = new Chat({ id, userId, createdAt, updatedAt: createdAt })
       const row = yield* encodeWith(ChatFields)(chat)
 
       yield* chats.insert(row)
@@ -81,7 +81,7 @@ export class ChatService extends Context.Service<
     ) {
       const chat = yield* getOne(where)
       const at = yield* DateTime.now
-      const renamed = renameChat(chat, { title, at })
+      const renamed = new Chat({ ...chat, title: Option.some(title), updatedAt: at })
       const row = yield* encodeWith(ChatFields)(renamed)
 
       // Only the renamed fields, under the `where` again: a change landing after the read is kept.

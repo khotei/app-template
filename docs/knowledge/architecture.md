@@ -120,7 +120,7 @@ import { readFileSync } from 'node:fs'                      // Bun and Node buil
 
 import { Effect } from 'effect'                             // external packages
 
-import { buildChat } from '@app-template/application/chat'  // another unit
+import { ChatService } from '@app-template/application/chat'  // another unit
 
 import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'  // this unit
 ```

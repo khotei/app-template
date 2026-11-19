@@ -5,7 +5,6 @@ import { TestClock } from 'effect/testing'
 
 import {
   AssistantReply,
-  buildRun,
   GenerateAssistantMessage,
   Message,
   MessageFields,
@@ -40,11 +39,13 @@ const andAgain = userMessageAt(3, 'And again?')
 const andNow = userMessageAt(4, 'And now?')
 
 /** The queued Run of `andNow`, the history's last message. */
-const lastRun = buildRun({
+const lastRun = new Run({
   id: queuedRun.id,
   chatId,
   userMessage: andNow,
+  userMessageId: andNow.id,
   createdAt: andNow.createdAt,
+  updatedAt: andNow.createdAt,
 })
 
 const elsewhereReply = assistantMessageAt(5, 'Done elsewhere.')

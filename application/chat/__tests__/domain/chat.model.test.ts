@@ -1,6 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Option, Schema } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -11,7 +10,6 @@ import {
   ChatTitle,
   ensureChatNotBusy,
   isNewChat,
-  renameChat,
 } from '#chat/domain/chat.model'
 import type { RunStatus } from '#chat/domain/run-fields.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
@@ -68,18 +66,6 @@ describe('ensureChatNotBusy', () => {
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
     }),
   )
-})
-
-describe('renameChat', () => {
-  it('titles the chat and moves its updatedAt', () => {
-    const title = ChatTitle.make('Trip')
-    const at = DateTime.makeUnsafe('2026-10-18T00:00:00.000Z')
-
-    assertEquals(
-      renameChat(chat, { title, at }),
-      new Chat({ ...chat, title: Option.some(title), updatedAt: at }),
-    )
-  })
 })
 
 describe('ChatTitle', () => {

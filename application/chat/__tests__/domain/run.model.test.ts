@@ -9,7 +9,6 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
-  buildRun,
   completeRun,
   ensureRunRetryable,
   failRun,
@@ -57,12 +56,6 @@ const reply = new Message({
 })
 
 const runAt = (status: RunStatus) => new Run({ ...queued, status })
-
-describe('buildRun', () => {
-  it('builds a queued Run with no failure, last moved when built', () => {
-    assertSchemaEquals(Run, buildRun(queued), queued)
-  })
-})
 
 it.each([
   { status: 'queued', active: true, started: false },

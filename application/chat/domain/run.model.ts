@@ -20,10 +20,6 @@ export class Run extends Schema.Class<Run>('Run')({
   ),
 }) {}
 
-export const buildRun = (
-  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'createdAt'>>,
-): Run => new Run({ ...fields, userMessageId: fields.userMessage.id, updatedAt: fields.createdAt })
-
 export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run some worker already took: found at a worker's start, the worker that took it has died. */

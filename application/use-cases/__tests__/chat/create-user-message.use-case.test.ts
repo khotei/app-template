@@ -4,7 +4,6 @@ import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 
 import {
   assistantMessageQueue,
-  buildRun,
   Chat,
   ChatBusyError,
   ChatTitle,
@@ -101,7 +100,7 @@ describe('createUserMessage', () => {
       assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
       assertEquals(
         run,
-        buildRun({
+        new Run({
           id: run.id,
           chatId: chat.id,
           userMessage: new Message({
@@ -111,7 +110,9 @@ describe('createUserMessage', () => {
             text: 'Plan a weekend in Lisbon',
             createdAt: sentAt,
           }),
+          userMessageId: userMessage.id,
           createdAt: run.createdAt,
+          updatedAt: run.createdAt,
         }),
       )
       assert.deepStrictEqual(inserts.messages, [yield* encodeWith(MessageFields)(userMessage)])

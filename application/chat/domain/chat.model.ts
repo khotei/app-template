@@ -1,4 +1,4 @@
-import { type DateTime, Effect, Option, Schema, type Types } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { maxTitleLength, textPattern } from '@app-template/kernel/data'
@@ -62,12 +62,3 @@ export const ensureChatNotBusy = (latestRun: Option.Option<RunFields>) =>
       onSome: (run) => Effect.fail(new ChatBusyError({ id: run.chatId })),
     }),
   )
-
-export const renameChat = (
-  chat: Chat,
-  { title, at }: { readonly title: ChatTitle; readonly at: DateTime.Utc },
-): Chat => new Chat({ ...chat, title: Option.some(title), updatedAt: at })
-
-export const buildChat = (
-  fields: Types.Simplify<Pick<Chat, 'id' | 'userId' | 'createdAt'>>,
-): Chat => new Chat({ ...fields, updatedAt: fields.createdAt })

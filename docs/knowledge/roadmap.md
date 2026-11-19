@@ -406,9 +406,8 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
   `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
   owner's decision.
-- (2026-11-19, verified) `buildRun`'s and `buildChat`'s defaults, `ChatService.create` and the
-  untitled-chat `where` (`chat.repository.ts`) have no case at their own seam; a planted bug in each
-  passes.
+- (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
+  have no case at their own seam; a planted bug in each passes.
 - (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
   the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
   once.
