@@ -12,11 +12,7 @@ import {
   RunService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
-import {
-  QueueSenderOfStage,
-  S3BucketFromConfig,
-  SQSServiceFromConfig,
-} from '@app-template/kernel/aws'
+import { QueueSenderFromConfig, S3BucketFromConfig } from '@app-template/kernel/aws'
 import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
@@ -55,10 +51,10 @@ const BunHttpServerFromConfig = apiPort.pipe(
 const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
-  Layer.provide([QueueSenderOfStage, Transaction.layer]),
+  Layer.provide([QueueSenderFromConfig, Transaction.layer]),
   Layer.provide([PostgresRepositories, FileRepository.layer]),
   Layer.provide(Db.layer),
-  Layer.provide([PgClientFromConfig, S3BucketFromConfig, SQSServiceFromConfig]),
+  Layer.provide([PgClientFromConfig, S3BucketFromConfig]),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),
   Layer.provide(

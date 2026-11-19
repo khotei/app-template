@@ -15,7 +15,7 @@ const buildClientOptions = ({ region, endpoint }: AwsConfig) => ({
 })
 
 /** With an endpoint set, addresses buckets by path, so presigned URLs carry that endpoint's host. */
-export const S3ServiceFromConfig: Layer.Layer<S3Service, Config.ConfigError> = awsConfig.pipe(
+const S3ServiceFromConfig: Layer.Layer<S3Service, Config.ConfigError> = awsConfig.pipe(
   Effect.map((config) =>
     S3Service.layer({
       ...buildClientOptions(config),
@@ -25,7 +25,7 @@ export const S3ServiceFromConfig: Layer.Layer<S3Service, Config.ConfigError> = a
   Layer.unwrap,
 )
 
-export const SQSServiceFromConfig: Layer.Layer<SQSService, Config.ConfigError> = awsConfig.pipe(
+const SQSServiceFromConfig: Layer.Layer<SQSService, Config.ConfigError> = awsConfig.pipe(
   Effect.map((config) => SQSService.layer(buildClientOptions(config))),
   Layer.unwrap,
 )
@@ -48,3 +48,6 @@ export const QueueSenderOfStage: Layer.Layer<QueueSender, Config.ConfigError, SQ
     Effect.map(({ stage }) => QueueSender.layer((name) => buildResourceName(stage, name))),
     Layer.unwrap,
   )
+
+export const QueueSenderFromConfig: Layer.Layer<QueueSender, Config.ConfigError> =
+  QueueSenderOfStage.pipe(Layer.provide(SQSServiceFromConfig))
