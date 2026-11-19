@@ -554,10 +554,6 @@ and deletes it here.
   `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
   looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
   resolve the queue's URL once when the layer is built.
-- (2026-11-18) The lookup of a queue's URL has no span since the design audit folded
-  `QueueClient` into `QueueSender.layer`: its time shows only inside `QueueSender.send`'s own.
-  Left: the audit added no span. Ways out to weigh: one `Effect.withSpan` on the lookup's
-  `Cache.get` when the item above is measured, or none.
 - Entry 8's scope that the ticket narrowed away: `web` in the trace, Effect DevTools, health and
   readiness endpoints, and log conventions.
 

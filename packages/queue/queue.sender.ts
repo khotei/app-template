@@ -1,12 +1,9 @@
 import { SQSService } from '@effect-aws/client-sqs'
-import { Cache, Context, Duration, Effect, Exit, Layer, Schema } from 'effect'
+import { Context, Effect, Layer, Schema } from 'effect'
 import { HttpTraceContext } from 'effect/http'
 
+import { QueueClient, QueueError } from '#queue/queue.client'
 import type { QueueDefinition } from '#queue/queue.model'
-
-export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
-  cause: Schema.Defect(),
-}) {}
 
 export class QueueSender extends Context.Service<
   QueueSender,
@@ -29,23 +26,14 @@ export class QueueSender extends Context.Service<
       this,
       Effect.gen(function* () {
         const sqs = yield* SQSService
-        const urls = yield* Cache.makeWith(
-          (queue: string) =>
-            sqs
-              .getQueueUrl({ QueueName: queue })
-              .pipe(Effect.flatMap(({ QueueUrl }) => Effect.fromNullishOr(QueueUrl))),
-          {
-            capacity: Number.POSITIVE_INFINITY,
-            timeToLive: (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
-          },
-        )
+        const client = yield* QueueClient
 
         const send = Effect.fn('QueueSender.send')(
           function* <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) {
             const body = yield* Schema.encodeEffect(
               Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
             )(message).pipe(Effect.orDie)
-            const url = yield* Cache.get(urls, buildName(definition.name))
+            const url = yield* client.getUrl(buildName(definition.name))
             const span = yield* Effect.currentSpan.pipe(Effect.orDie)
             const { traceparent } = HttpTraceContext.toHeaders(span)
             yield* sqs.sendMessage({
@@ -59,5 +47,5 @@ export class QueueSender extends Context.Service<
 
         return { send }
       }),
-    )
+    ).pipe(Layer.provide(QueueClient.layer))
 }
