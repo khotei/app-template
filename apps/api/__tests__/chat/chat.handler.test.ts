@@ -41,7 +41,7 @@ const reads = {
   run: (value: Run) => () => encodeRowWith(Run)(value).pipe(Effect.map(Option.some)),
 }
 
-const hello = { text: 'Hello', attachmentIds: [] }
+const hello = { text: 'Hello' }
 
 const refusedRun = new Run({
   ...queuedRun,
@@ -83,12 +83,12 @@ describe('chats', () => {
     }).pipe(Effect.provide(layerApiTest({ users: { selectOne: () => Effect.succeedNone } }))),
   )
 
-  it.effect('a payload that fails its schema is 400 RequestInvalidError naming each field', () =>
+  it.effect('a payload that fails its schema is 400 RequestInvalidError naming the field', () =>
     Effect.gen(function* () {
       const http = yield* HttpClient.HttpClient
 
       const response = yield* http.post(`/chats/${chat.id}/messages`, {
-        body: HttpBody.jsonUnsafe({ text: 1, attachmentIds: ['not-an-id'] }),
+        body: HttpBody.jsonUnsafe({ text: 1 }),
       })
       const error = yield* response.json.pipe(
         Effect.flatMap(Schema.decodeUnknownEffect(RequestInvalidError)),
@@ -97,7 +97,7 @@ describe('chats', () => {
       assert.strictEqual(response.status, 400)
       assert.deepStrictEqual(
         Arr.map(error.issues, ({ path }) => path),
-        [['text'], ['attachmentIds', 0]],
+        [['text']],
       )
     }).pipe(Effect.provide(asOwner())),
   )
@@ -213,7 +213,7 @@ describe('chats', () => {
         body: HttpBody.jsonUnsafe({ title: 'a\u0000b' }),
       })
       const sent = yield* http.post(`/chats/${chat.id}/messages`, {
-        body: HttpBody.jsonUnsafe({ text: 'a\u0000b', attachmentIds: [] }),
+        body: HttpBody.jsonUnsafe({ text: 'a\u0000b' }),
       })
 
       assert.deepStrictEqual([renamed.status, sent.status], [400, 400])

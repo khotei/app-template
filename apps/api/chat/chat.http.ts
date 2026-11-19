@@ -2,8 +2,6 @@ import { flow, Schema, Struct } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import {
-  AttachmentId,
-  AttachmentNotFoundError,
   Chat,
   ChatBusyError,
   ChatId,
@@ -22,8 +20,6 @@ import {
   RunNotFoundError,
   RunNotRetryableError,
 } from '@app-template/application/chat'
-
-import { maxFiles } from '#api/attachment/attachment.http'
 
 /** A chat with the status its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.mapFields(
@@ -76,14 +72,12 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     params: chatPath,
     payload: Schema.Struct({
       text: MessageFields.fields.text.check(Schema.isMaxLength(20_000)),
-      attachmentIds: Schema.Array(AttachmentId).check(Schema.isMaxLength(maxFiles)),
     }),
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
       MessageInputInvalidError.pipe(HttpApiSchema.status(400)),
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatBusyError.pipe(HttpApiSchema.status(409)),
-      AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
     ],
   }),
   HttpApiEndpoint.post('retryRun', '/chats/:chatId/runs', {

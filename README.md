@@ -82,7 +82,7 @@ A whole conversation from the shell, with the cookie kept in a jar:
 curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
-  -H 'content-type: application/json' -d '{"text":"Hello","attachmentIds":[]}'
+  -H 'content-type: application/json' -d '{"text":"Hello"}'
 # repeat while the Run is queued, preparing or generating: its assistantMessage arrives whole
 curl -s -b jar localhost:3000/chats/<chatId>/runs/<runId>
 # the reload: the chat's messages, each with its Run

@@ -1,22 +1,16 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Schema } from 'effect'
+import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 
 import {
-  Attachment,
-  AttachmentId,
-  AttachmentNotFoundError,
   assistantMessageQueue,
   buildRun,
   Chat,
   ChatBusyError,
   ChatTitle,
   chatTitleQueue,
-  FileName,
-  FileSize,
   GenerateAssistantMessage,
   GenerateChatTitle,
-  MediaType,
   Message,
   MessageFields,
   type MessageInput,
@@ -28,68 +22,32 @@ import {
 import {
   type ChatRepositoryMocks,
   chat,
-  firstMessage,
   layerChatTest,
   owner,
   queuedRun,
 } from '@app-template/application/chat/testing'
-import type { AttachmentEntity, MessageColumns, RunColumns } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith, Transaction } from '@app-template/packages/db'
+import type { MessageColumns, RunColumns } from '@app-template/kernel/data'
+import { encodeRowWith } from '@app-template/packages/db'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import {
-  assertSchemaEquals,
-  epoch,
-  isUuidV7,
-  png,
-  recordLogs,
-} from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, isUuidV7, recordLogs } from '@app-template/packages/testing'
 
 import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
 
-const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
-
-const look = (id: AttachmentId): MessageInput => ({ text: 'Look', attachmentIds: [id] })
-
-/** An unbound attachment of `owner` in the library. */
-const photo = new Attachment({
-  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
-  userId: owner,
-  fileName: FileName.make('photo.png'),
-  mediaType: MediaType.make('image/png'),
-  size: FileSize.make(png.length),
-  createdAt: epoch,
-})
-
-/** `chat`'s copy of `photo`, sent with `firstMessage`. */
-const copy = new Attachment({
-  ...photo,
-  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
-  messageId: Option.some(firstMessage.id),
-  chatId: Option.some(chat.id),
-  sourceId: Option.some(photo.id),
-})
+const ask = (text: string): MessageInput => ({ text })
 
 /** Every refusal a send answers before its first write. */
-const CreateRefusal = Schema.Union([
-  MessageInputInvalidError,
-  ChatBusyError,
-  AttachmentNotFoundError,
-])
+const CreateRefusal = Schema.Union([MessageInputInvalidError, ChatBusyError])
 
-/** The reads of `read`, the chat the send names, and of `attachments`, those it asks for. */
-const sendingTo = (read: Chat, ...attachments: ReadonlyArray<Attachment>) =>
+/** The read of `read`, the chat the send names. */
+const sendingTo = (read: Chat) =>
   ({
     chats: { selectOne: () => encodeRowWith(Chat)(read).pipe(Effect.map(Option.some)) },
-    attachments: {
-      selectMany: () => Effect.forEach(attachments, (each) => encodeRowWith(Attachment)(each)),
-    },
   }) satisfies ChatRepositoryMocks
 
 /** The rows a send hands each repository's `insert`. */
 interface Inserts {
   readonly messages: Array<MessageColumns>
-  readonly attachments: Array<AttachmentEntity>
   readonly runs: Array<RunColumns>
 }
 
@@ -105,13 +63,6 @@ const insertingInto = (
         inserts.messages.push(row)
       }),
   },
-  attachments: {
-    ...mocks.attachments,
-    insert: (row) =>
-      Effect.sync(() => {
-        inserts.attachments.push(row)
-      }),
-  },
   runs: {
     insert: (row) =>
       Effect.sync(() => {
@@ -120,7 +71,7 @@ const insertingInto = (
   },
 })
 
-const noInserts = (): Inserts => ({ messages: [], attachments: [], runs: [] })
+const noInserts = (): Inserts => ({ messages: [], runs: [] })
 
 const replyJob = (runId: RunId) => ({
   queue: 'assistant-message',
@@ -137,91 +88,39 @@ const answeredChat = new Chat({
 const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
 
 describe('createUserMessage', () => {
-  it.live(
-    'create inserts the user message, a copy of its library attachment and its queued Run, writing no chat',
-    () => {
-      const jobs = recordMessages()
-      const inserts = noInserts()
-      return Effect.gen(function* () {
-        const run = yield* createUserMessage(owner, chat.id, {
-          text: 'Plan a weekend in Lisbon',
-          attachmentIds: [photo.id],
-        })
-
-        const { userMessage } = run
-        const sentAt = userMessage.createdAt
-        assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
-        assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
-        assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
-        assertEquals(
-          run,
-          buildRun({
-            id: run.id,
-            chatId: chat.id,
-            userMessage: new Message({
-              author: 'user',
-              id: userMessage.id,
-              chatId: chat.id,
-              text: 'Plan a weekend in Lisbon',
-              createdAt: sentAt,
-            }),
-            createdAt: run.createdAt,
-          }),
-        )
-        assert.deepStrictEqual(inserts.messages, [yield* encodeRowWith(MessageFields)(userMessage)])
-        assert.deepStrictEqual(inserts.runs, [yield* encodeRowWith(RunFields)(run)])
-        const sent = yield* decodeRowWith(Schema.Array(Attachment))(inserts.attachments)
-        assert.isTrue(Arr.every(sent, (each) => isUuidV7(each.id)))
-        assertEquals(
-          sent,
-          Arr.map(
-            sent,
-            (each) =>
-              new Attachment({
-                ...copy,
-                id: each.id,
-                messageId: Option.some(userMessage.id),
-              }),
-          ),
-        )
-        assert.lengthOf(sent, 1)
-      }).pipe(
-        Effect.provide(
-          layerChatTest(insertingInto(inserts, sendingTo(titledChat, photo))).pipe(
-            Layer.provideMerge(jobs.layer),
-          ),
-        ),
-      )
-    },
-  )
-
-  it.effect('create reads its attachments before it opens the transaction', () => {
-    const steps: Array<string> = []
-    const reads = sendingTo(chat, photo)
-    const RecordingTransactionTest = Layer.succeed(
-      Transaction,
-      Transaction.of({
-        run: (self) => Effect.sync(() => steps.push('transaction')).pipe(Effect.andThen(self)),
-      }),
-    )
+  it.live('create inserts the user message and its queued Run, writing no chat', () => {
+    const jobs = recordMessages()
+    const inserts = noInserts()
     return Effect.gen(function* () {
-      yield* createUserMessage(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
+      const run = yield* createUserMessage(owner, chat.id, ask('Plan a weekend in Lisbon'))
 
-      assert.deepStrictEqual(steps, ['attachments read', 'transaction'])
+      const { userMessage } = run
+      const sentAt = userMessage.createdAt
+      assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
+      assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
+      assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
+      assertEquals(
+        run,
+        buildRun({
+          id: run.id,
+          chatId: chat.id,
+          userMessage: new Message({
+            author: 'user',
+            id: userMessage.id,
+            chatId: chat.id,
+            text: 'Plan a weekend in Lisbon',
+            createdAt: sentAt,
+          }),
+          createdAt: run.createdAt,
+        }),
+      )
+      assert.deepStrictEqual(inserts.messages, [yield* encodeRowWith(MessageFields)(userMessage)])
+      assert.deepStrictEqual(inserts.runs, [yield* encodeRowWith(RunFields)(run)])
     }).pipe(
       Effect.provide(
-        layerChatTest(
-          insertingInto(noInserts(), {
-            ...reads,
-            attachments: {
-              selectMany: () =>
-                Effect.sync(() => steps.push('attachments read')).pipe(
-                  Effect.andThen(reads.attachments.selectMany()),
-                ),
-            },
-          }),
-          RecordingTransactionTest,
-        ).pipe(Layer.provideMerge(recordMessages().layer)),
+        layerChatTest(insertingInto(inserts, sendingTo(titledChat))).pipe(
+          Layer.provideMerge(jobs.layer),
+        ),
       ),
     )
   })
@@ -305,35 +204,24 @@ describe('createUserMessage', () => {
 
   it.effect.each([
     {
-      name: 'with neither text nor a file',
+      name: 'with a blank text',
       read: chat,
-      found: [],
       input: ask(' '),
       error: new MessageInputInvalidError(),
     },
     {
       name: 'while a Run is in work',
       read: busyChat,
-      found: [],
       input: ask('And in Porto?'),
       error: new ChatBusyError({ id: chat.id }),
     },
-    {
-      name: 'with an attachment the store finds none of, as for another user',
-      read: chat,
-      found: [],
-      input: look(photo.id),
-      error: new AttachmentNotFoundError({ ids: [photo.id] }),
-    },
-  ])('create $name is refused before any write or job', ({ read, found, input, error }) => {
+  ])('create $name is refused before any write or job', ({ read, input, error }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
       const refused = yield* createUserMessage(owner, chat.id, input).pipe(Effect.flip)
 
       assertSchemaEquals(CreateRefusal, refused, error)
       assertEquals(yield* jobs.sent, [])
-    }).pipe(
-      Effect.provide(layerChatTest(sendingTo(read, ...found)).pipe(Layer.provideMerge(jobs.layer))),
-    )
+    }).pipe(Effect.provide(layerChatTest(sendingTo(read)).pipe(Layer.provideMerge(jobs.layer))))
   })
 })

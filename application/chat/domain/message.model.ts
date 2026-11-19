@@ -1,9 +1,8 @@
-import { Array as Arr, Effect, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
 import { Attachment } from '#chat/domain/attachment.model'
-import type { AttachmentId } from '#chat/domain/attachment.util'
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
 import { isBlank, MessageId } from '#chat/domain/message.util'
@@ -33,16 +32,10 @@ export class Message extends Schema.Class<Message>('Message')({
 
 export interface MessageInput {
   readonly text: string
-  readonly attachmentIds: ReadonlyArray<AttachmentId>
 }
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (isBlank(input.text) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
-    return yield* new MessageInputInvalidError()
-  }
-  // A repeated id would pass the bindability check twice and bind one attachment once, and a
-  // missing one would be named twice in AttachmentNotFoundError.
-  if (Arr.dedupe(input.attachmentIds).length < input.attachmentIds.length) {
+  if (isBlank(input.text)) {
     return yield* new MessageInputInvalidError()
   }
 })
