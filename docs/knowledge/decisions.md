@@ -1069,7 +1069,8 @@ the session, or by an `implementer` once its Shape is settled.
   range, with no replay (R3's Hunt named the manifest gap in 0 of 3). A Design pass on every new
   interface: 12 of its 22 findings were taken, the rate of Standards, but the owner writes the
   Shape, so it runs on the owner's request. A `simplify` round: 2 of 4 findings taken, its time
-  never measured. A researcher per claimed finding: a claim is settled by its own red test.
+  never measured. A researcher per claimed finding: a `claimed` bug is rejected only by its input
+  run as a test that stays green.
 - **Cost:** no EARS requirements, no `architecture.md` and no `verification.md`: a large feature
   is planned only as far as its Map and the Shape of the step at hand, and no fresh agent checks
   behaviour against a requirement list apart from the branch review. The review per range is one

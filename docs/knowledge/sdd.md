@@ -52,7 +52,7 @@ settled steps run unattended only on your word, as a workflow.
 | Rules pass; `hard` fixed, `judgement` deferred | the repo's rules drifting | 51 of 93 Standards findings taken in plan Findings, 42 rejected; a `judgement` finding now costs a `Later` line, not a fix round |
 | Design pass, on request | a shape question raised when you are not deciding shape | 12 of 22 Design findings taken; you write the Shape, so it runs when you ask |
 | One review round; an edge case met by deleting first | review rounds that add guards | the observability branch: about half of ~4,700 lines cut; "a reviewer … will always find something" |
-| A claimed finding settled by its own red test | a claim argued instead of run | your rule: a check counts only through a run or you |
+| A `claimed` bug rejected only by a run of its input as a test | a claim argued away instead of run | your rule: a check counts only through a run or you |
 | Minimal, right, hard, and `Later` | hardening before anything runs | below |
 | The stops file | the same rejected design proposed again | one pair was recorded against at least nine of your stops; pairs are now written at each step's close |
 | `make numbers` at the close | a process judged by feel, Numbers left empty | developers misjudge their own speed (METR, 2025); lambda's Numbers were empty at merge |
@@ -139,7 +139,7 @@ one-line instruction cut once lowered coding quality in a way the vendor's own e
   | R2 | `review L5` of telemetry-minimal at `95584422bf` | the hunt names the non-string `traceparent` attribute at least as often as on the old toolkit |
   | R3 | `review all` of modular-monolith at `dc1eec9fd9`, base `5bfec347df`, its `feature.md` R1 quoted as the Intent | Intent names the changed error body and the race's `500` with its widened assertion in two runs of three |
   | R4 | shared-files at `L0.2`, with and without `stops.md` | with it, no second noun, link table or copy of bytes proposed in two runs of three, and fewer than without it |
-  | R5 | `review` of the observability rounds up to `1241b56e55`, then its fixes | "cap the read" goes to `Later` or to deleting its cause in two runs of three, never into a fix |
+  | R5 | `review` of the observability rounds before `1241b56e55`, then its fixes | "cap the read" goes to `Later` or to deleting its cause in two runs of three, never into a fix |
 
 - **The no-op experiment**, for one disputed line: copy the file as `CLAUDE.md` into two new
   folders of the system temp directory, one without the line, run the task the line governs in
