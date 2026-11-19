@@ -1,25 +1,21 @@
-import { DateTime, Effect } from 'effect'
+import { Effect } from 'effect'
 
 import {
   assistantMessageQueue,
   failRun,
   GenerateAssistantMessage,
   type Run,
-  RunFields,
   RunNotQueuedError,
+  RunService,
 } from '@app-template/application/chat'
-import { RunRepository } from '@app-template/kernel/data'
-import { encodeRowWith } from '@app-template/packages/db'
 import { QueueSender } from '@app-template/packages/queue'
 
 const failUnsent = Effect.fnUntraced(function* (run: Run) {
-  const runs = yield* RunRepository
-  const at = yield* DateTime.now
+  const runs = yield* RunService
   // The Run was stored queued a moment before, so a refused move is a defect.
-  const failed = yield* failRun(run, { reason: 'ReplyFailed', at }).pipe(Effect.orDie)
-  yield* encodeRowWith(RunFields)(failed).pipe(
-    Effect.flatMap((row) => runs.update(row, { id: run.id, status: [run.status] })),
-  )
+  yield* runs
+    .move(run, (queued, at) => failRun(queued, { reason: 'ReplyFailed', at }))
+    .pipe(Effect.orDie)
   return yield* new RunNotQueuedError({ id: run.id })
 })
 

@@ -2,8 +2,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Layer } from 'effect'
 
 import { RunNotQueuedError } from '@app-template/application/chat'
-import { queuedRun } from '@app-template/application/chat/testing'
-import { type RunEntitySet, type RunEntityWhere, RunRepository } from '@app-template/kernel/data'
+import { layerChatTest, queuedRun } from '@app-template/application/chat/testing'
+import type { RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
@@ -44,11 +44,13 @@ describe('sendGenerateAssistantMessage', () => {
       }).pipe(
         Effect.provide([
           RefusingQueueTest,
-          Layer.mock(RunRepository, {
-            update: (...update) =>
-              Effect.sync(() => {
-                updates.push(update)
-              }),
+          layerChatTest({
+            runs: {
+              update: (...update) =>
+                Effect.sync(() => {
+                  updates.push(update)
+                }),
+            },
           }),
           logger,
         ]),

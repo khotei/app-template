@@ -719,7 +719,7 @@ sent and logged in its use case.
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry; the
   reply's sender keeps that settlement out of the two use cases that send it, and the use cases'
-  level already holds the queue and a status write through the repository.
+  level already holds the queue; the Run's move is `RunService.move`'s.
 - **Sources:** the ticket's review of what each reader of `jobs` used it for.
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the

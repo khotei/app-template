@@ -6,17 +6,31 @@ import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages
 
 import { RunId } from '#chat/domain/chat.id'
 import type { MessageFields } from '#chat/domain/message.model'
-import { RunNotFoundError } from '#chat/domain/run.error'
+import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
 import { buildRun, Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
 
 export type RunWhere = Types.Simplify<Pick<Run, 'id' | 'chatId'> & { readonly userId: UserId }>
+
+/** A model's move of a Run at the time it is given (`prepareRun`, `failRun` given its reason). */
+export type RunTransition = (
+  run: Run,
+  at: DateTime.Utc,
+) => Effect.Effect<Run, RunStatusInvalidError>
 
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
+    /**
+     * Moves the Run by `transition` at the current time and writes it under the status it was
+     * read in, so a Run another worker moved since dies on the write.
+     */
+    readonly move: (
+      run: Run,
+      transition: RunTransition,
+    ) => Effect.Effect<Run, RunStatusInvalidError>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -42,7 +56,16 @@ export class RunService extends Context.Service<
         ),
     )
 
-    return { create, getOne }
+    const move = Effect.fn('RunService.move')(function* (run: Run, transition: RunTransition) {
+      const at = yield* DateTime.now
+      const moved = yield* transition(run, at)
+      const row = yield* encodeRowWith(RunFields)(moved)
+
+      yield* runs.update(row, { id: run.id, status: [run.status] })
+      return moved
+    })
+
+    return { create, getOne, move }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

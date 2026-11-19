@@ -192,7 +192,7 @@ touches no row:
   index, rolled back whole with its message and binds: a lost race of that narrow window answers
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status IN (…)`: the reply's use case passes the encoded Run as
+  and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.move` passes the encoded Run as
   the set, and its id and the stored status to match as the `RunEntityWhere`, so a write whose
   expected status another worker has left, or whose Run is gone, changes nothing and dies; the use
   case then reads the Run and skips it as settled or deleted. A Run's completion writes the
