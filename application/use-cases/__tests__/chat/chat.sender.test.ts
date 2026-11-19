@@ -9,21 +9,25 @@ import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { sendGenerateAssistantMessage } from '#use-cases/chat/chat.sender'
 
+const refused = new QueueError({ cause: new Error('SQS is unavailable') })
+
 /** A `QueueSender` that SQS refuses. */
-const RefusingQueueTest = Layer.mock(QueueSender, {
-  send: () => Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') })),
-})
+const RefusingQueueTest = Layer.mock(QueueSender, { send: () => Effect.fail(refused) })
 
 describe('sendGenerateAssistantMessage', () => {
   it.effect(
-    'a send SQS refuses fails the queued Run with RunNotQueuedError and fails with it',
+    'a send SQS refuses fails the queued Run with RunNotQueuedError and its cause, and fails with it',
     () => {
       const { logs, layer: logger } = recordLogs('chatId', 'runId')
       const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
       return Effect.gen(function* () {
         const error = yield* sendGenerateAssistantMessage(queuedRun).pipe(Effect.flip)
 
-        assertSchemaEquals(RunNotQueuedError, error, new RunNotQueuedError({ id: queuedRun.id }))
+        assertSchemaEquals(
+          RunNotQueuedError,
+          error,
+          new RunNotQueuedError({ id: queuedRun.id, cause: refused }),
+        )
         assert.deepStrictEqual(
           Arr.map(updates, ([set, where]) => ({
             status: set.status,
@@ -38,6 +42,7 @@ describe('sendGenerateAssistantMessage', () => {
             },
           ],
         )
+        assert.include(updates[0]?.[0].failure?.cause, 'SQS is unavailable')
         assert.deepStrictEqual(logs, [
           ['Error', 'assistant message not queued', queuedRun.chatId, queuedRun.id],
         ])

@@ -280,10 +280,11 @@ describe('createUserMessage', () => {
 
   it.effect('a first create whose reply job SQS refuses still queues the title job', () => {
     const queued: Array<string> = []
+    const refused = new QueueError({ cause: new Error('SQS is unavailable') })
     const RefusingReplyQueueTest = Layer.mock(QueueSender, {
       send: ({ name }) =>
         name === assistantMessageQueue.name
-          ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
+          ? Effect.fail(refused)
           : Effect.sync(() => {
               queued.push(name)
             }),
@@ -298,7 +299,10 @@ describe('createUserMessage', () => {
       assertSchemaEquals(
         Schema.Array(RunNotQueuedError),
         [error],
-        Arr.map(inserts.runs, (row) => new RunNotQueuedError({ id: RunId.make(row.id) })),
+        Arr.map(
+          inserts.runs,
+          (row) => new RunNotQueuedError({ id: RunId.make(row.id), cause: refused }),
+        ),
       )
       assert.deepStrictEqual(queued, [chatTitleQueue.name])
     }).pipe(

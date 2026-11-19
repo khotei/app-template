@@ -1,7 +1,6 @@
 import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
-import type { LlmRefusedError } from '@app-template/kernel/llm/error'
 
 import type { MessageId } from '#chat/domain/chat.id'
 import { MessageFields } from '#chat/domain/message.model'
@@ -94,24 +93,9 @@ export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: Ru
   }),
 )
 
-const refusedReason: LlmRefusedError['_tag'] = 'LlmRefusedError'
+/** Why a Run failed and when. */
+export type RunFailureInput = Types.Simplify<RunFailure & { readonly at: DateTime.Utc }>
 
-/** The user's sentence for a failure: the refusal's, else one offering a retry. */
-function buildFailureMessage(reason: string) {
-  return reason === refusedReason
-    ? 'The assistant declined to answer this message.'
-    : 'The assistant could not reply. Please try again.'
-}
-
-/** Why a Run failed and when; the user-facing text comes from `buildFailureMessage`. */
-export type RunFailureInput = Types.Simplify<
-  Pick<RunFailure, 'reason'> & { readonly at: DateTime.Utc }
->
-
-export const failRun = Effect.fn('failRun')((run: Run, { reason, at }: RunFailureInput) =>
-  move(run, {
-    to: 'failed',
-    at,
-    patch: { failure: Option.some({ reason, message: buildFailureMessage(reason) }) },
-  }),
+export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: RunFailureInput) =>
+  move(run, { to: 'failed', at, patch: { failure: Option.some({ reason, cause }) } }),
 )

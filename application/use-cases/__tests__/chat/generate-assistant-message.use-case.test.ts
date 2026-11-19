@@ -156,7 +156,7 @@ const replyingTo = (
 const moves = (writes: Writes) =>
   Arr.map(writes.runs, ([set, where]) => `${where.status} → ${set.status}`)
 
-/** The last Run write: its move, and its failure's reason when it fails the Run. */
+/** The last Run write: its move, and its failure when it fails the Run. */
 const lastWrite = (writes: Writes) =>
   pipe(
     writes.runs,
@@ -164,6 +164,7 @@ const lastWrite = (writes: Writes) =>
     Option.map(([set, where]) => ({
       move: `${where.status} → ${set.status}`,
       reason: set.failure?.reason,
+      cause: set.failure?.cause,
     })),
     Option.getOrThrow,
   )
@@ -228,7 +229,6 @@ describe('generateAssistantMessage', () => {
 
   it.effect('generate dies with the assistant and fails the Run it reads again first', () => {
     const assistant = recordMessageAssistant(Effect.die('provider exploded'))
-    const { logs, layer: logger } = recordLogs('cause')
     const writes = noWrites()
     const generating = new Run({ ...queuedRun, status: 'generating' })
     return Effect.gen(function* () {
@@ -236,14 +236,13 @@ describe('generateAssistantMessage', () => {
 
       assert.isTrue(Exit.hasDies(exit))
       assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'RunAborted' })
-      assert.include(String(logs[0]?.[2]), 'provider exploded')
+      assert.include(lastWrite(writes).cause, 'provider exploded')
     }).pipe(
-      Effect.provide([
+      Effect.provide(
         layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
           Layer.provideMerge(assistant.layer),
         ),
-        logger,
-      ]),
+      ),
     )
   })
 
@@ -292,25 +291,24 @@ describe('generateAssistantMessage', () => {
     { error: new LlmRefusedError({ cause: 'stop_reason refusal' }), reason: 'LlmRefusedError' },
     { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'LlmFailedError' },
   ] as const)(
-    "generate fails the Run with $reason after one call, logs the error's cause and writes no reply",
+    "generate fails the Run it reads again with $reason and the error's cause after one call, and writes no reply",
     ({ error, reason }) => {
       const assistant = recordMessageAssistant(Effect.fail(error))
-      const { logs, layer: logger } = recordLogs('reason', 'cause')
       const writes = noWrites()
+      const generating = new Run({ ...queuedRun, status: 'generating' })
       return Effect.gen(function* () {
         yield* generate
 
-        assert.deepStrictEqual(lastWrite(writes), { move: 'generating → failed', reason })
-        assert.deepStrictEqual(logs, [['Warn', 'assistant reply failed', reason, error.cause]])
+        assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason })
+        assert.include(lastWrite(writes).cause, error.cause)
         assert.strictEqual((yield* assistant.histories).length, 1)
         assert.deepStrictEqual(writes.messages, [])
       }).pipe(
-        Effect.provide([
-          layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun) })).pipe(
+        Effect.provide(
+          layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
             Layer.provideMerge(assistant.layer),
           ),
-          logger,
-        ]),
+        ),
       )
     },
   )
@@ -411,7 +409,9 @@ describe('generateAssistantMessage', () => {
 
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(moves(writes), ['queued → preparing', 'preparing → generating'])
-        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
+        assert.deepStrictEqual(logs, [
+          ['Info', 'assistant reply skipped: its Run is settled or gone'],
+        ])
       }).pipe(
         Effect.provide([
           layerChatTest({
@@ -439,7 +439,9 @@ describe('generateAssistantMessage', () => {
       yield* generate
 
       assertEquals(yield* assistant.histories, [])
-      assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: already settled']])
+      assert.deepStrictEqual(logs, [
+        ['Info', 'assistant reply skipped: its Run is settled or gone'],
+      ])
     }).pipe(
       Effect.provide([
         layerChatTest({ runs: { selectOne: readsInTurn(doneElsewhere) } }).pipe(
@@ -459,7 +461,9 @@ describe('generateAssistantMessage', () => {
         yield* generate
 
         assertEquals(yield* assistant.histories, [])
-        assert.deepStrictEqual(logs, [['Info', 'assistant reply skipped: chat deleted']])
+        assert.deepStrictEqual(logs, [
+          ['Info', 'assistant reply skipped: its Run is settled or gone'],
+        ])
       }).pipe(
         Effect.provide([
           layerChatTest({ runs: { selectOne: () => Effect.succeedNone } }).pipe(

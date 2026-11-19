@@ -1,4 +1,4 @@
-import { Effect } from 'effect'
+import { Cause, Effect } from 'effect'
 
 import {
   assistantMessageQueue,
@@ -11,29 +11,30 @@ import {
   RunNotQueuedError,
   RunService,
 } from '@app-template/application/chat'
-import { QueueSender } from '@app-template/packages/queue'
+import { type QueueError, QueueSender } from '@app-template/packages/queue'
 
-const failUnsent = Effect.fnUntraced(function* (run: Run) {
+const failUnsent = Effect.fnUntraced(function* (run: Run, refused: QueueError) {
   const runs = yield* RunService
-  const error = new RunNotQueuedError({ id: run.id })
+  const error = new RunNotQueuedError({ id: run.id, cause: refused })
+  const cause = Cause.pretty(Cause.fail(refused))
 
   // The Run was stored queued a moment before, so a refused move is a defect.
   yield* runs
-    .move(run, (queued, at) => failRun(queued, { reason: error._tag, at }))
+    .move(run, (queued, at) => failRun(queued, { reason: error._tag, cause, at }))
     .pipe(Effect.orDie)
   return yield* error
 })
 
 /**
- * Sends the job that answers the Run; one SQS refuses fails the Run, so its message offers a
- * retry, and is `RunNotQueuedError`.
+ * Sends the job that answers the Run; one SQS refuses fails the Run with the refusal as its
+ * cause, and is `RunNotQueuedError` carrying it.
  */
 export const sendGenerateAssistantMessage = Effect.fn('sendGenerateAssistantMessage')((run: Run) =>
   QueueSender.use((queue) =>
     queue.send(assistantMessageQueue, new GenerateAssistantMessage({ runId: run.id })),
   ).pipe(
     Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
-    Effect.catchTag('QueueError', () => failUnsent(run)),
+    Effect.catchTag('QueueError', (refused) => failUnsent(run, refused)),
     Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
   ),
 )

@@ -70,7 +70,7 @@ const run = (
     failure: (
       {
         queued: null,
-        failed: { reason: 'LlmFailedError', message: 'Try again.' },
+        failed: { reason: 'LlmFailedError', cause: '529 overloaded' },
       } as const
     )[status],
     assistantMessageId: null,

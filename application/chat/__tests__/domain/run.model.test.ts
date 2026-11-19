@@ -92,7 +92,7 @@ const moves: ReadonlyArray<{
   {
     to: 'failed',
     from: activeRunStatuses,
-    move: (run) => failRun(run, { reason: 'LlmFailedError', at: later }),
+    move: (run) => failRun(run, { reason: 'LlmFailedError', cause: '529 overloaded', at: later }),
   },
 ]
 
@@ -125,21 +125,13 @@ it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
     }),
 )
 
-it.effect.each([
-  { reason: 'LlmRefusedError', sentence: 'The assistant declined to answer this message.' },
-  { reason: 'RunNotQueuedError', sentence: 'The assistant could not reply. Please try again.' },
-] as const)(
-  'failRun for $reason keeps the reason and the sentence it chooses',
-  ({ reason, sentence }) =>
-    Effect.gen(function* () {
-      const failed = yield* failRun(runAt('generating'), { reason, at: later })
+it.effect('failRun keeps the reason and the cause', () =>
+  Effect.gen(function* () {
+    const failure = { reason: 'LlmRefusedError', cause: 'stop_reason refusal' }
+    const failed = yield* failRun(runAt('generating'), { ...failure, at: later })
 
-      assertSchemaEquals(
-        Schema.Option(RunFailure),
-        failed.failure,
-        Option.some({ reason, message: sentence }),
-      )
-    }),
+    assertSchemaEquals(Schema.Option(RunFailure), failed.failure, Option.some(failure))
+  }),
 )
 
 describe('completeRun', () => {

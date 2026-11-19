@@ -338,7 +338,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/MessageEncoded"
+                    "$ref": "#/components/schemas/ApiMessage"
                   }
                 }
               }
@@ -400,11 +400,11 @@
         ],
         "responses": {
           "202": {
-            "description": "Run",
+            "description": "ApiRun",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunEncoded_2"
+                  "$ref": "#/components/schemas/ApiRun"
                 }
               }
             }
@@ -471,11 +471,11 @@
             }
           },
           "503": {
-            "description": "RunNotQueuedError",
+            "description": "ApiRunNotQueuedError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunNotQueuedErrorEncoded"
+                  "$ref": "#/components/schemas/ApiRunNotQueuedError"
                 }
               }
             }
@@ -549,11 +549,11 @@
         ],
         "responses": {
           "202": {
-            "description": "Run",
+            "description": "ApiRun",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunEncoded_2"
+                  "$ref": "#/components/schemas/ApiRun"
                 }
               }
             }
@@ -613,11 +613,11 @@
             }
           },
           "503": {
-            "description": "RunNotQueuedError",
+            "description": "ApiRunNotQueuedError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunNotQueuedErrorEncoded"
+                  "$ref": "#/components/schemas/ApiRunNotQueuedError"
                 }
               }
             }
@@ -660,11 +660,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Message",
+            "description": "ApiMessage",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageEncoded"
+                  "$ref": "#/components/schemas/ApiMessage"
                 }
               }
             }
@@ -737,11 +737,11 @@
         ],
         "responses": {
           "200": {
-            "description": "Run",
+            "description": "ApiRun",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RunEncoded_2"
+                  "$ref": "#/components/schemas/ApiRun"
                 }
               }
             }
@@ -1464,7 +1464,7 @@
         ],
         "additionalProperties": false
       },
-      "RunEncoded_2": {
+      "ApiRun": {
         "type": "object",
         "properties": {
           "id": {
@@ -1495,21 +1495,7 @@
           "failure": {
             "anyOf": [
               {
-                "type": "object",
-                "properties": {
-                  "reason": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "message": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "reason",
-                  "message"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/ApiRunFailure"
               },
               {
                 "type": "null"
@@ -1630,6 +1616,19 @@
         ],
         "additionalProperties": false
       },
+      "ApiRunFailure": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "additionalProperties": false
+      },
       "MessageNotFoundErrorEncoded": {
         "type": "object",
         "properties": {
@@ -1666,7 +1665,7 @@
         ],
         "additionalProperties": false
       },
-      "MessageEncoded": {
+      "ApiMessage": {
         "type": "object",
         "properties": {
           "id": {
@@ -1702,87 +1701,7 @@
           "run": {
             "anyOf": [
               {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "chatId": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "userMessageId": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "queued",
-                      "preparing",
-                      "generating",
-                      "done",
-                      "failed"
-                    ]
-                  },
-                  "failure": {
-                    "anyOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "reason": {
-                            "type": "string",
-                            "minLength": 1
-                          },
-                          "message": {
-                            "type": "string"
-                          }
-                        },
-                        "required": [
-                          "reason",
-                          "message"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "assistantMessageId": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "createdAt": {
-                    "type": "string"
-                  },
-                  "updatedAt": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "chatId",
-                  "userMessageId",
-                  "status",
-                  "failure",
-                  "assistantMessageId",
-                  "createdAt",
-                  "updatedAt"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/ApiRunFields"
               },
               {
                 "type": "null"
@@ -1801,7 +1720,76 @@
         ],
         "additionalProperties": false
       },
-      "RunNotQueuedErrorEncoded": {
+      "ApiRunFields": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "chatId": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "userMessageId": {
+            "type": "string",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "preparing",
+              "generating",
+              "done",
+              "failed"
+            ]
+          },
+          "failure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApiRunFailure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assistantMessageId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "chatId",
+          "userMessageId",
+          "status",
+          "failure",
+          "assistantMessageId",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ApiRunNotQueuedError": {
         "type": "object",
         "properties": {
           "_tag": {

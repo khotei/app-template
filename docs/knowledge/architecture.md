@@ -99,7 +99,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
   imports only `effect`** (and `type-fest` for types), **a module's `domain/` also the values
-  its tables declare** (a limit, a pattern, an enum's values, from
+  its tables declare** (a limit, a pattern, an enum's values, a JSON column's shape, from
   `@app-template/kernel/data`), and none of them nor a module's `services/` import an
   `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import

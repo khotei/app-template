@@ -19,10 +19,13 @@ import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
 
 /** Why a Run failed, as the column `failure` holds it. */
-export const RunFailureJson = Schema.Struct({
+export const RunFailure = Schema.Struct({
+  /** The tag of the failure that ended the Run, an open set. */
   reason: Schema.NonEmptyString,
-  message: Schema.String,
+  /** The failure's own text, for operators; the api keeps it off the wire. */
+  cause: Schema.String,
 })
+export type RunFailure = typeof RunFailure.Type
 
 export const runStatuses = ['queued', 'preparing', 'generating', 'done', 'failed'] as const
 
@@ -37,7 +40,7 @@ export const runs = snakeCase.table(
       .references(() => chats.id, { onDelete: 'cascade' }),
     userMessageId: uuid().notNull(),
     status: runStatus().notNull(),
-    failure: jsonb().$type<typeof RunFailureJson.Type>(),
+    failure: jsonb().$type<RunFailure>(),
     /** The assistant's message the Run wrote, once it is done. */
     assistantMessageId: uuid().references(() => messages.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
@@ -69,7 +72,7 @@ export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
 
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
 const runJsonColumns = {
-  failure: () => RunFailureJson,
+  failure: () => RunFailure,
 }
 
 /** The columns of a Run, as the entities of its neighbours nest them. */

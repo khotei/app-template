@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Data, Effect, Exit, Option } from 'effect'
+import { Array as Arr, Cause, Effect, Exit, Option } from 'effect'
 
 import {
   type AssistantReply,
@@ -16,26 +16,20 @@ import {
   MessageService,
   prepareRun,
   type Run,
+  type RunFailure,
   type RunId,
   RunService,
 } from '@app-template/application/chat'
 import { Transaction } from '@app-template/packages/db'
 
-class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
-  readonly why: 'chat deleted' | 'already settled'
-}> {}
-
-const logSkipped = ({ why }: ReplySkipped) => Effect.logInfo(`assistant reply skipped: ${why}`)
-
-const logMissingFile = (attachment: Attachment) =>
-  Effect.logWarning('attachment skipped: file missing').pipe(
-    Effect.annotateLogs({ attachmentId: attachment.id }),
-  )
-
 const readBytes = (attachment: Attachment) =>
   FileAttachmentService.use((files) => files.getBytes(attachment)).pipe(
     Effect.map((bytes) => ({ attachment, bytes })),
-    Effect.tapError(() => logMissingFile(attachment)),
+    Effect.tapError(() =>
+      Effect.logWarning('attachment skipped: file missing').pipe(
+        Effect.annotateLogs({ attachmentId: attachment.id }),
+      ),
+    ),
     Effect.option,
   )
 
@@ -64,16 +58,13 @@ const settleCompleted = Effect.fnUntraced(
   (settle) => Transaction.use((transaction) => transaction.run(settle)),
 )
 
-const settleFailed = Effect.fnUntraced(function* (
-  active: Run,
-  { reason, cause }: { readonly reason: string; readonly cause: string },
-) {
+const settleFailed = Effect.fnUntraced(function* (active: Run, { reason, cause }: RunFailure) {
   const runs = yield* RunService
 
   yield* Effect.logWarning('assistant reply failed').pipe(
     Effect.annotateLogs({ runId: active.id, reason, cause }),
   )
-  yield* runs.move(active, (run, at) => failRun(run, { reason, at }))
+  yield* runs.move(active, (run, at) => failRun(run, { reason, cause, at }))
 })
 
 const reply = Effect.fnUntraced(function* (taken: Run) {
@@ -83,37 +74,36 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
   const prepared = yield* runs.move(taken, prepareRun)
   const history = yield* readHistory(prepared)
   const generating = yield* runs.move(prepared, generateRun)
-
-  yield* assistant.reply(history).pipe(
-    Effect.matchEffect({
-      onSuccess: (answer) => settleCompleted(generating, answer),
-      onFailure: (error) => settleFailed(generating, { reason: error._tag, cause: error.cause }),
-    }),
-  )
+  const answer = yield* assistant.reply(history)
+  yield* settleCompleted(generating, answer)
 })
 
-// The cascade takes the Run with its chat, so a missing one means a deleted chat.
-const getActive = (id: RunId) =>
+/**
+ * Runs `settle` on the Run while it is active; one settled meanwhile, or gone with its chat (the
+ * cascade takes the Run with it), is skipped.
+ */
+const settleActive = <A, E, R>(id: RunId, settle: (active: Run) => Effect.Effect<A, E, R>) =>
   RunService.use((runs) => runs.getOne({ id })).pipe(
-    Effect.mapError(() => new ReplySkipped({ why: 'chat deleted' })),
-    Effect.filterOrFail(isActiveRun, () => new ReplySkipped({ why: 'already settled' })),
+    Effect.map(Option.liftPredicate<Run>(isActiveRun)),
+    Effect.catchTag('RunNotFoundError', () => Effect.succeedNone),
+    Effect.flatMap(
+      Option.match({
+        onNone: () => Effect.logInfo('assistant reply skipped: its Run is settled or gone'),
+        onSome: settle,
+      }),
+    ),
   )
 
 /** The reason of a Run that ended with no error to name it: a defect, an interrupt, a dead worker. */
 const abortedReason = 'RunAborted'
 
-const reasonOf = (cause: Cause.Cause<{ readonly _tag: string }>) =>
-  Cause.findErrorOption(cause).pipe(
+/** The failure a cause ends a Run with: the tag of the error it holds, and its full text. */
+function buildFailure(cause: Cause.Cause<{ readonly _tag: string }>): RunFailure {
+  const reason = Cause.findErrorOption(cause).pipe(
     Option.match({ onNone: () => abortedReason, onSome: ({ _tag }) => _tag }),
   )
-
-const fail = Effect.fnUntraced(
-  function* (runId: RunId, cause: Cause.Cause<{ readonly _tag: string }>) {
-    const active = yield* getActive(runId)
-    yield* settleFailed(active, { reason: reasonOf(cause), cause: Cause.pretty(cause) })
-  },
-  Effect.catchTag('ReplySkipped', logSkipped),
-)
+  return { reason, cause: Cause.pretty(cause) }
+}
 
 const answer = Effect.fnUntraced(function* (active: Run) {
   if (isStartedRun(active)) {
@@ -127,9 +117,12 @@ const answer = Effect.fnUntraced(function* (active: Run) {
     Effect.onExit(
       Exit.match({
         onSuccess: () => Effect.void,
-        onFailure: (cause) => fail(active.id, cause),
+        onFailure: (cause) =>
+          settleActive(active.id, (latest) => settleFailed(latest, buildFailure(cause))),
       }),
     ),
+    // The Run holds the model's failure now, so the job ends.
+    Effect.catchTag(['LlmRefusedError', 'LlmFailedError'], () => Effect.void),
   )
 })
 
@@ -140,8 +133,7 @@ const answer = Effect.fnUntraced(function* (active: Run) {
  * that worker has died.
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
-  (job: GenerateAssistantMessage) => getActive(job.runId).pipe(Effect.flatMap(answer)),
-  Effect.catchTag('ReplySkipped', logSkipped),
+  (job: GenerateAssistantMessage) => settleActive(job.runId, answer),
   // A race is decided by the write's guard on the status its mover read, whose update dies
   // on a Run another worker moved, not by this refusal; a refused move is a bug and dies too.
   Effect.catchTag('RunStatusInvalidError', Effect.die),

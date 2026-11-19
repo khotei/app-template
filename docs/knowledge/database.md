@@ -109,7 +109,7 @@ const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeRowWith(Sc
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insert` takes the credential with no codec and writes
   `{ hash, kind, userId }`, the user's id from the row it inserted.
-- A `jsonb` column carries its shape's type (`jsonb().$type<typeof RunFailureJson.Type>()`),
+- A `jsonb` column carries its shape's type (`jsonb().$type<RunFailure>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
 ## Relations
@@ -264,9 +264,10 @@ chat's title) is the one the worker reads
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
 - **A send SQS refuses** is logged with the job's id and its chat's. The reply's sender beside
-  the use cases also fails its Run with that error's tag as its reason and answers
-  `503 RunNotQueuedError`, the message stored and shown failed with its retry; the title's sender
-  only logs it. A send that never happens after the commit: [Stuck Runs](#stuck-runs).
+  the use cases also fails its Run with that error's tag as its reason and the queue's error as
+  its cause, and answers `503 RunNotQueuedError`, which carries the queue's error while its body
+  omits it; the message is stored and shown failed with its retry. The title's sender only logs
+  it. A send that never happens after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 

@@ -1,6 +1,6 @@
 import { Effect, Schema } from 'effect'
 
-import { runStatuses } from '@app-template/kernel/data'
+import { RunFailure, runStatuses } from '@app-template/kernel/data'
 
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { Status } from '#chat/domain/status.model'
@@ -8,13 +8,8 @@ import { Status } from '#chat/domain/status.model'
 export const RunStatus = Status.pick(runStatuses)
 export type RunStatus = typeof RunStatus.Type
 
-export const RunFailure = Schema.Struct({
-  /** The tag of the failure that ended the Run, an open set. */
-  reason: Schema.NonEmptyString,
-  /** A user-facing sentence chosen by the reason; it never quotes the cause. */
-  message: Schema.String,
-})
-export type RunFailure = typeof RunFailure.Type
+// The column's shape is the model's own: one definition, served through the module's entry.
+export { RunFailure }
 
 /** A Run's own fields: what a chat and a message nest of it. */
 export const RunFields = Schema.Struct({

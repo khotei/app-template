@@ -153,9 +153,10 @@ definitions. A repository is no port: a service calls the data layer's repositor
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
   data cannot sit there. Nothing of it reaches the browser any more
   ([The API contract in the api](#the-api-contract-in-the-api)), so it takes from the data layer
-  the values its tables declare (a limit, a pattern, an enum's values) instead of declaring them
-  again, and keeps its own brands, models and refinements: the vocabulary is the domain's, and
-  the data layer stays free of models ([The data at the centre](#the-data-at-the-centre)). The
+  the values its tables declare (a limit, a pattern, an enum's values, a JSON column's shape,
+  which the table already declares as a schema) instead of declaring them again, and keeps its
+  own brands, models and refinements: the vocabulary is the domain's, and the data layer stays
+  free of models ([The data at the centre](#the-data-at-the-centre)). The
   data layer's repository already is the contract a service needs, and a port with an adapter
   over it would repeat its methods; the aliases keep the layer in every import line, so each
   layer's Biome override matches the others by glob (`#*/services/**`). A handler calls one
@@ -177,7 +178,8 @@ definitions. A repository is no port: a service calls the data layer's repositor
   `@app-template/packages/queue`.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
   repositories; the domain loads the data layer's entry, and its guard admits of it only the names
-  of a value's shape, so a value of a new shape widens the guard's pattern; one entry opens the
+  of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
+  shape widens the guard's pattern; one entry opens the
   module whole, so another unit's ban on a layer matches the names it imports. A layer's override
   covers its tests, so what they need passes in its source too. What passes every guard:
   [architecture.md › Known gaps](architecture.md#known-gaps).
@@ -232,7 +234,9 @@ the domain's own; every error gets its status where an endpoint or a middleware 
 (`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
 which omits fields by name or swaps them, named by an `identifier` so the snapshot holds it once,
 and a mapper adds only what the model lacks (`buildApiChat` adds `status`). A field no client may
-see stays out of the model: a failed Run's cause goes to the worker's log. Its unit test writes
+see is omitted by each wire shape that carries it: a failed Run's cause stays in its row, off the
+wire of `ApiRun`, `ApiMessage` and the failure they nest, and `RunNotQueuedError`'s, the queue's
+error, off its `503` body. Its unit test writes
 `apps/api/openapi.json`; the web reads that file by path and keeps the client
 `@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
 reaches the browser, and the web declares no workspace of the app but `packages`.
@@ -243,9 +247,11 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   name, over a module list no check saw; the browser needs none of it, since its generated
   client imports only `effect`. A struct writes only its own fields, so `mapFields` keeps a
   field off the wire with no code, and the domain's error classes encode themselves, so no
-  handler translates one and no class marker internal to Effect is relied on. A field kept for
-  operators alone needs a wire shape for its model and for each model that nests it, while the
-  log line that holds the cause carries the record's id.
+  handler translates one and no class marker internal to Effect is relied on. A failure's cause
+  is the real error (the provider's text, SQS's error, a defect's trace): kept in the row, it
+  stays with the Run as long as the Run does, where a log keeps it only for its retention and
+  only for those who read the log; on the wire it could show a request id, a key's hint or a
+  piece of the prompt, so every shape that carries a Run omits it.
 - **Sources:** Effect's HTTP API guide, whose fixture group takes the domain's schemas
   (`repos/effect/ai-docs/src/51_http-server/fixtures/api/Users.ts`) and gives an error its
   status both on the domain's class
@@ -278,10 +284,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
-  `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause kept on the Run
-  for operators, as chat-core's D19 chose over the log alone: four wire shapes to keep it off
-  the wire (the failure, the Run, the Run a message nests, the message), each inlined in the
-  snapshot at every use, and two assertions that it stays off (`listMessages`, `getRun`).
+  `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause in the worker's
+  log alone, kept out of the model: lost once the log rolls over, and apart from the Run it
+  belongs to. A user-facing sentence stored beside the reason: the web picks its text by the
+  reason, so a stored sentence is a copy that only one reader needs.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -298,10 +304,13 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
   (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class answered through more
   than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
-  a numbered component (`RunEncoded_2` for the Run's three). Two checked-in files move with every
+  a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
+  for the Run's three). Two checked-in files move with every
   wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned. A failed reply's cause lives only in the worker's log (`assistant reply failed`,
-  annotated with `runId`, `reason` and `cause`), as long as the log keeps it.
+  pinned. Keeping the cause off the wire takes five wire shapes (the failure, the Run, the Run a
+  message nests, the message, the `503` error), each in the snapshot, and two assertions that it
+  stays off (`listMessages`, `getRun`); a new shape that nests a Run, or a new listing of an
+  error with a cause, must omit it too, which only review of the snapshot diff holds.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
@@ -313,8 +322,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   test to compare them, and the web imports it instead of the generated client.
 - **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
   side; a client outside this repository needs the contract as code; a model's row form must
-  differ from what the wire carries; or an operator needs a failure's cause past what the log
-  keeps.
+  differ from what the wire carries; or a client must show a failure's cause.
 
 ### Status owned by chat
 
@@ -334,16 +342,17 @@ reaches the browser, and the web declares no workspace of the app but `packages`
 A failed Run's `reason` is the tag of the failure that ended it, an open non-empty string: an
 `LlmError`'s (`LlmRefusedError`, `LlmFailedError`), `RunNotQueuedError` when SQS refuses its job,
 and `RunAborted` where no error names the end (a defect, an interrupt, a worker that died). Its
-user-facing sentence is one rule in `failRun`: the refusal's for `LlmRefusedError`, else one
-offering a retry.
+`cause` is the failure's own text, which the wire omits
+([The API contract in the api](#the-api-contract-in-the-api)); the web picks the user's text by
+the reason.
 
-- **Why:** the reason only says what happened, and every path already has that name; no reader
-  branches on it but the sentence, which tells only a refusal from the rest.
+- **Why:** the reason only says what happened, and every path already has that name; the only
+  reader that branches on it is the web's text, which tells only a refusal from the rest.
 - **Sources:** the owner's call in the design audit ("let it be any error").
 - **Rejected:** a closed list of reasons (`ReplyFailed`, `ReplyRefused`) with a table from the
   errors' tags to it: a rename of names that already exist, and a table per new failure. Each
-  path's tag in a closed list: the list and a sentence table grow with every path, for the same
-  two sentences.
+  path's tag in a closed list: the list and a text table grow with every path, for the same two
+  texts.
 - **Cost:** neither the wire nor the column lists the reasons: a client reads it as a string, and
   a typo in a new path's name passes `tsc`. A failure's tag is now a stored and wire value, so
   renaming an error changes them.
@@ -351,8 +360,8 @@ offering a retry.
   assert each path's reason.
 - **If reversed:** the closed list returns in `kernel/data/chat/run.table.ts`, with a table from
   each failure to it.
-- **Revisit when:** a reader must branch on the reason beyond the refusal's sentence, or a
-  client must list the reasons.
+- **Revisit when:** a reader must branch on the reason beyond the refusal's text, or a client
+  must list the reasons.
 
 ### Records open, rules called
 

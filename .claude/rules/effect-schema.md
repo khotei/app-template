@@ -37,7 +37,7 @@ paths:
   no longer decodes, into a defect. The exception is a port whose failures are outcomes a use case
   settles each its own way (an external service that declines or gives up): one final
   `<Port><Problem>Error` per outcome, raised after the adapter's retries.
-- A failure's user-facing sentence comes from one place keyed by its reason (a table over a
-  closed set, a rule over an open one); its cause goes to the log, annotated with the failed
-  record's id, never into a model
+- A failed record keeps its failure as `{ reason, cause }`: the failure's tag and its own text
+  (a provider's message, a defect's trace), never a user-facing sentence, which its client
+  picks by the reason. Every wire shape that carries the record omits the cause
   ([record](../../docs/knowledge/decisions.md#the-api-contract-in-the-api)).

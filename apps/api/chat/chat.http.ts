@@ -17,6 +17,8 @@ import {
   MessageInputInvalidError,
   MessageNotFoundError,
   Run,
+  RunFailure,
+  RunFields,
   RunId,
   RunNotFoundError,
   RunNotQueuedError,
@@ -30,6 +32,26 @@ export const ApiChat = Chat.mapFields(
   flow(Struct.omit(['run']), Struct.assign({ status: ChatStatus })),
 ).annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
+
+// A failure's cause is the provider's or SQS's text, which can hold request ids, key hints or
+// the prompt: it stays in the row and the error, and every wire shape of either omits it.
+const failure = Schema.OptionFromNullOr(
+  RunFailure.mapFields(Struct.omit(['cause'])).annotate({ identifier: 'ApiRunFailure' }),
+)
+
+const ApiRun = Run.mapFields(Struct.assign({ failure })).annotate({ identifier: 'ApiRun' })
+
+const ApiRunFields = RunFields.mapFields(Struct.assign({ failure })).annotate({
+  identifier: 'ApiRunFields',
+})
+
+const ApiMessage = Message.mapFields(
+  Struct.assign({ run: Schema.OptionFromNullOr(ApiRunFields) }),
+).annotate({ identifier: 'ApiMessage' })
+
+const ApiRunNotQueuedError = RunNotQueuedError.mapFields(Struct.omit(['cause'])).annotate({
+  identifier: 'ApiRunNotQueuedError',
+})
 
 const chatPath = { chatId: ChatId }
 
@@ -53,7 +75,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
   }),
   HttpApiEndpoint.get('listMessages', '/chats/:chatId/messages', {
     params: chatPath,
-    success: Schema.Array(Message),
+    success: Schema.Array(ApiMessage),
     error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
   }),
   HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
@@ -62,35 +84,35 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
       text: MessageFields.fields.text.check(Schema.isMaxLength(20_000)),
       attachmentIds: Schema.Array(AttachmentId).check(Schema.isMaxLength(maxFiles)),
     }),
-    success: Run.pipe(HttpApiSchema.status(202)),
+    success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
       MessageInputInvalidError.pipe(HttpApiSchema.status(400)),
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatBusyError.pipe(HttpApiSchema.status(409)),
       AttachmentNotFoundError.pipe(HttpApiSchema.status(404)),
       AttachmentBoundError.pipe(HttpApiSchema.status(409)),
-      RunNotQueuedError.pipe(HttpApiSchema.status(503)),
+      ApiRunNotQueuedError.pipe(HttpApiSchema.status(503)),
     ],
   }),
   HttpApiEndpoint.post('retryRun', '/chats/:chatId/messages/:userMessageId/runs', {
     params: { ...chatPath, userMessageId: MessageId },
-    success: Run.pipe(HttpApiSchema.status(202)),
+    success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
       MessageNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatBusyError.pipe(HttpApiSchema.status(409)),
       RunNotRetryableError.pipe(HttpApiSchema.status(409)),
-      RunNotQueuedError.pipe(HttpApiSchema.status(503)),
+      ApiRunNotQueuedError.pipe(HttpApiSchema.status(503)),
     ],
   }),
   HttpApiEndpoint.get('getMessage', '/chats/:chatId/messages/:messageId', {
     params: { ...chatPath, messageId: MessageId },
-    success: Message,
+    success: ApiMessage,
     error: MessageNotFoundError.pipe(HttpApiSchema.status(404)),
   }),
   HttpApiEndpoint.get('getRun', '/chats/:chatId/runs/:runId', {
     params: { ...chatPath, runId: RunId },
-    success: Run,
+    success: ApiRun,
     error: RunNotFoundError.pipe(HttpApiSchema.status(404)),
   }),
 ) {}
