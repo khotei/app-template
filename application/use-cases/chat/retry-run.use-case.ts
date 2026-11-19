@@ -7,10 +7,11 @@ import {
   ensureRunRetryable,
   MessageService,
   RunService,
+  sendGenerateAssistantMessage,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 
-import { sendGenerateAssistantMessage } from '#use-cases/chat/chat.sender'
+import { failUnsentRun } from '#use-cases/chat/run.settle'
 
 /** Stores a new queued Run of the failed newest Run's message, then sends its job. */
 export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId: ChatId) {
@@ -28,5 +29,6 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
     author: 'user',
   })
 
-  return yield* runs.create(userMessage).pipe(Effect.flatMap(sendGenerateAssistantMessage))
+  const run = yield* runs.create(userMessage)
+  return yield* sendGenerateAssistantMessage(run).pipe(failUnsentRun(run))
 })

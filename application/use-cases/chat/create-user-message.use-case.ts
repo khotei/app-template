@@ -8,11 +8,13 @@ import {
   isNewChat,
   MessageService,
   RunService,
+  sendGenerateAssistantMessage,
+  sendGenerateChatTitle,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import { Transaction } from '@app-template/packages/db'
 
-import { sendGenerateAssistantMessage, sendGenerateChatTitle } from '#use-cases/chat/chat.sender'
+import { failUnsentRun } from '#use-cases/chat/run.settle'
 
 /** The message and its Run commit together: a Run that loses the race keeps no message. */
 const storeUserMessage = Effect.fnUntraced(
@@ -42,5 +44,5 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
-  return yield* sendGenerateAssistantMessage(run)
+  return yield* sendGenerateAssistantMessage(run).pipe(failUnsentRun(run))
 })

@@ -146,8 +146,9 @@ behind one entry, its `index.ts`, which re-exports every layer; its files reach 
 through aliases that name the module (`#<module>/domain/*`). A module's `infrastructure/` holds
 everything of the module that connects to the environment (a language model, a queue, a
 bucket): the adapters of its ports, the services a use case calls over a client
-([The language model in the kernel](#the-language-model-in-the-kernel)) and its queues'
-definitions. A repository is no port: a service calls the data layer's repository directly.
+([The language model in the kernel](#the-language-model-in-the-kernel)), its queues'
+definitions and the senders of their jobs. A repository is no port: a service calls the data
+layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
   data cannot sit there. Nothing of it reaches the browser any more
@@ -861,16 +862,19 @@ A job is a message on its queue, and no table holds it: the work it asks for kee
 record (the Run, the chat's title), which the worker reads to run it once, to settle a Run whose
 worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
-goes through its sender beside the use cases, which settles a send SQS refuses on the work's
-record or logs it: the reply's logs it and fails its Run with the queue's error, `QueueError`, as
-its reason and cause, and the request answers `202` with that failed Run; the title's logs it.
+goes through its sender in its module's infrastructure, beside the queues' definitions, which
+only sends it. A send SQS refuses is settled on the work's record at the use cases' level: the
+reply's settlement, which both use cases that send it share, logs it and fails its Run with the
+queue's error, `QueueError`, as its reason and cause, and the request answers `202` with that
+failed Run; the title's sender logs it, as its work has no record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
-  handler can catch, so its Run fails at once and the user sees the failure with its retry; the
-  reply's sender keeps that settlement out of the two use cases that send it, and the use cases'
-  level already holds the queue; the Run's write is `RunService.update`'s.
+  handler can catch, so its Run fails at once and the user sees the failure with its retry. The
+  send connects to the environment, so it sits in infrastructure; failing the Run needs
+  `RunService`, which infrastructure may not import, so that settlement is one function at the
+  use cases' level, and the Run's write is `RunService.update`'s.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -878,19 +882,21 @@ its reason and cause, and the request answers `202` with that failed Run; the ti
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
   deleted chat's, leaving the reply queued. A send that cannot be interrupted: it covers a
   client's abort only. A stuck Run that a retry may take after an age: a rule by time, and a Run
-  that reads queued while it is lost. The sender in the module beside the definitions: a domain
-  service would see the queue, and a send could run inside a transaction. A sweep resending
-  unsent work: a schedule and a route of its own, and a reply up to a minute late. Retries with a
-  delay per attempt: a failed reply the user waits on through every attempt, and code that counts
-  them. The title's send inline in its use case: the send's policy, its log and its annotations
-  in a flow, and a second form of the sending rule beside the reply's sender. A domain error
-  wrapping `QueueError` and a `503` for a refused reply: a second name for one failure, which the
-  Run already holds, and a retry is the client's next step either way.
+  that reads queued while it is lost. The refusal's settlement in the module's infrastructure:
+  infrastructure would see the module's services. The settlement copied in each use case that
+  sends the reply: one rule in two places. A sweep resending unsent work: a schedule and a route
+  of its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply
+  the user waits on through every attempt, and code that counts them. The title's send inline in
+  its use case: the send's policy, its log and its annotations in a flow, and a second form of
+  the sending rule beside the reply's sender. A domain error wrapping `QueueError` and a `503`
+  for a refused reply: a second name for one failure, which the Run already holds, and a retry is
+  the client's next step either way.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
   send answers `202`, so a client reads the failure from the Run's status, not the response's.
-- **Guarded by:** the `QueueSender` e2e; the reply sender's and the create flow's unit tests;
-  the `use-cases` row of [architecture.md › Dependency rules](architecture.md#dependency-rules).
+- **Guarded by:** the `QueueSender` e2e; the reply settlement's and the create flow's unit
+  tests; the `infrastructure/` and `use-cases` rows of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 

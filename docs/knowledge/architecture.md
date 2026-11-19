@@ -152,9 +152,10 @@ Using the files of `chat` as the map:
 | what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
+| job sender: sends a job, failing with `QueueError` or logging it | `application/chat/infrastructure/chat.sender.ts` | `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
 | service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
-| job sender: sends a job and settles or logs a send SQS refuses | `application/use-cases/chat/chat.sender.ts` | `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
+| the use cases' settlement of a job send SQS refuses | `application/use-cases/chat/run.settle.ts` | `failUnsentRun`, which fails the Run |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |

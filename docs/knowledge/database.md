@@ -246,11 +246,11 @@ chat's title) is the one the worker reads
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
-- **A send SQS refuses** is logged with the job's id and its chat's. The reply's sender beside
-  the use cases also fails its Run with the queue's error, `QueueError`, as its reason and cause,
-  and the request answers `202` with that failed Run; the message is stored and shown failed with
-  its retry, `POST /chats/:chatId/runs`. The title's sender only logs it. A send that never
-  happens after the commit: [Stuck Runs](#stuck-runs).
+- **A send SQS refuses** is logged with the job's id and its chat's. The reply's settlement at
+  the use cases' level, `failUnsentRun`, also fails its Run with the queue's error, `QueueError`,
+  as its reason and cause, and the request answers `202` with that failed Run; the message is
+  stored and shown failed with its retry, `POST /chats/:chatId/runs`. The title's sender only
+  logs it. A send that never happens after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 
