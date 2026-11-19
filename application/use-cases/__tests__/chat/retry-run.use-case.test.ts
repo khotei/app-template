@@ -15,8 +15,10 @@ import {
 } from '@app-template/application/chat'
 import {
   assistantMessageAt,
+  type ChatRepositoryMocks,
   chat,
   firstMessage,
+  layerChatTest,
   owner,
   queuedRun,
 } from '@app-template/application/chat/testing'
@@ -25,7 +27,6 @@ import { encodeRowWith } from '@app-template/packages/db'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
 import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
 /** The reads of a chat whose newest Run is `newest`, with the message the retry names. */

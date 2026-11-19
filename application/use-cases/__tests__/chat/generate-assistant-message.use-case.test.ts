@@ -35,9 +35,11 @@ import {
 } from '@app-template/application/chat'
 import {
   assistantMessageAt,
+  type ChatRepositoryMocks,
   chatId,
   firstMessage,
   holdAssistantCall,
+  layerChatTest,
   owner,
   queuedRun,
   recordAssistant,
@@ -52,7 +54,6 @@ import {
 import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
 import { epoch, png, recordLogs } from '@app-template/packages/testing'
 
-import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
 import { generateAssistantMessage } from '#use-cases/chat/generate-assistant-message.use-case'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)

@@ -1,14 +1,8 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Option } from 'effect'
 
-import {
-  type ChatEntityWhere,
-  ChatRepository,
-  type MessageEntityWhere,
-  MessageRepository,
-} from '@app-template/kernel/data'
+import type { ChatEntityWhere, MessageEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -17,22 +11,7 @@ import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 import { MessageService, type MessageWhere } from '#chat/services/message.service'
 import { chat, firstMessage, owner } from '#testing/chat/chat.test-fixture'
-
-/** The service over repositories that answer only the methods the case gives; any other dies. */
-const messageServiceOver = ({
-  chats = {},
-  messages = {},
-}: {
-  readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
-  readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>
-}) =>
-  MessageService.layer.pipe(
-    Layer.provide([
-      Layer.mock(ChatRepository, chats),
-      Layer.mock(MessageRepository, messages),
-      BunCrypto.layer,
-    ]),
-  )
+import { layerChatTest } from '#testing/chat/chat.test-layer'
 
 const firstMessageRow = encodeRowWith(Message)(firstMessage)
 
@@ -50,7 +29,7 @@ describe('MessageService', () => {
       assert.deepStrictEqual(wheres, [where])
     }).pipe(
       Effect.provide(
-        messageServiceOver({
+        layerChatTest({
           messages: {
             selectOne: (read) =>
               Effect.sync(() => {
@@ -76,9 +55,7 @@ describe('MessageService', () => {
         error,
         new MessageNotFoundError({ id: where.id, author: Option.fromUndefinedOr(where.author) }),
       )
-    }).pipe(
-      Effect.provide(messageServiceOver({ messages: { selectOne: () => Effect.succeedNone } })),
-    ),
+    }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 
   it.effect('getMany of a chat the store finds none of for the user is ChatNotFoundError', () => {
@@ -92,7 +69,7 @@ describe('MessageService', () => {
       assert.deepStrictEqual(wheres, [{ id: chat.id, userId: owner }])
     }).pipe(
       Effect.provide(
-        messageServiceOver({
+        layerChatTest({
           chats: {
             selectOne: (read) =>
               Effect.sync(() => {

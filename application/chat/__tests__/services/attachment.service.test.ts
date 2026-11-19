@@ -1,16 +1,14 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Exit, HashMap, Layer, Option, Ref, Stream, Struct } from 'effect'
+import { Array as Arr, Effect, Exit, HashMap, Option, Ref, Stream, Struct } from 'effect'
 
 import {
   type AttachmentEntity,
   type AttachmentEntitySelectWhere,
   type AttachmentEntityWhere,
-  AttachmentRepository,
   FileRepository,
 } from '@app-template/kernel/data'
-import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testing'
+import { FileObjects } from '@app-template/kernel/data/testing'
 import { encodeRowWith } from '@app-template/packages/db'
 import {
   assertSchemaEquals,
@@ -32,19 +30,10 @@ import {
 } from '#chat/domain/attachment.model'
 import { AttachmentService } from '#chat/services/attachment.service'
 import { chatId, messageId, owner } from '#testing/chat/chat.test-fixture'
+import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
 
-/**
- * The service over an `AttachmentRepository` that answers only the methods the case gives, and
- * the memory files, which stay in context for the case to read.
- */
-const attachmentServiceOver = (
-  attachments: Layer.PartialEffectful<AttachmentRepository['Service']>,
-) =>
-  AttachmentService.layer.pipe(
-    Layer.provide([Layer.mock(AttachmentRepository, attachments), BunCrypto.layer]),
-    Layer.provideMerge(FileRepositoryTest),
-    Layer.provideMerge(FileObjects.layer),
-  )
+const attachmentServiceOver = (attachments: ChatRepositoryMocks['attachments']) =>
+  layerChatTest({ attachments })
 
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 

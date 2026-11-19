@@ -29,8 +29,10 @@ import {
   RunNotQueuedError,
 } from '@app-template/application/chat'
 import {
+  type ChatRepositoryMocks,
   chat,
   firstMessage,
+  layerChatTest,
   owner,
   queuedRun,
   unknownChatId,
@@ -52,7 +54,6 @@ import {
   recordLogs,
 } from '@app-template/packages/testing'
 
-import { type ChatRepositoryMocks, layerChatTest } from '#testing/use-cases/chat.test-layer'
 import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
 
 const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })

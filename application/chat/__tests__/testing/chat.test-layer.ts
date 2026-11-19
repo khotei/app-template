@@ -2,12 +2,6 @@ import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
 import {
-  AttachmentService,
-  ChatService,
-  MessageService,
-  RunService,
-} from '@app-template/application/chat'
-import {
   AttachmentRepository,
   ChatRepository,
   MessageRepository,
@@ -16,6 +10,11 @@ import {
 import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testing'
 import type { Transaction } from '@app-template/packages/db'
 import { TransactionTest } from '@app-template/packages/db/testing'
+
+import { AttachmentService } from '#chat/services/attachment.service'
+import { ChatService } from '#chat/services/chat.service'
+import { MessageService } from '#chat/services/message.service'
+import { RunService } from '#chat/services/run.service'
 
 /** What each repository answers in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ChatRepositoryMocks {
@@ -27,7 +26,7 @@ export interface ChatRepositoryMocks {
 
 /**
  * Chat's services over `mocks`, the memory files and `transaction`, the identity one by default,
- * each in context for the use cases; the `QueueSender` and the `Assistant` are the test's,
+ * each in context for the case; the `QueueSender` and the `Assistant` are the test's,
  * `recordMessages()` and `recordAssistant()`.
  */
 export const layerChatTest = (

@@ -14,6 +14,7 @@ import {
   chat,
   chatId,
   firstMessage,
+  layerChatTest,
   messageId,
   recordAssistant,
 } from '@app-template/application/chat/testing'
@@ -21,7 +22,6 @@ import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { epoch, recordLogs } from '@app-template/packages/testing'
 
-import { layerChatTest } from '#testing/use-cases/chat.test-layer'
 import { generateChatTitle } from '#use-cases/chat/generate-chat-title.use-case'
 
 /** A message read that answers `message` as its row. */

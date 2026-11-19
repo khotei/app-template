@@ -12,8 +12,7 @@
     "#chat/*": "./chat/*.ts",
     "#identity/*": "./identity/*.ts",
     "#use-cases/*": "./use-cases/*.ts",
-    "#testing/chat/*": "./chat/__tests__/testing/*.ts",
-    "#testing/use-cases/*": "./use-cases/__tests__/testing/*.ts"
+    "#testing/chat/*": "./chat/__tests__/testing/*.ts"
   },
   "dependencies": {
     "@app-template/kernel": "workspace:*",
