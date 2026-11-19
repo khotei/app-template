@@ -410,16 +410,18 @@ repository only reads, calls it and writes.
 
 ### Layered services of one model
 
-A model's records are served by domain services layered over each other, each named for what it
-adds: `<Model>Service` holds the plain records (a read by key with its `*NotFoundError`, a read of
-many, the writes that change records alone, a delete of many under the full `where` its caller
-passes), and `File<Model>Service`, composed over it, stores, serves and removes the bytes with the
-record, checking the rule a delete needs and passing its guard into the plain delete's `where`. A
-layer sees only the layers of its own model below it; another model's service stays a use case's.
-How a service grows: [Composition: wrap or compose](#composition-wrap-or-compose).
+A model's records are served by domain services composed over each other, each named for what it
+adds: `<Model>Service` holds the plain records (a create, a read by key with its
+`*NotFoundError`, a read of many, the writes that change records alone, a delete of many under the
+full `where` its caller passes), coding every row through the model, and `File<Model>Service`,
+composed over it, stores, serves and removes the bytes with the record, checking the rule a delete
+needs and passing its guard into the plain delete's `where`. A service sees only the services of
+its own model below it and reaches the records only through the plain one; another model's
+service stays a use case's. How a service grows:
+[Composition: wrap or compose](#composition-wrap-or-compose).
 
 ```ts
-// the bytes' layer reads through the plain one, pipes the model's guard, passes it on, then
+// the bytes' service reads through the plain one, pipes the model's guard, passes it on, then
 // removes the bytes once the row is gone
 const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
   yield* orders.getOne(where).pipe(ensureUnpaid)
@@ -430,22 +432,27 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 
 - **Why:** a read's name says what it answers: the plain service answers the records as stored,
   and the bytes are stored and removed with their record in one service; a holder that needs the
-  records alone (a list, a bind) holds no byte store.
+  records alone (a list, a bind) holds no byte store. The row's coding and its guards have one
+  owner, so a change of the model's row lands in the plain service alone.
 - **Sources:** `.claude/rules/composition.md`; `.claude/rules/layering.md › Ports and domain
   services`.
 - **Rejected:** one service per model, the bytes in `<Model>Service`: two reasons to change in one
-  unit, and a byte store every holder of the records depends on.
-- **Cost:** two services and two layers for one model; a handler of the model takes both; a layer
-  provides the one below it, the one exception to a domain service's `layer` leaving every
-  dependency open. A rule over the reads that one flow applies is piped there, and a flow that
-  forgets the pipe skips it; a rule every reader must apply is a layer named for it. The plain
-  `getMany` leaves an absent id out, so only the file layer's error names every absent id at once.
+  unit, and a byte store every holder of the records depends on. The file service writing or
+  reading the rows through the repository itself: a second owner of the row's coding.
+- **Cost:** two services and two layers for one model; a handler of the model takes both; the
+  plain `create`, `getMany` and `delete` have one caller, the file service, and `delete` only
+  forwards to the repository with its span: they stay as the records' one owner, which a test that
+  counts callers would delete. A service's layer provides the one below it, as
+  [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers) allows. A rule
+  over the reads that one flow applies is piped there, and a flow that forgets the pipe skips it;
+  a rule every reader must apply is a service named for it. The plain `getMany` leaves an absent
+  id out, so only the file service's error names every absent id at once.
 - **Guarded by:** review, by `layering.md` and `composition.md`; `noImportCycles` refuses a lower
-  layer that imports an upper one; nothing refuses a service of another model.
+  service that imports an upper one; nothing refuses a service of another model.
 - **If reversed:** the file methods fold into one `<Model>Service`, and every holder of the records
   depends on the byte store.
-- **Revisit when:** a rule over the reads must reach every reader, so a layer named for it takes
-  the pipe; or the two layers change together in every change, so they hold one job, which the
+- **Revisit when:** a rule over the reads must reach every reader, so a service named for it takes
+  the pipe; or the two services change together in every change, so they hold one job, which the
   owner then merges.
 
 ## The kernel and the data

@@ -12,9 +12,10 @@ answer shapes, error modes).
 
 ## The tests
 
-- Deletion: delete the module in thought. Nothing reappears in its callers → a pass-through:
-  delete it, its callers taking the unit below. Its job reappears in a caller, however few its
-  callers and however short its body → it earns its place ([composition.md](composition.md)).
+- Deletion: delete the module in thought. Nothing reappears in its callers, and it owns nothing
+  they go through (a model's records, a seam) → a pass-through: delete it, its callers taking the
+  unit below. Its job reappears in a caller, however few its callers and however short its body →
+  it earns its place ([composition.md](composition.md)).
 - Interface: a variation inside a unit's job is a value a method it has already takes (a `where`
   field, a model field), never a new name; another job is a new unit that wraps or composes it,
   never a method or an option stretched to hold it.

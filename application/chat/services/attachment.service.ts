@@ -20,6 +20,7 @@ import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   bindAttachment,
+  buildAttachment,
   buildAttachmentFrom,
   ensureFound,
   isInLibrary,
@@ -34,21 +35,38 @@ export type AttachmentGetManyWhere = Types.Simplify<
   { readonly id: ReadonlyArray<Attachment['id']> } & Pick<Attachment, 'userId'>
 >
 
+/** The user's records sent from the attachment `sourceId`; another user's read as absent. */
+export type AttachmentSentWhere = Types.Simplify<
+  { readonly sourceId: Attachment['id'] } & Pick<Attachment, 'userId'>
+>
+
 /** The user's attachments by id; `messageId: null` deletes them only while unbound, else bound or not. */
 export type AttachmentDeleteWhere = Types.Simplify<
-  AttachmentGetManyWhere & { readonly messageId?: null }
+  Pick<Attachment, 'userId'> & {
+    readonly id: Arr.NonEmptyReadonlyArray<Attachment['id']>
+    readonly messageId?: null
+  }
 >
 
 /** An attachment's records as stored, whether or not the store still holds their bytes. */
 export class AttachmentService extends Context.Service<
   AttachmentService,
   {
+    /** Stores the record of a library attachment whose bytes are stored under `fields.id`. */
+    readonly create: (
+      fields: Pick<Attachment, 'id' | 'userId' | 'fileName' | 'mediaType' | 'size'>,
+    ) => Effect.Effect<Attachment>
     /** The user's library, the attachments no chat holds, in upload order. */
     readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<Attachment>>
     /** The record as stored, whether or not the store still holds its bytes. */
     readonly getOne: (where: AttachmentWhere) => Effect.Effect<Attachment, AttachmentNotFoundError>
-    /** The user's attachments among `where.id` in creation order; an absent id is left out. */
-    readonly getMany: (where: AttachmentGetManyWhere) => Effect.Effect<ReadonlyArray<Attachment>>
+    /**
+     * The user's attachments among `where.id`, or the records sent from `where.sourceId`, in
+     * creation order; an absent id is left out.
+     */
+    readonly getMany: (
+      where: AttachmentGetManyWhere | AttachmentSentWhere,
+    ) => Effect.Effect<ReadonlyArray<Attachment>>
     /**
      * Binds the chat's attachments to the stored message and adds the chat's record of each
      * library attachment, which stays in the library; dies when a send bound one, or a delete
@@ -70,6 +88,19 @@ export class AttachmentService extends Context.Service<
     const crypto = yield* Crypto.Crypto
     const randomAttachmentId = generateId(crypto, AttachmentId.make)
 
+    const insert = (attachment: Attachment) =>
+      encodeRowWith(Attachment)(attachment).pipe(Effect.flatMap(attachments.insert))
+
+    const create = Effect.fn('AttachmentService.create')(function* (
+      fields: Pick<Attachment, 'id' | 'userId' | 'fileName' | 'mediaType' | 'size'>,
+    ) {
+      const createdAt = yield* DateTime.now
+      const attachment = buildAttachment({ ...fields, createdAt })
+
+      yield* insert(attachment)
+      return attachment
+    })
+
     const list = Effect.fn('AttachmentService.list')((userId: UserId) =>
       attachments
         .selectMany({ userId, chatId: null })
@@ -86,9 +117,9 @@ export class AttachmentService extends Context.Service<
     )
 
     const getMany = Effect.fn('AttachmentService.getMany')(function* (
-      where: AttachmentGetManyWhere,
+      where: AttachmentGetManyWhere | AttachmentSentWhere,
     ) {
-      if (Arr.isReadonlyArrayEmpty(where.id)) return Arr.empty<Attachment>()
+      if ('id' in where && Arr.isReadonlyArrayEmpty(where.id)) return Arr.empty<Attachment>()
       return yield* attachments
         .selectMany(where)
         .pipe(Effect.flatMap(decodeRowWith(Schema.Array(Attachment))))
@@ -116,17 +147,13 @@ export class AttachmentService extends Context.Service<
           { id: Arr.map(bound, Struct.get('id')), messageId: null },
         )
       }
-      yield* Effect.forEach(
-        records,
-        (record) => encodeRowWith(Attachment)(record).pipe(Effect.flatMap(attachments.insert)),
-        { discard: true },
-      )
+      yield* Effect.forEach(records, insert, { discard: true })
       return Arr.appendAll(bound, records)
     })
 
     const remove = Effect.fn('AttachmentService.delete')(attachments.delete)
 
-    return { list, getOne, getMany, bind, delete: remove }
+    return { create, list, getOne, getMany, bind, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

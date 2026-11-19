@@ -60,9 +60,9 @@ static readonly layerAudited = Layer.effect(
 - Less code in each unit and no dead code, never fewer units: a line count, a caller count or a
   count of names never folds a wrap or a composed unit into the one below, nor merges two units
   of different jobs.
-- What still goes: dead code; a pass-through that adds nothing and stands in for nothing
-  ([deep-modules.md › The tests](deep-modules.md#the-tests)), its callers taking the unit below;
-  a copy per variant, which becomes one unit over the varying value. A deletion never moves a
-  unit's added behaviour into the unit below.
+- What still goes: dead code; a pass-through that adds nothing and owns nothing its callers go
+  through ([deep-modules.md › The tests](deep-modules.md#the-tests)), its callers taking the
+  unit below; a copy per variant, which becomes one unit over the varying value. A deletion never
+  moves a unit's added behaviour into the unit below.
 - A fold or a merge is the owner's call: its proposal names the job each unit holds and where it
   lives after.

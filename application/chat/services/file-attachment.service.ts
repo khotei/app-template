@@ -1,25 +1,13 @@
-import {
-  Array as Arr,
-  Context,
-  Crypto,
-  DateTime,
-  Effect,
-  Layer,
-  Ref,
-  Schema,
-  Stream,
-  Struct,
-} from 'effect'
+import { Array as Arr, Context, Crypto, Effect, Layer, Ref, Stream, Struct } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { AttachmentRepository, FileRepository } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages/db'
+import { FileRepository } from '@app-template/kernel/data'
+import { generateId } from '@app-template/packages/db'
 
 import type { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
-  Attachment,
-  buildAttachment,
+  type Attachment,
   buildFileId,
   ensureAllStored,
   ensureFound,
@@ -74,7 +62,6 @@ export class FileAttachmentService extends Context.Service<
   }
 >()('@app-template/application/chat/services/FileAttachmentService', {
   make: Effect.gen(function* () {
-    const attachments = yield* AttachmentRepository
     const files = yield* FileRepository
     const attachmentService = yield* AttachmentService
     const crypto = yield* Crypto.Crypto
@@ -84,14 +71,8 @@ export class FileAttachmentService extends Context.Service<
       file: AttachmentUpload<E>,
       { id, userId }: { readonly id: AttachmentId; readonly userId: UserId },
     ) {
-      const createdAt = yield* DateTime.now
-
       const size = yield* files.insert({ ...file, id }).pipe(Effect.map(FileSize.make))
-      const attachment = buildAttachment({ ...file, id, userId, size, createdAt })
-      const row = yield* encodeRowWith(Attachment)(attachment)
-
-      yield* attachments.insert(row)
-      return attachment
+      return yield* attachmentService.create({ ...file, id, userId, size })
     })
 
     const upload = Effect.fn('FileAttachmentService.upload')(function* <E>(
@@ -108,7 +89,9 @@ export class FileAttachmentService extends Context.Service<
       const storeId = (attachment: Attachment) => Ref.update(stored, Arr.append(attachment.id))
       const deleteTracked = Effect.gen(function* () {
         const storedIds = yield* Ref.get(stored)
-        if (Arr.isReadonlyArrayNonEmpty(storedIds)) yield* attachments.delete({ id: storedIds })
+        if (Arr.isReadonlyArrayNonEmpty(storedIds)) {
+          yield* attachmentService.delete({ id: storedIds, userId })
+        }
         const trackedIds = yield* Ref.get(tracked)
         yield* files.delete({ id: trackedIds })
       })
@@ -151,9 +134,7 @@ export class FileAttachmentService extends Context.Service<
     })
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
-      const uses = yield* attachments
-        .selectMany({ userId: where.userId, sourceId: where.id })
-        .pipe(Effect.flatMap(decodeRowWith(Schema.Array(Attachment))))
+      const uses = yield* attachmentService.getMany({ userId: where.userId, sourceId: where.id })
 
       yield* attachmentService.getOne(where).pipe(ensureUnbound, Effect.flatMap(ensureUnused(uses)))
       // A send that binds it after the check makes the rows' delete die, so its bytes stay.

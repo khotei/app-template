@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Option, Stream, Struct } from 'effect'
+import { Array as Arr, Effect, Option, Stream, Struct } from 'effect'
 
 import {
   type AttachmentEntity,
@@ -168,7 +168,7 @@ describe('AttachmentService', () => {
     const deleted: Array<AttachmentEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* AttachmentService
-      const where = { id: [photo.id, unknownAttachmentId], userId: owner, messageId: null }
+      const where = { id: Arr.make(photo.id, unknownAttachmentId), userId: owner, messageId: null }
       yield* FileRepository.use((files) => files.insert({ ...photo, content: Stream.make(png) }))
 
       yield* service.delete(where)

@@ -166,7 +166,7 @@ describe('FileAttachmentService', () => {
         const error = yield* service.upload(owner, files(broken)).pipe(Effect.flip)
 
         assert.strictEqual(error, broken)
-        assert.deepStrictEqual(deleted, [{ id: inserted }])
+        assert.deepStrictEqual(deleted, [{ id: inserted, userId: owner }])
         assert.strictEqual(yield* countObjects, 0)
       }).pipe(
         Effect.provide(
