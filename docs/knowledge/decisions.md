@@ -260,7 +260,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   them, guards for a browser that no longer imports it. A status on the domain's class: an HTTP
   fact in a `domain/` the worker loads too. A status on the class only for an error HTTP alone
   raises: two forms for one fact. A constant per error with its status: a second name for one
-  class, where `.claude/rules/deep-modules.md` spells a one-line expression at each use. A `pick`
+  class, the alias `.claude/rules/deep-modules.md` refuses. A `pick`
   of the wire's fields: every field listed again. `Model.Class` variants: every domain class
   rewritten as a `Model`, whose select, insert and update variants restate the row the Drizzle
   table and the model as its row's codec already state ([Entity names](#entity-names)), and

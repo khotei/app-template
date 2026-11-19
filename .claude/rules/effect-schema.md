@@ -10,9 +10,10 @@ paths:
 - An invariant a check can state goes in the schema (`Schema.isTrimmed()`, `Schema.isPattern(…)`,
   a brand), so the constructor and every decode of a row enforce it.
 - Brand with `Schema.brand`, never the `Brand` module, so `make`, the row's decode and the api's
-  endpoints agree. An id is
-  `Schema.String.check(Schema.isUUID()).pipe(Schema.brand('<Model>Id'))`; a constrained value a
-  port or use case accepts (a file name, a media type, a size) is a brand too.
+  endpoints agree. An id is `buildIdSchema('<Model>Id')`, a branded
+  `Schema.String.check(Schema.isUUID())`, which a contract's id spells, since a contract imports no
+  workspace; a constrained value a port or use case accepts (a file name, a media type, a size) is
+  a brand too.
 - An absent value is an `Option` (`Schema.OptionFromNullOr(…)` in a model, `null` in its row),
   never `null` or `undefined` in code; `null` exists only in a row and on the wire.
 - An annotation a JSON Schema must carry sits on the encoded side, on the key of a checked field
