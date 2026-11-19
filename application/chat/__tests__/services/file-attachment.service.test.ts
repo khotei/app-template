@@ -229,15 +229,6 @@ describe('FileAttachmentService', () => {
     }).pipe(Effect.provide(fileAttachmentServiceOver({ selectOne: selectsOne(copy) }))),
   )
 
-  it.effect("getBytes of a copy answers its source's bytes", () =>
-    Effect.gen(function* () {
-      const service = yield* FileAttachmentService
-      yield* storeBytes
-
-      assert.deepStrictEqual(yield* service.getBytes(copy), png)
-    }).pipe(Effect.provide(fileAttachmentServiceOver({}))),
-  )
-
   it.effect(
     "deleteBytes removes an upload's bytes once its row is gone, a copy's source's stay",
     () => {

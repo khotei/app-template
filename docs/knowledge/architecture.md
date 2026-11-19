@@ -149,7 +149,7 @@ Using the files of `chat` as the map:
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares | `application/chat/domain/chat.util.ts`, `message.util.ts`, `attachment.util.ts` | `ChatId`, `MessageId`, `isBlank`, `ensureAllFound` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
-| what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `HistoryMessage`, `AssistantReply` |
+| what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | service composed over another of its model | `application/chat/services/file-attachment.service.ts` | `FileAttachmentService`, over `AttachmentService` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |

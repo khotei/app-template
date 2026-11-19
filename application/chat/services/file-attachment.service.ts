@@ -40,13 +40,6 @@ export class FileAttachmentService extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly download: (where: AttachmentWhere) => Effect.Effect<URL, AttachmentNotFoundError>
     /**
-     * The bytes the attachment is stored under, its source's for a copy;
-     * `AttachmentNotFoundError` once the store lost them.
-     */
-    readonly getBytes: (
-      attachment: Attachment,
-    ) => Effect.Effect<Uint8Array, AttachmentNotFoundError>
-    /**
      * Removes the bytes held under the user's attachments' own ids, the uploads' among them; a
      * copy's bytes are its source's and stay. Dies while a row of one remains: the bytes go
      * once their rows are gone.
@@ -122,17 +115,6 @@ export class FileAttachmentService extends Context.Service<
         )
     })
 
-    const getBytes = Effect.fn('FileAttachmentService.getBytes')((attachment: Attachment) =>
-      files
-        .download({ id: buildBytesId(attachment) })
-        .pipe(
-          Effect.flatMap(
-            Effect.fromOption(() => new AttachmentNotFoundError({ ids: [attachment.id] })),
-          ),
-          Effect.map(Struct.get('blob')),
-        ),
-    )
-
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
       const uses = yield* attachmentService.getMany({ userId: where.userId, sourceId: where.id })
 
@@ -158,7 +140,7 @@ export class FileAttachmentService extends Context.Service<
       yield* files.delete({ id: where.id })
     })
 
-    return { upload, download, getBytes, deleteBytes, delete: remove }
+    return { upload, download, deleteBytes, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

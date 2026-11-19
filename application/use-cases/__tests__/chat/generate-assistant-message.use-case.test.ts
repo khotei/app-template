@@ -1,31 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import {
-  Array as Arr,
-  DateTime,
-  Effect,
-  Exit,
-  Fiber,
-  Layer,
-  Option,
-  pipe,
-  Schema,
-  Stream,
-} from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option, pipe, Schema } from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
   AssistantReply,
-  Attachment,
-  AttachmentId,
   buildRun,
-  FileName,
-  FileSize,
   GenerateAssistantMessage,
-  MediaType,
   Message,
   MessageFields,
-  type MessageId,
   Run,
   RunFields,
 } from '@app-template/application/chat'
@@ -36,20 +19,14 @@ import {
   firstMessage,
   holdAssistantCall,
   layerChatTest,
-  owner,
   queuedRun,
   recordMessageAssistant,
   userMessageAt,
 } from '@app-template/application/chat/testing'
-import {
-  FileRepository,
-  type MessageColumns,
-  type RunEntitySet,
-  type RunEntityWhere,
-} from '@app-template/kernel/data'
+import type { MessageColumns, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
 import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
-import { epoch, png, recordLogs } from '@app-template/packages/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { generateAssistantMessage } from '#use-cases/chat/generate-assistant-message.use-case'
 
@@ -60,44 +37,15 @@ const sure = new AssistantReply({ text: 'Sure.' })
 const whatIsThis = userMessageAt(1, 'What is this?')
 const aPhoto = assistantMessageAt(2, 'A photo.')
 const andAgain = userMessageAt(3, 'And again?')
-const attachmentsOnly = userMessageAt(4, '')
+const andNow = userMessageAt(4, 'And now?')
 
-/** The queued Run of `attachmentsOnly`, the history's last message. */
+/** The queued Run of `andNow`, the history's last message. */
 const lastRun = buildRun({
   id: queuedRun.id,
   chatId,
-  userMessage: attachmentsOnly,
-  createdAt: attachmentsOnly.createdAt,
+  userMessage: andNow,
+  createdAt: andNow.createdAt,
 })
-
-const image = (
-  id: string,
-  { name, boundTo }: { readonly name: string; readonly boundTo: MessageId },
-) =>
-  new Attachment({
-    id: AttachmentId.make(id),
-    userId: owner,
-    fileName: FileName.make(name),
-    mediaType: MediaType.make('image/png'),
-    size: FileSize.make(png.length),
-    createdAt: epoch,
-    messageId: Option.some(boundTo),
-    chatId: Option.some(chatId),
-  })
-
-const photo = image('0192d4e0-7b3a-7c00-8000-000000000040', {
-  name: 'photo.png',
-  boundTo: whatIsThis.id,
-})
-
-const sketch = image('0192d4e0-7b3a-7c00-8000-000000000041', {
-  name: 'sketch.png',
-  boundTo: attachmentsOnly.id,
-})
-
-/** Stores the bytes of `attachment`, as its upload left them. */
-const storeBytes = (attachment: Attachment) =>
-  FileRepository.use((files) => files.insert({ ...attachment, content: Stream.make(png) }))
 
 const elsewhereReply = assistantMessageAt(5, 'Done elsewhere.')
 
@@ -313,89 +261,23 @@ describe('generateAssistantMessage', () => {
     },
   )
 
-  it.effect(
-    "generate prompts with the chat's messages in order and the bytes of their attachments",
-    () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sure))
-      const withPhoto = new Message({ ...whatIsThis, attachments: [photo] })
-      const withSketch = new Message({ ...attachmentsOnly, attachments: [sketch] })
-      return Effect.gen(function* () {
-        yield* Effect.forEach([photo, sketch], storeBytes)
-
-        yield* generate
-
-        assertEquals(yield* assistant.histories, [
-          [
-            { message: withPhoto, attachments: [{ attachment: photo, bytes: png }] },
-            { message: aPhoto, attachments: [] },
-            { message: andAgain, attachments: [] },
-            { message: withSketch, attachments: [{ attachment: sketch, bytes: png }] },
-          ],
-        ])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(
-            replyingTo(noWrites(), {
-              runs: readsInTurn(lastRun),
-              history: [withPhoto, aPhoto, andAgain, withSketch],
-            }),
-          ).pipe(Layer.provideMerge(assistant.layer)),
-        ),
-      )
-    },
-  )
-
-  it.effect("generate prompts with the bytes a copy's source holds", () => {
+  it.effect("generate prompts with the chat's messages in order", () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
-    const source = new Attachment({
-      ...sketch,
-      id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000042'),
-      messageId: Option.none(),
-      chatId: Option.none(),
-    })
-    const copy = new Attachment({ ...sketch, sourceId: Option.some(source.id) })
-    const withCopy = new Message({ ...attachmentsOnly, attachments: [copy] })
     return Effect.gen(function* () {
-      // A copy stores no bytes under its own id.
-      yield* storeBytes(source)
-
       yield* generate
 
-      assertEquals(yield* assistant.histories, [
-        [{ message: withCopy, attachments: [{ attachment: copy, bytes: png }] }],
-      ])
+      assertEquals(yield* assistant.histories, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(
       Effect.provide(
         layerChatTest(
-          replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withCopy] }),
+          replyingTo(noWrites(), {
+            runs: readsInTurn(lastRun),
+            history: [whatIsThis, aPhoto, andAgain, andNow],
+          }),
         ).pipe(Layer.provideMerge(assistant.layer)),
       ),
     )
   })
-
-  it.effect(
-    "generate prompts without an attachment whose bytes are gone and logs a warning with its, the chat's and the Run's ids",
-    () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sure))
-      const { logs, layer: logger } = recordLogs('attachmentId', 'chatId', 'runId')
-      const withSketch = new Message({ ...attachmentsOnly, attachments: [sketch] })
-      return Effect.gen(function* () {
-        yield* generate
-
-        assertEquals(yield* assistant.histories, [[{ message: withSketch, attachments: [] }]])
-        assert.deepStrictEqual(logs, [
-          ['Warn', 'attachment skipped: file missing', sketch.id, chatId, queuedRun.id],
-        ])
-      }).pipe(
-        Effect.provide([
-          layerChatTest(
-            replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withSketch] }),
-          ).pipe(Layer.provideMerge(assistant.layer)),
-          logger,
-        ]),
-      )
-    },
-  )
 
   it.effect(
     'generate dies on a done write the store refuses, and skips the Run it then reads settled',

@@ -575,7 +575,7 @@ answers the chat's next message from its history, `ChatAssistant` the chat's tit
 opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
 `LLM_REPLY_MODEL` or `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes
 `askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
-(`HistoryMessage`, `AssistantReply`), and a failed Run takes the error's tag as its reason
+(`MessageFields`, `AssistantReply`), and a failed Run takes the error's tag as its reason
 ([A failed Run named by its failure](#a-failed-run-named-by-its-failure)); no port stands in
 front of the services. A use case yields the service it needs, a unit test swaps that
 service's layer, and the suite builds both layers over a recording client.

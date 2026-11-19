@@ -6,9 +6,7 @@ import { HttpClient, HttpClientRequest } from 'effect/http'
 import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
 import { messageId } from '@app-template/application/chat/testing'
 import {
-  AttachmentRepository,
   ChatRepository,
-  FileRepository,
   type MessageEntityWhere,
   MessageRepository,
   RunRepository,
@@ -37,10 +35,8 @@ describe('POST /events', () => {
               reads.push(where)
             }).pipe(Effect.as(Option.none())),
         }),
-        Layer.mock(AttachmentRepository, {}),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
-        Layer.mock(FileRepository, {}),
         Layer.mock(MessageAssistant, {}),
         Layer.mock(ChatAssistant, {}),
         TransactionTest,

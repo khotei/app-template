@@ -7,15 +7,13 @@ import { TestClock } from 'effect/testing'
 
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import type { LlmError } from '@app-template/kernel/llm/error'
-import { epoch, png } from '@app-template/packages/testing'
 
-import { AssistantReply, type HistoryMessage } from '#chat/domain/assistant.model'
-import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
-import { AttachmentId } from '#chat/domain/attachment.util'
+import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatTitle } from '#chat/domain/chat.model'
+import type { MessageFields } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-import { assistantMessageAt, owner, userMessageAt } from '#testing/chat/chat.test-fixture'
+import { assistantMessageAt, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -85,57 +83,33 @@ const apiError = (
     { status, headers },
   )
 
-const reply = (history: ReadonlyArray<HistoryMessage>) =>
+const reply = (history: ReadonlyArray<MessageFields>) =>
   MessageAssistant.use((assistant) => assistant.reply(history))
 
 const suggestTitle = (text: string) =>
   ChatAssistant.use((assistant) => assistant.suggestTitle(text))
 
-const hi: ReadonlyArray<HistoryMessage> = [{ message: userMessageAt(1, 'Hi'), attachments: [] }]
+const hi = [userMessageAt(1, 'Hi')]
 
 const lisbon = 'Plan a weekend in Lisbon'
 
-const photo = new Attachment({
-  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
-  userId: owner,
-  fileName: FileName.make('photo.png'),
-  mediaType: MediaType.make('image/png'),
-  size: FileSize.make(png.length),
-  createdAt: epoch,
-})
-
-/** The package writes `cache_control: null` on every user block. */
-const imageBlock = {
-  type: 'image',
-  source: { type: 'base64', media_type: 'image/png', data: 'iVBORw0KGgoA/w==' },
-  cache_control: null,
-} as const
-
 describe('MessageAssistant and ChatAssistant', () => {
   it.effect(
-    "reply asks the reply model with the system prompt, user turns as their text and images, a blank text left out, and assistant turns as their text, and answers the model's text",
+    "reply asks the reply model with the system prompt and each turn as its text, and answers the model's text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
         const answer = yield* reply([
-          {
-            message: userMessageAt(1, 'What is this?'),
-            attachments: [{ attachment: photo, bytes: png }],
-          },
-          { message: assistantMessageAt(2, 'A photo.'), attachments: [] },
-          { message: userMessageAt(3, ' \n'), attachments: [{ attachment: photo, bytes: png }] },
+          userMessageAt(1, 'What is this?'),
+          assistantMessageAt(2, 'A photo.'),
         ])
 
         const [body] = yield* bodies
         assert.strictEqual(body?.model, 'claude-sonnet-5-5')
         assert.include(body?.system, 'You are the assistant of a chat app')
         assert.deepStrictEqual(body?.messages, [
-          {
-            role: 'user',
-            content: [{ type: 'text', text: 'What is this?', cache_control: null }, imageBlock],
-          },
+          { role: 'user', content: [{ type: 'text', text: 'What is this?', cache_control: null }] },
           { role: 'assistant', content: [{ type: 'text', text: 'A photo.' }] },
-          { role: 'user', content: [imageBlock] },
         ])
         assertEquals(answer, new AssistantReply({ text: 'Hello' }))
       }).pipe(Effect.provide(layer))

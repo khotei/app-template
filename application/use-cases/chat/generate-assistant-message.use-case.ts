@@ -1,17 +1,13 @@
-import { Array as Arr, Cause, Effect, Exit, Option } from 'effect'
+import { Cause, Effect, Exit, Option } from 'effect'
 
 import {
   type AssistantReply,
-  type Attachment,
   completeRun,
-  FileAttachmentService,
   failRun,
   type GenerateAssistantMessage,
   generateRun,
-  type HistoryMessage,
   isActiveRun,
   isStartedRun,
-  type Message,
   MessageAssistant,
   MessageService,
   prepareRun,
@@ -21,28 +17,6 @@ import {
   RunService,
 } from '@app-template/application/chat'
 import { Transaction } from '@app-template/packages/db'
-
-const readBytes = (attachment: Attachment) =>
-  FileAttachmentService.use((files) => files.getBytes(attachment)).pipe(
-    Effect.map((bytes) => ({ attachment, bytes })),
-    Effect.tapError(() =>
-      Effect.logWarning('attachment skipped: file missing').pipe(
-        Effect.annotateLogs({ attachmentId: attachment.id }),
-      ),
-    ),
-    Effect.option,
-  )
-
-const readHistoryMessage = (message: Message) =>
-  Effect.forEach(message.attachments, readBytes).pipe(
-    Effect.map((found): HistoryMessage => ({ message, attachments: Arr.getSomes(found) })),
-  )
-
-const readHistory = (run: Run) =>
-  MessageService.use((messages) => messages.getMany({ chatId: run.chatId })).pipe(
-    Effect.flatMap(Effect.forEach(readHistoryMessage)),
-    Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
-  )
 
 const settleCompleted = Effect.fnUntraced(
   function* (generating: Run, { text }: AssistantReply) {
@@ -69,10 +43,11 @@ const settleFailed = Effect.fnUntraced(function* (active: Run, { reason, cause }
 
 const reply = Effect.fnUntraced(function* (taken: Run) {
   const assistant = yield* MessageAssistant
+  const messages = yield* MessageService
   const runs = yield* RunService
 
   const prepared = yield* runs.move(taken, prepareRun)
-  const history = yield* readHistory(prepared)
+  const history = yield* messages.getMany({ chatId: prepared.chatId })
   const generating = yield* runs.move(prepared, generateRun)
   const answer = yield* assistant.reply(history)
   yield* settleCompleted(generating, answer)

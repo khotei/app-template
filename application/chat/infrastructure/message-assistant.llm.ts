@@ -1,39 +1,24 @@
 import { AnthropicLanguageModel } from '@effect/ai-anthropic'
-import { Array as Arr, Context, Effect, Layer, pipe, Schema } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Schema } from 'effect'
 import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
 import { askModel } from '@app-template/kernel/llm'
 import { type LlmError, LlmFailedError } from '@app-template/kernel/llm/error'
 
-import {
-  AssistantReply,
-  type AttachmentBytes,
-  type HistoryMessage,
-} from '#chat/domain/assistant.model'
-import { isBlank } from '#chat/domain/message.util'
+import { AssistantReply } from '#chat/domain/assistant.model'
+import type { MessageFields } from '#chat/domain/message.model'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
-  'You are the assistant of a chat app. Answer the last user message, using the whole conversation and every attached file as context.',
+  'You are the assistant of a chat app. Answer the last user message, using the whole conversation as context.',
   'Reply in the language of the last user message.',
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
-  type: 'file',
-  mediaType: attachment.mediaType,
-  fileName: attachment.fileName,
-  data: bytes,
-})
-
-/** A blank text says nothing and an empty text block is refused, so it sends no text part. */
-const toTextParts = (text: string): ReadonlyArray<Prompt.TextPartEncoded> =>
-  isBlank(text) ? [] : [{ type: 'text', text }]
-
-const toMessage = ({ message, attachments }: HistoryMessage): Prompt.MessageEncoded => ({
-  role: message.author,
-  content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
+const toMessage = ({ author, text }: MessageFields): Prompt.MessageEncoded => ({
+  role: author,
+  content: [{ type: 'text', text }],
 })
 
 export class MessageAssistant extends Context.Service<
@@ -41,7 +26,7 @@ export class MessageAssistant extends Context.Service<
   {
     /** The next message of the chat whose completed messages are `history`, oldest first. */
     readonly reply: (
-      history: ReadonlyArray<HistoryMessage>,
+      history: ReadonlyArray<MessageFields>,
     ) => Effect.Effect<AssistantReply, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
@@ -54,7 +39,7 @@ export class MessageAssistant extends Context.Service<
 
     // Decoded after the retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
-      (history: ReadonlyArray<HistoryMessage>) =>
+      (history: ReadonlyArray<MessageFields>) =>
         model.generateText({ prompt: Arr.map(history, toMessage) }),
       askModel,
       Effect.flatMap(({ text }) =>

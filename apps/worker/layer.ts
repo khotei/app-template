@@ -4,17 +4,14 @@ import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
-  AttachmentService,
   ChatAssistant,
   ChatService,
-  FileAttachmentService,
   MessageAssistant,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
-import { S3BucketFromConfig } from '@app-template/kernel/aws'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
-import { Db, FileRepository, PostgresRepositories } from '@app-template/kernel/data'
+import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
@@ -22,13 +19,7 @@ import { Transaction } from '@app-template/packages/db'
 import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide([
-    ChatService.layer,
-    FileAttachmentService.layer,
-    MessageService.layer,
-    RunService.layer,
-  ]),
-  Layer.provide(AttachmentService.layer),
+  Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
 )
 
 const BunHttpServerFromConfig = workerPort.pipe(
@@ -43,8 +34,8 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 
 /** The worker process but its assistants, which the e2e stand scripts. */
 export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
-  Layer.provide([PostgresRepositories, FileRepository.layer, Transaction.layer]),
-  Layer.provide([Db.layer, S3BucketFromConfig]),
+  Layer.provide([PostgresRepositories, Transaction.layer]),
+  Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),
   Layer.provide(MinimumLogLevelFromConfig),

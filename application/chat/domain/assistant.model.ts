@@ -1,6 +1,5 @@
 import { identity, Predicate, Schema, SchemaTransformation, String as Str } from 'effect'
 
-import type { Attachment } from '#chat/domain/attachment.model'
 import { MessageFields } from '#chat/domain/message.model'
 import { isBlank } from '#chat/domain/message.util'
 
@@ -17,13 +16,3 @@ export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply
     ),
   ),
 }) {}
-
-export interface AttachmentBytes {
-  readonly attachment: Attachment
-  readonly bytes: Uint8Array
-}
-
-export interface HistoryMessage {
-  readonly message: MessageFields
-  readonly attachments: ReadonlyArray<AttachmentBytes>
-}
