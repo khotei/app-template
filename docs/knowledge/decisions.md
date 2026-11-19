@@ -127,7 +127,9 @@ rest of the module. A dependency on a module's contract counts as one on the mod
   module. A Biome list of the contract's names (`allowImportNames`) or a ban
   by name (`importNamePattern`): review holds the names instead.
 - **Cost:** the entry opens the module whole, so which of its names another module takes is
-  review's (`modules.md`), not Biome's.
+  review's (`modules.md`), not Biome's. A contract imports no workspace but
+  `@app-template/packages/schema`, which knows no app, so its ids are built like the domain's
+  ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
@@ -197,19 +199,29 @@ definitions. A repository is no port: a service calls the data layer's repositor
 ### HTTP outside the modules
 
 The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError`) live in
-`apps/api`, outside the modules; `generateId` lives in `packages/db`, beside the `id()` column.
+`apps/api`, outside the modules; the id format, its schema (`buildIdSchema`) and its generation
+(`idGenerator`), lives in `packages/schema`.
 
 - **Why:** a handler needs the assembled `Api`, which imports the groups, so a module owning its
-  handler would make a cycle. No module raises them. `generateId` knows no app (a
-  `Crypto` and a brand's `make` in, a UUIDv7 out), only services, use cases and handlers call it,
-  and beside `id()` the id format lives in one file.
+  handler would make a cycle. No module raises them. The id format knows no app (a brand in, a
+  schema out; a schema in, a fresh UUIDv7 of its brand out), every module's ids share it, and in
+  one file a change of format moves the schema and the generation together. `idGenerator` is
+  a constant, an effect that reads `Crypto` once and answers the generator, not a
+  `Context.Service`: no test or second implementation stands in for it, since `Crypto` already
+  is that seam (tests provide `BunCrypto.layer`, or `TestCrypto` to assert an id). A service
+  yields it in its `make`, so its methods require no `Crypto`.
 - **Sources:** departs from the guide's "Keep internal layering per module (API → domain →
   infrastructure)"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/deep-modules.md`'s id generator given the brand's `make`.
-- **Rejected:** `generateId` spelled out at each call, or copied per module: two copies of a rule
-  no module owns. `generateId` in `kernel/data`: it knows no app, so it is a package's. A group
-  in its module's `infrastructure/`, which no cycle forbids, as a group imports only `effect`,
+- **Rejected:** the generation spelled out at each call, or copied per module: two copies of a
+  rule no module owns. A `generateId` that reads `Crypto` itself: `Crypto` is Effect's own service
+  with no default, so it would enter every service method's requirements. A `generateId` taking
+  `Crypto` as a parameter: each call passes the same service along. An `IdGenerator`
+  `Context.Service` with a `layer`: a layer to provide for one implementation. The id format in
+  `packages/db` beside the `id()` column, or in `kernel/data`: the domain and the contracts
+  declare the schema, and neither may import those. A group in its module's `infrastructure/`,
+  which no cycle forbids, as a group imports only `effect`,
   the domain and a sibling group: it would sit apart from its handler, and every process that
   imports the module, the worker too, would load the groups and `effect/http-api` (10 modules,
   27 KB more in the worker's bundle).
@@ -446,10 +458,10 @@ A model's file holds its schemas and its rules, each naming a word of the glossa
 lifecycle move. Beside it, one `<model>.util.ts` per model that needs one holds the model's branded
 id and the pure steps with no domain meaning, generic over their types, that the module's code
 shares, in the file of the model that calls them (`isBlank` in `message.util.ts`); the module's one
-id-schema helper sits in the aggregate root's util (`chat.util.ts`). A util file imports only
-`effect` and other util files, never a model, so a model takes another model's id from its util file
-and no import cycle forms. A util that would only rename one built-in call is not written; the
-built-in is called.
+id schema is built by `packages/schema`'s `buildIdSchema`, which every module's ids share. A util
+file imports only `effect`, `packages/schema` and other util files, never a model, so a model takes
+another model's id from its util file and no import cycle forms. A util that would only rename one
+built-in call is not written; the built-in is called.
 
 - **Why:** a reader of a model sees only the rules it states, where `Option` and `Array` plumbing
   beside them read as rules; a util generic over its types is tested once with plain values, and a
@@ -470,7 +482,8 @@ built-in is called.
 - **Cost:** a judgement per function, rule or util, which review makes and the owner settles; a
   helper two models share sits in one of them, the one that calls it first, and the other imports
   that util file. A util a second workspace needs moves into a package, and the domain's Biome
-  override then admits that package by name.
+  override then admits that package by name, as it admits `@app-template/packages/schema` for
+  `buildIdSchema`, which the contracts' override admits too (`UserId`).
 - **Guarded by:** review, by `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
   a util that imports a model importing it back; nothing refuses a rule written in a util.
 - **If reversed:** the utils go back into the model files beside the rules they serve, and each

@@ -70,10 +70,10 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | `/llm/error`'s errors only | ✗ | `application/*/domain/**`, `kernel/data` and `/llm/error` by name |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `db` only | `application/*/services/**` |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | `/llm/error`'s errors only | `schema` only | `application/*/domain/**`, `kernel/data` and `/llm/error` by name |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
-| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
+| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above it: `noImportCycles` on a cycle, else review |
@@ -98,10 +98,10 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The api's HTTP groups take the domain's schemas** through the modules' entries; the web
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
-  imports only `effect`** (and `type-fest` for types), **a module's `domain/` also the values
-  its tables declare** (a limit, a pattern, an enum's values, a JSON column's shape, from
-  `@app-template/kernel/data`), and none of them nor a module's `services/` import an
-  `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
+  imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types),
+  **a module's `domain/` also the values its tables declare** (a limit, a pattern, an enum's
+  values, a JSON column's shape, from `@app-template/kernel/data`), and none of them nor a
+  module's `services/` import an `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -159,7 +159,7 @@ Using the files of `chat` as the map:
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
-| codecs that turn a failure into a defect | `packages/schema/` | `encodeWith`, `decodeWith` |
+| codecs that turn a failure into a defect; the id format, its schema and its generation | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema`, `idGenerator` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |

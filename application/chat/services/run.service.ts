@@ -1,9 +1,8 @@
-import { Context, Crypto, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
+import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
@@ -39,10 +38,10 @@ export class RunService extends Context.Service<
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
-    const crypto = yield* Crypto.Crypto
+    const generateId = yield* idGenerator
 
     const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
-      const id = yield* generateId(crypto, RunId.make)
+      const id = yield* generateId(RunId)
       const createdAt = yield* DateTime.now
       const run = buildRun({ id, chatId: userMessage.chatId, userMessage, createdAt })
       const row = yield* encodeWith(RunFields)(run)

@@ -1,9 +1,8 @@
-import { Context, Crypto, DateTime, Effect, Layer, Option, Schema, type Types } from 'effect'
+import { Context, DateTime, Effect, Layer, Option, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
+import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
@@ -27,12 +26,12 @@ export class MessageService extends Context.Service<
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const crypto = yield* Crypto.Crypto
+    const generateId = yield* idGenerator
 
     const create = Effect.fn('MessageService.create')(function* (
       fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
-      const id = yield* generateId(crypto, MessageId.make)
+      const id = yield* generateId(MessageId)
       const createdAt = yield* DateTime.now
       const message = new Message({ ...fields, id, createdAt })
       const row = yield* encodeWith(MessageFields)(message)

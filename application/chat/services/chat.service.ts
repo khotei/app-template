@@ -1,6 +1,5 @@
 import {
   Context,
-  Crypto,
   DateTime,
   Effect,
   Layer,
@@ -14,8 +13,7 @@ import type { RequireAtLeastOne } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
+import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { buildChat, Chat, ChatFields, type ChatTitle, renameChat } from '#chat/domain/chat.model'
@@ -52,10 +50,10 @@ export class ChatService extends Context.Service<
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const crypto = yield* Crypto.Crypto
+    const generateId = yield* idGenerator
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = yield* generateId(crypto, ChatId.make)
+      const id = yield* generateId(ChatId)
       const createdAt = yield* DateTime.now
       const chat = buildChat({ id, userId, createdAt })
       const row = yield* encodeWith(ChatFields)(chat)

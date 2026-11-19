@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { buildIdSchema } from '@app-template/packages/schema'
 
-export const UserId = Schema.String.check(Schema.isUUID()).pipe(Schema.brand('UserId'))
+export const UserId = buildIdSchema('UserId')
 export type UserId = typeof UserId.Type
