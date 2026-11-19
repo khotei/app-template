@@ -122,12 +122,13 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
 - **`run L<n>`:** a build step whose Shape the owner has settled goes to an `implementer`, on
   `opus high` (`opus medium` for a move, rename or config step), given the folder, the step id,
   its first round's id and, in a worktree, the order to read rules from that tree. First tell the
-  owner in a few lines what the step will produce: each file or rule it changes, and how. After
-  its report, `git log` since its start lists exactly the reported rounds and the tree is clean,
-  else send it back. Then `review`, its fixes sent to the same `implementer` as one fix pass;
-  then propose the Output and present the step, its rounds, findings and duration. Several
-  settled steps run unattended only on the owner's word, as a workflow that gives each step to an
-  `implementer` this way.
+  owner in a few lines what the step will produce: each file or rule it changes, and how. A
+  report that starts with `BLOCKED:` goes to the owner as a question, its red unit left in the
+  tree. After any other, `make check` is green, `git log` since its start lists exactly the
+  reported rounds and the tree is clean, else send it back. Then `review`, its fixes sent to the
+  same `implementer` as one fix pass; then propose the Output and present the step, its rounds,
+  findings and duration. Several settled steps run unattended only on the owner's word, as a
+  workflow that gives each step to an `implementer` this way.
 - **`review [L<n> | all] [design]`:** as **Review** says.
 - **`close [L<n>]`:** a build step closes once its visible check ran and its review is settled.
   Propose its Output, and for each stop whose fix the owner accepted, its before → after pair for
