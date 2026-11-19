@@ -2,7 +2,7 @@ import type { PgClient } from '@effect/sql-pg'
 import type { AnyRelations } from 'drizzle-orm'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Array as Arr, Cause, Context, Effect, flow, Layer, Predicate, Schema } from 'effect'
+import { Cause, Context, Effect, flow, Layer, type Predicate, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 /**
@@ -65,16 +65,6 @@ export function unwrapQueryError(error: EffectDrizzleQueryError) {
 }
 
 const isQueryError = Schema.is(EffectDrizzleQueryError)
-
-/**
- * Holds when a write's `RETURNING` answers one row per distinct id of `ids`: a write over a list
- * misses none of the rows it names.
- */
-export const hasRowPer = (ids: string | ReadonlyArray<string>) =>
-  Predicate.and(
-    Arr.isReadonlyArrayNonEmpty<unknown>,
-    (rows: ReadonlyArray<unknown>) => rows.length === Arr.dedupe(Arr.ensure(ids)).length,
-  )
 
 /**
  * Dies with `message` unless the rows a write's `RETURNING` answers satisfy `holds`.

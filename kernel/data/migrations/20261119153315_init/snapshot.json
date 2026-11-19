@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "41ea3b3f-4236-4c0c-9f6e-34ee1e6da85b",
+  "id": "63162bc7-0f6c-4826-bb99-4f2a0b283e40",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -53,25 +53,6 @@
         "n|enum|public.credential_kind",
         "e|enum|public.credential_kind",
         "n|type|public.credential_kind"
-      ],
-      "reads": [
-        "n|sch|public"
-      ]
-    },
-    {
-      "statementType": "create_table",
-      "statementTarget": [
-        "table",
-        "public",
-        "attachments"
-      ],
-      "writes": [
-        "s|tbl|public.attachments",
-        "n|tbl|public.attachments",
-        "e|tbl|public.attachments",
-        "n|rel|public.attachments",
-        "n|type|public.attachments",
-        "n|rel|public.attachments_pkey"
       ],
       "reads": [
         "n|sch|public"
@@ -182,68 +163,6 @@
       "statementTarget": [
         "index",
         "public",
-        "attachments",
-        "attachments_chat_id_index"
-      ],
-      "writes": [
-        "s|idx|public.attachments_chat_id_index",
-        "n|idx|public.attachments_chat_id_index",
-        "e|idx|public.attachments_chat_id_index",
-        "n|rel|public.attachments_chat_id_index"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|col|public.attachments.chat_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
-        "attachments",
-        "attachments_source_id_index"
-      ],
-      "writes": [
-        "s|idx|public.attachments_source_id_index",
-        "n|idx|public.attachments_source_id_index",
-        "e|idx|public.attachments_source_id_index",
-        "n|rel|public.attachments_source_id_index"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|col|public.attachments.source_id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
-        "attachments",
-        "attachments_message_id_created_at_id_index"
-      ],
-      "writes": [
-        "s|idx|public.attachments_message_id_created_at_id_index",
-        "n|idx|public.attachments_message_id_created_at_id_index",
-        "e|idx|public.attachments_message_id_created_at_id_index",
-        "n|rel|public.attachments_message_id_created_at_id_index"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|col|public.attachments.message_id",
-        "n|col|public.attachments.created_at",
-        "n|col|public.attachments.id"
-      ]
-    },
-    {
-      "statementType": "create_index",
-      "statementTarget": [
-        "index",
-        "public",
         "chats",
         "chats_user_id_created_at_index"
       ],
@@ -320,100 +239,6 @@
         "n|sch|public",
         "n|col|public.runs.user_message_id",
         "n|col|public.runs.created_at"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "attachments"
-      ],
-      "writes": [
-        "s|fk|public.attachments.attachments_user_id_users_id_fkey",
-        "n|fk|public.attachments.attachments_user_id_users_id_fkey",
-        "e|fk|public.attachments.attachments_user_id_users_id_fkey",
-        "n|con|public.attachments.attachments_user_id_users_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|tbl|public.users",
-        "n|sch|public",
-        "n|col|public.attachments.user_id",
-        "n|col|public.users.id",
-        "e|uniqueness|public.users.id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "attachments"
-      ],
-      "writes": [
-        "s|fk|public.attachments.attachments_chat_id_chats_id_fkey",
-        "n|fk|public.attachments.attachments_chat_id_chats_id_fkey",
-        "e|fk|public.attachments.attachments_chat_id_chats_id_fkey",
-        "n|con|public.attachments.attachments_chat_id_chats_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|tbl|public.chats",
-        "n|sch|public",
-        "n|col|public.attachments.chat_id",
-        "n|col|public.chats.id",
-        "e|uniqueness|public.chats.id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "attachments"
-      ],
-      "writes": [
-        "s|fk|public.attachments.attachments_message_id_chat_id_fk",
-        "n|fk|public.attachments.attachments_message_id_chat_id_fk",
-        "e|fk|public.attachments.attachments_message_id_chat_id_fk",
-        "n|con|public.attachments.attachments_message_id_chat_id_fk"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|tbl|public.messages",
-        "n|sch|public",
-        "n|col|public.attachments.message_id",
-        "n|col|public.attachments.chat_id",
-        "n|col|public.messages.id",
-        "n|col|public.messages.chat_id",
-        "e|uniqueness|public.messages.chat_id.id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "attachments"
-      ],
-      "writes": [
-        "s|fk|public.attachments.attachments_source_id_fk",
-        "n|fk|public.attachments.attachments_source_id_fk",
-        "e|fk|public.attachments.attachments_source_id_fk",
-        "n|con|public.attachments.attachments_source_id_fk"
-      ],
-      "reads": [
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|tbl|public.attachments",
-        "n|sch|public",
-        "n|col|public.attachments.source_id",
-        "n|col|public.attachments.id",
-        "e|uniqueness|public.attachments.id"
       ]
     },
     {
@@ -560,12 +385,6 @@
   "ddl": [
     {
       "schema": "public",
-      "name": "attachments",
-      "isRlsEnabled": false,
-      "entityType": "tables"
-    },
-    {
-      "schema": "public",
       "name": "chats",
       "isRlsEnabled": false,
       "entityType": "tables"
@@ -622,123 +441,6 @@
         "secret"
       ],
       "entityType": "enums"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": "uuidv7()",
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "user_id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "message_id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "chat_id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "source_id",
-      "type": "uuid",
-      "typeSchema": null,
-      "notNull": false,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "file_name",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "media_type",
-      "type": "text",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "size",
-      "type": "integer",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "created_at",
-      "type": "timestamp with time zone",
-      "typeSchema": null,
-      "notNull": true,
-      "dimensions": 0,
-      "default": null,
-      "generated": null,
-      "identity": null,
-      "entityType": "columns"
     },
     {
       "schema": "public",
@@ -1041,83 +743,6 @@
     },
     {
       "schema": "public",
-      "table": "attachments",
-      "name": "attachments_chat_id_index",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "chat_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_source_id_index",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "source_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_message_id_created_at_id_index",
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "message_id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "created_at",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        },
-        {
-          "value": "id",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "entityType": "indexes"
-    },
-    {
-      "schema": "public",
       "table": "chats",
       "name": "chats_user_id_created_at_index",
       "nameExplicit": true,
@@ -1220,76 +845,6 @@
       "method": "btree",
       "concurrently": false,
       "entityType": "indexes"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_user_id_users_id_fkey",
-      "nameExplicit": false,
-      "columns": [
-        "user_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "users",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_chat_id_chats_id_fkey",
-      "nameExplicit": false,
-      "columns": [
-        "chat_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "chats",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_message_id_chat_id_fk",
-      "nameExplicit": true,
-      "columns": [
-        "message_id",
-        "chat_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "messages",
-      "columnsTo": [
-        "id",
-        "chat_id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_source_id_fk",
-      "nameExplicit": true,
-      "columns": [
-        "source_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "attachments",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "entityType": "fks"
     },
     {
       "schema": "public",
@@ -1397,16 +952,6 @@
     },
     {
       "schema": "public",
-      "table": "attachments",
-      "name": "attachments_pkey",
-      "columns": [
-        "id"
-      ],
-      "nameExplicit": false,
-      "entityType": "pks"
-    },
-    {
-      "schema": "public",
       "table": "chats",
       "name": "chats_pkey",
       "columns": [
@@ -1477,41 +1022,6 @@
       ],
       "nullsNotDistinct": false,
       "entityType": "uniques"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_file_name_check",
-      "value": "\"file_name\" <> ''",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_media_type_check",
-      "value": "\"media_type\" ~* '^[a-z0-9][a-z0-9!#$&^_.+-]*\\/[a-z0-9][a-z0-9!#$&^_.+-]*$'",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_size_check",
-      "value": "\"size\" >= 0",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_message_id_chat_id_check",
-      "value": "\"message_id\" is null or \"chat_id\" is not null",
-      "entityType": "checks"
-    },
-    {
-      "schema": "public",
-      "table": "attachments",
-      "name": "attachments_source_id_message_id_check",
-      "value": "\"source_id\" is null or \"message_id\" is not null",
-      "entityType": "checks"
     },
     {
       "schema": "public",

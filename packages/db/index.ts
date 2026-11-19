@@ -10,7 +10,6 @@ export {
   createDb,
   decodeRowWith,
   encodeRowWith,
-  hasRowPer,
   orDieUnless,
   orDieWithSqlError,
   Transaction,

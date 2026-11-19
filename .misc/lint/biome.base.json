@@ -138,9 +138,9 @@
                   },
                   {
                     "group": ["@app-template/kernel/data"],
-                    "importNamePattern": "[a-z][A-Za-z0-9]*(Pattern|Length|Size|Statuses|Authors|Reasons|Kinds)|[A-Z][A-Za-z0-9]*Failure",
+                    "importNamePattern": "[a-z][A-Za-z0-9]*(Pattern|Length|Statuses|Authors|Reasons|Kinds)|[A-Z][A-Za-z0-9]*Failure",
                     "invertImportNamePattern": true,
-                    "message": "of @app-template/kernel/data a module's domain takes only a table's values, a limit, a pattern or an enum's values, named <name>Pattern, <name>Length, <name>Size, <name>Statuses, <name>Authors, <name>Reasons or <name>Kinds, or a JSON column's shape, named <Name>Failure: no table, entity, repository or Db (decisions.md › A module's layers; The data at the centre)"
+                    "message": "of @app-template/kernel/data a module's domain takes only a table's values, a limit, a pattern or an enum's values, named <name>Pattern, <name>Length, <name>Statuses, <name>Authors, <name>Reasons or <name>Kinds, or a JSON column's shape, named <Name>Failure: no table, entity, repository or Db (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
                     "group": ["@app-template/kernel/llm/error"],

@@ -359,7 +359,7 @@ them:
   `Data.<Name>` then reaches what the names were refused for.
 - **A data layer's export named like a value, in a module's `domain/`.** Of
   `@app-template/kernel/data` the domain guard admits only the names of a value's shape
-  (`<name>Pattern`, `<name>Length`, `<name>Size`, a plural such as `<name>Statuses`) and refuses
+  (`<name>Pattern`, `<name>Length`, a plural such as `<name>Statuses`) and refuses
   the rest, a namespace import included; a table or an enum given such a name passes it, so
   review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm

@@ -109,29 +109,29 @@ on create; Pulumi updates the queue in place.
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
 
-## Attachments
+## Files
 
-An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
-`attachments/<id>`, the id of the library attachment it was sent from when it names one
-(`buildBytesId`). `FileRepository`, in the data layer, holds only the keys, which its entity file
-declares, and the headers; the upload itself is `S3Bucket` in
-`packages/s3`, taken from the context. `S3BucketFromConfig`, among the kernel's AWS clients,
-binds it to the stage's bucket, and the api and the worker provide it beside
-`FileRepository.layer`. The store joins no transaction, so the flow that writes both keeps the
-bytes before the row that binds them and deletes them once the rows are gone.
+`FileRepository`, in the data layer, stores a file's bytes in the `attachments` bucket under
+`attachments/<id>` (`buildFileKey`): it holds only the keys, which its entity file declares, and
+the headers; the upload itself is `S3Bucket` in `packages/s3`, taken from the context.
+`S3BucketFromConfig`, among the kernel's AWS clients, binds it to the stage's bucket. No app
+provides either today: no module stores bytes since attachments were removed
+([decisions.md › Attachments removed](decisions.md#attachments-removed)), and the bucket keeps
+the name and the key prefix they had. The store joins no transaction, so a flow that writes a row
+and its bytes keeps the bytes before the row that binds them and deletes them once the rows are
+gone.
 
 - **Upload.** The file streams in and is never buffered whole: up to 5 MiB it is one `PutObject`,
-  above that a multipart upload in 5 MiB parts, so a file within `maxFileSize` takes two at most.
-  The latest part is held back until the stream ends, so a failing or interrupted upload is
-  aborted and leaves neither an object nor a stray upload; the bucket's rule that aborts
-  incomplete uploads is the backstop for a crashed process.
+  above that a multipart upload in 5 MiB parts. The latest part is held back until the stream
+  ends, so a failing or interrupted upload is aborted and leaves neither an object nor a stray
+  upload; the bucket's rule that aborts incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
-  name are written at upload, so the download URL is signed without overrides.
-- **Download.** The api answers `302` to a `GetObject` URL presigned for 300 seconds.
+  name are written at upload, so the URL a read signs needs no overrides.
+- **The signed URL.** A read answers a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
-  api signs with. With an endpoint set, S3 uses path-style addressing and the URL is
+  process signs with. With an endpoint set, S3 uses path-style addressing and the URL is
   `http://localhost:<port>/<bucket>/attachments/<id>?X-Amz-…`, which the browser reaches because
-  MiniStack is published on the host. An api running inside Docker would sign with a host the
+  MiniStack is published on the host. A process running inside Docker would sign with a host the
   browser cannot reach; that needs a presign-only client on the public endpoint.
 
 ## Queues

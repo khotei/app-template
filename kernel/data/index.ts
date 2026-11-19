@@ -1,4 +1,3 @@
-export * from '#kernel/data/attachment/index'
 export * from '#kernel/data/chat/index'
 export * from '#kernel/data/db.client'
 export * from '#kernel/data/file/index'

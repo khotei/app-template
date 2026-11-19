@@ -34,8 +34,7 @@ the entities derived from them.
   the table exports (`runStatuses = ['queued', …] as const`, then
   `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
-  `attachments_media_type_check` the one `MediaType` checks with, matched with `~*` for its `i`
-  flag; `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
+  `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
   what the domain rejects. A model that holds the value imports it from the table and checks the
   same rule on its side, so a change to the value changes both. drizzle-kit inlines the values
   into the DDL, so a changed literal, pattern or limit changes the schema, and
@@ -51,20 +50,14 @@ the entities derived from them.
 - **A descending index states its null order.** Drizzle's `desc()` indexes nulls last while
   Postgres's `ORDER BY … DESC` sorts them first, so an index for that order is
   `.desc().nullsFirst()` (`chats_user_id_created_at_index`).
-- **Foreign keys say what a delete does.** `credentials`, `messages` and a chat's attachments
-  cascade from their parent, so a chat's delete is one statement. An attachment names its chat in
-  `chat_id`, a key to `chats` that cascades, so one uploaded into a chat and never sent goes with
-  it. A sent one names its message too, by the pair `(message_id, chat_id)` over
-  `messages (id, chat_id)`, so the message can only be one of that chat; the pair key skips a
-  row with a null in it, so a check refuses a message without a chat. The cascade never reaches
-  S3: whoever deletes a chat or a message deletes the bytes too. `source_id`, the attachment a
-  row was sent from, does not cascade (`attachments_source_id_fk`): a delete of an attachment
-  that a row still names fails the statement, and a check lets only a bound row name a source.
+- **Foreign keys say what a delete does.** `credentials`, `messages` and `runs` cascade from
+  their parent, so a chat's delete is one statement. A Run names its user message by the pair
+  `(user_message_id, chat_id)` over `messages (id, chat_id)` (`runs_user_message_id_chat_id_fk`),
+  so the message can only be one of the Run's chat. The cascade never reaches S3: a flow that
+  stores bytes beside a row deletes them itself.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
-  foreign key on array elements, so a copy would drift: a message's attachments are the rows
-  whose `attachments.message_id` names it, and `messages` keeps no list of them. They read in
-  upload order, `created_at` then `id`, whatever order the send listed them in;
-  `attachments_message_id_created_at_id_index` serves that order.
+  foreign key on array elements, so a copy would drift: a message's Runs are the rows whose
+  `runs.user_message_id` names it, and `messages` keeps no list of them.
 
 ## Entities and models
 
@@ -136,8 +129,8 @@ the `chats` constant.
 
 A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
-`kernel/data/<store>/`, `FileRepository` over the attachments' objects among them
-([aws.md › Attachments](aws.md#attachments)), speak entities: they take a table's row (an
+`kernel/data/<store>/`, `FileRepository` over the bucket's objects among them
+([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
 through its models (`UserService` over `UserRepository`). A method that writes several tables
@@ -154,7 +147,7 @@ mapping failure dies.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder
-(`db.select().from(<table>)`, as `AttachmentRepository` reads), and so do the writes
+(`db.select().from(<table>)`), and so do the writes
 (`db.insert`, `db.update`, `db.delete`). A relational read of at most one row is a `findFirst`,
 which emits the `limit 1` itself, even where a key makes the row unique, so the query states its
 intent; the row it finds is the entity as Drizzle types it, answered with no decode, and
@@ -214,14 +207,9 @@ touches no row:
   (above). The worked case is a chat's rename: the title job renames `where` `title` is still
   `none`, so a rename landing between its read and its write wins, and the title job dies and
   fails.
-- **A row of its own, not a shared one.** A send binds a library attachment by inserting the
-  chat's copy of it, a row bound to the message that names the attachment in `source_id`, and
-  never writes the library attachment's row, so two sends of one attachment never meet on a row.
-  A delete of the attachment between a send's read and its insert fails the insert on
-  `attachments_source_id_fk`, and the send dies (500), rolled back whole.
 
-`ChatRepository.delete(where)` is one statement: the chat's messages, attachments and Runs go by
-the cascade, and `ChatService.delete` is all the api's delete calls.
+`ChatRepository.delete(where)` is one statement: the chat's messages and Runs go by the
+cascade, and `ChatService.delete` is all the api's delete calls.
 
 ## Transactions
 

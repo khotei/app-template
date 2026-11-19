@@ -713,17 +713,14 @@ and patterns, and a model that holds one imports it to check the same rule on it
 
 A rule two writers could break between a read and a write is a guard in the write itself (a
 partial unique index, an `UPDATE … WHERE` on the state read), and no read takes a lock. A write
-over a list of ids dies unless it changes a row per distinct id, so the loser of a race writes
-nothing and rolls back whole.
+that misses the row it names dies, so the loser of a race writes nothing and rolls back whole.
 
 - **Why:** the checks run as pure functions over a plain read, before every write; a lock would
   tie the check to the transaction and hold rows while other work runs.
 - **Sources:** [database.md › Guards](database.md#guards); `.claude/rules/layering.md ›
   Concurrency`.
 - **Rejected:** a `FOR UPDATE` read before the check: the loser would wait and then get its
-  domain error, but the read would carry an option that changes its contract. A deferrable key
-  from an attachment to its message, to bind before the insert: a schema change for one order of
-  writes.
+  domain error, but the read would carry an option that changes its contract.
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a
   loser that reads after it gets its `409`.
 - **Guarded by:** the repositories' writes die on a missed row, each with its e2e; the e2e race
@@ -734,28 +731,18 @@ nothing and rolls back whole.
 
 ### Reads in creation order
 
-A read of a chat's messages or of attachments answers them in creation order, `createdAt` then
-`id`: the attachments of a message or of a send, whatever order the ids were asked in. A copy
-keeps its source's `createdAt`, so a send's attachments come back in upload order. The chat list
-alone answers newest first. An error over a list of ids, such as `AttachmentNotFoundError`'s
-`ids`, names each missing id once, in the order asked.
+A read of a chat's messages answers them in creation order, `createdAt` then `id`. The chat list
+alone answers newest first.
 
-- **Why:** one order for a chat's contents, written once, in each repository's `ORDER BY`; a send's
-  message answers its attachments as a later read of the chat does.
+- **Why:** one order for a chat's contents, written once, in each repository's `ORDER BY`.
 - **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files) (the
   index that serves it).
-- **Rejected:** the order asked, kept by sorting the rows by the ids in the service: a second
-  order for one read, lost again when the chat is read back.
-- **Cost:** a client that sends `[b, a]` gets `[a, b]` back when `a` was uploaded first, and
-  reorders them itself if it needs the order it asked.
-- **Guarded by:** the repositories' e2e read rows created out of id order in creation order; the
-  attachment model's, the attachment service's and the send's unit tests build a copy with its
-  source's `createdAt`; the model's name the missing ids in the order asked; the send's `400` on a
-  repeated id (`ensureMessageInput`) keeps each id once, as the model's check names an id as often
-  as it is asked.
-- **If reversed:** the service sorts what the repository reads by the ids asked, and a chat read
-  back still answers creation order.
-- **Revisit when:** a client needs its attachments in an order it chooses.
+- **Rejected:** an order a caller passes: a second order for one read, lost again when the chat is
+  read back.
+- **Cost:** messages created in one millisecond come back by id, not by the order sent.
+- **Guarded by:** the repositories' e2e read rows created out of id order in creation order.
+- **If reversed:** each read takes its order from its caller.
+- **Revisit when:** a client needs a chat's contents in an order it chooses.
 
 ### Status from the newest Run
 
@@ -821,11 +808,42 @@ layer declares the key; `kernel/aws/resources` declares the bucket's name and li
   row that binds them and deleted once the rows are gone. Every read signs a URL, which sends no
   request.
 - **Guarded by:** the repository's doc comment and `.claude/rules/layering.md` (the order); the
-  api e2e of a refused chat delete; the file repository's e2e; the `deployment` row of
+  file repository's e2e; the `deployment` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** the port goes back into `chat`'s `domain/` with its adapter in
   `infrastructure/`, and a second module needing files imports chat.
-- **Revisit when:** `shared-files` or `assistant-files` needs files outside a chat.
+- **Revisit when:** the redesign of attachments, or `assistant-files`, needs files outside a chat.
+
+### Attachments removed
+
+The app holds no attachments: a message is its text alone. Removed in every ring: the api's
+`attachments` routes and the send's `attachmentIds`, chat's `Attachment` model with its rules,
+errors and two services, the reply's file parts, `Chat.attachments` and `Message.attachments`,
+and the data layer's `attachments` table with its entity, repository and relations, gone from the
+one `init` migration. What stays is the generic core they were built on: `FileEntity`,
+`FileRepository`, `buildFileKey` and the `FileRepositoryTest` fake in `kernel/data/file`; the
+kernel's AWS clients with `S3BucketFromConfig`; the bucket in `kernel/aws/resources`, its
+provisioning in `deployment/aws/storage.ts` and MiniStack; `packages/s3` and `packages/aws`. The
+bucket keeps its name `attachments` and the key prefix `attachments/`, so a redesign starts from
+a store that works without renaming provisioned resources. No app wires the files today.
+
+- **Why:** the owner's call on the design audit of 2026-11-19: the attachments' design (a library,
+  copies per send, bytes by source) is to be rethought, and code kept for a design that changes
+  is read, tested and reviewed for nothing; the store underneath is generic and proven by its
+  e2e.
+- **Sources:** the owner's word on the design audit
+  (<https://claude.ai/artifact/WJkD7rXKsH7caQ71p1qUS2>); the roadmap's `shared-files` entry,
+  paused.
+- **Rejected:** keeping the attachments behind a flag: dead code with live tests. Removing the
+  file core too: a redesign would rebuild the S3 streaming, signing and provisioning that already
+  work. Renaming the bucket and the prefix now: a provisioned resource renamed for a feature not
+  yet designed.
+- **Cost:** a local database rebuilds by `make reset && make up` for the regenerated `init`; the
+  bucket's name and key prefix still say "attachments" with no attachment behind them.
+- **Guarded by:** review; `make migration-check` holds the schema to the tables.
+- **If reversed:** the commits that removed them revert in order, and the `init` migration is
+  regenerated with the table again.
+- **Revisit when:** the attachments' redesign starts; it names the bucket and the prefix anew.
 
 ### Jobs as queue messages
 
