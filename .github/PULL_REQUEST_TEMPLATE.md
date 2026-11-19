@@ -19,7 +19,7 @@
   │  [ ] `make check` passes                                                 │
   │  [ ] How to read filled; inline explanations posted (pull-requests.md)   │
   │  [ ] New dependency pinned in a named catalog (tooling.md › Catalogs)    │
-  │  [ ] Ticket docs (feature / architecture / plan) and docs/knowledge/     │
+  │  [ ] The lab's lab.md, if any, and docs/knowledge/                       │
   │      updated if behaviour or conventions changed                         │
   │                                                                          │
   │  ── How to test ──                                                       │

@@ -148,8 +148,7 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   each step's budget beside its lines, propose what of Knowledge moves to `docs/knowledge/` (terms
   to the glossary, a binding rule to a record of `docs/knowledge/decisions.md`), ask each open
   `Later` item's fate, mark the slug's roadmap row done with a link to the folder and cut its
-  entry's section, propose the lessons, and commit as the next `L0` round. The PR waits for the
-  owner's word (`.claude/rules/pull-requests.md`).
+  entry's section, propose the lessons, and commit as the next `L0` round.
 
 Each spawn names its model and effort; choose `fable` instead where a wrong answer would pass
 every later check, and say so.
