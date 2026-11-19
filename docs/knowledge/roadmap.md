@@ -603,6 +603,10 @@ moves it into its own `Later` and deletes it here.
   id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
+- (2026-11-19, the owner) A library file in a chat's draft: a copy of a library attachment into a
+  chat before the send, so the draft lives on the server. It relaxes
+  `attachments_source_id_message_id_check` to "a source needs a chat" and makes `copyAttachment`'s
+  `messageId` optional, in the change that adds the feature.
 
 ## Ideas to weigh
 
