@@ -78,8 +78,9 @@ When no lab holds the change, size it once and say which in one line; the owner'
 2. **Rail 1.**
 3. **Read** `lab.md` whole at the session's first move and after a compaction; later, the step's
    section and the diff of each `OWNER` round rail 1 made.
-4. **Markers in code:** `git grep -nE '\[(Q|A|R|DO|D|!)\]' -- ':!docs/tickets' ':!repos'`; move
-   each into its step's Notes with its `path:line`, and delete the comment.
+4. **Markers in code:**
+   `git grep -nE '\[(Q|A|R|DO|D|!)\]' -- ':!docs/tickets' ':!repos' ':!.claude/skills/lab'`;
+   move each into its step's Notes with its `path:line`, and delete the comment.
 5. **The move**, below. After each write to `lab.md`, one chat line says what it wrote.
 
 ## The file
