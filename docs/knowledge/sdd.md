@@ -64,8 +64,10 @@ What the flow replaced, and why:
 
 A feature runs in three passes, each on your word, so you judge it on code that runs before
 anything is built for a case nobody has hit: **minimal**, the whole feature in its smallest form,
-in vertical slices, played from a script you can repeat; **right**, its design adjusted to what
-the play showed, while little code depends on it; **hard**, the items of `Later` you pick.
+the least behaviour and never the fewest units
+([composition.md](../../.claude/rules/composition.md)), in vertical slices, played from a script
+you can repeat; **right**, its design adjusted to what the play showed, while little code depends
+on it; **hard**, the items of `Later` you pick.
 `Later` is the one open list, and before the PR each item is done, moved to
 [roadmap.md › Later](roadmap.md#later), or dropped. Never deferred: a security hole, a loss of
 stored data, an irreversible contract (a deployed migration, a published API).

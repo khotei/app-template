@@ -9,7 +9,8 @@ deleted here: the rule is its author.
 1. What breaks if this is removed?
 2. Is it already in Effect, or in the code?
 3. Is the rule a pure function in the model?
-4. Is each method named for what it answers, with no wrapper and no probe?
+4. Is each method named for what it answers, with no pass-through and no probe, and is each new
+   job a unit that wraps or composes, the units below unedited?
 5. Does each test helper sit beside its one test?
 
 ## The stops

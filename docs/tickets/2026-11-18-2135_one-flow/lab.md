@@ -115,6 +115,15 @@ pass-through") lands in `stops.md` by L2.22, and its rewritten combinator exampl
 `effect-style.md › Composition`, which stays. Every other file merged without a conflict; each
 rebased commit passes `make doc-lint link-check lint`, and the tip `make check`. Commit messages
 unchanged; the old tip is `backup/one-flow-pre-rebase`.
+[N:ai] L2.22, on the owner's composition principle: no toolkit line pushes a fold of units or a
+removal by caller count. The implementer's "least code" becomes "the least behaviour, in
+composed units"; the reviewer's Design candidates and its "prefer removal" (now in tests; in
+code, pass-throughs and dead code), rail 2, the minimal pass, the Design pass's sources, the
+review's "test wrapper" and `stops.md`'s question 4 point to `.claude/rules/composition.md`, and
+so does the guide's minimal pass. The toolkit's instruction files (`CLAUDE.md`, the three agents,
+the lab's `SKILL.md` and `stops.md`, review-brief's two files, `claude-md.md`,
+`pull-requests.md`, the template) went 781 → 783 lines by the rebase's `CLAUDE.md` line and
+783 → 797 by L2.22.
 
 ### Output
 
@@ -222,5 +231,7 @@ proceed, 2026-11-18; each is the owner's `[D]` once the owner confirms it:
   `Bash(git push * :*)` matching no delete refspec
 - R1, R2, R3 and R5 ran before L2.6–L2.19 changed the skill again; only R4 ran after — L4 —
   open
+- L2.22 changed the skill and both agents without the replays `claude-md.md › The toolkit` asks
+  for before and after; R4 and R5 are the ones it can move — L4 — open
 - After the merge, the main tree's uncommitted edit of `.claude/settings.json` is restored with
   `git restore .claude/settings.json` there, on the owner's word, before the pull — L2 — open

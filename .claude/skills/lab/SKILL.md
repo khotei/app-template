@@ -17,6 +17,9 @@ owner's explicit word lifts one, for one step.
 2. **No by default.** A proposal to add something says what the system loses without it. No
    timeout, cap, retry or guard that the intent or a `Later` item the owner picked does not name.
    When a review finds an edge case in code this branch wrote, first try deleting its cause.
+   This rail weighs behaviour, never units: a unit that takes a job out of another, or wraps
+   or composes one instead of editing it, adds no behaviour, and a fold for fewer lines is no
+   deletion (`.claude/rules/composition.md`).
 3. **Stop.** `[!]`, or a phrase such as "too much", "hack?", "do we need this?", stops the whole
    move; then show by a run what goes: delete the candidate, run, show what broke. Stop yourself
    on something not asked for, the same thing fixed twice, or a test weakened; after two failed
@@ -41,12 +44,13 @@ owner's explicit word lifts one, for one step.
 ## Passes and `Later`
 
 A feature runs in three passes, each on the owner's word: **minimal**, the whole feature in its
-smallest form, sliced vertically, played end to end from a script the owner can repeat;
-**right**, its design adjusted to what the play showed; **hard**, the items of `Later` the owner
-picks. `Later` is the open list of edge cases, error paths, hardening, open questions and
-optimisations: whoever notices one writes it there at once with its `path:line`. Never deferred:
-a security hole, a loss of stored data, an irreversible contract. Before the PR, each item is
-done, moved to the roadmap's `Later`, or dropped on the owner's word.
+smallest form (the least behaviour, never the fewest units), sliced vertically, played end to
+end from a script the owner can repeat; **right**, its design adjusted to what the play
+showed; **hard**, the items of `Later` the owner picks. `Later` is the open list of edge cases,
+error paths, hardening, open questions and optimisations: whoever notices one writes it there at
+once with its `path:line`. Never deferred: a security hole, a loss of stored data, an
+irreversible contract. Before the PR, each item is done, moved to the roadmap's `Later`, or
+dropped on the owner's word.
 
 ## Micro or macro
 
@@ -176,7 +180,8 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
      and the `CLAUDE.md` of each touched workspace; on an instruction file, also
      `mattpocock-skills:writing-for-agents`;
    - **Design**, only given `design`, on `opus high`: the range's files and their callers,
-     [stops.md](stops.md), `.claude/rules/deep-modules.md`, `docs/knowledge/architecture.md`
+     [stops.md](stops.md), `.claude/rules/deep-modules.md`, `.claude/rules/composition.md`,
+     `docs/knowledge/architecture.md`
      and the records of `docs/knowledge/decisions.md` that bind those files.
 4. **Decide** on each finding as its report states it:
    - it breaks the intent, or is of a kind never deferred: fix it, a behaviour one test first; a
@@ -189,7 +194,7 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
      `claimed` bug is rejected only by a run: its input as a test that stays green, quoted.
 
    Each fix is its own `REVIEW` round, rail 2 first; a fix that adds a test helper, a fake or a
-   wrapper is replaced by a plainer test. After `run`, the fixes go to its `implementer`.
+   test wrapper is replaced by a plainer test. After `run`, the fixes go to its `implementer`.
 5. **Report:** the `REVIEW` rounds; each `[D:ai]` as one block (what is wrong, what it leads to,
    the options with their cost, your recommendation, the question); the rejected findings. Then
    the yield, as a line in the step's Notes, or the micro's PR body:
