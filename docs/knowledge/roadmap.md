@@ -438,11 +438,12 @@ left.
   - **A service over another service of the same model.** Done: `layering.md` lets a service
     composed over `<Model>Service` see it, and `decisions.md › Layered services of one model`
     records the split.
-  - **A use case reads, then pipes the model's rules.** The send reads the live attachments
-    (`getMany`), asks the repository which have bytes (`selectMany`), then runs
-    `pipe(live, ensureAllStored(ids, stored))`: each read a named value, each rule one pipe step,
-    no branch or refusal of its own. `layering.md › Use cases` and `modules.md › A rule in a use
-    case` get the example as a neutral pattern, not the live names.
+  - **A use case reads, then pipes the model's rules.** The send reads its attachments through
+    `FileAttachmentService.getMany`, which runs `ensureAllStored` over the records and the stored
+    bytes it reads, then pipes `ensureAllReachableFrom` and `ensureAllUnbound` on the answer: each
+    read a service call, each rule one pipe step, no branch or refusal of its own.
+    `layering.md › Use cases` and `modules.md › A rule or a capability in a use case` get the
+    example as a neutral pattern, not the live names.
   - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported
     guard is `ensure<All><State>` with the same shape (`ensureLive` beside `ensureAllLive`), and a
     one-element rule takes the element, not an `Option`.
