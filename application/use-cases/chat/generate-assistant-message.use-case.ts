@@ -27,7 +27,9 @@ const settleCompleted = Effect.fnUntraced(
     // its update, and the transaction takes the reply back.
     const reply = yield* messages.create({ chatId: generating.chatId, text, author: 'assistant' })
     yield* completeRun(generating, reply).pipe(
-      Effect.flatMap((done) => runs.update(done, { id: generating.id, status: generating.status })),
+      Effect.flatMap((done) =>
+        runs.update(done, { id: generating.id, status: [generating.status] }),
+      ),
     )
   },
   // The reply and the Run's `done` land together, or neither does.
@@ -41,7 +43,7 @@ const settleFailed = Effect.fnUntraced(function* (active: Run, { reason, cause }
     Effect.annotateLogs({ runId: active.id, reason, cause }),
   )
   yield* failRun(active, { reason, cause }).pipe(
-    Effect.flatMap((failed) => runs.update(failed, { id: active.id, status: active.status })),
+    Effect.flatMap((failed) => runs.update(failed, { id: active.id, status: [active.status] })),
   )
 })
 
@@ -51,11 +53,11 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
   const runs = yield* RunService
 
   const prepared = yield* prepareRun(taken).pipe(
-    Effect.flatMap((moved) => runs.update(moved, { id: taken.id, status: taken.status })),
+    Effect.flatMap((moved) => runs.update(moved, { id: taken.id, status: [taken.status] })),
   )
   const history = yield* messages.getMany({ chatId: prepared.chatId })
   const generating = yield* generateRun(prepared).pipe(
-    Effect.flatMap((moved) => runs.update(moved, { id: prepared.id, status: prepared.status })),
+    Effect.flatMap((moved) => runs.update(moved, { id: prepared.id, status: [prepared.status] })),
   )
   const answer = yield* assistant.reply(history)
   yield* settleCompleted(generating, answer)

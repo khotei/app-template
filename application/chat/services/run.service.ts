@@ -1,7 +1,7 @@
 import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { RunRepository } from '@app-template/kernel/data'
+import { type RunEntityWhere, RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
@@ -15,16 +15,13 @@ export type RunWhere = Types.Simplify<
   Pick<Run, 'id'> & Partial<Pick<Run, 'chatId'> & { readonly userId: UserId }>
 >
 
-/** The Run's key and the status it was read in, which its update writes under. */
-export type RunUpdateWhere = Types.Simplify<Pick<Run, 'id' | 'status'>>
-
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
-    /** Dies when the Run is no longer in `where.status`, as another worker moved it. */
-    readonly update: (run: Run, where: RunUpdateWhere) => Effect.Effect<Run>
+    /** Dies when no Run matches `where`. */
+    readonly update: (run: Run, where: RunEntityWhere) => Effect.Effect<Run>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -57,12 +54,12 @@ export class RunService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('RunService.update')(function* (run: Run, where: RunUpdateWhere) {
+    const update = Effect.fn('RunService.update')(function* (run: Run, where: RunEntityWhere) {
       const updatedAt = yield* DateTime.now
       const stamped = new Run({ ...run, updatedAt })
       const row = yield* encodeWith(RunFields)(stamped)
 
-      yield* runs.update(row, { id: where.id, status: [where.status] })
+      yield* runs.update(row, where)
       return stamped
     })
 
