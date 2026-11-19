@@ -18,13 +18,12 @@ import { Transaction } from '@app-template/packages/db'
 
 import { WorkerHandler } from '#worker/worker.handler'
 
-const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
+export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
   Layer.provide([
     ChatService.layer,
     FileAttachmentService.layer,
     MessageService.layer,
     RunService.layer,
-    Transaction.layer,
   ]),
 )
 
@@ -40,7 +39,7 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 
 /** The worker process but its `Assistant`, which the e2e stand scripts. */
 export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
-  Layer.provide([PostgresRepositories, FileRepository.layer]),
+  Layer.provide([PostgresRepositories, FileRepository.layer, Transaction.layer]),
   Layer.provide([Db.layer, S3BucketFromConfig]),
   Layer.provide(PgClientFromConfig),
   Layer.provide(BunHttpServerFromConfig),

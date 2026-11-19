@@ -1,14 +1,8 @@
 import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option } from 'effect'
-import { HttpClient, HttpClientRequest, HttpRouter } from 'effect/http'
+import { HttpClient, HttpClientRequest } from 'effect/http'
 
-import {
-  ChatService,
-  FileAttachmentService,
-  MessageService,
-  RunService,
-} from '@app-template/application/chat'
 import { messageId, recordAssistant } from '@app-template/application/chat/testing'
 import {
   AttachmentRepository,
@@ -20,7 +14,7 @@ import {
 } from '@app-template/kernel/data'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
-import { WorkerHandler } from '#worker/worker.handler'
+import { WorkerHttp } from '#worker/layer'
 
 const buildRecord = (queue: string, body: unknown) => ({
   messageId: 'a',
@@ -33,14 +27,8 @@ describe('POST /events', () => {
   it.effect('runs a batch on the use case of the queue it came from', () => {
     const reads: Array<MessageEntityWhere> = []
     // Only the title job's first read answers: any other store call dies, and fails the batch.
-    const events = HttpRouter.serve(WorkerHandler).pipe(
+    const events = WorkerHttp.pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
-      Layer.provide([
-        ChatService.layer,
-        FileAttachmentService.layer,
-        MessageService.layer,
-        RunService.layer,
-      ]),
       Layer.provide([
         Layer.mock(MessageRepository, {
           selectOne: (where) =>
