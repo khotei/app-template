@@ -1,11 +1,11 @@
-import { type DateTime, Effect, Option, type Predicate, Schema, type Types } from 'effect'
+import { Array as Arr, type DateTime, Effect, Option, Schema, type Types } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
 import { MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import { type RunFailure, RunFields, type RunStatus } from '#chat/domain/run-fields.model'
-import { hasStatus, isPreparing } from '#chat/domain/status.model'
+import { hasStatus } from '#chat/domain/status.model'
 
 /**
  * The work of answering one user message; a retry is a new Run of the same message. Read with
@@ -40,13 +40,20 @@ export const ensureRunRetryable = (latestRun: Option.Option<RunFields>) =>
     }),
   )
 
-/** Which Runs may enter each status; `queued` is only ever built, never entered. */
-const transitions = {
-  preparing: hasStatus(['queued']),
-  generating: isPreparing,
-  done: hasStatus(['generating']),
-  failed: isActiveRun,
-} as const satisfies Record<Exclude<RunStatus, 'queued'>, Predicate.Predicate<Run>>
+/** Where a Run may move from each status; `done` and `failed` end it. */
+const moveRunRules: Record<RunStatus, ReadonlyArray<RunStatus>> = {
+  queued: ['preparing', 'failed'],
+  preparing: ['generating', 'failed'],
+  generating: ['done', 'failed'],
+  done: [],
+  failed: [],
+}
+
+const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
+  if (!Arr.contains(moveRunRules[run.status], to)) {
+    return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
+  }
+})
 
 const move = Effect.fnUntraced(function* (
   run: Run,
@@ -55,16 +62,14 @@ const move = Effect.fnUntraced(function* (
     at,
     patch,
   }: {
-    readonly to: keyof typeof transitions
+    readonly to: Exclude<RunStatus, 'queued'>
     readonly at: DateTime.Utc
     readonly patch?: Types.Simplify<
       Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>>
     >
   },
 ) {
-  if (!transitions[to](run)) {
-    return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
-  }
+  yield* ensureRunMove(run, to)
   return new Run({ ...run, ...patch, status: to, updatedAt: at })
 })
 
