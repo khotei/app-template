@@ -22,6 +22,7 @@ import {
   MediaType,
   MessageFields,
   type MessageInput,
+  MessageInputInvalidError,
   Run,
   RunFields,
   RunId,
@@ -84,7 +85,12 @@ const lost = new Attachment({
 })
 
 /** Every refusal a send answers before its first write. */
-const CreateRefusal = Schema.Union([ChatBusyError, AttachmentBoundError, AttachmentNotFoundError])
+const CreateRefusal = Schema.Union([
+  MessageInputInvalidError,
+  ChatBusyError,
+  AttachmentBoundError,
+  AttachmentNotFoundError,
+])
 
 /** Stores `photo`'s bytes, as its upload left them. */
 const storePhotoBytes = FileRepository.use((files) =>
@@ -330,6 +336,13 @@ describe('createUserMessage', () => {
   })
 
   it.effect.each([
+    {
+      name: 'with neither text nor a file',
+      read: chat,
+      found: [],
+      input: ask(' '),
+      error: new MessageInputInvalidError(),
+    },
     {
       name: 'while a Run is in work',
       read: busyChat,
