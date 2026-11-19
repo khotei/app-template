@@ -219,7 +219,7 @@ The words of the telemetry the `api` and the `worker` emit about themselves.
 
 **Telemetry**:
 The traces, logs and metrics the processes emit about themselves; each one exported carries the
-process's name and stage.
+process's name.
 _Avoid_: Monitoring data, diagnostics, instrumentation
 
 **Trace**:

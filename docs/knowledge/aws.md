@@ -102,8 +102,10 @@ on create; Pulumi updates the queue in place.
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/infrastructure/<model>.queue.ts`,
    reading `name` from the entry, and its row in the worker's route
-   (`apps/worker/worker.handler.ts`), which typecheck asks for; for a bucket,
-   `S3BucketFromConfig` reads it from `resources.buckets`.
+   (`apps/worker/worker.handler.ts`), which typecheck asks for. A bucket's entry alone reaches no
+   code: `S3BucketFromConfig` binds the one `S3Bucket` to the `attachments` entry, so a second
+   bucket needs a client of its own
+   ([architecture.md › Add a store's client](architecture.md#add-a-stores-client)).
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
 
@@ -111,8 +113,8 @@ on create; Pulumi updates the queue in place.
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
 `attachments/<id>`, the id of the library attachment it was sent from when it names one
-(`buildFileId`). `FileRepository`, in the data layer, holds only the keys, the headers and the
-tag, which its entity file declares beside the key; the upload itself is `S3Bucket` in
+(`buildFileId`). `FileRepository`, in the data layer, holds only the keys, which its entity file
+declares, and the headers; the upload itself is `S3Bucket` in
 `packages/s3`, taken from the context. `S3BucketFromConfig`, among the kernel's AWS clients,
 binds it to the stage's bucket, and the api and the worker provide it beside
 `FileRepository.layer`. The store joins no transaction, so the flow that writes both keeps the

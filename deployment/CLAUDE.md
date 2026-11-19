@@ -10,5 +10,3 @@ inside MiniStack the resources of `aws/`. `aws/` holds the resource code as func
 - Never hard-code a resource's name or tags in a resource file: names follow the kernel's naming
   rule ([aws.md › The inventory](../docs/knowledge/aws.md#the-inventory)), tags the stack's shared
   tag helper.
-- Keep `@pulumi/pulumi` in `package.json` even where no file imports it: Pulumi loads it to run
-  the program.

@@ -102,7 +102,7 @@ changes it.
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
 | `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
-| `packages/` | generic tools that know no app: database, S3, queue and model clients, UI, test helpers |
+| `packages/` | generic tools that know no app: database, S3 and queue clients, the AWS inventory's types, UI, test helpers |
 | `deployment/` | the Pulumi program that provisions the stores in MiniStack, from resource code an AWS stack can call |
 | `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, telemetry, tooling, process, decisions, glossary, roadmap |
 | `docs/tickets/` | one folder per ticket: its `lab.md` (intent, steps, shapes, decisions); older ones keep their requirements, design, plan and verification |
@@ -126,9 +126,9 @@ graph LR
 - **The boundary** outside: everything that touches the world, from the configured clients to the
   apps.
 
-The guards are in the build, so a wrong import fails before a review: `tsc -b` refuses a cycle and
-an undeclared workspace, Biome refuses an import across a ring, and `make bundle-check` refuses a
-server module in the browser's bundle. The rules a change most often breaks:
+The guards are in the build, so a wrong import fails before a review: Biome refuses a cycle and an
+import across a ring, `tsc -b` an undeclared workspace, and `make bundle-check` a server module in
+the browser's bundle. The rules a change most often breaks:
 
 - no rule outside the modules
   ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));

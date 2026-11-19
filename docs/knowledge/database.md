@@ -231,10 +231,11 @@ bytes stay in S3.
 
 ## Transactions
 
-A use case that writes several aggregates commits them together: `Transaction.run` is a pipeable of
-the `Effect.fn` that holds the writes (`Transaction.layer` wraps `SqlClient.withTransaction`), and
-every repository call inside joins the transaction through the connection `@effect/sql` keeps in the
-fiber's context, so no repository takes a transaction parameter. The guards above decide every
+A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
+writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
+(`Transaction.layer` wraps `SqlClient.withTransaction`), and every repository call inside joins
+the transaction through the connection `@effect/sql` keeps in the fiber's context, so no
+repository takes a transaction parameter. The guards above decide every
 race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3
 stays outside the transaction: the bytes are kept before the row that binds them and deleted once
 the rows are gone, so no row names bytes that are gone; a failure between the two leaves only

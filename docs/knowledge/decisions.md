@@ -9,11 +9,13 @@ ticket that made it and in `git log`.
 
 Each record has seven fields: **Why**, **Sources**, **Rejected**, **Cost**, **Guarded by**, **If
 reversed** and **Revisit when**. The guide is the Software Architecture Guild's
-[architecture guide](https://software-architecture-guild.com/guide/architecture/); the ticket
-that made these records is `docs/tickets/2026-10-31-0926_modular-monolith/`, its sources in
-[research.md](../tickets/2026-10-31-0926_modular-monolith/research.md). Decisions older than it
-live in `architecture.md › Decisions` of their tickets
-([architecture.md](architecture.md) names them). How the code is cut and what may import what:
+[architecture guide](https://software-architecture-guild.com/guide/architecture/); "the ticket"
+of a record's Sources is the one that made the first records,
+`docs/tickets/2026-10-31-0926_modular-monolith/`, its sources in
+[research.md](../tickets/2026-10-31-0926_modular-monolith/research.md); a later record that cites
+its ticket links it. Decisions older than the first records live in `architecture.md › Decisions`
+of their tickets ([architecture.md](architecture.md) names them). How the code is cut and what
+may import what:
 [architecture.md › Dependency rules](architecture.md#dependency-rules).
 
 **Where the app departs from the guide, on purpose:** one data layer for every module
@@ -733,7 +735,8 @@ title's logs it.
   handler can catch, so its Run fails at once and the user sees the failure with its retry; the
   reply's sender keeps that settlement out of the two use cases that send it, and the use cases'
   level already holds the queue; the Run's move is `RunService.move`'s.
-- **Sources:** the ticket's review of what each reader of `jobs` used it for.
+- **Sources:** reply-run's review of what each reader of `jobs` used it for, in
+  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
