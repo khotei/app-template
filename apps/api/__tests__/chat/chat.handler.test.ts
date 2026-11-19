@@ -18,6 +18,7 @@ import {
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { UserUnknownError } from '@app-template/application/identity'
+import type { MessageEntityWhere, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
 
@@ -254,9 +255,14 @@ describe('chats', () => {
   )
 
   it.effect(
-    'a message or Run the store finds none of is 404 MessageNotFoundError or RunNotFoundError',
-    () =>
-      Effect.gen(function* () {
+    'a message or Run the store finds none of for the user is 404 MessageNotFoundError or RunNotFoundError',
+    () => {
+      const wheres: Array<MessageEntityWhere | RunEntityWhere> = []
+      const findsNone = (where: MessageEntityWhere | RunEntityWhere) =>
+        Effect.sync(() => {
+          wheres.push(where)
+        }).pipe(Effect.as(Option.none()))
+      return Effect.gen(function* () {
         const api = yield* ApiClient
 
         const message = yield* api.chats
@@ -272,14 +278,16 @@ describe('chats', () => {
           new MessageNotFoundError({ id: firstMessage.id, author: Option.none() }),
         )
         assertSchemaEquals(RunNotFoundError, run, new RunNotFoundError({ id: queuedRun.id }))
+        assert.deepStrictEqual(wheres, [
+          { id: firstMessage.id, chatId: chat.id, userId: owner },
+          { id: queuedRun.id, chatId: chat.id, userId: owner },
+        ])
       }).pipe(
         Effect.provide(
-          asOwner({
-            messages: { selectOne: () => Effect.succeedNone },
-            runs: { selectOne: () => Effect.succeedNone },
-          }),
+          asOwner({ messages: { selectOne: findsNone }, runs: { selectOne: findsNone } }),
         ),
-      ),
+      )
+    },
   )
 
   it.effect('a refused Run carries its reason and message on the wire', () =>
