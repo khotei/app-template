@@ -491,11 +491,7 @@ moves it into its own `Later` and deletes it here.
   (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
-- (2026-11-13) Errors without context: `MessageInputInvalidError` covers two reasons alike
-  (`ensureMessageInput` in `application/chat/domain/message.model.ts`), `AttachmentTooLargeError`
-  names neither the limit nor the file (`refuseMultipart` in
-  `apps/api/attachment/attachment.handler.ts`), `AttachmentTypeUnsupportedError` not the type
-  sent (`decodeDeclaredType`, same file), `RunNotRetryableError` not why,
+- (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
   (`toFailedError` in `kernel/llm/llm.ask.ts`); `UserUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.

@@ -12,7 +12,6 @@ import {
 import { resources } from '@app-template/kernel/aws'
 import { AwsTest, provisionWorker } from '@app-template/kernel/aws/testing/e2e'
 import { awsConfig } from '@app-template/kernel/config'
-import { FileRepository } from '@app-template/kernel/data'
 import { LambdaClientTest } from '@app-template/packages/aws/testing/e2e'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { WorkerProcess } from '@app-template/worker/testing'
@@ -58,8 +57,8 @@ const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(Layer.provide(AssistantsT
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the assistant scripted,
- * with an `ApiClient` on the api; `SqlClient` and `FileRepository` stay in context for what the
- * test reads behind the apps.
+ * with an `ApiClient` on the api; `SqlClient` stays in context for what the test reads behind the
+ * apps.
  */
 export const StandTest = Layer.unwrap(
   Effect.gen(function* () {
@@ -77,7 +76,4 @@ export const StandTest = Layer.unwrap(
     )
     return Layer.merge(Apps, browser).pipe(Layer.provide(ConfigProvider.layerAdd(provider)))
   }).pipe(Effect.orDie),
-).pipe(
-  Layer.provideMerge(FileRepository.layer),
-  Layer.provideMerge([PgClientTest, AwsTest, LambdaClientTest]),
-)
+).pipe(Layer.provideMerge([PgClientTest, AwsTest, LambdaClientTest]))

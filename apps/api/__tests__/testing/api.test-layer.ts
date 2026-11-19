@@ -5,13 +5,11 @@ import { HttpApiClient } from 'effect/http-api'
 
 import { owner } from '@app-template/application/chat/testing'
 import {
-  AttachmentRepository,
   ChatRepository,
   MessageRepository,
   RunRepository,
   UserRepository,
 } from '@app-template/kernel/data'
-import { FileObjects, FileRepositoryTest } from '@app-template/kernel/data/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
@@ -53,12 +51,11 @@ export interface ApiRepositoryMocks {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
   readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>
   readonly runs?: Layer.PartialEffectful<RunRepository['Service']>
-  readonly attachments?: Layer.PartialEffectful<AttachmentRepository['Service']>
 }
 
 /**
- * The api on an ephemeral port over `mocks`, the memory files, the identity transaction and a
- * queue that only records. Its `HttpClient` targets that port, and the files stay in context.
+ * The api on an ephemeral port over `mocks`, the identity transaction and a queue that only
+ * records. Its `HttpClient` targets that port.
  *
  * A real server, not `HttpApiTest`: its client takes no cookie jar, and a defect is no response
  * there.
@@ -68,7 +65,6 @@ export const layerApiServerTest = ({
   chats = {},
   messages = {},
   runs = {},
-  attachments = {},
 }: ApiRepositoryMocks = {}) =>
   ApiHttp.pipe(
     Layer.provide([
@@ -78,11 +74,8 @@ export const layerApiServerTest = ({
       Layer.mock(ChatRepository, chats),
       Layer.mock(MessageRepository, messages),
       Layer.mock(RunRepository, runs),
-      Layer.mock(AttachmentRepository, attachments),
     ]),
     Layer.provideMerge(BunHttpServer.layerTest),
-    Layer.provideMerge(FileRepositoryTest),
-    Layer.provideMerge(FileObjects.layer),
     Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
   )
 
