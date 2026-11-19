@@ -31,7 +31,7 @@ const storeUserMessage = Effect.fnUntraced(
     const runs = yield* RunService
 
     // The bind follows the message, since its key to the message is not deferrable.
-    const message = yield* messages.create({ chatId, text: input.text })
+    const message = yield* messages.create({ chatId, text: input.text, author: 'user' })
     yield* attachments.bind(requested, message)
     return yield* runs.create(message)
   },

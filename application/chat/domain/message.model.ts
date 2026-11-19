@@ -50,6 +50,18 @@ export const buildAssistantMessage = (
     attachments: [],
   })
 
+const messageBuilders = {
+  user: buildUserMessage,
+  assistant: buildAssistantMessage,
+} as const satisfies Record<MessageAuthor, typeof buildUserMessage>
+
+/** The message its author's builder makes of `fields`. */
+export const buildMessage = ({
+  author,
+  ...fields
+}: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt' | 'author'>>): Message =>
+  messageBuilders[author](fields)
+
 export const isBlank = (text: string) => pipe(text, Str.trim, Str.isEmpty)
 
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {

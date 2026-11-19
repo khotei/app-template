@@ -7,7 +7,7 @@ import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { buildUserMessage, Message, MessageFields } from '#chat/domain/message.model'
+import { buildMessage, Message, MessageFields } from '#chat/domain/message.model'
 
 export type MessageWhere = Types.Simplify<
   Pick<Message, 'id' | 'chatId'> & Partial<Pick<Message, 'author'>> & { readonly userId: UserId }
@@ -16,8 +16,8 @@ export type MessageWhere = Types.Simplify<
 export class MessageService extends Context.Service<
   MessageService,
   {
-    /** Stores the user's message as sent, with no attachments: a bind adds them. */
-    readonly create: (fields: Pick<Message, 'chatId' | 'text'>) => Effect.Effect<Message>
+    /** Stores the message as its author sent it, with no attachments: a bind adds them. */
+    readonly create: (fields: Pick<Message, 'chatId' | 'text' | 'author'>) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     readonly getMany: (
       where: Types.Simplify<Omit<MessageWhere, 'id'>>,
@@ -30,11 +30,11 @@ export class MessageService extends Context.Service<
     const crypto = yield* Crypto.Crypto
 
     const create = Effect.fn('MessageService.create')(function* (
-      fields: Pick<Message, 'chatId' | 'text'>,
+      fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
       const id = yield* generateId(crypto, MessageId.make)
       const createdAt = yield* DateTime.now
-      const message = buildUserMessage({ ...fields, id, createdAt })
+      const message = buildMessage({ ...fields, id, createdAt })
       const row = yield* encodeRowWith(MessageFields)(message)
 
       yield* messages.insert(row)

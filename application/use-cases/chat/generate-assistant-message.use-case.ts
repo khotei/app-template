@@ -1,10 +1,9 @@
-import { Array as Arr, Cause, Crypto, Data, DateTime, Effect, Exit, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Data, Effect, Exit, Option, Schema } from 'effect'
 
 import {
   Assistant,
   type AssistantReply,
   type Attachment,
-  buildAssistantMessage,
   buildFileId,
   buildRunFailureReason,
   completeRun,
@@ -15,8 +14,7 @@ import {
   isActiveRun,
   isStartedRun,
   Message,
-  MessageFields,
-  MessageId,
+  MessageService,
   prepareRun,
   type Run,
   type RunFailureReason,
@@ -24,7 +22,7 @@ import {
   RunService,
 } from '@app-template/application/chat'
 import { FileRepository, MessageRepository } from '@app-template/kernel/data'
-import { decodeRowWith, encodeRowWith, generateId, Transaction } from '@app-template/packages/db'
+import { decodeRowWith, Transaction } from '@app-template/packages/db'
 
 class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
   readonly why: 'chat deleted' | 'already settled'
@@ -59,17 +57,12 @@ const readHistory = (run: Run) =>
 
 const settleCompleted = Effect.fnUntraced(
   function* (generating: Run, { text }: AssistantReply) {
-    const messages = yield* MessageRepository
+    const messages = yield* MessageService
     const runs = yield* RunService
-    const crypto = yield* Crypto.Crypto
-
-    const createdAt = yield* DateTime.now
-    const id = yield* generateId(crypto, MessageId.make)
-    const reply = buildAssistantMessage({ id, chatId: generating.chatId, text, createdAt })
 
     // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
     // its update, and the transaction takes the reply back.
-    yield* encodeRowWith(MessageFields)(reply).pipe(Effect.flatMap(messages.insert))
+    const reply = yield* messages.create({ chatId: generating.chatId, text, author: 'assistant' })
     yield* runs.move(generating, (run, at) => completeRun(run, { reply, at }))
   },
   // The reply and the Run's `done` land together, or neither does.

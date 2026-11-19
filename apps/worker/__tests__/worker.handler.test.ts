@@ -3,7 +3,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest, HttpRouter } from 'effect/http'
 
-import { ChatService, RunService } from '@app-template/application/chat'
+import { ChatService, MessageService, RunService } from '@app-template/application/chat'
 import { messageId, recordAssistant } from '@app-template/application/chat/testing'
 import {
   ChatRepository,
@@ -29,7 +29,7 @@ describe('POST /events', () => {
     // Only the title job's first read answers: any other store call dies, and fails the batch.
     const events = HttpRouter.serve(WorkerHandler).pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
-      Layer.provide([ChatService.layer, RunService.layer]),
+      Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
       Layer.provide([
         Layer.mock(MessageRepository, {
           selectOne: (where) =>
