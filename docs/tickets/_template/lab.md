@@ -39,11 +39,6 @@ does now and how to see it.>
 
 <Only an accepted [D] or Output, written in the commit that settles it.>
 
-## Numbers
-
-<At the close: the output of `make numbers SLUG=<slug>`, with `RANGE=<Base>..HEAD` given a Base,
-each step's budget beside its lines.>
-
 ## Later
 
 <The open list: each item with its `path:line` or step, and its fate.>

@@ -569,8 +569,7 @@ moves it into its own `Later` and deletes it here.
   held branch (found by the audit, not verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
   it (found by the audit, not verified).
-- (2026-11-19) Generated files count apart in `make numbers`; a micro's PR follows the `Later` rule
-  (found by the audit, not verified).
+- (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
 - (2026-11-19) Lab skill rails: `/cd`, a new module's test folder, standing owner edits, stacked
   labs (found by the audit, not verified).
 - (2026-11-19) `migrateDatabase` stops counting Drizzle's private ledger (found by the audit,

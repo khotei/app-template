@@ -63,11 +63,10 @@ When no lab holds the change, size it once and say which in one line; the owner'
   `main`, say the plan in at most five lines (the pieces, each one's test and visible check) and
   wait for the go. Then build the pieces through to the end without waiting between them, here or
   handed to an `implementer` as `run` does; the owner's request stands for Intent and Shape and is
-  quoted in the first commit's body. Then `review all`, and show the diff's stat, the review and
-  `make numbers`; its `Later` lines, `[D:ai]` blocks and stops go into that report, and the PR
-  carries the review's yield, `make numbers` and the open `Later` lines. A subject carries the
-  area as its scope and, past the first pass, opens with its source alone
-  (`(REVIEW) Read the row first`); a fix's body opens
+  quoted in the first commit's body. Then `review all`, and show the diff's stat and the review;
+  its `Later` lines, `[D:ai]` blocks and stops go into that report, and the PR carries the open
+  `Later` lines. A subject carries the area as its scope and, past the first pass, opens with its
+  source alone (`(REVIEW) Read the row first`); a fix's body opens
   `Fixes "<the fixed commit's subject>": <what was wrong>`, never a hash.
 - **Macro** is everything else: `init`. A micro that breaks a condition midway stops, says which,
   and becomes macro on its branch, its commits so far standing as `L1`.
@@ -150,8 +149,7 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   the step's next round, with no source: a close is no rework. A learn step's worktree then goes:
   `make reset` inside it, `git worktree remove --force`, `git branch -D wt/<name>`. The whole lab,
   once every step is `done`: run every Map row's visible check and show the output, `review all`,
-  fill Numbers from `make numbers SLUG=<slug>` (`RANGE=<Base>..HEAD` when `lab.md` names a Base),
-  each step's budget beside its lines, propose what of Knowledge moves to `docs/knowledge/` (terms
+  propose what of Knowledge moves to `docs/knowledge/` (terms
   to the glossary, a binding rule to a record of `docs/knowledge/decisions.md`), ask each open
   `Later` item's fate, mark the slug's roadmap row done with a link to the folder and cut its
   entry's section, propose the lessons, and commit as the next `L0` round.
@@ -196,10 +194,7 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
    Each fix is its own `REVIEW` round, rail 2 first; a fix that adds a test helper, a fake or a
    test wrapper is replaced by a plainer test. After `run`, the fixes go to its `implementer`.
 5. **Report:** the `REVIEW` rounds; each `[D:ai]` as one block (what is wrong, what it leads to,
-   the options with their cost, your recommendation, the question); the rejected findings. Then
-   the yield, as a line in the step's Notes, or the micro's PR body:
-   `[N:ai] Review L<n>: Intent <found>/<rejected>, Hunt <f>/<r>, Rules <f>/<r>`, then
-   `, Design <f>/<r>` when it ran; a refuted finding counts as rejected.
+   the options with their cost, your recommendation, the question); the rejected findings.
 
 ## Rounds
 

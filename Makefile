@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset worktree numbers dev dev-api dev-worker dev-web debug-api \
+.PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
   fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
   migrate migration migration-check api-snapshot api-client-check
@@ -67,9 +67,6 @@ reset: ## Remove MiniStack, the database's container and volume, the telemetry b
 # Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
 worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEEP=1, the branch stays]
 	@sh .claude/skills/lab/worktree.sh "$$N" "$$NAME" "$$KEEP"
-
-numbers: ## A lab's Numbers from git: [SLUG=<slug>] [RANGE=main..HEAD]
-	@sh .claude/skills/lab/numbers.sh "$$SLUG" "$${RANGE:-main..HEAD}"
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
 	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts

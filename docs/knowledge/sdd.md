@@ -55,7 +55,6 @@ settled steps run unattended only on your word, as a workflow.
 | A `claimed` bug rejected only by a run of its input as a test | a claim argued away instead of run | your rule: a check counts only through a run or you |
 | Minimal, right, hard, and `Later` | hardening before anything runs | below |
 | The stops file | the same rejected design proposed again | one pair was recorded against at least nine of your stops; pairs are now written at each step's close |
-| `make numbers` at the close | a process judged by feel, Numbers left empty | developers misjudge their own speed (METR, 2025); lambda's Numbers were empty at merge |
 
 What the flow replaced, and why:
 [decisions.md › One flow, sized at intake](decisions.md#one-flow-sized-at-intake).
