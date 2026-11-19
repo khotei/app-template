@@ -72,7 +72,9 @@ When no lab holds the change, size it once and say which in one line; the owner'
 
 1. **Pick the lab:** a first word that is a slug picks `docs/tickets/*_<slug>/lab.md`; else the
    lab of the current branch `<type>/<slug>`. When `git worktree list` shows that branch in
-   another tree, work through that path. With no lab and no `init`, size the change.
+   another tree, `cd` into that path first: the agents you spawn start in your directory, and the
+   `implementer`'s gate runs `make check` there. With no lab, and a change asked rather than a
+   move, size it.
 2. **Rail 1.**
 3. **Read** `lab.md` whole at the session's first move and after a compaction; later, the step's
    section and the diff of each `OWNER` round rail 1 made.
@@ -95,7 +97,7 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   `refactor`, `chore`, `docs`) the kind of change. Cut `<type>/<slug>` from `main` once
   `git status --short` is empty (a micro's branch stays as it is); with `worktree`,
   `git worktree add -b <type>/<slug> .claude/worktrees/<slug> main`, then
-  `make worktree N=<n> NAME=<slug> KEEP=1` inside it, and work through that path from then on.
+  `make worktree N=<n> NAME=<slug> KEEP=1` inside it, and `cd` into it for the rest of the session.
   A roadmap entry of the slug seeds the Intent: a `researcher` re-checks its dated facts, and its
   status becomes a link to the folder. Write `lab.md`, commit it as `L0.1 Start the lab`, and ask
   for the Intent. While the Intent leaves the first step's goal open, grill with
