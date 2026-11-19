@@ -29,14 +29,15 @@ class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
 
 const logSkipped = ({ why }: ReplySkipped) => Effect.logInfo(`assistant reply skipped: ${why}`)
 
+const logMissingFile = (attachment: Attachment) =>
+  Effect.logWarning('attachment skipped: file missing').pipe(
+    Effect.annotateLogs({ attachmentId: attachment.id }),
+  )
+
 const readBytes = (attachment: Attachment) =>
   FileAttachmentService.use((files) => files.getBytes(attachment)).pipe(
     Effect.map((bytes) => ({ attachment, bytes })),
-    Effect.tapError(() =>
-      Effect.logWarning('attachment skipped: file missing').pipe(
-        Effect.annotateLogs({ attachmentId: attachment.id }),
-      ),
-    ),
+    Effect.tapError(() => logMissingFile(attachment)),
     Effect.option,
   )
 
