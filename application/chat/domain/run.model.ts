@@ -12,7 +12,7 @@ import {
   RunFields,
   type RunStatus,
 } from '#chat/domain/run-fields.model'
-import { hasStatus } from '#chat/domain/status.model'
+import { hasStatus, isPreparing } from '#chat/domain/status.model'
 
 /**
  * The work of answering one user message; a retry is a new Run of the same message. Read with
@@ -55,7 +55,7 @@ export const ensureRunRetryable = Effect.fn('ensureRunRetryable')(function* (
 /** Which Runs may enter each status; `queued` is only ever built, never entered. */
 const transitions = {
   preparing: hasStatus(['queued']),
-  generating: hasStatus(['preparing']),
+  generating: isPreparing,
   done: hasStatus(['generating']),
   failed: isActiveRun,
 } as const satisfies Record<Exclude<RunStatus, 'queued'>, Predicate.Predicate<Run>>

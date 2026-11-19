@@ -65,9 +65,10 @@ return shipped                                           // the value built: no 
   repository. Two methods that differ by their `where`, `set` or step are one, taking them from
   the caller, with arguments as narrow as it uses.
 - A copy per model is one function over the varying part (an id generator given the brand's
-  `make`, an id's schema given its brand); a one-line expression that names a rule or a step keeps
-  its name, however short, but a name that only fixes that function's varying part
-  (`sumRefunded = sumBy(…)`) is the alias `effect-style.md › Composition` refuses.
+  `make`, an id's schema given its brand). A model's predicate and a value its service builds keep
+  their names, however short or few their callers; the alias `effect-style.md › Composition`
+  refuses is only a helper copied per variant (`sumRefunded` beside `sumTotal`), where each caller
+  could pass its step in place.
 - A value another table implies is a column the transactions that change it move, not derived on
   each read; one a model function derives from the one row its read already nests stays derived
   ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).

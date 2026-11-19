@@ -18,3 +18,5 @@ export type Status = typeof Status.Type
 /** Holds for an entity of any status subset whose status is one of `statuses`; build it once. */
 export const hasStatus = <const L extends ReadonlyArray<Status>>(statuses: L) =>
   Predicate.Struct({ status: Schema.is(Status.pick(statuses)) })
+
+export const isPreparing = hasStatus(['preparing'])
