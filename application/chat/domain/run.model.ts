@@ -22,7 +22,7 @@ export class Run extends Schema.Class<Run>('Run')({
 
 export const isActiveRun = hasStatus(activeRunStatuses)
 
-/** A Run some worker already took: found at a worker's start, the worker that took it has died. */
+/** A Run past `queued` that has not ended. */
 export const isStartedRun = hasStatus(['preparing', 'generating'])
 
 const isFailedRun = hasStatus(['failed'])
