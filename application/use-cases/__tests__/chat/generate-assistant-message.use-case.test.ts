@@ -18,8 +18,6 @@ import {
   AssistantReply,
   Attachment,
   AttachmentId,
-  buildAttachment,
-  buildMessage,
   buildRun,
   FileName,
   FileSize,
@@ -77,14 +75,12 @@ const image = (
   { name, boundTo }: { readonly name: string; readonly boundTo: MessageId },
 ) =>
   new Attachment({
-    ...buildAttachment({
-      id: AttachmentId.make(id),
-      userId: owner,
-      fileName: FileName.make(name),
-      mediaType: MediaType.make('image/png'),
-      size: FileSize.make(png.length),
-      createdAt: epoch,
-    }),
+    id: AttachmentId.make(id),
+    userId: owner,
+    fileName: FileName.make(name),
+    mediaType: MediaType.make('image/png'),
+    size: FileSize.make(png.length),
+    createdAt: epoch,
     messageId: Option.some(boundTo),
     chatId: Option.some(chatId),
   })
@@ -199,7 +195,7 @@ describe('generateAssistantMessage', () => {
         const reply = yield* decodeRowWith(Schema.Array(MessageFields))(writes.messages).pipe(
           Effect.head,
         )
-        const message = buildMessage({
+        const message = new Message({
           author: 'assistant',
           id: reply.id,
           chatId,
@@ -351,7 +347,7 @@ describe('generateAssistantMessage', () => {
     },
   )
 
-  it.effect("generate prompts with the bytes a record's source holds", () => {
+  it.effect("generate prompts with the bytes a copy's source holds", () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     const source = new Attachment({
       ...sketch,
@@ -359,21 +355,21 @@ describe('generateAssistantMessage', () => {
       messageId: Option.none(),
       chatId: Option.none(),
     })
-    const record = new Attachment({ ...sketch, sourceId: Option.some(source.id) })
-    const withRecord = new Message({ ...attachmentsOnly, attachments: [record] })
+    const copy = new Attachment({ ...sketch, sourceId: Option.some(source.id) })
+    const withCopy = new Message({ ...attachmentsOnly, attachments: [copy] })
     return Effect.gen(function* () {
-      // A record stores no bytes under its own id.
+      // A copy stores no bytes under its own id.
       yield* storeBytes(source)
 
       yield* generate
 
       assertEquals(yield* assistant.histories, [
-        [{ message: withRecord, attachments: [{ attachment: record, bytes: png }] }],
+        [{ message: withCopy, attachments: [{ attachment: copy, bytes: png }] }],
       ])
     }).pipe(
       Effect.provide(
         layerChatTest(
-          replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withRecord] }),
+          replyingTo(noWrites(), { runs: readsInTurn(lastRun), history: [withCopy] }),
         ).pipe(Layer.provideMerge(assistant.layer)),
       ),
     )

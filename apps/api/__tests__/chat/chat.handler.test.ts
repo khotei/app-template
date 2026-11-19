@@ -5,7 +5,6 @@ import { HttpBody, HttpClient } from 'effect/http'
 import {
   Attachment,
   AttachmentId,
-  buildAttachment,
   Chat,
   ChatNotFoundError,
   FileName,
@@ -55,15 +54,13 @@ const refusedRun = new Run({
 
 const failedChat = new Chat({ ...chat, run: Option.some(refusedRun) })
 
-const record = new Attachment({
-  ...buildAttachment({
-    id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
-    userId: owner,
-    fileName: FileName.make('photo.png'),
-    mediaType: MediaType.make('image/png'),
-    size: FileSize.make(png.length),
-    createdAt: epoch,
-  }),
+const copy = new Attachment({
+  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+  userId: owner,
+  fileName: FileName.make('photo.png'),
+  mediaType: MediaType.make('image/png'),
+  size: FileSize.make(png.length),
+  createdAt: epoch,
   messageId: Option.some(firstMessage.id),
   chatId: Option.some(chat.id),
   sourceId: Option.some(AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024')),
@@ -204,9 +201,9 @@ describe('chats', () => {
     }).pipe(
       Effect.provide(
         asOwner({
-          chats: { selectOne: reads.chat(new Chat({ ...chat, attachments: [record] })) },
+          chats: { selectOne: reads.chat(new Chat({ ...chat, attachments: [copy] })) },
           messages: {
-            selectOne: reads.message(new Message({ ...firstMessage, attachments: [record] })),
+            selectOne: reads.message(new Message({ ...firstMessage, attachments: [copy] })),
           },
         }),
       ),

@@ -9,7 +9,6 @@ import {
   ensureAllUnbound,
   ensureChatNotBusy,
   ensureMessageInput,
-  FileAttachmentService,
   isNewChat,
   type MessageInput,
   MessageService,
@@ -45,15 +44,17 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   input: MessageInput,
 ) {
   const chats = yield* ChatService
-  const fileAttachments = yield* FileAttachmentService
+  const attachments = yield* AttachmentService
 
   yield* ensureMessageInput(input)
   const chat = yield* chats.getOne({ id: chatId, userId }).pipe(Effect.tap(ensureChatNotBusy))
-  // Read before the transaction, so its S3 heads run outside it; the bind's write dies on one
-  // a send bound since.
-  const requested = yield* fileAttachments
+  // The bind's write dies on one a send bound since the read.
+  const requested = yield* attachments
     .getMany({ id: input.attachmentIds, userId })
-    .pipe(Effect.flatMap(ensureAllReachableFrom(chatId)), Effect.flatMap(ensureAllUnbound))
+    .pipe(
+      Effect.flatMap(ensureAllReachableFrom(chatId, input.attachmentIds)),
+      Effect.flatMap(ensureAllUnbound),
+    )
 
   const run = yield* storeUserMessage(chatId, input, requested)
 

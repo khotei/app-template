@@ -201,22 +201,22 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
-  it.effect('selects the records that name an attachment as their source', () =>
+  it.effect('selects the copies that name an attachment as their source', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const source = attachment('0192d4e0-7b3a-7c00-8000-00000000002d')
-      const record = {
+      const copy = {
         ...attachment('0192d4e0-7b3a-7c00-8000-00000000002e'),
         messageId,
         chatId,
         sourceId: source.id,
       }
       yield* insertChatWithMessage
-      yield* Effect.forEach([source, record], attachments.insert)
+      yield* Effect.forEach([source, copy], attachments.insert)
 
       const selected = yield* attachments.selectMany({ userId, sourceId: source.id })
 
-      assertSchemaEquals(Attachments, selected, [record])
+      assertSchemaEquals(Attachments, selected, [copy])
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
@@ -253,34 +253,33 @@ describe('AttachmentRepository', () => {
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
-  it.effect('delete of an attachment a record names as its source dies and keeps both', () =>
+  it.effect('delete of an attachment a copy names as its source dies and keeps both', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
       const source = attachment('0192d4e0-7b3a-7c00-8000-00000000002a')
-      const record = {
+      const copy = {
         ...attachment('0192d4e0-7b3a-7c00-8000-00000000002b'),
         messageId,
         chatId,
         sourceId: source.id,
       }
       yield* insertChatWithMessage
-      yield* Effect.forEach([source, record], attachments.insert)
+      yield* Effect.forEach([source, copy], attachments.insert)
 
       const exit = yield* attachments.delete({ id: [source.id] }).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(
-        Attachments,
-        yield* attachments.selectMany({ id: [source.id, record.id] }),
-        [source, record],
-      )
+      assertSchemaEquals(Attachments, yield* attachments.selectMany({ id: [source.id, copy.id] }), [
+        source,
+        copy,
+      ])
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),
   )
 
-  it.effect('insert of a record whose source no row holds dies', () =>
+  it.effect('insert of a copy whose source no row holds dies', () =>
     Effect.gen(function* () {
       const attachments = yield* AttachmentRepository
-      const record = {
+      const copy = {
         ...attachment('0192d4e0-7b3a-7c00-8000-00000000002c'),
         messageId,
         chatId,
@@ -288,7 +287,7 @@ describe('AttachmentRepository', () => {
       }
       yield* insertChatWithMessage
 
-      const exit = yield* attachments.insert(record).pipe(Effect.exit)
+      const exit = yield* attachments.insert(copy).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
     }).pipe(Effect.provide(AttachmentRepositoryDbTest)),

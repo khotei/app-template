@@ -68,7 +68,7 @@ first message unless the user has already set one; a user's title is never overw
 _Avoid_: Name, subject, summary
 
 **Attachment**:
-A file a user uploaded; no assistant produces files yet. A send adds to the chat a record of a
+A file a user uploaded; no assistant produces files yet. A send adds to the chat a copy of a
 library attachment: an attachment of its own, bound to the message, that names the library one
 as its source and shares its bytes.
 _Avoid_: File, upload, document, media, draft
@@ -149,6 +149,13 @@ type side only. Its `<Model>Fields` is the `Schema.Struct` of its own fields, th
 supertype, which a write encodes and another model may nest (`Chat.run: Option<RunFields>`). Not
 the language model, which keeps both words.
 _Avoid_: Entity, DTO, row
+
+**Util**:
+A pure function with no domain meaning, generic over its types, in a `<value>.util.ts` beside the
+code that calls it: it names no model, model's id, error or word of this glossary, so a refusal it
+raises comes from its caller. A function that names a word of this glossary, a refusal or a
+lifecycle move is a model's, however short.
+_Avoid_: Helper, lib (and library, the user's attachments), common, shared
 
 **Port**:
 A contract the domain declares for what it needs from outside the process, in the domain's

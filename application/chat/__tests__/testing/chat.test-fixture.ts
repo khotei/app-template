@@ -5,7 +5,7 @@ import { epoch } from '@app-template/packages/testing'
 
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildChat } from '#chat/domain/chat.model'
-import { buildMessage } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { buildRun } from '#chat/domain/run.model'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
@@ -18,7 +18,7 @@ export const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 export const chat = buildChat({ id: chatId, userId: owner, createdAt: epoch })
 
 /** The first message of `chat`, the one its title job reads. */
-export const firstMessage = buildMessage({
+export const firstMessage = new Message({
   author: 'user',
   id: messageId,
   chatId,
@@ -33,11 +33,11 @@ const historyAt = (n: number) => DateTime.makeUnsafe(n * 1000)
 
 /** The user's message at place `n` of `chat`'s history. */
 export const userMessageAt = (n: number, text: string) =>
-  buildMessage({ author: 'user', id: historyId(n), chatId, text, createdAt: historyAt(n) })
+  new Message({ author: 'user', id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
 /** The assistant's message at place `n` of `chat`'s history. */
 export const assistantMessageAt = (n: number, text: string) =>
-  buildMessage({ author: 'assistant', id: historyId(n), chatId, text, createdAt: historyAt(n) })
+  new Message({ author: 'assistant', id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
 /** The Run a send of `firstMessage` queues. */
 export const queuedRun = buildRun({

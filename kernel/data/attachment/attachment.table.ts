@@ -49,7 +49,7 @@ export const attachments = snakeCase.table(
       'attachments_source_id_message_id_check',
       sql`${table.sourceId} is null or ${table.messageId} is not null`,
     ),
-    // No cascade: a delete of an attachment that a record names as its source is refused.
+    // No cascade: a delete of an attachment that a copy names as its source is refused.
     foreignKey({
       name: 'attachments_source_id_fk',
       columns: [table.sourceId],

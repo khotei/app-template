@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, pipe, Schema, String as Str, type Types } from 'effect'
+import { Array as Arr, Effect, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
@@ -7,6 +7,7 @@ import { Attachment } from '#chat/domain/attachment.model'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
 import { MessageInputInvalidError } from '#chat/domain/message.error'
 import { RunFields } from '#chat/domain/run-fields.model'
+import { isBlank } from '#chat/domain/text.util'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -25,7 +26,7 @@ export type MessageFields = typeof MessageFields.Type
 export class Message extends Schema.Class<Message>('Message')({
   ...MessageFields.fields,
   /** Bound by the send, in upload order; the message's own writes never touch them. */
-  attachments: Schema.Array(Attachment),
+  attachments: Schema.Array(Attachment).pipe(Schema.withConstructorDefault(Effect.succeed([]))),
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
@@ -35,17 +36,12 @@ export interface MessageInput {
   readonly attachmentIds: ReadonlyArray<AttachmentId>
 }
 
-export const buildMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'author' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, attachments: [] })
-
-export const isBlank = (text: string) => pipe(text, Str.trim, Str.isEmpty)
-
 export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
   if (isBlank(input.text) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
     return yield* new MessageInputInvalidError()
   }
-  // A repeated id would pass the bindability check twice and bind one attachment once.
+  // A repeated id would pass the bindability check twice and bind one attachment once, and a
+  // missing one would be named twice in AttachmentNotFoundError.
   if (Arr.dedupe(input.attachmentIds).length < input.attachmentIds.length) {
     return yield* new MessageInputInvalidError()
   }

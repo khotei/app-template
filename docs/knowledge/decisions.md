@@ -436,6 +436,34 @@ repository only reads, calls it and writes.
 - **If reversed:** the rules move back into the services' bodies, and their tests need layers.
 - **Revisit when:** a model's pieces outgrow one file.
 
+### Utils apart from models
+
+A model's file holds its schemas and its rules, each naming a word of the glossary, a refusal or a
+lifecycle move. A pure step with no domain meaning, generic over its types, that the module's code
+shares is a util: a `<value>.util.ts` beside its callers, in the module's `domain/` while one
+module calls it. A util that would only rename one built-in call is not written; the built-in is called.
+
+- **Why:** a reader of a model sees only the rules it states, where `Option` and `Array` plumbing
+  beside them read as rules; a util generic over its types is tested once with plain values, and a
+  rule over it only for what it adds. The domain is the most restricted importer, so a util there
+  reaches every layer of its module.
+- **Sources:** the owner's review of PR #39 (2026-11-19), "Create new type of files *.util or
+  *.lib where we well hold utils like this"; `.claude/rules/composition.md`;
+  `.claude/rules/effect.md` (write with effect's modules).
+- **Rejected:** `*.lib.ts`: "Library" is the glossary's word for the attachments no chat holds,
+  and "lib" is on Package's avoid list. Utils in `packages/` from the start: the domain's guard
+  would admit a package for helpers one module calls. A `utils.ts` per module: a file with no
+  value in its name collects anything. A rename of a built-in (`Effect.fromOption`): a second name
+  for one call.
+- **Cost:** one more file kind, and a judgement per function, rule or util, which review makes and
+  the owner settles. A util a second workspace needs moves into a package, and the domain's Biome
+  override then admits that package by name.
+- **Guarded by:** review, by `.claude/rules/naming.md › Files`; nothing refuses a util that
+  imports a model, or a rule written in a util.
+- **If reversed:** the utils go back into the model files beside the rules they serve.
+- **Revisit when:** a util is needed outside one module, or a util starts to import a model, so
+  it was a rule.
+
 ### Layered services of one model
 
 A model's records are served by domain services composed over each other, each named for what it
@@ -469,14 +497,14 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   unit, and a byte store every holder of the records depends on. The file service writing or
   reading the rows through the repository itself: a second owner of the row's coding.
 - **Cost:** two services and two layers for one model; a handler of the model takes both; the
-  plain `create`, `getMany` and `delete` have one caller, the file service, and `delete` only
+  plain `create` and `delete` have one caller, the file service, and `delete` only
   forwards to the repository with its span: they stay as the records' one owner, which a test that
   counts callers would delete. Each process provides the plain service once, below the file
   service, so a wrap of it reaches the file service and the plain service's other holders alike:
   [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule
   over the reads that one flow applies is piped there, and a flow that forgets the pipe skips it;
   a rule every reader must apply is a service named for it. The plain `getMany` leaves an absent
-  id out, so only the file service's error names every absent id at once.
+  id out, so the rule the reader pipes names every absent id at once.
 - **Guarded by:** review, by `layering.md` and `composition.md`; `noImportCycles` refuses a lower
   service that imports an upper one; nothing refuses a service of another model.
 - **If reversed:** the file methods fold into one `<Model>Service`, and every holder of the records
@@ -689,7 +717,7 @@ nothing and rolls back whole.
 ### Reads in creation order
 
 A read of a chat's messages or of attachments answers them in creation order, `createdAt` then
-`id`: the attachments of a message or of a send, whatever order the ids were asked in. A record
+`id`: the attachments of a message or of a send, whatever order the ids were asked in. A copy
 keeps its source's `createdAt`, so a send's attachments come back in upload order. The chat list
 alone answers newest first. An error over a list of ids, such as `AttachmentNotFoundError`'s
 `ids`, names each missing id once, in the order asked.
@@ -703,8 +731,10 @@ alone answers newest first. An error over a list of ids, such as `AttachmentNotF
 - **Cost:** a client that sends `[b, a]` gets `[a, b]` back when `a` was uploaded first, and
   reorders them itself if it needs the order it asked.
 - **Guarded by:** the repositories' e2e read rows created out of id order in creation order; the
-  attachment model's, the attachment service's and the send's unit tests build a record with its
-  source's `createdAt`; the model's name the missing ids in the order asked.
+  attachment model's, the attachment service's and the send's unit tests build a copy with its
+  source's `createdAt`; the model's name the missing ids in the order asked; the send's `400` on a
+  repeated id (`ensureMessageInput`) keeps each id once, as the model's check names an id as often
+  as it is asked.
 - **If reversed:** the service sorts what the repository reads by the ids asked, and a chat read
   back still answers creation order.
 - **Revisit when:** a client needs its attachments in an order it chooses.

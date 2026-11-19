@@ -386,7 +386,10 @@ left.
     three times: the lost-bytes check inside `getMany`, `AttachmentService` building
     `AttachmentNotFoundError` twice, an expiry filter inside a read. `layering.md` states the rule;
     the proposal is a check: a value import of a domain error class (a type import stays) is
-    refused in `services/` and `use-cases/`, as a Biome `noRestrictedImports` pattern.
+    refused in `services/` and `use-cases/`, as a Biome `noRestrictedImports` pattern. A
+    not-found is a read's answer, not a rule's refusal: its reader builds it
+    (`Effect.fromOption(() => new <Model>NotFoundError(…))`, `effect-schema.md › Failures`), so
+    the check would spare that error.
   - **A read's name says what it answers.** `getMany` dropped expired attachments without a word
     and a reader learned it from the source. A method applies no rule its name does not state; a
     rule goes to the caller (`getOne(where).pipe(ensure<Rule>(at))`) or to a service named for it
@@ -395,9 +398,9 @@ left.
     composed over `<Model>Service` see it, and `decisions.md › Layered services of one model`
     records the split.
   - **A use case reads, then pipes the model's rules.** The send reads its attachments through
-    `FileAttachmentService.getMany`, which runs `ensureAllStored` over the records and the stored
-    bytes it reads, then pipes `ensureAllReachableFrom` and `ensureAllUnbound` on the answer: each
-    read a service call, each rule one pipe step, no branch or refusal of its own.
+    `AttachmentService.getMany`, then pipes `ensureAllReachableFrom`, which names each asked id
+    the read left out or another chat holds, and `ensureAllUnbound` on the answer: each read a
+    service call, each rule one pipe step, no branch or refusal of its own.
     `layering.md › Use cases` and `modules.md › A rule or a capability in a use case` get the
     example as a neutral pattern, not the live names.
   - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported
@@ -528,6 +531,8 @@ moves it into its own `Later` and deletes it here.
   body.
 - (2026-11-19, verified) The send's up to 5 `HeadObject` guard a state no app path makes, and
   `FileEntity`'s metadata has no reader; drop both, in three ordered commits, `packages/s3` last.
+  The first is done: the send reads the rows alone; `FileRepository.selectMany` and the metadata
+  remain.
 - (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
   `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
   owner's decision.

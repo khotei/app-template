@@ -35,7 +35,7 @@ export type ChatFields = typeof ChatFields.Type
 export class Chat extends Schema.Class<Chat>('Chat')({
   ...ChatFields.fields,
   /** Bound to the chat's messages, in upload order; the chat's own writes never touch them. */
-  attachments: Schema.Array(Attachment),
+  attachments: Schema.Array(Attachment).pipe(Schema.withConstructorDefault(Effect.succeed([]))),
   /** The newest Run, flat, read with the chat and never written; none before its first send. */
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
@@ -69,4 +69,4 @@ export const renameChat = (
 
 export const buildChat = (
   fields: Types.Simplify<Pick<Chat, 'id' | 'userId' | 'createdAt'>>,
-): Chat => new Chat({ ...fields, updatedAt: fields.createdAt, attachments: [] })
+): Chat => new Chat({ ...fields, updatedAt: fields.createdAt })

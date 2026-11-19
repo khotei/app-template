@@ -52,8 +52,8 @@ const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
 const selectMessages = (chatId: ChatId) =>
   SqlClient.SqlClient.use((sql) => sql`select id, author from messages where chat_id = ${chatId}`)
 
-/** The chats that hold a record sent from the library attachment `id`. */
-const selectRecordChats = (id: AttachmentId) =>
+/** The chats that hold a copy sent from the library attachment `id`. */
+const selectCopyChats = (id: AttachmentId) =>
   SqlClient.SqlClient.use(
     (sql) =>
       sql<{
@@ -101,7 +101,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const library = yield* api.attachments.list()
 
           assert.isTrue(Option.isSome(object))
-          assert.deepStrictEqual(yield* selectRecordChats(uploaded.id), [])
+          assert.deepStrictEqual(yield* selectCopyChats(uploaded.id), [])
           assert.deepInclude(library, uploaded)
         }),
     )
@@ -169,7 +169,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
     )
 
     it.effect(
-      'two concurrent sends of one library attachment to two chats each store a record of it',
+      'two concurrent sends of one library attachment to two chats each store a copy of it',
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
@@ -185,7 +185,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 
           yield* Effect.all([sendTo(chat.id), sendTo(other.id)], { concurrency: 'unbounded' })
 
-          assert.sameMembers(yield* selectRecordChats(photo.id), [chat.id, other.id])
+          assert.sameMembers(yield* selectCopyChats(photo.id), [chat.id, other.id])
           assert.deepStrictEqual(
             yield* api.attachments.get({ params: { attachmentId: photo.id } }),
             photo,
@@ -225,7 +225,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
 
 // Each case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
 describe('a write Postgres refuses, through the api', () => {
-  it.live('a send whose Run is refused leaves no message, no record and no chat change', () =>
+  it.live('a send whose Run is refused leaves no message, no copy and no chat change', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
       const client = yield* SqlClient.SqlClient
@@ -252,7 +252,7 @@ describe('a write Postgres refuses, through the api', () => {
 
       assert.strictEqual(outcome, 'refused')
       assert.deepStrictEqual(yield* selectMessages(chat.id), [])
-      assert.deepStrictEqual(yield* selectRecordChats(photo.id), [])
+      assert.deepStrictEqual(yield* selectCopyChats(photo.id), [])
       assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), created)
     }).pipe(Effect.provide(StandTest)),
   )
@@ -367,7 +367,7 @@ describe('a write Postgres refuses, through the api', () => {
         yield* api.chats.getRun({ params: { chatId: chat.id, runId: sent.id } }),
         done,
       )
-      assert.deepStrictEqual(yield* selectRecordChats(photo.id), [chat.id])
+      assert.deepStrictEqual(yield* selectCopyChats(photo.id), [chat.id])
       assert.isTrue(Option.isSome(yield* files.selectOne({ id: photo.id })))
     }).pipe(Effect.provide(StandTest)),
   )

@@ -4,13 +4,11 @@ import type { UserId } from '@app-template/application/identity'
 import { FileRepository } from '@app-template/kernel/data'
 import { generateId } from '@app-template/packages/db'
 
-import type { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
+import { type AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   type Attachment,
-  buildFileId,
-  ensureAllStored,
-  ensureFound,
+  buildBytesId,
   ensureUnbound,
   ensureUnused,
   FileSize,
@@ -42,28 +40,21 @@ export class FileAttachmentService extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly download: (where: AttachmentWhere) => Effect.Effect<URL, AttachmentNotFoundError>
     /**
-     * The bytes the attachment is stored under, its source's for a record;
+     * The bytes the attachment is stored under, its source's for a copy;
      * `AttachmentNotFoundError` once the store lost them.
      */
     readonly getBytes: (
       attachment: Attachment,
     ) => Effect.Effect<Uint8Array, AttachmentNotFoundError>
     /**
-     * The user's attachments whose bytes the store still holds, in creation order; one
-     * `AttachmentNotFoundError` names every id that is not.
-     */
-    readonly getMany: (
-      where: AttachmentGetManyWhere,
-    ) => Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError>
-    /**
      * Removes the bytes held under the user's attachments' own ids, the uploads' among them; a
-     * record's bytes are its source's and stay. Dies while a row of one remains: the bytes go
+     * copy's bytes are its source's and stay. Dies while a row of one remains: the bytes go
      * once their rows are gone.
      */
     readonly deleteBytes: (where: AttachmentGetManyWhere) => Effect.Effect<void>
     /**
-     * Removes the user's attachment, then its bytes, while no message holds it or a record sent
-     * from it; dies when a send binds it, or adds a record of it, after the check.
+     * Removes the user's attachment, then its bytes, while no message holds it or a copy sent
+     * from it; dies when a send binds it, or adds a copy of it, after the check.
      */
     readonly delete: (
       where: AttachmentWhere,
@@ -122,25 +113,25 @@ export class FileAttachmentService extends Context.Service<
     ) {
       const attachment = yield* attachmentService.getOne(where)
       return yield* files
-        .selectOne({ id: buildFileId(attachment) })
-        .pipe(Effect.flatMap(ensureFound(attachment.id)), Effect.map(Struct.get('url')))
+        .selectOne({ id: buildBytesId(attachment) })
+        .pipe(
+          Effect.flatMap(
+            Effect.fromOption(() => new AttachmentNotFoundError({ ids: [attachment.id] })),
+          ),
+          Effect.map(Struct.get('url')),
+        )
     })
 
     const getBytes = Effect.fn('FileAttachmentService.getBytes')((attachment: Attachment) =>
       files
-        .download({ id: buildFileId(attachment) })
-        .pipe(Effect.flatMap(ensureFound(attachment.id)), Effect.map(Struct.get('blob'))),
+        .download({ id: buildBytesId(attachment) })
+        .pipe(
+          Effect.flatMap(
+            Effect.fromOption(() => new AttachmentNotFoundError({ ids: [attachment.id] })),
+          ),
+          Effect.map(Struct.get('blob')),
+        ),
     )
-
-    const getMany = Effect.fn('FileAttachmentService.getMany')(function* (
-      where: AttachmentGetManyWhere,
-    ) {
-      const found = yield* attachmentService.getMany(where)
-      const storedIds = yield* files
-        .selectMany({ id: Arr.map(found, buildFileId) })
-        .pipe(Effect.map(Arr.map((file) => AttachmentId.make(file.id))))
-      return yield* ensureAllStored(where.id, storedIds)(found)
-    })
 
     const remove = Effect.fn('FileAttachmentService.delete')(function* (where: AttachmentWhere) {
       const uses = yield* attachmentService.getMany({ userId: where.userId, sourceId: where.id })
@@ -151,7 +142,7 @@ export class FileAttachmentService extends Context.Service<
       yield* files.delete({ id: [where.id] })
     })
 
-    // By the ids given, never by `buildFileId`: a record's bytes are its source's, and stay in
+    // By the ids given, never by `buildBytesId`: a copy's bytes are its source's, and stay in
     // the library.
     const deleteBytes = Effect.fn('FileAttachmentService.deleteBytes')(function* (
       where: AttachmentGetManyWhere,
@@ -167,7 +158,7 @@ export class FileAttachmentService extends Context.Service<
       yield* files.delete({ id: where.id })
     })
 
-    return { upload, download, getBytes, getMany, deleteBytes, delete: remove }
+    return { upload, download, getBytes, deleteBytes, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Layer, Option, Schema, Stream } from 'effect'
+import { Array as Arr, DateTime, Effect, Layer, Option, Schema } from 'effect'
 
 import {
   Attachment,
@@ -8,8 +8,6 @@ import {
   AttachmentId,
   AttachmentNotFoundError,
   assistantMessageQueue,
-  buildAttachment,
-  buildMessage,
   buildRun,
   Chat,
   ChatBusyError,
@@ -20,6 +18,7 @@ import {
   GenerateAssistantMessage,
   GenerateChatTitle,
   MediaType,
+  Message,
   MessageFields,
   type MessageInput,
   MessageInputInvalidError,
@@ -37,12 +36,7 @@ import {
   queuedRun,
   unknownChatId,
 } from '@app-template/application/chat/testing'
-import {
-  type AttachmentEntity,
-  FileRepository,
-  type MessageColumns,
-  type RunColumns,
-} from '@app-template/kernel/data'
+import type { AttachmentEntity, MessageColumns, RunColumns } from '@app-template/kernel/data'
 import { decodeRowWith, encodeRowWith, Transaction } from '@app-template/packages/db'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
@@ -61,7 +55,7 @@ const ask = (text: string): MessageInput => ({ text, attachmentIds: [] })
 const look = (id: AttachmentId): MessageInput => ({ text: 'Look', attachmentIds: [id] })
 
 /** An unbound attachment of `owner` in the library. */
-const photo = buildAttachment({
+const photo = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
   userId: owner,
   fileName: FileName.make('photo.png'),
@@ -70,19 +64,13 @@ const photo = buildAttachment({
   createdAt: epoch,
 })
 
-/** `chat`'s record of `photo`, sent with `firstMessage`. */
-const record = new Attachment({
+/** `chat`'s copy of `photo`, sent with `firstMessage`. */
+const copy = new Attachment({
   ...photo,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
   messageId: Option.some(firstMessage.id),
   chatId: Option.some(chat.id),
   sourceId: Option.some(photo.id),
-})
-
-/** A library attachment whose bytes the store no longer holds. */
-const lost = new Attachment({
-  ...photo,
-  id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000026'),
 })
 
 /** Every refusal a send answers before its first write. */
@@ -92,11 +80,6 @@ const CreateRefusal = Schema.Union([
   AttachmentBoundError,
   AttachmentNotFoundError,
 ])
-
-/** Stores `photo`'s bytes, as its upload left them. */
-const storePhotoBytes = FileRepository.use((files) =>
-  files.insert({ ...photo, content: Stream.make(png) }),
-)
 
 /** The reads of `read`, the chat the send names, and of `attachments`, those it asks for. */
 const sendingTo = (read: Chat, ...attachments: ReadonlyArray<Attachment>) =>
@@ -159,13 +142,11 @@ const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
 
 describe('createUserMessage', () => {
   it.live(
-    'create inserts the user message, a record of its library attachment and its queued Run, writing no chat',
+    'create inserts the user message, a copy of its library attachment and its queued Run, writing no chat',
     () => {
       const jobs = recordMessages()
       const inserts = noInserts()
       return Effect.gen(function* () {
-        yield* storePhotoBytes
-
         const run = yield* createUserMessage(owner, chat.id, {
           text: 'Plan a weekend in Lisbon',
           attachmentIds: [photo.id],
@@ -181,7 +162,7 @@ describe('createUserMessage', () => {
           buildRun({
             id: run.id,
             chatId: chat.id,
-            userMessage: buildMessage({
+            userMessage: new Message({
               author: 'user',
               id: userMessage.id,
               chatId: chat.id,
@@ -201,7 +182,7 @@ describe('createUserMessage', () => {
             sent,
             (each) =>
               new Attachment({
-                ...record,
+                ...copy,
                 id: each.id,
                 messageId: Option.some(userMessage.id),
               }),
@@ -228,8 +209,6 @@ describe('createUserMessage', () => {
       }),
     )
     return Effect.gen(function* () {
-      yield* storePhotoBytes
-
       yield* createUserMessage(owner, chat.id, { text: 'Look', attachmentIds: [photo.id] })
 
       assert.deepStrictEqual(steps, ['attachments read', 'transaction'])
@@ -349,16 +328,16 @@ describe('createUserMessage', () => {
     {
       name: 'with an attachment a message of the chat holds',
       read: chat,
-      found: [record],
-      input: look(record.id),
-      error: new AttachmentBoundError({ id: record.id, chatIds: [chat.id] }),
+      found: [copy],
+      input: look(copy.id),
+      error: new AttachmentBoundError({ id: copy.id, chatIds: [chat.id] }),
     },
     {
       name: 'with an attachment held by another chat',
       read: chat,
-      found: [new Attachment({ ...record, chatId: Option.some(unknownChatId) })],
-      input: look(record.id),
-      error: new AttachmentNotFoundError({ ids: [record.id] }),
+      found: [new Attachment({ ...copy, chatId: Option.some(unknownChatId) })],
+      input: look(copy.id),
+      error: new AttachmentNotFoundError({ ids: [copy.id] }),
     },
     {
       name: 'with an attachment the store finds none of, as for another user',
@@ -367,18 +346,9 @@ describe('createUserMessage', () => {
       input: look(photo.id),
       error: new AttachmentNotFoundError({ ids: [photo.id] }),
     },
-    {
-      name: 'with an attachment whose bytes are gone',
-      read: chat,
-      found: [lost],
-      input: look(lost.id),
-      error: new AttachmentNotFoundError({ ids: [lost.id] }),
-    },
   ])('create $name is refused before any write or job', ({ read, found, input, error }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      yield* storePhotoBytes
-
       const refused = yield* createUserMessage(owner, chat.id, input).pipe(Effect.flip)
 
       assertSchemaEquals(CreateRefusal, refused, error)

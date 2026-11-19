@@ -113,7 +113,7 @@ on create; Pulumi updates the queue in place.
 
 An attachment's record lives in Postgres; its bytes live in the `attachments` bucket under
 `attachments/<id>`, the id of the library attachment it was sent from when it names one
-(`buildFileId`). `FileRepository`, in the data layer, holds only the keys, which its entity file
+(`buildBytesId`). `FileRepository`, in the data layer, holds only the keys, which its entity file
 declares, and the headers; the upload itself is `S3Bucket` in
 `packages/s3`, taken from the context. `S3BucketFromConfig`, among the kernel's AWS clients,
 binds it to the stage's bucket, and the api and the worker provide it beside

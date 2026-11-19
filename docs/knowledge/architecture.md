@@ -18,13 +18,13 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   relation, the migrations, and a repository per store in the data layer's own types, the
   attachments' objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
-  `application/use-cases`. A module's `domain/` holds its models, pure rules, errors and the ports
-  that reach outside; its `services/` the domain services, each model's `<Model>Service` over the
-  data layer's repositories and the services composed over it; its `infrastructure/` everything
-  of it that connects to the environment, the adapters of its ports, the services a use case
-  calls over a client (the assistants) and its queues' definitions
-  ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once another module
-  needs one, what other modules may take of it.
+  `application/use-cases`. A module's `domain/` holds its models, pure rules and the utils they
+  share, errors and the ports that reach outside; its `services/` the domain services, each
+  model's `<Model>Service` over the data layer's repositories and the services composed over it;
+  its `infrastructure/` everything of it that connects to the environment, the adapters of its
+  ports, the services a use case calls over a client (the assistants) and its queues'
+  definitions ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once another
+  module needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
@@ -148,6 +148,7 @@ Using the files of `chat` as the map:
 |---|---|---|
 | branded id | `application/chat/domain/chat.id.ts` | `ChatId`, `MessageId` |
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
+| util: a pure step with no domain meaning that the module's code shares | `application/chat/domain/text.util.ts`, `id.util.ts` | `isBlank`, `ensureAllFound` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `HistoryMessage`, `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |

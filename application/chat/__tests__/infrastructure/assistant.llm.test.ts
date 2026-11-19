@@ -11,7 +11,7 @@ import { epoch, png } from '@app-template/packages/testing'
 
 import { AssistantReply, type HistoryMessage } from '#chat/domain/assistant.model'
 import { AttachmentId } from '#chat/domain/attachment.id'
-import { buildAttachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
+import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
 import { ChatTitle } from '#chat/domain/chat.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
@@ -95,7 +95,7 @@ const hi: ReadonlyArray<HistoryMessage> = [{ message: userMessageAt(1, 'Hi'), at
 
 const lisbon = 'Plan a weekend in Lisbon'
 
-const photo = buildAttachment({
+const photo = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000040'),
   userId: owner,
   fileName: FileName.make('photo.png'),

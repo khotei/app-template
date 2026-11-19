@@ -5,7 +5,7 @@ import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import { buildMessage, MessageFields } from '#chat/domain/message.model'
+import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   buildRun,
@@ -25,7 +25,7 @@ const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002')
 
-const userMessage = buildMessage({
+const userMessage = new Message({
   author: 'user',
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
   chatId,
@@ -46,7 +46,7 @@ const queued = new Run({
   assistantMessage: Option.none(),
 })
 
-const reply = buildMessage({
+const reply = new Message({
   author: 'assistant',
   id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
   chatId,

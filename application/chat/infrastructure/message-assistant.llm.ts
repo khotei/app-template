@@ -11,7 +11,7 @@ import {
   type AttachmentBytes,
   type HistoryMessage,
 } from '#chat/domain/assistant.model'
-import { isBlank } from '#chat/domain/message.model'
+import { isBlank } from '#chat/domain/text.util'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [

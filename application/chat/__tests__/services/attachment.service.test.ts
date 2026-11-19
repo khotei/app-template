@@ -13,13 +13,7 @@ import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
 import { AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
-import {
-  Attachment,
-  buildAttachment,
-  FileName,
-  FileSize,
-  MediaType,
-} from '#chat/domain/attachment.model'
+import { Attachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
 import { AttachmentService } from '#chat/services/attachment.service'
 import { chatId, messageId, owner } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
@@ -28,7 +22,7 @@ const attachmentServiceOver = (attachments: ChatRepositoryMocks['attachments']) 
   layerChatTest({ attachments })
 
 /** An unbound attachment of `owner` in the library. */
-const photo = buildAttachment({
+const photo = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
   userId: owner,
   fileName: FileName.make('photo.png'),
@@ -37,8 +31,8 @@ const photo = buildAttachment({
   createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.000Z'),
 })
 
-/** The chat's record of `photo`, sent from the library with the message `messageId`. */
-const record = new Attachment({
+/** The chat's copy of `photo`, sent from the library with the message `messageId`. */
+const copy = new Attachment({
   ...photo,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
   messageId: Option.some(messageId),
@@ -143,14 +137,14 @@ describe('AttachmentService', () => {
     )
   })
 
-  it.effect("bind inserts the chat's record of a library attachment and binds no row", () => {
+  it.effect("bind inserts the chat's copy of a library attachment and binds no row", () => {
     const inserts: Array<AttachmentEntity> = []
     return Effect.gen(function* () {
       const service = yield* AttachmentService
 
       const added = yield* service.bind([photo], { id: messageId, chatId }).pipe(Effect.head)
 
-      assertEquals(added, new Attachment({ ...record, id: added.id }))
+      assertEquals(added, new Attachment({ ...copy, id: added.id }))
       assert.deepStrictEqual(inserts, [yield* rowOf(added)])
     }).pipe(
       Effect.provide(
@@ -158,6 +152,27 @@ describe('AttachmentService', () => {
           insert: (row) =>
             Effect.sync(() => {
               inserts.push(row)
+            }),
+        }),
+      ),
+    )
+  })
+
+  it.effect("bind of a chat's attachment writes only where no message holds it yet", () => {
+    const updates: Array<AttachmentEntityWhere> = []
+    const held = new Attachment({ ...photo, chatId: Option.some(chatId) })
+    return Effect.gen(function* () {
+      const service = yield* AttachmentService
+
+      yield* service.bind([held], { id: messageId, chatId })
+
+      assert.deepStrictEqual(updates, [{ id: [held.id], messageId: null }])
+    }).pipe(
+      Effect.provide(
+        attachmentServiceOver({
+          update: (_, where) =>
+            Effect.sync(() => {
+              updates.push(where)
             }),
         }),
       ),

@@ -6,7 +6,7 @@ import { decodeRowWith, encodeRowWith, generateId } from '@app-template/packages
 
 import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { buildMessage, Message, MessageFields } from '#chat/domain/message.model'
+import { Message, MessageFields } from '#chat/domain/message.model'
 
 /** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
 export type MessageWhere = Types.Simplify<
@@ -34,7 +34,7 @@ export class MessageService extends Context.Service<
     ) {
       const id = yield* generateId(crypto, MessageId.make)
       const createdAt = yield* DateTime.now
-      const message = buildMessage({ ...fields, id, createdAt })
+      const message = new Message({ ...fields, id, createdAt })
       const row = yield* encodeRowWith(MessageFields)(message)
 
       yield* messages.insert(row)

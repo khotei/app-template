@@ -10,12 +10,9 @@ import { AttachmentId } from '#chat/domain/attachment.id'
 import {
   Attachment,
   bindAttachment,
-  buildAttachment,
-  buildFileId,
+  buildBytesId,
   copyAttachment,
   ensureAllReachableFrom,
-  ensureAllStored,
-  ensureFound,
   ensureUnbound,
   ensureUnused,
   FileName,
@@ -61,7 +58,7 @@ describe('Attachment', () => {
   })
 })
 
-const unbound = buildAttachment({
+const unbound = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
   userId: UserId.make('0192d4e0-7b3a-7c00-8000-000000000010'),
   fileName: FileName.make('photo.png'),
@@ -78,8 +75,8 @@ const bound = new Attachment({
   chatId: Option.some(chatId),
 })
 
-/** The record a send of `unbound`, a library attachment, adds to the chat of `message`. */
-const record = new Attachment({
+/** The copy a send of `unbound`, a library attachment, adds to the chat of `message`. */
+const copy = new Attachment({
   ...bound,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000026'),
   sourceId: Option.some(unbound.id),
@@ -87,25 +84,25 @@ const record = new Attachment({
 
 describe('copyAttachment', () => {
   it("builds the chat's copy of a library attachment, sent with the message", () => {
-    assertEquals(copyAttachment(unbound, { id: record.id, chatId, messageId }), record)
+    assertEquals(copyAttachment(unbound, { id: copy.id, chatId, messageId }), copy)
   })
 })
 
-describe('buildFileId', () => {
+describe('buildBytesId', () => {
   it.each([
     { name: 'its own id for an attachment with no source', attachment: unbound },
-    { name: "its source's id for a record", attachment: record },
+    { name: "its source's id for a copy", attachment: copy },
   ])('is $name', ({ attachment }) => {
-    assert.strictEqual(buildFileId(attachment), unbound.id)
+    assert.strictEqual(buildBytesId(attachment), unbound.id)
   })
 })
 
 describe('ensureAllReachableFrom', () => {
-  const found = [unbound, record]
+  const found = [unbound, copy]
 
   it.effect('answers the attachments of the library and of the chat', () =>
     Effect.gen(function* () {
-      assertEquals(yield* pipe(found, ensureAllReachableFrom(chatId)), found)
+      assertEquals(yield* pipe(found, ensureAllReachableFrom(chatId, [unbound.id, copy.id])), found)
     }),
   )
 
@@ -113,14 +110,38 @@ describe('ensureAllReachableFrom', () => {
     Effect.gen(function* () {
       const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021')
 
-      const error = yield* pipe(found, ensureAllReachableFrom(otherChatId), Effect.flip)
+      const error = yield* pipe(
+        found,
+        ensureAllReachableFrom(otherChatId, [unbound.id, copy.id]),
+        Effect.flip,
+      )
 
       assertSchemaEquals(
         AttachmentNotFoundError,
         error,
-        new AttachmentNotFoundError({ ids: [record.id] }),
+        new AttachmentNotFoundError({ ids: [copy.id] }),
       )
     }),
+  )
+
+  it.effect(
+    'fails AttachmentNotFoundError naming an id the read left out, in the order asked',
+    () =>
+      Effect.gen(function* () {
+        const absent = AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000029')
+
+        const error = yield* pipe(
+          [unbound],
+          ensureAllReachableFrom(chatId, [absent, unbound.id]),
+          Effect.flip,
+        )
+
+        assertSchemaEquals(
+          AttachmentNotFoundError,
+          error,
+          new AttachmentNotFoundError({ ids: [absent] }),
+        )
+      }),
   )
 })
 
@@ -145,26 +166,26 @@ describe('ensureUnbound', () => {
 })
 
 describe('ensureUnused', () => {
-  it.effect('answers an attachment no record names', () =>
+  it.effect('answers an attachment no copy names', () =>
     Effect.gen(function* () {
       assert.strictEqual(yield* pipe(unbound, ensureUnused([])), unbound)
     }),
   )
 
-  it.effect('fails AttachmentBoundError naming the chat of each record once', () =>
+  it.effect('fails AttachmentBoundError naming the chat of each copy once', () =>
     Effect.gen(function* () {
       const otherChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000021')
       const again = new Attachment({
-        ...record,
+        ...copy,
         id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000027'),
       })
       const elsewhere = new Attachment({
-        ...record,
+        ...copy,
         id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000028'),
         chatId: Option.some(otherChatId),
       })
 
-      const error = yield* pipe(unbound, ensureUnused([record, again, elsewhere]), Effect.flip)
+      const error = yield* pipe(unbound, ensureUnused([copy, again, elsewhere]), Effect.flip)
 
       assertSchemaEquals(
         AttachmentBoundError,
@@ -176,95 +197,7 @@ describe('ensureUnused', () => {
 })
 
 describe('bindAttachment', () => {
-  it.effect('binds an unbound attachment to the message and its chat', () =>
-    Effect.gen(function* () {
-      assertEquals(yield* bindAttachment(unbound, message), bound)
-    }),
-  )
-
-  it.effect('fails AttachmentBoundError for an attachment a message holds', () =>
-    Effect.gen(function* () {
-      const error = yield* bindAttachment(bound, message).pipe(Effect.flip)
-
-      assertSchemaEquals(
-        AttachmentBoundError,
-        error,
-        new AttachmentBoundError({ id: bound.id, chatIds: [chatId] }),
-      )
-    }),
-  )
-})
-
-describe('ensureFound', () => {
-  it.effect('answers the value found', () =>
-    Effect.gen(function* () {
-      assert.strictEqual(yield* pipe(Option.some(unbound), ensureFound(unbound.id)), unbound)
-    }),
-  )
-
-  it.effect('fails AttachmentNotFoundError naming the id for an absent value', () =>
-    Effect.gen(function* () {
-      const error = yield* pipe(Option.none(), ensureFound(unbound.id), Effect.flip)
-
-      assertSchemaEquals(
-        AttachmentNotFoundError,
-        error,
-        new AttachmentNotFoundError({ ids: [unbound.id] }),
-      )
-    }),
-  )
-})
-
-describe('ensureAllStored', () => {
-  const other = new Attachment({
-    ...unbound,
-    id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
+  it('binds an unbound attachment to the message and its chat', () => {
+    assertEquals(bindAttachment(unbound, message), bound)
   })
-  const found = [unbound, other]
-
-  it.effect('answers the attachments when the store holds every one asked', () =>
-    Effect.gen(function* () {
-      const stored = [other.id, unbound.id]
-
-      assertEquals(yield* pipe(found, ensureAllStored([unbound.id, other.id], stored)), found)
-    }),
-  )
-
-  it.effect("keeps a record when the store holds its source's bytes", () =>
-    Effect.gen(function* () {
-      assertEquals(yield* pipe([record], ensureAllStored([record.id], [unbound.id])), [record])
-    }),
-  )
-
-  it.effect('names each lost id once, in the order asked', () =>
-    Effect.gen(function* () {
-      const error = yield* pipe(
-        found,
-        ensureAllStored([other.id, unbound.id, other.id], []),
-        Effect.flip,
-      )
-
-      assertSchemaEquals(
-        AttachmentNotFoundError,
-        error,
-        new AttachmentNotFoundError({ ids: [other.id, unbound.id] }),
-      )
-    }),
-  )
-
-  it.effect('names the lost one and not the stored one', () =>
-    Effect.gen(function* () {
-      const error = yield* pipe(
-        found,
-        ensureAllStored([unbound.id, other.id], [unbound.id]),
-        Effect.flip,
-      )
-
-      assertSchemaEquals(
-        AttachmentNotFoundError,
-        error,
-        new AttachmentNotFoundError({ ids: [other.id] }),
-      )
-    }),
-  )
 })

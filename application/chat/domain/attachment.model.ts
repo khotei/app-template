@@ -1,14 +1,4 @@
-import {
-  Array as Arr,
-  Effect,
-  flow,
-  Option,
-  Predicate,
-  pipe,
-  Schema,
-  Struct,
-  type Types,
-} from 'effect'
+import { Array as Arr, Effect, Option, Predicate, pipe, Schema, Struct, type Types } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { mediaTypePattern, minFileSize, textPattern } from '@app-template/kernel/data'
@@ -16,6 +6,7 @@ import { mediaTypePattern, minFileSize, textPattern } from '@app-template/kernel
 import { AttachmentBoundError, AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { ChatId, MessageId } from '#chat/domain/chat.id'
+import { ensureAllFound } from '#chat/domain/id.util'
 
 export const FileName = Schema.String.check(
   Schema.isNonEmpty(),
@@ -37,28 +28,20 @@ export type FileSize = typeof FileSize.Type
 export class Attachment extends Schema.Class<Attachment>('Attachment')({
   id: AttachmentId,
   userId: UserId,
-  messageId: Schema.OptionFromNullOr(MessageId),
+  messageId: Schema.OptionFromNullOr(MessageId).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
   /** The chat of `messageId`, set with it, so a chat's attachments are found without its messages. */
-  chatId: Schema.OptionFromNullOr(ChatId),
+  chatId: Schema.OptionFromNullOr(ChatId).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   /** The attachment it was sent from, set only with `messageId`. */
-  sourceId: Schema.OptionFromNullOr(AttachmentId),
+  sourceId: Schema.OptionFromNullOr(AttachmentId).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
   fileName: FileName,
   mediaType: MediaType,
   size: FileSize,
   createdAt: Schema.DateTimeUtcFromDate,
 }) {}
-
-export const buildAttachment = (
-  fields: Types.Simplify<
-    Pick<Attachment, 'id' | 'userId' | 'fileName' | 'mediaType' | 'size' | 'createdAt'>
-  >,
-): Attachment =>
-  new Attachment({
-    ...fields,
-    messageId: Option.none(),
-    chatId: Option.none(),
-    sourceId: Option.none(),
-  })
 
 /**
  * The chat's copy of the library attachment `source`, sent with the message `messageId` of
@@ -84,7 +67,7 @@ export const copyAttachment = (
   })
 
 /** The id its bytes are stored under: its source's, else its own. */
-export const buildFileId = (attachment: Attachment): AttachmentId =>
+export const buildBytesId = (attachment: Attachment): AttachmentId =>
   Option.getOrElse(attachment.sourceId, () => attachment.id)
 
 const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
@@ -94,56 +77,21 @@ const isUnbound: Predicate.Predicate<Attachment> = (attachment) =>
 export const isInLibrary: Predicate.Predicate<Attachment> = (attachment) =>
   Option.isNone(attachment.chatId)
 
-const isIn =
+const isInChat =
   (chatId: ChatId): Predicate.Predicate<Attachment> =>
   (attachment) =>
     Option.contains(attachment.chatId, chatId)
 
-/** The value found for the attachment `id`; an absent one fails `AttachmentNotFoundError` naming `id`. */
-export const ensureFound = (id: AttachmentId) =>
-  Effect.fromOption(() => new AttachmentNotFoundError({ ids: [id] }))
-
-/** `found` when it holds every id of `ids`; else one error naming each missing id once, in the order asked. */
-const ensureAllFound =
-  (ids: ReadonlyArray<AttachmentId>) =>
-  (
-    found: ReadonlyArray<Attachment>,
-  ): Effect.Effect<ReadonlyArray<Attachment>, AttachmentNotFoundError> =>
-    pipe(
-      ids,
-      Arr.difference(Arr.map(found, Struct.get('id'))),
-      Arr.dedupe,
-      Arr.match({
-        onEmpty: () => Effect.succeed(found),
-        onNonEmpty: (missing) => Effect.fail(new AttachmentNotFoundError({ ids: missing })),
-      }),
-    )
-
-const isStoredIn =
-  (stored: ReadonlyArray<AttachmentId>): Predicate.Predicate<Attachment> =>
-  (attachment) =>
-    Arr.contains(stored, buildFileId(attachment))
-
 /**
- * Keeps the attachments whose `buildFileId` is in `stored`, the ids whose bytes the object store
- * holds; fails `AttachmentNotFoundError` naming each id of `ids` left out, once, in the order
- * asked.
- */
-export const ensureAllStored = (
-  ids: ReadonlyArray<AttachmentId>,
-  stored: ReadonlyArray<AttachmentId>,
-) => flow(Arr.filter(isStoredIn(stored)), ensureAllFound(ids))
-
-/**
- * The attachments when each is in the library or in the chat `chatId`; else
- * `AttachmentNotFoundError` naming each of another chat.
+ * The attachments read for `ids` when each id has one in the library or in the chat `chatId`;
+ * else `AttachmentNotFoundError` naming each id that has none, in the order asked.
  */
 export const ensureAllReachableFrom =
-  (chatId: ChatId) => (attachments: ReadonlyArray<Attachment>) =>
+  (chatId: ChatId, ids: ReadonlyArray<AttachmentId>) => (attachments: ReadonlyArray<Attachment>) =>
     pipe(
       attachments,
-      Arr.filter(Predicate.or(isInLibrary, isIn(chatId))),
-      ensureAllFound(Arr.map(attachments, Struct.get('id'))),
+      Arr.filter(Predicate.or(isInLibrary, isInChat(chatId))),
+      ensureAllFound(ids, (missing) => new AttachmentNotFoundError({ ids: missing })),
     )
 
 /** Fails `AttachmentBoundError` for an attachment a message holds. */
@@ -154,7 +102,7 @@ export const ensureUnbound = Effect.filterOrFail<Attachment, AttachmentBoundErro
 )
 
 /**
- * The attachment when `uses`, the records sent from it, are none; else `AttachmentBoundError`
+ * The attachment when `uses`, the copies sent from it, are none; else `AttachmentBoundError`
  * naming their chats, each once.
  */
 export const ensureUnused =
@@ -162,11 +110,11 @@ export const ensureUnused =
   (attachment: Attachment): Effect.Effect<Attachment, AttachmentBoundError> =>
     Arr.match(uses, {
       onEmpty: () => Effect.succeed(attachment),
-      onNonEmpty: (records) =>
+      onNonEmpty: (copies) =>
         Effect.fail(
           new AttachmentBoundError({
             id: attachment.id,
-            chatIds: pipe(records, Arr.map(Struct.get('chatId')), Arr.getSomes, Arr.dedupe),
+            chatIds: pipe(copies, Arr.map(Struct.get('chatId')), Arr.getSomes, Arr.dedupe),
           }),
         ),
     })
@@ -175,18 +123,13 @@ export const ensureUnused =
 export const ensureAllUnbound = (attachments: ReadonlyArray<Attachment>) =>
   Effect.forEach(attachments, (attachment) => Effect.succeed(attachment).pipe(ensureUnbound))
 
-/** Binds the attachment to the message and its chat; one a message holds is `AttachmentBoundError`. */
-export const bindAttachment = Effect.fn('bindAttachment')(
-  (attachment: Attachment, message: { readonly id: MessageId; readonly chatId: ChatId }) =>
-    Effect.succeed(attachment).pipe(
-      ensureUnbound,
-      Effect.map(
-        (unbound) =>
-          new Attachment({
-            ...unbound,
-            messageId: Option.some(message.id),
-            chatId: Option.some(message.chatId),
-          }),
-      ),
-    ),
-)
+/** Binds the unbound attachment to the message and its chat. */
+export const bindAttachment = (
+  attachment: Attachment,
+  message: { readonly id: MessageId; readonly chatId: ChatId },
+): Attachment =>
+  new Attachment({
+    ...attachment,
+    messageId: Option.some(message.id),
+    chatId: Option.some(message.chatId),
+  })

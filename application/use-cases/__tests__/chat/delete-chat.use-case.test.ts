@@ -4,7 +4,6 @@ import { Effect, Exit, Option, Stream } from 'effect'
 import {
   Attachment,
   AttachmentId,
-  buildAttachment,
   Chat,
   FileName,
   FileSize,
@@ -20,7 +19,7 @@ import { deleteChat } from '#use-cases/chat/delete-chat.use-case'
 const photo = { fileName: FileName.make('photo.png'), mediaType: MediaType.make('image/png') }
 
 /** An attachment of `owner` in the library. */
-const inLibrary = buildAttachment({
+const inLibrary = new Attachment({
   ...photo,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
   userId: owner,
@@ -36,8 +35,8 @@ const upload = new Attachment({
   chatId: Option.some(chat.id),
 })
 
-/** `chat`'s record of `inLibrary`, sent with `firstMessage`; its bytes are its source's. */
-const record = new Attachment({
+/** `chat`'s copy of `inLibrary`, sent with `firstMessage`; its bytes are its source's. */
+const copy = new Attachment({
   ...upload,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000025'),
   sourceId: Option.some(inLibrary.id),
@@ -50,7 +49,7 @@ const unsent = new Attachment({
   chatId: Option.some(chat.id),
 })
 
-const withAttachments = new Chat({ ...chat, attachments: [upload, record, unsent] })
+const withAttachments = new Chat({ ...chat, attachments: [upload, copy, unsent] })
 
 const storeBytes = (id: AttachmentId) =>
   FileRepository.use((files) => files.insert({ ...photo, id, content: Stream.make(png) }))
@@ -62,7 +61,7 @@ const selectsChat = () => encodeRowWith(Chat)(withAttachments).pipe(Effect.map(O
 
 describe('deleteChat', () => {
   it.effect(
-    "deletes the owner's chat, then its uploads' bytes, sent or not, keeping a record's source",
+    "deletes the owner's chat, then its uploads' bytes, sent or not, keeping a copy's source",
     () => {
       const deleted: Array<ChatEntityWhere> = []
       return Effect.gen(function* () {

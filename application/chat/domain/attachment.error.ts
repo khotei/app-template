@@ -12,7 +12,7 @@ export class AttachmentBoundError extends Schema.TaggedError<AttachmentBoundErro
   'AttachmentBoundError',
   {
     id: AttachmentId,
-    /** The chats whose messages hold it, or a record sent from it. */
+    /** The chats whose messages hold it, or a copy sent from it. */
     chatIds: Schema.Array(ChatId),
   },
 ) {}

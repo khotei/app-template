@@ -218,7 +218,7 @@ touches no row:
   `none`, so a rename landing between its read and its write wins, and the title job dies and
   fails.
 - **A row of its own, not a shared one.** A send binds a library attachment by inserting the
-  chat's record of it, a row bound to the message that names the attachment in `source_id`, and
+  chat's copy of it, a row bound to the message that names the attachment in `source_id`, and
   never writes the library attachment's row, so two sends of one attachment never meet on a row.
   A delete of the attachment between a send's read and its insert fails the insert on
   `attachments_source_id_fk`, and the send dies (500), rolled back whole.

@@ -5,7 +5,6 @@ import { FetchHttpClient, HttpBody, HttpClient } from 'effect/http'
 import {
   Attachment,
   AttachmentId,
-  buildAttachment,
   FileName,
   FileSize,
   MediaType,
@@ -43,7 +42,7 @@ const UploadTest = layerApiTest(
 )
 
 /** An unbound attachment of `owner` in the library. */
-const photo = buildAttachment({
+const photo = new Attachment({
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000024'),
   userId: owner,
   fileName: FileName.make('photo.png'),
