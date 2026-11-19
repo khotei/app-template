@@ -493,7 +493,7 @@ moves it into its own `Later` and deletes it here.
   `apps/api/attachment/attachment.handler.ts`), `AttachmentTypeUnsupportedError` not the type
   sent (`decodeDeclaredType`, same file), `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`toFailedError` in `application/chat/infrastructure/assistant.llm.ts`); `UserUnknownError`
+  (`toFailedError` in `kernel/llm/llm.ask.ts`); `UserUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
   First check, by a run, which of an error's fields reach the api's and the worker's logs and
   spans.

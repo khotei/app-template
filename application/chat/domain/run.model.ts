@@ -1,8 +1,8 @@
 import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
+import type { LlmError } from '@app-template/kernel/llm/error'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
 import type { MessageId } from '#chat/domain/chat.id'
 import { MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
@@ -118,9 +118,9 @@ export const failRun = Effect.fn('failRun')((run: Run, { reason, at }: RunFailur
 )
 
 const failureReasons = {
-  AssistantRefusedError: 'ReplyRefused',
-  AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<AssistantError['_tag'], RunFailureReason>
+  LlmRefusedError: 'ReplyRefused',
+  LlmFailedError: 'ReplyFailed',
+} as const satisfies Record<LlmError['_tag'], RunFailureReason>
 
-export const buildRunFailureReason = (error: AssistantError): RunFailureReason =>
+export const buildRunFailureReason = (error: LlmError): RunFailureReason =>
   failureReasons[error._tag]

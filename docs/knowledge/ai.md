@@ -7,9 +7,9 @@ schema. The code: the chat module's two services in its `infrastructure/`, one p
 `ChatAssistant` (the title: its instruction, its schema and the title model of
 `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
 `@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the
-finish-reason check and the failure mapping, generic over the errors its caller names: chat
-passes `assistantErrors`), and `AnthropicClientFromConfig` (Anthropic's client with the key of
-`ANTHROPIC_API_KEY`); and those settings in `@app-template/kernel/config`.
+finish-reason check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's
+client with the key of `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its errors,
+`LlmRefusedError` and `LlmFailedError`; and those settings in `@app-template/kernel/config`.
 The assistants' suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no
 test needs a key or the network.
 
@@ -65,8 +65,7 @@ covers these steps.
 ## Failures and retries
 
 `askModel` asks again in place only what the provider marks retryable, and lets out of either
-assistant only a final failure, as the caller's `refused` or `failed` error, for chat
-`AssistantRefusedError` or `AssistantFailedError`; the use
+assistant only a final failure, as `LlmRefusedError` or `LlmFailedError`; the use
 cases turn them into a failed Run (`ReplyRefused` or `ReplyFailed`) or an untitled chat. A
 job is never retried ([aws.md › Queues](aws.md#queues)).
 
@@ -75,8 +74,8 @@ job is never retried ([aws.md › Queues](aws.md#queues)).
 | an `AiError` whose `isRetryable` holds (5xx, 529, a rate limit, a transport error, a title that fails its schema) and whose `retryAfter` is at most 30 s | twice, 1 s then 2 s apart, never before `retryAfter` |
 | a rate limit asking a longer wait, such as a daily token limit | no |
 | any other `AiError` (401/403, 400/404/422, an overlong prompt, no credit) | no |
-| an answer the model refused (finish reason `content-filter`, Anthropic's `refusal`) | no: `AssistantRefusedError`, its partial text dropped |
-| an answer that finished any other way than `stop` (`length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `AssistantFailedError` |
+| an answer the model refused (finish reason `content-filter`, Anthropic's `refusal`) | no: `LlmRefusedError`, its partial text dropped |
+| an answer that finished any other way than `stop` (`length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `LlmFailedError` |
 
 The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
 error, for operators: the use cases log it, and a failed Run keeps only its reason and sentence,
@@ -87,7 +86,7 @@ so it never reaches the wire.
 `askModel` reads `finishReason` after its retries, so an answer that did not finish fails at
 once, even when its text reads whole. A title cut at `max_tokens` inside its JSON, or refused as
 prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
-it is asked again as a malformed answer and ends as `AssistantFailedError`, a refusal too. The
+it is asked again as a malformed answer and ends as `LlmFailedError`, a refusal too. The
 title's use case logs either and leaves the chat untitled.
 
 ## Prompt caching

@@ -183,7 +183,8 @@ definitions. A repository is no port: a service calls the data layer's repositor
   [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
-  it only a value's name (`<name>Pattern`, `<name>Statuses`), the services' admitting neither
+  it only a value's name (`<name>Pattern`, `<name>Statuses`), and the language model's errors
+  ([The language model in the kernel](#the-language-model-in-the-kernel)), the services' admitting neither
   `@app-template/kernel/aws` nor `@app-template/packages/queue`: the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
@@ -495,31 +496,29 @@ no app.
 
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
-`askModel`: the retries, the finish-reason check and the failure mapping, generic over the two
-final errors the caller names (`refused`, `failed`). Over it `chat`'s `infrastructure/` holds one
-service per job, each a `Context.Service` with its `static layer`: `MessageAssistant` answers
-the chat's next message from its history, `ChatAssistant` the chat's title from its opening
-text. Each builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
-`LLM_TITLE_MODEL`, beside its prompt and request settings; both pipe
-`askModel(assistantErrors)`, which names chat's own `AssistantRefusedError` and
-`AssistantFailedError`. The domain keeps only what they take and answer (`HistoryMessage`,
-`AssistantReply`) and those errors; no port stands in front of them. A use case yields the
-service it needs, a unit test swaps that service's layer, and the suite builds both layers over
-a recording client.
+`askModel` (the retries, the failure mapping and the finish-reason check), with its two final
+errors, `LlmRefusedError` and `LlmFailedError` (`LlmError`), behind an entry of their own,
+`@app-template/kernel/llm/error`, that loads no client. Over it `chat`'s `infrastructure/`
+holds one service per job, each a `Context.Service` with its `static layer`: `MessageAssistant`
+answers the chat's next message from its history, `ChatAssistant` the chat's title from its
+opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
+`LLM_REPLY_MODEL` or `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes
+`askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
+(`HistoryMessage`, `AssistantReply`) and maps the errors' tags to a `RunFailureReason`; no port
+stands in front of the services. A use case yields the service it needs, a unit test swaps that
+service's layer, and the suite builds both layers over a recording client.
 
 - **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a
   title's schema and low effort) and are called by different use cases, so one service holding
   both gave each caller a method it never uses and each fake a branch for it. With one
   implementation each, a port in `domain/` and an adapter constant only restated the service's
   shape: the class with its `layer` is the contract, and `Layer.succeed` of the same class is
-  the double. The shared plumbing lives once, as a function both pipe, so neither service copies
-  it and neither is folded into the other; it is the app's policy for any model call, not
-  chat's, so it sits in the kernel beside the client, and a second module that asks a model
-  pipes the same function with its own errors. The errors stay the module's: the domain's
-  `run.model.ts` maps their tags to a `RunFailureReason` and the use cases name them, and
-  neither may import `kernel/llm`. The kernel configures the client as it does Postgres
-  (`PgClientFromConfig`), and the services, which hold Anthropic's request settings anyway,
-  build their models where they use them; the client stays a leaf the worker provides once.
+  the double. The call policy is the app's for any model call, not chat's, so it lives once
+  beside the client and a second module that asks a model pipes the same function; its errors
+  go with it, so every caller names the same two outcomes and no module restates them. The
+  kernel configures the client as it does Postgres (`PgClientFromConfig`), and the services,
+  which hold Anthropic's request settings anyway, build their models where they use them; the
+  client stays a leaf the worker provides once.
 - **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
   are statics, the client a leaf left open); `.claude/rules/composition.md` (one job per unit);
   the roadmap's `openai-provider` and `bedrock-provider`.
@@ -529,23 +528,28 @@ a recording client.
   inheritance or a third service for what one function does. Each service closing the client
   in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
   a purpose: its parameter was typed by Anthropic's request settings, so the services held one
-  provider's settings all the same. Errors owned by the kernel (`LlmRefusedError`,
-  `LlmFailedError`): the domain's purity guard refuses `@app-template/kernel/llm`, even as
-  `import type`, and so does the use cases', so the Run's tag map and the title's use case
-  could not name them without a hole in both guards. Each service mapping `AiError` with its
-  own `mapError`: the retry and finish-reason policy copied per service. A `packages/`
-  workspace for the policy: a tool for every app for some 40 lines of this app's policy.
-- **Cost:** the use cases import a class whose file names the provider's package, so loading
-  them loads `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service,
-  not a second adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the
-  application workspace and of the kernel. No test checks the 10-minute wait, nor a request
-  setting beside the model.
-- **Guarded by:** the rows of a module's `services/` and `infrastructure/` in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules) (no service imports
-  the infrastructure, so only a use case reaches the assistants); the assistants' suite over a
-  recording client.
+  provider's settings all the same. The module's own errors passed to `askModel` as two
+  constructors: it kept the domain's guard whole, but every module that asks a model would
+  declare the same two errors again and a mapping object for them. Each service mapping
+  `AiError` with its own `mapError`: the retry and finish-reason policy copied per service. A
+  `packages/` workspace for the policy: a tool for every app for some 40 lines of this app's
+  policy.
+- **Cost:** the domain's purity is no longer absolute: its guard and the use cases' admit
+  `@app-template/kernel/llm/error`, for names matching `Llm…Error` only, so the domain names a
+  kernel error and a module's model knows its failures come from a language model. The use
+  cases import a class whose file names the provider's package, so loading them loads
+  `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
+  adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the application
+  workspace and of the kernel. No test checks the 10-minute wait, nor a request setting beside
+  the model.
+- **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
+  `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
+  domain and the use cases take of `kernel/llm` only `/error`'s errors, by name; no service
+  imports the infrastructure, so only a use case reaches the assistants); the assistants' suite
+  over a recording client.
 - **If reversed:** a port per job comes back in `domain/` with an adapter constant each that
-  only builds the same shape, or one port of two methods with a fake branch per method.
+  only builds the same shape, or one port of two methods with a fake branch per method; errors
+  back in a module mean the module's own pair and a mapping for `askModel` to take.
 - **Revisit when:** a second provider lands, or a domain service, which may not import the
   infrastructure, needs an assistant: then a port in `domain/` returns for that call.
 

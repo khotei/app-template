@@ -2,14 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
 
-import {
-  AssistantFailedError,
-  AssistantRefusedError,
-  Chat,
-  ChatTitle,
-  GenerateChatTitle,
-  Message,
-} from '@app-template/application/chat'
+import { Chat, ChatTitle, GenerateChatTitle, Message } from '@app-template/application/chat'
 import {
   chat,
   chatId,
@@ -19,6 +12,7 @@ import {
   recordChatAssistant,
 } from '@app-template/application/chat/testing'
 import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
+import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
 import { encodeRowWith } from '@app-template/packages/db'
 import { epoch, recordLogs } from '@app-template/packages/testing'
 
@@ -120,8 +114,8 @@ describe('generateChatTitle', () => {
   })
 
   it.effect.each([
-    { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }) },
-    { error: new AssistantFailedError({ cause: '529 overloaded' }) },
+    { error: new LlmRefusedError({ cause: 'stop_reason refusal' }) },
+    { error: new LlmFailedError({ cause: '529 overloaded' }) },
   ])('leaves the chat untitled and logs the $error._tag', ({ error }) => {
     const assistant = recordChatAssistant(Effect.fail(error))
     const { logs, layer: logger } = recordLogs('error', 'cause')

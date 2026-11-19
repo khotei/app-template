@@ -2,9 +2,9 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
+import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { AssistantFailedError, AssistantRefusedError } from '#chat/domain/assistant.error'
 import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
 import { buildMessage, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
@@ -156,8 +156,8 @@ describe('completeRun', () => {
 
 describe('buildRunFailureReason', () => {
   it.each([
-    { error: new AssistantRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
-    { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+    { error: new LlmRefusedError({ cause: 'stop_reason refusal' }), reason: 'ReplyRefused' },
+    { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
   ] as const)(
     'fails a Run the assistant ended with $error._tag as $reason',
     ({ error, reason }) => {

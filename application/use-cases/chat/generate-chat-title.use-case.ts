@@ -1,15 +1,15 @@
 import { Effect, Option } from 'effect'
 
 import {
-  type AssistantError,
   ChatAssistant,
   ChatService,
   type GenerateChatTitle,
   isBlank,
   MessageService,
 } from '@app-template/application/chat'
+import type { LlmError } from '@app-template/kernel/llm/error'
 
-const logAssistantFailure = (error: AssistantError) =>
+const logAssistantFailure = (error: LlmError) =>
   Effect.logWarning('chat title skipped: the assistant failed').pipe(
     Effect.annotateLogs({ error: error._tag, cause: error.cause }),
   )

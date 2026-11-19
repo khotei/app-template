@@ -1,11 +1,12 @@
 import { Array as Arr, Deferred, Effect, Layer, Ref } from 'effect'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
+import type { LlmError } from '@app-template/kernel/llm/error'
+
 import type { AssistantReply, HistoryMessage } from '#chat/domain/assistant.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 
 /** A `MessageAssistant` answering every reply with `reply`, keeping each history it took. */
-export function recordMessageAssistant(reply: Effect.Effect<AssistantReply, AssistantError>) {
+export function recordMessageAssistant(reply: Effect.Effect<AssistantReply, LlmError>) {
   const histories = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<HistoryMessage>>>([])
   const layer = Layer.succeed(MessageAssistant, {
     reply: (history) => Ref.update(histories, Arr.append(history)).pipe(Effect.andThen(reply)),

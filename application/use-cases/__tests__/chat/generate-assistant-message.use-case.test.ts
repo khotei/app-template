@@ -15,8 +15,6 @@ import {
 import { TestClock } from 'effect/testing'
 
 import {
-  AssistantFailedError,
-  AssistantRefusedError,
   AssistantReply,
   Attachment,
   AttachmentId,
@@ -51,6 +49,7 @@ import {
   type RunEntitySet,
   type RunEntityWhere,
 } from '@app-template/kernel/data'
+import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
 import { decodeRowWith, encodeRowWith } from '@app-template/packages/db'
 import { epoch, png, recordLogs } from '@app-template/packages/testing'
 
@@ -295,10 +294,10 @@ describe('generateAssistantMessage', () => {
 
   it.effect.each([
     {
-      error: new AssistantRefusedError({ cause: 'stop_reason refusal' }),
+      error: new LlmRefusedError({ cause: 'stop_reason refusal' }),
       reason: 'ReplyRefused',
     },
-    { error: new AssistantFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
+    { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'ReplyFailed' },
   ] as const)(
     "generate fails the Run with $reason after one call, logs the error's cause and writes no reply",
     ({ error, reason }) => {

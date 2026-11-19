@@ -70,11 +70,11 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | ✗ | `application/*/domain/**`, `kernel/data` by name |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | `/llm/error`'s errors only | ✗ | `application/*/domain/**`, `kernel/data` and `/llm/error` by name |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `db` only | `application/*/services/**` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | ✗ | `application/*/contract/**` |
-| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | ✗ | ✓ | `application/use-cases/**`; review, `/testing` and `kernel/data` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
@@ -153,7 +153,7 @@ Using the files of `chat` as the map:
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | service composed over another of its model | `application/chat/services/file-attachment.service.ts` | `FileAttachmentService`, over `AttachmentService` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
-| service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` with chat's errors, `assistantErrors` of `assistant.llm.ts` ([ai.md](ai.md)) |
+| service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
 | job sender: sends a job and settles or logs a send SQS refuses | `application/use-cases/chat/chat.sender.ts` | `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |

@@ -4,10 +4,9 @@ import { Context, Effect, Layer, Schema, SchemaTransformation } from 'effect'
 import { llmModels } from '@app-template/kernel/config'
 import { maxTitleLength } from '@app-template/kernel/data'
 import { askModel } from '@app-template/kernel/llm'
+import type { LlmError } from '@app-template/kernel/llm/error'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
 import { ChatTitle } from '#chat/domain/chat.model'
-import { assistantErrors } from '#chat/infrastructure/assistant.llm'
 
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 
@@ -23,7 +22,7 @@ export class ChatAssistant extends Context.Service<
      * A title for a chat opened by `text`, which is never blank; an answer that fails the title's
      * schema is asked again, then fails.
      */
-    readonly suggestTitle: (text: string) => Effect.Effect<ChatTitle, AssistantError>
+    readonly suggestTitle: (text: string) => Effect.Effect<ChatTitle, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/ChatAssistant', {
   make: Effect.gen(function* () {
@@ -40,7 +39,7 @@ export class ChatAssistant extends Context.Service<
 
     const suggestTitle = Effect.fn('ChatAssistant.suggestTitle')(
       (text: string) => model.generateObject({ prompt: text, schema: TitleAnswer }),
-      askModel(assistantErrors),
+      askModel,
       Effect.map(({ value }) => value.title),
     )
 

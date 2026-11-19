@@ -6,9 +6,9 @@ import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/h
 import { TestClock } from 'effect/testing'
 
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
+import type { LlmError } from '@app-template/kernel/llm/error'
 import { epoch, png } from '@app-template/packages/testing'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
 import { AssistantReply, type HistoryMessage } from '#chat/domain/assistant.model'
 import { AttachmentId } from '#chat/domain/attachment.id'
 import { buildAttachment, FileName, FileSize, MediaType } from '#chat/domain/attachment.model'
@@ -162,10 +162,10 @@ describe('MessageAssistant and ChatAssistant', () => {
 
   it.effect.each<{
     name: string
-    ask: Effect.Effect<unknown, AssistantError, MessageAssistant | ChatAssistant>
+    ask: Effect.Effect<unknown, LlmError, MessageAssistant | ChatAssistant>
     answer: () => Response
     sentAt: ReadonlyArray<number>
-    error: AssistantError['_tag']
+    error: LlmError['_tag']
     cause: string
   }>([
     {
@@ -173,7 +173,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message('I cannot help with that.', 'refusal'),
       sentAt: [0],
-      error: 'AssistantRefusedError',
+      error: 'LlmRefusedError',
       cause: 'content-filter',
     },
     {
@@ -181,7 +181,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message('Hel', 'max_tokens'),
       sentAt: [0],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'length',
     },
     {
@@ -189,7 +189,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message('Hel', 'model_context_window_exceeded'),
       sentAt: [0],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'unknown',
     },
     {
@@ -197,7 +197,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message(' \n'),
       sentAt: [0],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'non-whitespace',
     },
     {
@@ -205,7 +205,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(529, { text: 'Overloaded' }),
       sentAt: [0, 1_000, 3_000],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'Overloaded',
     },
     {
@@ -213,7 +213,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(429, { text: 'Rate limited', headers: { 'retry-after': '5' } }),
       sentAt: [0, 5_000, 10_000],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'Rate limit',
     },
     {
@@ -221,7 +221,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(429, { text: 'Rate limited', headers: { 'retry-after': '60' } }),
       sentAt: [0],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'Rate limit',
     },
     {
@@ -229,7 +229,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(401, { text: 'invalid x-api-key' }),
       sentAt: [0],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: 'invalid x-api-key',
     },
     {
@@ -237,7 +237,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: suggestTitle(lisbon),
       answer: () => message(JSON.stringify({ title: 'a'.repeat(121) })),
       sentAt: [0, 1_000, 3_000],
-      error: 'AssistantFailedError',
+      error: 'LlmFailedError',
       cause: '120',
     },
     {
@@ -245,7 +245,7 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: suggestTitle(lisbon),
       answer: () => message('{"title":"Lisbon weekend"}', 'refusal'),
       sentAt: [0],
-      error: 'AssistantRefusedError',
+      error: 'LlmRefusedError',
       cause: 'content-filter',
     },
   ])('$name fails with $error, its requests sent at $sentAt ms', ({ ask, answer, ...expected }) => {

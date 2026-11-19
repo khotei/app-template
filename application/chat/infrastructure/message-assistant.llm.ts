@@ -4,15 +4,14 @@ import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
 import { askModel } from '@app-template/kernel/llm'
+import { type LlmError, LlmFailedError } from '@app-template/kernel/llm/error'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
 import {
   AssistantReply,
   type AttachmentBytes,
   type HistoryMessage,
 } from '#chat/domain/assistant.model'
 import { isBlank } from '#chat/domain/message.model'
-import { assistantErrors } from '#chat/infrastructure/assistant.llm'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
@@ -43,7 +42,7 @@ export class MessageAssistant extends Context.Service<
     /** The next message of the chat whose completed messages are `history`, oldest first. */
     readonly reply: (
       history: ReadonlyArray<HistoryMessage>,
-    ) => Effect.Effect<AssistantReply, AssistantError>
+    ) => Effect.Effect<AssistantReply, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
@@ -57,10 +56,10 @@ export class MessageAssistant extends Context.Service<
     const reply = Effect.fn('MessageAssistant.reply')(
       (history: ReadonlyArray<HistoryMessage>) =>
         model.generateText({ prompt: Arr.map(history, toMessage) }),
-      askModel(assistantErrors),
+      askModel,
       Effect.flatMap(({ text }) =>
         Schema.decodeEffect(AssistantReply)({ text }).pipe(
-          Effect.mapError(({ message }) => assistantErrors.failed(message)),
+          Effect.mapError(({ message }) => new LlmFailedError({ cause: message })),
         ),
       ),
     )

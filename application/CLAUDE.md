@@ -9,11 +9,13 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   in the ring. A pure operation takes time and ids as input. An adapter in `infrastructure/` does
   the I/O, over the clients the process provides (`HttpClient`) and the settings of
   `@app-template/kernel/config`, never `Bun.env`.
-- **A module's `domain/` is pure:** it imports `effect`, another module's contract and the data
-  layer's values (a table's limit, pattern or enum values, never a table, entity or repository),
-  no other workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and
-  domain services only in `services/`, never beside a model.
-  Record: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
+- **A module's `domain/` is pure:** it imports `effect`, another module's contract, the data
+  layer's values (a table's limit, pattern or enum values, never a table, entity or repository)
+  and the language model's errors (`@app-template/kernel/llm/error`), no other workspace, no
+  Bun API and no Node built-in. Ports live only in `.port.ts` files and domain services only in
+  `services/`, never beside a model.
+  Records: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers),
+  [The language model in the kernel](../docs/knowledge/decisions.md#the-language-model-in-the-kernel).
 - **Each port and infrastructure service has one memory layer** in its module's test support,
   for every workspace's unit tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
