@@ -28,22 +28,24 @@ export class QueueSender extends Context.Service<
         const sqs = yield* SQSService
         const client = yield* QueueClient
 
-        const send = Effect.fn('QueueSender.send')(
-          function* <A, I>(definition: QueueDefinition<Schema.Codec<A, I>>, message: A) {
-            const body = yield* Schema.encodeEffect(
-              Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
-            )(message).pipe(Effect.orDie)
-            const url = yield* client.getUrl(buildName(definition.name))
-            const span = yield* Effect.currentSpan.pipe(Effect.orDie)
-            const { traceparent } = HttpTraceContext.toHeaders(span)
-            yield* sqs.sendMessage({
+        const send = Effect.fn('QueueSender.send')(function* <A, I>(
+          definition: QueueDefinition<Schema.Codec<A, I>>,
+          message: A,
+        ) {
+          const body = yield* Schema.encodeEffect(
+            Schema.fromJsonString(Schema.toCodecJson(definition.schema)),
+          )(message).pipe(Effect.orDie)
+          const url = yield* client.getUrl(buildName(definition.name))
+          const span = yield* Effect.currentSpan.pipe(Effect.orDie)
+          const { traceparent } = HttpTraceContext.toHeaders(span)
+          yield* sqs
+            .sendMessage({
               QueueUrl: url,
               MessageBody: body,
               MessageAttributes: { traceparent: { DataType: 'String', StringValue: traceparent } },
             })
-          },
-          Effect.mapError((cause) => new QueueError({ cause })),
-        )
+            .pipe(Effect.mapError((cause) => new QueueError({ cause })))
+        })
 
         return { send }
       }),

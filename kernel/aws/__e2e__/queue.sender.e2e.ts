@@ -3,7 +3,7 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Exit, Layer, Schema, UndefinedOr } from 'effect'
 
 import { awsConfig } from '@app-template/kernel/config'
-import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
+import { type QueueDefinition, QueueError, QueueSender } from '@app-template/packages/queue'
 
 import { QueueSenderOfStage } from '#kernel/aws/aws.client'
 import { buildResourceName } from '#kernel/aws/resources/naming'
@@ -72,18 +72,19 @@ describe('QueueSender', { concurrent: false }, () => {
     }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
   )
 
-  it.live('a send SQS refuses fails with QueueError, and the next looks the URL up again', () =>
+  it.live('a send SQS refuses fails with one QueueError, and the next looks the URL up again', () =>
     Effect.gen(function* () {
       const { stage } = yield* awsConfig
       const sqs = yield* SQSService
       const url = yield* queueUrl
       yield* sqs.deleteQueue({ QueueUrl: url })
 
-      const refused = yield* Effect.exit(send)
+      const refused = yield* Effect.flip(send)
       yield* sqs.createQueue({ QueueName: buildResourceName(stage, sampleQueue.name) })
       const resent = yield* Effect.exit(send)
 
-      assert.isTrue(Exit.hasFails(refused))
+      assert.instanceOf(refused, QueueError)
+      assert.notInstanceOf(refused.cause, QueueError)
       assert.isTrue(Exit.isSuccess(resent))
     }).pipe(Effect.provide(QueueSenderTest)),
   )
