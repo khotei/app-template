@@ -19,7 +19,7 @@ const failUnsent = Effect.fnUntraced(function* (run: Run, refused: QueueError) {
   // The Run was stored queued a moment before, so a refused move is a defect.
   return yield* failRun(run, { reason: refused._tag, cause }).pipe(
     Effect.orDie,
-    Effect.flatMap((failed) => runs.update(run, failed)),
+    Effect.flatMap((failed) => runs.update(failed, { id: run.id, status: run.status })),
   )
 })
 

@@ -15,16 +15,16 @@ export type RunWhere = Types.Simplify<
   Pick<Run, 'id'> & Partial<Pick<Run, 'chatId'> & { readonly userId: UserId }>
 >
 
+/** The Run's key and the status it was read in, which its update writes under. */
+export type RunUpdateWhere = Types.Simplify<Pick<Run, 'id' | 'status'>>
+
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
-    /**
-     * Writes `after`, stamped with the current time, under the status `before` was read in, so a
-     * Run another worker moved since dies on the write.
-     */
-    readonly update: (before: Run, after: Run) => Effect.Effect<Run>
+    /** Dies when the Run is no longer in `where.status`, as another worker moved it. */
+    readonly update: (run: Run, where: RunUpdateWhere) => Effect.Effect<Run>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -57,12 +57,12 @@ export class RunService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('RunService.update')(function* (before: Run, after: Run) {
+    const update = Effect.fn('RunService.update')(function* (run: Run, where: RunUpdateWhere) {
       const updatedAt = yield* DateTime.now
-      const stamped = new Run({ ...after, updatedAt })
+      const stamped = new Run({ ...run, updatedAt })
       const row = yield* encodeWith(RunFields)(stamped)
 
-      yield* runs.update(row, { id: before.id, status: [before.status] })
+      yield* runs.update(row, { id: where.id, status: [where.status] })
       return stamped
     })
 
