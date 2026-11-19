@@ -164,6 +164,13 @@ The owner of one model's rules, or of one operation that belongs to no model: ev
 guards goes through it.
 _Avoid_: Manager, helper, application service, business logic, service layer
 
+**Composition**:
+How the code grows: a change edits a unit only to fix it or extend the job it was made for; any
+other change is a new unit that wraps it (the same interface, for every holder) or composes it
+(a new name built from it, for the callers that need what it adds), for models, services, utils
+and use cases alike. Record: [Composition: wrap or compose](decisions.md#composition-wrap-or-compose).
+_Avoid_: Layering (an Effect `Layer` is the wiring, not the unit), inheritance, decoration
+
 **Handler**:
 The entry point of one request or one job in an app.
 _Avoid_: Controller, consumer (the function that runs a queue's handler), processor, endpoint

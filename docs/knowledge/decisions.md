@@ -344,6 +344,49 @@ called; no, two rules, each kept by its module.
   through its owner, and the flows that write two modules' records move into use cases.
 - **Revisit when:** a write past an owner's rule causes a bug, or a module is to be extracted.
 
+### Composition: wrap or compose
+
+Every unit, a model's function, a domain service, a util or a use case, starts simple and keeps
+the one job it was made for. A change edits a unit only to fix it or to extend that job; any
+other change is a new unit that wraps it (the same interface, adding one responsibility around
+its calls for every holder) or composes it (a new name built from it, for the callers that need
+what it adds). A use case composes services, ports and model rules and holds only its flow.
+Minimal means less code inside each unit and no dead code, never fewer units. The rule:
+`.claude/rules/composition.md`.
+
+- **Why:** a unit with one job has one reason to change, so a fix lands in one place and its
+  tests stay its own; a new job added as a new unit leaves the tested units and their callers as
+  they were. A composed unit's name says what it answers (the records as stored, or with their
+  bytes), so a caller picks it by name. The plain `getMany` that hid the live check and the
+  plain `delete` that hardcoded the unbound guard were rules edited into units named for records
+  (the lesson in `roadmap.md`, entry 27); a Run's guarded write coded in two use cases was a step
+  copied outside its service.
+- **Sources:** the owner's principle (2026-11-19): wrap or compose, and change a unit only for a
+  fix or an extension of its first intention, for models and utils as for services; Robert C.
+  Martin, "each software module should have one and only one reason to change"
+  ([The Single Responsibility Principle](https://blog.cleancoder.com/uncle-bob/2014/05/08/SingleReponsibilityPrinciple.html)),
+  and "You should be able to extend the behavior of a system without having to modify that
+  system"
+  ([The Open Closed Principle](https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html));
+  Gamma et al., *Design Patterns* (1994): "Favor object composition over class inheritance", and
+  the Decorator, also known as Wrapper; `repos/effect/LLMS.md`: "Build focused service layers,
+  then compose them with `Layer.provide` and `Layer.provideMerge`".
+- **Rejected:** folding a unit into another for its line count or its single caller: neither says
+  anything of the job the unit holds, and the fold edits a tested unit for a job not its own. One
+  service per model: one unit with several reasons to change. A flag or an option added to a unit
+  for one caller: the unit then answers two callers.
+- **Cost:** more units, files and layers, and longer provide lists; Gamma et al. name the price,
+  "more objects (if fewer classes)". Whether a change extends a unit's job or adds another is
+  judgement: review decides it, and the owner settles a dispute.
+- **Guarded by:** review, by `.claude/rules/composition.md`, which `make review-rules` prints for
+  every TypeScript diff; `noImportCycles` refuses a unit below that imports the one over it.
+  Nothing refuses a fold.
+- **If reversed:** a new job edits the unit nearest to it, and each unit's tests gain cases for
+  jobs not its own.
+- **Revisit when:** a chain of wraps over one unit grows so long that a caller cannot tell from the
+  names which unit holds a rule; or two units change together in every change, so they hold one
+  job, which the owner then merges.
+
 ### Rules as pure functions
 
 A business rule is a pure function in its model's `.model` file, over the values passed in (the
@@ -355,11 +398,11 @@ repository only reads, calls it and writes.
 - **Sources:** `.claude/rules/layering.md › Ports and domain services`.
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it.
-- **Cost:** more small exported names in a model, and a one-caller combination stays a name of
-  its own when it makes the service read as one step.
+- **Cost:** more small exported names in a model; a combination keeps its name however few its
+  callers ([Composition: wrap or compose](#composition-wrap-or-compose)).
 - **Guarded by:** review, by `layering.md`; nothing mechanical.
 - **If reversed:** the rules move back into the services' bodies, and their tests need layers.
-- **Revisit when:** a model's pieces outgrow one file, or a combination is never reused.
+- **Revisit when:** a model's pieces outgrow one file.
 
 ### One service per model
 

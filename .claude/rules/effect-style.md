@@ -5,7 +5,8 @@ paths:
 
 # Effect: style
 
-Code reads top to bottom and extends by adding a row, not a branch.
+Code reads top to bottom and extends by adding a row or a unit, not a branch
+([composition.md](composition.md)).
 
 ## Signatures
 
@@ -34,8 +35,9 @@ Code reads top to bottom and extends by adding a row, not a branch.
 
 - Business logic (later steps read several earlier values) is `Effect.gen` or `Effect.fn`, never
   `Effect.Do`; a one-step transformation is a combinator. Plumbing (encoding, error mapping,
-  logging, retries, transactions, tracing) is piped onto the step it serves, never wrapped around
-  it, or passed as `Effect.fn`'s pipeables (`effect-services.md › Functions`).
+  logging, retries, transactions, tracing) is piped onto the step it serves, or passed as
+  `Effect.fn`'s pipeables (`effect-services.md › Functions`), never a function taking the step
+  (`withRetry(step)`).
 - A generator reads a service with `yield*`; outside one it is `Service.use((s) => s.m(…))`, or
   `useSync` for a plain value, never `Effect.flatMap` over it. A call never takes another call's
   result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
@@ -46,7 +48,7 @@ Code reads top to bottom and extends by adding a row, not a branch.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`); `dual` only when it is called both ways.
 - Helpers that differ only by a step inside one frame (a predicate, a mapper) are one function
-  taking that step, each caller passing its own in place, never a named wrapper per variant.
+  taking that step, each caller passing its own in place, never a named alias per variant.
 ```ts
 // don't: a copy of the frame per field
 const sumTotal = (xs: ReadonlyArray<Order>) => pipe(xs, Arr.map((o) => o.total), Num.sumAll)
