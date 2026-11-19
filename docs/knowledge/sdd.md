@@ -47,8 +47,8 @@ settled steps run unattended only on your word, as a workflow.
 | A failing test first, a check seen red | a check that cannot fail | five lessons in four tickets on checks that could not fail |
 | A piece read at one sitting, committed green | a diff you cannot judge alone | your rule since the design audit's unit commits; DORA 2025 on small batches |
 | Your edits as their own `OWNER` round | your changes mixed into the agent's | 38–65% of each lab's rounds are yours |
-| Intent pass (the old Spec) | a diff that leaves out, overdoes or quietly changes what was asked | 76–94% of Spec findings accepted in three ledgers; over a branch it takes the two catches the old `verifier` made after every step review passed: an answer changed with no requirement asking, a weakened assertion |
-| Hunt pass, on code | a failure absorbed in silence | it found the telemetry lab's one batch-killing bug (`traceparent` as `Binary`) |
+| Intent pass (the old Spec) | a diff that leaves out, overdoes or quietly changes what was asked | 76–94% of Spec findings accepted in three ledgers; over a branch it takes the old `verifier`'s catch that every step review passed: an answer changed with no requirement asking, and the assertion widened to hide it (replay R3, 2 of 3) |
+| Hunt pass, on code and on a guard's change | a failure absorbed in silence; a guard an import gets past | it named the telemetry lab's one batch-killing bug (`traceparent` as `Binary`) in 3 of 3 runs of replay R2, the old hunt in 0 of 3; the verifier's guard catches came from probes, now a line of `.claude/rules/tooling.md` |
 | Rules pass; `hard` fixed, `judgement` deferred | the repo's rules drifting | 51 of 93 Standards findings taken in plan Findings, 42 rejected; a `judgement` finding now costs a `Later` line, not a fix round |
 | Design pass, on request | a shape question raised when you are not deciding shape | 12 of 22 Design findings taken; you write the Shape, so it runs when you ask |
 | One review round; an edge case met by deleting first | review rounds that add guards | the observability branch: about half of ~4,700 lines cut; "a reviewer … will always find something" |
@@ -109,13 +109,14 @@ Branches are cut from `main` and deleted on merge; the repository allows no merg
 
 ## The plugin skills
 
-`/lab` calls three skills of the [mattpocock-skills](https://github.com/mattpocock/skills)
+`/lab` calls four skills of the [mattpocock-skills](https://github.com/mattpocock/skills)
 plugin by name, so its updates arrive on their own: `grilling` when an intent is vague,
-`diagnosing-bugs` phases 1 and 2 for a bug's red command, and `tdd`, preloaded by the
-`implementer`. The plugins whose skills overlap these are off in `.claude/settings.json`. Two
-overrides hold: the glossary is `docs/knowledge/glossary.md` and a decision is a record of
-`docs/knowledge/decisions.md`, never `GLOSSARY.md` or `docs/adr/`; a `research` notes file is
-never written into the repo, the `researcher` answers in its report.
+`diagnosing-bugs` phases 1 and 2 for a bug's red command, `writing-for-agents` for the Rules pass
+on an instruction file, and `tdd`, preloaded by the `implementer`. The plugins whose skills
+overlap these are off in `.claude/settings.json`. Two overrides hold: the glossary is
+`docs/knowledge/glossary.md` and a decision is a record of `docs/knowledge/decisions.md`, never
+`GLOSSARY.md` or `docs/adr/`; a `research` notes file is never written into the repo, the
+`researcher` answers in its report.
 
 ## Evaluating the toolkit
 
@@ -126,11 +127,15 @@ one-line instruction cut once lowered coding quality in a way the vendor's own e
 - **The replays:** past steps with a known result, each run from the commit named, in a
   `git clone --local` under a temp directory, in fresh `claude -p --output-format json` sessions
   with stdin closed, three times on each toolkit, or on the new one against the record. Grade
-  what each run produced, read the transcripts, and record tokens and wall-clock from the JSON.
+  what each run produced, read the transcripts, and record tokens from the JSON's `modelUsage`,
+  which counts the subagents, and wall-clock from the transcript's first and last timestamps:
+  `duration_ms` leaves out the wait for background agents. An untrusted clone runs no agent's
+  frontmatter hooks under `-p`, so the `implementer`'s gate is checked apart, in a trusted tree,
+  by a probe agent whose hook denies once.
 
   | # | Replays | Passes when |
   |---|---|---|
-  | R1 | micro: `attachment-model-rules`, its request, from the parent of `0dada95759` | `make check` green; lines within ±30% of the merged +67 −10 |
+  | R1 | micro: `attachment-model-rules`, its request, from the parent of `0dada95759` | no gate fails that passed before the run; lines within ±30% of the merged +67 −10; no ticket file |
   | R2 | `review L5` of telemetry-minimal at `95584422bf` | the hunt names the non-string `traceparent` attribute at least as often as on the old toolkit |
   | R3 | `review all` of modular-monolith at `dc1eec9fd9`, base `5bfec347df`, its `feature.md` R1 quoted as the Intent | Intent names the changed error body and the race's `500` with its widened assertion in two runs of three |
   | R4 | shared-files at `L0.2`, with and without `stops.md` | with it, no second noun, link table or copy of bytes proposed in two runs of three, and fewer than without it |

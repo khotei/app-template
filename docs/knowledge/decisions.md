@@ -808,7 +808,7 @@ what:
   it: a folder of that name inside a unit misreads its files, and a checkout under one
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
-- **Guarded by:** `make check` runs them all; the Standards reviewer reads the rules that bind
+- **Guarded by:** `make check` runs them all; the Rules reviewer reads the rules that bind
   the diff (`make review-rules`); `.misc/lint/biome.base.json` and its GritQL plugins beside
   it, `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a
   type-blind reader can see; the Effect language service's `overrides` in `tsconfig.base.json`,
@@ -1064,15 +1064,18 @@ the session, or by an `implementer` once its Shape is settled.
   loaded both, and the table had no row for the one in use. Plans in stages: never run. A
   verification phase with its verifiers: its two recorded catches that every step review had
   passed (an HTTP answer changed with no requirement asking, a guard a re-export bypassed) are
-  the branch review's Intent and Hunt duties now, held by a replay. A Design pass on every new
+  the branch review's Intent and Hunt duties now. Replay R3 holds the first in 2 of 3 runs; the
+  second rests on the guard-probe line of `.claude/rules/tooling.md` and the Hunt on a guard's
+  range, with no replay (R3's Hunt named the manifest gap in 0 of 3). A Design pass on every new
   interface: 12 of its 22 findings were taken, the rate of Standards, but the owner writes the
   Shape, so it runs on the owner's request. A `simplify` round: 2 of 4 findings taken, its time
   never measured. A researcher per claimed finding: a claim is settled by its own red test.
 - **Cost:** no EARS requirements, no `architecture.md` and no `verification.md`: a large feature
   is planned only as far as its Map and the Shape of the step at hand, and no fresh agent checks
   behaviour against a requirement list apart from the branch review. The review per range is one
-  round, so a finding its fix introduces waits for the branch review. A code range gets three
-  reviewers, one more than the lab's review before.
+  round, so a finding its fix introduces waits for the branch review; a micro's one review is its
+  branch's, so the owner alone reads its fixes. A code range gets three reviewers, one more than
+  the lab's review before: replay R2 cost $3.72 a run against $2.21.
 - **Guarded by:** review against the skill; the replays of
   `docs/knowledge/sdd.md › Evaluating the toolkit`, run before and after each toolkit change.
 - **If reversed:** the `/ticket-*` skills, the `verifier` and the templates come back from the
