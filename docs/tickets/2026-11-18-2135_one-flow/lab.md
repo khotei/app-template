@@ -1,6 +1,7 @@
 # One flow
 
-Flow: lab · Worktree: /Users/v/lab/app-template/.claude/worktrees/one-flow (N=50)
+Flow: lab · Base: 76c71ea595 · Worktree: /Users/v/lab/app-template/.claude/worktrees/one-flow
+(N=50)
 
 ## Intent
 

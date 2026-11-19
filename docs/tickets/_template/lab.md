@@ -1,6 +1,6 @@
 # <Topic>
 
-Flow: lab · Worktree: <full path, if any>
+Flow: lab · Base: <the commit it was cut from, when not `main`> · Worktree: <full path, if any>
 
 ## Intent
 
@@ -41,7 +41,8 @@ does now and how to see it.>
 
 ## Numbers
 
-<At the close: the output of `make numbers SLUG=<slug>`, each step's budget beside its lines.>
+<At the close: the output of `make numbers SLUG=<slug>`, with `RANGE=<Base>..HEAD` given a Base,
+each step's budget beside its lines.>
 
 ## Later
 

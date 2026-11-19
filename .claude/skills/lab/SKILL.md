@@ -141,10 +141,11 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   the step's next round, with no source: a close is no rework. A learn step's worktree then goes:
   `make reset` inside it, `git worktree remove --force`, `git branch -D wt/<name>`. The whole lab,
   once every step is `done`: run every Map row's visible check and show the output, `review all`,
-  fill Numbers, propose what of Knowledge moves to `docs/knowledge/` (terms to the glossary, a
-  binding rule to a record of `docs/knowledge/decisions.md`), ask each open `Later` item's fate,
-  propose the lessons, and commit as the next `L0` round. The PR waits for the owner's word
-  (`.claude/rules/pull-requests.md`).
+  fill Numbers from `make numbers SLUG=<slug>` (`RANGE=<Base>..HEAD` when `lab.md` names a Base),
+  each step's budget beside its lines, propose what of Knowledge moves to `docs/knowledge/` (terms
+  to the glossary, a binding rule to a record of `docs/knowledge/decisions.md`), ask each open
+  `Later` item's fate, propose the lessons, and commit as the next `L0` round. The PR waits for
+  the owner's word (`.claude/rules/pull-requests.md`).
 
 Each spawn names its model and effort; choose `fable` instead where a wrong answer would pass
 every later check, and say so.
@@ -154,9 +155,9 @@ every later check, and say so.
 One round per step or branch, in fresh contexts; no pass runs again unless the owner asks.
 
 1. Rail 1; commit your own open piece; `make check` green.
-2. **The range** is `git diff <base> HEAD`: for `L<n>`, `<base>` is the parent of the step's
-   oldest round, found by the subject search of **Rounds**; for `all` and a micro change,
-   `git merge-base main HEAD`.
+2. **The range** is `git diff <base> <end>`: for `L<n>`, from the parent of the step's oldest
+   round to its newest, both found by the subject search of **Rounds**; for `all` and a micro
+   change, from the Base `lab.md` names, else `git merge-base main HEAD`, to `HEAD`.
 3. **A `reviewer` per pass, in parallel**, each brief naming its pass, the range, its sources, the
    word limit of 400 and the findings already rejected on this range, and nothing else. A range
    of docs, config or moves alone gets Intent and Rules.
@@ -199,10 +200,7 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
   `git log -E --grep='^:[a-z0-9_-]+: [a-z]+\([^)]*\): (L[0-9]+\+)*L2(\+L[0-9]+)*[. ]'` finds
   `L2.1` and `L1+L2`, not `L21`.
 
-## Numbers and lessons
-
-At the lab's close, Numbers is the output of `make numbers SLUG=<slug>`, each step's budget
-written beside its lines: time, rounds and lines by source, lines by step, stops, review yields.
+## Lessons
 
 A lesson is a mistake that recurred in this lab (a stop, a `REVIEW` round, a rejected finding).
 A product one becomes a pair in [stops.md](stops.md); a toolkit one proposes a check, or a line
