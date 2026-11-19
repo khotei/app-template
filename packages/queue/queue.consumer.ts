@@ -1,7 +1,7 @@
 import { Array as Arr, Effect, Exit, Option, Schema } from 'effect'
 import { Headers, HttpTraceContext } from 'effect/http'
 
-import type { QueueDefinition } from '#queue/queue.model'
+import { buildMessageCodec, type QueueDefinition } from '#queue/queue.model'
 
 const SqsRecord = Schema.Struct({
   messageId: Schema.String,
@@ -37,7 +37,7 @@ export function consumeQueue<A, I, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handle: (message: A) => Effect.Effect<unknown, never, R>,
 ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
-  const decode = Schema.decodeEffect(Schema.fromJsonString(Schema.toCodecJson(definition.schema)))
+  const decode = Schema.decodeEffect(buildMessageCodec(definition))
 
   function run(record: SqsRecord) {
     const sender = Option.fromUndefinedOr(record.messageAttributes.traceparent).pipe(

@@ -1,4 +1,4 @@
-import { Array as Arr, type Schema, String as Str } from 'effect'
+import { Array as Arr, Schema, String as Str } from 'effect'
 
 export interface QueueDefinition<S extends Schema.Top> {
   readonly name: string
@@ -7,3 +7,7 @@ export interface QueueDefinition<S extends Schema.Top> {
 
 /** The name of the queue an ARN names. */
 export const buildQueueName = (arn: string): string => Arr.lastNonEmpty(Str.split(arn, ':'))
+
+/** The codec of a definition's message body: its schema's JSON form, as a string. */
+export const buildMessageCodec = <S extends Schema.Top>(definition: QueueDefinition<S>) =>
+  Schema.fromJsonString(Schema.toCodecJson(definition.schema))
