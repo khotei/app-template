@@ -11,8 +11,8 @@ import {
   Attachment,
   bindAttachment,
   buildAttachment,
-  buildAttachmentFrom,
   buildFileId,
+  copyAttachment,
   ensureAllReachableFrom,
   ensureAllStored,
   ensureFound,
@@ -85,9 +85,9 @@ const record = new Attachment({
   sourceId: Option.some(unbound.id),
 })
 
-describe('buildAttachmentFrom', () => {
-  it("builds the chat's record of a library attachment, bound to the message", () => {
-    assertEquals(buildAttachmentFrom(unbound, { id: record.id, message }), record)
+describe('copyAttachment', () => {
+  it("builds the chat's copy of a library attachment, sent with the message", () => {
+    assertEquals(copyAttachment(unbound, { id: record.id, chatId, messageId }), record)
   })
 })
 

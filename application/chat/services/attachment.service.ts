@@ -21,7 +21,7 @@ import {
   Attachment,
   bindAttachment,
   buildAttachment,
-  buildAttachmentFrom,
+  copyAttachment,
   ensureFound,
   isInLibrary,
 } from '#chat/domain/attachment.model'
@@ -132,7 +132,11 @@ export class AttachmentService extends Context.Service<
       const [sources, held] = Arr.partition(requested, Filter.fromPredicate(isInLibrary))
       const bound = yield* Effect.forEach(held, (attachment) => bindAttachment(attachment, message))
       const records = yield* Effect.forEach(sources, (source) =>
-        randomAttachmentId.pipe(Effect.map((id) => buildAttachmentFrom(source, { id, message }))),
+        randomAttachmentId.pipe(
+          Effect.map((id) =>
+            copyAttachment(source, { id, chatId: message.chatId, messageId: message.id }),
+          ),
+        ),
       )
 
       // `messageId: null` is the race's guard: a send that bound any of them since the read

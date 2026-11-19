@@ -52,7 +52,7 @@ that adds a record between the delete's check and its write makes it die on
 bytes.
 
 In code: `source_id` with its check and key; the model's `sourceId`, `isInLibrary`,
-`buildFileId`, `buildAttachmentFrom`, `ensureAllReachableFrom` and `ensureUnused`;
+`buildFileId`, `copyAttachment`, `ensureAllReachableFrom` and `ensureUnused`;
 `AttachmentService.list`; `AttachmentBoundError.chatIds`. `bind`'s update of a chat's own
 attachment has no row to bind until L3's upload into a chat.
 
