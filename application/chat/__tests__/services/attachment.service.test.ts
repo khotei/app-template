@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Option, Stream, Struct } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Stream, Struct } from 'effect'
 
 import {
   type AttachmentEntity,
@@ -9,7 +9,7 @@ import {
   FileRepository,
 } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
-import { assertSchemaEquals, epoch, png } from '@app-template/packages/testing'
+import { assertSchemaEquals, png } from '@app-template/packages/testing'
 
 import { AttachmentNotFoundError } from '#chat/domain/attachment.error'
 import { AttachmentId } from '#chat/domain/attachment.id'
@@ -34,7 +34,7 @@ const photo = buildAttachment({
   fileName: FileName.make('photo.png'),
   mediaType: MediaType.make('image/png'),
   size: FileSize.make(png.length),
-  createdAt: epoch,
+  createdAt: DateTime.makeUnsafe('2026-10-18T00:00:00.000Z'),
 })
 
 /** The chat's record of `photo`, sent from the library with the message `messageId`. */

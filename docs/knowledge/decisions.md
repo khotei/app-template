@@ -643,8 +643,8 @@ alone answers newest first. An error over a list of ids, such as `AttachmentNotF
 - **Cost:** a client that sends `[b, a]` gets `[a, b]` back when `a` was uploaded first, and
   reorders them itself if it needs the order it asked.
 - **Guarded by:** the repositories' e2e read rows created out of id order in creation order; the
-  attachment model's unit tests build a record with its source's `createdAt` and name the missing
-  ids in the order asked.
+  attachment model's, the attachment service's and the send's unit tests build a record with its
+  source's `createdAt`; the model's name the missing ids in the order asked.
 - **If reversed:** the service sorts what the repository reads by the ids asked, and a chat read
   back still answers creation order.
 - **Revisit when:** a client needs its attachments in an order it chooses.
