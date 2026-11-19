@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
+.PHONY: help setup stack up down reset worktree numbers dev dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
   fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
   migrate migration migration-check api-snapshot api-client-check
