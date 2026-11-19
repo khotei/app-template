@@ -187,8 +187,8 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
 5. **Report:** the `REVIEW` rounds; each `[D:ai]` as one block (what is wrong, what it leads to,
    the options with their cost, your recommendation, the question); the rejected findings. Then
    the yield, as a line in the step's Notes, or the micro's PR body:
-   `[N:ai] Review L<n>: Intent <found>/<rejected>, hunt <f>/<r>, Rules <f>/<r>`, a refuted
-   finding counted as rejected.
+   `[N:ai] Review L<n>: Intent <found>/<rejected>, Hunt <f>/<r>, Rules <f>/<r>`, then
+   `, Design <f>/<r>` when it ran; a refuted finding counts as rejected.
 
 ## Rounds
 

@@ -39,7 +39,7 @@ git log --reverse --format='@%at%x09%s' --numstat "$range" -- | awk -F '\t' '
 [ -n "$slug" ] || exit 0
 notes=$(git log -p "$range" -- "docs/tickets/*_$slug/lab.md" | grep '^+.*\[N:ai\]' | sort -u || true)
 printf 'Stops: %s\n' "$(printf '%s\n' "$notes" | grep -c 'Stop (' || true)"
-printf '%s\n' "$notes" | grep 'Review ' | grep -oE '(Intent|hunt|Rules|Design) [0-9]+/[0-9]+' |
+printf '%s\n' "$notes" | grep 'Review ' | grep -oE '(Intent|Hunt|Rules|Design) [0-9]+/[0-9]+' |
   awk '{ split($2, f, "/"); found[$1] += f[1]; rejected[$1] += f[2] }
     END { for (p in found) printf "Review %s: %d found, %d rejected\n", p, found[p], rejected[p] }' ||
   true
