@@ -48,12 +48,12 @@ const chatStatuses = {
   failed: 'failed',
 } as const satisfies Record<RunStatus, ChatStatus>
 
-export const buildChatStatus = (chat: Chat): ChatStatus =>
-  Option.match(chat.run, { onNone: () => 'idle', onSome: (run) => chatStatuses[run.status] })
+export const driveChatStatus = (latestRun: Chat['run']): ChatStatus =>
+  Option.match(latestRun, { onNone: () => 'idle', onSome: (run) => chatStatuses[run.status] })
 
 /** A send takes a chat with no Run in work; one with a Run in work is `ChatBusyError`. */
 export const ensureChatNotBusy = Effect.fn('ensureChatNotBusy')(function* (chat: Chat) {
-  if (buildChatStatus(chat) === 'queued') {
+  if (driveChatStatus(chat.run) === 'queued') {
     return yield* new ChatBusyError({ id: chat.id })
   }
 })

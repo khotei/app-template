@@ -6,9 +6,9 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import {
-  buildChatStatus,
   Chat,
   ChatTitle,
+  driveChatStatus,
   ensureChatNotBusy,
   renameChat,
 } from '#chat/domain/chat.model'
@@ -18,9 +18,9 @@ import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 const chatAt = (status: RunStatus) =>
   new Chat({ ...chat, run: Option.some({ ...queuedRun, status }) })
 
-describe('buildChatStatus', () => {
+describe('driveChatStatus', () => {
   it('reads a chat no send has reached as idle', () => {
-    assert.strictEqual(buildChatStatus(chat), 'idle')
+    assert.strictEqual(driveChatStatus(chat.run), 'idle')
   })
 
   it.each([
@@ -32,7 +32,7 @@ describe('buildChatStatus', () => {
   ] as const)(
     'reads a chat whose newest Run is $status as $chatStatus',
     ({ status, chatStatus }) => {
-      assert.strictEqual(buildChatStatus(chatAt(status)), chatStatus)
+      assert.strictEqual(driveChatStatus(chatAt(status).run), chatStatus)
     },
   )
 })
