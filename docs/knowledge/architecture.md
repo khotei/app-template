@@ -153,7 +153,7 @@ Using the files of `chat` as the map:
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | service composed over another of its model | `application/chat/services/file-attachment.service.ts` | `FileAttachmentService`, over `AttachmentService` |
 | queue definitions | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema |
-| service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping `askModel` of `assistant.llm.ts` ([ai.md](ai.md)) |
+| service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` with chat's errors, `assistantErrors` of `assistant.llm.ts` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
 | job sender: sends a job and settles or logs a send SQS refuses | `application/use-cases/chat/chat.sender.ts` | `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |

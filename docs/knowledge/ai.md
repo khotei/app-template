@@ -5,10 +5,11 @@ How the assistant asks a language model for a reply or a title, which parts of `
 schema. The code: the chat module's two services in its `infrastructure/`, one per job,
 `MessageAssistant` (the reply: the system prompt and the reply model of `LLM_REPLY_MODEL`) and
 `ChatAssistant` (the title: its instruction, its schema and the title model of
-`LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings, and the one function
-both pipe, `askModel` (the retries, the finish-reason check and the failure mapping);
-`AnthropicClientFromConfig` in `@app-template/kernel/llm` (Anthropic's
-client with the key of `ANTHROPIC_API_KEY`); and those settings in `@app-template/kernel/config`.
+`LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
+`@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the
+finish-reason check and the failure mapping, generic over the errors its caller names: chat
+passes `assistantErrors`), and `AnthropicClientFromConfig` (Anthropic's client with the key of
+`ANTHROPIC_API_KEY`); and those settings in `@app-template/kernel/config`.
 The assistants' suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no
 test needs a key or the network.
 
@@ -64,7 +65,8 @@ covers these steps.
 ## Failures and retries
 
 `askModel` asks again in place only what the provider marks retryable, and lets out of either
-assistant only a final failure, as `AssistantRefusedError` or `AssistantFailedError`; the use
+assistant only a final failure, as the caller's `refused` or `failed` error, for chat
+`AssistantRefusedError` or `AssistantFailedError`; the use
 cases turn them into a failed Run (`ReplyRefused` or `ReplyFailed`) or an untitled chat. A
 job is never retried ([aws.md › Queues](aws.md#queues)).
 

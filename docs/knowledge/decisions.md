@@ -494,15 +494,18 @@ no app.
 ### The language model in the kernel
 
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
-`ANTHROPIC_API_KEY`, a 10-minute wait for a byte). Over it `chat`'s `infrastructure/` holds one
+`ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
+`askModel`: the retries, the finish-reason check and the failure mapping, generic over the two
+final errors the caller names (`refused`, `failed`). Over it `chat`'s `infrastructure/` holds one
 service per job, each a `Context.Service` with its `static layer`: `MessageAssistant` answers
 the chat's next message from its history, `ChatAssistant` the chat's title from its opening
 text. Each builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
-`LLM_TITLE_MODEL`, beside its prompt and request settings; both compose one function for the
-retries, the finish-reason check and the failure mapping (`askModel`). The domain keeps only what
-they take and answer (`HistoryMessage`, `AssistantReply`) and their errors; no port stands in
-front of them. A use case yields the service it needs, a unit test swaps that service's layer,
-and the suite builds both layers over a recording client.
+`LLM_TITLE_MODEL`, beside its prompt and request settings; both pipe
+`askModel(assistantErrors)`, which names chat's own `AssistantRefusedError` and
+`AssistantFailedError`. The domain keeps only what they take and answer (`HistoryMessage`,
+`AssistantReply`) and those errors; no port stands in front of them. A use case yields the
+service it needs, a unit test swaps that service's layer, and the suite builds both layers over
+a recording client.
 
 - **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a
   title's schema and low effort) and are called by different use cases, so one service holding
@@ -510,7 +513,11 @@ and the suite builds both layers over a recording client.
   implementation each, a port in `domain/` and an adapter constant only restated the service's
   shape: the class with its `layer` is the contract, and `Layer.succeed` of the same class is
   the double. The shared plumbing lives once, as a function both pipe, so neither service copies
-  it and neither is folded into the other. The kernel configures the client as it does Postgres
+  it and neither is folded into the other; it is the app's policy for any model call, not
+  chat's, so it sits in the kernel beside the client, and a second module that asks a model
+  pipes the same function with its own errors. The errors stay the module's: the domain's
+  `run.model.ts` maps their tags to a `RunFailureReason` and the use cases name them, and
+  neither may import `kernel/llm`. The kernel configures the client as it does Postgres
   (`PgClientFromConfig`), and the services, which hold Anthropic's request settings anyway,
   build their models where they use them; the client stays a leaf the worker provides once.
 - **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
@@ -522,7 +529,12 @@ and the suite builds both layers over a recording client.
   inheritance or a third service for what one function does. Each service closing the client
   in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
   a purpose: its parameter was typed by Anthropic's request settings, so the services held one
-  provider's settings all the same.
+  provider's settings all the same. Errors owned by the kernel (`LlmRefusedError`,
+  `LlmFailedError`): the domain's purity guard refuses `@app-template/kernel/llm`, even as
+  `import type`, and so does the use cases', so the Run's tag map and the title's use case
+  could not name them without a hole in both guards. Each service mapping `AiError` with its
+  own `mapError`: the retry and finish-reason policy copied per service. A `packages/`
+  workspace for the policy: a tool for every app for some 40 lines of this app's policy.
 - **Cost:** the use cases import a class whose file names the provider's package, so loading
   them loads `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service,
   not a second adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the

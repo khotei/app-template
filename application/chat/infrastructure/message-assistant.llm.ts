@@ -3,6 +3,7 @@ import { Array as Arr, Context, Effect, Layer, pipe, Schema } from 'effect'
 import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
+import { askModel } from '@app-template/kernel/llm'
 
 import type { AssistantError } from '#chat/domain/assistant.error'
 import {
@@ -11,7 +12,7 @@ import {
   type HistoryMessage,
 } from '#chat/domain/assistant.model'
 import { isBlank } from '#chat/domain/message.model'
-import { askModel, toFailedError } from '#chat/infrastructure/assistant.llm'
+import { assistantErrors } from '#chat/infrastructure/assistant.llm'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
@@ -56,9 +57,11 @@ export class MessageAssistant extends Context.Service<
     const reply = Effect.fn('MessageAssistant.reply')(
       (history: ReadonlyArray<HistoryMessage>) =>
         model.generateText({ prompt: Arr.map(history, toMessage) }),
-      askModel,
+      askModel(assistantErrors),
       Effect.flatMap(({ text }) =>
-        Schema.decodeEffect(AssistantReply)({ text }).pipe(Effect.mapError(toFailedError)),
+        Schema.decodeEffect(AssistantReply)({ text }).pipe(
+          Effect.mapError(({ message }) => assistantErrors.failed(message)),
+        ),
       ),
     )
 
