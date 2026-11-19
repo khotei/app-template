@@ -176,9 +176,10 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
      test that stays green refutes it, so drop it and say so, quoting the test;
    - a rule finding marked `hard`: fix it; marked `judgement`: a `Later` line, or rejected;
    - its fix changes the shape (a signature, a module, a type, what a test asserts), and every
-     Design candidate: a `[D:ai]` in Notes with its `path:line`, its scenario and what the system
-     loses without it;
-   - the feature runs without it: a `Later` line; any other: rejected, with one reason.
+     Design candidate: a `[D:ai]` in Notes with its `path:line`, its scenario, `shown` or
+     `claimed` as the report marks it, and what the system loses without it;
+   - the feature runs without it: a `Later` line; any other: rejected, with one reason. A
+     `claimed` bug is rejected only by a run: its input as a test that stays green, quoted.
 
    Each fix is its own `REVIEW` round, rail 2 first; a fix that adds a test helper, a fake or a
    wrapper is replaced by a plainer test. After `run`, the fixes go to its `implementer`.
