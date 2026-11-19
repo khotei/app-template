@@ -30,26 +30,21 @@ const systemPrompt = [
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-function toFilePart({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded {
-  return {
-    type: 'file',
-    mediaType: attachment.mediaType,
-    fileName: attachment.fileName,
-    data: bytes,
-  }
-}
+const toFilePart = ({ attachment, bytes }: AttachmentBytes): Prompt.FilePartEncoded => ({
+  type: 'file',
+  mediaType: attachment.mediaType,
+  fileName: attachment.fileName,
+  data: bytes,
+})
 
 /** A blank text says nothing and an empty text block is refused, so it sends no text part. */
-function toTextParts(text: string): ReadonlyArray<Prompt.TextPartEncoded> {
-  return isBlank(text) ? [] : [{ type: 'text', text }]
-}
+const toTextParts = (text: string): ReadonlyArray<Prompt.TextPartEncoded> =>
+  isBlank(text) ? [] : [{ type: 'text', text }]
 
-function toMessage({ message, attachments }: HistoryMessage): Prompt.MessageEncoded {
-  return {
-    role: message.author,
-    content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
-  }
-}
+const toMessage = ({ message, attachments }: HistoryMessage): Prompt.MessageEncoded => ({
+  role: message.author,
+  content: pipe(toTextParts(message.text), Arr.appendAll(Arr.map(attachments, toFilePart))),
+})
 
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 
