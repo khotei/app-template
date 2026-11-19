@@ -51,6 +51,13 @@ export class FileAttachmentService extends Context.Service<
     ) => Effect.Effect<ReadonlyArray<Attachment>, E>
     readonly download: (where: AttachmentWhere) => Effect.Effect<URL, AttachmentNotFoundError>
     /**
+     * The bytes the attachment is stored under, its source's for a record;
+     * `AttachmentNotFoundError` once the store lost them.
+     */
+    readonly getBytes: (
+      attachment: Attachment,
+    ) => Effect.Effect<Uint8Array, AttachmentNotFoundError>
+    /**
      * The user's attachments whose bytes the store still holds, in creation order; one
      * `AttachmentNotFoundError` names every id that is not.
      */
@@ -127,6 +134,12 @@ export class FileAttachmentService extends Context.Service<
         .pipe(Effect.flatMap(ensureFound(attachment.id)), Effect.map(Struct.get('url')))
     })
 
+    const getBytes = Effect.fn('FileAttachmentService.getBytes')((attachment: Attachment) =>
+      files
+        .download({ id: buildFileId(attachment) })
+        .pipe(Effect.flatMap(ensureFound(attachment.id)), Effect.map(Struct.get('blob'))),
+    )
+
     const getMany = Effect.fn('FileAttachmentService.getMany')(function* (
       where: AttachmentGetManyWhere,
     ) {
@@ -148,7 +161,7 @@ export class FileAttachmentService extends Context.Service<
       yield* files.delete({ id: [where.id] })
     })
 
-    return { upload, download, getMany, delete: remove }
+    return { upload, download, getBytes, getMany, delete: remove }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make).pipe(Layer.provide(AttachmentService.layer))

@@ -6,6 +6,7 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 import {
   AssistantLlmFromConfig,
   ChatService,
+  FileAttachmentService,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
@@ -18,7 +19,13 @@ import { Transaction } from '@app-template/packages/db'
 import { WorkerHandler } from '#worker/worker.handler'
 
 const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide([ChatService.layer, MessageService.layer, RunService.layer, Transaction.layer]),
+  Layer.provide([
+    ChatService.layer,
+    FileAttachmentService.layer,
+    MessageService.layer,
+    RunService.layer,
+    Transaction.layer,
+  ]),
 )
 
 const BunHttpServerFromConfig = workerPort.pipe(

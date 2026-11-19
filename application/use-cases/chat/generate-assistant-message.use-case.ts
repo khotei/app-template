@@ -1,19 +1,19 @@
-import { Array as Arr, Cause, Data, Effect, Exit, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Data, Effect, Exit } from 'effect'
 
 import {
   Assistant,
   type AssistantReply,
   type Attachment,
-  buildFileId,
   buildRunFailureReason,
   completeRun,
+  FileAttachmentService,
   failRun,
   type GenerateAssistantMessage,
   generateRun,
   type HistoryMessage,
   isActiveRun,
   isStartedRun,
-  Message,
+  type Message,
   MessageService,
   prepareRun,
   type Run,
@@ -21,8 +21,7 @@ import {
   type RunId,
   RunService,
 } from '@app-template/application/chat'
-import { FileRepository, MessageRepository } from '@app-template/kernel/data'
-import { decodeRowWith, Transaction } from '@app-template/packages/db'
+import { Transaction } from '@app-template/packages/db'
 
 class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
   readonly why: 'chat deleted' | 'already settled'
@@ -30,18 +29,16 @@ class ReplySkipped extends Data.TaggedError('ReplySkipped')<{
 
 const logSkipped = ({ why }: ReplySkipped) => Effect.logInfo(`assistant reply skipped: ${why}`)
 
-const readBytes = Effect.fnUntraced(function* (attachment: Attachment) {
-  const files = yield* FileRepository
-
-  const file = yield* files.download({ id: buildFileId(attachment) })
-  if (Option.isNone(file)) {
-    yield* Effect.logWarning('attachment skipped: file missing').pipe(
-      Effect.annotateLogs({ attachmentId: attachment.id }),
-    )
-    return Option.none()
-  }
-  return Option.some({ attachment, bytes: file.value.blob })
-})
+const readBytes = (attachment: Attachment) =>
+  FileAttachmentService.use((files) => files.getBytes(attachment)).pipe(
+    Effect.map((bytes) => ({ attachment, bytes })),
+    Effect.tapError(() =>
+      Effect.logWarning('attachment skipped: file missing').pipe(
+        Effect.annotateLogs({ attachmentId: attachment.id }),
+      ),
+    ),
+    Effect.option,
+  )
 
 const readHistoryMessage = (message: Message) =>
   Effect.forEach(message.attachments, readBytes).pipe(
@@ -49,8 +46,7 @@ const readHistoryMessage = (message: Message) =>
   )
 
 const readHistory = (run: Run) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId: run.chatId })).pipe(
-    Effect.flatMap(decodeRowWith(Schema.Array(Message))),
+  MessageService.use((messages) => messages.getMany({ chatId: run.chatId })).pipe(
     Effect.flatMap(Effect.forEach(readHistoryMessage)),
     Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
   )

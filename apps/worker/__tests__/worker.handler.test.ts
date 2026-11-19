@@ -3,9 +3,15 @@ import { assert, describe, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest, HttpRouter } from 'effect/http'
 
-import { ChatService, MessageService, RunService } from '@app-template/application/chat'
+import {
+  ChatService,
+  FileAttachmentService,
+  MessageService,
+  RunService,
+} from '@app-template/application/chat'
 import { messageId, recordAssistant } from '@app-template/application/chat/testing'
 import {
+  AttachmentRepository,
   ChatRepository,
   FileRepository,
   type MessageEntityWhere,
@@ -29,7 +35,12 @@ describe('POST /events', () => {
     // Only the title job's first read answers: any other store call dies, and fails the batch.
     const events = HttpRouter.serve(WorkerHandler).pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
-      Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
+      Layer.provide([
+        ChatService.layer,
+        FileAttachmentService.layer,
+        MessageService.layer,
+        RunService.layer,
+      ]),
       Layer.provide([
         Layer.mock(MessageRepository, {
           selectOne: (where) =>
@@ -37,6 +48,7 @@ describe('POST /events', () => {
               reads.push(where)
             }).pipe(Effect.as(Option.none())),
         }),
+        Layer.mock(AttachmentRepository, {}),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
         Layer.mock(FileRepository, {}),
