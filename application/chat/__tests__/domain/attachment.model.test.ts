@@ -83,15 +83,11 @@ const record = new Attachment({
   ...bound,
   id: AttachmentId.make('0192d4e0-7b3a-7c00-8000-000000000026'),
   sourceId: Option.some(unbound.id),
-  createdAt: DateTime.makeUnsafe('2026-10-19T00:00:00.000Z'),
 })
 
 describe('buildAttachmentFrom', () => {
   it("builds the chat's record of a library attachment, bound to the message", () => {
-    assertEquals(
-      buildAttachmentFrom(unbound, { id: record.id, message, createdAt: record.createdAt }),
-      record,
-    )
+    assertEquals(buildAttachmentFrom(unbound, { id: record.id, message }), record)
   })
 })
 

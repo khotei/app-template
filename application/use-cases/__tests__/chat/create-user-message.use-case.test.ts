@@ -194,12 +194,7 @@ describe('createUserMessage', () => {
         assert.deepStrictEqual(inserts.messages, [yield* encodeRowWith(MessageFields)(userMessage)])
         assert.deepStrictEqual(inserts.runs, [yield* encodeRowWith(RunFields)(run)])
         const sent = yield* decodeRowWith(Schema.Array(Attachment))(inserts.attachments)
-        assert.isTrue(
-          Arr.every(
-            sent,
-            (each) => isUuidV7(each.id) && DateTime.isGreaterThan(each.createdAt, epoch),
-          ),
-        )
+        assert.isTrue(Arr.every(sent, (each) => isUuidV7(each.id)))
         assertEquals(
           sent,
           Arr.map(
@@ -209,7 +204,6 @@ describe('createUserMessage', () => {
                 ...record,
                 id: each.id,
                 messageId: Option.some(userMessage.id),
-                createdAt: each.createdAt,
               }),
           ),
         )

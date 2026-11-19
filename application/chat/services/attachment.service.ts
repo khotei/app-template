@@ -129,13 +129,10 @@ export class AttachmentService extends Context.Service<
       requested: ReadonlyArray<Attachment>,
       message: Pick<Message, 'id' | 'chatId'>,
     ) {
-      const createdAt = yield* DateTime.now
       const [sources, held] = Arr.partition(requested, Filter.fromPredicate(isInLibrary))
       const bound = yield* Effect.forEach(held, (attachment) => bindAttachment(attachment, message))
       const records = yield* Effect.forEach(sources, (source) =>
-        randomAttachmentId.pipe(
-          Effect.map((id) => buildAttachmentFrom(source, { id, message, createdAt })),
-        ),
+        randomAttachmentId.pipe(Effect.map((id) => buildAttachmentFrom(source, { id, message }))),
       )
 
       // `messageId: null` is the race's guard: a send that bound any of them since the read

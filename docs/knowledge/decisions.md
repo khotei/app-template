@@ -627,10 +627,10 @@ nothing and rolls back whole.
 ### Reads in creation order
 
 A read of a chat's messages or of attachments answers them in creation order, `createdAt` then
-`id`: the attachments of a message or of a send, whatever order the ids were asked in. The chat
-list alone answers newest first. An error over a
-list of ids, such as `AttachmentNotFoundError`'s `ids`, names each missing id once, in the order
-asked.
+`id`: the attachments of a message or of a send, whatever order the ids were asked in. A record
+keeps its source's `createdAt`, so a send's attachments come back in upload order. The chat list
+alone answers newest first. An error over a list of ids, such as `AttachmentNotFoundError`'s
+`ids`, names each missing id once, in the order asked.
 
 - **Why:** one order for a chat's contents, written once, in each repository's `ORDER BY`; a send's
   message answers its attachments as a later read of the chat does.
@@ -641,7 +641,8 @@ asked.
 - **Cost:** a client that sends `[b, a]` gets `[a, b]` back when `a` was uploaded first, and
   reorders them itself if it needs the order it asked.
 - **Guarded by:** the repositories' e2e read rows created out of id order in creation order; the
-  attachment model's unit test names the missing ids in the order asked.
+  attachment model's unit tests build a record with its source's `createdAt` and name the missing
+  ids in the order asked.
 - **If reversed:** the service sorts what the repository reads by the ids asked, and a chat read
   back still answers creation order.
 - **Revisit when:** a client needs its attachments in an order it chooses.

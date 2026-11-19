@@ -60,21 +60,24 @@ export const buildAttachment = (
     sourceId: Option.none(),
   })
 
-/** The chat's record of the library attachment `source`, bound to `message`. */
+/**
+ * The chat's record of the library attachment `source`, bound to `message`, keeping its source's
+ * `createdAt`, so a message answers its attachments in upload order.
+ */
 export const buildAttachmentFrom = (
   source: Attachment,
   {
+    id,
     message,
-    ...fields
   }: Types.Simplify<
-    Pick<Attachment, 'id' | 'createdAt'> & {
+    Pick<Attachment, 'id'> & {
       readonly message: { readonly id: MessageId; readonly chatId: ChatId }
     }
   >,
 ): Attachment =>
   new Attachment({
     ...source,
-    ...fields,
+    id,
     messageId: Option.some(message.id),
     chatId: Option.some(message.chatId),
     sourceId: Option.some(source.id),
