@@ -16,7 +16,7 @@ Every dependency points inward, from the boundary to the behaviour to the data:
 
 - **The data**, `kernel/data`, the one source of truth over every store: `Db` over every table and
   relation, the migrations, and a repository per store in the data layer's own types, the
-  attachments' objects among them. It takes its clients from the context.
+  bucket's objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
   `application/use-cases`. A module's `domain/` holds its models, pure rules and the utils they
   share, errors and the ports that reach outside; its `services/` the domain services, each
@@ -278,8 +278,8 @@ it. Record: [Clients from the context](decisions.md#clients-from-the-context).
 static readonly layer = Layer.effect(this, S3Bucket.useSync((bucket) => this.of({ … })))
 // kernel/aws/aws.client.ts: the boundary builds it from config
 export const S3BucketFromConfig: Layer.Layer<S3Bucket, Config.ConfigError>
-// apps/api/layer.ts: the process provides it, after the repositories
-Layer.provide(Db.layer), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
+// a process's layer.ts provides it, after the repositories that need it
+Layer.provide([Db.layer, FileRepository.layer]), Layer.provide([PgClientFromConfig, S3BucketFromConfig])
 ```
 
 1. **The client** is a generic package (`packages/<store>`) or an Effect library; it takes its

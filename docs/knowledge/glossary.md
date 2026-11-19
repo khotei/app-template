@@ -22,9 +22,9 @@ title. While the chat has an active Run, the user cannot send another message.
 _Avoid_: Conversation, thread, dialogue, session
 
 **Message**:
-One turn in a chat, authored by the user or by the assistant: finished text with zero or more
-attachments, and no status. A user's message is stored when sent; an assistant's message is written
-by the Run that answers, once it is done, and the Run names it.
+One turn in a chat, authored by the user or by the assistant: finished text, and no status. A
+user's message is stored when sent; an assistant's message is written by the Run that answers,
+once it is done, and the Run names it.
 _Avoid_: Prompt, completion, turn
 
 **Run**:
@@ -66,17 +66,6 @@ _Avoid_: Busy as a status, chat state; a value outside its subset (`generating`)
 The short name of a chat, shown in the user's chat list. The assistant proposes one from the
 first message unless the user has already set one; a user's title is never overwritten.
 _Avoid_: Name, subject, summary
-
-**Attachment**:
-A file a user uploaded; no assistant produces files yet. A send adds to the chat a copy of a
-library attachment: an attachment of its own, bound to the message, that names the library one
-as its source and shares its bytes.
-_Avoid_: File, upload, document, media, draft
-
-**Library**:
-The attachments of a user that no chat holds, listed in upload order. A send leaves an
-attachment there, to be sent again in any chat.
-_Avoid_: Drive, pool, files, storage
 
 **Assistant**:
 The language-model side of a chat, as the user sees it. The language model behind it is a
@@ -137,9 +126,8 @@ The outer ring, everything that touches the world outside the process.
 _Avoid_: Edge, shell, outer layer, infrastructure layer
 
 **Aggregate**:
-The models whose records change together under one invariant: a chat with its messages, an
-attachment, a user. Each model of it has its own domain services: `<Model>Service` and those
-composed over it.
+The models whose records change together under one invariant: a chat with its messages, a
+user. Each model of it has its own domain services: `<Model>Service` and those composed over it.
 _Avoid_: Entity group, root, aggregate root
 
 **Model**:
@@ -155,7 +143,7 @@ A pure function with no domain meaning, generic over its types, in the `<model>.
 model whose code calls it, beside that model's branded id: it names no model, error or word of
 this glossary, so a refusal it raises comes from its caller. A function that names a word of
 this glossary, a refusal or a lifecycle move is a model's, however short.
-_Avoid_: Helper, lib (and library, the user's attachments), common, shared
+_Avoid_: Helper, lib, common, shared
 
 **Port**:
 A contract the domain declares for what it needs from outside the process, in the domain's

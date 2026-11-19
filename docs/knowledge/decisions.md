@@ -28,24 +28,21 @@ may import what:
 
 ### Modules by capability
 
-The behaviour is split by business capability, a module per capability under `application/`;
-attachments stay in `chat`.
+The behaviour is split by business capability, a module per capability under `application/`:
+`chat` and `identity`.
 
-- **Why:** a module owns what changes together. Chat and attachments imported each other in 8 + 3
-  files and share the send's transaction and the delete's cascade. `identity` names the
-  capability, and `user` is reserved in Postgres.
+- **Why:** a module owns what changes together. `identity` names the capability, and `user` is
+  reserved in Postgres.
 - **Sources:** the guide's "a module's mission fits one sentence" and "what always changes
   together belongs in one module"
   ([defining-components](https://software-architecture-guild.com/guide/architecture/boundaries/defining-components/));
   the ticket's count of the imports.
-- **Rejected:** a `drive` module for the files now: the coupling becomes two-way and the send a
-  flow across modules. A module per table: the guide's anemic modules.
+- **Rejected:** a module per table: the guide's anemic modules.
 - **Cost:** `chat` is the largest module.
 - **Guarded by:** review; no tool sees a capability.
-- **If reversed:** files moved out today make the send and the delete span two modules, and
-  `chat` would import the new module's internals or its contract both ways.
-- **Revisit when:** `shared-files` gives files a life outside a chat; it splits `drive` out with
-  its services.
+- **If reversed:** modules split by table, and a flow over one capability spans several.
+- **Revisit when:** files come back with a life outside a chat
+  ([Attachments removed](#attachments-removed)); they may take a module of their own.
 
 ### Use cases above the modules
 
@@ -199,9 +196,8 @@ definitions. A repository is no port: a service calls the data layer's repositor
 
 ### HTTP outside the modules
 
-The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError` and the
-upload's two) live in `apps/api`, outside the modules; `generateId` lives in `packages/db`,
-beside the `id()` column.
+The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError`) live in
+`apps/api`, outside the modules; `generateId` lives in `packages/db`, beside the `id()` column.
 
 - **Why:** a handler needs the assembled `Api`, which imports the groups, so a module owning its
   handler would make a cycle. No module raises them. `generateId` knows no app (a
@@ -627,7 +623,7 @@ service's layer, and the suite builds both layers over a recording client.
 
 ### The data at the centre
 
-`kernel/data` holds every store (tables, relations, the attachments' objects) and its
+`kernel/data` holds every store (tables, relations, the bucket's objects) and its
 repositories in its own types, one `Db` over every table; it imports only `packages/*` and takes
 its clients from the context. The tables stay in `public` with their foreign keys.
 
@@ -772,8 +768,9 @@ pass-through`).
 
 The data layer takes its clients from the context: `Db` needs `PgClient` and `FileRepository`
 needs `S3Bucket`; `kernel/postgres` (`PgClientFromConfig`, the migrate entry) and `kernel/aws`
-(`S3BucketFromConfig`) build them from config; the processes provide them, the data's e2e
-`DbTest` and `AwsTest`.
+(`S3BucketFromConfig`) build them from config; the processes provide those their repositories
+need (none provides `S3Bucket` while no module stores files), the data's e2e `DbTest` and
+`AwsTest`.
 
 - **Why:** the centre reads no configuration and names no connection; a test swaps a client by
   providing another layer.
@@ -818,14 +815,14 @@ layer declares the key; `kernel/aws/resources` declares the bucket's name and li
 
 The app holds no attachments: a message is its text alone. Removed in every ring: the api's
 `attachments` routes and the send's `attachmentIds`, chat's `Attachment` model with its rules,
-errors and two services, the reply's file parts, `Chat.attachments` and `Message.attachments`,
-and the data layer's `attachments` table with its entity, repository and relations, gone from the
-one `init` migration. What stays is the generic core they were built on: `FileEntity`,
-`FileRepository`, `buildFileKey` and the `FileRepositoryTest` fake in `kernel/data/file`; the
-kernel's AWS clients with `S3BucketFromConfig`; the bucket in `kernel/aws/resources`, its
-provisioning in `deployment/aws/storage.ts` and MiniStack; `packages/s3` and `packages/aws`. The
-bucket keeps its name `attachments` and the key prefix `attachments/`, so a redesign starts from
-a store that works without renaming provisioned resources. No app wires the files today.
+errors and two services, the reply's file parts, `Chat.attachments` and `Message.attachments`, and
+the data layer's `attachments` table with its entity, repository and relations, gone from the one
+`init` migration. What stays is the generic core they were built on: `FileEntity`, `FileRepository`
+and `buildFileKey` in `kernel/data/file`, its `FileRepositoryTest` fake; the kernel's AWS clients
+with `S3BucketFromConfig`; the bucket in `kernel/aws/resources`, its provisioning in
+`deployment/aws/storage.ts` and MiniStack; `packages/s3` and `packages/aws`. The bucket keeps its
+name `attachments` and the key prefix `attachments/`, so a redesign starts from a store that works
+without renaming provisioned resources. No app wires the files today.
 
 - **Why:** the owner's call on the design audit of 2026-11-19: the attachments' design (a library,
   copies per send, bytes by source) is to be rethought, and code kept for a design that changes

@@ -1,7 +1,7 @@
 # Roadmap
 
 The tickets that turn this repository into **App Template**: a chat clone (user → message →
-assistant reply, with attachments) built as a worked example of an Effect v4 modular monolith on
+assistant reply) built as a worked example of an Effect v4 modular monolith on
 Bun, with Postgres, AWS and Pulumi, so that a new enterprise project starts from it in minutes.
 
 This file is the **only place a future ticket exists** before `/lab init <slug>` starts it: each
@@ -47,7 +47,7 @@ graph LR
 | 13 | `ticket-folder-order` | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
 | 14 | `toolkit-reading` | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
 | 15 | `architecture-audit` | `refactor` | 4 | done: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
-| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | in progress: [docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md) |
+| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | paused: attachments removed, to be rethought ([docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md)) |
 | 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
 | 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
@@ -67,8 +67,8 @@ left.
 ### 7. `web-app`
 
 - **Goal.** The chat UI a visitor uses: TanStack Start on React 19, `@effect/atom-react` for
-  state over the typed client, Chakra UI v3 for components, streaming replies, attachment upload
-  and inline placeholders, a chat list, all server-rendered and hydrated.
+  state over the typed client, Chakra UI v3 for components, streaming replies, inline
+  placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
   atoms with `AtomHttpApi` over the web's generated client and `HydrationBoundary` for SSR; Chakra
@@ -83,7 +83,7 @@ left.
 - **Re-read against `chat-core` (2026-10-20).** "Streaming replies" means, today, polling the
   assistant message until its status is terminal, since the api streams nothing and the worker
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
-  3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
+  3 alone for the reply, and on 6 only for assistant attachments and placeholders.
 - **Re-read against `llm-providers` (2026-10-29).** The reply now arrives whole: no snapshots, so
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
@@ -211,29 +211,29 @@ left.
 
 - **Goal.** A user uploads files to a pool of their own and links them to a message or a chat
   later, instead of uploading for one message.
-- **Scope.** The pool and the link as domain concepts (the glossary bans "File" for an attachment
-  today, so the words come first); upload, list and delete of pool files; linking at send and to
-  a chat; what the reply reads when a chat has linked files; the `shared-files` migration of
-  today's `attachments` rows.
+- **Scope.** The pool and the link as domain concepts, the words first; upload, list and delete
+  of pool files; linking at send and to a chat; what the reply reads when a chat has linked
+  files.
 - **Out of scope.** Sharing between users; assistant-produced files (`assistant-files`, 18).
+- **Paused (2026-11-19).** The owner removed attachments from every ring, to be rethought
+  ([decisions.md › Attachments removed](decisions.md#attachments-removed)); the lab's L1 and L2
+  built on them. The redesign starts from the generic core that stayed: `FileRepository` and
+  `buildFileKey` in `kernel/data/file`, the kernel's S3 clients and the `attachments` bucket. Its
+  first questions: the words for a file and its link, the module that owns them, and the bucket's
+  name and key prefix, which still say `attachments`.
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
-  no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
-- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** Files are split out of
-  `chat` into a module named `drive` (not `files`, the banned word for an attachment; not
-  `bucket`, a technology). Chat owns the link between a message and a file, with a copy of the
-  file's metadata taken at link time, so a chat's read stays one query; `drive` owns the pool and
-  the bytes and knows no chat. The bytes and the rows are already the data layer's
-  (`FileRepository` in `kernel/data/file`, the attachments' table in `kernel/data/attachment`),
-  so `drive` is a new module of services over them, added by
-  [architecture.md › Add a module](architecture.md#add-a-module); the pool's table is a new store
-  in `kernel/data`. Chat reaches `drive` only through `drive`'s contract, and a send that links
-  files is one use case over both modules, in one transaction. The split rewrites the records
+  no expiry of unlinked files, so no unbound lifetime or `unbound` S3 tag.
+- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** A module of its own for the
+  files, reached by chat only through its contract, with a send that links files as one use
+  case over both modules, in one transaction; the split rewrites the records
   [Modules by capability](decisions.md#modules-by-capability) and
-  [Files in the data layer](decisions.md#files-in-the-data-layer), whose *Revisit when* name this
-  ticket.
+  [Files in the data layer](decisions.md#files-in-the-data-layer), whose *Revisit when* name
+  files outside a chat.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
-  whether deleting a chat deletes its linked files or only the links; the quota per user.
-- **Status.** In progress:
+  whether deleting a chat deletes its linked files or only the links; the quota per user; the
+  owner's draft idea (2026-11-19): a library file copied into a chat before the send, so the
+  draft lives on the server.
+- **Status.** Paused: attachments removed, to be rethought. Its lab:
   [docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md).
 
 ### 18. `assistant-files`
@@ -345,15 +345,14 @@ left.
   however many files it holds: the request deletes rows only, and a job deletes the bytes.
 - **Starts from.** No table holds a job today: a ledger re-opens
   [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose *Rejected* names a table
-  of jobs. A chat's or a file's delete removes the bytes after the rows, inside the request
-  (`deleteChat`, `FileAttachmentService.delete`).
+  of jobs. A chat's delete removes rows only today; once files return, a delete
+  that removes bytes does it after the rows, inside the request.
 - **Open questions for its feature phase.** The retention of finished rows; whether a failed
   job is re-run by hand; how a deletion job of a very large chat splits its ids; what the
   worker does when Postgres refuses an outcome SQS has already settled.
 - **Related, not in scope.** A chat with millions of messages: a soft delete (`chats.deleted_at`
   hiding the chat's reads) and a purge in batches, so the request deletes one row. Uploads into a
-  chat (`POST /chats/:chatId/attachments`) with keys `chats/<chatId>/…`, which a delete clears by
-  prefix listing.
+  chat with keys `chats/<chatId>/…`, which a delete clears by prefix listing.
 - **Inherits from `lambda` (2026-11-09) and `reply-run` (2026-11-11).** The Runs no worker
   settles: [Later › From `lambda-processes`](#from-lambda-processes) and
   [› From `reply-run`](#from-reply-run).
@@ -368,7 +367,8 @@ left.
 ### 27. `rules-from-attachment-work`
 
 - **Goal.** The rules, skills and checks say what the attachment refactors taught (entries 24 and
-  26 and the PRs after them), so the next change puts each rule in its model and names each read
+  26 and the PRs after them; the attachment code itself is removed, so its examples live in
+  `git log`), so the next change puts each rule in its model and names each read
   for what it answers the first time, without the user restating it.
 - **Sources.** The `Decision:` paragraphs of the commits `git log` holds for the work: the
   attachment fixes (`78349910f9`, `2de1db4f5a`, the model-rules refactor), the domain taking its
@@ -523,13 +523,10 @@ moves it into its own `Later` and deletes it here.
   lacks.
 - (2026-11-19, verified) Biome admits `kernel/data` in use-case and handler sources, so only review
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
-- (2026-11-19, verified) The message input's rules sit in three files (`message.model.ts`,
-  `chat.http.ts`, `attachment.http.ts`); one branded `MessageInput` schema, which changes one 400
-  body.
-- (2026-11-19, verified) The send's up to 5 `HeadObject` guard a state no app path makes, and
-  `FileEntity`'s metadata has no reader; drop both, in three ordered commits, `packages/s3` last.
-  The first is done: the send reads the rows alone; `FileRepository.selectMany` and the metadata
-  remain.
+- (2026-11-19, verified) The message input's rules sit in two files (`message.model.ts`,
+  `chat.http.ts`); one branded `MessageInput` schema, which changes one 400 body.
+- (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
+  with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
 - (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
   `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
   owner's decision.
@@ -539,8 +536,6 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
   the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
   once.
-- (2026-11-19, verified) No case accepts a name without a known extension (`attachment.handler.ts`),
-  and the accepted media types are chat's fact; one 201 case, and the list moves into chat's domain.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
   that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
   composition fact.
@@ -549,8 +544,8 @@ moves it into its own `Later` and deletes it here.
   stays unproven.
 - (2026-11-19) The toolkit edit L2.22 of `one-flow` (agents, the lab skill, `stops.md`) landed
   without the replays `claude-md.md › The toolkit` asks for; R4 and R5 are the ones it can move.
-- (2026-11-19) One `ChatServices` layer that leaves `AttachmentService` open (found by the last
-  audit, not verified).
+- (2026-11-19) One `ChatServices` layer for chat's services, which both apps list (found by the
+  last audit, not verified).
 - (2026-11-19) The CI Claude review runs once per PR, is documented, and drops its boilerplate
   (found by the audit, not verified).
 - (2026-11-19) Unused exports, a dead branch and small readability fixes in the source (found by the
@@ -567,8 +562,6 @@ moves it into its own `Later` and deletes it here.
   verified).
 - (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
   (found by the audit, not verified).
-- (2026-11-19) Decide shared-files L3's half-built paths once: the chat delete's bytes, the bind's
-  held branch (found by the audit, not verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
   it (found by the audit, not verified).
 - (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
@@ -586,8 +579,6 @@ moves it into its own `Later` and deletes it here.
   (found by the audit, not verified).
 - (2026-11-19) `Status` takes the Run statuses from their table; Run predicates and types in the Run
   model (found by the audit, not verified).
-- (2026-11-19) One attachment fixture in `chat.test-fixture.ts` replaces nine copies (found by the
-  audit, not verified).
 - (2026-11-19) `"sideEffects": false` weighed against its record's 27 KB clause (found by the last
   audit, not verified).
 - (2026-11-19) Tables of effects drop the type scaffolding `effect-style.md` forces (found by the
@@ -600,10 +591,6 @@ moves it into its own `Later` and deletes it here.
   id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
-- (2026-11-19, the owner) A library file in a chat's draft: a copy of a library attachment into a
-  chat before the send, so the draft lives on the server. It relaxes
-  `attachments_source_id_message_id_check` to "a source needs a chat" and makes `copyAttachment`'s
-  `messageId` optional, in the change that adds the feature.
 
 ## Ideas to weigh
 
