@@ -521,11 +521,12 @@ and deletes it here.
   Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
-- (2026-11-13) `MessageService.getMany` checks the chat, then reads its messages in a second
-  query, so a delete between the two answers `200 []`, not `404 ChatNotFoundError`; the next read
-  gives the `404` (`application/chat/services/message.service.ts:58`). Left: a domain service
-  opens no transaction ([layering.md](../../.claude/rules/layering.md)). Way out: one query that
-  reads the chat with its messages.
+- (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
+  between the two answers `200 []`, not `404 ChatNotFoundError`; the next read gives the `404`
+  (`application/use-cases/chat/list-messages.use-case.ts`). Way out: one query that reads the
+  chat with its messages, or the two reads in one `REPEATABLE READ` transaction: `Transaction`
+  opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
+  snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
   (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an

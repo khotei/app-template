@@ -2,11 +2,10 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Option } from 'effect'
 
-import type { ChatEntityWhere, MessageEntityWhere } from '@app-template/kernel/data'
+import type { MessageEntityWhere } from '@app-template/kernel/data'
 import { encodeRowWith } from '@app-template/packages/db'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 import { MessageService, type MessageWhere } from '#chat/services/message.service'
@@ -58,23 +57,26 @@ describe('MessageService', () => {
     }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 
-  it.effect('getMany of a chat the store finds none of for the user is ChatNotFoundError', () => {
-    const wheres: Array<ChatEntityWhere> = []
+  it.effect("getMany reads the chat's messages by the where it was given", () => {
+    const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
 
-      const error = yield* service.getMany({ chatId: chat.id, userId: owner }).pipe(Effect.flip)
+      const found = yield* service.getMany({ chatId: chat.id })
 
-      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
-      assert.deepStrictEqual(wheres, [{ id: chat.id, userId: owner }])
+      assertEquals(found, [firstMessage])
+      assert.deepStrictEqual(wheres, [{ chatId: chat.id }])
     }).pipe(
       Effect.provide(
         layerChatTest({
-          chats: {
-            selectOne: (read) =>
+          messages: {
+            selectMany: (read) =>
               Effect.sync(() => {
                 wheres.push(read)
-              }).pipe(Effect.as(Option.none())),
+              }).pipe(
+                Effect.andThen(firstMessageRow),
+                Effect.map((row) => [row]),
+              ),
           },
         }),
       ),

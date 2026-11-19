@@ -2,7 +2,7 @@ import { Array as Arr, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { ChatService, MessageService, RunService } from '@app-template/application/chat'
-import { createUserMessage, retryRun } from '@app-template/application/use-cases'
+import { createUserMessage, listMessages, retryRun } from '@app-template/application/use-cases'
 
 import { Api } from '#api/api'
 import { buildApiChat } from '#api/chat/chat.mapper'
@@ -42,7 +42,7 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
       listMessages: Effect.fn('ChatHandler.listMessages')(function* ({ params }) {
         const user = yield* CurrentUser
-        return yield* messageService.getMany({ chatId: params.chatId, userId: user.id })
+        return yield* listMessages(user.id, params.chatId)
       }),
       createMessage: Effect.fn('ChatHandler.createMessage')(function* ({ params, payload }) {
         const user = yield* CurrentUser
