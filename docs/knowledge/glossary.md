@@ -126,9 +126,10 @@ generated. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:
-One scenario that composes domain services, of one module or several, with the files, the jobs,
-the assistant or one transaction; what a handler calls when a flow is more than one service
-method. It calls each module's rules and holds none of its own.
+One scenario that composes domain services and model rules, of one module or several, with the
+jobs, the assistant or one transaction; what a handler calls when a flow is more than one service
+method. It holds only its flow, the order of the calls, the transaction and the job sends; each
+module's rules and records stay in its models and services.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Boundary**:

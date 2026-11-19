@@ -37,12 +37,13 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A flow becomes a use case as soon as it composes two domain services or sends a job, needs one
   transaction or one ordering of writes across them, or needs an exception to a rule here.
-- An `Effect.fn` that yields the domain services, repositories and ports it composes; the
+- An `Effect.fn` that yields the domain services, ports and `Transaction` it composes; the
   process provides them after `HttpRouter.serve`, and a unit test from its mocks. Record:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
-- It writes through a domain service where one holds the write's rule, else through the
-  repository: a rule-free write, or one whose rule a model function already ran (a status move);
-  a read with no rule may go to the repository too. A rule of its own is refused (`modules.md`).
+- It holds only its flow: the order of the calls, the transaction, the job sends, what it skips
+  and logs. It reads and writes through domain services, never a repository: a read, a write or a
+  rule no service offers goes to the service or model it belongs to, and a step two use cases
+  share lives once ([composition.md](composition.md)). A rule of its own is refused (`modules.md`).
 - All checks precede every write; a step's own guard may repeat a check the use case made.
 - The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
   them. An object store joins none: keep the bytes before the row that binds them, delete them

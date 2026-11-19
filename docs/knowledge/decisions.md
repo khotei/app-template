@@ -49,10 +49,12 @@ attachments stay in `chat`.
 
 Every use case lives in `application/use-cases`, above the modules: synchronous, one transaction
 whatever modules it touches; no events, facades or reactions between modules. A use case
-composes the modules' services, holds the transaction, orders the writes against a store outside
-it and enqueues the jobs; a rule stays in its module. It reads or writes a repository itself only
-where no rule applies ([layering.md › Use cases](../../.claude/rules/layering.md#use-cases)).
-The shape: [architecture.md › A use case](architecture.md#a-use-case).
+composes the modules' services and model rules, holds the transaction, orders the writes against
+a store outside it and enqueues the jobs, and holds nothing else: a rule, a read or a write stays
+in its module's models and services
+([Composition: wrap or compose](#composition-wrap-or-compose),
+[layering.md › Use cases](../../.claude/rules/layering.md#use-cases)). The shape:
+[architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
   from the request to the last write, debuggable without following an event; one transaction for
@@ -65,13 +67,15 @@ The shape: [architecture.md › A use case](architecture.md#a-use-case).
 - **Rejected:** a module's own use cases in its `services/`, only the spanning ones above: two
   homes, and a flow moves when it grows a module. Reactions through jobs: the request, event, job
   path is hard to debug in production. A transaction per module: it guards a data boundary the
-  data layer does not have.
+  data layer does not have. A use case that reads or writes a repository itself: a second owner of
+  the record's coding and guard, which the next flow copies (a Run's guarded write was coded
+  twice).
 - **Cost:** a module's flows live outside the module; a shared transaction makes a module harder
-  to extract.
+  to extract. A read or a write one flow needs becomes a service method first.
 - **Guarded by:** the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
-  `.claude/rules/modules.md` refuses a rule in a use case and a job that carries a module's
-  reaction to another module's write.
+  `.claude/rules/modules.md` refuses a rule or a capability in a use case and a job that carries a
+  module's reaction to another module's write.
 - **If reversed:** events between modules need an event ledger, a handler per reaction and
   at-least-once delivery; a send that spans modules loses its one transaction.
 - **Revisit when:** a module must be extracted into its own process, or a flow must outlive the
@@ -153,8 +157,8 @@ service calls the data layer's repository directly.
   data layer's repository already is the contract a service needs, and a port with an adapter
   over it would repeat its methods; the aliases keep the layer in every import line, so each
   layer's Biome override matches the others by glob (`#*/services/**`). A handler calls one
-  service method or one use case, never a repository, so each record has one owner every caller
-  goes through.
+  service method or one use case, and a use case calls services, neither a repository, so each
+  record has one owner every caller goes through.
 - **Sources:** the guide's "Keep internal layering per module"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.

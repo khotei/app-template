@@ -92,7 +92,7 @@ repository maps every read through it.
 A model is the codec of its own row: it declares each stored value as its row holds it, a
 nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as `Schema.DateTimeUtcFromDate`,
 so its encoded side is its entity and its type side is what the rules read. No mapper sits
-between them: a service or a use case codes a row with `encodeRowWith` and `decodeRowWith` from
+between them: a service codes a row with `encodeRowWith` and `decodeRowWith` from
 `@app-template/packages/db`, given the model. A read decodes the entity with the model in the
 read's shape, whose nested models decode their own rows, and a write encodes the model's own
 fields, its `<Model>Fields`, since a write holds no nested record:
@@ -150,7 +150,7 @@ runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
 in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
 `orDieWithSqlError` from `@app-template/packages/db`.
 
-A module's services and the use cases call the data layer's repositories with the models as
+A module's services call the data layer's repositories with the models as
 their codecs: a write encodes the model into the row, the set takes its fields from that row, the
 service maps each `Option` of a `where` to `null`, and a read decodes the entities into models; a
 mapping failure dies.
