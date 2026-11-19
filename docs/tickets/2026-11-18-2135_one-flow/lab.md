@@ -190,14 +190,15 @@ frontmatter wires the hook on SubagentHandback to deny once handed back twice, "
 
 ## Knowledge
 
-The owner's answers to the design's questions, 2026-11-18:
+The design's five questions, answered by the workflow's orchestrator on the owner's word to
+proceed, 2026-11-18; each is the owner's `[D]` once the owner confirms it:
 
-- [D] Build now on `refactor/design-audit`, which has not reached `main` yet; the merge waits for
-  the owner.
-- [D] A change request typed without `/lab` routes to the lab, by one line in `CLAUDE.md`.
-- [D] A micro shows its plan and waits once for the owner's go.
-- [D] The replays R1–R5 run before the merge.
-- [D] The memories are rewritten at the lab's close.
+- [D:ai] Build now on `refactor/design-audit`, which has not reached `main` yet; the merge waits
+  for the owner.
+- [D:ai] A change request typed without `/lab` routes to the lab, by one line in `CLAUDE.md`.
+- [D:ai] A micro shows its plan and waits once for the owner's go.
+- [D:ai] The replays R1–R5 run before the merge.
+- [D:ai] The memories are rewritten at the lab's close.
 
 ## Numbers
 
