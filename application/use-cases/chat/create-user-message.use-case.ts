@@ -6,14 +6,13 @@ import {
   ensureChatNotBusy,
   ensureMessageInput,
   isNewChat,
+  JobRunService,
   MessageService,
   RunService,
   sendGenerateChatTitle,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import { Transaction } from '@app-template/packages/db'
-
-import { sendReplyJob } from '#use-cases/chat/send-reply-job.use-case'
 
 /** The message and its Run commit together: a Run that loses the race keeps no message. */
 const storeUserMessage = Effect.fnUntraced(
@@ -34,6 +33,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   text: string,
 ) {
   const chats = yield* ChatService
+  const jobs = yield* JobRunService
 
   yield* ensureMessageInput(text)
   const chat = yield* chats.getOne({ id: chatId, userId })
@@ -43,5 +43,5 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
-  return yield* sendReplyJob(run)
+  return yield* jobs.send(run)
 })

@@ -87,8 +87,9 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
-  `#<module>/infrastructure/*`, and `infrastructure/` not `#<module>/services/*`; a service
-  reaches the outside world only through a port its `domain/` declares, and a module reaches its
+  `#<module>/infrastructure/*` but its `<model>.queue` file, and `infrastructure/` not
+  `#<module>/services/*`; a service reaches the outside world only through a port its `domain/`
+  declares, or a job's send in that queue file, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. Of another module's
   entry a module takes only the names of its contract, which review holds
   ([modules.md](../../.claude/rules/modules.md)), not Biome.

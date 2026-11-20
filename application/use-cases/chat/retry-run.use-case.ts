@@ -5,18 +5,18 @@ import {
   ChatService,
   ensureChatNotBusy,
   ensureRunRetryable,
+  JobRunService,
   MessageService,
   RunService,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
-
-import { sendReplyJob } from '#use-cases/chat/send-reply-job.use-case'
 
 /** Stores a new queued Run of the failed newest Run's message, then sends its job. */
 export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId: ChatId) {
   const chats = yield* ChatService
   const messages = yield* MessageService
   const runs = yield* RunService
+  const jobs = yield* JobRunService
 
   const chat = yield* chats.getOne({ id: chatId, userId })
   yield* ensureChatNotBusy(chat.run)
@@ -29,5 +29,5 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
   })
 
   const run = yield* runs.create(userMessage)
-  return yield* sendReplyJob(run)
+  return yield* jobs.send(run)
 })

@@ -332,7 +332,7 @@ moves it into its own `Later` and deletes it here.
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`sendGenerateAssistantMessage`, called by
-  `application/use-cases/chat/send-reply-job.use-case.ts`, the last step of the create and the
+  `application/chat/services/job-run.service.ts`, the last step of the create and the
   retry), or the client aborts after the commit but before the send starts: a send SQS refuses
   fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a dead
   process, and an interrupt during the commit or the title's send ends the flow first. Ways out

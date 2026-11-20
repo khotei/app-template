@@ -23,8 +23,8 @@ Ask in order; the first yes decides:
 3. **A capability or rule only some callers need, over units of one model** → **compose**: a
    unit named for what it adds (`<Aspect><Model>Service`, `ensure<Combined>`), built from the old
    ones; a caller that needs only the old one keeps it.
-4. **An order of calls over services of several models, a transaction or a job send** → a use
-   case.
+4. **An order of calls over services of several models, a transaction, or a write and the job
+   that reads it** → a use case.
 
 ```ts
 // a wrap, a static beside `layer`: each holder from this layer gets the audit; `make` is unedited
@@ -54,7 +54,7 @@ static readonly layerAudited = Layer.effect(
 - **Util:** a variation inside its job is a value it takes; another job is a function over it.
 - **Use case:** the composer; it holds only its flow
   ([layering.md › Use cases](layering.md#use-cases)). A step two use cases share lives once, as a
-  service method or a function beside the use cases, and both call it.
+  method of the service of the model it serves, and both call it; a use case never calls another.
 
 ## Minimal means inside each unit
 

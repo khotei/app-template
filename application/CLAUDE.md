@@ -23,5 +23,5 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a service
   a use case calls there, keeps its client and prompts inside, so callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and each job's
-  `send<Job>`, which only sends; only the use cases' level calls it, after the commit, and no
-  adapter wraps the worker.
+  `send<Job>`, which only sends; a use case or a layered service of its model calls it, after
+  the commit, and no adapter wraps the worker.

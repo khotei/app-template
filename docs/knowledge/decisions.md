@@ -147,8 +147,9 @@ through aliases that name the module (`#<module>/domain/*`). A module's `infrast
 everything of the module that connects to the environment (a language model, a queue, a
 bucket): the adapters of its ports, the services a use case calls over a client
 ([The language model in the kernel](#the-language-model-in-the-kernel)), its queues'
-definitions with the send of each job. A repository is no port: a service calls the data
-layer's repository directly.
+definitions with the send of each job, which a layered service of the job's model may call
+([Jobs as queue messages](#jobs-as-queue-messages)). A repository is no port: a service calls
+the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
   data cannot sit there. Nothing of it reaches the browser any more
@@ -187,7 +188,8 @@ layer's repository directly.
   layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
   it only a value's name (`<name>Pattern`, `<name>Statuses`), and the language model's errors
   ([The language model in the kernel](#the-language-model-in-the-kernel)), the services' admitting neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue`: the rows of a module's layers in
+  `@app-template/kernel/aws` nor `@app-template/packages/queue`, and of their infrastructure only
+  the queue file (`#*/infrastructure/*.queue`): the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
@@ -901,21 +903,23 @@ worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
 goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
 definition, which only sends it and logs a send SQS refuses. The reply's send answers its
-`QueueError`, and both use cases that send it end with one step beside them, `sendReplyJob`,
-which fails the Run through `MoveRunService.fail`, with the error's full text as its failure;
-the request answers `202` with that failed Run. The send and that failure run uninterruptibly,
-so a client that aborts mid-send still leaves the Run sent or failed. The title's send only logs
-it, as its work has no record to settle.
+`QueueError`, and both use cases that send it end with `JobRunService.send`, a service of the
+Run layered over `MoveRunService`, which sends the job and fails the Run through
+`MoveRunService.fail`, with the error's full text as its failure; the request answers `202`
+with that failed Run. The send and that failure run uninterruptibly, so a client that aborts
+mid-send still leaves the Run sent or failed. The title's send only logs it, as its work has no
+record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
-  has no use apart from its queue. Each layer knows only its own: the send its queue,
-  `MoveRunService` the move to `failed` and its write; one use case composes the send and the
-  move, and the two that send the reply end with it, as a step two use cases share lives once
-  ([Composition: wrap or compose](#composition-wrap-or-compose)).
+  has no use apart from its queue. Each unit knows only its own: the send its queue,
+  `MoveRunService` the move to `failed` and its write, `JobRunService` the pair, a step the two
+  use cases that send the reply share, which lives once as a service of the Run
+  ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
+  another. A port for the send would put an interface and a layer in front of one call.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -924,7 +928,9 @@ it, as its work has no record to settle.
   deleted chat's, leaving the reply queued. A stuck Run that a retry may take after an age: a
   rule by time, and a Run that reads queued while it is lost. A callback into the send that
   settles its refusal: infrastructure would decide the refusal's outcome and depend on the Run.
-  The settlement as a `MoveRunService` method: a domain service never sends a job. The settlement
+  The settlement as a `MoveRunService` method: the moves would know the queue. A function beside
+  the use cases that both call: a use case calling another. A port the service calls, adapted
+  in infrastructure: an interface and a layer for one call. The settlement
   copied into each use case that sends the reply: one step in two places, where a fix must land
   in both. A sweep resending unsent work: a schedule and a route of its own, and a reply
   up to a minute late. Retries with a delay per attempt: a failed reply the user waits on through
@@ -937,10 +943,15 @@ it, as its work has no record to settle.
   chat busy ([roadmap.md › Later](roadmap.md#later)), and so does a client that aborts while the
   Run's write commits or the title's send runs, as the flow then ends before the reply's send
   starts. A refused send answers `202`, so a client reads the failure from the Run's status, not
-  the response's.
-- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `sendReplyJob`, one of
-  them interrupted mid-send, and of the create flow; the `infrastructure/` and `use-cases` rows of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules).
+  the response's. A domain service now reaches its module's queue file, so the services' guard
+  admits that one file of infrastructure; a call of `JobRunService.send` inside a transaction
+  would send before the commit, which no check refuses: the rule in `.claude/rules/layering.md`
+  and review hold it. Its `send` requires the queue's sender, which the caller's process
+  provides, so the module's test layer builds without one.
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `JobRunService`, one of
+  them interrupted mid-send, and of the create flow; the services' Biome override, which admits
+  of their infrastructure only `#*/infrastructure/*.queue`; the `infrastructure/` and
+  `use-cases` rows of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 

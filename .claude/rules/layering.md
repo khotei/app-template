@@ -19,12 +19,15 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
   key with its `*NotFoundError`), coding the rows through the model. It sees the repositories,
-  its ports, the clock and `Crypto`; never another model's service, the queue or the transaction,
-  which are a use case's ([composition.md](composition.md)).
+  its ports, the clock and `Crypto`; never another model's service or the transaction, which are
+  a use case's ([composition.md](composition.md)), nor the queue but as below.
 - A service composed over `<Model>Service` holds the job it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
-  moves, each a transition written under the status read → `Move<Model>Service`. Record:
+  moves, each a transition written under the status read → `Move<Model>Service`; its job, sent
+  through its module's `<model>.queue` file with the refusal settled on the record →
+  `Job<Model>Service`, called after the commit of the writes the job reads, never inside a
+  transaction. Record:
   [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
@@ -36,9 +39,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Use cases
 
-- A flow becomes a use case as soon as it composes the services of two models or sends a job,
-  needs one transaction or one ordering of writes across them, or needs an exception to a rule
-  here.
+- A flow becomes a use case as soon as it composes the services of two models, or a write and
+  the job that reads it, needs one transaction or one ordering of writes across them, or needs an
+  exception to a rule here.
 - An `Effect.fn` that yields the domain services, ports and `Transaction` it composes; the
   process provides them after `HttpRouter.serve`, and a unit test from its mocks. Record:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
@@ -52,8 +55,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
   through the job's `send<Job>` beside its queue's definition, which logs a refusal and answers
-  it; the use case settles it on the work's record, by the model's transition and the service's
-  update, and a job with no record only logs it
+  it; a job with a record goes through its model's `Job<Model>Service`, which settles the refusal
+  on it, and a job with no record only logs it
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: a use case a job runs ends its own work on any outcome but
   success, an interrupt included, and work it finds started was left by a run that died.

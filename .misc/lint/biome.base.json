@@ -191,8 +191,8 @@
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": ["#*/infrastructure/**"],
-                    "message": "a module's services reach its infrastructure only through a port (decisions.md › A module's layers)"
+                    "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
+                    "message": "a module's services reach its infrastructure only through a port, save its queue file, whose sends a layered service of the model calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }
