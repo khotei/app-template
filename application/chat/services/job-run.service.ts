@@ -31,9 +31,9 @@ export class JobRunService extends Context.Service<
     readonly send: (run: Run) => Effect.Effect<Run, never, Sending>
     /**
      * Takes the Run `id` for its job, generates its reply and settles it: `done` with the
-     * assistant's message, or `failed` with the full text of what ended it, an interrupt
-     * included. A Run settled or gone fails `RunNotFoundError`, and one some worker started
-     * `RunStartedError`, both unwritten.
+     * assistant's message, or `failed` with the full text of what ended it, an interrupt and
+     * `RunStartedError`, for a Run some worker started, included. A Run settled or gone fails
+     * `RunNotFoundError`, unwritten.
      */
     readonly reply: (
       id: RunId,
@@ -60,13 +60,11 @@ export class JobRunService extends Context.Service<
       ),
     )
 
-    const reply = Effect.fn('JobRunService.reply')(function* (id: RunId) {
-      const assistant = yield* MessageAssistant
+    const reply = Effect.fn('JobRunService.reply')(
+      function* (id: RunId) {
+        const assistant = yield* MessageAssistant
 
-      const prepared = yield* moves.prepare(id)
-      // The tail starts after `prepare`: an interrupt there leaves the Run at most `preparing`,
-      // which the next delivery fails as started.
-      yield* Effect.gen(function* () {
+        const prepared = yield* moves.prepare(id)
         const history = yield* messages.getMany({ chatId: prepared.chatId })
         const generating = yield* moves.generate(prepared)
         const generated = yield* assistant.reply(history)
@@ -78,12 +76,19 @@ export class JobRunService extends Context.Service<
             Effect.flatMap((message) => moves.complete(generating, message)),
             transaction.run,
           )
-      }).pipe(
-        // Only a deleted chat or a copy delivered meanwhile settles the Run under this flow, as
-        // two deliveries never both pass `prepare`'s guarded write: a lost race, so it dies.
-        Effect.onError((cause) => moves.fail(prepared.id, cause).pipe(Effect.orDie)),
-      )
-    })
+      },
+      // Any failure fails the Run as it stands, `prepare`'s included; one already settled or gone
+      // has nothing to fail.
+      (replied, id) =>
+        replied.pipe(
+          Effect.onError((cause) =>
+            moves.fail(id, cause).pipe(
+              Effect.catchTag('RunNotFoundError', () => Effect.void),
+              Effect.orDie,
+            ),
+          ),
+        ),
+    )
 
     return { send, reply }
   }),

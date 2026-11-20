@@ -286,20 +286,24 @@ describe('JobRunService', () => {
     )
   })
 
-  it.effect('reply interrupted while it reads its Run writes nothing, for SQS to redeliver', () => {
+  it.effect('reply interrupted while it reads its Run fails the Run it reads again', () => {
     const reading = Deferred.makeUnsafe<void>()
-    const neverAnswers = () =>
-      Deferred.succeed(reading, undefined).pipe(Effect.andThen(Effect.never))
+    const readAgain = readsInTurn(queuedRun)
+    let reads = 0
+    const firstNeverAnswers = (where: RunEntityWhere) =>
+      reads++ === 0
+        ? Deferred.succeed(reading, undefined).pipe(Effect.andThen(Effect.never))
+        : readAgain(where)
     const writes = noWrites()
     return Effect.gen(function* () {
       const running = yield* Effect.forkChild(reply)
       yield* Deferred.await(reading)
       yield* Fiber.interrupt(running)
 
-      assert.deepStrictEqual(writes.runs, [])
+      assert.deepStrictEqual(moves(writes), ['queued → failed'])
     }).pipe(
       Effect.provide(
-        layerChatTest(replyingTo(writes, { runs: neverAnswers })).pipe(
+        layerChatTest(replyingTo(writes, { runs: firstNeverAnswers })).pipe(
           Layer.provideMerge(recordMessageAssistant(Effect.succeed(sure)).layer),
         ),
       ),
@@ -307,7 +311,7 @@ describe('JobRunService', () => {
   })
 
   it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
-    'reply of a $status Run fails RunStartedError, writing nothing and asking no assistant',
+    'reply of a $status Run fails RunStartedError, failing the Run as its worker stopped, unasked',
     ({ status }) => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
@@ -315,7 +319,11 @@ describe('JobRunService', () => {
         const error = yield* reply.pipe(Effect.flip)
 
         assert.strictEqual(error._tag, 'RunStartedError')
-        assert.deepStrictEqual(writes.runs, [])
+        assert.deepStrictEqual(moves(writes), [`${status} → failed`])
+        assert.include(
+          lastWrite(writes).cause,
+          'the worker that started the Run stopped before it ended',
+        )
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
@@ -374,6 +382,39 @@ describe('JobRunService', () => {
           }).pipe(Layer.provideMerge(assistant.layer)),
           logger,
         ]),
+      )
+    },
+  )
+
+  it.effect(
+    'reply losing its preparing write to a rival delivery dies, failing the Run the rival took',
+    () => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
+      const writes = noWrites()
+      const mocks = replyingTo(writes, {
+        runs: readsInTurn(queuedRun, new Run({ ...queuedRun, status: 'preparing' })),
+      })
+      return Effect.gen(function* () {
+        const exit = yield* reply.pipe(Effect.exit)
+
+        assert.isTrue(Exit.hasDies(exit))
+        assert.deepStrictEqual(moves(writes), ['preparing → failed'])
+        assertEquals(yield* assistant.histories, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest({
+            ...mocks,
+            runs: {
+              ...mocks.runs,
+              update: (set, where) =>
+                set.status === 'preparing'
+                  ? Effect.die('no run was updated')
+                  : Effect.sync(() => {
+                      writes.runs.push([set, where])
+                    }),
+            },
+          }).pipe(Layer.provideMerge(assistant.layer)),
+        ),
       )
     },
   )

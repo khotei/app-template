@@ -59,9 +59,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   job with a record goes through its `Job<Model>Service`, a job with none only logs it
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: its run (the `Job<Model>Service` method of a job with a record,
-  else the use case) ends its work on any outcome but success, an interrupt included, save one
-  between the write that marks the work started and the handler that ends it; the use case ends
-  the job in one tail, failing work found started, left by a run that died or was cut there
+  else the use case) ends its work on any outcome but success, an interrupt included, and work
+  it finds started, left by a run that died; the use case ends the job in one tail
   ([record](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.

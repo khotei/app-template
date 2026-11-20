@@ -14,7 +14,11 @@ export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('Ru
 
 export class RunStartedError extends Data.TaggedError('RunStartedError')<{
   readonly id: RunId
-}> {}
+}> {
+  override get message() {
+    return 'the worker that started the Run stopped before it ended'
+  }
+}
 
 export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableError>()(
   'RunNotRetryableError',

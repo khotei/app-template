@@ -67,6 +67,32 @@ describe('generateAssistantMessage', () => {
     },
   )
 
+  it.effect(
+    "generate ends on the assistant's error with a warning when the Run goes meanwhile",
+    () => {
+      const refused = new LlmRefusedError({ cause: 'stop_reason refusal' })
+      const { logs, layer: logger } = recordLogs()
+      let reads = 0
+      return Effect.gen(function* () {
+        yield* generate
+
+        assert.deepStrictEqual(levels(logs), [['Warn', 'assistant reply failed']])
+        assert.strictEqual(logs[0]?.[2], refused)
+      }).pipe(
+        Effect.provide([
+          layerChatTest({
+            runs: {
+              selectOne: () => (reads++ === 0 ? readRun(queuedRun)() : Effect.succeedNone),
+              update: () => Effect.void,
+            },
+            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+          }).pipe(Layer.provideMerge(recordMessageAssistant(Effect.fail(refused)).layer)),
+          logger,
+        ]),
+      )
+    },
+  )
+
   it.effect("generate skips a Run settled or gone, logged under its Run's id", () => {
     const assistant = recordMessageAssistant(Effect.never)
     const { logs, layer: logger } = recordLogs('runId')
@@ -103,7 +129,8 @@ describe('generateAssistantMessage', () => {
         'the worker that started the Run stopped before it ended',
       )
       assertEquals(yield* assistant.histories, [])
-      assert.deepStrictEqual(logs, [['Warn', 'assistant reply failed']])
+      assert.deepStrictEqual(levels(logs), [['Warn', 'assistant reply failed']])
+      assert.propertyVal(logs[0]?.[2], '_tag', 'RunStartedError')
     }).pipe(
       Effect.provide([
         layerChatTest({
@@ -120,15 +147,14 @@ describe('generateAssistantMessage', () => {
     )
   })
 
-  it.effect('generate skips a started Run settled before it fails it', () => {
+  it.effect('generate warns once on a started Run settled before it fails it', () => {
     const { logs, layer: logger } = recordLogs()
     let reads = 0
     return Effect.gen(function* () {
       yield* generate
 
-      assert.deepStrictEqual(logs, [
-        ['Info', 'assistant reply skipped: its Run is settled or gone'],
-      ])
+      assert.deepStrictEqual(levels(logs), [['Warn', 'assistant reply failed']])
+      assert.propertyVal(logs[0]?.[2], '_tag', 'RunStartedError')
     }).pipe(
       Effect.provide([
         layerChatTest({

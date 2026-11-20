@@ -148,13 +148,13 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   a queue outside the inventory answers `500`, a deployment bug.
 - **The work's record runs a job once.** A queue's use case reads the record of its work (the
   Run, through the job's service, which reports one settled or started as a typed error; the
-  chat's title) and skips work already settled; it ends its own work on
-  any outcome but success, an interrupt included, save one right after the reply's `preparing`
-  write, which the next delivery settles ([database.md › Stuck Runs](database.md#stuck-runs)). A
-  body that does not decode never will, so it is logged and acknowledged, unrun.
+  chat's title) and skips work already settled; it ends its own work on any outcome but success,
+  an interrupt included ([database.md › Stuck Runs](database.md#stuck-runs)). A body that does
+  not decode never will, so it is logged and acknowledged, unrun.
 - **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker
-  that started it died, so a copy delivered while the first still runs fails a live Run, a rare
-  case accepted.
+  that started it died, so a copy delivered while the first still runs fails a live Run, and of
+  two delivered at the same instant the one that loses the `preparing` write fails the Run the
+  other works on, a rare case accepted.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles
   its work's failure itself. A record whose handler dies (a process that dies included) is
   answered in `batchItemFailures`, or not answered at all; SQS delivers it again once the queue's
