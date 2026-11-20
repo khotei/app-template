@@ -37,6 +37,9 @@ paths:
   no longer decodes, into a defect. The exception is a port whose failures are outcomes a use case
   settles each its own way (an external service that declines or gives up): one final
   `<Port><Problem>Error` per outcome, raised after the adapter's retries.
+- One name per failure and value: a failure keeps its own error, never one that only wraps it
+  nor a table from error tags to a second list; a schema has no alias; and a field nobody reads
+  (no code branches on it, no operator looks at it) is not written.
 - A failed record keeps its failure as the full text of what ended it (a provider's message, a
   defect's trace), for operators; it never reaches the user, as every wire shape that carries
   the record omits it ([record](../../docs/knowledge/decisions.md#a-failed-run-keeps-its-text)).

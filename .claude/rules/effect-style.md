@@ -15,10 +15,10 @@ Code reads top to bottom and extends by adding a row or a unit, not a branch
 - Up to two parameters stay positional (`shipOrder(order, carrier)`); a third, or a boolean, moves
   into one trailing object after the subject: `cancelOrder(order, { reason, cause, refund })`.
   More stay positional only where branded types tell them apart (`placeOrder(userId, cartId, input)`).
-- Destructure an object whose fields come from different things in the parameter list; keep a
-  model or a proof value whole, so the reader sees whose field it is.
-- A builder takes the fields it copies as one `Types.Simplify<Pick<<Model>, …>>` and spreads them,
-  setting only its own (`new <Model>({ ...fields, status: 'new' })`), never naming each.
+- A function takes the smallest whole value that holds what it reads (the nested record, not its
+  holder) and nothing another argument holds; an options object is destructured where it is taken.
+- A builder exists for a rule of its own, never to call `new <Model>(…)` alone, as a default is the
+  schema's (`withConstructorDefault`); it spreads what it copies as one `Pick` and sets its own.
 
 ## Control flow
 

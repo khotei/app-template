@@ -63,8 +63,7 @@ return yield* orders.update(shipped, { id: order.id, status: [order.status] }) /
   which knows no transition: its method calls the transition on the record read and writes it
   under the status it was read in; a use case calls that method, never a transition or a
   repository, and nothing else sits between a transition and its write. Two methods that differ
-  by their `where`, `set` or step are one, taking them from the caller, with arguments as narrow
-  as it uses.
+  by their `where`, `set` or step are one, taking them from the caller.
 - A copy per model is one function over the varying part (an id generator given the brand's
   `make`, an id's schema given its brand). A model's predicate and a value its service builds keep
   their names, however short or few their callers; the alias `effect-style.md › Composition`
