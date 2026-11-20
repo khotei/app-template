@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Deferred, Effect, Fiber, Layer, Option, Schema } from 'effect'
+import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 
 import {
   assistantMessageQueue,
@@ -24,7 +24,7 @@ import {
   owner,
   queuedRun,
 } from '@app-template/application/chat/testing'
-import type { MessageColumns, RunColumns, RunEntitySet } from '@app-template/kernel/data'
+import type { MessageColumns, RunColumns } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { encodeWith } from '@app-template/packages/schema'
@@ -166,7 +166,6 @@ describe('createUserMessage', () => {
         const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
         assert.strictEqual(run.status, 'failed')
-        assert.include(Option.getOrThrow(run.failure).cause, 'SQS is unavailable')
         assert.deepStrictEqual(queued, [chatTitleQueue.name])
       }).pipe(
         Effect.provide(
@@ -177,49 +176,6 @@ describe('createUserMessage', () => {
       )
     },
   )
-
-  it.effect('a create interrupted while SQS refuses its reply job still fails the Run', () => {
-    const sending = Deferred.makeUnsafe<void>()
-    const refusing = Deferred.makeUnsafe<void>()
-    const HeldRefusingQueueTest = Layer.mock(QueueSender, {
-      send: () =>
-        Deferred.succeed(sending, undefined).pipe(
-          Effect.andThen(Deferred.await(refusing)),
-          Effect.andThen(Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))),
-        ),
-    })
-    const updates: Array<RunEntitySet> = []
-    const mocks = insertingInto(noInserts(), sendingTo(answeredChat))
-    return Effect.gen(function* () {
-      const creating = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon').pipe(
-        Effect.forkChild,
-      )
-      yield* Deferred.await(sending)
-      const interrupting = yield* Fiber.interrupt(creating).pipe(
-        Effect.forkChild({ startImmediately: true }),
-      )
-      yield* Deferred.succeed(refusing, undefined)
-      yield* Fiber.join(interrupting)
-
-      assert.deepStrictEqual(
-        Arr.map(updates, ({ status }) => status),
-        ['failed'],
-      )
-    }).pipe(
-      Effect.provide(
-        layerChatTest({
-          ...mocks,
-          runs: {
-            ...mocks.runs,
-            update: (set) =>
-              Effect.sync(() => {
-                updates.push(set)
-              }),
-          },
-        }).pipe(Layer.provideMerge(HeldRefusingQueueTest)),
-      ),
-    )
-  })
 
   it.effect.each([
     {

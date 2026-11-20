@@ -1,4 +1,4 @@
-import { Cause, Effect } from 'effect'
+import { Effect } from 'effect'
 
 import {
   type ChatId,
@@ -7,13 +7,13 @@ import {
   ensureMessageInput,
   isNewChat,
   MessageService,
-  MoveRunService,
   RunService,
-  sendGenerateAssistantMessage,
   sendGenerateChatTitle,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import { Transaction } from '@app-template/packages/db'
+
+import { sendReplyJob } from '#use-cases/chat/send-reply-job.use-case'
 
 /** The message and its Run commit together: a Run that loses the race keeps no message. */
 const storeUserMessage = Effect.fnUntraced(
@@ -34,7 +34,6 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   text: string,
 ) {
   const chats = yield* ChatService
-  const moves = yield* MoveRunService
 
   yield* ensureMessageInput(text)
   const chat = yield* chats.getOne({ id: chatId, userId })
@@ -44,12 +43,5 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
-  return yield* sendGenerateAssistantMessage(run).pipe(
-    Effect.as(run),
-    Effect.catch((error) => moves.fail(run, Cause.fail(error))),
-    // The Run was stored queued a moment before, so a refused move is a defect.
-    Effect.orDie,
-    // A client's abort mid-send still leaves the Run sent or failed.
-    Effect.uninterruptible,
-  )
+  return yield* sendReplyJob(run)
 })
