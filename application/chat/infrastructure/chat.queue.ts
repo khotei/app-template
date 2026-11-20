@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { Cause, Effect, Schema } from 'effect'
 
 import { resources } from '@app-template/kernel/aws'
 import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
@@ -37,7 +37,7 @@ export const sendGenerateAssistantMessage = Effect.fn('sendGenerateAssistantMess
   QueueSender.use((queue) =>
     queue.send(assistantMessageQueue, new GenerateAssistantMessage({ runId: run.id })),
   ).pipe(
-    Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
+    Effect.tapError((error) => Effect.logError('assistant message not queued', Cause.fail(error))),
     Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
   ),
 )
