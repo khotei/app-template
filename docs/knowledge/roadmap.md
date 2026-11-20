@@ -56,6 +56,7 @@ graph LR
 | 25 | `toolkit-quality` | `chore` | 17 | done: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 | 26 | `domain-from-data` | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 | 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
+| 30 | [`effect-4-1`](#30-effect-4-1) | `chore` | PR #39 | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -310,6 +311,22 @@ left.
   and does not emulate the Messages endpoint, so local runs call Anthropic.
 - **Status.** Planned.
 
+### 30. `effect-4-1`
+
+- **Goal.** `effect` and every `@effect/*` move from 4.0.6 to 4.1.5 together, so a Run failed by
+  a worker's interrupt stores the interrupt's reason once in its failure text, not three times.
+- **Scope.** The catalog's `effect` namespace in one bump, on its own branch once PR #39 merges;
+  `effect/Crypto` replaced by `SecureRandom` and `Digest`, provided explicitly, in
+  `application/identity/services/user.service.ts`, `packages/schema/id.ts` and the test files
+  that provide `BunCrypto.layer`; the callers that relied on `Exit.hasDies` narrowing; the driver
+  clients used as a `SqlClient`; `@effect/tsgo` 0.53.2 checked against 4.1.5.
+- **Out of scope.** Drizzle, which has nothing past 1.0.0-rc.5.
+- **Facts (2026-11-20).** Effect #9913, fixed in 4.0.7: under `Effect.fn` an interrupt's reason
+  appears three times. 4.1.0 removes `effect/Crypto` (#8829). `Exit.hasDies` no longer narrows
+  (#9799). A driver client is no longer a subtype of `SqlClient` (`@effect/sql-pg`, #10387).
+  Whether `@effect/tsgo` 0.53.2 works with 4.1.5 is unchecked.
+- **Status.** Planned.
+
 ## Later
 
 What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
@@ -465,6 +482,13 @@ moves it into its own `Later` and deletes it here.
   id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
+- (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its
+  chat busy (the Cost in [decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages),
+  and the first item of `reply-run` above). Way out: send the reply's job through
+  `SqlClient.afterCommit`, present in effect 4.0.6 (`effect/src/sql/SqlClient.ts:102-142`), whose
+  callbacks run uninterruptibly once the `COMMIT` succeeds. Left: its callback is
+  `Effect<void, never>`, so the `202`'s Run comes back another way; a callback that dies is only
+  logged; and `Transaction` must offer it, as use cases do not see `SqlClient`.
 
 ## Ideas to weigh
 
