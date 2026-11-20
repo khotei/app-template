@@ -18,10 +18,7 @@ export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
         RunNotFoundError: logSkipped,
         // The Run holds these failures now, so the job ends.
         RunStartedError: (error) => logFailed(Cause.fail(error)),
-        LlmRefusedError: (error) => logFailed(Cause.fail(error)),
-        LlmFailedError: (error) => logFailed(Cause.fail(error)),
-        // A refused move is a bug: a race dies on the write's guard instead.
-        RunStatusInvalidError: Effect.die,
+        LlmError: (error) => logFailed(Cause.fail(error)),
       }),
       // An interrupt skips every catch and tap, the consumer's log too; this handler still runs.
       Effect.onErrorIf(Cause.hasInterrupts, (cause) => logFailed(cause)),

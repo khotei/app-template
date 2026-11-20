@@ -4,8 +4,7 @@ import { Transaction } from '@app-template/packages/db'
 
 import type { ChatBusyError } from '#chat/domain/chat.error'
 import { type Chat, ensureChatNotBusy } from '#chat/domain/chat.model'
-import type { MessageInputInvalidError, MessageNotFoundError } from '#chat/domain/message.error'
-import { ensureMessageInput } from '#chat/domain/message.model'
+import type { MessageNotFoundError } from '#chat/domain/message.error'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
 import { ensureRunRetryable, type Run } from '#chat/domain/run.model'
 import { MessageService } from '#chat/services/message.service'
@@ -19,10 +18,7 @@ export class AskChatService extends Context.Service<
   AskChatService,
   {
     /** Stores the user's `text` in `chat` and the queued Run that answers it, together. */
-    readonly ask: (
-      chat: Chat,
-      text: string,
-    ) => Effect.Effect<Run, MessageInputInvalidError | ChatBusyError>
+    readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError>
     /** Stores a new queued Run of the message the chat's failed newest Run answered. */
     readonly retry: (
       chat: Chat,
@@ -35,7 +31,6 @@ export class AskChatService extends Context.Service<
     const transaction = yield* Transaction
 
     const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
-      yield* ensureMessageInput(text)
       yield* ensureChatNotBusy(chat.run)
 
       // The message and its Run commit together: a Run that loses the race keeps no message.

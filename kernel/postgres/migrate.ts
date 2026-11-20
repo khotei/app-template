@@ -7,14 +7,8 @@ import { migrateDatabase, retryWhileUnreachable } from '@app-template/packages/d
 
 import { PgClientFromConfig } from '#kernel/postgres/postgres.client'
 
-function describeApplied(applied: number) {
-  if (applied === 0) return 'nothing to apply'
-  return `applied ${applied} migration${applied === 1 ? '' : 's'}`
-}
-
-/** `migrateDatabase` over `migrations/`, then one `Info` line that says how many it applied. */
 export const applyMigrations = migrateDatabase(migrationsFolder).pipe(
-  Effect.flatMap((applied) => Effect.logInfo(describeApplied(applied))),
+  Effect.andThen(Effect.logInfo('database migrated')),
 )
 
 if (import.meta.main) {

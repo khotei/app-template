@@ -1,11 +1,7 @@
 import { Cause, Context, Effect, Layer } from 'effect'
 
 import type { MessageFields } from '#chat/domain/message.model'
-import type {
-  RunNotFoundError,
-  RunStartedError,
-  RunStatusInvalidError,
-} from '#chat/domain/run.error'
+import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
 import {
   activeRunStatuses,
   completeRun,
@@ -26,27 +22,22 @@ export class MoveRunService extends Context.Service<
      * Moves the Run `id` from `queued` to `preparing` as it stands now; `RunStartedError` once
      * some worker started it, `RunNotFoundError` once it is settled or gone.
      */
-    readonly prepare: (
-      id: RunId,
-    ) => Effect.Effect<Run, RunNotFoundError | RunStartedError | RunStatusInvalidError>
+    readonly prepare: (id: RunId) => Effect.Effect<Run, RunNotFoundError | RunStartedError>
     /** Moves a preparing Run to `generating`. */
-    readonly generate: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
+    readonly generate: (run: Run) => Effect.Effect<Run>
     /** Moves a generating Run to `done`, naming `reply`. */
-    readonly complete: (run: Run, reply: MessageFields) => Effect.Effect<Run, RunStatusInvalidError>
+    readonly complete: (run: Run, reply: MessageFields) => Effect.Effect<Run>
     /**
      * Moves the Run `id` to `failed` as it stands now, keeping the full text of `cause`;
      * `RunNotFoundError` once it is settled or gone.
      */
-    readonly fail: (
-      id: RunId,
-      cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<Run, RunNotFoundError | RunStatusInvalidError>
+    readonly fail: (id: RunId, cause: Cause.Cause<unknown>) => Effect.Effect<Run, RunNotFoundError>
   }
 >()('@app-template/application/chat/services/MoveRunService', {
   make: Effect.gen(function* () {
     const runs = yield* RunService
 
-    function move(run: Run, moved: Effect.Effect<Run, RunStatusInvalidError>) {
+    function move(run: Run, moved: Effect.Effect<Run>) {
       return moved.pipe(
         Effect.flatMap((to) => runs.update(to, { id: run.id, status: [run.status] })),
       )

@@ -76,7 +76,7 @@ it.each([
 const moves: ReadonlyArray<{
   readonly to: RunStatus
   readonly from: ReadonlyArray<RunStatus>
-  readonly move: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
+  readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
   { to: 'preparing', from: ['queued'], move: (run) => prepareRun(run) },
   { to: 'generating', from: ['preparing'], move: (run) => generateRun(run) },
@@ -107,14 +107,14 @@ it.effect.each(Arr.filter(cases, (move) => move.allowed))(
 )
 
 it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
-  'a move from $status to $to fails RunStatusInvalidError',
+  'a move from $status to $to dies with RunStatusInvalidError',
   ({ to, status, move }) =>
     Effect.gen(function* () {
-      const error = yield* move(runAt(status)).pipe(Effect.flip)
+      const defect = yield* move(runAt(status)).pipe(Effect.catchDefect(Effect.succeed))
 
       assertSchemaEquals(
         RunStatusInvalidError,
-        error,
+        defect,
         new RunStatusInvalidError({ id: queued.id, from: status, to }),
       )
     }),

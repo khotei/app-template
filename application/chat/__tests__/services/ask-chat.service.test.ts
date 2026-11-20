@@ -8,7 +8,7 @@ import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/test
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
-import { MessageInputInvalidError, MessageNotFoundError } from '#chat/domain/message.error'
+import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
@@ -22,9 +22,6 @@ import {
   queuedRun,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
-
-/** Every refusal an ask answers before its first write. */
-const AskRefusal = Schema.Union([MessageInputInvalidError, ChatBusyError])
 
 /** Every refusal a retry answers before its first write. */
 const RetryRefusal = Schema.Union([ChatBusyError, RunNotRetryableError, MessageNotFoundError])
@@ -114,19 +111,11 @@ describe('AskChatService', () => {
     }).pipe(Effect.provide(layerChatTest(insertingInto(inserts))))
   })
 
-  it.effect.each([
-    { name: 'with a blank text', read: chat, text: ' ', error: new MessageInputInvalidError() },
-    {
-      name: 'while a Run is in work',
-      read: withNewest(queuedRun),
-      text: 'And in Porto?',
-      error: new ChatBusyError({ id: chat.id }),
-    },
-  ])('ask $name is refused before any write', ({ read, text, error }) =>
+  it.effect('ask while a Run is in work is ChatBusyError before any write', () =>
     Effect.gen(function* () {
-      const refused = yield* ask(read, text).pipe(Effect.flip)
+      const refused = yield* ask(withNewest(queuedRun), 'And in Porto?').pipe(Effect.flip)
 
-      assertSchemaEquals(AskRefusal, refused, error)
+      assertSchemaEquals(ChatBusyError, refused, new ChatBusyError({ id: chat.id }))
     }).pipe(Effect.provide(layerChatTest({}))),
   )
 

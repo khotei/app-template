@@ -6,7 +6,7 @@ import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/sche
 
 import { UserId } from '#identity/contract/user.id'
 import { UserUnknownError } from '#identity/domain/user.error'
-import { SecretHash, secretBytes, User, type UserSecret } from '#identity/domain/user.model'
+import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
 
 const encoder = new TextEncoder()
 
@@ -27,7 +27,7 @@ export class UserService extends Context.Service<
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
-      return { kind: 'secret', hash: SecretHash.make(Hex.encode(digest)) } as const
+      return { kind: 'secret', hash: Hex.encode(digest) } as const
     }, Effect.orDie)
 
     const authenticate = Effect.fn('UserService.authenticate')((secret: UserSecret) =>

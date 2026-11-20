@@ -1,19 +1,15 @@
 import { Duration, Effect, Schedule } from 'effect'
 import type { AiError, Response } from 'effect/ai'
 
-import { type LlmError, LlmFailedError, LlmRefusedError } from '#kernel/llm/llm.error'
+import { LlmError } from '#kernel/llm/llm.error'
 
 const isFinished = ({ finishReason }: { readonly finishReason: Response.FinishReason }) =>
   finishReason === 'stop'
 
-function toUnfinishedError({ finishReason }: { readonly finishReason: Response.FinishReason }) {
-  const cause = `the model stopped with finish reason ${finishReason}`
-  return finishReason === 'content-filter'
-    ? new LlmRefusedError({ cause })
-    : new LlmFailedError({ cause })
-}
+const toUnfinishedError = ({ finishReason }: { readonly finishReason: Response.FinishReason }) =>
+  new LlmError({ cause: `the model stopped with finish reason ${finishReason}` })
 
-const toFailedError = ({ message }: AiError.AiError) => new LlmFailedError({ cause: message })
+const toLlmError = ({ message }: AiError.AiError) => new LlmError({ cause: message })
 
 const retryAfterOf = ({ retryAfter }: AiError.AiError) => retryAfter ?? Duration.zero
 
@@ -40,6 +36,6 @@ export const askModel = <A extends { readonly finishReason: Response.FinishReaso
 ): Effect.Effect<A, LlmError> =>
   request.pipe(
     Effect.retry({ times: 2, while: isWorthRetrying, schedule: retrySchedule }),
-    Effect.mapError(toFailedError),
+    Effect.mapError(toLlmError),
     Effect.filterOrFail(isFinished, toUnfinishedError),
   )

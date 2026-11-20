@@ -1,45 +1,25 @@
 import type { PgClient } from '@effect/sql-pg'
-import { sql } from 'drizzle-orm'
 import type { EffectDrizzleQueryError, MigratorInitError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
 import { migrate } from 'drizzle-orm/effect-postgres/migrator'
-import { Array as Arr, Effect, Option, Predicate, Schedule } from 'effect'
+import { Effect, Predicate, Schedule } from 'effect'
 import { SqlError } from 'effect/sql'
 
 import { unwrapQueryError } from '#db/db.client'
 
-const selectAppliedCount = Effect.fnUntraced(function* (db: PgDrizzle.EffectPgDatabase) {
-  // The migrator creates its ledger on its first run, so a fresh database has none yet.
-  const ledger = yield* db.execute<{ found: boolean }>(
-    sql`select to_regclass('drizzle.__drizzle_migrations') is not null as found`,
-    'objects',
-  )
-  if (!Arr.some(ledger, ({ found }) => found)) return 0
-
-  const counted = yield* db.execute<{ applied: number }>(
-    sql`select count(*)::int as applied from drizzle.__drizzle_migrations`,
-    'objects',
-  )
-  return Arr.head(counted).pipe(Option.match({ onNone: () => 0, onSome: ({ applied }) => applied }))
-})
-
-/** Applies the pending migrations of `folder` and answers how many it applied. */
+/** Applies the pending migrations of `folder`. */
 export const migrateDatabase = Effect.fn('migrateDatabase')(
   function* (
     folder: string,
   ): Effect.fn.Return<
-    number,
+    void,
     EffectDrizzleQueryError | MigratorInitError | SqlError.SqlError,
     PgClient.PgClient
   > {
     const db = yield* PgDrizzle.makeWithDefaults()
-    const before = yield* selectAppliedCount(db)
 
     // `migrate` reads the folder before it returns its effect, so a missing folder would throw here.
     yield* Effect.suspend(() => migrate(db, { migrationsFolder: folder }))
-
-    const after = yield* selectAppliedCount(db)
-    return after - before
   },
   Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError),
 )

@@ -66,12 +66,15 @@ describe('chats', () => {
     }).pipe(Effect.provide(layerApiTest({ users: { selectOne: () => Effect.succeedNone } }))),
   )
 
-  it.effect('a payload that fails its schema is 400 RequestInvalidError naming the field', () =>
+  it.effect.each([
+    { name: 'a text not a string', text: 1 },
+    { name: 'a blank text', text: '  ' },
+  ])('a payload with $name is 400 RequestInvalidError naming the field', ({ text }) =>
     Effect.gen(function* () {
       const http = yield* HttpClient.HttpClient
 
       const response = yield* http.post(`/chats/${chat.id}/messages`, {
-        body: HttpBody.jsonUnsafe({ text: 1 }),
+        body: HttpBody.jsonUnsafe({ text }),
       })
       const error = yield* response.json.pipe(
         Effect.flatMap(Schema.decodeUnknownEffect(RequestInvalidError)),

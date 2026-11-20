@@ -139,7 +139,6 @@ describe('MessageAssistant and ChatAssistant', () => {
     ask: Effect.Effect<unknown, LlmError, MessageAssistant | ChatAssistant>
     answer: () => Response
     sentAt: ReadonlyArray<number>
-    error: LlmError['_tag']
     cause: string
   }>([
     {
@@ -147,7 +146,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message('I cannot help with that.', 'refusal'),
       sentAt: [0],
-      error: 'LlmRefusedError',
       cause: 'content-filter',
     },
     {
@@ -155,7 +153,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message('Hel', 'max_tokens'),
       sentAt: [0],
-      error: 'LlmFailedError',
       cause: 'length',
     },
     {
@@ -163,7 +160,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message('Hel', 'model_context_window_exceeded'),
       sentAt: [0],
-      error: 'LlmFailedError',
       cause: 'unknown',
     },
     {
@@ -171,7 +167,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => message(' \n'),
       sentAt: [0],
-      error: 'LlmFailedError',
       cause: 'non-whitespace',
     },
     {
@@ -179,7 +174,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(529, { text: 'Overloaded' }),
       sentAt: [0, 1_000, 3_000],
-      error: 'LlmFailedError',
       cause: 'Overloaded',
     },
     {
@@ -187,7 +181,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(429, { text: 'Rate limited', headers: { 'retry-after': '5' } }),
       sentAt: [0, 5_000, 10_000],
-      error: 'LlmFailedError',
       cause: 'Rate limit',
     },
     {
@@ -195,7 +188,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(429, { text: 'Rate limited', headers: { 'retry-after': '60' } }),
       sentAt: [0],
-      error: 'LlmFailedError',
       cause: 'Rate limit',
     },
     {
@@ -203,7 +195,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: reply(hi),
       answer: () => apiError(401, { text: 'invalid x-api-key' }),
       sentAt: [0],
-      error: 'LlmFailedError',
       cause: 'invalid x-api-key',
     },
     {
@@ -211,7 +202,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: suggestTitle(lisbon),
       answer: () => message(JSON.stringify({ title: 'a'.repeat(121) })),
       sentAt: [0, 1_000, 3_000],
-      error: 'LlmFailedError',
       cause: '120',
     },
     {
@@ -219,20 +209,21 @@ describe('MessageAssistant and ChatAssistant', () => {
       ask: suggestTitle(lisbon),
       answer: () => message('{"title":"Lisbon weekend"}', 'refusal'),
       sentAt: [0],
-      error: 'LlmRefusedError',
       cause: 'content-filter',
     },
-  ])('$name fails with $error, its requests sent at $sentAt ms', ({ ask, answer, ...expected }) => {
-    const { sentAt, layer } = recordAnthropic(answer)
-    return Effect.gen(function* () {
-      const failing = yield* ask.pipe(Effect.flip, Effect.forkChild)
+  ])(
+    '$name fails with LlmError, its requests sent at $sentAt ms',
+    ({ ask, answer, ...expected }) => {
+      const { sentAt, layer } = recordAnthropic(answer)
+      return Effect.gen(function* () {
+        const failing = yield* ask.pipe(Effect.flip, Effect.forkChild)
 
-      yield* TestClock.adjust('1 minute')
+        yield* TestClock.adjust('1 minute')
 
-      const failure = yield* Fiber.join(failing)
-      assertEquals(yield* sentAt, expected.sentAt)
-      assert.strictEqual(failure._tag, expected.error)
-      assert.include(failure.cause, expected.cause)
-    }).pipe(Effect.provide(layer))
-  })
+        const failure = yield* Fiber.join(failing)
+        assertEquals(yield* sentAt, expected.sentAt)
+        assert.include(failure.cause, expected.cause)
+      }).pipe(Effect.provide(layer))
+    },
+  )
 })

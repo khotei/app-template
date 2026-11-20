@@ -2,11 +2,7 @@ import { Cause, Context, Effect, Layer } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type {
-  RunNotFoundError,
-  RunStartedError,
-  RunStatusInvalidError,
-} from '#chat/domain/run.error'
+import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
 import type { Run } from '#chat/domain/run.model'
 import type { RunId } from '#chat/domain/run.util'
 import { sendGenerateAssistantMessage } from '#chat/infrastructure/chat.queue'
@@ -37,11 +33,7 @@ export class AskRunService extends Context.Service<
      */
     readonly reply: (
       id: RunId,
-    ) => Effect.Effect<
-      void,
-      RunNotFoundError | RunStartedError | RunStatusInvalidError | AssistantError,
-      MessageAssistant
-    >
+    ) => Effect.Effect<void, RunNotFoundError | RunStartedError | AssistantError, MessageAssistant>
   }
 >()('@app-template/application/chat/services/AskRunService', {
   make: Effect.gen(function* () {
@@ -53,7 +45,7 @@ export class AskRunService extends Context.Service<
       sendGenerateAssistantMessage(run).pipe(
         Effect.as(run),
         Effect.catch((error) => moves.fail(run.id, Cause.fail(error))),
-        // The Run was stored queued a moment before, so a Run gone or a refused move is a defect.
+        // The Run was stored queued a moment before, so a Run gone is a defect.
         Effect.orDie,
         // A client's abort mid-send still leaves the Run sent or failed.
         Effect.uninterruptible,
@@ -82,10 +74,7 @@ export class AskRunService extends Context.Service<
       (replied, id) =>
         replied.pipe(
           Effect.onError((cause) =>
-            moves.fail(id, cause).pipe(
-              Effect.catchTag('RunNotFoundError', () => Effect.void),
-              Effect.orDie,
-            ),
+            moves.fail(id, cause).pipe(Effect.catchTag('RunNotFoundError', () => Effect.void)),
           ),
         ),
     )

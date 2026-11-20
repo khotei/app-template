@@ -12,7 +12,7 @@ import {
   recordChatAssistant,
 } from '@app-template/application/chat/testing'
 import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
-import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
+import { LlmError } from '@app-template/kernel/llm/error'
 import { encodeWith } from '@app-template/packages/schema'
 import { epoch, recordLogs } from '@app-template/packages/testing'
 
@@ -95,28 +95,8 @@ describe('generateChatTitle', () => {
     )
   })
 
-  it.effect('leaves the chat untitled when its first message is blank, without asking', () => {
-    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
-    const { logs, layer: logger } = recordLogs()
-    return Effect.gen(function* () {
-      yield* generate
-
-      assertEquals(yield* assistant.texts, [])
-      assert.deepStrictEqual(logs, [['Info', 'chat title skipped: nothing to title']])
-    }).pipe(
-      Effect.provide([
-        layerChatTest({
-          messages: { selectOne: selectsMessage(new Message({ ...firstMessage, text: ' \n ' })) },
-        }).pipe(Layer.provideMerge(assistant.layer)),
-        logger,
-      ]),
-    )
-  })
-
-  it.effect.each([
-    { error: new LlmRefusedError({ cause: 'stop_reason refusal' }) },
-    { error: new LlmFailedError({ cause: '529 overloaded' }) },
-  ])("leaves the chat untitled and logs the $error._tag with the job's message", ({ error }) => {
+  it.effect("leaves the chat untitled and logs the LlmError with the job's message", () => {
+    const error = new LlmError({ cause: '529 overloaded' })
     const assistant = recordChatAssistant(Effect.fail(error))
     const { logs, layer: logger } = recordLogs('messageId')
     return Effect.gen(function* () {

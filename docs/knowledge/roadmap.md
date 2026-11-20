@@ -415,8 +415,6 @@ moves it into its own `Later` and deletes it here.
   lacks.
 - (2026-11-19, verified) Biome admits `kernel/data` in use-case and handler sources, so only review
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
-- (2026-11-19, verified) The message input's rules sit in two files (`message.model.ts`,
-  `chat.http.ts`); one branded `MessageInput` schema, which changes one 400 body.
 - (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
   with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
 - (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
@@ -458,8 +456,6 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
 - (2026-11-19) Lab skill rails: `/cd`, a new module's test folder, standing owner edits, stacked
   labs (found by the audit, not verified).
-- (2026-11-19) `migrateDatabase` stops counting Drizzle's private ledger (found by the audit,
-  not verified).
 - (2026-11-19) Scope the pattern-only rule to instruction files (the owner's call) (found by the
   audit, not verified).
 - (2026-11-19) Delete tests of the framework and cases a lower seam already owns (found by the last
@@ -478,8 +474,7 @@ moves it into its own `Later` and deletes it here.
   detectors (found by the audit, not verified).
 - (2026-11-19) Toolkit housekeeping: Makefile defaults, a stale template field, wording,
   `worktree.sh` (found by the audit, not verified).
-- (2026-11-19) Drop the `SecretHash` brand no field carries and the `RETURNING` read-back of a known
-  id (found by the audit, not verified).
+- (2026-11-19) Drop the `RETURNING` read-back of a known id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
 - (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its

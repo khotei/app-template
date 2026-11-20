@@ -8,8 +8,8 @@ schema. The code: the chat module's two services in its `infrastructure/`, one p
 `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
 `@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the
 finish-reason check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's
-client with the key of `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its errors,
-`LlmRefusedError` and `LlmFailedError`; and those settings in `@app-template/kernel/config`.
+client with the key of `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its one error,
+`LlmError`; and those settings in `@app-template/kernel/config`.
 The assistants' suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no
 test needs a key or the network.
 
@@ -31,10 +31,10 @@ graph LR
    prompt for a reply, the title instruction for a title. A prompt that asks the model to show
    its reasoning invites a refusal.
 2. `MessageAssistant.reply` calls `generateText` on the reply model with the chat's messages:
-   each user turn as its text (none when blank) and files, each assistant turn as its text. A
-   failed Run leaves no reply, so two user turns may follow each other: `@effect/ai-anthropic`
-   folds them into one, and the Messages API takes either shape. The text is decoded as the domain's
-   `AssistantReply`, which drops U+0000 (a text column refuses it), then fails a blank reply.
+   each turn, the user's and the assistant's, as its text. A failed Run leaves no reply, so two
+   user turns may follow each other: `@effect/ai-anthropic` folds them into one, and the
+   Messages API takes either shape. The text is decoded as the domain's `AssistantReply`, which
+   drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
    Nothing streams: the answer arrives whole.
 3. `ChatAssistant.suggestTitle` calls `generateObject` on the title model with the opening
    message and `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's
@@ -65,8 +65,8 @@ covers these steps.
 ## Failures and retries
 
 `askModel` asks again in place only what the provider marks retryable, and lets out of either
-assistant only a final failure, as `LlmRefusedError` or `LlmFailedError`; the use
-cases turn them into a failed Run, which keeps the error's full text, or an untitled chat. A
+assistant only a final failure, as one `LlmError`; the use cases turn it into a failed Run,
+which keeps the error's full text, or an untitled chat. A
 job is never retried ([aws.md › Queues](aws.md#queues)).
 
 | Failure | Asked again |
@@ -74,8 +74,7 @@ job is never retried ([aws.md › Queues](aws.md#queues)).
 | an `AiError` whose `isRetryable` holds (5xx, 529, a rate limit, a transport error, a title that fails its schema) and whose `retryAfter` is at most 30 s | twice, 1 s then 2 s apart, never before `retryAfter` |
 | a rate limit asking a longer wait, such as a daily token limit | no |
 | any other `AiError` (401/403, 400/404/422, an overlong prompt, no credit) | no |
-| an answer the model refused (finish reason `content-filter`, Anthropic's `refusal`) | no: `LlmRefusedError`, its partial text dropped |
-| an answer that finished any other way than `stop` (`length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `LlmFailedError` |
+| an answer that finished any other way than `stop` (`content-filter` for Anthropic's `refusal`, `length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `LlmError`, its partial text dropped |
 
 The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
 error, for operators: the use cases log it, a failed Run keeps it as its failure's `cause`, and
@@ -86,7 +85,7 @@ the api's wire shapes omit it.
 `askModel` reads `finishReason` after its retries, so an answer that did not finish fails at
 once, even when its text reads whole. A title cut at `max_tokens` inside its JSON, or refused as
 prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
-it is asked again as a malformed answer and ends as `LlmFailedError`, a refusal too. The
+it is asked again as a malformed answer and ends as `LlmError`, a refusal too. The
 title's use case logs either and leaves the chat untitled.
 
 ## Prompt caching

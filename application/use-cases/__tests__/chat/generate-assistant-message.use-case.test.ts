@@ -11,7 +11,7 @@ import {
   recordMessageAssistant,
 } from '@app-template/application/chat/testing'
 import type { RunEntitySet } from '@app-template/kernel/data'
-import { LlmFailedError, LlmRefusedError } from '@app-template/kernel/llm/error'
+import { LlmError } from '@app-template/kernel/llm/error'
 import { encodeWith } from '@app-template/packages/schema'
 import { recordLogs } from '@app-template/packages/testing'
 
@@ -28,12 +28,10 @@ const levels = (logs: ReadonlyArray<ReadonlyArray<unknown>>) =>
   Arr.map(logs, (line) => Arr.take(line, 2))
 
 describe('generateAssistantMessage', () => {
-  it.effect.each([
-    { name: 'LlmRefusedError', error: new LlmRefusedError({ cause: 'stop_reason refusal' }) },
-    { name: 'LlmFailedError', error: new LlmFailedError({ cause: '401 invalid x-api-key' }) },
-  ] as const)(
-    'generate ends on $name after one call with a warning, the Run failed with its text and no reply written',
-    ({ error }) => {
+  it.effect(
+    'generate ends on LlmError after one call with a warning, the Run failed with its text and no reply written',
+    () => {
+      const error = new LlmError({ cause: '401 invalid x-api-key' })
       const assistant = recordMessageAssistant(Effect.fail(error))
       const { logs, layer: logger } = recordLogs()
       const updates: Array<RunEntitySet> = []
@@ -70,7 +68,7 @@ describe('generateAssistantMessage', () => {
   it.effect(
     "generate ends on the assistant's error with a warning when the Run goes meanwhile",
     () => {
-      const refused = new LlmRefusedError({ cause: 'stop_reason refusal' })
+      const refused = new LlmError({ cause: 'stop_reason refusal' })
       const { logs, layer: logger } = recordLogs()
       let reads = 0
       return Effect.gen(function* () {

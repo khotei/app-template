@@ -4,7 +4,7 @@ import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
 import { askModel } from '@app-template/kernel/llm'
-import { type LlmError, LlmFailedError } from '@app-template/kernel/llm/error'
+import { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import type { MessageFields } from '#chat/domain/message.model'
@@ -44,7 +44,7 @@ export class MessageAssistant extends Context.Service<
       askModel,
       Effect.flatMap(({ text }) =>
         Schema.decodeEffect(AssistantReply)({ text }).pipe(
-          Effect.mapError(({ message }) => new LlmFailedError({ cause: message })),
+          Effect.mapError(({ message }) => new LlmError({ cause: message })),
         ),
       ),
     )

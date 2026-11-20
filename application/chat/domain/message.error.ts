@@ -8,8 +8,3 @@ export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundErro
   'MessageNotFoundError',
   { id: MessageId, author: Schema.OptionFromNullOr(Schema.Literals(messageAuthors)) },
 ) {}
-
-export class MessageInputInvalidError extends Schema.TaggedError<MessageInputInvalidError>()(
-  'MessageInputInvalidError',
-  {},
-) {}

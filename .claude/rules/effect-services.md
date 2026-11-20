@@ -20,9 +20,10 @@ paths:
   it, stays inferred.
 - A pure builder that cannot fail returns the model, not an `Effect`.
 - A pure transition (`naming.md`) checks its source in one shared table of allowed moves and
-  fails one `<Model>StatusInvalidError { id, from, to }`. One whose refusal reaches the user maps
-  it to its own (`<Model>BusyError`), so the contract names the refusal and the table holds the
-  rule.
+  dies with one `<Model>StatusInvalidError { id, from, to }`: its callers move a record they
+  have just read or moved, so a refusal is a bug. A refusal the user can reach is a check of its
+  own before the move, failing its own error (`<Model>BusyError`), so the contract names the
+  refusal and the table holds the lifecycle.
 
 ## Services
 

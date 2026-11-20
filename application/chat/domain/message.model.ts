@@ -1,9 +1,8 @@
-import { Effect, Schema } from 'effect'
+import { Effect, Predicate, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
 import { ChatId } from '#chat/domain/chat.util'
-import { MessageInputInvalidError } from '#chat/domain/message.error'
 import { isBlank, MessageId } from '#chat/domain/message.util'
 import { RunFields } from '#chat/domain/run-fields.model'
 
@@ -16,7 +15,12 @@ export const MessageFields = Schema.Struct({
   chatId: ChatId,
   author: MessageAuthor,
   /** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
-  text: Schema.String.check(Schema.isPattern(textPattern)),
+  text: Schema.String.check(
+    Schema.isPattern(textPattern),
+    Schema.makeFilter(Predicate.not(isBlank), {
+      expected: 'a string with a non-whitespace character',
+    }),
+  ),
   createdAt: Schema.DateTimeUtcFromDate,
 })
 export type MessageFields = typeof MessageFields.Type
@@ -26,9 +30,3 @@ export class Message extends Schema.Class<Message>('Message')({
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
-
-export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (text: string) {
-  if (isBlank(text)) {
-    return yield* new MessageInputInvalidError()
-  }
-})

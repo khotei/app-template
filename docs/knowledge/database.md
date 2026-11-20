@@ -33,10 +33,11 @@ the entities derived from them.
 - **Enums and checks state the data layer's own values.** An enum takes its values from a tuple
   the table exports (`runStatuses = ['queued', …] as const`, then
   `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
-  beside the table (`credentials_hash_check` the pattern `SecretHash` checks with;
+  beside the table (`credentials_hash_check` the lower-case hex SHA-256 a credential's hash is;
   `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
   what the domain rejects. A model that holds the value imports it from the table and checks the
-  same rule on its side, so a change to the value changes both. drizzle-kit inlines the values
+  same rule on its side, so a change to the value changes both; a value no model holds, such as
+  the hash its service computes, has the check alone. drizzle-kit inlines the values
   into the DDL, so a changed literal, pattern or limit changes the schema, and
   `make migration-check` fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
@@ -266,7 +267,7 @@ at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
 | Command | Does |
 |---|---|
 | `make migration NAME=<name>` | `drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root, whose paths it resolves against the working directory: compares the table files with the last snapshot and writes `kernel/data/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
-| `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)`; with none pending it logs `nothing to apply`; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
+| `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)`, then logs `database migrated`, whether it applied one or none; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
 | `make migration-check` | drizzle-kit's dry run (`generate --explain`): fails when the table files differ from the migrations, printing the missing SQL and how to regenerate `init`; it writes nothing |
 
 - **`make migration-check` is soft locally and strict in CI.** In `make check` it counts every

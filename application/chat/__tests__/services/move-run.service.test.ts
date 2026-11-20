@@ -24,7 +24,7 @@ const moves: ReadonlyArray<{
   readonly move: (
     moves: MoveRunService['Service'],
     run: Run,
-  ) => Effect.Effect<Run, RunNotFoundError | RunStartedError | RunStatusInvalidError>
+  ) => Effect.Effect<Run, RunNotFoundError | RunStartedError>
 }> = [
   { name: 'prepare', from: 'queued', to: 'preparing', move: (moves, run) => moves.prepare(run.id) },
   {
@@ -82,16 +82,16 @@ describe('MoveRunService', () => {
     },
   )
 
-  it.effect('a move the model refuses fails RunStatusInvalidError and writes nothing', () => {
+  it.effect('a move the model refuses dies with RunStatusInvalidError and writes nothing', () => {
     const { updates, layer } = recordUpdates()
     return Effect.gen(function* () {
       const service = yield* MoveRunService
 
-      const error = yield* service.generate(queuedRun).pipe(Effect.flip)
+      const defect = yield* service.generate(queuedRun).pipe(Effect.catchDefect(Effect.succeed))
 
       assertSchemaEquals(
         RunStatusInvalidError,
-        error,
+        defect,
         new RunStatusInvalidError({ id: queuedRun.id, from: 'queued', to: 'generating' }),
       )
       assert.deepStrictEqual(updates, [])

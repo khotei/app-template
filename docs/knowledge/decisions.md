@@ -509,8 +509,8 @@ cascade took their rows, dying while one remains. A service sees only the servic
 its own model below it and reaches the records only through the plain one; another model's
 service stays a use case's, save in `AskRunService`, whose run of the job writes another
 model's record of its module ([Jobs as queue messages](#jobs-as-queue-messages)), and in
-`AskChatService`, which takes a chat as read, checks a request to it (a blank text, a busy chat, a
-Run not retryable) and stores what the reply's job reads, the user's message with its queued Run
+`AskChatService`, which takes a chat as read, checks a request to it (a busy chat, a Run not
+retryable) and stores what the reply's job reads, the user's message with its queued Run
 in one transaction, or a retry's new Run of the failed Run's message; the use cases that ask, a
 send and a retry, keep the chat's read scoped to the user and the sends after the commit. How a
 service grows:
@@ -552,9 +552,7 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   a rule every reader must apply is a service named for it. The plain `getMany` leaves an absent
   id out, so the rule the reader pipes names every absent id at once. `AskChatService` is one
   more service and layer, and a second service that takes `Transaction` and other models'
-  services, admitted by its own Biome override, by its file's name. A send's blank text for a chat
-  the user does not hold now answers `ChatNotFoundError`, not `MessageInputInvalidError`, as the
-  chat is read before the service checks the text.
+  services, admitted by its own Biome override, by its file's name.
 - **Guarded by:** review, by `layering.md` and `composition.md`; `noImportCycles` refuses a lower
   service that imports an upper one; nothing refuses a service of another model, in a job's
   service or any other. `AskChatService`'s Biome override admits of `@app-template/packages/db`
@@ -576,7 +574,9 @@ active ones, `RunNotFoundError` once it is settled or gone. `prepare`, the job's
 pipes that read through the model's `ensureRunUnstarted`, `RunStartedError` for a Run some
 worker started; `fail` keeps the full text of the `Cause` it is given. `RunService` stays the
 plain write under a caller's `where`, and `AskRunService` and every use case move a Run through
-`MoveRunService`, never through a transition and an update of their own.
+`MoveRunService`, never through a transition and an update of their own. A move the model's
+table refuses dies with `RunStatusInvalidError`: every caller moves a Run it has just read or
+moved, so a refusal is a bug, and a race dies on the write's guard instead.
 
 - **Why:** the six moves of the use cases composed the same two calls with the same guard; in one
   service the guard on the status read is written once, and a move can no longer forget it.
@@ -593,11 +593,13 @@ plain write under a caller's `where`, and `AskRunService` and every use case mov
   the rest. `fail` taking a Run: each caller reads it again first, and one that passes the Run
   it holds dies on the write's guard instead of failing it. The job's read and
   `ensureRunUnstarted` in the use case: a rule's call in a flow. The check folded into
-  `prepareRun`: a transition of two conditions, against the model's pieces of one each.
+  `prepareRun`: a transition of two conditions, against the model's pieces of one each. The
+  refusal as a typed failure: it rode six signatures, no caller could raise it, and each one
+  turned it into a defect.
 - **Cost:** a second service and layer for the Run; the processes and the test layer provide
   `MoveRunService` over `RunService`. A refused send reads the Run it has just stored once more.
 - **Guarded by:** `MoveRunService`'s unit test: each move writes under the status read, a
-  refused move writes nothing, `prepare` of a started Run fails `RunStartedError`, and `prepare`
+  refused move dies and writes nothing, `prepare` of a started Run fails `RunStartedError`, and `prepare`
   or `fail` of a Run settled or gone fails `RunNotFoundError`; the model's test of
   `ensureRunUnstarted`; review, by `deep-modules.md › Composition over pass-through`.
 - **If reversed:** each use case composes the transition and `RunService.update` again.
@@ -639,9 +641,9 @@ no app.
 
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
-`askModel` (the retries, the failure mapping and the finish-reason check), with its two final
-errors, `LlmRefusedError` and `LlmFailedError` (`LlmError`), behind an entry of their own,
-`@app-template/kernel/llm/error`, that loads no client. Over it `chat`'s `infrastructure/`
+`askModel` (the retries, the failure mapping and the finish-reason check), with its one final
+error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/error`, that loads no
+client. Over it `chat`'s `infrastructure/`
 holds one service per job, each a `Context.Service` with its `static layer`: `MessageAssistant`
 answers the chat's next message from its history, `ChatAssistant` the chat's title from its
 opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
@@ -658,8 +660,10 @@ test swaps that service's layer, and the suite builds both layers over a recordi
   implementation each, a port in `domain/` and an adapter constant only restated the service's
   shape: the class with its `layer` is the contract, and `Layer.succeed` of the same class is
   the double. The call policy is the app's for any model call, not chat's, so it lives once
-  beside the client and a second module that asks a model pipes the same function; its errors
-  go with it, so every caller names the same two outcomes and no module restates them. The
+  beside the client and a second module that asks a model pipes the same function; its error
+  goes with it, so every caller names the same outcome and no module restates it. One error, not
+  one per way the answer ended: no code branches on which, so a refusal reads from the cause's
+  text (`finish reason content-filter`), as every other end does. The
   kernel configures the client as it does Postgres (`PgClientFromConfig`), and the services,
   which hold Anthropic's request settings anyway, build their models where they use them; the
   client stays a leaf the worker provides once.
@@ -674,7 +678,7 @@ test swaps that service's layer, and the suite builds both layers over a recordi
   a purpose: its parameter was typed by Anthropic's request settings, so the services held one
   provider's settings all the same. The module's own errors passed to `askModel` as two
   constructors: it kept the domain's guard whole, but every module that asks a model would
-  declare the same two errors again and a mapping object for them. Each service mapping
+  declare the same error again and a mapping for it. Each service mapping
   `AiError` with its own `mapError`: the retry and finish-reason policy copied per service. A
   `packages/` workspace for the policy: a tool for every app for some 40 lines of this app's
   policy.
@@ -684,7 +688,8 @@ test swaps that service's layer, and the suite builds both layers over a recordi
   cases import a class whose file names the provider's package, so loading them loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
   adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the application
-  workspace and of the kernel. No test checks the 10-minute wait, nor a request setting beside
+  workspace and of the kernel. An operator tells a refusal from any other end only by the
+  cause's text, not by a tag. No test checks the 10-minute wait, nor a request setting beside
   the model.
 - **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
   `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
@@ -939,8 +944,8 @@ function fails the Run as it stands now on whatever ends it, `prepare`'s refusal
 included. A Run some worker started fails `RunStartedError`, whose text says its worker stopped,
 and is failed with it; a Run settled or gone fails `RunNotFoundError`, unwritten, as the tail
 finds nothing to fail. The job's use case ends the job in one tail: it skips a Run settled or
-gone, ends on a started Run and on the assistant's errors, which the Run already holds, and dies
-on a refused move, logging each end once with its cause, an interrupt included; a defect is the
+gone, ends on a started Run and on the assistant's error, which the Run already holds, logging
+each end once with its cause, an interrupt included; a defect, a refused move's included, is the
 queue consumer's to log. For the
 reply the service takes `Transaction`, its module's `.llm` file and `MessageService`, the service
 of another model of its module; of the other services only `AskChatService` takes `Transaction`

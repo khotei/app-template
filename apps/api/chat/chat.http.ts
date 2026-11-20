@@ -11,7 +11,6 @@ import {
   Message,
   MessageFields,
   MessageId,
-  MessageInputInvalidError,
   MessageNotFoundError,
   Run,
   RunFields,
@@ -70,7 +69,6 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     }),
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
-      MessageInputInvalidError.pipe(HttpApiSchema.status(400)),
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatBusyError.pipe(HttpApiSchema.status(409)),
     ],

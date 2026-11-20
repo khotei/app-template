@@ -9,7 +9,6 @@ import {
   type Types,
   UndefinedOr,
 } from 'effect'
-import type { RequireAtLeastOne } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
@@ -19,17 +18,13 @@ import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatFields } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 
-/** The user's chat; another user's reads as absent. */
-export type ChatWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
+/**
+ * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
+ * untitled one.
+ */
+export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
 
-/** The chat an update finds: by its owner, or only while it is still untitled. */
-export type ChatUpdateWhere = Types.Simplify<
-  Pick<Chat, 'id'> & RequireAtLeastOne<Pick<Chat, 'userId' | 'title'>>
->
-
-type ChatReadWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
-
-const encodeChatWhere = (where: ChatReadWhere): ChatEntityWhere =>
+const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
   Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
 
 export class ChatService extends Context.Service<
@@ -42,7 +37,7 @@ export class ChatService extends Context.Service<
     /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
     readonly update: (
       fields: Types.Simplify<Pick<Chat, 'title'>>,
-      where: ChatUpdateWhere,
+      where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the user's chat with its messages and Runs. */
     readonly delete: (where: ChatWhere) => Effect.Effect<void, ChatNotFoundError>
@@ -66,7 +61,7 @@ export class ChatService extends Context.Service<
       chats.selectMany({ userId }).pipe(Effect.flatMap(decodeWith(Schema.Array(Chat)))),
     )
 
-    const getOne = Effect.fn('ChatService.getOne')((where: ChatReadWhere) =>
+    const getOne = Effect.fn('ChatService.getOne')((where: ChatWhere) =>
       chats
         .selectOne(encodeChatWhere(where))
         .pipe(
@@ -77,7 +72,7 @@ export class ChatService extends Context.Service<
 
     const update = Effect.fn('ChatService.update')(function* (
       fields: Types.Simplify<Pick<Chat, 'title'>>,
-      where: ChatUpdateWhere,
+      where: ChatWhere,
     ) {
       const chat = yield* getOne(where)
       const updatedAt = yield* DateTime.now

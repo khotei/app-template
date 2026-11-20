@@ -64,11 +64,12 @@ const moveRunRules: Record<RunStatus, ReadonlyArray<RunStatus>> = {
   failed: [],
 }
 
+/** A move the table refuses dies: every caller moves a Run it has just read or moved. */
 const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
   if (!Arr.contains(moveRunRules[run.status], to)) {
     return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
   }
-})
+}, Effect.orDie)
 
 const move = Effect.fnUntraced(function* (
   run: Run,

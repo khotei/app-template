@@ -410,18 +410,11 @@
             }
           },
           "400": {
-            "description": "MessageInputInvalidError | RequestInvalidError",
+            "description": "RequestInvalidError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/MessageInputInvalidErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
                 }
               }
             }
@@ -1242,21 +1235,6 @@
         "required": [
           "_tag",
           "id"
-        ],
-        "additionalProperties": false
-      },
-      "MessageInputInvalidErrorEncoded": {
-        "type": "object",
-        "properties": {
-          "_tag": {
-            "type": "string",
-            "enum": [
-              "MessageInputInvalidError"
-            ]
-          }
-        },
-        "required": [
-          "_tag"
         ],
         "additionalProperties": false
       },
