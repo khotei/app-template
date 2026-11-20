@@ -28,12 +28,6 @@ const settleCompleted = Effect.fnUntraced(
   (settle) => Transaction.use((transaction) => transaction.run(settle)),
 )
 
-const settleFailed = Effect.fnUntraced(function* (active: Run, cause: Cause.Cause<unknown>) {
-  const moves = yield* MoveRunService
-  yield* Effect.logWarning('assistant reply failed', cause)
-  yield* moves.fail(active, cause)
-})
-
 const reply = Effect.fnUntraced(function* (taken: Run) {
   const assistant = yield* MessageAssistant
   const messages = yield* MessageService
@@ -53,12 +47,14 @@ const getActiveRun = (id: RunId) =>
 const logSkipped = () => Effect.logInfo('assistant reply skipped: its Run is settled or gone')
 
 /**
- * Fails the Run as it stands now, the reply having moved it; one settled meanwhile is skipped,
- * and a refused move dies, being a bug.
+ * Fails the Run as it stands now, the reply having moved it, and warns with `cause`; one settled
+ * meanwhile is skipped, and a refused move dies, being a bug.
+ *
+ * The warning follows the write: logged before it, it would also mark a skipped Run as failed.
  */
 const failLatest = (id: RunId, cause: Cause.Cause<unknown>) =>
-  getActiveRun(id).pipe(
-    Effect.flatMap((latest) => settleFailed(latest, cause)),
+  MoveRunService.use((moves) => moves.fail(id, cause)).pipe(
+    Effect.tap(() => Effect.logWarning('assistant reply failed', cause)),
     Effect.catchTag('RunNotFoundError', logSkipped),
     Effect.orDie,
   )

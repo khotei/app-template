@@ -1,8 +1,16 @@
 import { Cause, Context, Effect, Layer } from 'effect'
 
 import type { MessageFields } from '#chat/domain/message.model'
-import type { RunStatusInvalidError } from '#chat/domain/run.error'
-import { completeRun, failRun, generateRun, prepareRun, type Run } from '#chat/domain/run.model'
+import type { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
+import {
+  activeRunStatuses,
+  completeRun,
+  failRun,
+  generateRun,
+  prepareRun,
+  type Run,
+} from '#chat/domain/run.model'
+import type { RunId } from '#chat/domain/run.util'
 import { RunService } from '#chat/services/run.service'
 
 /** Moves a Run by its model and writes it under the status it was read in. */
@@ -15,11 +23,14 @@ export class MoveRunService extends Context.Service<
     readonly generate: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
     /** Moves a generating Run to `done`, naming `reply`. */
     readonly complete: (run: Run, reply: MessageFields) => Effect.Effect<Run, RunStatusInvalidError>
-    /** Moves an active Run to `failed`, keeping the full text of `cause`. */
+    /**
+     * Moves the Run `id` to `failed` as it stands now, keeping the full text of `cause`;
+     * `RunNotFoundError` once it is settled or gone.
+     */
     readonly fail: (
-      run: Run,
+      id: RunId,
       cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<Run, RunStatusInvalidError>
+    ) => Effect.Effect<Run, RunNotFoundError | RunStatusInvalidError>
   }
 >()('@app-template/application/chat/services/MoveRunService', {
   make: Effect.gen(function* () {
@@ -39,9 +50,13 @@ export class MoveRunService extends Context.Service<
       move(run, completeRun(run, reply)),
     )
 
-    const fail = Effect.fn('MoveRunService.fail')((run: Run, cause: Cause.Cause<unknown>) =>
-      move(run, failRun(run, { cause: Cause.pretty(cause) })),
-    )
+    const fail = Effect.fn('MoveRunService.fail')(function* (
+      id: RunId,
+      cause: Cause.Cause<unknown>,
+    ) {
+      const active = yield* runs.getOne({ id, status: activeRunStatuses })
+      return yield* move(active, failRun(active, { cause: Cause.pretty(cause) }))
+    })
 
     return { prepare, generate, complete, fail }
   }),

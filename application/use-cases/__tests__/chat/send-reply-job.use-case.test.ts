@@ -1,9 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Deferred, Effect, Fiber, Layer, Option } from 'effect'
 
+import { Run } from '@app-template/application/chat'
 import { layerChatTest, queuedRun } from '@app-template/application/chat/testing'
 import type { RunEntitySet } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
+import { encodeWith } from '@app-template/packages/schema'
 
 import { sendReplyJob } from '#use-cases/chat/send-reply-job.use-case'
 
@@ -26,6 +28,7 @@ describe('sendReplyJob', () => {
       Effect.provide(
         layerChatTest({
           runs: {
+            selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
             update: (set) =>
               Effect.sync(() => {
                 updates.push(set)
@@ -64,6 +67,7 @@ describe('sendReplyJob', () => {
       Effect.provide(
         layerChatTest({
           runs: {
+            selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
             update: (set) =>
               Effect.sync(() => {
                 updates.push(set)

@@ -169,9 +169,14 @@ describe('createUserMessage', () => {
         assert.deepStrictEqual(queued, [chatTitleQueue.name])
       }).pipe(
         Effect.provide(
-          layerChatTest({ ...mocks, runs: { ...mocks.runs, update: () => Effect.void } }).pipe(
-            Layer.provideMerge(RefusingReplyQueueTest),
-          ),
+          layerChatTest({
+            ...mocks,
+            runs: {
+              ...mocks.runs,
+              selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
+              update: () => Effect.void,
+            },
+          }).pipe(Layer.provideMerge(RefusingReplyQueueTest)),
         ),
       )
     },

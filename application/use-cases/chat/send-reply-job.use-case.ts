@@ -10,8 +10,8 @@ import {
 export const sendReplyJob = Effect.fn('sendReplyJob')((run: Run) =>
   sendGenerateAssistantMessage(run).pipe(
     Effect.as(run),
-    Effect.catch((error) => MoveRunService.use((moves) => moves.fail(run, Cause.fail(error)))),
-    // The Run was stored queued a moment before, so a refused move is a defect.
+    Effect.catch((error) => MoveRunService.use((moves) => moves.fail(run.id, Cause.fail(error)))),
+    // The Run was stored queued a moment before, so a Run gone or a refused move is a defect.
     Effect.orDie,
     // A client's abort mid-send still leaves the Run sent or failed.
     Effect.uninterruptible,

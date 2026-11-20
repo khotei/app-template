@@ -1,10 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, Effect } from 'effect'
+import { Array as Arr, Cause, Effect, Option } from 'effect'
 
 import type { RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RunStatusInvalidError } from '#chat/domain/run.error'
+import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import type { RunStatus } from '#chat/domain/run-fields.model'
 import { MoveRunService } from '#chat/services/move-run.service'
@@ -19,7 +20,7 @@ const moves: ReadonlyArray<{
   readonly move: (
     moves: MoveRunService['Service'],
     run: Run,
-  ) => Effect.Effect<Run, RunStatusInvalidError>
+  ) => Effect.Effect<Run, RunNotFoundError | RunStatusInvalidError>
 }> = [
   { name: 'prepare', from: 'queued', to: 'preparing', move: (moves, run) => moves.prepare(run) },
   {
@@ -36,17 +37,18 @@ const moves: ReadonlyArray<{
   },
   {
     name: 'fail',
-    from: 'queued',
+    from: 'generating',
     to: 'failed',
-    move: (moves, run) => moves.fail(run, Cause.fail('SQS is unavailable')),
+    move: (moves, run) => moves.fail(run.id, Cause.fail('SQS is unavailable')),
   },
 ]
 
-/** The service over a `RunRepository` whose updates land in `updates`. */
-function recordUpdates() {
+/** The service over a `RunRepository` that reads `stored`, whose updates land in `updates`. */
+function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
   const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
   const layer = layerChatTest({
     runs: {
+      selectOne: () => stored.pipe(Option.map(encodeWith(Run)), Effect.transposeOption),
       update: (...update) =>
         Effect.sync(() => {
           updates.push(update)
@@ -60,10 +62,10 @@ describe('MoveRunService', () => {
   it.effect.each(moves)(
     '$name writes the $to Run under the status it was read in',
     ({ from, to, move }) => {
-      const { updates, layer } = recordUpdates()
+      const run = new Run({ ...queuedRun, status: from })
+      const { updates, layer } = recordUpdates(Option.some(run))
       return Effect.gen(function* () {
         const service = yield* MoveRunService
-        const run = new Run({ ...queuedRun, status: from })
 
         const moved = yield* move(service, run)
 
@@ -88,6 +90,34 @@ describe('MoveRunService', () => {
         error,
         new RunStatusInvalidError({ id: queuedRun.id, from: 'queued', to: 'generating' }),
       )
+      assert.deepStrictEqual(updates, [])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('fail keeps the full text of the cause, its nested causes included', () => {
+    const { layer } = recordUpdates(Option.some(new Run({ ...queuedRun, status: 'generating' })))
+    return Effect.gen(function* () {
+      const service = yield* MoveRunService
+      const refused = new Error('SQS is unavailable', { cause: new Error('the broker is down') })
+
+      const failed = yield* service.fail(queuedRun.id, Cause.die(refused))
+
+      const { cause } = Option.getOrThrow(failed.failure)
+      assert.include(cause, 'Error: SQS is unavailable')
+      assert.include(cause, 'Error: the broker is down')
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('fail of a Run settled or gone fails RunNotFoundError and writes nothing', () => {
+    const { updates, layer } = recordUpdates(Option.none())
+    return Effect.gen(function* () {
+      const service = yield* MoveRunService
+
+      const error = yield* service
+        .fail(queuedRun.id, Cause.fail('SQS is unavailable'))
+        .pipe(Effect.flip)
+
+      assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ id: queuedRun.id }))
       assert.deepStrictEqual(updates, [])
     }).pipe(Effect.provide(layer))
   })
