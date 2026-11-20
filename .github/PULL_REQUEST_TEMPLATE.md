@@ -17,7 +17,7 @@
   │  ── Author self-check (tick before requesting review) ──                 │
   │  [ ] Title is a commits.md subject (gitmoji + type(scope) + imperative ≤50)
   │  [ ] `make check` passes                                                 │
-  │  [ ] How to read filled; inline explanations posted (pull-requests.md)   │
+  │  [ ] How to read filled (pull-requests.md)                               │
   │  [ ] New dependency pinned in a named catalog (tooling.md › Catalogs)    │
   │  [ ] The lab's lab.md, if any, and docs/knowledge/                       │
   │      updated if behaviour or conventions changed                         │

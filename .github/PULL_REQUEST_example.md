@@ -23,7 +23,7 @@ end-to-end. Source of truth for the format stays `.claude/rules/commits.md`.
   Author self-check:
   [x] Title is a commits.md subject line
   [x] `make check` passes
-  [x] How to read filled; inline explanations posted
+  [x] How to read filled
   [x] Every new dependency pinned in a named catalog
   [x] Ticket docs and docs/knowledge/ updated
 
