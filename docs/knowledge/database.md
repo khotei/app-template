@@ -187,9 +187,9 @@ touches no row:
   `RunEntityWhere` as it is. The service requires only the id; `MoveRunService`, which writes
   every status move, passes the status it read too, so a write whose expected status another
   worker has left, or whose Run is gone, changes nothing and dies; the `fail` that follows reads
-  the Run again and the use case skips it as settled or deleted. A Run's completion writes the
-  assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
-  keeps no reply.
+  the Run again, finds it settled or gone and dies too, and the next delivery skips it. A Run's
+  completion writes the assistant's message, then moves the Run to `done` naming it, in one
+  transaction, so a lost race keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
   finished when sent, an assistant's when its Run writes it. The Run names its reply:
   `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and

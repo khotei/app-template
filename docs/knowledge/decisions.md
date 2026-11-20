@@ -918,11 +918,13 @@ mid-send still leaves the Run sent or failed. The title's send only logs it, as 
 record to settle. The reply's job runs in `JobRunService.reply`: `MoveRunService.prepare` takes
 the Run if unstarted, then the chat's history, the move to `generating`, the assistant's reply,
 and the assistant's message with the Run's `done` in one transaction; what ends that answer
-fails the Run as it stands now, in one tail. A Run settled or gone is skipped, logged once, and
-one some worker started is failed unrun, with the worker-stopped text. The job's use case only
-ends the job on what `reply` leaves: the assistant's errors, which the Run already holds, end it,
-and a refused move dies. For that the service alone of the services takes `Transaction`, its
-module's `.llm` file and `MessageService`, the service of another model of its module.
+fails the Run as it stands now. A Run settled or gone fails `RunNotFoundError`, and one some
+worker started `RunStartedError`, both unwritten. The job's use case ends the job in one tail:
+it fails a started Run unrun, with the worker-stopped text, skips a Run settled or gone, ends on
+the assistant's errors, which the Run already holds, and dies on a refused move, logging each end
+once with its cause, an interrupt included; a defect is the queue consumer's to log. For the
+reply the service alone of the services takes `Transaction`, its module's `.llm` file and
+`MessageService`, the service of another model of its module.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -934,11 +936,13 @@ module's `.llm` file and `MessageService`, the service of another model of its m
   use cases that send the reply share, which lives once as a service of the Run
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
   another. A port for the send would put an interface and a layer in front of one call. The
-  Run's job and its statuses sit in one service: the rule a job keeps (an unstarted Run only),
-  the moves it makes and the tail that ends them, each failure handled once at the end of the
-  flow that owns it. Failing a started Run is a move on that rule's refusal, so it stays inside,
-  and `RunStartedError` never leaves; the skip is logged there too, as the tail's `fail` may find
-  the Run settled where it cannot fail, so its message lives once.
+  Run's job sits in one service: the rule a job keeps (an unstarted Run only), the moves it makes
+  and the handler that fails the Run on what ends the answer. The service reports each refusal
+  as a typed error, so the job's end, a policy of the job (skip, fail a dead worker's Run, end,
+  die), and every log of it sit in the use case's one tail, and the service logs nothing. The
+  handler may not fail, so a Run it finds settled or gone dies: two deliveries never both pass
+  `prepare`'s guarded write, so only a deleted chat or a copy delivered meanwhile, failing the Run
+  as started, settles it under the flow, and the handler's defect joins the answer's cause.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2); the owner's call in the
   design audit, the reply in `JobRunService`.
@@ -959,12 +963,12 @@ module's `.llm` file and `MessageService`, the service of another model of its m
   reply's send. A domain error wrapping `QueueError` and a `503` for a refused reply: a second
   name for one failure, which the Run already holds, and a retry is the client's next step either
   way. The reply in its use case, the service only sending: the Run's rule and moves composed in
-  a flow, and its job's statuses in two units. The started Run failed by the use case: a move on
-  a rule's refusal outside the service that holds the rule. The skip logged by the use case: the
-  tail's skip stays in the service, so one message in two files. The assistant's errors settled
-  in the service: the use case would hold nothing, and the job's end is the job's policy. A
-  port in `domain/` for the assistant the job's service calls: an interface with one
-  implementation for one caller, where its own override admits the `.llm` file by name.
+  a flow, and its job's statuses in two units. The started Run failed and the skip logged in the
+  service, `reply` then failing only with the assistant's errors: the job's end split over two
+  units, each with its logs. The assistant's errors settled in the service: the use case would
+  hold nothing, and the job's end is the job's policy. A port in `domain/` for the assistant the
+  job's service calls: an interface with one implementation for one caller, where its own
+  override admits the `.llm` file by name.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its
   chat busy ([roadmap.md › Later](roadmap.md#later)), and so does a client that aborts while the
   Run's write commits or the title's send runs, as the flow then ends before the reply's send
@@ -977,13 +981,16 @@ module's `.llm` file and `MessageService`, the service of another model of its m
   service comes near a use case in reach (a transaction, an assistant, another model's service):
   its own Biome override admits it by file name (`job-*.service.ts`), so any service so named
   passes, and review keeps it to its job; it names the assistant's errors through the
-  assistant's type, as a service imports no part of the kernel.
+  assistant's type, as a service imports no part of the kernel. The use case moves a Run itself,
+  failing a started one on the rule's refusal outside the service that holds the rule. A model's
+  error on a Run whose chat is deleted meanwhile dies instead of ending the job, so SQS delivers
+  it once more, and that delivery skips the Run.
 - **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `JobRunService`, one
   interrupted mid-send, one while the assistant answers, one while the job reads its Run, of the
-  job's end in its use case and of the create flow; the services' Biome override, which admits
-  of their infrastructure only `#*/infrastructure/*.queue`, and the job's service's, which adds
-  its `.llm` files and of `@app-template/packages/db` only `Transaction`; the `infrastructure/` and
-  `use-cases` rows of [architecture.md › Dependency rules](architecture.md#dependency-rules).
+  job's end and its logs in its use case, an interrupt's among them, and of the create flow; the
+  services' Biome override, which admits of their infrastructure only `#*/infrastructure/*.queue`,
+  and the job's service's, which adds its `.llm` files and of `@app-template/packages/db` only
+  `Transaction`; the `infrastructure/` and `use-cases` rows of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 

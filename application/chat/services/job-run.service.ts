@@ -3,7 +3,11 @@ import { Cause, Context, Effect, Layer } from 'effect'
 import { Transaction } from '@app-template/packages/db'
 
 import type { AssistantReply } from '#chat/domain/assistant.model'
-import type { RunStatusInvalidError } from '#chat/domain/run.error'
+import type {
+  RunNotFoundError,
+  RunStartedError,
+  RunStatusInvalidError,
+} from '#chat/domain/run.error'
 import type { Run } from '#chat/domain/run.model'
 import type { RunId } from '#chat/domain/run.util'
 import { sendGenerateAssistantMessage } from '#chat/infrastructure/chat.queue'
@@ -20,10 +24,6 @@ type Sending = Effect.Services<ReturnType<typeof sendGenerateAssistantMessage>>
 /** The assistant's failures, named through it, as a service imports no part of the kernel. */
 type AssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['reply']>>
 
-const logSkipped = () => Effect.logInfo('assistant reply skipped: its Run is settled or gone')
-
-const workerStopped = Cause.die('the worker that started the Run stopped before it ended')
-
 /** Sends a Run's job after the commit of the Run it names, and runs it, settling each on the Run. */
 export class JobRunService extends Context.Service<
   JobRunService,
@@ -33,12 +33,16 @@ export class JobRunService extends Context.Service<
     /**
      * Takes the Run `id` for its job, generates its reply and settles it: `done` with the
      * assistant's message, or `failed` with the full text of what ended it, an interrupt
-     * included. A Run settled or gone is skipped, and one some worker started is failed unrun,
-     * as that worker has died.
+     * included. A Run settled or gone fails `RunNotFoundError`, and one some worker started
+     * `RunStartedError`, both unwritten.
      */
     readonly reply: (
       id: RunId,
-    ) => Effect.Effect<void, RunStatusInvalidError | AssistantError, MessageAssistant>
+    ) => Effect.Effect<
+      void,
+      RunNotFoundError | RunStartedError | RunStatusInvalidError | AssistantError,
+      MessageAssistant
+    >
   }
 >()('@app-template/application/chat/services/JobRunService', {
   make: Effect.gen(function* () {
@@ -77,34 +81,17 @@ export class JobRunService extends Context.Service<
       yield* settleCompleted(generating, generated)
     })
 
-    /**
-     * Fails the Run as it stands now, the reply having moved it, and warns with `cause`; one
-     * settled meanwhile is skipped, and a refused move dies, being a bug.
-     *
-     * The warning follows the write: logged before it, it would also mark a skipped Run as failed.
-     */
-    const failLatest = (id: RunId, cause: Cause.Cause<unknown>) =>
-      moves.fail(id, cause).pipe(
-        Effect.tap(() => Effect.logWarning('assistant reply failed', cause)),
-        Effect.catchTag('RunNotFoundError', logSkipped),
-        Effect.orDie,
+    const reply = Effect.fn('JobRunService.reply')(function* (id: RunId) {
+      const prepared = yield* moves.prepare(id)
+      // On the answer, not on `prepare`: an interrupt during `prepare` leaves the Run at most
+      // `preparing`, which the next delivery fails as started. The handler runs uninterruptibly;
+      // a Run it finds settled or gone is a lost race and dies, joining the answer's cause: two
+      // deliveries never both pass `prepare`'s guarded write, so only a deleted chat or a copy
+      // delivered meanwhile, failing the Run as started, settles it under this flow.
+      yield* answer(prepared).pipe(
+        Effect.onError((cause) => moves.fail(prepared.id, cause).pipe(Effect.orDie)),
       )
-
-    const reply = Effect.fn('JobRunService.reply')(
-      function* (id: RunId) {
-        const prepared = yield* moves.prepare(id)
-        // On the answer, not on `prepare`: an interrupt during `prepare` writes nothing, or
-        // leaves the Run `preparing`, and SQS delivers the job again, which fails a Run left
-        // `preparing` as started. An error handler runs uninterruptibly, so a stopping worker
-        // waits for the `failed` write; it may not fail, which `failLatest` never does.
-        yield* answer(prepared).pipe(Effect.onError((cause) => failLatest(prepared.id, cause)))
-      },
-      Effect.catchTags({
-        RunNotFoundError: logSkipped,
-        // A job runs once, so the worker that started the Run has died.
-        RunStartedError: ({ id }) => failLatest(id, workerStopped),
-      }),
-    )
+    })
 
     return { send, reply }
   }),

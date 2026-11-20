@@ -17,10 +17,11 @@ import { TestClock } from 'effect/testing'
 
 import type { MessageColumns, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
-import { recordLogs } from '@app-template/packages/testing'
+import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
+import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
 import { JobRunService } from '#chat/services/job-run.service'
@@ -306,18 +307,15 @@ describe('JobRunService', () => {
   })
 
   it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
-    'reply fails a $status Run a dead worker left, without asking the assistant',
+    'reply of a $status Run fails RunStartedError, writing nothing and asking no assistant',
     ({ status }) => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
       return Effect.gen(function* () {
-        yield* reply
+        const error = yield* reply.pipe(Effect.flip)
 
-        assert.deepStrictEqual(moves(writes), [`${status} → failed`])
-        assert.include(
-          lastWrite(writes).cause,
-          'the worker that started the Run stopped before it ended',
-        )
+        assert.strictEqual(error._tag, 'RunStartedError')
+        assert.deepStrictEqual(writes.runs, [])
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
@@ -348,7 +346,7 @@ describe('JobRunService', () => {
   })
 
   it.effect(
-    'reply dies on a done write the store refuses, and skips the Run it then reads settled',
+    'reply dies on a done write the store refuses, leaving the Run it then reads settled unfailed',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const { logs, layer: logger } = recordLogs()
@@ -359,9 +357,7 @@ describe('JobRunService', () => {
 
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(moves(writes), ['queued → preparing', 'preparing → generating'])
-        assert.deepStrictEqual(logs, [
-          ['Info', 'assistant reply skipped: its Run is settled or gone'],
-        ])
+        assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
           layerChatTest({
@@ -382,46 +378,20 @@ describe('JobRunService', () => {
     },
   )
 
-  it.effect('reply skips a Run settled before it, without asking the assistant', () => {
+  it.effect.each([
+    { name: 'settled before it', selectOne: readsInTurn(doneElsewhere) },
+    { name: 'the store finds none of', selectOne: () => Effect.succeedNone },
+  ])('reply of a Run $name fails RunNotFoundError, asking no assistant', ({ selectOne }) => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
-    const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
-      yield* reply
+      const error = yield* reply.pipe(Effect.flip)
 
+      assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ id: queuedRun.id }))
       assertEquals(yield* assistant.histories, [])
-      assert.deepStrictEqual(logs, [
-        ['Info', 'assistant reply skipped: its Run is settled or gone'],
-      ])
     }).pipe(
-      Effect.provide([
-        layerChatTest({ runs: { selectOne: readsInTurn(doneElsewhere) } }).pipe(
-          Layer.provideMerge(assistant.layer),
-        ),
-        logger,
-      ]),
+      Effect.provide(
+        layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
+      ),
     )
   })
-
-  it.effect(
-    'reply skips a Run the store finds none of, as for a deleted chat, without asking',
-    () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sure))
-      const { logs, layer: logger } = recordLogs()
-      return Effect.gen(function* () {
-        yield* reply
-
-        assertEquals(yield* assistant.histories, [])
-        assert.deepStrictEqual(logs, [
-          ['Info', 'assistant reply skipped: its Run is settled or gone'],
-        ])
-      }).pipe(
-        Effect.provide([
-          layerChatTest({ runs: { selectOne: () => Effect.succeedNone } }).pipe(
-            Layer.provideMerge(assistant.layer),
-          ),
-          logger,
-        ]),
-      )
-    },
-  )
 })

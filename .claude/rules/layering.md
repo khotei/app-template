@@ -26,7 +26,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
   moves, each a transition written under the status read → `Move<Model>Service`; its job →
   `Job<Model>Service`, which sends it through its module's `<model>.queue` file after the commit
-  of the writes the job reads, never inside a transaction, and runs it, settling each outcome on
+  of the writes the job reads, never inside a transaction, and runs it, settling what ends it on
   the record. It alone may also take `Transaction`, its module's `.llm` file and another model's
   service of its module, for the writes that settle the job. Record:
   [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
@@ -60,9 +60,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: its run (the `Job<Model>Service` method of a job with a record,
   else the use case) ends its work on any outcome but success, an interrupt included, save one
-  between the write that marks the work started and the handler that ends it, and ends work it
-  finds started, left by a run that died or was cut there; the use case ends the job on the rest
-  ([record](../../docs/knowledge/decisions.md#a-runs-moves-in-their-own-service)).
+  between the write that marks the work started and the handler that ends it; the use case ends
+  the job in one tail, failing work found started, left by a run that died or was cut there
+  ([record](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 

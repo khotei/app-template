@@ -196,7 +196,7 @@
                   },
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
-                    "message": "a module's services reach its infrastructure only through a port, save its queue file, whose sends a layered service of the model calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "a module's services reach its infrastructure only through a port, save its queue file, whose sends a job's service calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }

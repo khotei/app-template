@@ -1,10 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Effect, Fiber, Layer, Option } from 'effect'
 
 import { GenerateAssistantMessage, Message, Run } from '@app-template/application/chat'
 import {
   firstMessage,
+  holdAssistantCall,
   layerChatTest,
   queuedRun,
   recordMessageAssistant,
@@ -18,14 +19,23 @@ import { generateAssistantMessage } from '#use-cases/chat/generate-assistant-mes
 
 const generate = generateAssistantMessage(new GenerateAssistantMessage({ runId: queuedRun.id }))
 
+const readRun = (run: Run) => () => encodeWith(Run)(run).pipe(Effect.map(Option.some))
+
+const generating = new Run({ ...queuedRun, status: 'generating' })
+
+/** Each log line as its level and message. */
+const levels = (logs: ReadonlyArray<ReadonlyArray<unknown>>) =>
+  Arr.map(logs, (line) => Arr.take(line, 2))
+
 describe('generateAssistantMessage', () => {
   it.effect.each([
     { name: 'LlmRefusedError', error: new LlmRefusedError({ cause: 'stop_reason refusal' }) },
     { name: 'LlmFailedError', error: new LlmFailedError({ cause: '401 invalid x-api-key' }) },
   ] as const)(
-    'generate ends on $name after one call, the Run failed with its text and no reply written',
+    'generate ends on $name after one call with a warning, the Run failed with its text and no reply written',
     ({ error }) => {
       const assistant = recordMessageAssistant(Effect.fail(error))
+      const { logs, layer: logger } = recordLogs()
       const updates: Array<RunEntitySet> = []
       return Effect.gen(function* () {
         yield* generate
@@ -36,11 +46,13 @@ describe('generateAssistantMessage', () => {
         )
         assert.include(updates.at(-1)?.failure?.cause, error.cause)
         assert.strictEqual((yield* assistant.histories).length, 1)
+        assert.deepStrictEqual(levels(logs), [['Warn', 'assistant reply failed']])
+        assert.strictEqual(logs[0]?.[2], error)
       }).pipe(
-        Effect.provide(
+        Effect.provide([
           layerChatTest({
             runs: {
-              selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
+              selectOne: readRun(queuedRun),
               update: (set) =>
                 Effect.sync(() => {
                   updates.push(set)
@@ -49,12 +61,13 @@ describe('generateAssistantMessage', () => {
             // No `insert`: a reply written would die on it.
             messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
           }).pipe(Layer.provideMerge(assistant.layer)),
-        ),
+          logger,
+        ]),
       )
     },
   )
 
-  it.effect("generate logs under its Run's id, as when it skips a settled Run", () => {
+  it.effect("generate skips a Run settled or gone, logged under its Run's id", () => {
     const assistant = recordMessageAssistant(Effect.never)
     const { logs, layer: logger } = recordLogs('runId')
     return Effect.gen(function* () {
@@ -73,4 +86,82 @@ describe('generateAssistantMessage', () => {
       ]),
     )
   })
+
+  it.effect('generate fails a Run a dead worker left started, with a warning, unasked', () => {
+    const assistant = recordMessageAssistant(Effect.never)
+    const { logs, layer: logger } = recordLogs()
+    const updates: Array<RunEntitySet> = []
+    return Effect.gen(function* () {
+      yield* generate
+
+      assert.deepStrictEqual(
+        Arr.map(updates, ({ status }) => status),
+        ['failed'],
+      )
+      assert.include(
+        updates.at(-1)?.failure?.cause,
+        'the worker that started the Run stopped before it ended',
+      )
+      assertEquals(yield* assistant.histories, [])
+      assert.deepStrictEqual(logs, [['Warn', 'assistant reply failed']])
+    }).pipe(
+      Effect.provide([
+        layerChatTest({
+          runs: {
+            selectOne: readRun(generating),
+            update: (set) =>
+              Effect.sync(() => {
+                updates.push(set)
+              }),
+          },
+        }).pipe(Layer.provideMerge(assistant.layer)),
+        logger,
+      ]),
+    )
+  })
+
+  it.effect('generate skips a started Run settled before it fails it', () => {
+    const { logs, layer: logger } = recordLogs()
+    let reads = 0
+    return Effect.gen(function* () {
+      yield* generate
+
+      assert.deepStrictEqual(logs, [
+        ['Info', 'assistant reply skipped: its Run is settled or gone'],
+      ])
+    }).pipe(
+      Effect.provide([
+        layerChatTest({
+          runs: {
+            selectOne: () => (reads++ === 0 ? readRun(generating)() : Effect.succeedNone),
+          },
+        }).pipe(Layer.provideMerge(recordMessageAssistant(Effect.never).layer)),
+        logger,
+      ]),
+    )
+  })
+
+  it.effect(
+    'generate interrupted while the assistant answers warns once, with the interrupt',
+    () => {
+      const held = holdAssistantCall()
+      const assistant = recordMessageAssistant(held.hold.pipe(Effect.andThen(Effect.never)))
+      const { logs, layer: logger } = recordLogs()
+      return Effect.gen(function* () {
+        const running = yield* Effect.forkChild(generate)
+        yield* held.asked
+        yield* Fiber.interrupt(running)
+
+        assert.deepStrictEqual(logs, [['Warn', 'assistant reply failed']])
+      }).pipe(
+        Effect.provide([
+          layerChatTest({
+            runs: { selectOne: readRun(queuedRun), update: () => Effect.void },
+            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+          }).pipe(Layer.provideMerge(assistant.layer)),
+          logger,
+        ]),
+      )
+    },
+  )
 })
