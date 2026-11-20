@@ -176,8 +176,8 @@ a race: every repository's `insert`, `update` and `delete` dies when Postgres re
 touches no row:
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `createUserMessage` reads the chat with its
-  newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`, `ChatBusyError`, 409);
+  active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat read with
+  its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`, `ChatBusyError`, 409);
   of two sends that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window answers
   500.
@@ -217,9 +217,11 @@ cascade, and `ChatService.delete` is all the api's delete calls.
 
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
-(`Transaction.layer` wraps `SqlClient.withTransaction`), and every repository call inside joins
-the transaction through the connection `@effect/sql` keeps in the fiber's context, so no
-repository takes a transaction parameter. The guards above decide every
+(`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
+pipes `transaction.run` on the expression that holds them: `AskChatService.ask` the user's
+message and its queued Run, `JobRunService.reply` the reply and the Run's `done`. Every
+repository call inside joins the transaction through the connection `@effect/sql` keeps in the
+fiber's context, so no repository takes a transaction parameter. The guards above decide every
 race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3
 stays outside the transaction: the bytes are kept before the row that binds them and deleted once
 the rows are gone, so no row names bytes that are gone; a failure between the two leaves only

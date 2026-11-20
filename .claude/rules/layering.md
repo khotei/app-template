@@ -27,8 +27,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   moves, each a transition written under the status read → `Move<Model>Service`; its job →
   `Job<Model>Service`, which sends it through its module's `<model>.queue` file after the commit
   of the writes the job reads, never inside a transaction, and runs it, settling what ends it on
-  the record. It alone may also take `Transaction`, its module's `.llm` file and another model's
-  service of its module, for the writes that settle the job. Record:
+  the record; a request for a job → `Ask<Model>Service`, given the model asked as read: its rules,
+  then the writes the job reads. Only these two take `Transaction` and another model's service of
+  their module; `Job<Model>Service` its `.llm` file too. Record:
   [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a

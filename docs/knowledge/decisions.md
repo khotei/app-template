@@ -50,7 +50,9 @@ Every use case lives in `application/use-cases`, above the modules: synchronous,
 whatever modules it touches; no events, facades or reactions between modules. A use case
 composes the modules' services and model rules, holds the transaction, orders the writes against
 a store outside it and enqueues the jobs, and holds nothing else: a rule, a read or a write stays
-in its module's models and services
+in its module's models and services, and a request's rules with the writes of one module that
+commit together sit in a service of that module, the transaction piped on those writes
+(`AskChatService`, [Layered services of one model](#layered-services-of-one-model))
 ([Composition: wrap or compose](#composition-wrap-or-compose),
 [layering.md › Use cases](../../.claude/rules/layering.md#use-cases)). The shape:
 [architecture.md › A use case](architecture.md#a-use-case).
@@ -191,7 +193,9 @@ the data layer's repository directly.
   `@app-template/kernel/aws` nor `@app-template/packages/queue`, and of their infrastructure only
   the queue file (`#*/infrastructure/*.queue`), a job's service (`job-*.service.ts`) its own,
   which adds `Transaction` alone of `@app-template/packages/db` and the module's `.llm` files
-  ([Jobs as queue messages](#jobs-as-queue-messages)): the rows of a module's layers in
+  ([Jobs as queue messages](#jobs-as-queue-messages)), and the chat's ask service
+  (`ask-chat.service.ts`) its own, which adds `Transaction` alone and none of the infrastructure
+  ([Layered services of one model](#layered-services-of-one-model)): the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
@@ -504,8 +508,12 @@ needs and passing its guard into the plain delete's `where`, and removes the byt
 cascade took their rows, dying while one remains. A service sees only the services of
 its own model below it and reaches the records only through the plain one; another model's
 service stays a use case's, save in `Job<Model>Service`, whose run of the job writes another
-model's record of its module ([Jobs as queue messages](#jobs-as-queue-messages)). How a service
-grows:
+model's record of its module ([Jobs as queue messages](#jobs-as-queue-messages)), and in
+`AskChatService`, which takes a chat as read, checks a request to it (a blank text, a busy chat, a
+Run not retryable) and stores what the reply's job reads, the user's message with its queued Run
+in one transaction, or a retry's new Run of the failed Run's message; the use cases that ask, a
+send and a retry, keep the chat's read scoped to the user and the sends after the commit. How a
+service grows:
 [Composition: wrap or compose](#composition-wrap-or-compose).
 
 ```ts
@@ -521,12 +529,19 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 - **Why:** a read's name says what it answers: the plain service answers the records as stored,
   and the bytes are stored and removed with their record in one service; a holder that needs the
   records alone (a list, a bind) holds no byte store. The row's coding and its guards have one
-  owner, so a change of the model's row lands in the plain service alone.
+  owner, so a change of the model's row lands in the plain service alone. A request's rules and
+  its writes sit in one service of the chat, as the job's sit in `JobRunService`, so the busy
+  check is written once for the send and the retry, and neither flow holds a rule or a
+  transaction.
 - **Sources:** `.claude/rules/composition.md`; `.claude/rules/layering.md › Ports and domain
-  services`.
+  services`; the owner's call in the design audit, the request in `AskChatService`.
 - **Rejected:** one service per model, the bytes in `<Model>Service`: two reasons to change in one
   unit, and a byte store every holder of the records depends on. The file service writing or
-  reading the rows through the repository itself: a second owner of the row's coding.
+  reading the rows through the repository itself: a second owner of the row's coding. A
+  request's rules called in the use cases' flow, its writes in a helper beside them: a rule's call
+  and a transaction in a flow, the busy check in two flows. `ask` and `retry` as methods of
+  `JobRunService`: one service holding the whole feature, the request and the job, with two
+  reasons to change.
 - **Cost:** two services and two layers for one model; a handler of the model takes both; the
   plain `create` and `delete` have one caller, the file service, and `delete` only
   forwards to the repository with its span: they stay as the records' one owner, which a test that
@@ -535,10 +550,16 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule
   over the reads that one flow applies is piped there, and a flow that forgets the pipe skips it;
   a rule every reader must apply is a service named for it. The plain `getMany` leaves an absent
-  id out, so the rule the reader pipes names every absent id at once.
+  id out, so the rule the reader pipes names every absent id at once. `AskChatService` is one
+  more service and layer, and a second service that takes `Transaction` and other models'
+  services, admitted by its own Biome override, by its file's name. A send's blank text for a chat
+  the user does not hold now answers `ChatNotFoundError`, not `MessageInputInvalidError`, as the
+  chat is read before the service checks the text.
 - **Guarded by:** review, by `layering.md` and `composition.md`; `noImportCycles` refuses a lower
   service that imports an upper one; nothing refuses a service of another model, in a job's
-  service or any other.
+  service or any other. `AskChatService`'s Biome override admits of `@app-template/packages/db`
+  only `Transaction` and none of the module's infrastructure; its unit test pins each refusal
+  before any write, and the api's e2e of a send whose Run Postgres refuses keeps no message.
 - **If reversed:** the file methods fold into one `<Model>Service`, and every holder of the records
   depends on the byte store.
 - **Revisit when:** a rule over the reads must reach every reader, so a service named for it takes
@@ -921,8 +942,10 @@ finds nothing to fail. The job's use case ends the job in one tail: it skips a R
 gone, ends on a started Run and on the assistant's errors, which the Run already holds, and dies
 on a refused move, logging each end once with its cause, an interrupt included; a defect is the
 queue consumer's to log. For the
-reply the service alone of the services takes `Transaction`, its module's `.llm` file and
-`MessageService`, the service of another model of its module.
+reply the service takes `Transaction`, its module's `.llm` file and `MessageService`, the service
+of another model of its module; of the other services only `AskChatService` takes `Transaction`
+and other models' services, for the writes the job reads
+([Layered services of one model](#layered-services-of-one-model)).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and

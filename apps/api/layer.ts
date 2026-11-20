@@ -5,6 +5,7 @@ import { HttpApiBuilder } from 'effect/http-api'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
+  AskChatService,
   ChatService,
   JobRunService,
   MessageService,
@@ -32,7 +33,7 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
 // After `serve`, which makes what a handler reads per request its own requirement: a use case
 // the handler calls reads its services so, and a handler group's provide never reaches them.
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
-  Layer.provide(JobRunService.layer),
+  Layer.provide([AskChatService.layer, JobRunService.layer]),
   Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer, UserService.layer]),
 )

@@ -71,7 +71,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | `/llm/error`'s errors only | `schema` only | `application/*/domain/**`, `kernel/data` and `/llm/error` by name |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only; a job's service `db`'s `Transaction` too | `application/*/services/**`; a job's service, `application/*/services/job-*.service.ts` |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only; a job's service and the chat's ask service `db`'s `Transaction` too | `application/*/services/**`; a job's service, `application/*/services/job-*.service.ts`; the ask service, `application/chat/services/ask-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |

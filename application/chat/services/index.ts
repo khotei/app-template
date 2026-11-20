@@ -1,3 +1,4 @@
+export * from '#chat/services/ask-chat.service'
 export * from '#chat/services/chat.service'
 export * from '#chat/services/job-run.service'
 export * from '#chat/services/message.service'
