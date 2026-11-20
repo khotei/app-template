@@ -349,7 +349,7 @@ moves it into its own `Later` and deletes it here.
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`sendGenerateAssistantMessage`, called by
-  `application/chat/services/job-run.service.ts`, the last step of the create and the
+  `application/chat/services/ask-run.service.ts`, the last step of the create and the
   retry), or the client aborts after the commit but before the send starts: a send SQS refuses
   fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a dead
   process, and an interrupt during the commit or the title's send ends the flow first. Ways out
@@ -380,7 +380,7 @@ moves it into its own `Later` and deletes it here.
   opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
   snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
-  (`application/chat/services/job-run.service.ts`, `JobRunService.reply`): its
+  (`application/chat/services/ask-run.service.ts`, `AskRunService.reply`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
@@ -407,7 +407,7 @@ moves it into its own `Later` and deletes it here.
 
 ### From the design audit of 2026-11-19
 
-- (2026-11-19, verified) The reply job's exit handler (`job-run.service.ts`)
+- (2026-11-19, verified) The reply job's exit handler (`ask-run.service.ts`)
   cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
   `Exit.filterCause` can, in 3 lines in place of 8.
 - (2026-11-19, verified) The replay duty is stated with three scopes (`claude-md.md › The toolkit`,

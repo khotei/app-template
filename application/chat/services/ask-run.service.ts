@@ -24,11 +24,11 @@ type Sending = Effect.Services<ReturnType<typeof sendGenerateAssistantMessage>>
 type AssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['reply']>>
 
 /** Sends a Run's job after the commit of the Run it names, and runs it, settling each on the Run. */
-export class JobRunService extends Context.Service<
-  JobRunService,
+export class AskRunService extends Context.Service<
+  AskRunService,
   {
     /** Answers the Run sent, or failed with the full text of SQS's refusal. */
-    readonly send: (run: Run) => Effect.Effect<Run, never, Sending>
+    readonly ask: (run: Run) => Effect.Effect<Run, never, Sending>
     /**
      * Takes the Run `id` for its job, generates its reply and settles it: `done` with the
      * assistant's message, or `failed` with the full text of what ended it, an interrupt and
@@ -43,13 +43,13 @@ export class JobRunService extends Context.Service<
       MessageAssistant
     >
   }
->()('@app-template/application/chat/services/JobRunService', {
+>()('@app-template/application/chat/services/AskRunService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageService
     const moves = yield* MoveRunService
     const transaction = yield* Transaction
 
-    const send = Effect.fn('JobRunService.send')((run: Run) =>
+    const ask = Effect.fn('AskRunService.ask')((run: Run) =>
       sendGenerateAssistantMessage(run).pipe(
         Effect.as(run),
         Effect.catch((error) => moves.fail(run.id, Cause.fail(error))),
@@ -60,7 +60,7 @@ export class JobRunService extends Context.Service<
       ),
     )
 
-    const reply = Effect.fn('JobRunService.reply')(
+    const reply = Effect.fn('AskRunService.reply')(
       function* (id: RunId) {
         const assistant = yield* MessageAssistant
 
@@ -90,7 +90,7 @@ export class JobRunService extends Context.Service<
         ),
     )
 
-    return { send, reply }
+    return { ask, reply }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

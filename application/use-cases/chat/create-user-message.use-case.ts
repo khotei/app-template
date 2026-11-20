@@ -2,10 +2,10 @@ import { Effect } from 'effect'
 
 import {
   AskChatService,
+  AskRunService,
   type ChatId,
   ChatService,
   isNewChat,
-  JobRunService,
   sendGenerateChatTitle,
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
@@ -17,13 +17,13 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   text: string,
 ) {
   const chats = yield* ChatService
-  const asks = yield* AskChatService
-  const jobs = yield* JobRunService
+  const askChat = yield* AskChatService
+  const askRun = yield* AskRunService
 
   const chat = yield* chats.getOne({ id: chatId, userId })
-  const run = yield* asks.ask(chat, text)
+  const run = yield* askChat.ask(chat, text)
 
   // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
-  return yield* jobs.send(run)
+  return yield* askRun.ask(run)
 })

@@ -1,6 +1,6 @@
 import { Cause, Effect } from 'effect'
 
-import { type GenerateAssistantMessage, JobRunService } from '@app-template/application/chat'
+import { AskRunService, type GenerateAssistantMessage } from '@app-template/application/chat'
 
 const logSkipped = () => Effect.logInfo('assistant reply skipped: its Run is settled or gone')
 
@@ -13,7 +13,7 @@ const logFailed = (cause: Cause.Cause<unknown>) =>
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
   (job: GenerateAssistantMessage) =>
-    JobRunService.use((jobs) => jobs.reply(job.runId)).pipe(
+    AskRunService.use((askRun) => askRun.reply(job.runId)).pipe(
       Effect.catchTags({
         RunNotFoundError: logSkipped,
         // The Run holds these failures now, so the job ends.

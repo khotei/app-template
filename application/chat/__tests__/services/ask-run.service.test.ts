@@ -24,7 +24,7 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
-import { JobRunService } from '#chat/services/job-run.service'
+import { AskRunService } from '#chat/services/ask-run.service'
 import {
   assistantMessageAt,
   chatId,
@@ -154,15 +154,15 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-const reply = JobRunService.use((jobs) => jobs.reply(queuedRun.id))
+const reply = AskRunService.use((askRun) => askRun.reply(queuedRun.id))
 
-describe('JobRunService', () => {
-  it.effect("send fails the Run with the text of SQS's refusal, and answers the failed Run", () => {
+describe('AskRunService', () => {
+  it.effect("ask fails the Run with the text of SQS's refusal, and answers the failed Run", () => {
     const { updates, layer } = recordUpdates(layerRefusingQueueTest())
     return Effect.gen(function* () {
-      const jobs = yield* JobRunService
+      const askRun = yield* AskRunService
 
-      const sent = yield* jobs.send(queuedRun)
+      const sent = yield* askRun.ask(queuedRun)
 
       assert.strictEqual(sent.status, 'failed')
       assert.include(Option.getOrThrow(sent.failure).cause, 'SQS is unavailable')
@@ -173,13 +173,13 @@ describe('JobRunService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('send interrupted while SQS refuses the job still fails the Run', () => {
+  it.effect('ask interrupted while SQS refuses the job still fails the Run', () => {
     const held = holdAssistantCall()
     const { updates, layer } = recordUpdates(layerRefusingQueueTest(held.hold))
     return Effect.gen(function* () {
-      const jobs = yield* JobRunService
+      const askRun = yield* AskRunService
 
-      const running = yield* jobs.send(queuedRun).pipe(Effect.forkChild)
+      const running = yield* askRun.ask(queuedRun).pipe(Effect.forkChild)
       yield* held.asked
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),

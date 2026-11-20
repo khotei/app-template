@@ -6,8 +6,8 @@ import type { Transaction } from '@app-template/packages/db'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { AskChatService } from '#chat/services/ask-chat.service'
+import { AskRunService } from '#chat/services/ask-run.service'
 import { ChatService } from '#chat/services/chat.service'
-import { JobRunService } from '#chat/services/job-run.service'
 import { MessageService } from '#chat/services/message.service'
 import { MoveRunService } from '#chat/services/move-run.service'
 import { RunService } from '#chat/services/run.service'
@@ -28,7 +28,7 @@ export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   transaction: Layer.Layer<Transaction> = TransactionTest,
 ) =>
-  Layer.mergeAll(AskChatService.layer, JobRunService.layer).pipe(
+  Layer.mergeAll(AskChatService.layer, AskRunService.layer).pipe(
     Layer.provideMerge(MoveRunService.layer),
     Layer.provideMerge(Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer)),
     Layer.provideMerge(

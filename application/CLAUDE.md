@@ -22,8 +22,8 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   for every workspace's unit tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
   ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a service
-  a use case or a `Job<Model>Service` calls there, keeps its client and prompts inside, so
+  a use case or the work's `Ask<Model>Service` calls there, keeps its client and prompts inside, so
   callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and each job's
-  `send<Job>`, which only sends; a use case or its model's `Job<Model>Service` calls it, after
+  `send<Job>`, which only sends; a use case or the work's `Ask<Model>Service` calls it, after
   the commit, and no adapter wraps the worker.

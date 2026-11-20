@@ -219,7 +219,7 @@ A use case that writes several aggregates commits them together: the `Effect.fn`
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
 (`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
 pipes `transaction.run` on the expression that holds them: `AskChatService.ask` the user's
-message and its queued Run, `JobRunService.reply` the reply and the Run's `done`. Every
+message and its queued Run, `AskRunService.reply` the reply and the Run's `done`. Every
 repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every
 race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3
@@ -251,7 +251,7 @@ chat's title) is the one the worker reads
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
 - **A send SQS refuses** is logged with the job's id and its chat's. For the reply's,
-  `JobRunService.send` also fails its Run through `MoveRunService.fail`, as it stands now, with
+  `AskRunService.ask` also fails its Run through `MoveRunService.fail`, as it stands now, with
   the queue's error's full text as its failure, and the request answers `202` with that failed
   Run; the message is stored and shown failed with its retry,
   `POST /chats/:chatId/runs`. The title's send only logs it. A send that never happens after the

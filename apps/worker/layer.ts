@@ -4,9 +4,9 @@ import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
+  AskRunService,
   ChatAssistant,
   ChatService,
-  JobRunService,
   MessageAssistant,
   MessageService,
   MoveRunService,
@@ -21,7 +21,7 @@ import { Transaction } from '@app-template/packages/db'
 import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide(JobRunService.layer),
+  Layer.provide(AskRunService.layer),
   Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
 )

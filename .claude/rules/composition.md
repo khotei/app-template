@@ -25,7 +25,7 @@ Ask in order; the first yes decides:
    ones; a caller that needs only the old one keeps it.
 4. **An order of calls over services of several models, a request's transaction, or a write and
    the send of the job that reads it** → a use case; the send itself and the job's run, its
-   transaction included, → the model's `Job<Model>Service`
+   transaction included, → the `Ask<Model>Service` of the work's record
    ([layering.md](layering.md#ports-and-domain-services)).
 
 ```ts
@@ -52,9 +52,9 @@ static readonly layerAudited = Layer.effect(
 - **Domain service:** `<Model>Service` starts as its model's records
   ([layering.md › Ports and domain services](layering.md#ports-and-domain-services)); a job past
   that wraps it (`layer<Variant>`) or is a service composed over it, built from services of its
-  own model and a repository only for what it adds; a `Job<Model>Service` or `Ask<Model>Service`
-  also from another model's service of its module, for the writes that settle or start a job
-  ([layering.md](layering.md#ports-and-domain-services)).
+  own model and a repository only for what it adds; an `Ask<Model>Service`, of the work's record
+  or of the model asked, also from another model's service of its module, for the writes that
+  settle or start a job ([layering.md](layering.md#ports-and-domain-services)).
 - **Util:** a variation inside its job is a value it takes; another job is a function over it.
 - **Use case:** the composer; it holds only its flow
   ([layering.md › Use cases](layering.md#use-cases)). A step two use cases share lives once, as a

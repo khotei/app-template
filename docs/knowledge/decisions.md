@@ -147,9 +147,9 @@ A module holds `domain/`, `services/` and, once it reaches the environment, `inf
 behind one entry, its `index.ts`, which re-exports every layer; its files reach each other
 through aliases that name the module (`#<module>/domain/*`). A module's `infrastructure/` holds
 everything of the module that connects to the environment (a language model, a queue, a
-bucket): the adapters of its ports, the services a use case or a job's service calls over a
+bucket): the adapters of its ports, the services a use case or `AskRunService` calls over a
 client ([The language model in the kernel](#the-language-model-in-the-kernel)), its queues'
-definitions with the send of each job, which the job's service of its model may call
+definitions with the send of each job, which the Run's ask service (`AskRunService`) may call
 ([Jobs as queue messages](#jobs-as-queue-messages)). A repository is no port: a service calls
 the data layer's repository directly.
 
@@ -191,7 +191,7 @@ the data layer's repository directly.
   it only a value's name (`<name>Pattern`, `<name>Statuses`), and the language model's errors
   ([The language model in the kernel](#the-language-model-in-the-kernel)), the services' admitting neither
   `@app-template/kernel/aws` nor `@app-template/packages/queue`, and of their infrastructure only
-  the queue file (`#*/infrastructure/*.queue`), a job's service (`job-*.service.ts`) its own,
+  the queue file (`#*/infrastructure/*.queue`), `AskRunService` (`ask-run.service.ts`) its own,
   which adds `Transaction` alone of `@app-template/packages/db` and the module's `.llm` files
   ([Jobs as queue messages](#jobs-as-queue-messages)), and the chat's ask service
   (`ask-chat.service.ts`) its own, which adds `Transaction` alone and none of the infrastructure
@@ -507,7 +507,7 @@ composed over it, stores, serves and removes the bytes with the record, checking
 needs and passing its guard into the plain delete's `where`, and removes the bytes alone once a
 cascade took their rows, dying while one remains. A service sees only the services of
 its own model below it and reaches the records only through the plain one; another model's
-service stays a use case's, save in `Job<Model>Service`, whose run of the job writes another
+service stays a use case's, save in `AskRunService`, whose run of the job writes another
 model's record of its module ([Jobs as queue messages](#jobs-as-queue-messages)), and in
 `AskChatService`, which takes a chat as read, checks a request to it (a blank text, a busy chat, a
 Run not retryable) and stores what the reply's job reads, the user's message with its queued Run
@@ -530,7 +530,7 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   and the bytes are stored and removed with their record in one service; a holder that needs the
   records alone (a list, a bind) holds no byte store. The row's coding and its guards have one
   owner, so a change of the model's row lands in the plain service alone. A request's rules and
-  its writes sit in one service of the chat, as the job's sit in `JobRunService`, so the busy
+  its writes sit in one service of the chat, as the job's sit in `AskRunService`, so the busy
   check is written once for the send and the retry, and neither flow holds a rule or a
   transaction.
 - **Sources:** `.claude/rules/composition.md`; `.claude/rules/layering.md › Ports and domain
@@ -540,7 +540,7 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   reading the rows through the repository itself: a second owner of the row's coding. A
   request's rules called in the use cases' flow, its writes in a helper beside them: a rule's call
   and a transaction in a flow, the busy check in two flows. `ask` and `retry` as methods of
-  `JobRunService`: one service holding the whole feature, the request and the job, with two
+  `AskRunService`: one service holding the whole feature, the request and the job, with two
   reasons to change.
 - **Cost:** two services and two layers for one model; a handler of the model takes both; the
   plain `create` and `delete` have one caller, the file service, and `delete` only
@@ -575,7 +575,7 @@ their caller read; `prepare` and `fail` take the Run's id and read it as it stan
 active ones, `RunNotFoundError` once it is settled or gone. `prepare`, the job's first move,
 pipes that read through the model's `ensureRunUnstarted`, `RunStartedError` for a Run some
 worker started; `fail` keeps the full text of the `Cause` it is given. `RunService` stays the
-plain write under a caller's `where`, and `JobRunService` and every use case move a Run through
+plain write under a caller's `where`, and `AskRunService` and every use case move a Run through
 `MoveRunService`, never through a transition and an update of their own.
 
 - **Why:** the six moves of the use cases composed the same two calls with the same guard; in one
@@ -583,7 +583,7 @@ plain write under a caller's `where`, and `JobRunService` and every use case mov
   `fail` reads its own Run, as its callers fail a Run that moved since they read it (the reply
   moves it from `queued` to `generating`): no caller can hand it a stale Run. That a job takes
   only an unstarted Run is a rule of the Run, so the service that moves it calls it, as `fail`
-  reads its own Run, and `JobRunService.reply`, which runs the job, calls `prepare`
+  reads its own Run, and `AskRunService.reply`, which runs the job, calls `prepare`
   ([Jobs as queue messages](#jobs-as-queue-messages)).
 - **Sources:** the owner's call in the design audit;
   [Layered services of one model](#layered-services-of-one-model).
@@ -649,7 +649,7 @@ opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
 `askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
 (`MessageFields`, `AssistantReply`), and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in
-front of the services. A use case, or a job's service, yields the service it needs, a unit
+front of the services. A use case, or `AskRunService`, yields the service it needs, a unit
 test swaps that service's layer, and the suite builds both layers over a recording client.
 
 - **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a
@@ -689,7 +689,7 @@ test swaps that service's layer, and the suite builds both layers over a recordi
 - **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
   `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
   domain and the use cases take of `kernel/llm` only `/error`'s errors, by name; no service but
-  a job's imports an `.llm` file, so only a use case or a job's service reaches the assistants);
+  `AskRunService` imports an `.llm` file, so only it or a use case reaches the assistants);
   the assistants' suite over a recording client.
 - **If reversed:** a port per job comes back in `domain/` with an adapter constant each that
   only builds the same shape, or one port of two methods with a fake branch per method; errors
@@ -927,12 +927,12 @@ worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
 goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
 definition, which only sends it and logs a send SQS refuses. The reply's send answers its
-`QueueError`, and both use cases that send it end with `JobRunService.send`, a service of the
+`QueueError`, and both use cases that send it end with `AskRunService.ask`, a service of the
 Run layered over `MoveRunService`, which sends the job and fails the Run through
 `MoveRunService.fail`, with the error's full text as its failure; the request answers `202`
 with that failed Run. The send and that failure run uninterruptibly, so a client that aborts
 mid-send still leaves the Run sent or failed. The title's send only logs it, as its work has no
-record to settle. The reply's job runs in `JobRunService.reply`: `MoveRunService.prepare` takes
+record to settle. The reply's job runs in `AskRunService.reply`: `MoveRunService.prepare` takes
 the Run if unstarted, then the chat's history, the move to `generating`, the assistant's reply,
 and the assistant's message with the Run's `done` in one transaction; one tail on the whole
 function fails the Run as it stands now on whatever ends it, `prepare`'s refusal and an interrupt
@@ -953,7 +953,7 @@ and other models' services, for the writes the job reads
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
   has no use apart from its queue. Each unit knows only its own: the send its queue,
-  `MoveRunService` the move to `failed` and its write, `JobRunService` the pair, a step the two
+  `MoveRunService` the move to `failed` and its write, `AskRunService` the pair, a step the two
   use cases that send the reply share, which lives once as a service of the Run
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
   another. A port for the send would put an interface and a layer in front of one call. The
@@ -967,7 +967,7 @@ and other models' services, for the writes the job reads
   nothing to fail, so the answer's own failure stands; any other refusal of the handler dies.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2); the owner's call in the
-  design audit, the reply in `JobRunService`.
+  design audit, the reply in `AskRunService`.
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
@@ -991,31 +991,32 @@ and other models' services, for the writes the job reads
   that holds the rule. The skip logged in the service, `reply` then failing only with the
   assistant's errors: the job's end split over two units, each with its logs. The assistant's
   errors settled in the service: the use case would hold nothing, and the job's end is the job's
-  policy. A port in `domain/` for the assistant the job's service calls: an interface with one
+  policy. A port in `domain/` for the assistant `AskRunService` calls: an interface with one
   implementation for one caller, where its own override admits the `.llm` file by name.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its
   chat busy ([roadmap.md › Later](roadmap.md#later)), and so does a client that aborts while the
   Run's write commits or the title's send runs, as the flow then ends before the reply's send
   starts. A refused send answers `202`, so a client reads the failure from the Run's status, not
   the response's. A domain service now reaches its module's queue file, so the services' guard
-  admits that one file of infrastructure; a call of `JobRunService.send` inside a transaction
+  admits that one file of infrastructure; a call of `AskRunService.ask` inside a transaction
   would send before the commit, which no check refuses: the rule in `.claude/rules/layering.md`
-  and review hold it. Its `send` requires the queue's sender, and `reply` the assistant, which
-  the caller's process provides, so the module's test layer builds without either. A job's
-  service comes near a use case in reach (a transaction, an assistant, another model's service):
-  its own Biome override admits it by file name (`job-*.service.ts`), so any service so named
-  passes, and review keeps it to its job; it names the assistant's errors through the
-  assistant's type, as a service imports no part of the kernel. A Run settled or deleted under
+  and review hold it. Its `ask` requires the queue's sender, and `reply` the assistant, which
+  the caller's process provides, so the module's test layer builds without either.
+  `AskRunService` comes near a use case in reach (a transaction, an assistant, another model's
+  service): its own Biome override admits it by its path (`ask-run.service.ts`), apart from the
+  narrower one of `AskChatService`, which shares its prefix, and review keeps it to its job; it
+  names the assistant's errors through the assistant's type, as a service imports no part of the
+  kernel. A Run settled or deleted under
   the reply is left as it is, so the job ends on the answer's own failure: a model's error on a
   Run whose chat was deleted meanwhile warns like any other, with no sign the Run was gone. Two
   deliveries at the same instant both read the Run queued; the loser's guarded `preparing` write
   dies and its handler fails the Run the winner works on, so the winner's next write dies, the
   reply is lost and the user retries.
-- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `JobRunService`, one
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskRunService`, one
   interrupted mid-send, one while the assistant answers, one while the job reads its Run, one
   losing the `preparing` write to a rival, of the job's end and its logs in its use case, an
   interrupt's among them, and of the create flow; the services' Biome override, which admits of
-  their infrastructure only `#*/infrastructure/*.queue`, and the job's service's, which adds its
+  their infrastructure only `#*/infrastructure/*.queue`, and `AskRunService`'s, which adds its
   `.llm` files and of `@app-template/packages/db` only `Transaction`; the `infrastructure/` and
   `use-cases` rows of [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
