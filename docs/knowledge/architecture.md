@@ -154,7 +154,6 @@ Using the files of `chat` as the map:
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema; `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
 | service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
-| the use cases' settlement of a job send SQS refuses | `application/use-cases/chat/run.settle.ts` | `failUnsentRun`, which fails the Run |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |

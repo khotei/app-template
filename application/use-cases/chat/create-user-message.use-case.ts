@@ -1,6 +1,7 @@
-import { Effect } from 'effect'
+import { Cause, Effect } from 'effect'
 
 import {
+  buildRunFailure,
   type ChatId,
   ChatService,
   ensureChatNotBusy,
@@ -13,8 +14,6 @@ import {
 } from '@app-template/application/chat'
 import type { UserId } from '@app-template/application/identity'
 import { Transaction } from '@app-template/packages/db'
-
-import { failUnsentRun } from '#use-cases/chat/run.settle'
 
 /** The message and its Run commit together: a Run that loses the race keeps no message. */
 const storeUserMessage = Effect.fnUntraced(
@@ -35,6 +34,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   text: string,
 ) {
   const chats = yield* ChatService
+  const runs = yield* RunService
 
   yield* ensureMessageInput(text)
   const chat = yield* chats.getOne({ id: chatId, userId })
@@ -44,5 +44,10 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
 
   // Neither send fails the create, so the jobs go in either order.
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
-  return yield* sendGenerateAssistantMessage(run).pipe(failUnsentRun(run))
+  return yield* sendGenerateAssistantMessage(run).pipe(
+    Effect.as(run),
+    Effect.catch((error) => runs.fail(run, buildRunFailure(Cause.fail(error)))),
+    // The Run was stored queued a moment before, so a refused move is a defect.
+    Effect.orDie,
+  )
 })

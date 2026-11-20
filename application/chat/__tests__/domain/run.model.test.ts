@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -9,6 +9,7 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
+  buildRunFailure,
   completeRun,
   ensureRunRetryable,
   failRun,
@@ -158,4 +159,12 @@ describe('ensureRunRetryable', () => {
       assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError())
     }),
   )
+})
+
+it.each([
+  { name: 'an error', cause: Cause.fail({ _tag: 'QueueError' }), reason: 'QueueError' },
+  { name: 'a defect', cause: Cause.die(new Error('boom')), reason: 'RunAborted' },
+  { name: 'an interrupt', cause: Cause.interrupt(), reason: 'RunAborted' },
+])('a failure from $name has the reason $reason and the cause in full', ({ cause, reason }) => {
+  assert.deepStrictEqual(buildRunFailure(cause), { reason, cause: Cause.pretty(cause) })
 })

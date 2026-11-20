@@ -863,18 +863,19 @@ record (the Run, the chat's title), which the worker reads to run it once, to se
 worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
 goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
-definition, which only sends it. A send SQS refuses is settled on the work's record at the use
-cases' level: the reply's settlement, which both use cases that send it share, logs it and fails
-its Run with the queue's error, `QueueError`, as its reason and cause, and the request answers
-`202` with that failed Run; the title's send logs it, as its work has no record to settle.
+definition, which only sends it and logs a send SQS refuses. The reply's send answers its
+`QueueError`, and both use cases that send it fail the Run through `RunService.fail`, with the
+failure `buildRunFailure` makes of the error, `QueueError` as its reason and its text as its
+cause; the request answers `202` with that failed Run. The title's send only logs it, as its
+work has no record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
-  has no use apart from its queue; failing the Run needs `RunService`, which infrastructure may
-  not import, so that settlement is one function at the use cases' level, and the Run's write is `RunService.update`'s.
+  has no use apart from its queue. Each layer knows only its own: the send its queue, the model a
+  failure from any tagged cause, `RunService.fail` the Run's write; the use case composes them.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -882,9 +883,10 @@ its Run with the queue's error, `QueueError`, as its reason and cause, and the r
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
   deleted chat's, leaving the reply queued. A send that cannot be interrupted: it covers a
   client's abort only. A stuck Run that a retry may take after an age: a rule by time, and a Run
-  that reads queued while it is lost. The refusal's settlement in the module's infrastructure:
-  infrastructure would see the module's services. The settlement copied in each use case that
-  sends the reply: one rule in two places. A sweep resending unsent work: a schedule and a route
+  that reads queued while it is lost. A callback into the send that settles its refusal:
+  infrastructure would decide the refusal's outcome and depend on the Run. A settlement file
+  beside the use cases: a function over the send, where the model and the service each already
+  hold their part. A sweep resending unsent work: a schedule and a route
   of its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply
   the user waits on through every attempt, and code that counts them. The title's send inline in
   its use case: the send's policy, its log and its annotations in a flow, and a second form of
@@ -894,8 +896,8 @@ its Run with the queue's error, `QueueError`, as its reason and cause, and the r
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
   send answers `202`, so a client reads the failure from the Run's status, not the response's.
-- **Guarded by:** the `QueueSender` e2e; the reply settlement's and the create flow's unit
-  tests; the `infrastructure/` and `use-cases` rows of
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `RunService.fail`
+  and of the create flow; the `infrastructure/` and `use-cases` rows of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.

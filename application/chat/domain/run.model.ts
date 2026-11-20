@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
@@ -78,3 +78,14 @@ export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFie
 export const failRun = Effect.fn('failRun')((run: Run, failure: RunFailure) =>
   move(run, 'failed', { failure: Option.some(failure) }),
 )
+
+/** The reason of a Run that ended with no error to name it: a defect, an interrupt, a dead worker. */
+export const abortedRunReason = 'RunAborted'
+
+/** The failure a cause ends a Run with: the tag of the error it holds, and its full text. */
+export function buildRunFailure(cause: Cause.Cause<{ readonly _tag: string }>): RunFailure {
+  const reason = Cause.findErrorOption(cause).pipe(
+    Option.match({ onNone: () => abortedRunReason, onSome: ({ _tag }) => _tag }),
+  )
+  return { reason, cause: Cause.pretty(cause) }
+}

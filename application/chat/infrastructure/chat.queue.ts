@@ -32,11 +32,14 @@ export const chatTitleQueue = {
   schema: GenerateChatTitle,
 } satisfies QueueDefinition<typeof GenerateChatTitle>
 
-/** Sends the job that answers the Run; one SQS refuses fails with its `QueueError`. */
+/** Sends the job that answers the Run; one SQS refuses is logged and fails with its `QueueError`. */
 export const sendGenerateAssistantMessage = Effect.fn('sendGenerateAssistantMessage')((run: Run) =>
   QueueSender.use((queue) =>
     queue.send(assistantMessageQueue, new GenerateAssistantMessage({ runId: run.id })),
-  ).pipe(Effect.annotateLogs({ chatId: run.chatId, runId: run.id })),
+  ).pipe(
+    Effect.tapError((error) => Effect.logError('assistant message not queued', error)),
+    Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
+  ),
 )
 
 /** Sends the job that titles the message's chat; one SQS refuses is logged, and the send goes on. */

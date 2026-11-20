@@ -50,9 +50,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
-  through the job's `send<Job>` beside its queue's definition; the use cases' level settles a
-  refusal on the work's record (`<model>.settle.ts`), and a job with no record has its send log
-  it
+  through the job's `send<Job>` beside its queue's definition, which logs a refusal and answers
+  it; the use case settles it on the work's record through its service, and a job with no record
+  only logs it
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: a use case a job runs ends its own work on any outcome but
   success, an interrupt included, and work it finds started was left by a run that died.

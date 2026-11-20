@@ -30,7 +30,6 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<aspect>-<model>.service.ts` for one composed over it, named for what it adds, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services, the function `<verb><Object>` |
-| `.settle` | `<model>.settle.ts` beside the use cases: the settlement they share of a job send SQS refuses, on the work's record |
 | `.handler` | api: one HTTP group's handlers · worker: its one route, each queue's use case |
 | `.repository` · `.llm` · `.queue` | a store's access · `LanguageModel` with its prompts · a module's queues: their definitions, job schemas and each job's `send<Job>` |
 | `.table` · `.entity` | a table · `<Name>Entity` with its `Where` and `Set`, an `Insert` only where an insert is no table's row, a `<Verb>Where` for the one verb whose filter differs, and `Downloaded<Name>Entity` for the read that adds a payload |

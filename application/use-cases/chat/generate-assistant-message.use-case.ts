@@ -1,9 +1,10 @@
-import { Cause, Effect, Exit, Option } from 'effect'
+import { Effect, Exit, Option } from 'effect'
 
 import {
   type AssistantReply,
+  abortedRunReason,
+  buildRunFailure,
   completeRun,
-  failRun,
   type GenerateAssistantMessage,
   generateRun,
   isActiveRun,
@@ -36,15 +37,13 @@ const settleCompleted = Effect.fnUntraced(
   (settle) => Transaction.use((transaction) => transaction.run(settle)),
 )
 
-const settleFailed = Effect.fnUntraced(function* (active: Run, { reason, cause }: RunFailure) {
+const settleFailed = Effect.fnUntraced(function* (active: Run, failure: RunFailure) {
   const runs = yield* RunService
 
   yield* Effect.logWarning('assistant reply failed').pipe(
-    Effect.annotateLogs({ runId: active.id, reason, cause }),
+    Effect.annotateLogs({ runId: active.id, ...failure }),
   )
-  yield* failRun(active, { reason, cause }).pipe(
-    Effect.flatMap((failed) => runs.update(failed, { id: active.id, status: [active.status] })),
-  )
+  yield* runs.fail(active, failure)
 })
 
 const reply = Effect.fnUntraced(function* (taken: Run) {
@@ -79,21 +78,10 @@ const settleActive = <A, E, R>(id: RunId, settle: (active: Run) => Effect.Effect
     ),
   )
 
-/** The reason of a Run that ended with no error to name it: a defect, an interrupt, a dead worker. */
-const abortedReason = 'RunAborted'
-
-/** The failure a cause ends a Run with: the tag of the error it holds, and its full text. */
-function buildFailure(cause: Cause.Cause<{ readonly _tag: string }>): RunFailure {
-  const reason = Cause.findErrorOption(cause).pipe(
-    Option.match({ onNone: () => abortedReason, onSome: ({ _tag }) => _tag }),
-  )
-  return { reason, cause: Cause.pretty(cause) }
-}
-
 const answer = Effect.fnUntraced(function* (active: Run) {
   if (isStartedRun(active)) {
     return yield* settleFailed(active, {
-      reason: abortedReason,
+      reason: abortedRunReason,
       cause: 'the worker that started the Run stopped before it ended',
     })
   }
@@ -103,7 +91,7 @@ const answer = Effect.fnUntraced(function* (active: Run) {
       Exit.match({
         onSuccess: () => Effect.void,
         onFailure: (cause) =>
-          settleActive(active.id, (latest) => settleFailed(latest, buildFailure(cause))),
+          settleActive(active.id, (latest) => settleFailed(latest, buildRunFailure(cause))),
       }),
     ),
     // The Run holds the model's failure now, so the job ends.
