@@ -327,9 +327,6 @@ moves it into its own `Later` and deletes it here.
   default and unset in the inventory). Ways out to weigh: the handler gets the undecodable body
   to fail its own work, a consumer of the dead-letter queues, or a sweep of active replies
   ([database.md › Stuck Runs](database.md#stuck-runs)).
-- A third writer of a failed Run, such as a consumer of the dead-letter queues, takes the reply
-  use case's fail or adds `RunService.fail`; with the two writers of today the method was built
-  at +40 -36 and adds more than it removes.
 
 ### From `reply-run`
 

@@ -5,6 +5,7 @@ import {
   abortedRunReason,
   buildRunFailure,
   completeRun,
+  failRun,
   type GenerateAssistantMessage,
   generateRun,
   isActiveRun,
@@ -43,7 +44,9 @@ const settleFailed = Effect.fnUntraced(function* (active: Run, failure: RunFailu
   yield* Effect.logWarning('assistant reply failed').pipe(
     Effect.annotateLogs({ runId: active.id, ...failure }),
   )
-  yield* runs.fail(active, failure)
+  yield* failRun(active, failure).pipe(
+    Effect.flatMap((failed) => runs.update(failed, { id: active.id, status: [active.status] })),
+  )
 })
 
 const reply = Effect.fnUntraced(function* (taken: Run) {

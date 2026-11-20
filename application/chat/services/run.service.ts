@@ -5,10 +5,10 @@ import { type RunEntityWhere, RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
-import { RunNotFoundError, type RunStatusInvalidError } from '#chat/domain/run.error'
-import { failRun, Run } from '#chat/domain/run.model'
+import { RunNotFoundError } from '#chat/domain/run.error'
+import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { type RunFailure, RunFields } from '#chat/domain/run-fields.model'
+import { RunFields } from '#chat/domain/run-fields.model'
 
 /** A Run by id; `userId` limits it to the user's chats, which every api caller passes. */
 export type RunWhere = Types.Simplify<
@@ -22,8 +22,6 @@ export class RunService extends Context.Service<
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** Dies when no Run matches `where`. */
     readonly update: (run: Run, where: RunEntityWhere) => Effect.Effect<Run>
-    /** Fails the Run with `failure` and writes it under the status it is given in. */
-    readonly fail: (run: Run, failure: RunFailure) => Effect.Effect<Run, RunStatusInvalidError>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -65,13 +63,7 @@ export class RunService extends Context.Service<
       return stamped
     })
 
-    const fail = Effect.fn('RunService.fail')((run: Run, failure: RunFailure) =>
-      failRun(run, failure).pipe(
-        Effect.flatMap((failed) => update(failed, { id: run.id, status: [run.status] })),
-      ),
-    )
-
-    return { create, getOne, update, fail }
+    return { create, getOne, update }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

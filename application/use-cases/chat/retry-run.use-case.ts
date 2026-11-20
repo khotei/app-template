@@ -6,6 +6,7 @@ import {
   ChatService,
   ensureChatNotBusy,
   ensureRunRetryable,
+  failRun,
   MessageService,
   RunService,
   sendGenerateAssistantMessage,
@@ -31,7 +32,11 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
   const run = yield* runs.create(userMessage)
   return yield* sendGenerateAssistantMessage(run).pipe(
     Effect.as(run),
-    Effect.catch((error) => runs.fail(run, buildRunFailure(Cause.fail(error)))),
+    Effect.catch((error) =>
+      failRun(run, buildRunFailure(Cause.fail(error))).pipe(
+        Effect.flatMap((failed) => runs.update(failed, { id: run.id, status: [run.status] })),
+      ),
+    ),
     // The Run was stored queued a moment before, so a refused move is a defect.
     Effect.orDie,
   )
