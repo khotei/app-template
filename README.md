@@ -10,7 +10,8 @@ the worked example; what a new project inherits is around it:
   processes (`api`, `worker`, `web`) over one domain, the code cut in three rings, and the build,
   not a reviewer, refusing an import that points the wrong way.
 - 🧱 **A stack wired end to end.** Postgres through Drizzle, files in S3 and jobs in SQS (MiniStack
-  locally), Pulumi to provision the stores, a language model behind a port.
+  locally), Pulumi to provision the stores, a language model behind a service of the module that
+  uses it.
 - 🤖 **A development process run with AI agents.** Every change of substance runs through one
   skill, `/lab`: you set the intent and the shape, agents find the facts, write test first and
   review in a fresh context, and every round is a green commit you read alone. The reasoning is

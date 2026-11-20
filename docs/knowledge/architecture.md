@@ -240,7 +240,7 @@ imports need.
    the database adds included; the unit tests above it mock it
    ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.util.ts` (its id),
-   `<entity>.model.ts` (a `Schema.Class` with its pure operations; time and ids come in as input;
+   `<entity>.model.ts` (a `Schema.Class` with its pure operations, which read no clock;
    a limit, a pattern or an enum's values imported from its table, never declared again,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,

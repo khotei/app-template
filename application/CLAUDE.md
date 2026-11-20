@@ -6,8 +6,9 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
 
 - **No I/O and no ambient state outside a module's `infrastructure/`:** no `Bun.env`, and
   `make typecheck` refuses the clock, `crypto.randomUUID()`, `fetch` and `process.env` anywhere
-  in the ring. A pure operation takes time and ids as input. An adapter in `infrastructure/` does
-  the I/O, over the clients the process provides (`HttpClient`) and the settings of
+  in the ring. A pure operation reads no clock: a time or an id it decides by is an argument,
+  and a record's new id and stamps are its service's. An adapter in `infrastructure/` does the
+  I/O, over the clients the process provides (`HttpClient`) and the settings of
   `@app-template/kernel/config`, never `Bun.env`.
 - **A module's `domain/` is pure:** it imports `effect`, another module's contract,
   `@app-template/packages/schema` (the id schema), the data layer's values (a table's limit,

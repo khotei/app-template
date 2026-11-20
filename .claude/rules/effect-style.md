@@ -12,9 +12,9 @@ Code reads top to bottom and extends by adding a row or a unit, not a branch
 
 - A named function with a statement body is a declaration (`function cancel(order: Order) { … }`);
   a one-expression one is an arrow constant.
-- Up to two parameters stay positional (`shipOrder(order, at)`); a third, or a boolean, moves into
-  one trailing object after the subject: `cancelOrder(order, { reason, cause, at })`. More stay
-  positional only where branded types tell them apart (`placeOrder(userId, cartId, input)`).
+- Up to two parameters stay positional (`shipOrder(order, carrier)`); a third, or a boolean, moves
+  into one trailing object after the subject: `cancelOrder(order, { reason, cause, refund })`.
+  More stay positional only where branded types tell them apart (`placeOrder(userId, cartId, input)`).
 - Destructure an object whose fields come from different things in the parameter list; keep a
   model or a proof value whole, so the reader sees whose field it is.
 - A builder takes the fields it copies as one `Types.Simplify<Pick<<Model>, …>>` and spreads them,

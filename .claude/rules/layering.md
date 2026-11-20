@@ -36,8 +36,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   service, use case or repository only reads, calls it and writes
   (`getOne(where).pipe(ensure<Rule>(at))`). Each piece is tested alone, a combination only for
   what it adds.
-- Every method is safe on its own: guard the invariant inside it, never rely on another method
-  having run first.
+- A method applies its model's rules itself, never relying on another having run first; a plain
+  write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
 ## Use cases
 

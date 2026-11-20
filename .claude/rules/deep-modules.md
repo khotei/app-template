@@ -54,18 +54,17 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 ## Composition over pass-through
 
 ```ts
-// OrderService.ship, the method a use case calls; `orders` is OrderRepository
-const shipped = yield* shipOrder(order, at)              // the model moves it, names the refusal
-yield* orders.update(shipped, { status: order.status })  // under the old state, or it dies
-return shipped                                           // the value built: no re-read, no re-check
+// MoveOrderService.ship, the method a use case calls; `orders` is OrderService
+const shipped = yield* shipOrder(order)               // the model moves it, names the refusal
+return yield* orders.update(shipped, { id: order.id, status: [order.status] }) // or it dies
 ```
 
-- A model function and the repository meet in the model's service: its method reads, calls the
-  function and writes under the state it read, and a use case calls that method, never the
-  repository. A model's status moves meet their write in `Move<Model>Service`, layered over
-  `<Model>Service`; nothing else sits between a transition and its write. Two methods that
-  differ by their `where`, `set` or step are one, taking them from the caller, with arguments as
-  narrow as it uses.
+- A model's status move meets its write in `Move<Model>Service`, layered over `<Model>Service`,
+  which knows no transition: its method calls the transition on the record read and writes it
+  under the status it was read in; a use case calls that method, never a transition or a
+  repository, and nothing else sits between a transition and its write. Two methods that differ
+  by their `where`, `set` or step are one, taking them from the caller, with arguments as narrow
+  as it uses.
 - A copy per model is one function over the varying part (an id generator given the brand's
   `make`, an id's schema given its brand). A model's predicate and a value its service builds keep
   their names, however short or few their callers; the alias `effect-style.md › Composition`
