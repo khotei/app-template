@@ -1,10 +1,15 @@
 import { Cause, Context, Effect, Layer } from 'effect'
 
 import type { MessageFields } from '#chat/domain/message.model'
-import type { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
+import type {
+  RunNotFoundError,
+  RunStartedError,
+  RunStatusInvalidError,
+} from '#chat/domain/run.error'
 import {
   activeRunStatuses,
   completeRun,
+  ensureRunUnstarted,
   failRun,
   generateRun,
   prepareRun,
@@ -17,8 +22,13 @@ import { RunService } from '#chat/services/run.service'
 export class MoveRunService extends Context.Service<
   MoveRunService,
   {
-    /** Moves a queued Run to `preparing`. */
-    readonly prepare: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
+    /**
+     * Moves the Run `id` from `queued` to `preparing` as it stands now; `RunStartedError` once
+     * some worker started it, `RunNotFoundError` once it is settled or gone.
+     */
+    readonly prepare: (
+      id: RunId,
+    ) => Effect.Effect<Run, RunNotFoundError | RunStartedError | RunStatusInvalidError>
     /** Moves a preparing Run to `generating`. */
     readonly generate: (run: Run) => Effect.Effect<Run, RunStatusInvalidError>
     /** Moves a generating Run to `done`, naming `reply`. */
@@ -42,7 +52,12 @@ export class MoveRunService extends Context.Service<
       )
     }
 
-    const prepare = Effect.fn('MoveRunService.prepare')((run: Run) => move(run, prepareRun(run)))
+    const prepare = Effect.fn('MoveRunService.prepare')(function* (id: RunId) {
+      const queued = yield* runs
+        .getOne({ id, status: activeRunStatuses })
+        .pipe(Effect.flatMap(ensureRunUnstarted))
+      return yield* move(queued, prepareRun(queued))
+    })
 
     const generate = Effect.fn('MoveRunService.generate')((run: Run) => move(run, generateRun(run)))
 

@@ -10,8 +10,8 @@ import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   completeRun,
-  ensureRunQueued,
   ensureRunRetryable,
+  ensureRunUnstarted,
   failRun,
   generateRun,
   isActiveRun,
@@ -139,10 +139,10 @@ describe('completeRun', () => {
   )
 })
 
-describe('ensureRunQueued', () => {
+describe('ensureRunUnstarted', () => {
   it.effect('answers a queued Run', () =>
     Effect.gen(function* () {
-      assert.strictEqual(yield* ensureRunQueued(queued), queued)
+      assert.strictEqual(yield* ensureRunUnstarted(queued), queued)
     }),
   )
 
@@ -150,7 +150,7 @@ describe('ensureRunQueued', () => {
     'refuses a $status Run with RunStartedError, naming the Run',
     ({ status }) =>
       Effect.gen(function* () {
-        const error = yield* ensureRunQueued(runAt(status)).pipe(Effect.flip)
+        const error = yield* ensureRunUnstarted(runAt(status)).pipe(Effect.flip)
 
         assert.strictEqual(error.id, queued.id)
       }),

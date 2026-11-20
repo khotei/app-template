@@ -2,15 +2,12 @@ import { Cause, Effect } from 'effect'
 
 import {
   type AssistantReply,
-  activeRunStatuses,
-  ensureRunQueued,
   type GenerateAssistantMessage,
   MessageAssistant,
   MessageService,
   MoveRunService,
   type Run,
   type RunId,
-  RunService,
 } from '@app-template/application/chat'
 import { Transaction } from '@app-template/packages/db'
 
@@ -28,21 +25,16 @@ const settleCompleted = Effect.fnUntraced(
   (settle) => Transaction.use((transaction) => transaction.run(settle)),
 )
 
-const reply = Effect.fnUntraced(function* (taken: Run) {
+const reply = Effect.fnUntraced(function* (prepared: Run) {
   const assistant = yield* MessageAssistant
   const messages = yield* MessageService
   const moves = yield* MoveRunService
 
-  const prepared = yield* moves.prepare(taken)
   const history = yield* messages.getMany({ chatId: prepared.chatId })
   const generating = yield* moves.generate(prepared)
   const generated = yield* assistant.reply(history)
   yield* settleCompleted(generating, generated)
 })
-
-/** The Run while it is active; `RunNotFoundError` once settled, or gone with its chat's cascade. */
-const getActiveRun = (id: RunId) =>
-  RunService.use((runs) => runs.getOne({ id, status: activeRunStatuses }))
 
 const logSkipped = () => Effect.logInfo('assistant reply skipped: its Run is settled or gone')
 
@@ -63,8 +55,9 @@ const workerStopped = Cause.die('the worker that started the Run stopped before 
 
 const answer = (run: Run) =>
   reply(run).pipe(
-    // On the answer, not the job: an interrupt during the job's read writes nothing, and SQS
-    // delivers the job again. An error handler runs uninterruptibly, so a stopping worker waits
+    // On the answer, not the job: an interrupt during the job's `prepare` writes nothing, or
+    // leaves the Run `preparing`, and SQS delivers the job again, which fails a Run left
+    // `preparing` as started. An error handler runs uninterruptibly, so a stopping worker waits
     // for the `failed` write; it may not fail, which `failLatest` never does.
     Effect.onError((cause) => failLatest(run.id, cause)),
     Effect.catchTags({
@@ -83,12 +76,12 @@ const answer = (run: Run) =>
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
   (job: GenerateAssistantMessage) =>
-    getActiveRun(job.runId).pipe(
-      Effect.flatMap(ensureRunQueued),
+    MoveRunService.use((moves) => moves.prepare(job.runId)).pipe(
       Effect.flatMap(answer),
       Effect.catchTags({
         RunNotFoundError: logSkipped,
         RunStartedError: ({ id }) => failLatest(id, workerStopped),
+        RunStatusInvalidError: Effect.die,
       }),
     ),
   (generate, job) => Effect.annotateLogs(generate, { runId: job.runId }),

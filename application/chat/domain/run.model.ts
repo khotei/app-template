@@ -32,8 +32,8 @@ export const isActiveRun = hasStatus(activeRunStatuses)
 /** A Run past `queued` that has not ended. */
 export const isStartedRun = hasStatus(['preparing', 'generating'])
 
-/** A job takes only a queued Run; one some worker started was left by a worker that died. */
-export const ensureRunQueued = Effect.fnUntraced(function* (run: Run) {
+/** A job refuses a Run some worker started (`RunStartedError`): that worker has died. */
+export const ensureRunUnstarted = Effect.fnUntraced(function* (run: Run) {
   if (isStartedRun(run)) {
     return yield* new RunStartedError({ id: run.id })
   }

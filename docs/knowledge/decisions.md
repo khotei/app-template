@@ -542,31 +542,41 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 
 `MoveRunService`, layered over `RunService`, holds a Run's status moves: `prepare`, `generate`,
 `complete` and `fail`, each the model's transition (`prepareRun`, …) then `RunService.update`
-under the status the Run was read in, through one helper. `prepare`, `generate` and `complete`
-take the Run their caller read; `fail` takes the Run's id, reads it as it stands now among the
-active ones, `RunNotFoundError` once it is settled or gone, and keeps the full text of the
-`Cause` it is given. `RunService` stays the plain write under a caller's `where`, and every
-use case moves a Run through `MoveRunService`, never through a transition and an update of its
-own.
+under the status the Run was read in, through one helper. `generate` and `complete` take the Run
+their caller read; `prepare` and `fail` take the Run's id and read it as it stands now among the
+active ones, `RunNotFoundError` once it is settled or gone. `prepare`, the job's first move,
+pipes that read through the model's `ensureRunUnstarted`, `RunStartedError` for a Run some
+worker started; `fail` keeps the full text of the `Cause` it is given. `RunService` stays the
+plain write under a caller's `where`, and every use case moves a Run through `MoveRunService`,
+never through a transition and an update of its own.
 
 - **Why:** the six moves of the use cases composed the same two calls with the same guard; in one
   service the guard on the status read is written once, and a move can no longer forget it.
   `fail` reads its own Run, as its callers fail a Run that moved since they read it (the reply
-  moves it from `queued` to `generating`): no caller can hand it a stale Run.
+  moves it from `queued` to `generating`): no caller can hand it a stale Run. That a job takes
+  only an unstarted Run is a rule of the Run, so the service that moves it calls it, as `fail`
+  reads its own Run; the use case keeps only its flow.
 - **Sources:** the owner's call in the design audit;
   [Layered services of one model](#layered-services-of-one-model).
 - **Rejected:** the moves on `RunService` itself: the plain service would know the transitions.
   Each caller composing the transition and the update: the guard repeated at six sites, where
   one could drop it. A `RunService.fail` alone: one move of four out of the service that holds
   the rest. `fail` taking a Run: each caller reads it again first, and one that passes the Run
-  it holds dies on the write's guard instead of failing it.
+  it holds dies on the write's guard instead of failing it. The job's read and
+  `ensureRunUnstarted` in the use case: a rule's call in a flow. The check folded into
+  `prepareRun`: a transition of two conditions, against the model's pieces of one each.
 - **Cost:** a second service and layer for the Run; the processes and the test layer provide
   `MoveRunService` over `RunService`. A refused send reads the Run it has just stored once more.
+  The job's `preparing` write sits outside the reply's handler of failures, so an interrupt
+  between that write and the reply leaves the Run `preparing`, and the next delivery fails it
+  as started, with the worker-stopped text, up to the queue's visibility timeout later
+  ([database.md › Stuck Runs](database.md#stuck-runs)).
 - **Guarded by:** `MoveRunService`'s unit test: each move writes under the status read, a
-  refused move writes nothing, and `fail` of a Run settled or gone fails `RunNotFoundError`;
-  review, by `deep-modules.md › Composition over pass-through`.
+  refused move writes nothing, `prepare` of a started Run fails `RunStartedError`, and `prepare`
+  or `fail` of a Run settled or gone fails `RunNotFoundError`; the model's test of
+  `ensureRunUnstarted`; review, by `deep-modules.md › Composition over pass-through`.
 - **If reversed:** each use case composes the transition and `RunService.update` again.
-- **Revisit when:** a move needs a guard other than the status read.
+- **Revisit when:** a move needs a guard other than the status read and the model's rule.
 
 ## The kernel and the data
 

@@ -5,7 +5,11 @@ import type { RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
+import {
+  RunNotFoundError,
+  type RunStartedError,
+  RunStatusInvalidError,
+} from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import type { RunStatus } from '#chat/domain/run-fields.model'
 import { MoveRunService } from '#chat/services/move-run.service'
@@ -20,9 +24,9 @@ const moves: ReadonlyArray<{
   readonly move: (
     moves: MoveRunService['Service'],
     run: Run,
-  ) => Effect.Effect<Run, RunNotFoundError | RunStatusInvalidError>
+  ) => Effect.Effect<Run, RunNotFoundError | RunStartedError | RunStatusInvalidError>
 }> = [
-  { name: 'prepare', from: 'queued', to: 'preparing', move: (moves, run) => moves.prepare(run) },
+  { name: 'prepare', from: 'queued', to: 'preparing', move: (moves, run) => moves.prepare(run.id) },
   {
     name: 'generate',
     from: 'preparing',
@@ -108,14 +112,33 @@ describe('MoveRunService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('fail of a Run settled or gone fails RunNotFoundError and writes nothing', () => {
+  it.effect('prepare of a Run some worker started fails RunStartedError and writes nothing', () => {
+    const { updates, layer } = recordUpdates(
+      Option.some(new Run({ ...queuedRun, status: 'preparing' })),
+    )
+    return Effect.gen(function* () {
+      const service = yield* MoveRunService
+
+      const error = yield* service.prepare(queuedRun.id).pipe(Effect.flip)
+
+      assert.deepStrictEqual([error._tag, error.id], ['RunStartedError', queuedRun.id])
+      assert.deepStrictEqual(updates, [])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect.each([
+    { name: 'prepare', move: (moves: MoveRunService['Service']) => moves.prepare(queuedRun.id) },
+    {
+      name: 'fail',
+      move: (moves: MoveRunService['Service']) =>
+        moves.fail(queuedRun.id, Cause.fail('SQS is unavailable')),
+    },
+  ])('$name of a Run settled or gone fails RunNotFoundError and writes nothing', ({ move }) => {
     const { updates, layer } = recordUpdates(Option.none())
     return Effect.gen(function* () {
       const service = yield* MoveRunService
 
-      const error = yield* service
-        .fail(queuedRun.id, Cause.fail('SQS is unavailable'))
-        .pipe(Effect.flip)
+      const error = yield* move(service).pipe(Effect.flip)
 
       assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ id: queuedRun.id }))
       assert.deepStrictEqual(updates, [])
