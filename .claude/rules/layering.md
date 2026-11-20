@@ -59,7 +59,10 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   on it, and a job with no record only logs it
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job runs once, unretried: a use case a job runs ends its own work on any outcome but
-  success, an interrupt included, and work it finds started was left by a run that died.
+  success, an interrupt included, save an interrupt between the write that marks the work
+  started and the handler that ends it; work it finds started was left by a run that died or
+  was cut in that window, and it ends that work
+  ([record](../../docs/knowledge/decisions.md#a-runs-moves-in-their-own-service)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 
