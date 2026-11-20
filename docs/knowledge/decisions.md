@@ -886,8 +886,9 @@ definition; a use case sends it after its commit, so every delivery finds its re
 goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
 definition, which only sends it and logs a send SQS refuses. The reply's send answers its
 `QueueError`, and both use cases that send it fail the Run through `MoveRunService.fail`, with
-the error's full text as its failure; the request answers `202` with that failed Run. The
-title's send only logs it, as its work has no record to settle.
+the error's full text as its failure; the request answers `202` with that failed Run. The send
+and that failure run uninterruptibly, so a client that aborts mid-send still leaves the Run sent
+or failed. The title's send only logs it, as its work has no record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -902,22 +903,24 @@ title's send only logs it, as its work has no record to settle.
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
-  deleted chat's, leaving the reply queued. A send that cannot be interrupted: it covers a
-  client's abort only. A stuck Run that a retry may take after an age: a rule by time, and a Run
-  that reads queued while it is lost. A callback into the send that settles its refusal:
-  infrastructure would decide the refusal's outcome and depend on the Run. A settlement file
-  beside the use cases: a function over the send, where `MoveRunService` already holds the move.
-  A sweep resending unsent work: a schedule and a route of its own, and a reply up to a minute
-  late. Retries with a delay per attempt: a failed reply the user waits on through every attempt,
-  and code that counts them. The title's send inline in its use case: the send's policy, its log
-  and its annotations in a flow, and a second form of the sending rule beside the reply's send. A
-  domain error wrapping `QueueError` and a `503` for a refused reply: a second name for one
-  failure, which the Run already holds, and a retry is the client's next step either way.
-- **Cost:** a process that dies between the commit and the send, or a client that aborts there,
-  leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
-  send answers `202`, so a client reads the failure from the Run's status, not the response's.
-- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends and of the create flow; the
-  `infrastructure/` and `use-cases` rows of
+  deleted chat's, leaving the reply queued. A stuck Run that a retry may take after an age: a
+  rule by time, and a Run that reads queued while it is lost. A callback into the send that
+  settles its refusal: infrastructure would decide the refusal's outcome and depend on the Run. A
+  settlement file beside the use cases: a function over the send, where `MoveRunService` already
+  holds the move. A sweep resending unsent work: a schedule and a route of its own, and a reply
+  up to a minute late. Retries with a delay per attempt: a failed reply the user waits on through
+  every attempt, and code that counts them. The title's send inline in its use case: the send's
+  policy, its log and its annotations in a flow, and a second form of the sending rule beside the
+  reply's send. A domain error wrapping `QueueError` and a `503` for a refused reply: a second
+  name for one failure, which the Run already holds, and a retry is the client's next step either
+  way.
+- **Cost:** a process that dies between the commit and the send leaves the Run queued and its
+  chat busy ([roadmap.md › Later](roadmap.md#later)), and so does a client that aborts while the
+  Run's write commits or the title's send runs, as the flow then ends before the reply's send
+  starts. A refused send answers `202`, so a client reads the failure from the Run's status, not
+  the response's.
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends and of the create and retry
+  flows, one of each interrupted mid-send; the `infrastructure/` and `use-cases` rows of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.

@@ -330,13 +330,15 @@ moves it into its own `Later` and deletes it here.
 
 ### From `reply-run`
 
-- (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies or the client
-  aborts the request between the commit and the reply's send (`sendGenerateAssistantMessage`,
-  called by `application/use-cases/chat/create-user-message.use-case.ts` and
-  `application/use-cases/chat/retry-run.use-case.ts`): a send SQS refuses fails the Run, but no
-  handler runs in a dead process or past an interrupt. Ways out to weigh: a send that cannot be
-  interrupted (the abort only), a ledger of jobs, a sweep of active Runs. The owner
-  refused a rule by a Run's age.
+- (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
+  and the reply's send (`sendGenerateAssistantMessage`, called by
+  `application/use-cases/chat/create-user-message.use-case.ts` and
+  `application/use-cases/chat/retry-run.use-case.ts`), or the client aborts after the commit but
+  before the send starts: a send SQS refuses fails the Run, and the send and that failure run
+  uninterruptibly, but no handler runs in a dead process, and an interrupt during the commit or
+  the title's send ends the flow first. Ways out to weigh: one uninterruptible step from the
+  Run's write through its send (the abort only), a ledger of jobs, a sweep of active Runs. The
+  owner refused a rule by a Run's age.
 - (2026-11-13) Two sends or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that resends) both pass `ensureChatNotBusy`; the
   active Run's index refuses the second insert, which dies, so the client gets a bare `500`, not

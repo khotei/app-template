@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer, Option } from 'effect'
+import { Array as Arr, Deferred, Effect, Fiber, Layer, Option } from 'effect'
 
 import {
   Chat,
@@ -21,7 +21,8 @@ import {
   owner,
   queuedRun,
 } from '@app-template/application/chat/testing'
-import type { MessageEntityWhere, RunColumns } from '@app-template/kernel/data'
+import type { MessageEntityWhere, RunColumns, RunEntitySet } from '@app-template/kernel/data'
+import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -99,6 +100,46 @@ describe('retryRun', () => {
       )
     },
   )
+
+  it.effect('retry interrupted while SQS refuses its job still fails the new Run', () => {
+    const sending = Deferred.makeUnsafe<void>()
+    const refusing = Deferred.makeUnsafe<void>()
+    const HeldRefusingQueueTest = Layer.mock(QueueSender, {
+      send: () =>
+        Deferred.succeed(sending, undefined).pipe(
+          Effect.andThen(Deferred.await(refusing)),
+          Effect.andThen(Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))),
+        ),
+    })
+    const updates: Array<RunEntitySet> = []
+    return Effect.gen(function* () {
+      const retrying = yield* Effect.forkChild(retry)
+      yield* Deferred.await(sending)
+      const interrupting = yield* Fiber.interrupt(retrying).pipe(
+        Effect.forkChild({ startImmediately: true }),
+      )
+      yield* Deferred.succeed(refusing, undefined)
+      yield* Fiber.join(interrupting)
+
+      assert.deepStrictEqual(
+        Arr.map(updates, ({ status }) => status),
+        ['failed'],
+      )
+    }).pipe(
+      Effect.provide(
+        layerChatTest({
+          ...chatWithRun(failedRun),
+          runs: {
+            insert: () => Effect.void,
+            update: (set) =>
+              Effect.sync(() => {
+                updates.push(set)
+              }),
+          },
+        }).pipe(Layer.provideMerge(HeldRefusingQueueTest)),
+      ),
+    )
+  })
 
   it.effect('retry while a Run is in work is ChatBusyError before any Run or job', () => {
     const jobs = recordMessages()

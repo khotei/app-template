@@ -49,5 +49,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
     Effect.catch((error) => moves.fail(run, Cause.fail(error))),
     // The Run was stored queued a moment before, so a refused move is a defect.
     Effect.orDie,
+    // A client's abort mid-send still leaves the Run sent or failed.
+    Effect.uninterruptible,
   )
 })
