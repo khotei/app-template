@@ -3,7 +3,11 @@ import { Array as Arr, Effect, Option, Schema } from 'effect'
 import { activeRunStatuses } from '@app-template/kernel/data'
 
 import { MessageFields } from '#chat/domain/message.model'
-import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
+import {
+  RunNotRetryableError,
+  RunStartedError,
+  RunStatusInvalidError,
+} from '#chat/domain/run.error'
 import { type RunFailure, RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { hasStatus } from '#chat/domain/status.model'
 
@@ -27,6 +31,14 @@ export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run past `queued` that has not ended. */
 export const isStartedRun = hasStatus(['preparing', 'generating'])
+
+/** A job takes only a queued Run; one some worker started was left by a worker that died. */
+export const ensureRunQueued = Effect.fnUntraced(function* (run: Run) {
+  if (isStartedRun(run)) {
+    return yield* new RunStartedError({ id: run.id })
+  }
+  return run
+})
 
 const isFailedRun = hasStatus(['failed'])
 

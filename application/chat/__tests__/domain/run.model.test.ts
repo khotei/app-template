@@ -10,6 +10,7 @@ import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
   completeRun,
+  ensureRunQueued,
   ensureRunRetryable,
   failRun,
   generateRun,
@@ -135,6 +136,24 @@ describe('completeRun', () => {
 
       assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
     }),
+  )
+})
+
+describe('ensureRunQueued', () => {
+  it.effect('answers a queued Run', () =>
+    Effect.gen(function* () {
+      assert.strictEqual(yield* ensureRunQueued(queued), queued)
+    }),
+  )
+
+  it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
+    'refuses a $status Run with RunStartedError, naming the Run',
+    ({ status }) =>
+      Effect.gen(function* () {
+        const error = yield* ensureRunQueued(runAt(status)).pipe(Effect.flip)
+
+        assert.strictEqual(error.id, queued.id)
+      }),
   )
 })
 

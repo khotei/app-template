@@ -1,10 +1,10 @@
-import { Cause, Effect, Option } from 'effect'
+import { Cause, Effect } from 'effect'
 
 import {
   type AssistantReply,
   activeRunStatuses,
+  ensureRunQueued,
   type GenerateAssistantMessage,
-  isStartedRun,
   MessageAssistant,
   MessageService,
   MoveRunService,
@@ -46,28 +46,31 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
   yield* settleCompleted(generating, generated)
 })
 
-/** The Run while it is active; none once settled, or gone with its chat (the cascade takes it). */
-const findActiveRun = (id: RunId) =>
-  RunService.use((runs) => runs.getOne({ id, status: activeRunStatuses })).pipe(Effect.option)
+/** The Run while it is active; `RunNotFoundError` once settled, or gone with its chat's cascade. */
+const getActiveRun = (id: RunId) =>
+  RunService.use((runs) => runs.getOne({ id, status: activeRunStatuses }))
 
 const logSkipped = () => Effect.logInfo('assistant reply skipped: its Run is settled or gone')
 
-/** Fails the Run as it stands now, the reply having moved it; one settled meanwhile is skipped. */
+/**
+ * Fails the Run as it stands now, the reply having moved it; one settled meanwhile is skipped,
+ * and a refused move dies, being a bug.
+ */
 const failLatest = (id: RunId, cause: Cause.Cause<unknown>) =>
-  findActiveRun(id).pipe(
-    Effect.flatMap(
-      Option.match({ onNone: logSkipped, onSome: (latest) => settleFailed(latest, cause) }),
-    ),
+  getActiveRun(id).pipe(
+    Effect.flatMap((latest) => settleFailed(latest, cause)),
+    Effect.catchTag('RunNotFoundError', logSkipped),
+    Effect.orDie,
   )
 
 const workerStopped = Cause.die('the worker that started the Run stopped before it ended')
 
 const answer = (run: Run) =>
-  (isStartedRun(run) ? settleFailed(run, workerStopped) : reply(run)).pipe(
+  reply(run).pipe(
     // On the answer, not the job: an interrupt during the job's read writes nothing, and SQS
     // delivers the job again. An error handler runs uninterruptibly, so a stopping worker waits
-    // for the `failed` write; it may not fail, so a refused move dies there.
-    Effect.onError((cause) => failLatest(run.id, cause).pipe(Effect.orDie)),
+    // for the `failed` write; it may not fail, which `failLatest` never does.
+    Effect.onError((cause) => failLatest(run.id, cause)),
     Effect.catchTags({
       // The Run holds the model's failure now, so the job ends.
       LlmRefusedError: () => Effect.void,
@@ -84,8 +87,13 @@ const answer = (run: Run) =>
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
   (job: GenerateAssistantMessage) =>
-    findActiveRun(job.runId).pipe(
-      Effect.flatMap(Option.match({ onNone: logSkipped, onSome: answer })),
+    getActiveRun(job.runId).pipe(
+      Effect.flatMap(ensureRunQueued),
+      Effect.flatMap(answer),
+      Effect.catchTags({
+        RunNotFoundError: logSkipped,
+        RunStartedError: ({ id }) => failLatest(id, workerStopped),
+      }),
     ),
   (generate, job) => Effect.annotateLogs(generate, { runId: job.runId }),
 )
