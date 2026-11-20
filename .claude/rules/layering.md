@@ -20,14 +20,15 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
   key with its `*NotFoundError`), coding the rows through the model. It sees the repositories,
   its ports, the clock and `Crypto`; never another model's service or the transaction, which are
-  a use case's ([composition.md](composition.md)), nor the queue but as below.
+  a use case's ([composition.md](composition.md)), nor its infrastructure but as below.
 - A service composed over `<Model>Service` holds the job it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
-  moves, each a transition written under the status read → `Move<Model>Service`; its job, sent
-  through its module's `<model>.queue` file with the refusal settled on the record →
-  `Job<Model>Service`, called after the commit of the writes the job reads, never inside a
-  transaction. Record:
+  moves, each a transition written under the status read → `Move<Model>Service`; its job →
+  `Job<Model>Service`, which sends it through its module's `<model>.queue` file after the commit
+  of the writes the job reads, never inside a transaction, and runs it, settling each outcome on
+  the record. It alone may also take `Transaction`, its module's `.llm` file and another model's
+  service of its module, for the writes that settle the job. Record:
   [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
@@ -54,14 +55,13 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   them. An object store joins none: keep the bytes before the row that binds them, delete them
   once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
-  through the job's `send<Job>` beside its queue's definition, which logs a refusal and answers
-  it; a job with a record goes through its model's `Job<Model>Service`, which settles the refusal
-  on it, and a job with no record only logs it
+  through its `send<Job>` beside its queue's definition, which logs a refusal and answers it; a
+  job with a record goes through its `Job<Model>Service`, a job with none only logs it
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
-- A job runs once, unretried: a use case a job runs ends its own work on any outcome but
-  success, an interrupt included, save an interrupt between the write that marks the work
-  started and the handler that ends it; work it finds started was left by a run that died or
-  was cut in that window, and it ends that work
+- A job runs once, unretried: its run (the `Job<Model>Service` method of a job with a record,
+  else the use case) ends its work on any outcome but success, an interrupt included, save one
+  between the write that marks the work started and the handler that ends it, and ends work it
+  finds started, left by a run that died or was cut there; the use case ends the job on the rest
   ([record](../../docs/knowledge/decisions.md#a-runs-moves-in-their-own-service)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.

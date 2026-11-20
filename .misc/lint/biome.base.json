@@ -160,7 +160,11 @@
       }
     },
     {
-      "includes": ["application/*/services/**", "application/*/__tests__/services/**"],
+      "includes": [
+        "application/*/services/**",
+        "application/*/__tests__/services/**",
+        "!application/*/services/job-*.service.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -193,6 +197,53 @@
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
                     "message": "a module's services reach its infrastructure only through a port, save its queue file, whose sends a layered service of the model calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/*/services/job-*.service.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/packages/{schema,db}",
+                      "!@app-template/kernel/data",
+                      "!@app-template/application/*",
+                      "@app-template/application/use-cases",
+                      "@app-template/application/use-cases/**",
+                      "@effect/**"
+                    ],
+                    "message": "a job's service (Job<Model>Service) imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": ["@app-template/packages/db"],
+                    "importNamePattern": "Transaction",
+                    "invertImportNamePattern": true,
+                    "message": "of @app-template/packages/db a job's service takes only Transaction, to write a job's outcome in one transaction (decisions.md › Jobs as queue messages)"
+                  },
+                  {
+                    "group": ["@app-template/kernel/data"],
+                    "importNamePattern": "(Db|relations|migrationsFolder)",
+                    "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
+                  },
+                  {
+                    "group": [
+                      "#*/infrastructure/**",
+                      "!#*/infrastructure/*.queue",
+                      "!#*/infrastructure/*.llm"
+                    ],
+                    "message": "a job's service reaches its module's infrastructure only through a port, its queue file, which sends the job, and its .llm file, whose assistant runs it (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }

@@ -146,12 +146,13 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`. A queue of the inventory with no consumer fails typecheck; a batch of
   a queue outside the inventory answers `500`, a deployment bug.
-- **The work's record runs a job once.** A queue's use case reads the record of its work (the
-  Run, the chat's title) and skips work already settled; it ends its own work on
+- **The work's record runs a job once.** A queue's use case, or the job's service it calls for
+  a Run, reads the record of its work (the Run, the chat's title) and skips work already
+  settled; it ends its own work on
   any outcome but success, an interrupt included, save one right after the reply's `preparing`
   write, which the next delivery settles ([database.md › Stuck Runs](database.md#stuck-runs)). A
   body that does not decode never will, so it is logged and acknowledged, unrun.
-- **Delivery is at-least-once:** the reply's use case fails a Run it finds started, as the worker
+- **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker
   that started it died, so a copy delivered while the first still runs fails a live Run, a rare
   case accepted.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles

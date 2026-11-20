@@ -380,7 +380,7 @@ moves it into its own `Later` and deletes it here.
   opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
   snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
-  (`application/use-cases/chat/generate-assistant-message.use-case.ts`, `settleCompleted`): its
+  (`application/chat/services/job-run.service.ts`, `settleCompleted`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
@@ -407,7 +407,7 @@ moves it into its own `Later` and deletes it here.
 
 ### From the design audit of 2026-11-19
 
-- (2026-11-19, verified) The reply job's exit handler (`generate-assistant-message.use-case.ts`)
+- (2026-11-19, verified) The reply job's exit handler (`job-run.service.ts`)
   cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
   `Exit.filterCause` can, in 3 lines in place of 8.
 - (2026-11-19, verified) The replay duty is stated with three scopes (`claude-md.md › The toolkit`,
