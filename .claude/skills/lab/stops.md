@@ -12,6 +12,11 @@ deleted here: the rule is its author.
 4. Is each method named for what it answers, with no pass-through and no probe, and is each new
    job a unit that wraps or composes, the units below unedited?
 5. Does each test helper sit beside its one test?
+6. Who reads this type, field, error or method: a branch in code, an operator? None: not written.
+7. Does each unit know only its own, a service and a model nothing of who calls them (a queue, a
+   redelivery, a request)?
+8. Does the flow read top to bottom, its failures in one tail, no function taking its step?
+9. Is it the shape its neighbours have: the same verb, argument order and file kind?
 
 ## The stops
 
