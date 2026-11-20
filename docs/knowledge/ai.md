@@ -66,7 +66,7 @@ covers these steps.
 
 `askModel` asks again in place only what the provider marks retryable, and lets out of either
 assistant only a final failure, as `LlmRefusedError` or `LlmFailedError`; the use
-cases turn them into a failed Run, the error's tag its reason, or an untitled chat. A
+cases turn them into a failed Run, which keeps the error's full text, or an untitled chat. A
 job is never retried ([aws.md › Queues](aws.md#queues)).
 
 | Failure | Asked again |

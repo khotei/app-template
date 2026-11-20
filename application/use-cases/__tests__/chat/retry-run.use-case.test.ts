@@ -42,7 +42,7 @@ const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
 const failedRun = new Run({
   ...queuedRun,
   status: 'failed',
-  failure: Option.some({ reason: 'LlmFailedError', cause: '529 overloaded' }),
+  failure: Option.some({ cause: '529 overloaded' }),
 })
 
 const reply = assistantMessageAt(1, 'Sure.')

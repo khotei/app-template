@@ -272,8 +272,8 @@ left.
 - **Goal.** A long chat keeps answering: the history sent to the model is trimmed to the model's
   context window instead of failing every reply once it outgrows it.
 - **Scope.** Dropping the oldest messages whole, never splitting one, always keeping the system
-  prompt and the newest user message; failing with a user-facing reason when even that does not
-  fit; counting tokens of attachments.
+  prompt and the newest user message; failing when even that does not fit (a failed Run
+  carries no reason on the wire, so telling the user why is a contract change); counting tokens of attachments.
 - **Facts (2026-10-29).** `effect/ai` `Tokenizer.truncate` drops the oldest messages whole but
   does not protect the system message; no provider package implements `Tokenizer`, so counting
   is ours (a heuristic or Anthropic's token-counting endpoint). An overlong prompt is a 400

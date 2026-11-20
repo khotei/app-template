@@ -41,8 +41,8 @@ _Avoid_: Response, completion
 **Run status**:
 Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `preparing` (the
 assistant is reading the chat), `generating` (the assistant is writing; the text appears whole
-when it is done), `done`, or `failed` (the assistant gave up or declined; the Run carries a
-reason and its cause). The last two are terminal.
+when it is done), `done`, or `failed` (the assistant gave up or declined; the Run keeps the
+full text of what ended it, off the wire). The last two are terminal.
 _Avoid_: Stage, state, completed, in-progress, pending, streaming
 
 **Active Run**:

@@ -1,9 +1,7 @@
-import { Effect, Exit, Option } from 'effect'
+import { Cause, Effect, Exit, Option } from 'effect'
 
 import {
   type AssistantReply,
-  abortedRunReason,
-  buildRunFailure,
   completeRun,
   failRun,
   type GenerateAssistantMessage,
@@ -84,7 +82,6 @@ const settleActive = <A, E, R>(id: RunId, settle: (active: Run) => Effect.Effect
 const answer = Effect.fnUntraced(function* (active: Run) {
   if (isStartedRun(active)) {
     return yield* settleFailed(active, {
-      reason: abortedRunReason,
       cause: 'the worker that started the Run stopped before it ended',
     })
   }
@@ -94,7 +91,7 @@ const answer = Effect.fnUntraced(function* (active: Run) {
       Exit.match({
         onSuccess: () => Effect.void,
         onFailure: (cause) =>
-          settleActive(active.id, (latest) => settleFailed(latest, buildRunFailure(cause))),
+          settleActive(active.id, (latest) => settleFailed(latest, { cause: Cause.pretty(cause) })),
       }),
     ),
     // The Run holds the model's failure now, so the job ends.
@@ -104,8 +101,7 @@ const answer = Effect.fnUntraced(function* (active: Run) {
 
 /**
  * Prepares and generates the Run, then completes it with the assistant's message, or fails it
- * with the failure's tag as its reason, `RunAborted` where no error names it, an interrupt
- * included; a settled Run is skipped. A Run some worker already started is failed unrun, as
+ * with the full text of what ended it, an interrupt included; a settled Run is skipped. A Run some worker already started is failed unrun, as
  * that worker has died.
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(

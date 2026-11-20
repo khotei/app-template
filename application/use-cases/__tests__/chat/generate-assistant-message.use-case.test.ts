@@ -112,7 +112,6 @@ const lastWrite = (writes: Writes) =>
     Arr.last,
     Option.map(([set, where]) => ({
       move: `${where.status} → ${set.status}`,
-      reason: set.failure?.reason,
       cause: set.failure?.cause,
     })),
     Option.getOrThrow,
@@ -184,7 +183,7 @@ describe('generateAssistantMessage', () => {
       const exit = yield* generate.pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'RunAborted' })
+      assert.strictEqual(lastWrite(writes).move, 'generating → failed')
       assert.include(lastWrite(writes).cause, 'provider exploded')
     }).pipe(
       Effect.provide(
@@ -205,7 +204,7 @@ describe('generateAssistantMessage', () => {
       yield* held.asked
       yield* Fiber.interrupt(running)
 
-      assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason: 'RunAborted' })
+      assert.strictEqual(lastWrite(writes).move, 'generating → failed')
     }).pipe(
       Effect.provide(
         layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
@@ -224,7 +223,10 @@ describe('generateAssistantMessage', () => {
         yield* generate
 
         assert.deepStrictEqual(moves(writes), [`${status} → failed`])
-        assert.strictEqual(lastWrite(writes).reason, 'RunAborted')
+        assert.strictEqual(
+          lastWrite(writes).cause,
+          'the worker that started the Run stopped before it ended',
+        )
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
@@ -237,18 +239,18 @@ describe('generateAssistantMessage', () => {
   )
 
   it.effect.each([
-    { error: new LlmRefusedError({ cause: 'stop_reason refusal' }), reason: 'LlmRefusedError' },
-    { error: new LlmFailedError({ cause: '401 invalid x-api-key' }), reason: 'LlmFailedError' },
+    { name: 'LlmRefusedError', error: new LlmRefusedError({ cause: 'stop_reason refusal' }) },
+    { name: 'LlmFailedError', error: new LlmFailedError({ cause: '401 invalid x-api-key' }) },
   ] as const)(
-    "generate fails the Run it reads again with $reason and the error's cause after one call, and writes no reply",
-    ({ error, reason }) => {
+    'generate fails the Run it reads again with the text of $name after one call, and writes no reply',
+    ({ error }) => {
       const assistant = recordMessageAssistant(Effect.fail(error))
       const writes = noWrites()
       const generating = new Run({ ...queuedRun, status: 'generating' })
       return Effect.gen(function* () {
         yield* generate
 
-        assert.deepInclude(lastWrite(writes), { move: 'generating → failed', reason })
+        assert.strictEqual(lastWrite(writes).move, 'generating → failed')
         assert.include(lastWrite(writes).cause, error.cause)
         assert.strictEqual((yield* assistant.histories).length, 1)
         assert.deepStrictEqual(writes.messages, [])

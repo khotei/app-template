@@ -243,8 +243,8 @@ the domain's own; every error gets its status where an endpoint or a middleware 
 (`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
 which omits fields by name or swaps them, named by an `identifier` so the snapshot holds it once,
 and a mapper adds only what the model lacks (`buildApiChat` adds `status`). A field no client may
-see is omitted by each wire shape that carries it: a failed Run's cause stays in its row, off the
-wire of `ApiRun`, `ApiMessage` and the failure they nest. Its unit test writes
+see is omitted by each wire shape that carries it: a failed Run's failure stays in its row, off
+the wire of `ApiRun` and `ApiMessage`. Its unit test writes
 `apps/api/openapi.json`; the web reads that file by path and keeps the client
 `@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
 reaches the browser, and the web declares no workspace of the app but `packages`.
@@ -294,8 +294,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
   `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause in the worker's
   log alone, kept out of the model: lost once the log rolls over, and apart from the Run it
-  belongs to. A user-facing sentence stored beside the reason: the web picks its text by the
-  reason, so a stored sentence is a copy that only one reader needs.
+  belongs to.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -345,31 +344,29 @@ reaches the browser, and the web declares no workspace of the app but `packages`
 - **If reversed:** a shared `Status` couples every module that reads it to chat's states.
 - **Revisit when:** a second module's model needs a status.
 
-### A failed Run named by its failure
+### A failed Run keeps its text
 
-A failed Run's `reason` is the tag of the failure that ended it, an open non-empty string: an
-`LlmError`'s (`LlmRefusedError`, `LlmFailedError`), `QueueError` when SQS refuses its job,
-and `RunAborted` where no error names the end (a defect, an interrupt, a worker that died). Its
-`cause` is the failure's own text, which the wire omits
-([The API contract in the api](#the-api-contract-in-the-api)); the web picks the user's text by
-the reason.
+A failed Run's `failure` holds only `cause`, the full text of what ended it: `Cause.pretty` of
+the cause the use case caught (an `LlmError`, SQS's `QueueError`, a defect, an interrupt), or a
+fixed sentence for a Run whose worker died. It is for operators: the wire omits the failure
+whole ([The API contract in the api](#the-api-contract-in-the-api)), and a client reads a
+failure from the Run's status `failed`.
 
-- **Why:** the reason only says what happened, and every path already has that name; the only
-  reader that branches on it is the web's text, which tells only a refusal from the rest.
-- **Sources:** the owner's call in the design audit ("let it be any error").
-- **Rejected:** a closed list of reasons (`ReplyFailed`, `ReplyRefused`) with a table from the
-  errors' tags to it: a rename of names that already exist, and a table per new failure. Each
-  path's tag in a closed list: the list and a text table grow with every path, for the same two
-  texts.
-- **Cost:** neither the wire nor the column lists the reasons: a client reads it as a string, and
-  a typo in a new path's name passes `tsc`. A failure's tag is now a stored and wire value, so
-  renaming an error changes them.
-- **Guarded by:** `RunFailure`'s schema (a non-empty string), and the use cases' tests, which
-  assert each path's reason.
-- **If reversed:** the closed list returns in `kernel/data/chat/run.table.ts`, with a table from
-  each failure to it.
-- **Revisit when:** a reader must branch on the reason beyond the refusal's text, or a client
-  must list the reasons.
+- **Why:** no reader used a `reason`: the web never read it, and where no error carried a tag it
+  was a placeholder, `RunAborted`. The full text is what an operator needs, and every path
+  already has it.
+- **Sources:** the owner's call in the design audit.
+- **Rejected:** a `reason`, the failure's tag, beside the text: a stored and wire value no reader
+  branches on, with a placeholder where nothing names the end. A closed list of reasons with a
+  table from the errors' tags to it: a rename of names that already exist, and a table per new
+  failure.
+- **Cost:** a client tells a failed Run only by its status, not a model's refusal from an error;
+  bringing a reason back changes the wire contract and the column's shape.
+- **Guarded by:** `RunFailure`'s schema in the data layer; the api's test that a failed Run's
+  wire has no failure; the use cases' tests, which assert each path's text.
+- **If reversed:** `reason` returns to `RunFailure` in `kernel/data/chat/run.table.ts` and to
+  the Run's wire shapes, with each path naming its tag.
+- **Revisit when:** a client must tell one failure from another.
 
 ### Records open, rules called
 
@@ -585,8 +582,8 @@ answers the chat's next message from its history, `ChatAssistant` the chat's tit
 opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
 `LLM_REPLY_MODEL` or `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes
 `askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
-(`MessageFields`, `AssistantReply`), and a failed Run takes the error's tag as its reason
-([A failed Run named by its failure](#a-failed-run-named-by-its-failure)); no port stands in
+(`MessageFields`, `AssistantReply`), and a failed Run keeps the error's full text
+([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in
 front of the services. A use case yields the service it needs, a unit test swaps that
 service's layer, and the suite builds both layers over a recording client.
 
@@ -865,18 +862,17 @@ definition; a use case sends it after its commit, so every delivery finds its re
 goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
 definition, which only sends it and logs a send SQS refuses. The reply's send answers its
 `QueueError`, and both use cases that send it fail the Run by `failRun` and `RunService.update`,
-with the failure `buildRunFailure` makes of the error, `QueueError` as its reason and its text as
-its cause; the request answers `202` with that failed Run. The title's send only logs it, as its
-work has no record to settle.
+with the error's full text as its failure; the request answers `202` with that failed Run. The
+title's send only logs it, as its work has no record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
-  has no use apart from its queue. Each layer knows only its own: the send its queue, the model a
-  failure from any tagged cause, the service the Run's write; the use case composes the
-  transition and the write and names the status it read.
+  has no use apart from its queue. Each layer knows only its own: the send its queue, the model
+  the move to `failed`, the service the Run's write; the use case composes the transition and
+  the write and names the status it read.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -899,8 +895,8 @@ work has no record to settle.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
   send answers `202`, so a client reads the failure from the Run's status, not the response's.
-- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `buildRunFailure` and
-  of the create flow; the `infrastructure/` and `use-cases` rows of
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends and of the create flow; the
+  `infrastructure/` and `use-cases` rows of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.

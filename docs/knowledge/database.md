@@ -248,8 +248,8 @@ chat's title) is the one the worker reads
   that fails keeps no row and answers `500`.
 - **A send SQS refuses** is logged with the job's id and its chat's. For the reply's, the use
   case also fails its Run, by `failRun` and `RunService.update` under the status it read, with
-  the queue's error, `QueueError`, as its reason and cause, and the request answers `202` with
-  that failed Run; the message is stored and shown failed with its retry,
+  the queue's error's full text as its failure, and the request answers `202` with that failed
+  Run; the message is stored and shown failed with its retry,
   `POST /chats/:chatId/runs`. The title's send only logs it. A send that never happens after the
   commit: [Stuck Runs](#stuck-runs).
 

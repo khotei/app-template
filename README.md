@@ -26,10 +26,10 @@ answers. A user's message starts a Run, the work of answering it: the api writes
 queued Run in one transaction, sends the jobs to SQS after it commits and answers `202` with the
 Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run through
 `preparing` and `generating`, then writes the assistant's message and the Run's `done` in one
-transaction, or the Run's `failed` with its reason, and titles the chat. The client polls the Run,
-reads the chat's messages with their Runs after a reload, and retries a failed Run as a new Run of
-the same message. The language model is Anthropic's. The browser UI still shows only the health
-panel.
+transaction, or the Run's `failed` with the text of what ended it, and titles the chat. The
+client polls the Run, reads the chat's messages with their Runs after a reload, and retries a
+failed Run as a new Run of the same message. The language model is Anthropic's. The browser UI
+still shows only the health panel.
 
 ```mermaid
 sequenceDiagram

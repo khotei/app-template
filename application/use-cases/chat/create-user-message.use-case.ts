@@ -1,7 +1,6 @@
 import { Cause, Effect } from 'effect'
 
 import {
-  buildRunFailure,
   type ChatId,
   ChatService,
   ensureChatNotBusy,
@@ -48,7 +47,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   return yield* sendGenerateAssistantMessage(run).pipe(
     Effect.as(run),
     Effect.catch((error) =>
-      failRun(run, buildRunFailure(Cause.fail(error))).pipe(
+      failRun(run, { cause: Cause.pretty(Cause.fail(error)) }).pipe(
         Effect.flatMap((failed) => runs.update(failed, { id: run.id, status: [run.status] })),
       ),
     ),

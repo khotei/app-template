@@ -167,7 +167,7 @@ describe('createUserMessage', () => {
         const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
         assert.strictEqual(run.status, 'failed')
-        assert.strictEqual(Option.getOrThrow(run.failure).reason, 'QueueError')
+        assert.include(Option.getOrThrow(run.failure).cause, 'SQS is unavailable')
         assert.deepStrictEqual(queued, [chatTitleQueue.name])
         assert.deepStrictEqual(wheres, [{ id: run.id, status: ['queued'] }])
       }).pipe(

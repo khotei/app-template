@@ -933,16 +933,6 @@
               "failed"
             ]
           },
-          "failure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ApiRunFailure"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "assistantMessageId": {
             "anyOf": [
               {
@@ -1048,25 +1038,11 @@
           "chatId",
           "userMessageId",
           "status",
-          "failure",
           "assistantMessageId",
           "createdAt",
           "updatedAt",
           "userMessage",
           "assistantMessage"
-        ],
-        "additionalProperties": false
-      },
-      "ApiRunFailure": {
-        "type": "object",
-        "properties": {
-          "reason": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "required": [
-          "reason"
         ],
         "additionalProperties": false
       },
@@ -1182,16 +1158,6 @@
               "failed"
             ]
           },
-          "failure": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ApiRunFailure"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "assistantMessageId": {
             "anyOf": [
               {
@@ -1216,7 +1182,6 @@
           "chatId",
           "userMessageId",
           "status",
-          "failure",
           "assistantMessageId",
           "createdAt",
           "updatedAt"

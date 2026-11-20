@@ -54,7 +54,7 @@ const run = (
     chatId: answered.chatId,
     userMessageId: answered.id,
     status,
-    failure: status === 'failed' ? { reason: 'LlmFailedError', cause: '529 overloaded' } : null,
+    failure: status === 'failed' ? { cause: '529 overloaded' } : null,
     assistantMessageId: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),

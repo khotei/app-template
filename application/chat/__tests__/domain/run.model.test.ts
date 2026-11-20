@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -9,7 +9,6 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
-  buildRunFailure,
   completeRun,
   ensureRunRetryable,
   failRun,
@@ -88,7 +87,7 @@ const moves: ReadonlyArray<{
   {
     to: 'failed',
     from: activeRunStatuses,
-    move: (run) => failRun(run, { reason: 'LlmFailedError', cause: '529 overloaded' }),
+    move: (run) => failRun(run, { cause: '529 overloaded' }),
   },
 ]
 
@@ -120,9 +119,9 @@ it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
     }),
 )
 
-it.effect('failRun keeps the reason and the cause', () =>
+it.effect('failRun keeps the failure', () =>
   Effect.gen(function* () {
-    const failure = { reason: 'LlmRefusedError', cause: 'stop_reason refusal' }
+    const failure = { cause: 'stop_reason refusal' }
     const failed = yield* failRun(runAt('generating'), failure)
 
     assertSchemaEquals(Schema.Option(RunFailure), failed.failure, Option.some(failure))
@@ -159,12 +158,4 @@ describe('ensureRunRetryable', () => {
       assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError())
     }),
   )
-})
-
-it.each([
-  { name: 'an error', cause: Cause.fail({ _tag: 'QueueError' }), reason: 'QueueError' },
-  { name: 'a defect', cause: Cause.die(new Error('boom')), reason: 'RunAborted' },
-  { name: 'an interrupt', cause: Cause.interrupt(), reason: 'RunAborted' },
-])('a failure from $name has the reason $reason and the cause in full', ({ cause, reason }) => {
-  assert.deepStrictEqual(buildRunFailure(cause), { reason, cause: Cause.pretty(cause) })
 })

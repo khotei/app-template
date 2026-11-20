@@ -41,7 +41,7 @@ const hello = { text: 'Hello' }
 const refusedRun = new Run({
   ...queuedRun,
   status: 'failed',
-  failure: Option.some({ reason: 'LlmRefusedError', cause: 'stop_reason refusal' }),
+  failure: Option.some({ cause: 'stop_reason refusal' }),
 })
 
 const failedChat = new Chat({ ...chat, run: Option.some(refusedRun) })
@@ -144,7 +144,7 @@ describe('chats', () => {
 
       assert.deepInclude(listed, { id: firstMessage.id, author: 'user' })
       assert.deepInclude(Option.getOrThrow(listed.run), { id: refusedRun.id, status: 'failed' })
-      assert.deepNestedPropertyVal(wire, '[0].run.failure', { reason: 'LlmRefusedError' })
+      assert.notNestedProperty(wire, '[0].run.failure')
     }).pipe(
       Effect.provide(
         asOwner({
@@ -237,18 +237,15 @@ describe('chats', () => {
     },
   )
 
-  it.effect('a refused Run carries its reason on the wire, never its cause', () =>
+  it.effect('a failed Run reaches the wire by its status alone, never its failure', () =>
     Effect.gen(function* () {
       const [wire, chatWire] = yield* Effect.forEach(
         [`/chats/${chat.id}/runs/${refusedRun.id}`, `/chats/${chat.id}`],
         getJson,
       )
 
-      assert.deepInclude(wire, {
-        status: 'failed',
-        failure: { reason: 'LlmRefusedError' },
-        assistantMessage: null,
-      })
+      assert.deepInclude(wire, { status: 'failed', assistantMessage: null })
+      assert.notProperty(wire, 'failure')
       assert.deepInclude(chatWire, { status: 'failed' })
       assert.notProperty(chatWire, 'run')
     }).pipe(

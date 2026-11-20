@@ -20,9 +20,7 @@ import { messages } from '#kernel/data/chat/message.table'
 
 /** Why a Run failed, as the column `failure` holds it. */
 export const RunFailure = Schema.Struct({
-  /** The tag of the failure that ended the Run, an open set. */
-  reason: Schema.NonEmptyString,
-  /** The failure's own text, for operators; the api keeps it off the wire. */
+  /** The full text of what ended the Run, for operators; the api keeps it off the wire. */
   cause: Schema.String,
 })
 export type RunFailure = typeof RunFailure.Type

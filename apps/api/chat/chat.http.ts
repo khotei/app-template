@@ -14,7 +14,6 @@ import {
   MessageInputInvalidError,
   MessageNotFoundError,
   Run,
-  RunFailure,
   RunFields,
   RunId,
   RunNotFoundError,
@@ -27,15 +26,11 @@ export const ApiChat = Chat.mapFields(
 ).annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 
-// A failure's cause is the provider's or SQS's text, which can hold request ids, key hints or
-// the prompt: it stays in the row and the error, and every wire shape of either omits it.
-const failure = Schema.OptionFromNullOr(
-  RunFailure.mapFields(Struct.omit(['cause'])).annotate({ identifier: 'ApiRunFailure' }),
-)
+// A failure is the provider's or SQS's text, which can hold request ids, key hints or the
+// prompt: it stays in the row, and every wire shape of a Run omits it.
+const ApiRun = Run.mapFields(Struct.omit(['failure'])).annotate({ identifier: 'ApiRun' })
 
-const ApiRun = Run.mapFields(Struct.assign({ failure })).annotate({ identifier: 'ApiRun' })
-
-const ApiRunFields = RunFields.mapFields(Struct.assign({ failure })).annotate({
+const ApiRunFields = RunFields.mapFields(Struct.omit(['failure'])).annotate({
   identifier: 'ApiRunFields',
 })
 
