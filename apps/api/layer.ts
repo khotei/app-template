@@ -4,7 +4,12 @@ import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
-import { ChatService, MessageService, RunService } from '@app-template/application/chat'
+import {
+  ChatService,
+  MessageService,
+  MoveRunService,
+  RunService,
+} from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
 import { QueueSenderFromConfig } from '@app-template/kernel/aws'
 import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
@@ -26,6 +31,7 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
 // After `serve`, which makes what a handler reads per request its own requirement: a use case
 // the handler calls reads its services so, and a handler group's provide never reaches them.
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
+  Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer, UserService.layer]),
 )
 

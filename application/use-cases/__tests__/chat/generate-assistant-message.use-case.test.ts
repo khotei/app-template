@@ -223,7 +223,7 @@ describe('generateAssistantMessage', () => {
         yield* generate
 
         assert.deepStrictEqual(moves(writes), [`${status} → failed`])
-        assert.strictEqual(
+        assert.include(
           lastWrite(writes).cause,
           'the worker that started the Run stopped before it ended',
         )

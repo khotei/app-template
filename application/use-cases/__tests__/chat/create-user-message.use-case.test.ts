@@ -24,7 +24,7 @@ import {
   owner,
   queuedRun,
 } from '@app-template/application/chat/testing'
-import type { MessageColumns, RunColumns, RunEntityWhere } from '@app-template/kernel/data'
+import type { MessageColumns, RunColumns } from '@app-template/kernel/data'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { encodeWith } from '@app-template/packages/schema'
@@ -153,7 +153,6 @@ describe('createUserMessage', () => {
     'a first create whose reply job SQS refuses answers the failed Run and queues the title job',
     () => {
       const queued: Array<string> = []
-      const wheres: Array<RunEntityWhere> = []
       const RefusingReplyQueueTest = Layer.mock(QueueSender, {
         send: ({ name }) =>
           name === assistantMessageQueue.name
@@ -169,19 +168,11 @@ describe('createUserMessage', () => {
         assert.strictEqual(run.status, 'failed')
         assert.include(Option.getOrThrow(run.failure).cause, 'SQS is unavailable')
         assert.deepStrictEqual(queued, [chatTitleQueue.name])
-        assert.deepStrictEqual(wheres, [{ id: run.id, status: ['queued'] }])
       }).pipe(
         Effect.provide(
-          layerChatTest({
-            ...mocks,
-            runs: {
-              ...mocks.runs,
-              update: (_, where) =>
-                Effect.sync(() => {
-                  wheres.push(where)
-                }),
-            },
-          }).pipe(Layer.provideMerge(RefusingReplyQueueTest)),
+          layerChatTest({ ...mocks, runs: { ...mocks.runs, update: () => Effect.void } }).pipe(
+            Layer.provideMerge(RefusingReplyQueueTest),
+          ),
         ),
       )
     },

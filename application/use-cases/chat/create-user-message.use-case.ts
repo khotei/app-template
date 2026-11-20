@@ -5,9 +5,9 @@ import {
   ChatService,
   ensureChatNotBusy,
   ensureMessageInput,
-  failRun,
   isNewChat,
   MessageService,
+  MoveRunService,
   RunService,
   sendGenerateAssistantMessage,
   sendGenerateChatTitle,
@@ -34,7 +34,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   text: string,
 ) {
   const chats = yield* ChatService
-  const runs = yield* RunService
+  const moves = yield* MoveRunService
 
   yield* ensureMessageInput(text)
   const chat = yield* chats.getOne({ id: chatId, userId })
@@ -46,11 +46,7 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   if (isNewChat(chat)) yield* sendGenerateChatTitle(run.userMessage)
   return yield* sendGenerateAssistantMessage(run).pipe(
     Effect.as(run),
-    Effect.catch((error) =>
-      failRun(run, { cause: Cause.pretty(Cause.fail(error)) }).pipe(
-        Effect.flatMap((failed) => runs.update(failed, { id: run.id, status: [run.status] })),
-      ),
-    ),
+    Effect.catch((error) => moves.fail(run, Cause.fail(error))),
     // The Run was stored queued a moment before, so a refused move is a defect.
     Effect.orDie,
   )

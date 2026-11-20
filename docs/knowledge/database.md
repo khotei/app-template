@@ -184,11 +184,11 @@ touches no row:
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
   and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.update(run, where)` stamps the
   moved Run with the current time and passes it, encoded, as the set, and the caller's
-  `RunEntityWhere` as it is. The service requires only the id; the use case passes the status it
-  read too, so a write whose expected status another worker has left, or whose Run is gone, changes
-  nothing and dies; the use case then reads the Run and skips it as settled or deleted. A Run's
-  completion writes the assistant's message, then moves the Run to `done` naming it, in one
-  transaction, so a lost race keeps no reply.
+  `RunEntityWhere` as it is. The service requires only the id; `MoveRunService`, which writes
+  every status move, passes the status it read too, so a write whose expected status another
+  worker has left, or whose Run is gone, changes nothing and dies; the use case then reads the
+  Run and skips it as settled or deleted. A Run's completion writes the assistant's message, then
+  moves the Run to `done` naming it, in one transaction, so a lost race keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
   finished when sent, an assistant's when its Run writes it. The Run names its reply:
   `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
@@ -247,7 +247,7 @@ chat's title) is the one the worker reads
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
 - **A send SQS refuses** is logged with the job's id and its chat's. For the reply's, the use
-  case also fails its Run, by `failRun` and `RunService.update` under the status it read, with
+  case also fails its Run through `MoveRunService.fail`, under the status it read, with
   the queue's error's full text as its failure, and the request answers `202` with that failed
   Run; the message is stored and shown failed with its retry,
   `POST /chats/:chatId/runs`. The title's send only logs it. A send that never happens after the

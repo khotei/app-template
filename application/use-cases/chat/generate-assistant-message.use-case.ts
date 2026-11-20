@@ -2,17 +2,13 @@ import { Cause, Effect, Exit, Option } from 'effect'
 
 import {
   type AssistantReply,
-  completeRun,
-  failRun,
   type GenerateAssistantMessage,
-  generateRun,
   isActiveRun,
   isStartedRun,
   MessageAssistant,
   MessageService,
-  prepareRun,
+  MoveRunService,
   type Run,
-  type RunFailure,
   type RunId,
   RunService,
 } from '@app-template/application/chat'
@@ -21,44 +17,34 @@ import { Transaction } from '@app-template/packages/db'
 const settleCompleted = Effect.fnUntraced(
   function* (generating: Run, { text }: AssistantReply) {
     const messages = yield* MessageService
-    const runs = yield* RunService
+    const moves = yield* MoveRunService
 
     // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
     // its update, and the transaction takes the reply back.
     const reply = yield* messages.create({ chatId: generating.chatId, text, author: 'assistant' })
-    yield* completeRun(generating, reply).pipe(
-      Effect.flatMap((done) =>
-        runs.update(done, { id: generating.id, status: [generating.status] }),
-      ),
-    )
+    yield* moves.complete(generating, reply)
   },
   // The reply and the Run's `done` land together, or neither does.
   (settle) => Transaction.use((transaction) => transaction.run(settle)),
 )
 
-const settleFailed = Effect.fnUntraced(function* (active: Run, failure: RunFailure) {
-  const runs = yield* RunService
+const settleFailed = Effect.fnUntraced(function* (active: Run, cause: Cause.Cause<unknown>) {
+  const moves = yield* MoveRunService
 
   yield* Effect.logWarning('assistant reply failed').pipe(
-    Effect.annotateLogs({ runId: active.id, ...failure }),
+    Effect.annotateLogs({ runId: active.id, cause: Cause.pretty(cause) }),
   )
-  yield* failRun(active, failure).pipe(
-    Effect.flatMap((failed) => runs.update(failed, { id: active.id, status: [active.status] })),
-  )
+  yield* moves.fail(active, cause)
 })
 
 const reply = Effect.fnUntraced(function* (taken: Run) {
   const assistant = yield* MessageAssistant
   const messages = yield* MessageService
-  const runs = yield* RunService
+  const moves = yield* MoveRunService
 
-  const prepared = yield* prepareRun(taken).pipe(
-    Effect.flatMap((moved) => runs.update(moved, { id: taken.id, status: [taken.status] })),
-  )
+  const prepared = yield* moves.prepare(taken)
   const history = yield* messages.getMany({ chatId: prepared.chatId })
-  const generating = yield* generateRun(prepared).pipe(
-    Effect.flatMap((moved) => runs.update(moved, { id: prepared.id, status: [prepared.status] })),
-  )
+  const generating = yield* moves.generate(prepared)
   const answer = yield* assistant.reply(history)
   yield* settleCompleted(generating, answer)
 })
@@ -81,17 +67,17 @@ const settleActive = <A, E, R>(id: RunId, settle: (active: Run) => Effect.Effect
 
 const answer = Effect.fnUntraced(function* (active: Run) {
   if (isStartedRun(active)) {
-    return yield* settleFailed(active, {
-      cause: 'the worker that started the Run stopped before it ended',
-    })
+    return yield* settleFailed(
+      active,
+      Cause.die('the worker that started the Run stopped before it ended'),
+    )
   }
   // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
   yield* reply(active).pipe(
     Effect.onExit(
       Exit.match({
         onSuccess: () => Effect.void,
-        onFailure: (cause) =>
-          settleActive(active.id, (latest) => settleFailed(latest, { cause: Cause.pretty(cause) })),
+        onFailure: (cause) => settleActive(active.id, (latest) => settleFailed(latest, cause)),
       }),
     ),
     // The Run holds the model's failure now, so the job ends.

@@ -5,8 +5,8 @@ import {
   ChatService,
   ensureChatNotBusy,
   ensureRunRetryable,
-  failRun,
   MessageService,
+  MoveRunService,
   RunService,
   sendGenerateAssistantMessage,
 } from '@app-template/application/chat'
@@ -17,6 +17,7 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
   const chats = yield* ChatService
   const messages = yield* MessageService
   const runs = yield* RunService
+  const moves = yield* MoveRunService
 
   const chat = yield* chats.getOne({ id: chatId, userId })
   yield* ensureChatNotBusy(chat.run)
@@ -31,11 +32,7 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
   const run = yield* runs.create(userMessage)
   return yield* sendGenerateAssistantMessage(run).pipe(
     Effect.as(run),
-    Effect.catch((error) =>
-      failRun(run, { cause: Cause.pretty(Cause.fail(error)) }).pipe(
-        Effect.flatMap((failed) => runs.update(failed, { id: run.id, status: [run.status] })),
-      ),
-    ),
+    Effect.catch((error) => moves.fail(run, Cause.fail(error))),
     // The Run was stored queued a moment before, so a refused move is a defect.
     Effect.orDie,
   )

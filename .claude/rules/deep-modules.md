@@ -62,8 +62,10 @@ return shipped                                           // the value built: no 
 
 - A model function and the repository meet in the model's service: its method reads, calls the
   function and writes under the state it read, and a use case calls that method, never the
-  repository. Two methods that differ by their `where`, `set` or step are one, taking them from
-  the caller, with arguments as narrow as it uses.
+  repository. A model's status moves meet their write in `Move<Model>Service`, layered over
+  `<Model>Service`; nothing else sits between a transition and its write. Two methods that
+  differ by their `where`, `set` or step are one, taking them from the caller, with arguments as
+  narrow as it uses.
 - A copy per model is one function over the varying part (an id generator given the brand's
   `make`, an id's schema given its brand). A model's predicate and a value its service builds keep
   their names, however short or few their callers; the alias `effect-style.md › Composition`

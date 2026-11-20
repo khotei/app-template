@@ -538,6 +538,30 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   the pipe; or the two services change together in every change, so they hold one job, which the
   owner then merges.
 
+### A Run's moves in their own service
+
+`MoveRunService`, layered over `RunService`, holds a Run's status moves: `prepare`, `generate`,
+`complete` and `fail`, each the model's transition (`prepareRun`, …) then `RunService.update`
+under the status the Run was read in, through one helper. `fail` keeps the full text of the
+`Cause` it is given. `RunService` stays the plain write under a caller's `where`, and every
+use case moves a Run through `MoveRunService`, never through a transition and an update of its
+own.
+
+- **Why:** the six moves of the use cases composed the same two calls with the same guard; in one
+  service the guard on the status read is written once, and a move can no longer forget it.
+- **Sources:** the owner's call in the design audit;
+  [Layered services of one model](#layered-services-of-one-model).
+- **Rejected:** the moves on `RunService` itself: the plain service would know the transitions.
+  Each caller composing the transition and the update: the guard repeated at six sites, where
+  one could drop it. A `RunService.fail` alone: one move of four out of the service that holds
+  the rest.
+- **Cost:** a second service and layer for the Run; the processes and the test layer provide
+  `MoveRunService` over `RunService`.
+- **Guarded by:** `MoveRunService`'s unit test: each move writes under the status read, and a
+  refused move writes nothing; review, by `deep-modules.md › Composition over pass-through`.
+- **If reversed:** each use case composes the transition and `RunService.update` again.
+- **Revisit when:** a move needs a guard other than the status read.
+
 ## The kernel and the data
 
 ### One kernel
@@ -861,8 +885,8 @@ worker died and to record a failure. `QueueSender.send` encodes the job by its
 definition; a use case sends it after its commit, so every delivery finds its record. Each job
 goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
 definition, which only sends it and logs a send SQS refuses. The reply's send answers its
-`QueueError`, and both use cases that send it fail the Run by `failRun` and `RunService.update`,
-with the error's full text as its failure; the request answers `202` with that failed Run. The
+`QueueError`, and both use cases that send it fail the Run through `MoveRunService.fail`, with
+the error's full text as its failure; the request answers `202` with that failed Run. The
 title's send only logs it, as its work has no record to settle.
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
@@ -870,9 +894,9 @@ title's send only logs it, as its work has no record to settle.
   a missing record means a deleted chat. A refused send is the one cause of a stuck reply a
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
-  has no use apart from its queue. Each layer knows only its own: the send its queue, the model
-  the move to `failed`, the service the Run's write; the use case composes the transition and
-  the write and names the status it read.
+  has no use apart from its queue. Each layer knows only its own: the send its queue,
+  `MoveRunService` the move to `failed` and its write; the use case composes the send and the
+  move.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
@@ -881,17 +905,14 @@ title's send only logs it, as its work has no record to settle.
   deleted chat's, leaving the reply queued. A send that cannot be interrupted: it covers a
   client's abort only. A stuck Run that a retry may take after an age: a rule by time, and a Run
   that reads queued while it is lost. A callback into the send that settles its refusal:
-  infrastructure would decide the refusal's outcome and depend on the Run. A `RunService.fail`
-  between `failRun` and the write: a pass-through
-  ([deep-modules.md](../../.claude/rules/deep-modules.md)). A settlement file
-  beside the use cases: a function over the send, where the model and the service each already
-  hold their part. A sweep resending unsent work: a schedule and a route
-  of its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply
-  the user waits on through every attempt, and code that counts them. The title's send inline in
-  its use case: the send's policy, its log and its annotations in a flow, and a second form of
-  the sending rule beside the reply's send. A domain error wrapping `QueueError` and a `503`
-  for a refused reply: a second name for one failure, which the Run already holds, and a retry is
-  the client's next step either way.
+  infrastructure would decide the refusal's outcome and depend on the Run. A settlement file
+  beside the use cases: a function over the send, where `MoveRunService` already holds the move.
+  A sweep resending unsent work: a schedule and a route of its own, and a reply up to a minute
+  late. Retries with a delay per attempt: a failed reply the user waits on through every attempt,
+  and code that counts them. The title's send inline in its use case: the send's policy, its log
+  and its annotations in a flow, and a second form of the sending rule beside the reply's send. A
+  domain error wrapping `QueueError` and a `503` for a refused reply: a second name for one
+  failure, which the Run already holds, and a retry is the client's next step either way.
 - **Cost:** a process that dies between the commit and the send, or a client that aborts there,
   leaves the Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)); a refused
   send answers `202`, so a client reads the failure from the Run's status, not the response's.

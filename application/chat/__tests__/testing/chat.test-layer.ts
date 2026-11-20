@@ -7,6 +7,7 @@ import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
+import { MoveRunService } from '#chat/services/move-run.service'
 import { RunService } from '#chat/services/run.service'
 
 /** What each repository answers in a case, as `Layer.mock` takes it; a method left out dies. */
@@ -25,7 +26,8 @@ export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   transaction: Layer.Layer<Transaction> = TransactionTest,
 ) =>
-  Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer).pipe(
+  MoveRunService.layer.pipe(
+    Layer.provideMerge(Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer)),
     Layer.provideMerge(
       Layer.mergeAll(
         Layer.mock(ChatRepository, chats),

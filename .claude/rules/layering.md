@@ -23,7 +23,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   which are a use case's ([composition.md](composition.md)).
 - A service composed over `<Model>Service` holds the job it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
-  stores bytes with its records → `File<Model>Service`, holding the bytes' store. Record:
+  stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
+  moves, each a transition written under the status read → `Move<Model>Service`. Record:
   [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
