@@ -2,7 +2,6 @@ import { Cause, Context, Effect, Layer } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { AssistantReply } from '#chat/domain/assistant.model'
 import type {
   RunNotFoundError,
   RunStartedError,
@@ -61,34 +60,27 @@ export class JobRunService extends Context.Service<
       ),
     )
 
-    /** Writes the reply and the Run's `done` together, or neither. */
-    const settleCompleted = Effect.fnUntraced(function* (
-      generating: Run,
-      { text }: AssistantReply,
-    ) {
-      // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
-      // its update, and the transaction takes the reply back.
-      const reply = yield* messages.create({ chatId: generating.chatId, text, author: 'assistant' })
-      yield* moves.complete(generating, reply)
-    }, transaction.run)
-
-    const answer = Effect.fnUntraced(function* (prepared: Run) {
+    const reply = Effect.fn('JobRunService.reply')(function* (id: RunId) {
       const assistant = yield* MessageAssistant
 
-      const history = yield* messages.getMany({ chatId: prepared.chatId })
-      const generating = yield* moves.generate(prepared)
-      const generated = yield* assistant.reply(history)
-      yield* settleCompleted(generating, generated)
-    })
-
-    const reply = Effect.fn('JobRunService.reply')(function* (id: RunId) {
       const prepared = yield* moves.prepare(id)
-      // On the answer, not on `prepare`: an interrupt during `prepare` leaves the Run at most
-      // `preparing`, which the next delivery fails as started. The handler runs uninterruptibly;
-      // a Run it finds settled or gone is a lost race and dies, joining the answer's cause: two
-      // deliveries never both pass `prepare`'s guarded write, so only a deleted chat or a copy
-      // delivered meanwhile, failing the Run as started, settles it under this flow.
-      yield* answer(prepared).pipe(
+      // The tail starts after `prepare`: an interrupt there leaves the Run at most `preparing`,
+      // which the next delivery fails as started.
+      yield* Effect.gen(function* () {
+        const history = yield* messages.getMany({ chatId: prepared.chatId })
+        const generating = yield* moves.generate(prepared)
+        const generated = yield* assistant.reply(history)
+        // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
+        // its update, and the transaction takes the reply back.
+        yield* messages
+          .create({ chatId: generating.chatId, text: generated.text, author: 'assistant' })
+          .pipe(
+            Effect.flatMap((message) => moves.complete(generating, message)),
+            transaction.run,
+          )
+      }).pipe(
+        // Only a deleted chat or a copy delivered meanwhile settles the Run under this flow, as
+        // two deliveries never both pass `prepare`'s guarded write: a lost race, so it dies.
         Effect.onError((cause) => moves.fail(prepared.id, cause).pipe(Effect.orDie)),
       )
     })
