@@ -20,6 +20,9 @@ export class Run extends Schema.Class<Run>('Run')({
   ),
 }) {}
 
+// The statuses the data layer's active index holds, served through the module's entry.
+export { activeRunStatuses }
+
 export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run past `queued` that has not ended. */

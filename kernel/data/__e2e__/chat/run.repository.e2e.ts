@@ -87,6 +87,21 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
+  it.effect('selects a Run in one of the statuses its where names, none in another', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a4')
+      yield* insertUserMessage
+      yield* runs.insert(queued)
+
+      const active = yield* runs.selectOne({ id: queued.id, status: ['queued', 'preparing'] })
+      const settled = yield* runs.selectOne({ id: queued.id, status: ['done', 'failed'] })
+
+      assertSchemaEquals(SelectedRun, active, Option.some(read(queued)))
+      assert.deepStrictEqual(settled, Option.none())
+    }).pipe(Effect.provide(RepositoryTest)),
+  )
+
   it.effect('update moves a Run under its old status, and dies once that no longer holds', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository

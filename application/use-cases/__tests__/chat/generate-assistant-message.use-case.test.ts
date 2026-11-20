@@ -1,6 +1,17 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option, pipe, Schema } from 'effect'
+import {
+  Array as Arr,
+  DateTime,
+  Effect,
+  Exit,
+  Fiber,
+  Layer,
+  Option,
+  pipe,
+  Schema,
+  UndefinedOr,
+} from 'effect'
 import { TestClock } from 'effect/testing'
 
 import {
@@ -57,15 +68,25 @@ const doneElsewhere = new Run({
   assistantMessage: Option.some(elsewhereReply),
 })
 
-/** A Run read that answers `reads` in turn, the last one from then on. */
+/**
+ * A Run read that answers `reads` in turn, the last one from then on, and none of one outside
+ * the `where`'s statuses, as the store filters them.
+ */
 const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {
   let turn = 0
-  return () =>
+  return (where: RunEntityWhere) =>
     Effect.sync(() =>
       Arr.get(reads, turn++).pipe(Option.getOrElse(() => Arr.lastNonEmpty(reads))),
     ).pipe(
       Effect.flatMap((run) => encodeWith(Run)(run)),
-      Effect.map(Option.some),
+      Effect.map(
+        Option.liftPredicate((row) =>
+          UndefinedOr.match(where.status, {
+            onUndefined: () => true,
+            onDefined: (statuses) => Arr.contains(statuses, row.status),
+          }),
+        ),
+      ),
     )
 }
 

@@ -1,9 +1,9 @@
-import { Cause, Effect, Exit, Option } from 'effect'
+import { Cause, Effect, Option } from 'effect'
 
 import {
   type AssistantReply,
+  activeRunStatuses,
   type GenerateAssistantMessage,
-  isActiveRun,
   isStartedRun,
   MessageAssistant,
   MessageService,
@@ -49,50 +49,41 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
   yield* settleCompleted(generating, answer)
 })
 
-/**
- * Runs `settle` on the Run while it is active; one settled meanwhile, or gone with its chat (the
- * cascade takes the Run with it), is skipped.
- */
-const settleActive = <A, E, R>(id: RunId, settle: (active: Run) => Effect.Effect<A, E, R>) =>
-  RunService.use((runs) => runs.getOne({ id })).pipe(
-    Effect.map(Option.liftPredicate<Run>(isActiveRun)),
-    Effect.catchTag('RunNotFoundError', () => Effect.succeedNone),
+/** The Run while it is active; none once settled, or gone with its chat (the cascade takes it). */
+const findActiveRun = (id: RunId) =>
+  RunService.use((runs) => runs.getOne({ id, status: activeRunStatuses })).pipe(Effect.option)
+
+const logSkipped = () => Effect.logInfo('assistant reply skipped: its Run is settled or gone')
+
+/** Fails the Run as it stands now, the reply having moved it; one settled meanwhile is skipped. */
+const failLatest = (id: RunId, cause: Cause.Cause<unknown>) =>
+  findActiveRun(id).pipe(
     Effect.flatMap(
-      Option.match({
-        onNone: () => Effect.logInfo('assistant reply skipped: its Run is settled or gone'),
-        onSome: settle,
-      }),
+      Option.match({ onNone: logSkipped, onSome: (latest) => settleFailed(latest, cause) }),
     ),
   )
 
-const answer = Effect.fnUntraced(function* (active: Run) {
-  if (isStartedRun(active)) {
-    return yield* settleFailed(
-      active,
-      Cause.die('the worker that started the Run stopped before it ended'),
-    )
-  }
-  // An exit handler runs uninterruptibly, so a stopping worker waits for the `failed` write.
-  yield* reply(active).pipe(
-    Effect.onExit(
-      Exit.match({
-        onSuccess: () => Effect.void,
-        onFailure: (cause) => settleActive(active.id, (latest) => settleFailed(latest, cause)),
-      }),
-    ),
-    // The Run holds the model's failure now, so the job ends.
-    Effect.catchTag(['LlmRefusedError', 'LlmFailedError'], () => Effect.void),
-  )
-})
+const answer = (run: Run) =>
+  isStartedRun(run)
+    ? settleFailed(run, Cause.die('the worker that started the Run stopped before it ended'))
+    : reply(run).pipe(
+        // An error handler runs uninterruptibly, so a stopping worker waits for the `failed` write;
+        // it may not fail, so a refused move dies there.
+        Effect.onError((cause) => failLatest(run.id, cause).pipe(Effect.orDie)),
+        // The Run holds the model's failure now, so the job ends.
+        Effect.catchTag(['LlmRefusedError', 'LlmFailedError'], () => Effect.void),
+      )
 
 /**
  * Prepares and generates the Run, then completes it with the assistant's message, or fails it
- * with the full text of what ended it, an interrupt included; a settled Run is skipped. A Run some worker already started is failed unrun, as
- * that worker has died.
+ * with the full text of what ended it, an interrupt included; a settled Run is skipped. A Run
+ * some worker already started is failed unrun, as that worker has died.
  */
 export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
-  (job: GenerateAssistantMessage) => settleActive(job.runId, answer),
-  // A race is decided by the write's guard on the status its mover read, whose update dies
-  // on a Run another worker moved, not by this refusal; a refused move is a bug and dies too.
+  (job: GenerateAssistantMessage) =>
+    findActiveRun(job.runId).pipe(
+      Effect.flatMap(Option.match({ onNone: logSkipped, onSome: answer })),
+    ),
+  // A refused move is a bug: a race dies on the write's guard instead.
   Effect.catchTag('RunStatusInvalidError', Effect.die),
 )

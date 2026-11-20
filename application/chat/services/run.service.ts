@@ -8,11 +8,20 @@ import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 
-/** A Run by id; `userId` limits it to the user's chats, which every api caller passes. */
+/**
+ * A Run by id; `userId` limits it to the user's chats, which every api caller passes, and
+ * `status` to the Runs in one of them.
+ */
 export type RunWhere = Types.Simplify<
-  Pick<Run, 'id'> & Partial<Pick<Run, 'chatId'> & { readonly userId: UserId }>
+  Pick<Run, 'id'> &
+    Partial<
+      Pick<Run, 'chatId'> & {
+        readonly userId: UserId
+        readonly status: ReadonlyArray<RunStatus>
+      }
+    >
 >
 
 export class RunService extends Context.Service<
