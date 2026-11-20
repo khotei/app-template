@@ -1,4 +1,4 @@
-import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted, Schema } from 'effect'
+import { Context, Crypto, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
 import { UserRepository } from '@app-template/kernel/data'
@@ -15,7 +15,7 @@ export class UserService extends Context.Service<
   {
     /** Returns the user a valid secret names; any other input creates a user with a new secret. */
     readonly ensure: (
-      secret: Option.Option<UserSecret>,
+      secret: UserSecret,
     ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
     readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
   }
@@ -51,15 +51,11 @@ export class UserService extends Context.Service<
       return { user, secret }
     })
 
-    const ensure = Effect.fn('UserService.ensure')((secret: Option.Option<UserSecret>) =>
-      Option.match(secret, {
-        onNone: registerUser,
-        onSome: (presented) =>
-          authenticate(presented).pipe(
-            Effect.map((user) => ({ user, secret: presented })),
-            Effect.catchTag('UserUnknownError', registerUser),
-          ),
-      }),
+    const ensure = Effect.fn('UserService.ensure')((secret: UserSecret) =>
+      authenticate(secret).pipe(
+        Effect.map((user) => ({ user, secret })),
+        Effect.catchTag('UserUnknownError', registerUser),
+      ),
     )
 
     return { ensure, authenticate }
