@@ -45,8 +45,8 @@ const reply = Effect.fnUntraced(function* (taken: Run) {
   const prepared = yield* moves.prepare(taken)
   const history = yield* messages.getMany({ chatId: prepared.chatId })
   const generating = yield* moves.generate(prepared)
-  const answer = yield* assistant.reply(history)
-  yield* settleCompleted(generating, answer)
+  const generated = yield* assistant.reply(history)
+  yield* settleCompleted(generating, generated)
 })
 
 /** The Run while it is active; none once settled, or gone with its chat (the cascade takes it). */
@@ -66,13 +66,7 @@ const failLatest = (id: RunId, cause: Cause.Cause<unknown>) =>
 const answer = (run: Run) =>
   isStartedRun(run)
     ? settleFailed(run, Cause.die('the worker that started the Run stopped before it ended'))
-    : reply(run).pipe(
-        // An error handler runs uninterruptibly, so a stopping worker waits for the `failed` write;
-        // it may not fail, so a refused move dies there.
-        Effect.onError((cause) => failLatest(run.id, cause).pipe(Effect.orDie)),
-        // The Run holds the model's failure now, so the job ends.
-        Effect.catchTag(['LlmRefusedError', 'LlmFailedError'], () => Effect.void),
-      )
+    : reply(run)
 
 /**
  * Prepares and generates the Run, then completes it with the assistant's message, or fails it
@@ -83,6 +77,11 @@ export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
   (job: GenerateAssistantMessage) =>
     findActiveRun(job.runId).pipe(
       Effect.flatMap(Option.match({ onNone: logSkipped, onSome: answer })),
+      // An error handler runs uninterruptibly, so a stopping worker waits for the `failed` write;
+      // it may not fail, so a refused move dies there.
+      Effect.onError((cause) => failLatest(job.runId, cause).pipe(Effect.orDie)),
+      // The Run holds the model's failure now, so the job ends.
+      Effect.catchTag(['LlmRefusedError', 'LlmFailedError'], () => Effect.void),
     ),
   // A refused move is a bug: a race dies on the write's guard instead.
   Effect.catchTag('RunStatusInvalidError', Effect.die),
