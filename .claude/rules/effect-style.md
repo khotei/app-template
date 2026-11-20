@@ -69,10 +69,12 @@ pipe(orders, sumBy((order) => order.refunded))
 
 ## Errors and logs
 
-- One job per combinator: log in `Effect.tapCauseIf` / `Effect.tapError`, recover in `catch*`,
-  annotate in `Effect.annotateLogs`.
-- A flow's main path reads as if nothing fails: its failures are handled once, in a tail at the
-  end of the flow they end (`onError`, `catch*`), never by a `pipe` of its own inside a branch.
+- One job per combinator: log in `Effect.tapCauseIf` / `Effect.tapError`, passing the `Cause`
+  (`Effect.logError('…', cause)`); recover in `catch*`; annotate in `Effect.annotateLogs`, the
+  flow's ids once at its end.
+- A flow's main path reads as if nothing fails: each failure is handled once, in a tail
+  (`onError`, `catch*`) at the end of the smallest flow that owns it, the step whose failure it
+  is, beside the logic it ends; never mid-flow, where the main path must branch around it.
 - Inspect a `Cause` by its predicates, never by walking it (`repos/effect/migration/cause.md`).
 - A "nothing changed" check before a write or a snapshot compares models with `Equal.equals`,
   and errors by their encoded form, as tests do ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).

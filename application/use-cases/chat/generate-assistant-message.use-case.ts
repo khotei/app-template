@@ -30,10 +30,7 @@ const settleCompleted = Effect.fnUntraced(
 
 const settleFailed = Effect.fnUntraced(function* (active: Run, cause: Cause.Cause<unknown>) {
   const moves = yield* MoveRunService
-
-  yield* Effect.logWarning('assistant reply failed').pipe(
-    Effect.annotateLogs({ runId: active.id, cause: Cause.pretty(cause) }),
-  )
+  yield* Effect.logWarning('assistant reply failed', cause)
   yield* moves.fail(active, cause)
 })
 
@@ -63,10 +60,22 @@ const failLatest = (id: RunId, cause: Cause.Cause<unknown>) =>
     ),
   )
 
+const workerStopped = Cause.die('the worker that started the Run stopped before it ended')
+
 const answer = (run: Run) =>
-  isStartedRun(run)
-    ? settleFailed(run, Cause.die('the worker that started the Run stopped before it ended'))
-    : reply(run)
+  (isStartedRun(run) ? settleFailed(run, workerStopped) : reply(run)).pipe(
+    // On the answer, not the job: an interrupt during the job's read writes nothing, and SQS
+    // delivers the job again. An error handler runs uninterruptibly, so a stopping worker waits
+    // for the `failed` write; it may not fail, so a refused move dies there.
+    Effect.onError((cause) => failLatest(run.id, cause).pipe(Effect.orDie)),
+    Effect.catchTags({
+      // The Run holds the model's failure now, so the job ends.
+      LlmRefusedError: () => Effect.void,
+      LlmFailedError: () => Effect.void,
+      // A refused move is a bug: a race dies on the write's guard instead.
+      RunStatusInvalidError: Effect.die,
+    }),
+  )
 
 /**
  * Prepares and generates the Run, then completes it with the assistant's message, or fails it
@@ -77,12 +86,6 @@ export const generateAssistantMessage = Effect.fn('generateAssistantMessage')(
   (job: GenerateAssistantMessage) =>
     findActiveRun(job.runId).pipe(
       Effect.flatMap(Option.match({ onNone: logSkipped, onSome: answer })),
-      // An error handler runs uninterruptibly, so a stopping worker waits for the `failed` write;
-      // it may not fail, so a refused move dies there.
-      Effect.onError((cause) => failLatest(job.runId, cause).pipe(Effect.orDie)),
-      // The Run holds the model's failure now, so the job ends.
-      Effect.catchTag(['LlmRefusedError', 'LlmFailedError'], () => Effect.void),
     ),
-  // A refused move is a bug: a race dies on the write's guard instead.
-  Effect.catchTag('RunStatusInvalidError', Effect.die),
+  (generate, job) => Effect.annotateLogs(generate, { runId: job.runId }),
 )

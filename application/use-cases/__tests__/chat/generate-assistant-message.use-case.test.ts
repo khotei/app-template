@@ -3,6 +3,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import {
   Array as Arr,
   DateTime,
+  Deferred,
   Effect,
   Exit,
   Fiber,
@@ -235,6 +236,29 @@ describe('generateAssistantMessage', () => {
     )
   })
 
+  it.effect(
+    'generate interrupted while it reads its Run writes nothing, for SQS to redeliver',
+    () => {
+      const reading = Deferred.makeUnsafe<void>()
+      const neverAnswers = () =>
+        Deferred.succeed(reading, undefined).pipe(Effect.andThen(Effect.never))
+      const writes = noWrites()
+      return Effect.gen(function* () {
+        const running = yield* Effect.forkChild(generate)
+        yield* Deferred.await(reading)
+        yield* Fiber.interrupt(running)
+
+        assert.deepStrictEqual(writes.runs, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest(replyingTo(writes, { runs: neverAnswers })).pipe(
+            Layer.provideMerge(recordMessageAssistant(Effect.succeed(sure)).layer),
+          ),
+        ),
+      )
+    },
+  )
+
   it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
     'generate fails a $status Run a dead worker left, without asking the assistant',
     ({ status }) => {
@@ -340,13 +364,13 @@ describe('generateAssistantMessage', () => {
 
   it.effect('generate skips a Run settled before it, without asking the assistant', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
-    const { logs, layer: logger } = recordLogs()
+    const { logs, layer: logger } = recordLogs('runId')
     return Effect.gen(function* () {
       yield* generate
 
       assertEquals(yield* assistant.histories, [])
       assert.deepStrictEqual(logs, [
-        ['Info', 'assistant reply skipped: its Run is settled or gone'],
+        ['Info', 'assistant reply skipped: its Run is settled or gone', queuedRun.id],
       ])
     }).pipe(
       Effect.provide([

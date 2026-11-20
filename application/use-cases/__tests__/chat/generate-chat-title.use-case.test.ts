@@ -116,14 +116,14 @@ describe('generateChatTitle', () => {
   it.effect.each([
     { error: new LlmRefusedError({ cause: 'stop_reason refusal' }) },
     { error: new LlmFailedError({ cause: '529 overloaded' }) },
-  ])('leaves the chat untitled and logs the $error._tag', ({ error }) => {
+  ])("leaves the chat untitled and logs the $error._tag with the job's message", ({ error }) => {
     const assistant = recordChatAssistant(Effect.fail(error))
-    const { logs, layer: logger } = recordLogs('error', 'cause')
+    const { logs, layer: logger } = recordLogs('messageId')
     return Effect.gen(function* () {
       yield* generate
 
       assert.deepStrictEqual(logs, [
-        ['Warn', 'chat title skipped: the assistant failed', error._tag, error.cause],
+        ['Warn', 'chat title skipped: the assistant failed', messageId, error],
       ])
     }).pipe(
       Effect.provide([

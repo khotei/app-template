@@ -31,13 +31,15 @@ describe('sendGenerateAssistantMessage', () => {
 
 describe('sendGenerateChatTitle', () => {
   it.effect(
-    'a title job SQS refuses is logged with its chat and message, and the send goes on',
+    'a title job SQS refuses is logged with its chat, message and error, and the send goes on',
     () => {
       const { logs, layer: logger } = recordLogs('chatId', 'messageId')
       return Effect.gen(function* () {
         yield* sendGenerateChatTitle({ id: messageId, chatId })
 
-        assert.deepStrictEqual(logs, [['Error', 'chat title not queued', chatId, messageId]])
+        assert.deepStrictEqual(logs, [
+          ['Error', 'chat title not queued', chatId, messageId, refused],
+        ])
       }).pipe(Effect.provide([RefusingQueueTest, logger]))
     },
   )
