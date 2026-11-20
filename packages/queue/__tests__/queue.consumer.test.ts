@@ -1,6 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Effect, Order, Record as Rec, Ref, Schema } from 'effect'
 
+import { recordLogs } from '@app-template/packages/testing'
+
 import { consumeQueue, SqsEvent } from '#queue/queue.consumer'
 
 const pingQueue = { name: 'pings', schema: Schema.Struct({ ping: Schema.String }) }
@@ -78,13 +80,23 @@ describe('consumeQueue', () => {
     }),
   )
 
-  it.effect('acknowledges a body that does not decode, unrun', () =>
-    Effect.gen(function* () {
+  it.effect('acknowledges a body that does not decode, unrun, and logs its decode error', () => {
+    const { logs, layer: logger } = recordLogs('messageId')
+    return Effect.gen(function* () {
       const response = yield* consumeQueue(pingQueue, () => Effect.die('handler ran'))({
         Records: [buildRecord('a', '{"ping":1}')],
       })
 
       assert.deepStrictEqual(response, { batchItemFailures: [] })
-    }),
-  )
+      assert.deepStrictEqual(
+        Arr.map(logs, ([level, message, messageId, error]) => [
+          level,
+          message,
+          messageId,
+          Schema.isSchemaError(error),
+        ]),
+        [['Error', 'queue message does not decode', 'a', true]],
+      )
+    }).pipe(Effect.provide(logger))
+  })
 })

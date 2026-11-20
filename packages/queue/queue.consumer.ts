@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Exit, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Effect, Exit, Option, Schema } from 'effect'
 import { Headers, HttpTraceContext } from 'effect/http'
 
 import { buildMessageCodec, type QueueDefinition } from '#queue/queue.model'
@@ -47,7 +47,7 @@ export function consumeQueue<A, I, R>(
     )
     return decode(record.body).pipe(
       Effect.matchEffect({
-        onFailure: (error) => Effect.logError('queue message does not decode', error),
+        onFailure: (error) => Effect.logError('queue message does not decode', Cause.fail(error)),
         onSuccess: handle,
       }),
       Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
