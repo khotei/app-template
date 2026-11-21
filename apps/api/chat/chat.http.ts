@@ -57,10 +57,12 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     params: chatPath,
     error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
   }),
+  // A request for something of a chat that does not exist is a bad request: a route under a chat
+  // answers its ChatNotFoundError with 400, while the chat's own routes answer 404.
   HttpApiEndpoint.get('listMessages', '/chats/:chatId/messages', {
     params: chatPath,
     success: Schema.Array(ApiMessage),
-    error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+    error: ChatNotFoundError.pipe(HttpApiSchema.status(400)),
   }),
   HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
     params: chatPath,
@@ -69,7 +71,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     }),
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
-      ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+      ChatNotFoundError.pipe(HttpApiSchema.status(400)),
       ChatBusyError.pipe(HttpApiSchema.status(409)),
     ],
   }),
@@ -78,7 +80,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
       MessageNotFoundError.pipe(HttpApiSchema.status(404)),
-      ChatNotFoundError.pipe(HttpApiSchema.status(404)),
+      ChatNotFoundError.pipe(HttpApiSchema.status(400)),
       RunNotRetryableError.pipe(HttpApiSchema.status(409)),
     ],
   }),

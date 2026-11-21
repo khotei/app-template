@@ -248,8 +248,11 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
 The api declares its HTTP surface in its own files, one group per entity beside its handler,
 assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
 the domain's own; every error gets its status where an endpoint or a middleware lists it
-(`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
-which omits fields by name or swaps them, named by an `identifier` so the snapshot holds it once,
+(`HttpApiSchema.status`), so one error may answer two statuses by route: a request for something
+of a chat that does not exist (its messages, a send, a retry) is a bad request,
+`400 ChatNotFoundError`, while the chat's own routes (read, rename, delete) answer `404`; a wire
+shape that differs from its model is `<Model>.mapFields(…)`, which omits fields by name or swaps
+them, named by an `identifier` so the snapshot holds it once,
 and a mapper adds only what the model lacks (`buildApiChat` adds `status`). A field no client may
 see is omitted by each wire shape that carries it: a failed Run's failure stays in its row, off
 the wire of `ApiRun` and `ApiMessage`. Its unit test writes
@@ -303,29 +306,30 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause in the worker's
   log alone, kept out of the model: lost once the log rolls over, and apart from the Run it
   belongs to.
-- **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
-  dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
-  what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
-  code points where the api counts UTF-16 units, a rename's title the snapshot gives as a bare
-  string; a media type's pattern, whose `i` flag JSON Schema lacks, is left out. A model's
-  encoded side is its row's ([Entity names](#entity-names)), and the wire is that side under
-  Effect's JSON codec: a row form changed for the store changes the wire too, unless the wire
-  shape swaps the field. A field added to a model, a secret included, reaches the wire unless its
-  wire shape omits it; the snapshot test stops it until `make api-snapshot` writes it into the
-  diff, and only review of that diff refuses it. An error's status is spelled at each listing
-  (25 for 13 errors), and a listing without `HttpApiSchema.status` answers `500`, which likewise
-  only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
-  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
-  `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
+- **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and dates
+  are strings, an absent value `null`, an error a struct with `_tag`), and checks only what JSON
+  Schema carries, so it can pass what the api refuses with a `400`: a text measured in code points
+  where the api counts UTF-16 units, a rename's title the snapshot gives as a bare string; a media
+  type's pattern, whose `i` flag JSON Schema lacks, is left out. A model's encoded side is its row's
+  ([Entity names](#entity-names)), and the wire is that side under Effect's JSON codec: a row form
+  changed for the store changes the wire too, unless the wire shape swaps the field. A field added
+  to a model, a secret included, reaches the wire unless its wire shape omits it; the snapshot test
+  stops it until `make api-snapshot` writes it into the diff, and only review of that diff refuses
+  it. An error's status is spelled at each listing (13 for 7 errors), and a listing without
+  `HttpApiSchema.status` answers `500`, which likewise only review of the snapshot diff refuses. A
+  user's own group goes in `api.ts`'s first `.add(…)`, before `.middleware(Auth)`: past it, only a
+  handler that reads `CurrentUser` fails `tsc`. `ChatNotFoundError` answers `400` under a chat and
+  `404` on the chat itself, so a client reads a missing chat by its tag, not by its status alone.
+  The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
   (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class answered through more
-  than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
-  a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
-  for the Run's three). Two checked-in files move with every
-  wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned. Keeping the cause off the wire takes five wire shapes (the failure, the Run, the Run a
-  message nests, the message, the `503` error), each in the snapshot, and two assertions that it
-  stays off (`listMessages`, `getRun`); a new shape that nests a Run, or a new listing of an
-  error with a cause, must omit it too, which only review of the snapshot diff holds.
+  than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets a
+  numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun` for
+  the Run's three). Two checked-in files move with every wire change, and the web keeps a generator,
+  with its command's peer `@effect/platform-node` pinned. Keeping the cause off the wire takes five
+  wire shapes (the failure, the Run, the Run a message nests, the message, the `503` error), each in
+  the snapshot, and two assertions that it stays off (`listMessages`, `getRun`); a new shape that
+  nests a Run, or a new listing of an error with a cause, must omit it too, which only review of the
+  snapshot diff holds.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;

@@ -72,36 +72,32 @@ export type ChatsListMessagesPathParams = { readonly "chatId": string }
 export const ChatsListMessagesPathParams = Schema.Struct({ "chatId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) })
 export type ChatsListMessages200 = ReadonlyArray<ApiMessage>
 export const ChatsListMessages200 = Schema.Array(ApiMessage)
-export type ChatsListMessages400 = RequestInvalidErrorEncoded
-export const ChatsListMessages400 = RequestInvalidErrorEncoded
+export type ChatsListMessages400 = ChatNotFoundErrorEncoded | RequestInvalidErrorEncoded
+export const ChatsListMessages400 = Schema.Union([ChatNotFoundErrorEncoded, RequestInvalidErrorEncoded])
 export type ChatsListMessages401 = UserUnknownErrorEncoded
 export const ChatsListMessages401 = UserUnknownErrorEncoded
-export type ChatsListMessages404 = ChatNotFoundErrorEncoded
-export const ChatsListMessages404 = ChatNotFoundErrorEncoded
 export type ChatsCreateMessagePathParams = { readonly "chatId": string }
 export const ChatsCreateMessagePathParams = Schema.Struct({ "chatId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) })
 export type ChatsCreateMessageRequestJson = { readonly "text": string }
 export const ChatsCreateMessageRequestJson = Schema.Struct({ "text": Schema.String.check(Schema.isMaxCodePoints(20000).annotate({ "expected": "a string with at most 20000 code points" })).check(Schema.isPattern(new RegExp("^[^\\0]*$", "u")).annotate({ "expected": "a string matching the RegExp ^[^\\0]*$" })) })
 export type ChatsCreateMessage202 = ApiRun
 export const ChatsCreateMessage202 = ApiRun
-export type ChatsCreateMessage400 = RequestInvalidErrorEncoded
-export const ChatsCreateMessage400 = RequestInvalidErrorEncoded
+export type ChatsCreateMessage400 = ChatNotFoundErrorEncoded | RequestInvalidErrorEncoded
+export const ChatsCreateMessage400 = Schema.Union([ChatNotFoundErrorEncoded, RequestInvalidErrorEncoded])
 export type ChatsCreateMessage401 = UserUnknownErrorEncoded
 export const ChatsCreateMessage401 = UserUnknownErrorEncoded
-export type ChatsCreateMessage404 = ChatNotFoundErrorEncoded
-export const ChatsCreateMessage404 = ChatNotFoundErrorEncoded
 export type ChatsCreateMessage409 = ChatBusyErrorEncoded
 export const ChatsCreateMessage409 = ChatBusyErrorEncoded
 export type ChatsRetryRunPathParams = { readonly "chatId": string }
 export const ChatsRetryRunPathParams = Schema.Struct({ "chatId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) })
 export type ChatsRetryRun202 = ApiRun
 export const ChatsRetryRun202 = ApiRun
-export type ChatsRetryRun400 = RequestInvalidErrorEncoded
-export const ChatsRetryRun400 = RequestInvalidErrorEncoded
+export type ChatsRetryRun400 = ChatNotFoundErrorEncoded | RequestInvalidErrorEncoded
+export const ChatsRetryRun400 = Schema.Union([ChatNotFoundErrorEncoded, RequestInvalidErrorEncoded])
 export type ChatsRetryRun401 = UserUnknownErrorEncoded
 export const ChatsRetryRun401 = UserUnknownErrorEncoded
-export type ChatsRetryRun404 = MessageNotFoundErrorEncoded | ChatNotFoundErrorEncoded
-export const ChatsRetryRun404 = Schema.Union([MessageNotFoundErrorEncoded, ChatNotFoundErrorEncoded])
+export type ChatsRetryRun404 = MessageNotFoundErrorEncoded
+export const ChatsRetryRun404 = MessageNotFoundErrorEncoded
 export type ChatsRetryRun409 = RunNotRetryableErrorEncoded
 export const ChatsRetryRun409 = RunNotRetryableErrorEncoded
 export type ChatsGetMessagePathParams = { readonly "chatId": string, readonly "messageId": string }
@@ -153,10 +149,10 @@ class ChatsGroup extends HttpApiGroup.make("chats")
     HttpApiEndpoint.patch("chatsRename", "/chats/:chatId", { params: ChatsRenamePathParams, payload: ChatsRenameRequestJson, success: ChatsRename200, error: [ChatsRename400.pipe(HttpApiSchema.status(400)), ChatsRename401.pipe(HttpApiSchema.status(401)), ChatsRename404.pipe(HttpApiSchema.status(404))] })
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "chats.rename"), 
-    HttpApiEndpoint.get("chatsListMessages", "/chats/:chatId/messages", { params: ChatsListMessagesPathParams, success: ChatsListMessages200, error: [ChatsListMessages400.pipe(HttpApiSchema.status(400)), ChatsListMessages401.pipe(HttpApiSchema.status(401)), ChatsListMessages404.pipe(HttpApiSchema.status(404))] })
+    HttpApiEndpoint.get("chatsListMessages", "/chats/:chatId/messages", { params: ChatsListMessagesPathParams, success: ChatsListMessages200, error: [ChatsListMessages400.pipe(HttpApiSchema.status(400)), ChatsListMessages401.pipe(HttpApiSchema.status(401))] })
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "chats.listMessages"), 
-    HttpApiEndpoint.post("chatsCreateMessage", "/chats/:chatId/messages", { params: ChatsCreateMessagePathParams, payload: ChatsCreateMessageRequestJson, success: ChatsCreateMessage202.pipe(HttpApiSchema.status(202)), error: [ChatsCreateMessage400.pipe(HttpApiSchema.status(400)), ChatsCreateMessage401.pipe(HttpApiSchema.status(401)), ChatsCreateMessage404.pipe(HttpApiSchema.status(404)), ChatsCreateMessage409.pipe(HttpApiSchema.status(409))] })
+    HttpApiEndpoint.post("chatsCreateMessage", "/chats/:chatId/messages", { params: ChatsCreateMessagePathParams, payload: ChatsCreateMessageRequestJson, success: ChatsCreateMessage202.pipe(HttpApiSchema.status(202)), error: [ChatsCreateMessage400.pipe(HttpApiSchema.status(400)), ChatsCreateMessage401.pipe(HttpApiSchema.status(401)), ChatsCreateMessage409.pipe(HttpApiSchema.status(409))] })
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "chats.createMessage"), 
     HttpApiEndpoint.post("chatsRetryRun", "/chats/:chatId/runs", { params: ChatsRetryRunPathParams, success: ChatsRetryRun202.pipe(HttpApiSchema.status(202)), error: [ChatsRetryRun400.pipe(HttpApiSchema.status(400)), ChatsRetryRun401.pipe(HttpApiSchema.status(401)), ChatsRetryRun404.pipe(HttpApiSchema.status(404)), ChatsRetryRun409.pipe(HttpApiSchema.status(409))] })

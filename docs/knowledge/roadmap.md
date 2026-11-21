@@ -375,7 +375,7 @@ moves it into its own `Later` and deletes it here.
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
 - (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
-  between the two answers `200 []`, not `404 ChatNotFoundError`; the next read gives the `404`
+  between the two answers `200 []`, not `400 ChatNotFoundError`; the next read gives the `400`
   (`application/use-cases/chat/list-messages.use-case.ts`). Way out: one query that reads the
   chat with its messages, or the two reads in one `REPEATABLE READ` transaction: `Transaction`
   opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own

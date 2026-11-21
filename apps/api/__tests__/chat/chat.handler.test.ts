@@ -178,28 +178,45 @@ describe('chats', () => {
     }).pipe(Effect.provide(asOwner())),
   )
 
-  it.effect(
-    'a chat the store finds none of for the user is 404 ChatNotFoundError, with its messages',
-    () =>
+  it.effect.each<{
+    readonly name: string
+    readonly send: (http: HttpClient.HttpClient) => ReturnType<HttpClient.HttpClient['get']>
+    readonly status: number
+  }>([
+    { name: 'GET /chats/:chatId', send: (http) => http.get(`/chats/${chat.id}`), status: 404 },
+    {
+      name: 'PATCH /chats/:chatId',
+      send: (http) =>
+        http.patch(`/chats/${chat.id}`, { body: HttpBody.jsonUnsafe({ title: 'Trip' }) }),
+      status: 404,
+    },
+    { name: 'DELETE /chats/:chatId', send: (http) => http.del(`/chats/${chat.id}`), status: 404 },
+    {
+      name: 'GET /chats/:chatId/messages',
+      send: (http) => http.get(`/chats/${chat.id}/messages`),
+      status: 400,
+    },
+    {
+      name: 'POST /chats/:chatId/messages',
+      send: (http) => http.post(`/chats/${chat.id}/messages`, { body: HttpBody.jsonUnsafe(hello) }),
+      status: 400,
+    },
+    {
+      name: 'POST /chats/:chatId/runs',
+      send: (http) => http.post(`/chats/${chat.id}/runs`),
+      status: 400,
+    },
+  ])(
+    '$name of a chat the store finds none of for the user is $status ChatNotFoundError',
+    ({ send, status }) =>
       Effect.gen(function* () {
-        const http = yield* HttpClient.HttpClient
+        const response = yield* HttpClient.HttpClient.use(send)
 
-        const responses = yield* Effect.forEach(
-          [`/chats/${chat.id}`, `/chats/${chat.id}/messages`],
-          (url) => http.get(url),
-        )
-
-        yield* Effect.forEach(responses, (response) =>
-          Effect.gen(function* () {
-            assert.strictEqual(response.status, 404)
-            assertSchemaEquals(
-              ChatNotFoundError,
-              yield* response.json.pipe(
-                Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError)),
-              ),
-              new ChatNotFoundError({ id: chat.id }),
-            )
-          }),
+        assert.strictEqual(response.status, status)
+        assertSchemaEquals(
+          ChatNotFoundError,
+          yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatNotFoundError))),
+          new ChatNotFoundError({ id: chat.id }),
         )
       }).pipe(Effect.provide(asOwner({ chats: { selectOne: () => Effect.succeedNone } }))),
   )
