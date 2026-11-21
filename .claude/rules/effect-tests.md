@@ -60,7 +60,8 @@ Where each kind of test and its support live, and what a test may import:
   moves runs `it.live` and asserts relations (`child.createdAt == parent.updatedAt > epoch`), not
   instants. Move a `TestClock` only in a test about a delay or an expiry, never inside a shared
   `layer(…)` block.
-- Generate ids with `BunCrypto.layer`; seed `TestCrypto` only for a test that asserts an id.
+- Generate ids with `BunCrypto.layer`; `Layer.mock` `SecureRandom` only for a test that asserts
+  an id.
 
 ## Writing a test
 

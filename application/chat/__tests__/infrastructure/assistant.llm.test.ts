@@ -158,7 +158,7 @@ describe('MessageAssistant and ChatAssistant', () => {
     {
       name: 'reply on an answer stopped for a reason the package does not map',
       ask: reply(hi),
-      answer: () => message('Hel', 'model_context_window_exceeded'),
+      answer: () => message('Hel', 'compaction'),
       sentAt: [0],
       cause: 'unknown',
     },

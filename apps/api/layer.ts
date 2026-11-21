@@ -1,4 +1,4 @@
-import { BunHttpServer } from '@effect/platform-bun'
+import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { HttpApiBuilder } from 'effect/http-api'
@@ -50,7 +50,7 @@ export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide(PostgresRepositories),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
-  Layer.provide(BunHttpServerFromConfig),
+  Layer.provide([BunHttpServerFromConfig, BunCrypto.layer]),
   Layer.provide(MinimumLogLevelFromConfig),
   Layer.provide(
     Otlp.layerFromConfig({ resource: { serviceName: 'api' } }).pipe(

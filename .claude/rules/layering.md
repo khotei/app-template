@@ -19,8 +19,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
   key with its `*NotFoundError`), coding the rows through the model. It sees the repositories,
-  its ports, the clock and `Crypto`; never another model's service or the transaction, which are
-  a use case's ([composition.md](composition.md)), nor its infrastructure but as below.
+  its ports, the clock, `SecureRandom` and `Digest`; never another model's service or the transaction,
+  which are a use case's ([composition.md](composition.md)), nor its infrastructure but as below.
 - A service composed over `<Model>Service` holds the job it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status

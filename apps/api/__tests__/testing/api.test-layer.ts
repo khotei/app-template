@@ -1,5 +1,5 @@
 import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
-import { ConfigProvider, Context, DateTime, Effect, Layer, Option, Ref } from 'effect'
+import { Clock, ConfigProvider, Context, DateTime, Effect, Layer, Option, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 import { HttpApiClient } from 'effect/http-api'
 
@@ -28,17 +28,22 @@ export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<t
     Layer.effect(this, HttpApiClient.make(Api, { baseUrl }))
 }
 
+/** The host `BunHttpServer.layerTest` serves on; a cookie is scoped to a host, whatever its port. */
+const testServerUrl = 'http://127.0.0.1'
+
 /**
- * An `ApiClient` on `baseUrl` with a cookie jar of its own that starts from `cookies`, as a
- * browser's would, over the `HttpClient` in context; the `HttpClient` it puts in context sends
- * through the same jar.
+ * An `ApiClient` on `baseUrl` with a cookie jar of its own that starts from `cookies`, set by the
+ * test server's host, as a browser's would, over the `HttpClient` in context; the `HttpClient` it
+ * puts in context sends through the same jar.
  */
 export const layerApiClient = (baseUrl = '', cookies = Cookies.empty) =>
   ApiClient.layer(baseUrl).pipe(
     Layer.provideMerge(
       Layer.effect(
         HttpClient.HttpClient,
-        Ref.make(cookies).pipe(
+        Clock.currentTimeMillis.pipe(
+          Effect.map((now) => Cookies.mergeIntoArray([], testServerUrl, cookies, now)),
+          Effect.flatMap(Ref.make),
           Effect.flatMap((jar) => HttpClient.HttpClient.useSync(HttpClient.withCookiesRef(jar))),
         ),
       ),

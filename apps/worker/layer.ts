@@ -1,4 +1,4 @@
-import { BunHttpServer } from '@effect/platform-bun'
+import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
@@ -41,7 +41,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([PostgresRepositories, Transaction.layer]),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
-  Layer.provide(BunHttpServerFromConfig),
+  Layer.provide([BunHttpServerFromConfig, BunCrypto.layer]),
   Layer.provide(MinimumLogLevelFromConfig),
 )
 

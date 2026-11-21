@@ -1,5 +1,6 @@
-import { Context, Crypto, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
-import { Base64Url, Hex } from 'effect/encoding'
+import { Context, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
+import { Digest, SecureRandom } from 'effect/crypto'
+import { Base64Url } from 'effect/encoding'
 
 import { UserRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
@@ -22,13 +23,14 @@ export class UserService extends Context.Service<
 >()('@app-template/application/identity/services/UserService', {
   make: Effect.gen(function* () {
     const users = yield* UserRepository
-    const crypto = yield* Crypto.Crypto
+    const digest = yield* Digest.Digest
+    const random = yield* SecureRandom.SecureRandom
     const generateId = yield* idGenerator
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
-      const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
-      return { kind: 'secret', hash: Hex.encode(digest) } as const
-    }, Effect.orDie)
+      const hash = yield* digest.digestHex(Digest.sha256, encoder.encode(Redacted.value(secret)))
+      return { kind: 'secret', hash } as const
+    })
 
     const authenticate = Effect.fn('UserService.authenticate')((secret: UserSecret) =>
       hashSecret(secret).pipe(
@@ -41,7 +43,7 @@ export class UserService extends Context.Service<
     const registerUser = Effect.fnUntraced(function* () {
       const id = yield* generateId(UserId)
       const createdAt = yield* DateTime.now
-      const bytes = yield* crypto.randomBytes(secretBytes).pipe(Effect.orDie)
+      const bytes = yield* random.randomBytes(secretBytes)
       const secret = Redacted.make(Base64Url.encode(bytes))
 
       const user = new User({ id, createdAt })
