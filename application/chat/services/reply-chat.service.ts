@@ -47,9 +47,9 @@ export class ReplyChatService extends Context.Service<
     const start = Effect.fnUntraced(function* (userMessageId: MessageId) {
       const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
       const queued = yield* ensureRunUnstarted(active).pipe(
-        Effect.tapError((error) => runs.update(active, failRun(Cause.fail(error)))),
+        Effect.tapError((error) => runs.move(active, (run) => failRun(run, Cause.fail(error)))),
       )
-      return yield* runs.update(queued, startRun)
+      return yield* runs.move(queued, startRun)
     })
 
     const answer = Effect.fnUntraced(function* (started: Run) {
@@ -61,7 +61,7 @@ export class ReplyChatService extends Context.Service<
       yield* messages
         .create({ chatId: started.chatId, text: generated.text, author: 'assistant' })
         .pipe(
-          Effect.flatMap((message) => runs.update(started, completeRun(message))),
+          Effect.flatMap((message) => runs.move(started, (run) => completeRun(run, message))),
           transaction.run,
         )
     })
@@ -69,7 +69,7 @@ export class ReplyChatService extends Context.Service<
     function failUnanswered(started: Run, answered: Exit.Exit<unknown, unknown>) {
       return Exit.match(answered, {
         onSuccess: () => Effect.void,
-        onFailure: (cause) => runs.update(started, failRun(cause)).pipe(Effect.asVoid),
+        onFailure: (cause) => runs.move(started, (run) => failRun(run, cause)).pipe(Effect.asVoid),
       })
     }
 

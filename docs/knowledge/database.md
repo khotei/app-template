@@ -184,12 +184,13 @@ touches no row:
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.update(run, move)` moves the Run
-  it is given through the model's transition, stamps it with the current time and passes it,
-  encoded, as the set, and the Run's id under the status it was read in as the `where`, where a
-  read's `RunEntitySelectWhere` takes the id or the user's message under a status; so a write whose
-  expected status another worker has left, or whose Run is gone, changes nothing and dies. The
-  reply's tail fails the Run its start wrote, by that write's status, so on a Run settled meanwhile
+  and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.move(run, transition)` moves the
+  Run it is given through the model's transition and writes it through `RunService.update(to,
+  where)`, which stamps it with the current time and passes it, encoded, as the set, with the
+  Run's id under the status it was read in as the `where`, where a read's `RunEntitySelectWhere`
+  takes the id or the user's message under a status; so a write whose expected status another
+  worker has left, or whose Run is gone, changes nothing and dies, in the repository. The reply's
+  tail fails the Run its start wrote, by that write's status, so on a Run settled meanwhile
   it dies too and leaves the Run as the other writer left it. A Run's completion writes the
   assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
   keeps no reply.
@@ -236,7 +237,7 @@ commit ([The sends](#the-sends)).
 
 A Run has the statuses of `runStatuses` (`kernel/data/chat/run.table.ts`); `queued` and
 `generating` are active, `done` and `failed` end it. Each arrow is the model's transition that
-`RunService.update` writes, and in brackets its caller; every move is written under the status
+`RunService.move` writes, and in brackets its caller; every move is written under the status
 read ([Guards](#guards)).
 
 ```mermaid
@@ -274,7 +275,7 @@ chat's title) is the one the worker reads
   that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
   message's and its Run's too. For the reply's, `AskChatService` also fails the Run it sent
-  through `RunService.update` and `failRun`, by its id, with the queue's error's full text as its
+  through `RunService.move` and `failRun`, by its id, with the queue's error's full text as its
   failure, and the request responds with `202` and that failed Run; the message is stored and
   shown failed with its retry, `POST /chats/:chatId/runs`. The title's send only logs it. A send
   that never happens after the commit: [Stuck Runs](#stuck-runs).

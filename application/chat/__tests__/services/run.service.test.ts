@@ -12,25 +12,25 @@ import { RunService } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
-/** Each move, the status it leaves from and the status it writes. */
+/** Each transition, the status it leaves from and the status it writes. */
 const moves: ReadonlyArray<{
   readonly name: string
   readonly from: RunStatus
   readonly to: RunStatus
-  readonly move: (run: Run) => Effect.Effect<Run>
+  readonly transition: (run: Run) => Effect.Effect<Run>
 }> = [
-  { name: 'startRun', from: 'queued', to: 'generating', move: startRun },
+  { name: 'startRun', from: 'queued', to: 'generating', transition: startRun },
   {
     name: 'completeRun',
     from: 'generating',
     to: 'done',
-    move: completeRun(assistantMessageAt(1, 'Sure.')),
+    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.')),
   },
   {
     name: 'failRun',
     from: 'queued',
     to: 'failed',
-    move: failRun(Cause.fail('SQS is unavailable')),
+    transition: (run) => failRun(run, Cause.fail('SQS is unavailable')),
   },
 ]
 
@@ -51,15 +51,30 @@ function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
 }
 
 describe('RunService', () => {
+  it.effect('update writes the Run under the where it is given', () => {
+    const failed = new Run({ ...queuedRun, status: 'failed' })
+    const { updates, layer } = recordUpdates()
+    return Effect.gen(function* () {
+      const service = yield* RunService
+
+      yield* service.update(failed, { id: failed.id, chatId: failed.chatId })
+
+      assert.deepStrictEqual(
+        Arr.map(updates, ([set, where]) => [set.status, where]),
+        [['failed', { id: failed.id, chatId: failed.chatId }]],
+      )
+    }).pipe(Effect.provide(layer))
+  })
+
   it.effect.each(moves)(
-    'update by $name writes the $to Run under the status it was read in',
-    ({ from, to, move }) => {
+    'move by $name writes the $to Run under the status it was read in',
+    ({ from, to, transition }) => {
       const run = new Run({ ...queuedRun, status: from })
       const { updates, layer } = recordUpdates()
       return Effect.gen(function* () {
         const service = yield* RunService
 
-        const moved = yield* service.update(run, move)
+        const moved = yield* service.move(run, transition)
 
         assert.strictEqual(moved.status, to)
         assert.deepStrictEqual(
@@ -70,24 +85,49 @@ describe('RunService', () => {
     },
   )
 
-  it.effect('update by a move the model refuses dies with RunStatusInvalidError, unwritten', () => {
-    const { updates, layer } = recordUpdates()
+  it.effect('move of a Run moved since it was read dies on the guard in the write', () => {
+    const wheres: Array<RunEntityWhere> = []
+    const layer = layerChatTest({
+      runs: {
+        update: (_, where) =>
+          Effect.sync(() => {
+            wheres.push(where)
+          }).pipe(Effect.andThen(Effect.die('no run was updated'))),
+      },
+    })
     return Effect.gen(function* () {
       const service = yield* RunService
 
       const defect = yield* service
-        .update(queuedRun, completeRun(assistantMessageAt(1, 'Sure.')))
+        .move(queuedRun, startRun)
         .pipe(Effect.catchDefect(Effect.succeed))
 
-      assert.instanceOf(defect, RunStatusInvalidError)
-      assert.deepStrictEqual(Struct.pick(defect, ['id', 'from', 'to']), {
-        id: queuedRun.id,
-        from: 'queued',
-        to: 'done',
-      })
-      assert.deepStrictEqual(updates, [])
+      assert.strictEqual(defect, 'no run was updated')
+      assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: ['queued'] }])
     }).pipe(Effect.provide(layer))
   })
+
+  it.effect(
+    'move by a transition the model refuses dies with RunStatusInvalidError, unwritten',
+    () => {
+      const { updates, layer } = recordUpdates()
+      return Effect.gen(function* () {
+        const service = yield* RunService
+
+        const defect = yield* service
+          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.')))
+          .pipe(Effect.catchDefect(Effect.succeed))
+
+        assert.instanceOf(defect, RunStatusInvalidError)
+        assert.deepStrictEqual(Struct.pick(defect, ['id', 'from', 'to']), {
+          id: queuedRun.id,
+          from: 'queued',
+          to: 'done',
+        })
+        assert.deepStrictEqual(updates, [])
+      }).pipe(Effect.provide(layer))
+    },
+  )
 
   it.effect.each([
     {

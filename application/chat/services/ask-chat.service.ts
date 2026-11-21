@@ -56,7 +56,7 @@ export class AskChatService extends Context.Service<
     const askReply = (run: Run) =>
       sendReplyToMessage(run).pipe(
         Effect.as(run),
-        Effect.catch((error) => runs.update(run, failRun(Cause.fail(error)))),
+        Effect.catch((error) => runs.move(run, (run) => failRun(run, Cause.fail(error)))),
         // A client's abort mid-send still leaves the Run sent or failed.
         Effect.uninterruptible,
       )

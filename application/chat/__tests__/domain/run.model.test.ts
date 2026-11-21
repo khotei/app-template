@@ -77,8 +77,12 @@ const moves: ReadonlyArray<{
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
   { to: 'generating', from: ['queued'], move: startRun },
-  { to: 'done', from: ['generating'], move: completeRun(reply) },
-  { to: 'failed', from: activeRunStatuses, move: failRun(Cause.fail('529 overloaded')) },
+  { to: 'done', from: ['generating'], move: (run) => completeRun(run, reply) },
+  {
+    to: 'failed',
+    from: activeRunStatuses,
+    move: (run) => failRun(run, Cause.fail('529 overloaded')),
+  },
 ]
 
 const cases = Arr.flatMap(moves, ({ to, from, move }) =>
@@ -114,7 +118,7 @@ it.effect('failRun keeps the full text of the cause, its nested causes included'
   Effect.gen(function* () {
     const refused = new Error('SQS is unavailable', { cause: new Error('the broker is down') })
 
-    const failed = yield* failRun(Cause.die(refused))(runAt('generating'))
+    const failed = yield* failRun(runAt('generating'), Cause.die(refused))
 
     const { cause } = Option.getOrThrow(failed.failure)
     assert.include(cause, 'Error: SQS is unavailable')
@@ -125,7 +129,7 @@ it.effect('failRun keeps the full text of the cause, its nested causes included'
 describe('completeRun', () => {
   it.effect('keeps the reply it settled with', () =>
     Effect.gen(function* () {
-      const done = yield* completeRun(reply)(runAt('generating'))
+      const done = yield* completeRun(runAt('generating'), reply)
 
       assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
     }),

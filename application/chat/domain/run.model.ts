@@ -81,18 +81,14 @@ const move = Effect.fnUntraced(function* (
 
 export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
 
-export function completeRun(reply: MessageFields) {
-  return Effect.fn('completeRun')((run: Run) =>
-    move(run, 'done', {
-      assistantMessageId: Option.some(reply.id),
-      assistantMessage: Option.some(reply),
-    }),
-  )
-}
+export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
+  move(run, 'done', {
+    assistantMessageId: Option.some(reply.id),
+    assistantMessage: Option.some(reply),
+  }),
+)
 
 /** Fails a Run with the full text of `cause`, its nested causes included. */
-export function failRun(cause: Cause.Cause<unknown>) {
-  return Effect.fn('failRun')((run: Run) =>
-    move(run, 'failed', { failure: Option.some({ cause: Cause.pretty(cause) }) }),
-  )
-}
+export const failRun = Effect.fn('failRun')((run: Run, cause: Cause.Cause<unknown>) =>
+  move(run, 'failed', { failure: Option.some({ cause: Cause.pretty(cause) }) }),
+)

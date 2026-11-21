@@ -23,16 +23,21 @@ export type RunWhere =
   | Types.Simplify<Pick<Run, 'id'> & { readonly userMessageId?: never } & RunNarrowing>
   | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly id?: never } & RunNarrowing>
 
+/** A Run by its `id`, narrowed by the rest, as a write finds it. */
+type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & RunNarrowing>
+
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
+    /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
+    readonly update: (to: Run, where: RunUpdateWhere) => Effect.Effect<Run>
     /**
-     * Writes `run` moved by the model's `move` under the status it was read in, so a write that
-     * moved it since makes this one die.
+     * Moves `run` by the model's `transition`, written under the status it was read in, so a
+     * write that moved it since makes this one die.
      */
-    readonly update: (run: Run, move: (run: Run) => Effect.Effect<Run>) => Effect.Effect<Run>
+    readonly move: (run: Run, transition: (run: Run) => Effect.Effect<Run>) => Effect.Effect<Run>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -64,20 +69,23 @@ export class RunService extends Context.Service<
       ),
     )
 
-    const update = Effect.fn('RunService.update')(function* (
-      run: Run,
-      move: (run: Run) => Effect.Effect<Run>,
-    ) {
-      const moved = yield* move(run)
+    const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
       const updatedAt = yield* DateTime.now
-      const stamped = new Run({ ...moved, updatedAt })
-      const row = yield* encodeWith(RunFields)(stamped)
+      const updated = new Run({ ...to, updatedAt })
+      const row = yield* encodeWith(RunFields)(updated)
 
-      yield* runs.update(row, { id: run.id, status: [run.status] })
-      return stamped
+      yield* runs.update(row, where)
+      return updated
     })
 
-    return { create, getOne, update }
+    const move = Effect.fn('RunService.move')(
+      (run: Run, transition: (run: Run) => Effect.Effect<Run>) =>
+        transition(run).pipe(
+          Effect.flatMap((to) => update(to, { id: run.id, status: [run.status] })),
+        ),
+    )
+
+    return { create, getOne, update, move }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)
