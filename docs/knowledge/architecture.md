@@ -134,7 +134,9 @@ import { askChat } from '#use-cases/chat/ask-chat.use-case'  // this part
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
   a module or the use cases by theirs (`@app-template/application/<module>` →
   `application/<module>/index.ts`, every layer), each with its test support's entries
-  ([tooling.md › Tests](tooling.md#tests)).
+  ([tooling.md › Tests](tooling.md#tests)). An entry only re-exports what other parts import,
+  never what loads code they do not run (a process's entry, the migration runner,
+  testcontainers), so e2e support sits behind an entry of its own.
 - **`#<part>/<path>`** reaches a file of the same part, through the `imports` map in its
   workspace's `package.json` (`"#chat/*": "./chat/*.ts"`, `"#api/*": "./*.ts"`); a kernel part,
   a package or a module reaches another through that one's entry, never its files. Each layer
@@ -146,31 +148,37 @@ import { askChat } from '#use-cases/chat/ask-chat.use-case'  // this part
 
 ## Where things live
 
-Using the files of `chat` as the map:
+Using the files of `chat` as the map; what each may import: [Dependency rules](#dependency-rules).
 
 | What | File | Named |
 |---|---|---|
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
-| util: a model's branded id and its pure steps with no domain meaning that the module's code shares | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
+| util: a model's branded id and its pure steps with no domain meaning that the module's code shares, importing only `effect`, `packages/schema` and other utils ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `replyToMessageQueue` with its job's schema `ReplyToMessage`; `sendReplyToMessage`, `sendTitleChat` |
-| service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
+| service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat` |
-| tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
+| tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
+| the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
 | codecs that turn a failure into a defect; the id format, its schema and its generation | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema`, `idGenerator` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat` |
-| worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
+| worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.client.ts` | `Api`, `ApiClient` |
+| test fixture: sample values and the functions that build them, plain data with no `Effect` to run and no layer | `application/chat/__tests__/testing/chat.test-fixture.ts`; `packages/testing/clock.test-fixture.ts` | `chat`, `chatId`; `epoch` |
+| test util: a function tests and test layers call (an assertion, a predicate, a builder of a value, a stream or an error, an effect on the e2e run's containers), building no layer and doubling no service | `application/chat/__tests__/testing/chat.test-util.ts`; `kernel/aws/__tests__/testing/e2e/provision.test-util.ts` | `holdCall`; `provision` |
+| test fake: the double of one service, port or leaf, a stateful one returning its handle with its layer | `application/chat/__tests__/testing/message-assistant.test-fake.ts`; `packages/db/__tests__/testing/transaction.test-fake.ts` | `recordMessageAssistant()`; `TransactionTest` |
+| test layer: a unit's real services over mocks and fakes, or a client on the e2e run's containers | `application/chat/__tests__/testing/chat.test-layer.ts`; `kernel/data/__tests__/testing/e2e/db.test-layer.ts` | `layerChatTest(…)`; `DbTest` |
+| test setup: the e2e run's vitest `globalSetup`, starting the containers and providing their addresses | `kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` | its default export |
 
 Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel, and
 each module's own `index.ts` re-exports its layers. The
