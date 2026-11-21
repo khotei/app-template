@@ -3,8 +3,9 @@ import { Cause, Context, Effect, Exit, Layer } from 'effect'
 import { Transaction } from '@app-template/packages/db'
 
 import type { MessageId } from '#chat/domain/message.util'
-import type { ActiveRunNotFoundError, RunStartedError } from '#chat/domain/run.error'
+import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
 import {
+  activeRunStatuses,
   completeRun,
   ensureRunUnstarted,
   failRun,
@@ -26,13 +27,13 @@ export class ReplyChatService extends Context.Service<
      * Replies to the user's message `userMessageId` through its active Run, which ends `done`
      * with the assistant's message, or `failed` with the full text of what ended it, an interrupt
      * and `RunStartedError`, for a Run some worker started, included. A message with no active
-     * Run fails `ActiveRunNotFoundError`, unwritten.
+     * Run fails `RunNotFoundError`, unwritten.
      */
     readonly reply: (
       userMessageId: MessageId,
     ) => Effect.Effect<
       void,
-      ActiveRunNotFoundError | RunStartedError | MessageAssistantError,
+      RunNotFoundError | RunStartedError | MessageAssistantError,
       MessageAssistant
     >
   }
@@ -44,7 +45,7 @@ export class ReplyChatService extends Context.Service<
 
     // A Run some worker started was left by a worker that died, so it fails as it is read.
     const start = Effect.fnUntraced(function* (userMessageId: MessageId) {
-      const active = yield* runs.getActive(userMessageId)
+      const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
       const queued = yield* ensureRunUnstarted(active).pipe(
         Effect.tapError((error) => runs.update(active, failRun(Cause.fail(error)))),
       )

@@ -24,10 +24,11 @@ import type {
   RunEntityWhere,
 } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
-import { recordLogs } from '@app-template/packages/testing'
+import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
+import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
@@ -465,15 +466,16 @@ describe('ReplyChatService', () => {
     { name: 'settled before it', selectOne: storeRuns(noWrites(), doneElsewhere).selectOne },
     { name: 'the store finds none of', selectOne: () => Effect.succeedNone },
   ])(
-    'reply of a Run $name fails ActiveRunNotFoundError, failing no Run and asking no assistant',
+    'reply of a Run $name fails RunNotFoundError, failing no Run and asking no assistant',
     ({ selectOne }) => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       return Effect.gen(function* () {
         const error = yield* reply.pipe(Effect.flip)
 
-        assert.deepStrictEqual(
-          [error._tag, error._tag === 'ActiveRunNotFoundError' && error.userMessageId],
-          ['ActiveRunNotFoundError', queuedRun.userMessageId],
+        assertSchemaEquals(
+          RunNotFoundError,
+          error,
+          new RunNotFoundError({ where: { userMessageId: queuedRun.userMessageId } }),
         )
         assertEquals(yield* assistant.histories, [])
       }).pipe(

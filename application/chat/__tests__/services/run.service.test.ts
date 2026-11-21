@@ -1,11 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Cause, Effect, Option, Struct } from 'effect'
 
-import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
+import type { RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RunStatusInvalidError } from '#chat/domain/run.error'
-import { completeRun, failRun, Run, startRun } from '#chat/domain/run.model'
+import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
+import { activeRunStatuses, completeRun, failRun, Run, startRun } from '#chat/domain/run.model'
 import type { RunStatus } from '#chat/domain/run-fields.model'
 import { RunService } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
@@ -33,27 +34,20 @@ const moves: ReadonlyArray<{
   },
 ]
 
-/**
- * The service over a `RunRepository` that reads `stored`, whose reads' `where` land in `reads`
- * and updates in `updates`.
- */
+/** The service over a `RunRepository` that reads `stored`, whose updates land in `updates`. */
 function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
-  const reads: Array<RunEntitySelectWhere> = []
   const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
   const read = stored.pipe(Option.map(encodeWith(Run)), Effect.transposeOption)
   const layer = layerChatTest({
     runs: {
-      selectOne: (where) =>
-        Effect.sync(() => {
-          reads.push(where)
-        }).pipe(Effect.andThen(read)),
+      selectOne: () => read,
       update: (...update) =>
         Effect.sync(() => {
           updates.push(update)
         }),
     },
   })
-  return { reads, updates, layer }
+  return { updates, layer }
 }
 
 describe('RunService', () => {
@@ -95,30 +89,28 @@ describe('RunService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('getActive reads the active Run of its user message', () => {
-    const { reads, layer } = recordUpdates()
-    return Effect.gen(function* () {
-      const service = yield* RunService
+  it.effect.each([
+    {
+      name: 'id',
+      where: { id: queuedRun.id, chatId: queuedRun.chatId },
+      key: { id: queuedRun.id },
+    },
+    {
+      name: 'user message',
+      where: { userMessageId: queuedRun.userMessageId, status: activeRunStatuses },
+      key: { userMessageId: queuedRun.userMessageId },
+    },
+  ])(
+    'getOne by $name the store finds none of fails RunNotFoundError by its key alone',
+    ({ where, key }) => {
+      const { layer } = recordUpdates(Option.none())
+      return Effect.gen(function* () {
+        const service = yield* RunService
 
-      yield* service.getActive(queuedRun.userMessageId)
+        const error = yield* service.getOne(where).pipe(Effect.flip)
 
-      assert.deepStrictEqual(reads, [
-        { userMessageId: queuedRun.userMessageId, status: ['queued', 'generating'] },
-      ])
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect('getActive of a message with no active Run is ActiveRunNotFoundError', () => {
-    const { layer } = recordUpdates(Option.none())
-    return Effect.gen(function* () {
-      const service = yield* RunService
-
-      const error = yield* service.getActive(queuedRun.userMessageId).pipe(Effect.flip)
-
-      assert.deepStrictEqual(
-        [error._tag, error.userMessageId],
-        ['ActiveRunNotFoundError', queuedRun.userMessageId],
-      )
-    }).pipe(Effect.provide(layer))
-  })
+        assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ where: key }))
+      }).pipe(Effect.provide(layer))
+    },
+  )
 })

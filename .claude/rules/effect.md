@@ -59,7 +59,7 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
   api serves it as it is, with the status its endpoint gives it (`apps/CLAUDE.md`); one that
   never reaches the wire is a `Data.TaggedError`. Not-found from a repository or a port is a
   value (`Option`, an id left out); its reader turns it into the `*NotFoundError` that carries
-  the key of its read, and a read by another key raises its own.
+  the key of its read alone, one error whichever key the read takes.
 - A client's failure, or a stored value that no longer decodes, is a defect where it is read.
   Failures a caller settles differently get a class each, raised after the client call's
   retries; failures it does not tell apart, one.

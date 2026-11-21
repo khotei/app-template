@@ -79,7 +79,7 @@ pending, streaming
 **Active Run**:
 A Run that is not yet terminal (`queued` or `generating`). A chat has at most one. A read of a
 user message's active Run that finds none (its Run done, failed or gone with its chat) fails
-`ActiveRunNotFoundError`.
+`RunNotFoundError` by that message.
 _Avoid_: Pending run, current reply
 
 **Status**:

@@ -227,7 +227,11 @@ describe('chats', () => {
           message,
           new MessageNotFoundError({ id: firstMessage.id }),
         )
-        assertSchemaEquals(RunNotFoundError, run, new RunNotFoundError({ id: queuedRun.id }))
+        assertSchemaEquals(
+          RunNotFoundError,
+          run,
+          new RunNotFoundError({ where: { id: queuedRun.id } }),
+        )
         assert.deepStrictEqual(wheres, [
           { id: firstMessage.id, chatId: chat.id, userId: owner },
           { id: queuedRun.id, chatId: chat.id, userId: owner },

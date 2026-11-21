@@ -5,33 +5,29 @@ import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
-import type { MessageId } from '#chat/domain/message.util'
-import { ActiveRunNotFoundError, RunNotFoundError } from '#chat/domain/run.error'
-import { activeRunStatuses, Run } from '#chat/domain/run.model'
+import { RunNotFoundError } from '#chat/domain/run.error'
+import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 
-/**
- * A Run by id; `userId` limits it to the user's chats, which every api caller passes, and
- * `status` to the Runs in one of them.
- */
-export type RunWhere = Types.Simplify<
-  Pick<Run, 'id'> &
-    Partial<
-      Pick<Run, 'chatId'> & {
-        readonly userId: UserId
-        readonly status: ReadonlyArray<RunStatus>
-      }
-    >
+/** `userId` limits a read to the user's chats, which every api caller passes. */
+type RunNarrowing = Partial<
+  Pick<Run, 'chatId'> & {
+    readonly userId: UserId
+    readonly status: ReadonlyArray<RunStatus>
+  }
 >
+
+/** A Run by its `id` or by its `userMessageId`, exactly one, narrowed by the rest. */
+export type RunWhere =
+  | Types.Simplify<Pick<Run, 'id'> & { readonly userMessageId?: never } & RunNarrowing>
+  | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly id?: never } & RunNarrowing>
 
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
-    /** The active Run of the user's message `userMessageId`. */
-    readonly getActive: (userMessageId: MessageId) => Effect.Effect<Run, ActiveRunNotFoundError>
     /**
      * Writes `run` moved by the model's `move` under the status it was read in, so a write that
      * moved it since makes this one die.
@@ -61,21 +57,11 @@ export class RunService extends Context.Service<
     })
 
     const getOne = Effect.fn('RunService.getOne')((where: RunWhere) =>
-      runs
-        .selectOne(where)
-        .pipe(
-          Effect.flatMap(decodeWith(Schema.Option(Run))),
-          Effect.flatMap(Effect.fromOption(() => new RunNotFoundError({ id: where.id }))),
-        ),
-    )
-
-    const getActive = Effect.fn('RunService.getActive')((userMessageId: MessageId) =>
-      runs
-        .selectOne({ userMessageId, status: activeRunStatuses })
-        .pipe(
-          Effect.flatMap(decodeWith(Schema.Option(Run))),
-          Effect.flatMap(Effect.fromOption(() => new ActiveRunNotFoundError({ userMessageId }))),
-        ),
+      runs.selectOne(where).pipe(
+        Effect.flatMap(decodeWith(Schema.Option(Run))),
+        // The error's schema keeps the key of `where` alone, dropping what narrowed it.
+        Effect.flatMap(Effect.fromOption(() => new RunNotFoundError({ where }))),
+      ),
     )
 
     const update = Effect.fn('RunService.update')(function* (
@@ -91,7 +77,7 @@ export class RunService extends Context.Service<
       return stamped
     })
 
-    return { create, getOne, getActive, update }
+    return { create, getOne, update }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

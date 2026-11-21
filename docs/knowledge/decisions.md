@@ -415,8 +415,8 @@ Minimal means less code inside each unit and no dead code, never fewer units. Th
 A model's records are served by domain services composed over each other, each named for what it
 adds; which services a model may have and over which: [layering.md › Ports and domain
 services](../../.claude/rules/layering.md#ports-and-domain-services). `<Model>Service` holds the
-plain records (a create, a read by key with its `*NotFoundError`, which carries that key, as a
-read by another key raises its own, a read of many, the writes that
+plain records (a create, a read by key with its `*NotFoundError`, which carries that key alone,
+one error whichever key the read takes, a read of many, the writes that
 change records alone, a delete of many under the full `where` its caller passes), coding every row
 through the model, and `File<Model>Service`, composed over it, stores, serves and removes the bytes
 with the record, checking the rule a delete needs and passing its guard into the plain delete's
@@ -583,14 +583,14 @@ a refused send's `runs.update(run, failRun(Cause.fail(error)))`, written under `
 worker settled meanwhile, as SQS took the job after all, dies on the write's guard and the request
 responds with `500`; it never reads, fails or returns another Run of the message. The worker's
 `ReplyChatService.reply` starts the Run in one uninterruptible step: it reads the message's active
-Run through `RunService.getActive`, `ActiveRunNotFoundError` when it has none, refuses one some
-worker started through the model's `ensureRunUnstarted`, `RunStartedError`, failing that Run as it
-was read, and writes `startRun`. Its tail fails exactly the Run that step wrote, under
-`generating`, on whatever ends the answer, an interrupt included (`Effect.acquireUseRelease`). A
-move the model's table refuses dies with `RunStatusInvalidError`: every caller moves a Run it has
-just read or moved, so a refusal is a bug, and a race dies on the write's guard instead. A reply
-writes the Run twice, `generating` then `done` (or `failed`), and a client polling it sees only
-`queued`, `generating` and the end.
+Run through `RunService.getOne({ userMessageId, status: activeRunStatuses })`, `RunNotFoundError`
+by the message when it has none, refuses one some worker started through the model's
+`ensureRunUnstarted`, `RunStartedError`, failing that Run as it was read, and writes `startRun`.
+Its tail fails exactly the Run that step wrote, under `generating`, on whatever ends the answer,
+an interrupt included (`Effect.acquireUseRelease`). A move the model's table refuses dies with
+`RunStatusInvalidError`: every caller moves a Run it has just read or moved, so a refusal is a
+bug, and a race dies on the write's guard instead. A reply writes the Run twice, `generating`
+then `done` (or `failed`), and a client polling it sees only `queued`, `generating` and the end.
 
 - **Why:** the guard on the status read is part of the Run's write, so the service that owns the
   Run's records holds it once: a caller can neither forget it nor pair a transition with another
@@ -606,7 +606,9 @@ writes the Run twice, `generating` then `done` (or `failed`), and a client polli
   their own, `runs.update(…, failRun(…))` in the caller, and the tail failing the Run the body
   holds; [Composition: wrap or compose](#composition-wrap-or-compose), a guarded write of its
   records being the unit's own purpose; the owner's call of the message as the worker's one key;
-  the owner's refusal, for the api, of a refused send that fails a later retry's Run (2026-11-21).
+  the owner's call of one read, `getOne(where)`, and one `RunNotFoundError` carrying the read's
+  key (2026-11-21); the owner's refusal, for the api, of a refused send that fails a later
+  retry's Run (2026-11-21).
 - **Rejected:** `MoveRunService { start, complete, fail, failActive }` over `RunService`, the shape
   this decision held before: a second service and layer whose one helper held the guard, `start` and
   `failActive` reading the message's active Run; its tail read the Run again by the message, so a
@@ -628,21 +630,25 @@ writes the Run twice, `generating` then `done` (or `failed`), and a client polli
   a rule's call in a flow. The check folded into `startRun`: a transition of two conditions,
   against the model's pieces of one each. The refusal as a typed failure: it rode every signature,
   no caller could raise it, and each one turned it into a defect. A started status for the
-  history's read alone: a status, a move, a method and a write per reply for one query. One error
-  with a `reason` per read: no caller tells the two apart, and a wrapper is a second name for each.
+  history's read alone: a status, a move, a method and a write per reply for one query.
+  `RunService.getActive(userMessageId)` beside `getOne`, failing its own `ActiveRunNotFoundError`:
+  `getOne` with one condition fixed, a variation a `where` already takes, and a second not-found
+  for one model. An error with a `reason` per read: no caller tells the reads apart.
 - **Cost:** the start's read and write hold off an interrupt, so a shutdown waits for them. The
   start fails a dead worker's Run itself, a second place beside the tail that fails a Run. A Run
   settled or deleted under the reply makes the tail's write die, so an assistant's error on a Run
   whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not
   as the use case's warning; a dead worker's Run settled between its read and its failure dies
-  the same way. A transition that takes an argument is curried (`completeRun(reply)(run)`). A
-  refused send whose job SQS took after all, once a worker settled the Run, responds with `500`. A
-  later stage the user should see before `generating` (reading a chat's files) adds its status
-  back: one value of `runStatuses`, one row of the moves' table, one move, and a regenerated
-  `init`.
+  the same way. A transition that takes an argument is curried (`completeRun(reply)(run)`). The
+  api's `404` for a Run carries `where: { id }`, and its schema lists the `userMessageId` key the
+  api never sends. A refused send whose job SQS took after all, once a worker settled the Run,
+  responds with `500`. A later stage the user should see before `generating` (reading a chat's
+  files) adds its status back: one value of `runStatuses`, one row of the moves' table, one move,
+  and a regenerated `init`.
 - **Guarded by:** `RunService`'s unit test: each move writes under the status read, a refused move
-  dies and writes nothing, `getActive` reads the message's active Run and of a message with none
-  fails `ActiveRunNotFoundError`; the model's tests of the moves, `failRun`'s full text and
+  dies and writes nothing, `getOne` that finds no Run fails `RunNotFoundError` with the read's key
+  alone, by `id` or by `userMessageId`; `RunWhere`'s type, which takes exactly one of the two; the
+  model's tests of the moves, `failRun`'s full text and
   `ensureRunUnstarted`; `ReplyChatService`'s: an interrupt while the start reads still starts the
   Run and then fails it, a reply that dies after its Run was failed elsewhere and retried fails no
   Run, a delivery losing the start to a rival fails none; `AskChatService`'s, a refused send that
@@ -1075,7 +1081,7 @@ its start moves that message's active Run to `generating` if unstarted, in one u
 step, then the chat's history, the assistant's reply, and the assistant's message with the Run's
 `done` in one transaction; one tail fails the Run the start wrote on whatever ends the answer. A
 Run some worker started fails `RunStartedError`, whose text says its worker stopped, and the start
-fails it with it; a message with no active Run fails `ActiveRunNotFoundError`, unwritten.
+fails it with it; a message with no active Run fails `RunNotFoundError`, unwritten.
 `TitleChatService.title` does the title's job's work, given the chat the job names: the chat's
 first message, the assistant's
 title, and the title written while the chat is untitled, so a rename by the user wins; a chat with
