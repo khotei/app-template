@@ -24,7 +24,8 @@ reason. Biome reads a config only in the folder it starts from and its parents,
 so the root keeps one stub: `biome.json` (`"root": true`) extends `.misc/lint/biome.base.json`.
 Biome resolves a `plugins` path of the extended config from the root, so it reads
 `./.misc/lint/<name>.grit`; the extended config is not named `biome.json`, since Biome's scan
-would load a second one as a nested config.
+would load a second one as a nested config. Markdown is markdownlint's alone: Biome's Markdown
+formatter is off, since Biome 2.6 rewrites a file's frontmatter into YAML that no longer parses.
 
 One file, or the tests whose name matches, through vitest itself (`--project e2e` for an e2e
 file, Docker running; `vitest` without `run` watches):
