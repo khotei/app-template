@@ -43,7 +43,8 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 
 - Types are `PascalCase` `<Name><Role>`: `<Model><Problem>Error`, a port's `<Port><Problem>Error`,
   `<Model>Service` (`<Aspect><Model>Service` composed over it) or, for one operation of no model,
-  that operation.
+  that operation; the last grouping before a use case is `<Verb><Model>Service`, its main method
+  `<verb>`, the verb it names, any other named for its own act in the model's words.
 - Functions are verb-first, and the verb marks the kind of work (whether a name passes:
   [name-and-body.md](name-and-body.md)):
   - `create<Thing>`: a factory that takes dependencies and wires them, or a write that takes a
@@ -63,7 +64,9 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
   - `select<One|Many>` / `insert` / `update` / `delete`: a repository's; `update` never creates.
 - A job is named `<Verb><Object>` in the glossary's words for the work it asks of its worker
   (`ShipOrder`), never after a method, its queue or one step of the work; its queue
-  (`ship-order`), its `send<Job>` and the use case that ends it (`shipOrder`) take that name.
+  (`ship-order`), its `send<Job>` and the use case that ends it (`shipOrder`) take that name;
+  the api's step that sends it is `ask<Verb>`, and the worker's `<Verb><Model>Service.<verb>`
+  does that work.
 - Other constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant
   is `PascalCase`, `<Service><Variant>` for a service declared elsewhere.
 - A test-only layer ends in `Test`: a fake `<Service>Test`, a model's real services over fakes

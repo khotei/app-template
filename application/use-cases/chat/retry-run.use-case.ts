@@ -9,5 +9,5 @@ export const retryRun = Effect.fn('retryRun')(function* (userId: UserId, chatId:
   const askChat = yield* AskChatService
 
   const chat = yield* chats.getOne({ id: chatId, userId })
-  return yield* askChat.askRetryMessage(chat)
+  return yield* askChat.retry(chat)
 })

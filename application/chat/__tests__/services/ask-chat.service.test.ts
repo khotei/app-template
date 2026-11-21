@@ -105,20 +105,18 @@ const replyJob = (run: Run) => ({
   message: new ReplyToMessage({ messageId: run.userMessageId }),
 })
 
-const askMessage = (read: Chat, text: string) =>
-  AskChatService.use((askChat) => askChat.askMessage(read, text))
+const ask = (read: Chat, text: string) => AskChatService.use((askChat) => askChat.ask(read, text))
 
-const askRetryMessage = (read: Chat) =>
-  AskChatService.use((askChat) => askChat.askRetryMessage(read))
+const retry = (read: Chat) => AskChatService.use((askChat) => askChat.retry(read))
 
 describe('AskChatService', () => {
   it.live(
-    "askMessage inserts the user message and its queued Run, writing no chat, then sends a new chat's title job and the reply's",
+    "ask inserts the user message and its queued Run, writing no chat, then sends a new chat's title job and the reply's",
     () => {
       const inserts = noInserts()
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const run = yield* askMessage(chat, 'Plan a weekend in Lisbon')
+        const run = yield* ask(chat, 'Plan a weekend in Lisbon')
 
         const { userMessage } = run
         const sentAt = userMessage.createdAt
@@ -154,10 +152,10 @@ describe('AskChatService', () => {
     },
   )
 
-  it.effect("askMessage on an answered chat sends the reply's job alone", () => {
+  it.effect("ask on an answered chat sends the reply's job alone", () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const run = yield* askMessage(answeredChat, 'And in Porto?')
+      const run = yield* ask(answeredChat, 'And in Porto?')
 
       assertEquals(yield* jobs.sent, [replyJob(run)])
     }).pipe(
@@ -167,25 +165,22 @@ describe('AskChatService', () => {
     )
   })
 
-  it.effect(
-    "askMessage fails the Run with the text of SQS's refusal, and returns the failed Run",
-    () => {
-      const { updates, layer } = recordUpdates(layerRefusingQueueTest())
-      return Effect.gen(function* () {
-        const sent = yield* askMessage(answeredChat, 'And in Porto?')
+  it.effect("ask fails the Run with the text of SQS's refusal, and returns the failed Run", () => {
+    const { updates, layer } = recordUpdates(layerRefusingQueueTest())
+    return Effect.gen(function* () {
+      const sent = yield* ask(answeredChat, 'And in Porto?')
 
-        assert.strictEqual(sent.status, 'failed')
-        assert.include(Option.getOrThrow(sent.failure).cause, 'SQS is unavailable')
-        assert.deepStrictEqual(
-          Arr.map(updates, ({ status }) => status),
-          ['failed'],
-        )
-      }).pipe(Effect.provide(layer))
-    },
-  )
+      assert.strictEqual(sent.status, 'failed')
+      assert.include(Option.getOrThrow(sent.failure).cause, 'SQS is unavailable')
+      assert.deepStrictEqual(
+        Arr.map(updates, ({ status }) => status),
+        ['failed'],
+      )
+    }).pipe(Effect.provide(layer))
+  })
 
   it.effect(
-    "askRetryMessage's refused send fails its message's active Run as it stands, a later retry's included",
+    "retry's refused send fails its message's active Run as it stands, a later retry's included",
     () => {
       // A worker failed the Run sent, as SQS took it after all, and the user retried again.
       const laterRetry = new Run({
@@ -195,7 +190,7 @@ describe('AskChatService', () => {
       const reads: Array<RunEntitySelectWhere> = []
       const updates: Array<RunEntityWhere> = []
       return Effect.gen(function* () {
-        const sent = yield* askRetryMessage(withNewest(failedRun))
+        const sent = yield* retry(withNewest(failedRun))
 
         assert.deepStrictEqual(reads, [
           { userMessageId: firstMessage.id, status: ['queued', 'generating'] },
@@ -223,11 +218,11 @@ describe('AskChatService', () => {
     },
   )
 
-  it.effect('askMessage interrupted while SQS refuses the job still fails the Run', () => {
+  it.effect('ask interrupted while SQS refuses the job still fails the Run', () => {
     const held = holdAssistantCall()
     const { updates, layer } = recordUpdates(layerRefusingQueueTest(held.hold))
     return Effect.gen(function* () {
-      const running = yield* askMessage(answeredChat, 'And in Porto?').pipe(Effect.forkChild)
+      const running = yield* ask(answeredChat, 'And in Porto?').pipe(Effect.forkChild)
       yield* held.asked
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),
@@ -242,10 +237,10 @@ describe('AskChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('askMessage while a Run is in work is ChatBusyError before any write or job', () => {
+  it.effect('ask while a Run is in work is ChatBusyError before any write or job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* askMessage(withNewest(queuedRun), 'And in Porto?').pipe(Effect.flip)
+      const refused = yield* ask(withNewest(queuedRun), 'And in Porto?').pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, refused, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])
@@ -255,10 +250,10 @@ describe('AskChatService', () => {
   it.effect.each([
     { name: 'while a Run is in work', read: withNewest(queuedRun) },
     { name: "when the chat's newest Run is done", read: withNewest(doneRun) },
-  ])('askRetryMessage $name is RunNotRetryableError before any write or job', ({ read }) => {
+  ])('retry $name is RunNotRetryableError before any write or job', ({ read }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* askRetryMessage(read).pipe(Effect.flip)
+      const refused = yield* retry(read).pipe(Effect.flip)
 
       assertSchemaEquals(RunNotRetryableError, refused, new RunNotRetryableError())
       assertEquals(yield* jobs.sent, [])
@@ -266,12 +261,12 @@ describe('AskChatService', () => {
   })
 
   it.effect(
-    'askRetryMessage after a failed Run inserts a new queued Run of its message, then sends its job',
+    'retry after a failed Run inserts a new queued Run of its message, then sends its job',
     () => {
       const inserts = noInserts()
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const retried = yield* askRetryMessage(withNewest(failedRun))
+        const retried = yield* retry(withNewest(failedRun))
 
         assertSchemaEquals(
           Run,
@@ -299,12 +294,12 @@ describe('AskChatService', () => {
   )
 
   it.effect(
-    "askRetryMessage asks the store for the failed Run's message by its id and returns its none as MessageNotFoundError, sending no job",
+    "retry asks the store for the failed Run's message by its id and returns its none as MessageNotFoundError, sending no job",
     () => {
       const wheres: Array<MessageEntityWhere> = []
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const error = yield* askRetryMessage(withNewest(failedRun)).pipe(Effect.flip)
+        const error = yield* retry(withNewest(failedRun)).pipe(Effect.flip)
 
         assertSchemaEquals(
           MessageNotFoundError,

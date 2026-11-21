@@ -25,10 +25,9 @@ Ask in order; the first yes decides:
 3. **A capability or rule only some callers need, over units of one model** → **compose**: a
    unit named for what it adds (`<Aspect><Model>Service`, `ensure<Combined>`), built from the old
    ones; a caller that needs only the old one keeps it.
-4. **An order of calls over services of several models, or a request's transaction** → a use
-   case; a request that starts jobs, its rules, writes and sends after their commit, → the
-   `Ask<Model>Service` of the model asked, and the jobs' runs, their transactions included, → its
-   `Reply<Model>Service` ([layering.md](layering.md#ports-and-domain-services)).
+4. **An order of calls over several models of one module, their transaction or their sends** →
+   the module's `<Verb><Model>Service` ([layering.md](layering.md#ports-and-domain-services)),
+   which use cases share; an order over modules, or what an entry adds, → a use case.
 
 ```ts
 // a wrap, a static beside `layer`: each holder from this layer gets the audit; `make` is unedited

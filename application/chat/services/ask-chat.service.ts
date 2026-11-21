@@ -18,21 +18,24 @@ import { RunService } from '#chat/services/run.service'
  */
 type Sending = Effect.Services<ReturnType<typeof sendReplyToMessage>>
 
-/** Asks a chat for a reply on the user's behalf, storing the request before it sends its jobs. */
+/**
+ * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
+ * sends its jobs.
+ */
 export class AskChatService extends Context.Service<
   AskChatService,
   {
     /**
-     * Asks `chat` to reply to the user's `text`: stores the message with its queued Run, then
-     * sends a new chat's title job and the reply's job; returns the Run sent, or failed with the
-     * full text of SQS's refusal.
+     * Asks `chat` for a reply to the user's `text`: stores the message with its queued Run, then
+     * asks for a new chat's title and for the reply; returns the Run sent, or failed with the full
+     * text of SQS's refusal.
      */
-    readonly askMessage: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError, Sending>
+    readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError, Sending>
     /**
-     * Asks `chat` again to reply to the message its failed newest Run answered: stores a new
-     * queued Run of it, then sends the reply's job as `askMessage` does.
+     * Retries `chat`'s failed newest Run: stores a new queued Run of its user message, then asks
+     * for the reply as `ask` does.
      */
-    readonly askRetryMessage: (
+    readonly retry: (
       chat: Chat,
     ) => Effect.Effect<Run, RunNotRetryableError | MessageNotFoundError, Sending>
   }
@@ -43,7 +46,7 @@ export class AskChatService extends Context.Service<
     const moves = yield* MoveRunService
     const transaction = yield* Transaction
 
-    // A chat no send has reached yet asks for its title once, from its first message.
+    // A chat no send has reached yet is titled once, from its first message.
     const askTitle = Effect.fnUntraced(function* (chat: Chat) {
       if (!isNewChat(chat)) return
       yield* sendTitleChat(chat)
@@ -60,7 +63,7 @@ export class AskChatService extends Context.Service<
         Effect.uninterruptible,
       )
 
-    const askMessage = Effect.fn('AskChatService.askMessage')(function* (chat: Chat, text: string) {
+    const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
       yield* ensureChatNotBusy(chat.run)
 
       // The message and its Run commit together: a Run that loses the race keeps no message.
@@ -73,7 +76,7 @@ export class AskChatService extends Context.Service<
       return yield* askReply(run)
     })
 
-    const askRetryMessage = Effect.fn('AskChatService.askRetryMessage')(function* (chat: Chat) {
+    const retry = Effect.fn('AskChatService.retry')(function* (chat: Chat) {
       const failed = yield* ensureRunRetryable(chat.run)
       const userMessage = yield* messages.getOne({ id: failed.userMessageId })
 
@@ -81,7 +84,7 @@ export class AskChatService extends Context.Service<
       return yield* askReply(run)
     })
 
-    return { askMessage, askRetryMessage }
+    return { ask, retry }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

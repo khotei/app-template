@@ -11,6 +11,7 @@ import { MessageService } from '#chat/services/message.service'
 import { MoveRunService } from '#chat/services/move-run.service'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import { RunService } from '#chat/services/run.service'
+import { TitleChatService } from '#chat/services/title-chat.service'
 
 /** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ChatRepositoryMocks {
@@ -28,7 +29,7 @@ export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   transaction: Layer.Layer<Transaction> = TransactionTest,
 ) =>
-  Layer.mergeAll(AskChatService.layer, ReplyChatService.layer).pipe(
+  Layer.mergeAll(AskChatService.layer, ReplyChatService.layer, TitleChatService.layer).pipe(
     Layer.provideMerge(MoveRunService.layer),
     Layer.provideMerge(Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer)),
     Layer.provideMerge(

@@ -18,8 +18,6 @@ import {
 import { TestClock } from 'effect/testing'
 
 import type {
-  ChatEntitySet,
-  ChatEntityWhere,
   MessageColumns,
   RunColumns,
   RunEntitySelectWhere,
@@ -27,11 +25,9 @@ import type {
   RunEntityWhere,
 } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
+import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { ActiveRunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
@@ -40,14 +36,12 @@ import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
   assistantMessageAt,
-  chat,
   chatId,
   firstMessage,
   queuedRun,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
-import { recordChatAssistant } from '#testing/chat/chat-assistant.test-fake'
 import {
   holdAssistantCall,
   recordMessageAssistant,
@@ -176,11 +170,11 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-const reply = ReplyChatService.use((replyChat) => replyChat.replyMessage(queuedRun.userMessageId))
+const reply = ReplyChatService.use((replyChat) => replyChat.reply(queuedRun.userMessageId))
 
 describe('ReplyChatService', () => {
   it.effect(
-    "replyMessage moves the Run to generating, then writes the assistant's message and done",
+    "reply moves the Run to generating, then writes the assistant's message and done",
     () => {
       const held = holdAssistantCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
@@ -234,7 +228,7 @@ describe('ReplyChatService', () => {
     },
   )
 
-  it.effect('replyMessage dies with the assistant and fails the Run it reads again first', () => {
+  it.effect('reply dies with the assistant and fails the Run it reads again first', () => {
     const assistant = recordMessageAssistant(Effect.die('provider exploded'))
     const writes = noWrites()
     return Effect.gen(function* () {
@@ -252,29 +246,26 @@ describe('ReplyChatService', () => {
     )
   })
 
-  it.effect(
-    'replyMessage interrupted while the assistant answers fails the Run it reads again',
-    () => {
-      const held = holdAssistantCall()
-      const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
-      const writes = noWrites()
-      return Effect.gen(function* () {
-        const running = yield* Effect.forkChild(reply)
-        yield* held.asked
-        yield* Fiber.interrupt(running)
+  it.effect('reply interrupted while the assistant answers fails the Run it reads again', () => {
+    const held = holdAssistantCall()
+    const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
+    const writes = noWrites()
+    return Effect.gen(function* () {
+      const running = yield* Effect.forkChild(reply)
+      yield* held.asked
+      yield* Fiber.interrupt(running)
 
-        assert.strictEqual(lastWrite(writes).move, 'generating → failed')
-      }).pipe(
-        Effect.provide(
-          layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
-            Layer.provideMerge(assistant.layer),
-          ),
+      assert.strictEqual(lastWrite(writes).move, 'generating → failed')
+    }).pipe(
+      Effect.provide(
+        layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
+          Layer.provideMerge(assistant.layer),
         ),
-      )
-    },
-  )
+      ),
+    )
+  })
 
-  it.effect('replyMessage interrupted while it reads its Run fails the Run it reads again', () => {
+  it.effect('reply interrupted while it reads its Run fails the Run it reads again', () => {
     const reading = Deferred.makeUnsafe<void>()
     const readAgain = readsInTurn(queuedRun)
     let reads = 0
@@ -299,7 +290,7 @@ describe('ReplyChatService', () => {
   })
 
   it.effect(
-    'replyMessage of a generating Run fails RunStartedError, failing the Run as its worker stopped, unasked',
+    'reply of a generating Run fails RunStartedError, failing the Run as its worker stopped, unasked',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
@@ -323,10 +314,10 @@ describe('ReplyChatService', () => {
     },
   )
 
-  it.effect("replyMessage prompts with the chat's messages in order", () => {
+  it.effect("reply prompts with the chat's messages in order", () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     return Effect.gen(function* () {
-      yield* ReplyChatService.use((replyChat) => replyChat.replyMessage(lastRun.userMessageId))
+      yield* ReplyChatService.use((replyChat) => replyChat.reply(lastRun.userMessageId))
 
       assertEquals(yield* assistant.histories, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(
@@ -342,7 +333,7 @@ describe('ReplyChatService', () => {
   })
 
   it.effect(
-    'replyMessage dies on a done write the store refuses, leaving the Run it then reads settled unfailed',
+    'reply dies on a done write the store refuses, leaving the Run it then reads settled unfailed',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const { logs, layer: logger } = recordLogs()
@@ -375,7 +366,7 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    'replyMessage losing its generating write to a rival delivery dies, failing the Run the rival took',
+    'reply losing its generating write to a rival delivery dies, failing the Run the rival took',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
@@ -418,10 +409,10 @@ describe('ReplyChatService', () => {
         const replyChat = yield* ReplyChatService
 
         const again = yield* replyChat
-          .replyMessage(queuedRun.userMessageId)
+          .reply(queuedRun.userMessageId)
           .pipe(Effect.exit, Effect.forkChild)
         yield* held.asked
-        const own = yield* replyChat.replyMessage(retried.userMessageId).pipe(Effect.flip)
+        const own = yield* replyChat.reply(retried.userMessageId).pipe(Effect.flip)
         yield* held.release
         const againExit = yield* Fiber.join(again)
 
@@ -456,77 +447,20 @@ describe('ReplyChatService', () => {
   it.effect.each([
     { name: 'settled before it', selectOne: readsInTurn(doneElsewhere) },
     { name: 'the store finds none of', selectOne: () => Effect.succeedNone },
-  ])(
-    'replyMessage of a Run $name fails ActiveRunNotFoundError, asking no assistant',
-    ({ selectOne }) => {
-      const assistant = recordMessageAssistant(Effect.succeed(sure))
-      return Effect.gen(function* () {
-        const error = yield* reply.pipe(Effect.flip)
-
-        assertSchemaEquals(
-          ActiveRunNotFoundError,
-          error,
-          new ActiveRunNotFoundError({ userMessageId: queuedRun.userMessageId }),
-        )
-        assertEquals(yield* assistant.histories, [])
-      }).pipe(
-        Effect.provide(
-          layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
-        ),
-      )
-    },
-  )
-
-  it.effect('replyTitle titles the chat from its first message while the chat is untitled', () => {
-    const lisbonWeekend = ChatTitle.make('Lisbon weekend')
-    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
-    const { logs, layer: logger } = recordLogs()
-    const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
+  ])('reply of a Run $name fails ActiveRunNotFoundError, asking no assistant', ({ selectOne }) => {
+    const assistant = recordMessageAssistant(Effect.succeed(sure))
     return Effect.gen(function* () {
-      yield* ReplyChatService.use((replyChat) => replyChat.replyTitle(chatId))
+      const error = yield* reply.pipe(Effect.flip)
 
-      assert.deepStrictEqual(updates, [
-        [
-          { title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },
-          { id: chatId, title: null },
-        ],
-      ])
-      assertEquals(yield* assistant.texts, ['Plan a weekend in Lisbon'])
-      assert.deepStrictEqual(logs, [])
-    }).pipe(
-      Effect.provide([
-        layerChatTest({
-          messages: {
-            selectMany: () =>
-              Effect.forEach([firstMessage, aPhoto], (message) => encodeWith(Message)(message)),
-          },
-          chats: {
-            selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
-            update: (...update) =>
-              Effect.sync(() => {
-                updates.push(update)
-              }),
-          },
-        }).pipe(Layer.provideMerge(assistant.layer)),
-        logger,
-      ]),
-    )
-  })
-
-  it.effect('replyTitle fails a chat with no message as gone, without asking', () => {
-    const assistant = recordChatAssistant(Effect.succeed(ChatTitle.make('Lisbon weekend')))
-    return Effect.gen(function* () {
-      const error = yield* ReplyChatService.use((replyChat) => replyChat.replyTitle(chatId)).pipe(
-        Effect.flip,
+      assertSchemaEquals(
+        ActiveRunNotFoundError,
+        error,
+        new ActiveRunNotFoundError({ userMessageId: queuedRun.userMessageId }),
       )
-
-      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chatId }))
-      assertEquals(yield* assistant.texts, [])
+      assertEquals(yield* assistant.histories, [])
     }).pipe(
       Effect.provide(
-        layerChatTest({ messages: { selectMany: () => Effect.succeed([]) } }).pipe(
-          Layer.provideMerge(assistant.layer),
-        ),
+        layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
       ),
     )
   })

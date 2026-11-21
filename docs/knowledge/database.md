@@ -177,7 +177,7 @@ a race: every repository's `insert`, `update` and `delete` dies when Postgres re
 touches no row:
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `AskChatService.askMessage` takes the chat
+  active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat
   read with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
   `ChatBusyError`, 409);
   of two sends that both read none at once, the second's Run insert, its last write, dies on the
@@ -220,8 +220,8 @@ cascade, and `ChatService.delete` is all the api's delete calls.
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
 (`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
-pipes `transaction.run` on the expression that holds them: `AskChatService.askMessage` the
-user's message and its queued Run, `ReplyChatService.replyMessage` the reply and the Run's
+pipes `transaction.run` on the expression that holds them: `AskChatService.ask` the
+user's message and its queued Run, `ReplyChatService.reply` the reply and the Run's
 `done`. Every
 repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every
@@ -240,11 +240,11 @@ writes the move, and in brackets its caller; every move is written under the sta
 
 ```mermaid
 stateDiagram-v2
-  [*] --> queued: RunService.create (AskChatService.askMessage, AskChatService.askRetryMessage)
-  queued --> generating: MoveRunService.start (ReplyChatService.replyMessage)
-  queued --> failed: MoveRunService.fail (AskChatService on a refused send, replyMessage's tail)
-  generating --> done: MoveRunService.complete (ReplyChatService.replyMessage)
-  generating --> failed: MoveRunService.fail (ReplyChatService.replyMessage's tail)
+  [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
+  queued --> generating: MoveRunService.start (ReplyChatService.reply)
+  queued --> failed: MoveRunService.fail (AskChatService on a refused send, reply's tail)
+  generating --> done: MoveRunService.complete (ReplyChatService.reply)
+  generating --> failed: MoveRunService.fail (ReplyChatService.reply's tail)
   done --> [*]
   failed --> [*]
 ```

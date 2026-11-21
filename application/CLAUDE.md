@@ -23,8 +23,8 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
   ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a service
-  a use case or the asked model's `Reply<Model>Service` calls there, keeps its client and prompts
+  a use case or the worker's `<Verb><Model>Service` calls there, keeps its client and prompts
   inside, so callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and each job's
-  `send<Job>`, which only sends; the asked model's `Ask<Model>Service` calls it, after the
-  commit, and no adapter wraps the worker.
+  `send<Job>`, which the api's `<Verb><Model>Service` calls after the commit; no adapter wraps
+  the worker.

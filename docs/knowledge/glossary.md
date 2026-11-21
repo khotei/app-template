@@ -163,8 +163,10 @@ _Avoid_: Implementation, provider, DAO, store
 **Domain service**:
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
 guards goes through it. A model starts with `<Model>Service` over its repository; a purpose past it
-is a service composed over it, named for what it adds: a request that starts jobs its
-`Ask<Model>Service`, in the api, the jobs' runs its `Reply<Model>Service`, in the worker.
+is a service composed over it, named for what it adds (`File<Model>Service`,
+`Move<Model>Service`). The last grouping of a module's logic before a use case, which any use case
+may call, is named for its verb, its main method that verb: the api's `AskChatService.ask` asks for
+each job's work, and the worker's `<Verb><Model>Service.<verb>` does it.
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Composition**:

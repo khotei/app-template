@@ -13,5 +13,5 @@ export const createUserMessage = Effect.fn('createUserMessage')(function* (
   const askChat = yield* AskChatService
 
   const chat = yield* chats.getOne({ id: chatId, userId })
-  return yield* askChat.askMessage(chat, text)
+  return yield* askChat.ask(chat, text)
 })

@@ -11,6 +11,7 @@ import {
   MoveRunService,
   ReplyChatService,
   RunService,
+  TitleChatService,
 } from '@app-template/application/chat'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
@@ -21,7 +22,7 @@ import { Transaction } from '@app-template/packages/db'
 import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide(ReplyChatService.layer),
+  Layer.provide([ReplyChatService.layer, TitleChatService.layer]),
   Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
 )

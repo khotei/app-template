@@ -337,8 +337,8 @@ moves it into its own `Later` and deletes it here.
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`sendReplyToMessage`, called by
-  `application/chat/services/ask-chat.service.ts`, the last step of `askMessage` and
-  `askRetryMessage`), or the client aborts after the commit but before the send starts: a send SQS
+  `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
+  `retry`), or the client aborts after the commit but before the send starts: a send SQS
   refuses fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a
   dead process, and an interrupt during the commit or the title's send ends the flow first. Ways out
   to weigh: one uninterruptible step from the Run's write through its send (the abort only), a
@@ -358,7 +358,7 @@ moves it into its own `Later` and deletes it here.
   a send of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that
   only the newest user message gets one (`application/use-cases/chat/retry-run.use-case.ts`, the
-  chat's read, and `AskChatService.askRetryMessage`'s `runs.create`).
+  chat's read, and `AskChatService.retry`'s `runs.create`).
   Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
@@ -370,7 +370,7 @@ moves it into its own `Later` and deletes it here.
   opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
   snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
-  (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.replyMessage`): its
+  (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.reply`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
@@ -478,6 +478,17 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-21) vitest is held at 5.1.0 (the `tools` catalog in `package.json`): 5.1.1's forks
   pool forks a watchdog and calls `child.channel?.unref()`, which Bun 1.4.4 and 1.4.5 lack, so
   every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
+- (2026-11-21) A service that holds its own transaction and sends its jobs after it
+  (`AskChatService.ask`) cannot join a caller's transaction: wrapped in an outer
+  `transaction.run`, its transaction becomes a savepoint (`makeWithTransaction` "uses savepoints
+  for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect
+  4.1.5), and its jobs are sent before the outer `COMMIT`, against the send after the commit. The
+  send that binds files in one transaction over two modules (`shared-files`, 16) meets this. Ways
+  out to weigh: the service's sends through `SqlClient.afterCommit` (the item above names its
+  limits); the service's writes split from its sends, the use case ordering them, which walks back
+  "its writes in a helper beside them" of
+  [Composition: wrap or compose](decisions.md#composition-wrap-or-compose); the service taking the
+  attachments, refused today, as a module's services import no other module.
   Ways out to weigh: wait for a Bun with the call, or move every run to threads on the owner's
   word.
 - (2026-11-21) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and

@@ -168,7 +168,8 @@
       "includes": [
         "application/*/services/**",
         "!application/chat/services/ask-chat.service.ts",
-        "!application/chat/services/reply-chat.service.ts"
+        "!application/chat/services/reply-chat.service.ts",
+        "!application/chat/services/title-chat.service.ts"
       ],
       "linter": {
         "rules": {
@@ -196,7 +197,7 @@
                   },
                   {
                     "group": ["#*/infrastructure/**"],
-                    "message": "a module's services reach its infrastructure only through a port; the chat's ask and reply services have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "a module's services reach its infrastructure only through a port; the chat's ask, reply and title services have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }
@@ -310,7 +311,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's reply service (ReplyChatService), the worker's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's reply service (ReplyChatService), the worker's run of the reply's job, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
@@ -324,8 +325,48 @@
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": ["#*/infrastructure/**", "!#*/infrastructure/*.llm"],
-                    "message": "the chat's reply service reaches its module's infrastructure only through a port and its .llm files, whose assistants reply (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "group": [
+                      "#*/infrastructure/**",
+                      "!#chat/infrastructure/message-assistant.llm"
+                    ],
+                    "message": "the chat's reply service reaches its module's infrastructure only through a port and the message's assistant, which replies (decisions.md › A module's layers; The chat's jobs in their services)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/chat/services/title-chat.service.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/packages/schema",
+                      "!@app-template/kernel/data",
+                      "!@app-template/application/*",
+                      "@app-template/application/use-cases",
+                      "@app-template/application/use-cases/**",
+                      "@effect/**"
+                    ],
+                    "message": "the chat's title service (TitleChatService), the worker's run of the title's job, imports the workspaces a module's services do: no transaction, no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                  },
+                  {
+                    "group": ["@app-template/kernel/data"],
+                    "importNamePattern": "(Db|relations|migrationsFolder)",
+                    "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
+                  },
+                  {
+                    "group": ["#*/infrastructure/**", "!#chat/infrastructure/chat-assistant.llm"],
+                    "message": "the chat's title service reaches its module's infrastructure only through a port and the chat's assistant, which proposes the title (decisions.md › A module's layers; The chat's jobs in their services)"
                   }
                 ]
               }
