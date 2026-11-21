@@ -188,8 +188,7 @@ the data layer's repository directly.
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, save the services', whose tests have one of their own, the domain's admitting
   of the kernel only `@app-template/kernel/data`, and of it only a value's name
-  (`<name>Pattern`, `<name>Statuses`), and the language model's errors
-  ([The language model in the kernel](#the-language-model-in-the-kernel)), the services' admitting neither
+  (`<name>Pattern`, `<name>Statuses`), the services' admitting neither
   `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of
   their infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
@@ -720,9 +719,8 @@ client.
   `AiError` with its own `mapError`: the retry and finish-reason policy copied per service. A
   `packages/` workspace for the policy: a tool for every app for some 40 lines of this app's
   policy.
-- **Cost:** the domain's purity is no longer absolute: its guard and the use cases' admit
-  `@app-template/kernel/llm/error`, for names matching `Llm…Error` only, so the domain names a
-  kernel error and a module's model knows its failures come from a language model. The use
+- **Cost:** the use cases' guard admits `@app-template/kernel/llm/error`, for names matching
+  `Llm…Error` only, so a use case names a kernel error; the domain's admits none. The use
   cases import a class whose file names the provider's package, so loading them loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
   adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the application
