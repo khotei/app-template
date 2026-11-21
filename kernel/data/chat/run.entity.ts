@@ -25,10 +25,13 @@ export type RunEntityWhere = Types.Simplify<
     }>
 >
 
-/** A read finds its Run by the key, or by its user message under a `status`. */
+/** A read finds its Run by the key or by its user message, exactly one, narrowed by the rest. */
 export type RunEntitySelectWhere =
-  | RunEntityWhere
-  | Types.Simplify<Pick<RunEntity, 'userMessageId'> & Partial<Pick<RunEntityWhere, 'status'>>>
+  | Types.Simplify<RunEntityWhere & { readonly userMessageId?: never }>
+  | Types.Simplify<
+      Pick<RunEntity, 'userMessageId'> &
+        Partial<Omit<RunEntityWhere, 'id'>> & { readonly id?: never }
+    >
 
 /** The columns an update may write. */
 export const runSetColumns = [
