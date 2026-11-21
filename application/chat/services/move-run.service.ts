@@ -2,9 +2,8 @@ import { Cause, Context, Effect, Layer } from 'effect'
 
 import type { MessageFields } from '#chat/domain/message.model'
 import type { MessageId } from '#chat/domain/message.util'
-import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
+import type { ActiveRunNotFoundError, RunStartedError } from '#chat/domain/run.error'
 import {
-  activeRunStatuses,
   completeRun,
   ensureRunUnstarted,
   failRun,
@@ -18,21 +17,22 @@ export class MoveRunService extends Context.Service<
   MoveRunService,
   {
     /**
-     * Starts the active Run of the user's message `messageId` as it stands now, from `queued` to
-     * `generating`; `RunStartedError` once some worker started it, `RunNotFoundError` when the
-     * message has no active Run.
+     * Starts the active Run of the user's message `userMessageId` as it stands now, from `queued`
+     * to `generating`; `RunStartedError` once some worker started it.
      */
-    readonly start: (messageId: MessageId) => Effect.Effect<Run, RunNotFoundError | RunStartedError>
+    readonly start: (
+      userMessageId: MessageId,
+    ) => Effect.Effect<Run, ActiveRunNotFoundError | RunStartedError>
     /** Moves a generating Run to `done`, naming `reply`. */
     readonly complete: (run: Run, reply: MessageFields) => Effect.Effect<Run>
     /**
-     * Moves the active Run `where` names, by its id or its user message, to `failed` as it stands
-     * now, keeping the full text of `cause`; `RunNotFoundError` when none is active.
+     * Moves the active Run of the user's message `userMessageId` to `failed` as it stands now,
+     * keeping the full text of `cause`.
      */
     readonly fail: (
-      where: Pick<Run, 'id'> | Pick<Run, 'userMessageId'>,
+      userMessageId: MessageId,
       cause: Cause.Cause<unknown>,
-    ) => Effect.Effect<Run, RunNotFoundError>
+    ) => Effect.Effect<Run, ActiveRunNotFoundError>
   }
 >()('@app-template/application/chat/services/MoveRunService', {
   make: Effect.gen(function* () {
@@ -44,10 +44,8 @@ export class MoveRunService extends Context.Service<
       )
     }
 
-    const start = Effect.fn('MoveRunService.start')(function* (messageId: MessageId) {
-      const queued = yield* runs
-        .getOne({ userMessageId: messageId, status: activeRunStatuses })
-        .pipe(Effect.flatMap(ensureRunUnstarted))
+    const start = Effect.fn('MoveRunService.start')(function* (userMessageId: MessageId) {
+      const queued = yield* runs.getActive(userMessageId).pipe(Effect.flatMap(ensureRunUnstarted))
       return yield* move(queued, startRun(queued))
     })
 
@@ -56,10 +54,10 @@ export class MoveRunService extends Context.Service<
     )
 
     const fail = Effect.fn('MoveRunService.fail')(function* (
-      where: Pick<Run, 'id'> | Pick<Run, 'userMessageId'>,
+      userMessageId: MessageId,
       cause: Cause.Cause<unknown>,
     ) {
-      const active = yield* runs.getOne({ ...where, status: activeRunStatuses })
+      const active = yield* runs.getActive(userMessageId)
       return yield* move(active, failRun(active, { cause: Cause.pretty(cause) }))
     })
 

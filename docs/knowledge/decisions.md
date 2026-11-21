@@ -414,7 +414,8 @@ Minimal means less code inside each unit and no dead code, never fewer units. Th
 A model's records are served by domain services composed over each other, each named for what it
 adds; which services a model may have and over which: [layering.md › Ports and domain
 services](../../.claude/rules/layering.md#ports-and-domain-services). `<Model>Service` holds the
-plain records (a create, a read by key with its `*NotFoundError`, a read of many, the writes that
+plain records (a create, a read by key with its `*NotFoundError`, which carries that key, as a
+read by another key raises its own, a read of many, the writes that
 change records alone, a delete of many under the full `where` its caller passes), coding every row
 through the model, and `File<Model>Service`, composed over it, stores, serves and removes the bytes
 with the record, checking the rule a delete needs and passing its guard into the plain delete's
@@ -567,21 +568,20 @@ built-in call is not written; the built-in is called.
 
 ### A Run's moves in their own service
 
-`MoveRunService`, layered over `RunService`, holds a Run's status moves: `start`, `complete`
-and `fail`, each the model's transition (`startRun`, `completeRun`, `failRun`, each named for
-the move it makes, not the status it reaches, as the started Run's stored status stays
-`generating`) then `RunService.update` under the status the Run was read in, through one
-helper. `complete` takes the Run its caller read; `start` takes the user's message a reply's
-job names, `fail` the Run's id or its user message, and each reads the active Run it names as it
-stands now, `RunNotFoundError` when none is active. `start`, the job's first move, `queued` to
-`generating`, pipes that read through the model's `ensureRunUnstarted`, `RunStartedError` for a
-Run some worker started; `fail` keeps the full text of the `Cause` it is given. `RunService` stays the
-plain write under a caller's `where`, and the chat's two job services move a Run through
-`MoveRunService`, never through a transition and an update of their own. A move the model's
-table refuses dies with `RunStatusInvalidError`: every caller moves a Run it has just read or
-moved, so a refusal is a bug, and a race dies on the write's guard instead. A reply writes the
-Run twice, `generating` then `done` (or `failed`), and a client polling it sees only `queued`,
-`generating` and the end.
+`MoveRunService`, layered over `RunService`, holds a Run's status moves: `start`, `complete` and
+`fail`, each the model's transition (`startRun`, `completeRun`, `failRun`, each named for the move
+it makes, not the status it reaches, as the started Run's stored status stays `generating`) then
+`RunService.update` under the status the Run was read in, through one helper. `complete` takes the
+Run its caller read; `start` and `fail` take the user's message, the one key both callers hold, and
+read its active Run as it stands now through `RunService.getActive`, `ActiveRunNotFoundError` when
+it has none. `start`, the job's first move, `queued` to `generating`, pipes that read through the
+model's `ensureRunUnstarted`, `RunStartedError` for a Run some worker started; `fail` keeps the full
+text of the `Cause` it is given. `RunService` stays the plain write under a caller's `where`, and
+the chat's two job services move a Run through `MoveRunService`, never through a transition and an
+update of their own. A move the model's table refuses dies with `RunStatusInvalidError`: every
+caller moves a Run it has just read or moved, so a refusal is a bug, and a race dies on the write's
+guard instead. A reply writes the Run twice, `generating` then `done` (or `failed`), and a client
+polling it sees only `queued`, `generating` and the end.
 
 - **Why:** the six moves of the use cases composed the same two calls with the same guard; in one
   service the guard on the status read is written once, and a move can no longer forget it. `fail`
@@ -592,7 +592,9 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
   their services](#the-chats-jobs-in-their-services)). One started status: a status of its own
   before `generating` lasted one read of the chat's history, and no code branched on it.
 - **Sources:** the owner's call in the design audit;
-  [Composition: wrap or compose](#composition-wrap-or-compose).
+  [Composition: wrap or compose](#composition-wrap-or-compose); the owner's call of one class per
+  not-found and the message as `fail`'s one key (2026-11-21), on the design audit's research into
+  reason-shaped errors.
 - **Rejected:** the moves on `RunService` itself: the plain service would know the transitions.
   Each caller composing the transition and the update: the guard repeated at six sites, where
   one could drop it. A `RunService.fail` alone: one move of four out of the service that holds
@@ -602,7 +604,11 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
   `startRun`: a transition of two conditions, against the model's pieces of one each. The
   refusal as a typed failure: it rode six signatures, no caller could raise it, and each one
   turned it into a defect. A started status for the history's read alone: a status, a move, a
-  method and a write per reply for one query.
+  method and a write per reply for one query. `fail` taking the Run's id or its user message: a
+  union parameter, and one `RunNotFoundError` whose two optional keys named either read, which
+  the api's `404` for a Run by id then carried as a `userMessageId` it never sends. One error
+  with a `reason` per read: no caller tells the two apart, and a wrapper is a second name for
+  each.
 - **Cost:** a second service and layer for the Run; the processes and the test layer provide
   `MoveRunService` over `RunService`. A refused send reads the Run it has just stored once more.
   A later stage the user should see before `generating` (reading a chat's files) adds its status
@@ -610,8 +616,8 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
   `init`.
 - **Guarded by:** `MoveRunService`'s unit test: each move writes under the status read, a
   refused move dies and writes nothing, `start` of a started Run fails `RunStartedError`,
-  `start` and `fail` read the active Run they name, and of a Run settled or gone fail
-  `RunNotFoundError`; the model's test of
+  `start` and `fail` read the active Run of their message, and of a message with none fail
+  `ActiveRunNotFoundError`; the model's test of
   `ensureRunUnstarted`; review, by `.claude/rules/layering.md › Ports and domain services`.
 - **If reversed:** each use case composes the transition and `RunService.update` again.
 - **Revisit when:** a move needs a guard other than the status read and the model's rule.
@@ -1027,8 +1033,8 @@ user's message the job names: `MoveRunService.start` moves that message's active
 message with the Run's `done` in one transaction; one tail on the whole function fails the
 message's active Run as it stands now on whatever ends it, `start`'s refusal included. A Run some
 worker started fails `RunStartedError`, whose text says its worker stopped, and is failed with
-it; a message with no active Run fails `RunNotFoundError`, unwritten, as the tail finds nothing
-to fail. Its `replyTitle` runs the title's job, given the chat the job names: the chat's first
+it; a message with no active Run fails `ActiveRunNotFoundError`, unwritten, as the tail finds
+nothing to fail. Its `replyTitle` runs the title's job, given the chat the job names: the chat's first
 message, the assistant's title, and the title written while the chat is untitled, so a rename by
 the user wins; a chat with no message fails `ChatNotFoundError`, as a message leaves only with
 its chat. Each job's use
@@ -1095,7 +1101,10 @@ names the user's message, not a Run, so a delivery runs whichever Run of it is a
 failed Run's job delivered again after the user's retry starts the retry's Run, whose own job
 then finds it started and fails it with `RunStartedError`, and the user retries once more. The
 tail reads the Run it fails by the message too, so a reply that dies after such a delivery
-failed its Run and the user retried fails the retry's Run.
+failed its Run and the user retried fails the retry's Run. `AskChatService` fails a refused
+send's Run by its message as well, so a refusal that arrives after SQS took the job anyway, a
+worker failed the Run and the user retried fails the retry's Run, and the request answers that
+Run.
 
 - **Why:** the handler sits on the whole function, so no failure or interrupt of the reply leaves
   the Run started for the next delivery, and the reply reads as if nothing failed. A race of two
@@ -1104,7 +1113,8 @@ failed its Run and the user retried fails the retry's Run.
 - **Sources:** the owner's call in the design audit, the reply in its job's service; the owner keeps
   the abort's window as a cost (2026-11-20, [roadmap.md › Later](roadmap.md#later)); the owner's
   call that the reply's job carries the user's message, as the title's then did, and accepts what
-  a second delivery then costs (2026-11-21).
+  a second delivery then costs (2026-11-21); the owner's call that `fail` takes the message alone,
+  accepting the same cost for a refused send (2026-11-21).
 - **Rejected:** the handler after the first move: an interrupt between its write and the handler
   left the Run started until the next delivery, up to the queue's visibility timeout later, and
   the use case failed a started Run outside the service that holds the rule. The job carrying the
@@ -1115,12 +1125,14 @@ failed its Run and the user retried fails the retry's Run.
 - **Cost:** a client that aborts while the Run's write commits or the title's send runs leaves the
   Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)). Two deliveries at the
   same instant lose the reply, and the user retries. A failed Run's job delivered again after a
-  retry fails the retry's Run, and the user retries again. A model's error on a Run whose chat was
-  deleted meanwhile warns like any other, with no sign the Run was gone.
+  retry fails the retry's Run, and the user retries again; so does a refused send whose job SQS
+  took after all, once a worker failed its Run and the user retried. A model's error on a Run
+  whose chat was deleted meanwhile warns like any other, with no sign the Run was gone.
 - **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, and of
   `ReplyChatService`, one while the assistant answers, one while the job reads its Run, one
   losing the `generating` write to a rival, one of a failed Run's job delivered again after its
-  retry; the job's use case's test
+  retry, and `AskChatService`'s of a refused send that fails a later retry's Run; the job's use
+  case's test
   of an interrupt's end and its log.
 - **If reversed:** the handler after the first move again: an interrupted reply leaves its Run
   started until the next delivery fails it.

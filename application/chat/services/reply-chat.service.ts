@@ -5,7 +5,7 @@ import { Transaction } from '@app-template/packages/db'
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import type { ChatId } from '#chat/domain/chat.util'
 import type { MessageId } from '#chat/domain/message.util'
-import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
+import type { ActiveRunNotFoundError, RunStartedError } from '#chat/domain/run.error'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
@@ -24,13 +24,13 @@ export class ReplyChatService extends Context.Service<
      * Replies to the user's message `messageId` through its active Run and settles that Run:
      * `done` with the assistant's message, or `failed` with the full text of what ended it, an
      * interrupt and `RunStartedError`, for a Run some worker started, included. A message with no
-     * active Run fails `RunNotFoundError`, unwritten.
+     * active Run fails `ActiveRunNotFoundError`, unwritten.
      */
     readonly replyMessage: (
       messageId: MessageId,
     ) => Effect.Effect<
       void,
-      RunNotFoundError | RunStartedError | MessageAssistantError,
+      ActiveRunNotFoundError | RunStartedError | MessageAssistantError,
       MessageAssistant
     >
     /**
@@ -71,8 +71,8 @@ export class ReplyChatService extends Context.Service<
         replied.pipe(
           Effect.onError((cause) =>
             moves
-              .fail({ userMessageId: messageId }, cause)
-              .pipe(Effect.catchTag('RunNotFoundError', () => Effect.void)),
+              .fail(messageId, cause)
+              .pipe(Effect.catchTag('ActiveRunNotFoundError', () => Effect.void)),
           ),
         ),
     )

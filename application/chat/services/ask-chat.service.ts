@@ -53,8 +53,8 @@ export class AskChatService extends Context.Service<
     const askReply = (run: Run) =>
       sendReplyToMessage(run).pipe(
         Effect.as(run),
-        Effect.catch((error) => moves.fail({ id: run.id }, Cause.fail(error))),
-        // The Run was stored queued a moment before, so a Run gone is a defect.
+        Effect.catch((error) => moves.fail(run.userMessageId, Cause.fail(error))),
+        // The Run was stored queued a moment before, so a message with no active Run is a defect.
         Effect.orDie,
         // A client's abort mid-send still leaves the Run sent or failed.
         Effect.uninterruptible,

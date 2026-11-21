@@ -1,6 +1,15 @@
 import { eq, inArray } from 'drizzle-orm'
 import { QueryBuilder } from 'drizzle-orm/pg-core'
-import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Effect,
+  Layer,
+  Option,
+  Struct,
+  type Types,
+  UndefinedOr,
+} from 'effect'
 
 import {
   buildWhere,
@@ -12,8 +21,8 @@ import {
 import { chats } from '#kernel/data/chat/chat.table'
 import {
   type RunEntity,
+  type RunEntitySelectWhere,
   type RunEntitySet,
-  type RunEntityUpdateWhere,
   type RunEntityWhere,
   runSetColumns,
 } from '#kernel/data/chat/run.entity'
@@ -23,7 +32,7 @@ import { Db } from '#kernel/data/db.client'
 // Built on the table a query names, as a relational query aliases `runs`; `userId` is the owner
 // of the Run's chat, so a Run of another user's chat reads as absent.
 const encodeWhere = (table: typeof runs) =>
-  buildWhere<RunEntityWhere>({
+  buildWhere<Types.Simplify<Partial<RunEntityWhere & Pick<RunEntity, 'userMessageId'>>>>({
     id: UndefinedOr.map((id) => eq(table.id, id)),
     chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
     userMessageId: UndefinedOr.map((userMessageId) => eq(table.userMessageId, userMessageId)),
@@ -42,9 +51,9 @@ export class RunRepository extends Context.Service<
     /** Dies when the Run is active and its chat already has one. */
     readonly insert: (run: RunColumns) => Effect.Effect<void>
     /** Writes the fields of `set` a Run may change where `where` holds; dies when it writes nothing. */
-    readonly update: (set: RunEntitySet, where: RunEntityUpdateWhere) => Effect.Effect<void>
+    readonly update: (set: RunEntitySet, where: RunEntityWhere) => Effect.Effect<void>
     /** Returns the Run where `where` holds. */
-    readonly selectOne: (where: RunEntityWhere) => Effect.Effect<Option.Option<RunEntity>>
+    readonly selectOne: (where: RunEntitySelectWhere) => Effect.Effect<Option.Option<RunEntity>>
   }
 >()('@app-template/kernel/data/chat/RunRepository') {
   static readonly layer = Layer.effect(

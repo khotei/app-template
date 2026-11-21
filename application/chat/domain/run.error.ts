@@ -9,11 +9,18 @@ export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidEr
   { id: RunId, from: Status, to: Status },
 ) {}
 
-/** Names the Run asked for: by its id, or as the active Run of its user message. */
 export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('RunNotFoundError', {
-  id: Schema.optionalKey(RunId),
-  userMessageId: Schema.optionalKey(MessageId),
+  id: RunId,
 }) {}
+
+/**
+ * The user's message `userMessageId` has no active Run: its Run is done or failed, or its chat is
+ * deleted.
+ */
+export class ActiveRunNotFoundError extends Schema.TaggedError<ActiveRunNotFoundError>()(
+  'ActiveRunNotFoundError',
+  { userMessageId: MessageId },
+) {}
 
 export class RunStartedError extends Data.TaggedError('RunStartedError')<{
   readonly id: RunId

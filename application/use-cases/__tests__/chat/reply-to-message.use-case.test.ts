@@ -91,7 +91,7 @@ describe('replyToMessage', () => {
     },
   )
 
-  it.effect("reply skips a Run settled or gone, logged under its user message's id", () => {
+  it.effect("reply skips a message with no active Run, logged under the message's id", () => {
     const assistant = recordMessageAssistant(Effect.never)
     const { logs, layer: logger } = recordLogs('messageId')
     return Effect.gen(function* () {
@@ -99,7 +99,7 @@ describe('replyToMessage', () => {
 
       assertEquals(yield* assistant.histories, [])
       assert.deepStrictEqual(logs, [
-        ['Info', 'reply skipped: its Run is settled or gone', queuedRun.userMessageId],
+        ['Info', 'reply skipped: its Run is done, failed or gone', queuedRun.userMessageId],
       ])
     }).pipe(
       Effect.provide([

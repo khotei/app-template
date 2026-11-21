@@ -17,7 +17,7 @@ export type RunEntity = typeof RunEntity.Type
 
 /** `userId` is the owner of the Run's chat, not a column of `runs`. */
 export type RunEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<RunEntity, 'id' | 'userMessageId'>> &
+  Pick<RunEntity, 'id'> &
     Partial<{
       readonly chatId: RunEntity['chatId']
       readonly userId: string
@@ -25,8 +25,10 @@ export type RunEntityWhere = Types.Simplify<
     }>
 >
 
-/** An update finds its Run by the key. */
-export type RunEntityUpdateWhere = Types.Simplify<RunEntityWhere & Pick<RunEntity, 'id'>>
+/** A read finds its Run by the key, or by its user message under a `status`. */
+export type RunEntitySelectWhere =
+  | RunEntityWhere
+  | Types.Simplify<Pick<RunEntity, 'userMessageId'> & Partial<Pick<RunEntityWhere, 'status'>>>
 
 /** The columns an update may write. */
 export const runSetColumns = [

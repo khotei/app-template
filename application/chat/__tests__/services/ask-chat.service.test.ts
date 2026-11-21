@@ -6,7 +6,9 @@ import type {
   MessageColumns,
   MessageEntityWhere,
   RunColumns,
+  RunEntitySelectWhere,
   RunEntitySet,
+  RunEntityWhere,
 } from '@app-template/kernel/data'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { encodeWith } from '@app-template/packages/schema'
@@ -18,6 +20,7 @@ import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
@@ -178,6 +181,45 @@ describe('AskChatService', () => {
           ['failed'],
         )
       }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect(
+    "askRetryMessage's refused send fails its message's active Run as it stands, a later retry's included",
+    () => {
+      // A worker failed the Run sent, as SQS took it after all, and the user retried again.
+      const laterRetry = new Run({
+        ...queuedRun,
+        id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000033'),
+      })
+      const reads: Array<RunEntitySelectWhere> = []
+      const updates: Array<RunEntityWhere> = []
+      return Effect.gen(function* () {
+        const sent = yield* askRetryMessage(withNewest(failedRun))
+
+        assert.deepStrictEqual(reads, [
+          { userMessageId: firstMessage.id, status: ['queued', 'generating'] },
+        ])
+        assert.deepStrictEqual(updates, [{ id: laterRetry.id, status: ['queued'] }])
+        assert.deepStrictEqual([sent.id, sent.status], [laterRetry.id, 'failed'])
+      }).pipe(
+        Effect.provide(
+          layerChatTest({
+            ...readsFirstMessage,
+            runs: {
+              insert: () => Effect.void,
+              selectOne: (where) =>
+                Effect.sync(() => {
+                  reads.push(where)
+                }).pipe(Effect.andThen(encodeWith(Run)(laterRetry)), Effect.map(Option.some)),
+              update: (_, where) =>
+                Effect.sync(() => {
+                  updates.push(where)
+                }),
+            },
+          }).pipe(Layer.provideMerge(layerRefusingQueueTest())),
+        ),
+      )
     },
   )
 

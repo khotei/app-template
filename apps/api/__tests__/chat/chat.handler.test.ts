@@ -12,7 +12,7 @@ import {
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { UserUnknownError } from '@app-template/application/identity'
-import type { MessageEntityWhere, RunEntityWhere } from '@app-template/kernel/data'
+import type { MessageEntityWhere, RunEntitySelectWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -207,8 +207,8 @@ describe('chats', () => {
   it.effect(
     'a message or Run the store finds none of for the user is 404 MessageNotFoundError or RunNotFoundError',
     () => {
-      const wheres: Array<MessageEntityWhere | RunEntityWhere> = []
-      const findsNone = (where: MessageEntityWhere | RunEntityWhere) =>
+      const wheres: Array<MessageEntityWhere | RunEntitySelectWhere> = []
+      const findsNone = (where: MessageEntityWhere | RunEntitySelectWhere) =>
         Effect.sync(() => {
           wheres.push(where)
         }).pipe(Effect.as(Option.none()))

@@ -12,6 +12,7 @@ import {
   Predicate,
   pipe,
   Schema,
+  type Types,
   UndefinedOr,
 } from 'effect'
 import { TestClock } from 'effect/testing'
@@ -21,6 +22,7 @@ import type {
   ChatEntityWhere,
   MessageColumns,
   RunColumns,
+  RunEntitySelectWhere,
   RunEntitySet,
   RunEntityWhere,
 } from '@app-template/kernel/data'
@@ -31,7 +33,7 @@ import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
-import { RunNotFoundError } from '#chat/domain/run.error'
+import { ActiveRunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
@@ -91,7 +93,9 @@ const retriedFailed = new Run({
 })
 
 /** Whether `row` holds where `where` holds, as the store filters. */
-const holdsWhere = (where: RunEntityWhere): Predicate.Predicate<RunColumns> =>
+const holdsWhere = (
+  where: Types.Simplify<Partial<RunEntityWhere & Pick<RunColumns, 'userMessageId'>>>,
+): Predicate.Predicate<RunColumns> =>
   Predicate.and(
     Predicate.and(
       (row) =>
@@ -115,7 +119,7 @@ const holdsWhere = (where: RunEntityWhere): Predicate.Predicate<RunColumns> =>
  */
 const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {
   let turn = 0
-  return (where: RunEntityWhere) =>
+  return (where: RunEntitySelectWhere) =>
     Effect.sync(() =>
       Arr.get(reads, turn++).pipe(Option.getOrElse(() => Arr.lastNonEmpty(reads))),
     ).pipe(
@@ -274,7 +278,7 @@ describe('ReplyChatService', () => {
     const reading = Deferred.makeUnsafe<void>()
     const readAgain = readsInTurn(queuedRun)
     let reads = 0
-    const firstNeverAnswers = (where: RunEntityWhere) =>
+    const firstNeverAnswers = (where: RunEntitySelectWhere) =>
       reads++ === 0
         ? Deferred.succeed(reading, undefined).pipe(Effect.andThen(Effect.never))
         : readAgain(where)
@@ -452,23 +456,26 @@ describe('ReplyChatService', () => {
   it.effect.each([
     { name: 'settled before it', selectOne: readsInTurn(doneElsewhere) },
     { name: 'the store finds none of', selectOne: () => Effect.succeedNone },
-  ])('replyMessage of a Run $name fails RunNotFoundError, asking no assistant', ({ selectOne }) => {
-    const assistant = recordMessageAssistant(Effect.succeed(sure))
-    return Effect.gen(function* () {
-      const error = yield* reply.pipe(Effect.flip)
+  ])(
+    'replyMessage of a Run $name fails ActiveRunNotFoundError, asking no assistant',
+    ({ selectOne }) => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
+      return Effect.gen(function* () {
+        const error = yield* reply.pipe(Effect.flip)
 
-      assertSchemaEquals(
-        RunNotFoundError,
-        error,
-        new RunNotFoundError({ userMessageId: queuedRun.userMessageId }),
+        assertSchemaEquals(
+          ActiveRunNotFoundError,
+          error,
+          new ActiveRunNotFoundError({ userMessageId: queuedRun.userMessageId }),
+        )
+        assertEquals(yield* assistant.histories, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
+        ),
       )
-      assertEquals(yield* assistant.histories, [])
-    }).pipe(
-      Effect.provide(
-        layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
-      ),
-    )
-  })
+    },
+  )
 
   it.effect('replyTitle titles the chat from its first message while the chat is untitled', () => {
     const lisbonWeekend = ChatTitle.make('Lisbon weekend')

@@ -9,8 +9,8 @@ export { MessageRepository } from '#kernel/data/chat/message.repository'
 export * from '#kernel/data/chat/message.table'
 export {
   RunEntity,
+  type RunEntitySelectWhere,
   type RunEntitySet,
-  type RunEntityUpdateWhere,
   type RunEntityWhere,
 } from '#kernel/data/chat/run.entity'
 export { RunRepository } from '#kernel/data/chat/run.repository'
