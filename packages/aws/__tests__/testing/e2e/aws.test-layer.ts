@@ -20,13 +20,13 @@ const buildClientOptions = () => ({
   credentials,
 })
 
-/** An SQS client on the run's MiniStack. */
+/** An SQS client on the e2e run's MiniStack. */
 export const SqsClientTest = Layer.suspend(() => SQSService.layer(buildClientOptions()))
 
-/** A Lambda client on the run's MiniStack. */
+/** A Lambda client on the e2e run's MiniStack. */
 export const LambdaClientTest = Layer.suspend(() => LambdaService.layer(buildClientOptions()))
 
-/** An S3 client on the run's MiniStack, addressing buckets by path as `S3ServiceFromConfig` does. */
+/** An S3 client on the e2e run's MiniStack, addressing buckets by path as `S3ServiceFromConfig` does. */
 export const S3ClientTest = Layer.suspend(() =>
   S3Service.layer({ ...buildClientOptions(), forcePathStyle: true }),
 )

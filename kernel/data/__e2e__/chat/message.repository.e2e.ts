@@ -3,18 +3,14 @@ import { Effect, Layer, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import type { AttachmentEntity } from '#kernel/data/attachment/attachment.entity'
-import { attachments } from '#kernel/data/attachment/attachment.table'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
-import type { RunEntityInsert } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
+import type { RunColumns } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
-
-type AttachmentRow = typeof AttachmentEntity.Type
 
 const RepositoriesTest = Layer.mergeAll(
   ChatRepository.layer,
@@ -35,23 +31,8 @@ const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seco
     author: 'user',
     text: 'Hi',
     createdAt: at(seconds),
-    attachments: [],
     run: null,
   }) satisfies MessageEntity
-
-const attachment = (
-  id: string,
-  { message, seconds }: { message: MessageEntity; seconds: number },
-): AttachmentRow => ({
-  id,
-  userId,
-  messageId: message.id,
-  chatId: message.chatId,
-  fileName: 'photo.png',
-  mediaType: 'image/png',
-  size: 1024,
-  createdAt: at(seconds),
-})
 
 const run = (
   id: string,
@@ -66,17 +47,16 @@ const run = (
     chatId: answered.chatId,
     userMessageId: answered.id,
     status,
-    provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
     failure: (
       {
         queued: null,
-        failed: { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' },
+        failed: { cause: '529 overloaded' },
       } as const
     )[status],
     assistantMessageId: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
-  }) satisfies typeof RunEntityInsert.Type
+  }) satisfies RunColumns
 
 const Messages = Schema.Array(MessageEntity)
 
@@ -143,22 +123,6 @@ describe('MessageRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect("selectOne by author reads a user's message asked as an assistant's as none", () =>
-    Effect.gen(function* () {
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-00000000004e'
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005b', { chatId })
-      yield* insertOwnedChats([chatId])
-      yield* messages.insert(question)
-
-      const asUser = yield* messages.selectOne({ id: question.id, author: 'user' })
-      const asAssistant = yield* messages.selectOne({ id: question.id, author: 'assistant' })
-
-      assertSchemaEquals(SelectedMessage, asUser, Option.some(question))
-      assert.deepStrictEqual(asAssistant, Option.none())
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
   it.effect("selectOne by chatId reads the chat's first message, none for an empty chat", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
@@ -203,36 +167,5 @@ describe('MessageRepository', () => {
           { ...reply, run: done },
         ])
       }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect('reads a message back with its attachments in upload order, not the order sent', () =>
-    Effect.gen(function* () {
-      const db = yield* Db
-      const messages = yield* MessageRepository
-      const chatId = '0192d4e0-7b3a-7c00-8000-000000000047'
-      const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005c', { chatId, seconds: 3 })
-      const firstUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000023', {
-        message: question,
-        seconds: 0,
-      })
-      const secondUploaded = attachment('0192d4e0-7b3a-7c00-8000-000000000021', {
-        message: question,
-        seconds: 1,
-      })
-      const inUploadOrder: MessageEntity = {
-        ...question,
-        attachments: [firstUploaded, secondUploaded],
-      }
-      yield* insertOwnedChats([chatId])
-      yield* messages.insert(question)
-      yield* db.insert(attachments).values([secondUploaded, firstUploaded])
-
-      assertSchemaEquals(
-        SelectedMessage,
-        yield* messages.selectOne({ id: question.id }),
-        Option.some(inUploadOrder),
-      )
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [inUploadOrder])
-    }).pipe(Effect.provide(RepositoriesTest)),
   )
 })

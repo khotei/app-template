@@ -9,7 +9,6 @@
     { "path": "../api" },
     { "path": "../worker" },
     { "path": "../../application" },
-    { "path": "../../http-api" },
     { "path": "../../kernel" },
     { "path": "../../packages" }
   ]

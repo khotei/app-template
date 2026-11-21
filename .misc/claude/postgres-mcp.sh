@@ -1,18 +1,11 @@
 #!/bin/sh
 # Postgres MCP Pro on the database of the tree this file lives in: each worktree's .env.pulumi
-# names its own port, so the one .mcp.json entry reaches the right database in every tree.
-# Read-only (--access-mode=restricted); schema changes stay with make migration.
-# set -eu: every command must succeed before docker starts, and none is a test.
+# names its own TCP port, so the one .mcp.json entry reaches the right database in every tree.
+# Read-only (--access-mode=restricted); schema changes stay with make migration. The image maps
+# localhost to the host itself. set -eu: without the file `make up` writes, nothing starts.
 set -eu
-# CDPATH='': a cd that searches CDPATH may land elsewhere and prints where, into root. --: $0 may
-# start with -.
-root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd -P)
-env_file="$root/.env.pulumi"
-[ -f "$env_file" ] || { printf 'postgres-mcp: no %s; run make up first\n' "$env_file" >&2; exit 1; }
-url=$(sed -n 's/^DATABASE_URL=//p' "$env_file" | tr -d '"')
-[ -n "$url" ] || { printf 'postgres-mcp: no DATABASE_URL in %s\n' "$env_file" >&2; exit 1; }
-# The server runs in a container, where localhost is the container itself.
-DATABASE_URI=$(printf '%s' "$url" | sed -E 's#@(localhost|127\.0\.0\.1):#@host.docker.internal:#')
+root=$(cd "$(dirname "$0")/../.." && pwd -P)
+DATABASE_URI=$(sed -n 's/^DATABASE_URL=//p' "$root/.env.pulumi")
 export DATABASE_URI
 # --init: the server as PID 1 ignores SIGTERM and stdin's end, so without it a closed session
 # leaves its container running. The label lets make reset remove what a killed session left.

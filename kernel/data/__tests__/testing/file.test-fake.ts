@@ -34,7 +34,7 @@ const withoutBlob = (file: DownloadedFileEntity) => Struct.omit(file, ['blob'])
 /**
  * The files over a map, each signed once as `memory:<key>`. Copies what the repository's e2e
  * proves of the store: a missing id reads as none and is left out of a read of many, and a
- * delete skips it. `update` keeps no tag, since nothing here expires.
+ * delete skips it.
  */
 export const FileRepositoryTest = Layer.effect(
   FileRepository,
@@ -66,7 +66,6 @@ export const FileRepositoryTest = Layer.effect(
       selectOne: (where) => download(where).pipe(Effect.map(Option.map(withoutBlob))),
       selectMany: (where) => downloadMany(where).pipe(Effect.map(Arr.map(withoutBlob))),
       download,
-      update: () => Effect.void,
       delete: ({ id }) => Ref.update(objects, HashMap.removeMany(Arr.ensure(id))),
     })
   }),

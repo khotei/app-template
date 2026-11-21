@@ -1,91 +1,113 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, HashMap, Layer, Option, Redacted, Ref, Result, Schema } from 'effect'
+import { DateTime, Effect, Layer, Option, Redacted, Result } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { UserRepositoryTest, UserRows } from '@app-template/kernel/data/testing'
+import { type UserEntityWhere, UserRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
+import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
-import { Credential, SecretHash } from '#identity/domain/user.model'
-import { type UserSecret, UserService } from '#identity/services/user.service'
+import type { UserSecret } from '#identity/domain/user.model'
+import { UserService } from '#identity/services/user.service'
 
-const UserServiceTest = UserService.layer.pipe(
-  Layer.provideMerge(UserRepositoryTest),
-  Layer.provide(BunCrypto.layer),
-  Layer.provideMerge(UserRows.layer),
-)
+type Insert = Parameters<UserRepository['Service']['insert']>
 
-const readRows = UserRows.use(Ref.get)
-const countStoredRows = readRows.pipe(Effect.map(HashMap.size))
+/** The service over `repository`, a `Layer.mock` of the methods the case lets it call. */
+const userServiceOver = (repository: Layer.Layer<UserRepository>) =>
+  UserService.layer.pipe(Layer.provide([repository, BunCrypto.layer]))
+
+const storedUser = {
+  id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000010'),
+  createdAt: DateTime.toDateUtc(epoch),
+}
 
 const unknownSecret = Redacted.make('q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4')
 
-/** The hex SHA-256 of a secret by Web Crypto, apart from the service's `Crypto`. */
+/** The hex SHA-256 of a secret by Web Crypto, apart from the service's `Digest`. */
 const hashWithWebCrypto = (secret: UserSecret) =>
   Effect.promise(() =>
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(Redacted.value(secret))),
   ).pipe(Effect.map((digest) => Hex.encode(new Uint8Array(digest))))
 
 describe('UserService', () => {
-  it.effect('ensure(none) creates a user with a UUIDv7 id at the clock time and a secret', () =>
+  it.effect('authenticate reads the user by the hex SHA-256 of the secret', () => {
+    const wheres: Array<UserEntityWhere> = []
+    return Effect.gen(function* () {
+      const service = yield* UserService
+
+      const user = yield* service.authenticate(unknownSecret)
+
+      const hash = yield* hashWithWebCrypto(unknownSecret)
+      assert.deepStrictEqual(wheres, [{ credential: { kind: 'secret', hash } }])
+      assert.strictEqual(user.id, storedUser.id)
+    }).pipe(
+      Effect.provide(
+        userServiceOver(
+          Layer.mock(UserRepository, {
+            selectOne: (where) =>
+              Effect.sync(() => wheres.push(where)).pipe(Effect.as(Option.some(storedUser))),
+          }),
+        ),
+      ),
+    )
+  })
+
+  it.effect('recognise of a stored user returns it and the secret, inserting none', () =>
     Effect.gen(function* () {
       const service = yield* UserService
 
-      const { user, secret } = yield* service.ensure(Option.none())
+      const { user, secret } = yield* service.recognise(unknownSecret)
 
-      assert.isTrue(isUuidV7(user.id))
-      assertEquals(user.createdAt, epoch)
-      assert.match(Redacted.value(secret), /^[A-Za-z0-9_-]{43}$/)
-      assert.deepStrictEqual(
-        Result.map(Base64Url.decode(Redacted.value(secret)), (bytes) => bytes.length),
-        Result.succeed(32),
-      )
-    }).pipe(Effect.provide(UserServiceTest)),
+      assert.strictEqual(user.id, storedUser.id)
+      assert.strictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
+    }).pipe(
+      Effect.provide(
+        userServiceOver(
+          Layer.mock(UserRepository, { selectOne: () => Effect.succeed(Option.some(storedUser)) }),
+        ),
+      ),
+    ),
   )
 
-  it.effect('stores only the hex SHA-256 of the secret and recognises the secret back', () =>
-    Effect.gen(function* () {
-      const service = yield* UserService
-      const { user, secret } = yield* service.ensure(Option.none())
+  it.effect(
+    'recognise of an unknown secret creates a user with a UUIDv7 id at the clock time and a new secret, storing only its hex SHA-256',
+    () => {
+      const inserts: Array<Insert> = []
+      return Effect.gen(function* () {
+        const service = yield* UserService
 
-      const rows = yield* readRows
-      const stored = HashMap.get(rows, user.id).pipe(
-        Option.map((row) => Schema.decodeSync(Credential)(row.credential)),
+        const { user, secret } = yield* service.recognise(unknownSecret)
+
+        const hash = yield* hashWithWebCrypto(secret)
+        assert.isTrue(isUuidV7(user.id))
+        assertEquals(user.createdAt, epoch)
+        assert.notStrictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
+        assert.deepStrictEqual(
+          Result.map(Base64Url.decode(Redacted.value(secret)), (bytes) => bytes.length),
+          Result.succeed(32),
+        )
+        assert.deepStrictEqual(inserts, [
+          [
+            { id: user.id, createdAt: DateTime.toDateUtc(epoch) },
+            { kind: 'secret', hash },
+          ],
+        ])
+      }).pipe(
+        Effect.provide(
+          userServiceOver(
+            Layer.mock(UserRepository, {
+              selectOne: () => Effect.succeed(Option.none()),
+              insert: (...insert) =>
+                Effect.sync(() => {
+                  inserts.push(insert)
+                }),
+            }),
+          ),
+        ),
       )
-      const hash = yield* hashWithWebCrypto(secret)
-
-      assertEquals(
-        stored,
-        Option.some(new Credential({ kind: 'secret', hash: SecretHash.make(hash) })),
-      )
-      assertEquals(yield* service.authenticate(secret), user)
-    }).pipe(Effect.provide(UserServiceTest)),
-  )
-
-  it.effect('ensure(some(secret)) returns the same user and secret without a second record', () =>
-    Effect.gen(function* () {
-      const service = yield* UserService
-      const first = yield* service.ensure(Option.none())
-      const stored = yield* countStoredRows
-
-      const second = yield* service.ensure(Option.some(first.secret))
-
-      assertEquals(second.user, first.user)
-      assert.strictEqual(Redacted.value(second.secret), Redacted.value(first.secret))
-      assert.strictEqual(yield* countStoredRows, stored)
-    }).pipe(Effect.provide(UserServiceTest)),
-  )
-
-  it.effect('ensure(some(unknown)) creates a new user with a new secret', () =>
-    Effect.gen(function* () {
-      const service = yield* UserService
-      const { user, secret } = yield* service.ensure(Option.some(unknownSecret))
-
-      assert.notStrictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
-      assertEquals(yield* service.authenticate(secret), user)
-    }).pipe(Effect.provide(UserServiceTest)),
+    },
   )
 
   it.effect('authenticate of an unknown secret is UserUnknownError', () =>
@@ -95,6 +117,12 @@ describe('UserService', () => {
       const error = yield* service.authenticate(unknownSecret).pipe(Effect.flip)
 
       assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
-    }).pipe(Effect.provide(UserServiceTest)),
+    }).pipe(
+      Effect.provide(
+        userServiceOver(
+          Layer.mock(UserRepository, { selectOne: () => Effect.succeed(Option.none()) }),
+        ),
+      ),
+    ),
   )
 })

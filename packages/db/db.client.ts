@@ -1,10 +1,8 @@
 import type { PgClient } from '@effect/sql-pg'
 import type { AnyRelations } from 'drizzle-orm'
-import { EffectCache } from 'drizzle-orm/cache/core/cache-effect'
-import { EffectLogger } from 'drizzle-orm/effect-core'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Array as Arr, Cause, Context, Effect, flow, Layer, Predicate, Schema } from 'effect'
+import { Cause, Context, Effect, Layer, type Predicate, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 /**
@@ -14,7 +12,7 @@ import { SqlClient, SqlError } from 'effect/sql'
  * Drizzle's own `EffectLogger.layer` logs at `Info`, which would print every statement in
  * production.
  */
-const EffectLoggerDebug = Layer.succeed(EffectLogger, {
+const EffectLoggerDebug = Layer.succeed(PgDrizzle.EffectLogger, {
   logQuery: (query, params) => Effect.logDebug('sql').pipe(Effect.annotateLogs({ query, params })),
 })
 
@@ -22,7 +20,9 @@ const EffectLoggerDebug = Layer.succeed(EffectLogger, {
 export const createDb = <TRelations extends AnyRelations>(
   relations: TRelations,
 ): Effect.Effect<PgDrizzle.EffectPgDatabase<TRelations>, never, PgClient.PgClient> =>
-  PgDrizzle.make({ relations }).pipe(Effect.provide([EffectCache.Default, EffectLoggerDebug]))
+  PgDrizzle.make({ relations }).pipe(
+    Effect.provide(Layer.merge(PgDrizzle.DefaultServices, EffectLoggerDebug)),
+  )
 
 export class Transaction extends Context.Service<
   Transaction,
@@ -41,30 +41,6 @@ export class Transaction extends Context.Service<
   )
 }
 
-/** Decodes the row a read found, or answers `Option.none()` when it found none. */
-export const decodeOptionalRow = <S extends Schema.Constraint>(schema: S) =>
-  Schema.decodeEffect(Schema.OptionFromNullishOr(schema))
-
-/**
- * Encodes a model through its mapper and decodes the result with the row's insert schema, which
- * drops the fields the table lacks and checks the row; a failure is a defect.
- */
-export const encodeRowWith = <
-  Row extends Schema.Constraint,
-  Mapper extends Schema.ConstraintCodec<unknown, Row['Encoded'], unknown, unknown>,
->(
-  mapper: Mapper,
-  row: Row,
-) => flow(Schema.encodeEffect(mapper), Effect.flatMap(Schema.decodeEffect(row)), Effect.orDie)
-
-/** Decodes the entity a read found, if any, through its mapper; a failure is a defect. */
-export const decodeOptionalWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
-  flow(Schema.decodeEffect(Schema.Option(mapper)), Effect.orDie)
-
-/** Decodes the entities a read found through their mapper; a failure is a defect. */
-export const decodeManyWith = <Mapper extends Schema.Constraint>(mapper: Mapper) =>
-  flow(Schema.decodeEffect(Schema.Array(mapper)), Effect.orDie)
-
 /**
  * Fails with the `SqlError` a Drizzle query error wraps, whose reason and driver message the
  * wrapper's own message leaves out.
@@ -80,17 +56,7 @@ export function unwrapQueryError(error: EffectDrizzleQueryError) {
 const isQueryError = Schema.is(EffectDrizzleQueryError)
 
 /**
- * Holds when a write's `RETURNING` answers one row per distinct id of `ids`: a write over a list
- * misses none of the rows it names.
- */
-export const hasRowPer = (ids: string | ReadonlyArray<string>) =>
-  Predicate.and(
-    Arr.isReadonlyArrayNonEmpty<unknown>,
-    (rows: ReadonlyArray<unknown>) => rows.length === Arr.dedupe(Arr.ensure(ids)).length,
-  )
-
-/**
- * Dies with `message` unless the rows a write's `RETURNING` answers satisfy `holds`.
+ * Dies with `message` unless the rows a write's `RETURNING` returns satisfy `holds`.
  *
  * The caller checked the rule before writing, so a write the guard refuses only lost a race.
  */

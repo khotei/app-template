@@ -1,75 +1,69 @@
-import { Context, Crypto, DateTime, Effect, Layer, Option, Redacted } from 'effect'
-import { Base64Url, Hex } from 'effect/encoding'
+import { Context, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
+import { Digest, SecureRandom } from 'effect/crypto'
+import { Base64Url } from 'effect/encoding'
 
 import { UserRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
-import { UserId } from '#identity/contract/user.id'
+import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
-import { buildUser, Credential, SecretHash, type User } from '#identity/domain/user.model'
-import { decodeUser, encodeCredential, encodeUser } from '#identity/services/user.mapper'
-
-/** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
-export type UserSecret = Redacted.Redacted<string>
-
-const secretBytes = 32
+import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
 
 const encoder = new TextEncoder()
 
 export class UserService extends Context.Service<
   UserService,
   {
-    /** Returns the user a valid secret names; any other input creates a user with a new secret. */
-    readonly ensure: (
-      secret: Option.Option<UserSecret>,
+    /**
+     * Recognises the user a valid secret names; any other secret registers a new user with a new
+     * secret.
+     */
+    readonly recognise: (
+      secret: UserSecret,
     ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
     readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
   }
 >()('@app-template/application/identity/services/UserService', {
   make: Effect.gen(function* () {
     const users = yield* UserRepository
-    const crypto = yield* Crypto.Crypto
+    const digest = yield* Digest.Digest
+    const random = yield* SecureRandom.SecureRandom
+    const generateId = yield* idGenerator
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
-      const digest = yield* crypto.digest('SHA-256', encoder.encode(Redacted.value(secret)))
-      return yield* encodeCredential(
-        new Credential({ kind: 'secret', hash: SecretHash.make(Hex.encode(digest)) }),
-      )
-    }, Effect.orDie)
+      const hash = yield* digest.digestHex(Digest.sha256, encoder.encode(Redacted.value(secret)))
+      return { kind: 'secret', hash } as const
+    })
 
     const authenticate = Effect.fn('UserService.authenticate')((secret: UserSecret) =>
       hashSecret(secret).pipe(
         Effect.flatMap((credential) => users.selectOne({ credential })),
-        Effect.flatMap(decodeUser),
+        Effect.flatMap(decodeWith(Schema.Option(User))),
         Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
       ),
     )
 
     const registerUser = Effect.fnUntraced(function* () {
-      const id = yield* generateId(crypto, UserId.make)
+      const id = yield* generateId(UserId)
       const createdAt = yield* DateTime.now
-      const bytes = yield* crypto.randomBytes(secretBytes).pipe(Effect.orDie)
+      const bytes = yield* random.randomBytes(secretBytes)
       const secret = Redacted.make(Base64Url.encode(bytes))
 
-      const user = buildUser({ id, createdAt })
+      const user = new User({ id, createdAt })
       const credential = yield* hashSecret(secret)
-      const row = yield* encodeUser(user)
+      const row = yield* encodeWith(User)(user)
       yield* users.insert(row, credential)
       return { user, secret }
     })
 
-    const ensure = Effect.fn('UserService.ensure')((secret: Option.Option<UserSecret>) =>
-      Option.match(secret, {
-        onNone: registerUser,
-        onSome: (presented) =>
-          authenticate(presented).pipe(
-            Effect.map((user) => ({ user, secret: presented })),
-            Effect.catchTag('UserUnknownError', registerUser),
-          ),
-      }),
+    const recognise = Effect.fn('UserService.recognise')((secret: UserSecret) =>
+      authenticate(secret).pipe(
+        Effect.map((user) => ({ user, secret })),
+        Effect.catchTag('UserUnknownError', registerUser),
+      ),
     )
 
-    return { ensure, authenticate }
+    return { recognise, authenticate }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

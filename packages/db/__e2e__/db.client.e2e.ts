@@ -9,7 +9,6 @@ import { recordLogs } from '@app-template/packages/testing'
 
 import { createDb, Transaction } from '#db/db.client'
 import { PgClientTest } from '#testing/db/e2e/postgres.test-layer'
-import { flipSqlError } from '#testing/db/e2e/sql-error.test-util'
 
 const probes = pgTable('probes', { id: integer().primaryKey() })
 
@@ -43,43 +42,7 @@ describe('createDb', () => {
   })
 })
 
-const createProbes = SqlClient.SqlClient.use(
-  (client) => client`CREATE TABLE probes (id integer PRIMARY KEY)`,
-)
-
-const TransactionPgTest = Layer.effectDiscard(createProbes).pipe(
-  Layer.provideMerge(Layer.merge(Transaction.layer, Db.layer)),
-  Layer.provideMerge(PgClientTest),
-)
-
-const insertProbe = Db.use((db) => db.insert(probes).values({ id: 1 }))
-
-const selectProbeIds = Db.use((db) => db.select({ id: probes.id }).from(probes))
-
 describe('Transaction', () => {
-  it.effect('run keeps no write of a step when a later one is refused', () =>
-    Effect.gen(function* () {
-      const transaction = yield* Transaction
-
-      // The second insert is refused by the probes primary key.
-      yield* insertProbe.pipe(Effect.andThen(insertProbe), transaction.run, flipSqlError)
-
-      assert.deepStrictEqual(yield* selectProbeIds, [])
-    }).pipe(Effect.provide(TransactionPgTest)),
-  )
-
-  it.effect('run keeps no write of a step when a later one dies, as a repository does', () =>
-    Effect.gen(function* () {
-      const transaction = yield* Transaction
-
-      const dying = insertProbe.pipe(Effect.orDie)
-      const exit = yield* insertProbe.pipe(Effect.andThen(dying), transaction.run, Effect.exit)
-
-      assert.isTrue(Exit.hasDies(exit))
-      assert.deepStrictEqual(yield* selectProbeIds, [])
-    }).pipe(Effect.provide(TransactionPgTest)),
-  )
-
   it.effect("run's own SqlError is a defect", () =>
     Effect.gen(function* () {
       const transaction = yield* Transaction
@@ -89,6 +52,6 @@ describe('Transaction', () => {
       const exit = yield* transaction.run(client`SELECT 1 FROM no_such_table`).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
-    }).pipe(Effect.provide(TransactionPgTest)),
+    }).pipe(Effect.provide(Layer.provideMerge(Transaction.layer, PgClientTest))),
   )
 })

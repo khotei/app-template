@@ -1,1 +1,1 @@
-export * from '#identity/contract/user.id'
+export * from '#identity/contract/user.util'

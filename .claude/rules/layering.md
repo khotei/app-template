@@ -10,56 +10,68 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Ports and domain services
 
-- A model imports of another aggregate only its `.id` file, save a model it holds as a field it
+- A model imports of another aggregate only its `.util` file, save a model it holds as a field it
   never writes; a port may `import type` another aggregate's model.
 - A port speaks the domain's words, never a client's type or error; which failures it declares:
-  [effect-schema.md › Failures](effect-schema.md#failures).
-- No port in front of a repository: a service calls the data layer's `<Name>Repository` in
-  entities and maps them with its module's `<Model>FromEntity`.
-- A domain service owns its model's records for every caller above it: the reads a rule needs and
-  the plain reads and writes a handler asks for (a list, a create, a record by key with its
-  `*NotFoundError`). It sees the repositories, its ports, the clock and `Crypto`, and the
-  services of its own model it is layered over; never another model's service, the queue or the
-  transaction, which are a use case's.
-- A model needs a second read that applies a rule → `Live<Model>Service` over the plain
-  `<Model>Service`; one that stores bytes → `File<Model>Service` over the live one. Record:
-  [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
+  [effect.md › Failures](effect.md#failures).
+- A domain service owns its model's records for every caller above it: `<Model>Service` the reads
+  a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
+  key with its `*NotFoundError`), coding the rows through the model (`encodeWith`, `decodeWith`;
+  no port between, [why](effect-services.md#services)). It sees the repositories, its ports, the
+  clock, `SecureRandom` and `Digest`; never another model's service, the transaction or its
+  infrastructure but as below ([composition.md](composition.md)).
+- A service composed over `<Model>Service` holds the purpose it adds and reaches the model's records
+  only through it, a repository only for what it adds, so each row has one owner: a model that
+  stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
+  moves → `Move<Model>Service`.
+- The last grouping of a module's logic before a use case, which use cases share, is a
+  `<Verb><Model>Service` ([its form](naming.md#symbols)): it composes the module's services, rules,
+  `Transaction` and what one process provides, the api's its `<model>.queue` sends, the worker's
+  its `.llm` files, each admitted by its file's own Biome override, and calls no use case
+  ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+- A status move is a pure transition ([its name](naming.md#symbols)): it checks
+  one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as its
+  callers move a record just read or moved; a refusal the user can reach is a check of its own
+  before it, failing its own error (`<Model>BusyError`). `Move<Model>Service` writes each move
+  under the status read; a caller moves a record through it, never by a transition and a write.
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
   service, use case or repository only reads, calls it and writes
   (`getOne(where).pipe(ensure<Rule>(at))`). Each piece is tested alone, a combination only for
   what it adds.
-- Every method is safe on its own: guard the invariant inside it, never rely on another method
-  having run first.
+- A method applies its model's rules itself, never relying on another having run first; a plain
+  write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
 ## Use cases
 
-- A flow becomes a use case as soon as it composes two domain services or sends a job, needs one
-  transaction or one ordering of writes across them, or needs an exception to a rule here.
-- A `Context.Service` whose `layer` provides the domain services it composes and leaves the
-  repositories and ports open, for the process or a unit test's memory layers.
-- It writes through a domain service where one holds the write's rule, else through the
-  repository: a rule-free write, or one whose rule a model function already ran (a status move);
-  a read with no rule may go to the repository too. A rule of its own is refused (`modules.md`).
+- A use case is what a handler calls, and only a handler: it adds what the entry needs (the
+  caller's scope, a job's end and its logs) to the services it calls, and orders work over modules.
+- An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
+  [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
+- It holds only its flow: the order of the calls, the transaction, what it skips and logs. It
+  reads and writes through domain services, never a repository: a read, a write or a rule no
+  service offers goes to the service or model it belongs to, and a step two use cases share lives
+  once, as a service's method; a use case holds no rule of its own and never calls another
+  ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
 - All checks precede every write; a step's own guard may repeat a check the use case made.
-- The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
-  them. An object store joins none: keep the bytes before the row that binds them, delete them
-  once the rows are gone.
+- The writes commit in one transaction, `Transaction`'s `run` piped on the effect of the writes
+  it commits, never around a send or a language-model call. An object store joins none: keep the
+  bytes before the row that binds them, delete them once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
-  through the job's `<Job>Sender` beside the use cases, which settles a send SQS refuses: on the
-  work's record when it has one, else in the log
-  ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
-- A job runs once, unretried: a use case a job runs ends its own work on any outcome but
-  success, an interrupt included, and work it finds started was left by a run that died.
+  through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
+  on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
+- A job is handled once, unretried: its handling, the worker's `<Verb><Model>Service`, ends its
+  work on any outcome but success, an interrupt included, and work it finds started, left by a
+  handling that died; the use case ends the job in one tail
+  ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 
 ## Handlers
 
-- A handler decodes the input, calls one domain service method or one use case, returns a model
-  through its `buildApi<Model>` and fails with the domain's errors as they are. It holds no rule
-  and imports no repository, `<Model>FromEntity` or data layer: only the process's `layer.ts`
-  provides them.
+- A handler decodes the input, calls one domain service method or one use case, returns the
+  model and fails with the domain's errors as they are. It holds no rule and imports no
+  repository or data layer: only the process's `layer.ts` provides them.
 
 ## Concurrency
 

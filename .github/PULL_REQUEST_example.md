@@ -23,7 +23,7 @@ end-to-end. Source of truth for the format stays `.claude/rules/commits.md`.
   Author self-check:
   [x] Title is a commits.md subject line
   [x] `make check` passes
-  [x] How to read filled; inline explanations posted
+  [x] How to read filled
   [x] Every new dependency pinned in a named catalog
   [x] Ticket docs and docs/knowledge/ updated
 
@@ -43,7 +43,7 @@ reconcile invoices; until now users copied rows from the page by hand.
 ## What changed
 
 - A use case that streams a user's orders as CSV rows.
-- A route that answers the file as a download.
+- A route that responds with the file as a download.
 - An export button on the orders page.
 
 ## How it works
@@ -56,7 +56,7 @@ How to read:
 1. `orders/export.ts`: the use case. Reads pages through
    [`orders/repository.ts#L40-L58`](https://github.com/<owner>/<repo>/blob/<sha>/orders/repository.ts#L40-L58);
    docs: [`Stream`](https://github.com/Effect-TS/effect/blob/<tag>/packages/effect/src/Stream.ts).
-2. `orders/route.ts`: the route that answers the stream as a download.
+2. `orders/route.ts`: the route that responds with the stream as a download.
 3. `web/orders-page.tsx`: the button.
 
 <details><summary>Export flow</summary>

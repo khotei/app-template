@@ -6,14 +6,12 @@ import {
   buildFileKey,
   type DownloadedFileEntity,
   type FileEntity,
+  type FileEntityDownloadWhere,
   type FileEntityInsert,
-  type FileEntitySet,
   type FileEntityWhere,
-  unboundTag,
 } from '#kernel/data/file/file.entity'
 
 const urlLifetime = Duration.minutes(5)
-const unboundTags = { [unboundTag.key]: unboundTag.value }
 
 /** `insert` always writes the name, so an object without one is a defect. */
 const buildFileEntity =
@@ -24,7 +22,7 @@ const buildFileEntity =
       onSome: (name) => Effect.succeed({ id, mediaType: contentType, fileName: name, url }),
     })
 
-/** The answers of `read` for each id of `where`, concurrently, a missing one left out. */
+/** What `read` returns for each id of `where`, concurrently, a missing one left out. */
 const readEach =
   <A>(read: (id: string) => Effect.Effect<Option.Option<A>>) =>
   ({ id }: FileEntityWhere) =>
@@ -37,23 +35,21 @@ const readEach =
 
 /**
  * An object store joins no transaction: keep the bytes before the row that binds them, delete
- * them after the rows. Every write is idempotent, and none dies on a missing file. A read and an
- * `update` send one request per id, concurrently, since the store tags no batch; a read answers
- * in the order asked.
+ * them after the rows. Every write is idempotent, and none dies on a missing file. A read sends
+ * one request per id, concurrently, and returns in the order asked.
  */
 export class FileRepository extends Context.Service<
   FileRepository,
   {
-    /** Writes the bytes unbound and answers their count; fails with the stream's error and leaves nothing behind. */
+    /** Writes the bytes and returns their count; fails with the stream's error and leaves nothing behind. */
     readonly insert: <E>(file: FileEntityInsert<E>) => Effect.Effect<number, E>
     /** A `HeadObject`, no bytes read. */
     readonly selectOne: (where: FileEntityWhere) => Effect.Effect<Option.Option<FileEntity>>
     readonly selectMany: (where: FileEntityWhere) => Effect.Effect<ReadonlyArray<FileEntity>>
     /** A `GetObject`, the metadata with the bytes. */
     readonly download: (
-      where: FileEntityWhere,
+      where: FileEntityDownloadWhere,
     ) => Effect.Effect<Option.Option<DownloadedFileEntity>>
-    readonly update: (set: FileEntitySet, where: FileEntityWhere) => Effect.Effect<void>
     /** In as few requests as the store allows. */
     readonly delete: (where: FileEntityWhere) => Effect.Effect<void>
   }
@@ -65,49 +61,36 @@ export class FileRepository extends Context.Service<
     const headFile = Effect.fnUntraced(function* (id: string) {
       const head = yield* bucket.head(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* head.pipe(Option.map(buildFileEntity(id, url)), Effect.transposeOption)
+
+      if (Option.isNone(head)) return Option.none()
+
+      const file = yield* buildFileEntity(id, url)(head.value)
+      return Option.some(file)
     })
 
     const downloadFile = Effect.fnUntraced(function* (id: string) {
       const object = yield* bucket.download(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* object.pipe(
-        Option.map(({ head, blob }) =>
-          buildFileEntity(id, url)(head).pipe(Effect.map((file) => ({ ...file, blob }))),
-        ),
-        Effect.transposeOption,
-      )
-    })
 
-    const untagFile = (id: string) => bucket.untag(buildFileKey(id))
+      if (Option.isNone(object)) return Option.none()
+
+      const file = yield* buildFileEntity(id, url)(object.value.head)
+      return Option.some({ ...file, blob: object.value.blob })
+    })
 
     const selectMany = readEach(headFile)
 
     return {
       insert: Effect.fn('FileRepository.insert')(
         <E>({ id, content, mediaType, fileName }: FileEntityInsert<E>) =>
-          bucket.put(buildFileKey(id), content, {
-            contentType: mediaType,
-            fileName,
-            tags: unboundTags,
-          }),
+          bucket.put(buildFileKey(id), content, { contentType: mediaType, fileName }),
       ),
       selectOne: Effect.fn('FileRepository.selectOne')((where: FileEntityWhere) =>
         selectMany(where).pipe(Effect.map(Arr.head)),
       ),
       selectMany: Effect.fn('FileRepository.selectMany')(selectMany),
-      download: Effect.fn('FileRepository.download')((where: FileEntityWhere) =>
-        readEach(downloadFile)(where).pipe(Effect.map(Arr.head)),
-      ),
-      update: Effect.fn('FileRepository.update')((_bound: FileEntitySet, { id }: FileEntityWhere) =>
-        pipe(
-          id,
-          Arr.ensure,
-          Effect.forEach(untagFile, {
-            concurrency: 'unbounded',
-            discard: true,
-          }),
-        ),
+      download: Effect.fn('FileRepository.download')(({ id }: FileEntityDownloadWhere) =>
+        downloadFile(id),
       ),
       delete: Effect.fn('FileRepository.delete')(({ id }: FileEntityWhere) =>
         pipe(id, Arr.ensure, Arr.map(buildFileKey), bucket.deleteMany),

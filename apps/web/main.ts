@@ -1,18 +1,15 @@
-import { Effect, Layer } from 'effect'
-
-import { ApiConfig, RuntimeConfig, WebConfig } from '@app-template/kernel/config'
+import { Config, Effect } from 'effect'
 
 import index from '#web/index.html'
 
-const { api, web, runtime } = Effect.all({
-  api: ApiConfig,
-  web: WebConfig,
-  runtime: RuntimeConfig,
-}).pipe(
-  Effect.provide(Layer.mergeAll(ApiConfig.layer, WebConfig.layer, RuntimeConfig.layer)),
-  Effect.runSync,
-)
-const apiOrigin = `http://localhost:${api.port}`
+const config = Config.all({
+  apiPort: Config.Port('API_PORT'),
+  webPort: Config.Port('WEB_PORT'),
+  nodeEnv: Config.Literals(['development', 'test', 'production'], 'NODE_ENV').pipe(
+    Config.withDefault('development'),
+  ),
+}).pipe(Effect.runSync)
+const apiOrigin = `http://localhost:${config.apiPort}`
 
 function proxyToApi(request: Request): Promise<Response> {
   const url = new URL(request.url)
@@ -21,12 +18,12 @@ function proxyToApi(request: Request): Promise<Response> {
 }
 
 const server = Bun.serve({
-  port: web.port,
+  port: config.webPort,
   routes: {
     '/': index,
     '/api/*': proxyToApi,
   },
-  development: runtime.nodeEnv === 'development' && { hmr: true, console: true },
+  development: config.nodeEnv === 'development' && { hmr: true, console: true },
 })
 
 console.log(`web listening on ${server.url} (api proxied from ${apiOrigin})`)

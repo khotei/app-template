@@ -1,19 +1,8 @@
 import { eq } from 'drizzle-orm'
-import {
-  Array as Arr,
-  Context,
-  Effect,
-  identity,
-  Layer,
-  type Option,
-  Schema,
-  UndefinedOr,
-} from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
 
 import {
-  buildSet,
   buildWhere,
-  decodeOptionalRow,
   eqOrIsNull,
   orDieUnless,
   orDieWithSqlError,
@@ -21,20 +10,14 @@ import {
 } from '@app-template/packages/db'
 
 import {
-  ChatEntity,
-  type ChatEntityInsert,
+  type ChatEntity,
   type ChatEntitySet,
   type ChatEntityWhere,
-  withRun,
+  chatSetColumns,
 } from '#kernel/data/chat/chat.entity'
-import { chats } from '#kernel/data/chat/chat.table'
-import { withAttachments } from '#kernel/data/chat/message.entity'
+import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
+import { newestFirst } from '#kernel/data/chat/run.entity'
 import { Db } from '#kernel/data/db.client'
-
-const encodeSet = buildSet<ChatEntitySet, typeof chats>({
-  title: identity,
-  updatedAt: identity,
-})
 
 // Built on the table a query names: a relational query aliases `chats`, so a condition on the
 // `chats` constant would reference a table the query does not have.
@@ -48,23 +31,21 @@ const encodeWhere = (table: typeof chats) =>
 const select = (where: ChatEntityWhere) =>
   ({
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
-    with: { ...withAttachments, ...withRun },
+    with: { run: { orderBy: newestFirst } },
   }) as const
-
-const decodeChats = Schema.decodeEffect(Schema.Array(ChatEntity))
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
   {
-    readonly insert: (chat: typeof ChatEntityInsert.Type) => Effect.Effect<void>
+    readonly insert: (chat: ChatColumns) => Effect.Effect<void>
     /** Writes the fields of `set` a chat may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: ChatEntitySet, where: ChatEntityWhere) => Effect.Effect<void>
     readonly selectOne: (where: ChatEntityWhere) => Effect.Effect<Option.Option<ChatEntity>>
-    /** Rows where `where` holds, the newest created first. */
+    /** Rows where `where` holds, the newest created first, then the greater id. */
     readonly selectMany: (where: ChatEntityWhere) => Effect.Effect<ReadonlyArray<ChatEntity>>
     /**
-     * Removes the chats `where` finds with their messages and attachments, in one statement; dies
-     * when it removes nothing.
+     * Removes the chats `where` finds with their messages and Runs, in one statement; dies when it
+     * removes nothing.
      */
     readonly delete: (where: ChatEntityWhere) => Effect.Effect<void>
   }
@@ -81,7 +62,7 @@ export class ChatRepository extends Context.Service<
           (set, where) =>
             db
               .update(chats)
-              .set(encodeSet(set))
+              .set(Struct.pick(set, chatSetColumns))
               .where(encodeWhere(chats)(where))
               .returning({ id: chats.id })
               .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated')),
@@ -89,16 +70,11 @@ export class ChatRepository extends Context.Service<
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
           (where) =>
-            db.query.chats
-              .findFirst(select(where))
-              .pipe(Effect.flatMap(decodeOptionalRow(ChatEntity))),
+            db.query.chats.findFirst(select(where)).pipe(Effect.map(Option.fromUndefinedOr)),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('ChatRepository.selectMany')(
-          (where) =>
-            db.query.chats
-              .findMany({ ...select(where), orderBy: { createdAt: 'desc' } })
-              .pipe(Effect.flatMap(decodeChats)),
+          (where) => db.query.chats.findMany({ ...select(where), orderBy: newestFirst }),
           orDieWithSqlError,
         ),
         delete: Effect.fn('ChatRepository.delete')(

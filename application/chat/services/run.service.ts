@@ -1,42 +1,58 @@
-import { Context, Crypto, DateTime, Effect, Layer, type Types } from 'effect'
+import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { RunRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { type RunEntityWhere, RunRepository } from '@app-template/kernel/data'
+import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
-import { CurrentReplyProvenance } from '#chat/domain/assistant.port'
-import { RunId } from '#chat/domain/chat.id'
-import type { Message } from '#chat/domain/message.model'
-import { RunNotFoundError } from '#chat/domain/run.error'
-import { buildRun, type Run } from '#chat/domain/run.model'
-import { decodeRun, encodeRun } from '#chat/services/run.mapper'
+import type { MessageFields } from '#chat/domain/message.model'
+import type { MessageId } from '#chat/domain/message.util'
+import { ActiveRunNotFoundError, RunNotFoundError } from '#chat/domain/run.error'
+import { activeRunStatuses, Run } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 
-/** The Run of the user's chat; one of another user's chat reads as absent. */
-export type RunWhere = Types.Simplify<Pick<Run, 'id' | 'chatId'> & { readonly userId: UserId }>
+/**
+ * A Run by id; `userId` limits it to the user's chats, which every api caller passes, and
+ * `status` to the Runs in one of them.
+ */
+export type RunWhere = Types.Simplify<
+  Pick<Run, 'id'> &
+    Partial<
+      Pick<Run, 'chatId'> & {
+        readonly userId: UserId
+        readonly status: ReadonlyArray<RunStatus>
+      }
+    >
+>
 
 export class RunService extends Context.Service<
   RunService,
   {
-    /**
-     * Stores the queued Run that answers the user's message, with this process's provenance;
-     * dies when its chat has an active Run already, a send that lost the race to another.
-     */
-    readonly create: (userMessage: Message) => Effect.Effect<Run>
+    readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
+    /** The active Run of the user's message `userMessageId`. */
+    readonly getActive: (userMessageId: MessageId) => Effect.Effect<Run, ActiveRunNotFoundError>
+    /** Dies when no Run matches `where`. */
+    readonly update: (run: Run, where: RunEntityWhere) => Effect.Effect<Run>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
-    const crypto = yield* Crypto.Crypto
-    const provenance = yield* CurrentReplyProvenance
+    const generateId = yield* idGenerator
 
-    const create = Effect.fn('RunService.create')(function* (userMessage: Message) {
-      const id = yield* generateId(crypto, RunId.make)
+    const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
+      const id = yield* generateId(RunId)
       const createdAt = yield* DateTime.now
-      const run = buildRun({ id, chatId: userMessage.chatId, userMessage, provenance, createdAt })
-      const row = yield* encodeRun(run)
+      const run = new Run({
+        id,
+        chatId: userMessage.chatId,
+        userMessage,
+        userMessageId: userMessage.id,
+        createdAt,
+        updatedAt: createdAt,
+      })
+      const row = yield* encodeWith(RunFields)(run)
 
-      // The index on the active Run refuses a second one in the chat, so this insert dies.
       yield* runs.insert(row)
       return run
     })
@@ -45,12 +61,30 @@ export class RunService extends Context.Service<
       runs
         .selectOne(where)
         .pipe(
-          Effect.flatMap(decodeRun),
+          Effect.flatMap(decodeWith(Schema.Option(Run))),
           Effect.flatMap(Effect.fromOption(() => new RunNotFoundError({ id: where.id }))),
         ),
     )
 
-    return { create, getOne }
+    const getActive = Effect.fn('RunService.getActive')((userMessageId: MessageId) =>
+      runs
+        .selectOne({ userMessageId, status: activeRunStatuses })
+        .pipe(
+          Effect.flatMap(decodeWith(Schema.Option(Run))),
+          Effect.flatMap(Effect.fromOption(() => new ActiveRunNotFoundError({ userMessageId }))),
+        ),
+    )
+
+    const update = Effect.fn('RunService.update')(function* (run: Run, where: RunEntityWhere) {
+      const updatedAt = yield* DateTime.now
+      const stamped = new Run({ ...run, updatedAt })
+      const row = yield* encodeWith(RunFields)(stamped)
+
+      yield* runs.update(row, where)
+      return stamped
+    })
+
+    return { create, getOne, getActive, update }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

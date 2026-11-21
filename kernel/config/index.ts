@@ -1,4 +1,4 @@
 export * from '#kernel/config/config'
-export * from '#kernel/config/ministack'
-export * from '#kernel/config/postgres'
-export * from '#kernel/config/telemetry'
+export * from '#kernel/config/config-ministack'
+export * from '#kernel/config/config-postgres'
+export * from '#kernel/config/config-telemetry'

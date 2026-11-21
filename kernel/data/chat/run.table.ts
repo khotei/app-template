@@ -1,4 +1,4 @@
-import { inArray, type SQL, sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import {
   check,
@@ -18,23 +18,14 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
 
-export const runFailureReasons = ['ReplyFailed', 'ReplyRefused'] as const
-
 /** Why a Run failed, as the column `failure` holds it. */
-export const RunFailureJson = Schema.Struct({
-  reason: Schema.Literals(runFailureReasons),
-  message: Schema.String,
+export const RunFailure = Schema.Struct({
+  /** The full text of what ended the Run, for operators; the api keeps it off the wire. */
   cause: Schema.String,
 })
+export type RunFailure = typeof RunFailure.Type
 
-/** Who the api expected to answer the Run, as the column `provenance` holds it. */
-export const RunProvenanceJson = Schema.Struct({
-  provider: Schema.String,
-  model: Schema.String,
-  instructionsHash: Schema.String,
-})
-
-export const runStatuses = ['queued', 'preparing', 'generating', 'done', 'failed'] as const
+export const runStatuses = ['queued', 'generating', 'done', 'failed'] as const
 
 export const runStatus = pgEnum('run_status', runStatuses)
 
@@ -47,8 +38,7 @@ export const runs = snakeCase.table(
       .references(() => chats.id, { onDelete: 'cascade' }),
     userMessageId: uuid().notNull(),
     status: runStatus().notNull(),
-    failure: jsonb().$type<typeof RunFailureJson.Type>(),
-    provenance: jsonb().$type<typeof RunProvenanceJson.Type>().notNull(),
+    failure: jsonb().$type<RunFailure>(),
     /** The assistant's message the Run wrote, once it is done. */
     assistantMessageId: uuid().references(() => messages.id, { onDelete: 'cascade' }),
     createdAt: createdAt(),
@@ -68,26 +58,19 @@ export const runs = snakeCase.table(
       columns: [table.userMessageId, table.chatId],
       foreignColumns: [messages.id, messages.chatId],
     }).onDelete('cascade'),
-    uniqueIndex('runs_chat_id_active_index').on(table.chatId).where(activeRun),
+    uniqueIndex('runs_chat_id_active_index')
+      .on(table.chatId)
+      .where(inArray(table.status, activeRunStatuses)),
     index('runs_user_message_id_created_at_index').on(table.userMessageId, table.createdAt),
   ],
 )
 
-/** The statuses of a Run still in flight, read by the index's predicate and the memory fake. */
-export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
-
-/**
- * Holds for a Run still in flight: the predicate of `runs_chat_id_active_index`.
- *
- * An `ON CONFLICT … WHERE` that targets the index takes its predicate from this constant. Do not
- * remove `.inlineParams()`; why: `docs/knowledge/database.md` › "Schema and entity files".
- */
-export const activeRun: SQL = sql`${inArray(runs.status, activeRunStatuses)}`.inlineParams()
+/** The statuses of a Run still in flight, read by the index's predicate. */
+export const activeRunStatuses = ['queued', 'generating'] as const
 
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
-export const runJsonColumns = {
-  failure: () => RunFailureJson,
-  provenance: () => RunProvenanceJson,
+const runJsonColumns = {
+  failure: () => RunFailure,
 }
 
 /** The columns of a Run, as the entities of its neighbours nest them. */

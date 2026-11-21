@@ -16,29 +16,22 @@ Refs: docs/tickets/<ticket folder>/
 
 - **Subject:** imperative, capitalised, no trailing period, ≤ 50 characters past the prefix,
   round id and source; the gitmoji as its `:code:` shortcode, not the emoji character.
-- **Scope:** the ticket slug (`monorepo-setup`), else the area (`api`, `domain`, `ci`, `tooling`).
+- **Scope:** the lab's slug (`monorepo-setup`), else the area (`api`, `domain`, `ci`, `tooling`).
 - **Decision:** required whenever a choice is non-obvious; add one paragraph per decision.
-- **Refs:** the ticket folder, the last paragraph before any trailers. When a ticket's commit may
-  land: the commit gate in `sdd.md › Gates`.
+- **Refs:** the ticket folder, when there is one, the last paragraph before any trailers.
+- A lab's commit opens its subject with its round: `.claude/skills/lab/SKILL.md › Rounds`.
 
-## A commit's unit
+## A commit's scope
 
 - **One change a reader can judge alone, green under `make check`.** Independent parts of a step
   or task are separate commits; a part that cannot be green alone joins the one it needs.
 - **The body says what and why.** A fact (a number, a behaviour, "X fails") is written only when a
-  run showed it, naming the command and its result. A `Decision:` paragraph states the choice and
-  its trade-off without a run, but a fact inside it follows the same rule. A doc or rule line the
-  change makes false is fixed in the same commit.
-
-## A ticket's rounds
-
-A ticket's commit opens its subject with its round: `.claude/rules/rounds.md`, which loads with
-the ticket's files.
+  command's output showed it, naming the command and its result. A `Decision:` paragraph states the
+  choice and its trade-off without a test run, but a fact inside it follows the same rule.
 
 ## Vocabulary
 
-Every other gitmoji: [sdd.md › Gitmoji](../../docs/knowledge/sdd.md#gitmoji); a row here wins over
-a close upstream entry (`:fire:` over `:coffin:`, `:bug:` over `:adhesive_bandage:`).
+Only these:
 
 | Gitmoji | Type | Use |
 |---|---|---|

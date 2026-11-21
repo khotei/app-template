@@ -1,7 +1,6 @@
 import * as aws from '@pulumi/aws'
 
 import { buildResourceName, resources } from '@app-template/kernel/aws'
-import { unboundTag } from '@app-template/kernel/data'
 
 import { buildTags } from '#deployment/shared/tags'
 
@@ -17,12 +16,6 @@ export const createStorage = (provider: aws.Provider, stage: string) =>
       {
         bucket: bucket.bucket,
         rules: [
-          {
-            id: 'expire-unbound',
-            status: 'Enabled',
-            filter: { tag: unboundTag },
-            expiration: { days: lifecycle.unboundExpirationDays },
-          },
           {
             id: 'abort-incomplete-uploads',
             status: 'Enabled',

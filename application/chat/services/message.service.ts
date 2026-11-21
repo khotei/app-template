@@ -1,73 +1,58 @@
-import { Context, Crypto, DateTime, Effect, Layer, Option, type Types } from 'effect'
+import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { ChatRepository, MessageRepository } from '@app-template/kernel/data'
-import { generateId } from '@app-template/packages/db'
+import { MessageRepository } from '@app-template/kernel/data'
+import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { MessageId } from '#chat/domain/chat.id'
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { buildUserMessage, type Message } from '#chat/domain/message.model'
-import { decodeMessage, decodeMessages, encodeMessage } from '#chat/services/message.mapper'
+import { Message, MessageFields } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
 
-/** The message of the user's chat; one of another user's chat reads as absent. */
+/** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
 export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id' | 'chatId'> & Partial<Pick<Message, 'author'>> & { readonly userId: UserId }
+  Pick<Message, 'id'> & Partial<Pick<Message, 'chatId'> & { readonly userId: UserId }>
 >
 
 export class MessageService extends Context.Service<
   MessageService,
   {
-    /** Stores the user's message as sent, with no attachments: a bind adds them. */
-    readonly create: (fields: Pick<Message, 'chatId' | 'text'>) => Effect.Effect<Message>
+    readonly create: (fields: Pick<Message, 'chatId' | 'text' | 'author'>) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
+    /** The chat's messages in creation order. */
     readonly getMany: (
-      where: Types.Simplify<Omit<MessageWhere, 'id'>>,
-    ) => Effect.Effect<ReadonlyArray<Message>, ChatNotFoundError>
+      where: Types.Simplify<Pick<Message, 'chatId'>>,
+    ) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const chats = yield* ChatRepository
-    const crypto = yield* Crypto.Crypto
+    const generateId = yield* idGenerator
 
     const create = Effect.fn('MessageService.create')(function* (
-      fields: Pick<Message, 'chatId' | 'text'>,
+      fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
-      const id = yield* generateId(crypto, MessageId.make)
+      const id = yield* generateId(MessageId)
       const createdAt = yield* DateTime.now
-      const message = buildUserMessage({ ...fields, id, createdAt })
-      const row = yield* encodeMessage(message)
+      const message = new Message({ ...fields, id, createdAt })
+      const row = yield* encodeWith(MessageFields)(message)
 
       yield* messages.insert(row)
       return message
     })
 
     const getOne = Effect.fn('MessageService.getOne')((where: MessageWhere) =>
-      messages.selectOne(where).pipe(
-        Effect.flatMap(decodeMessage),
-        Effect.flatMap(
-          Effect.fromOption(
-            () =>
-              new MessageNotFoundError({
-                id: where.id,
-                author: Option.fromUndefinedOr(where.author),
-              }),
-          ),
+      messages
+        .selectOne(where)
+        .pipe(
+          Effect.flatMap(decodeWith(Schema.Option(Message))),
+          Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: where.id }))),
         ),
-      ),
     )
 
-    const getMany = Effect.fn('MessageService.getMany')(function* (
-      where: Types.Simplify<Omit<MessageWhere, 'id'>>,
-    ) {
-      yield* chats
-        .selectOne({ id: where.chatId, userId: where.userId })
-        .pipe(Effect.filterOrFail(Option.isSome, () => new ChatNotFoundError({ id: where.chatId })))
-
-      const rows = yield* messages.selectMany(where)
-      return yield* decodeMessages(rows)
-    })
+    const getMany = Effect.fn('MessageService.getMany')(
+      (where: Types.Simplify<Pick<Message, 'chatId'>>) =>
+        messages.selectMany(where).pipe(Effect.flatMap(decodeWith(Schema.Array(Message)))),
+    )
 
     return { create, getOne, getMany }
   }),

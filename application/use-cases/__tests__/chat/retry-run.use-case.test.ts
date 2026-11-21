@@ -1,113 +1,78 @@
-import { assert, describe, it } from '@effect/vitest'
+import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { Effect, Layer, Option } from 'effect'
 
 import {
-  buildRun,
-  ChatBusyError,
-  failRun,
-  GenerateAssistantMessage,
-  MessageNotFoundError,
+  Chat,
+  Message,
+  ReplyToMessage,
   Run,
-  type RunId,
+  RunNotRetryableError,
 } from '@app-template/application/chat'
 import {
-  assistantMessageAt,
+  type ChatRepositoryMocks,
   chat,
-  insertMessage,
+  firstMessage,
+  layerChatTest,
   owner,
-  replyProvenance,
-  updateRun,
+  queuedRun,
 } from '@app-template/application/chat/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatTest } from '#testing/use-cases/chat.test-layer'
-import { CreateUserMessageUseCase } from '#use-cases/chat/create-user-message.use-case'
-import { RetryRunUseCase } from '#use-cases/chat/retry-run.use-case'
+import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
-const replyJob = (runId: RunId) => ({
-  queue: 'assistant-message',
-  message: new GenerateAssistantMessage({ chatId: chat.id, runId }),
+/** The reads of a chat whose newest Run is `newest`, with the message that Run answers. */
+const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
+  messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
+  chats: {
+    selectOne: () =>
+      encodeWith(Chat)(new Chat({ ...chat, run: Option.some(newest) })).pipe(
+        Effect.map(Option.some),
+      ),
+  },
+  runs: { insert: () => Effect.void },
 })
 
-describe('RetryRunUseCase', () => {
-  it.effect(
-    'retry after a failed Run stores a new queued Run of the message and queues its job',
-    () => {
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        const createUserMessage = yield* CreateUserMessageUseCase
-        const retryRun = yield* RetryRunUseCase
-        const first = yield* createUserMessage.create(owner, chat.id, {
-          text: 'Plan a weekend in Lisbon',
-          attachmentIds: [],
-        })
-        const at = yield* DateTime.now
-        yield* failRun(first, { reason: 'ReplyFailed', cause: 'overloaded', at }).pipe(
-          Effect.flatMap(updateRun),
-        )
+const failedRun = new Run({
+  ...queuedRun,
+  status: 'failed',
+  failure: Option.some({ cause: '529 overloaded' }),
+})
 
-        const retried = yield* retryRun.retry(owner, chat.id, first.userMessageId)
+const retry = retryRun(owner, chat.id)
 
-        assertSchemaEquals(
-          Run,
-          retried,
-          buildRun({
-            id: retried.id,
-            chatId: chat.id,
-            userMessage: first.userMessage,
-            provenance: replyProvenance,
-            createdAt: retried.createdAt,
-          }),
-        )
-        assertEquals((yield* jobs.sent).at(-1), replyJob(retried.id))
-      }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
-    },
-  )
-
-  it.effect('retry while a Run is in work is ChatBusyError before any Run or job', () => {
+describe('retryRun', () => {
+  it.effect('retry after a failed Run queues the job of the new Run', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-      const retryRun = yield* RetryRunUseCase
-      const first = yield* createUserMessage.create(owner, chat.id, {
-        text: 'Plan a weekend in Lisbon',
-        attachmentIds: [],
-      })
+      const retried = yield* retry
 
-      const error = yield* retryRun.retry(owner, chat.id, first.userMessageId).pipe(Effect.flip)
-
-      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-      // The send's reply and title jobs, and none of the retry.
-      assert.lengthOf(yield* jobs.sent, 2)
-    }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+      assertEquals(yield* jobs.sent, [
+        {
+          queue: 'reply-to-message',
+          message: new ReplyToMessage({ messageId: retried.userMessageId }),
+        },
+      ])
+    }).pipe(
+      Effect.provide(layerChatTest(chatWithRun(failedRun)).pipe(Layer.provideMerge(jobs.layer))),
+    )
   })
 
-  it.effect("retry of an assistant's message is MessageNotFoundError of a user's message", () => {
+  it.effect('a retry refused for a done Run queues no job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const createUserMessage = yield* CreateUserMessageUseCase
-      const retryRun = yield* RetryRunUseCase
-      const first = yield* createUserMessage.create(owner, chat.id, {
-        text: 'Plan a weekend in Lisbon',
-        attachmentIds: [],
-      })
-      const at = yield* DateTime.now
-      yield* failRun(first, { reason: 'ReplyFailed', cause: 'overloaded', at }).pipe(
-        Effect.flatMap(updateRun),
-      )
-      const reply = assistantMessageAt(1, 'An earlier reply')
-      yield* insertMessage(reply)
+      const error = yield* retry.pipe(Effect.flip)
 
-      const error = yield* retryRun.retry(owner, chat.id, reply.id).pipe(Effect.flip)
-
-      assertSchemaEquals(
-        MessageNotFoundError,
-        error,
-        new MessageNotFoundError({ id: reply.id, author: Option.some('user') }),
-      )
-      assert.lengthOf(yield* jobs.sent, 2)
-    }).pipe(Effect.provide(Layer.provide(ChatTest, jobs.layer)))
+      assertSchemaEquals(RunNotRetryableError, error, new RunNotRetryableError())
+      assertEquals(yield* jobs.sent, [])
+    }).pipe(
+      Effect.provide(
+        layerChatTest(chatWithRun(new Run({ ...queuedRun, status: 'done' }))).pipe(
+          Layer.provideMerge(jobs.layer),
+        ),
+      ),
+    )
   })
 })

@@ -1,6 +1,5 @@
 // The doc lint (`make doc-lint`): the Markdown outside docs/tickets/ and repos/, held to the width
-// and to the four rules below; every other markdownlint rule is off. What each guards:
-// docs/knowledge/tooling.md › Commands.
+// and to the four rules below; every other markdownlint rule is off.
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { relative, resolve } from 'node:path'

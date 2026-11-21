@@ -9,7 +9,7 @@ import { ministackRegion } from '@app-template/packages/aws/testing/e2e'
 import { migrateDatabase } from '@app-template/packages/db'
 import { templateDatabase } from '@app-template/packages/db/testing/e2e'
 
-import { migrationsFolder } from '#kernel/data/migrations'
+import { migrationsFolder } from '#kernel/data/data-migrations'
 
 async function startPostgresWithTemplate() {
   const container = await new PostgreSqlContainer(postgresImage).start()

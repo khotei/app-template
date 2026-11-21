@@ -1,16 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
-import { eq } from 'drizzle-orm'
 import { Effect, Exit, Layer, Option, Schema, Struct } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { attachments } from '#kernel/data/attachment/attachment.table'
 import { ChatEntity } from '#kernel/data/chat/chat.entity'
 import { ChatRepository } from '#kernel/data/chat/chat.repository'
 import { MessageEntity } from '#kernel/data/chat/message.entity'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
-import type { RunEntityInsert } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
+import type { RunColumns } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -31,7 +29,6 @@ const chat = (id: string, userId: string): ChatEntity => ({
   title: null,
   createdAt,
   updatedAt: createdAt,
-  attachments: [],
   run: null,
 })
 
@@ -41,7 +38,6 @@ const question = (id: string, chatId: string): MessageEntity => ({
   author: 'user',
   text: 'Hi',
   createdAt,
-  attachments: [],
   run: null,
 })
 
@@ -58,15 +54,11 @@ const run = (
     chatId: answered.chatId,
     userMessageId: answered.id,
     status,
-    provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
-    failure:
-      status === 'failed'
-        ? { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' }
-        : null,
+    failure: status === 'failed' ? { cause: '529 overloaded' } : null,
     assistantMessageId: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
-  }) satisfies typeof RunEntityInsert.Type
+  }) satisfies RunColumns
 
 const insertUser = (id: string) =>
   Db.use((db) => db.insert(users).values({ id, createdAt: new Date(0) }))
@@ -121,6 +113,21 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
+  it.effect('selectOne where the title is null reads a titled chat as none', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const hal = '0192d4e0-7b3a-7c00-8000-000000000018'
+      const titled: ChatEntity = {
+        ...chat('0192d4e0-7b3a-7c00-8000-00000000003b', hal),
+        title: 'Trip',
+      }
+      yield* insertUser(hal)
+      yield* chats.insert(titled)
+
+      assert.deepStrictEqual(yield* chats.selectOne({ id: titled.id, title: null }), Option.none())
+    }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
   it.effect("selectMany selects the user's chats, the newest created first", () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
@@ -144,6 +151,22 @@ describe('ChatRepository', () => {
       assertSchemaEquals(Schema.Array(ChatEntity), yield* chats.selectMany({ userId: ada }), [
         newer,
         renamed,
+      ])
+    }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
+  it.effect('selectMany orders chats created in one instant by id, the greater first', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const ada = '0192d4e0-7b3a-7c00-8000-000000000010'
+      const lesser = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
+      const greater = chat('0192d4e0-7b3a-7c00-8000-000000000031', ada)
+      yield* insertUser(ada)
+      yield* Effect.forEach([lesser, greater], chats.insert)
+
+      assertSchemaEquals(Schema.Array(ChatEntity), yield* chats.selectMany({ userId: ada }), [
+        greater,
+        lesser,
       ])
     }).pipe(Effect.provide(RepositoriesTest)),
   )
@@ -175,21 +198,25 @@ describe('ChatRepository', () => {
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const messages = yield* MessageRepository
+      const runs = yield* RunRepository
       const cy = '0192d4e0-7b3a-7c00-8000-000000000012'
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
       const keptQuestion = question('0192d4e0-7b3a-7c00-8000-000000000050', kept.id)
       const deletedQuestion = question('0192d4e0-7b3a-7c00-8000-000000000051', deleted.id)
+      const deletedRun = run('0192d4e0-7b3a-7c00-8000-000000000060', deletedQuestion)
       yield* insertUser(cy)
       yield* Effect.forEach([kept, deleted], chats.insert)
       yield* Effect.forEach([keptQuestion, deletedQuestion], (each) =>
-        messages.insert(Struct.omit(each, ['attachments', 'run'])),
+        messages.insert(Struct.omit(each, ['run'])),
       )
+      yield* runs.insert(deletedRun)
 
       yield* chats.delete({ id: deleted.id, userId: cy })
 
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedQuestion.id }), Option.none())
+      assert.deepStrictEqual(yield* runs.selectOne({ id: deletedRun.id }), Option.none())
       assertSchemaEquals(SelectedChat, yield* chats.selectOne({ id: kept.id }), Option.some(kept))
       assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: kept.id }), [keptQuestion])
     }).pipe(Effect.provide(RepositoriesTest)),
@@ -214,39 +241,6 @@ describe('ChatRepository', () => {
         SelectedChat,
         yield* chats.selectOne({ id: stored.id }),
         Option.some(stored),
-      )
-    }).pipe(Effect.provide(RepositoriesTest)),
-  )
-
-  it.effect("delete takes the messages' attachments with them by the cascade", () =>
-    Effect.gen(function* () {
-      const db = yield* Db
-      const chats = yield* ChatRepository
-      const messages = yield* MessageRepository
-      const eve = '0192d4e0-7b3a-7c00-8000-000000000014'
-      const stored = chat('0192d4e0-7b3a-7c00-8000-000000000037', eve)
-      const withPhoto = question('0192d4e0-7b3a-7c00-8000-000000000052', stored.id)
-      const attachedId = '0192d4e0-7b3a-7c00-8000-000000000020'
-      yield* insertUser(eve)
-      yield* chats.insert(stored)
-      yield* messages.insert(withPhoto)
-      yield* db.insert(attachments).values({
-        id: attachedId,
-        userId: eve,
-        messageId: withPhoto.id,
-        chatId: stored.id,
-        fileName: 'photo.png',
-        mediaType: 'image/png',
-        size: 1024,
-        createdAt,
-      })
-
-      yield* chats.delete({ id: stored.id })
-
-      assert.deepStrictEqual(yield* messages.selectMany({ chatId: stored.id }), [])
-      assert.deepStrictEqual(
-        yield* db.select().from(attachments).where(eq(attachments.id, attachedId)),
-        [],
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )

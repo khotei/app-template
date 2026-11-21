@@ -44,7 +44,6 @@ const run = (
   status: 'queued',
   failure: null,
   assistantMessageId: null,
-  provenance: { provider: 'anthropic', model: 'claude-haiku-5-5', instructionsHash: 'abc' },
   createdAt,
   updatedAt,
   ...fields,
@@ -59,8 +58,6 @@ const read = (row: RunRow, assistantMessage: MessageColumns | null = null): RunE
 
 const SelectedRun = Schema.Option(RunEntity)
 
-const active = ['queued', 'preparing', 'generating'] as const
-
 const insertUserMessage = Db.use((db) =>
   db
     .insert(users)
@@ -74,40 +71,53 @@ const insertUserMessage = Db.use((db) =>
 )
 
 describe('RunRepository', () => {
-  it.effect(
-    "selects a Run by id for its owner, as the chat's active one, none for a stranger",
-    () =>
-      Effect.gen(function* () {
-        const runs = yield* RunRepository
-        const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a3')
-        const strangerId = '0192d4e0-7b3a-7c00-8000-0000000000af'
-        yield* insertUserMessage
-        yield* runs.insert(queued)
-
-        const owned = yield* runs.selectOne({ id: queued.id, userId })
-        const inFlight = yield* runs.selectOne({ chatId, status: active })
-        const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
-
-        assertSchemaEquals(
-          Schema.Array(SelectedRun),
-          [owned, inFlight],
-          [Option.some(read(queued)), Option.some(read(queued))],
-        )
-        assert.deepStrictEqual(foreign, Option.none())
-      }).pipe(Effect.provide(RepositoryTest)),
-  )
-
-  it.effect('insert dies on a second active Run in a chat and keeps the first', () =>
+  it.effect('selects a Run by id for its owner, none for a stranger', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
-      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a5')
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a3')
+      const strangerId = '0192d4e0-7b3a-7c00-8000-0000000000af'
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const exit = yield* runs.insert(run('0192d4e0-7b3a-7c00-8000-0000000000a6')).pipe(Effect.exit)
+      const owned = yield* runs.selectOne({ id: queued.id, userId })
+      const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
 
-      assert.isTrue(Exit.hasDies(exit))
-      assertSchemaEquals(SelectedRun, yield* runs.selectOne({ chatId }), Option.some(read(queued)))
+      assertSchemaEquals(SelectedRun, owned, Option.some(read(queued)))
+      assert.deepStrictEqual(foreign, Option.none())
+    }).pipe(Effect.provide(RepositoryTest)),
+  )
+
+  it.effect('selects a Run in one of the statuses its where names, none in another', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a4')
+      yield* insertUserMessage
+      yield* runs.insert(queued)
+
+      const active = yield* runs.selectOne({ id: queued.id, status: ['queued', 'generating'] })
+      const settled = yield* runs.selectOne({ id: queued.id, status: ['done', 'failed'] })
+
+      assertSchemaEquals(SelectedRun, active, Option.some(read(queued)))
+      assert.deepStrictEqual(settled, Option.none())
+    }).pipe(Effect.provide(RepositoryTest)),
+  )
+
+  it.effect('selects the Run of the user message its where names, none of another', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a5')
+      const otherMessageId = '0192d4e0-7b3a-7c00-8000-0000000000ae'
+      yield* insertUserMessage
+      yield* runs.insert(queued)
+
+      const own = yield* runs.selectOne({ userMessageId, status: ['queued', 'generating'] })
+      const other = yield* runs.selectOne({
+        userMessageId: otherMessageId,
+        status: ['queued', 'generating'],
+      })
+
+      assertSchemaEquals(SelectedRun, own, Option.some(read(queued)))
+      assert.deepStrictEqual(other, Option.none())
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
@@ -115,13 +125,13 @@ describe('RunRepository', () => {
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a7')
-      const failure = { reason: 'ReplyFailed', message: 'Try again.', cause: 'timeout' } as const
+      const failure = { cause: '529 overloaded' } as const
       yield* insertUserMessage
       yield* runs.insert(queued)
 
       yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: ['queued'] })
       const exit = yield* runs
-        .update({ status: 'preparing' }, { id: queued.id, status: ['queued'] })
+        .update({ status: 'generating' }, { id: queued.id, status: ['queued'] })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))

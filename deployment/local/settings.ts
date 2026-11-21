@@ -1,28 +1,13 @@
-import { Effect, Layer } from 'effect'
+import { Config, Effect } from 'effect'
 
-import {
-  AwsConfig,
-  MiniStackConfig,
-  TelemetryConfig,
-  WorkerConfig,
-} from '@app-template/kernel/config'
+import { awsConfig, rdsBasePort, telemetryConfig, workerPort } from '@app-template/kernel/config'
 
-export const settings = Effect.all({
-  aws: AwsConfig,
-  ministack: MiniStackConfig,
-  telemetry: TelemetryConfig,
-  worker: WorkerConfig,
-}).pipe(
-  Effect.provide(
-    Layer.mergeAll(
-      AwsConfig.layer,
-      MiniStackConfig.layer,
-      TelemetryConfig.layer,
-      WorkerConfig.layer,
-    ),
-  ),
-  Effect.runSync,
-)
+export const settings = Config.all({
+  aws: awsConfig,
+  rdsBasePort,
+  telemetry: telemetryConfig,
+  workerPort,
+}).pipe(Effect.runSync)
 
 /**
  * The local instance's credentials. They guard nothing on a developer's machine, so they are

@@ -3,18 +3,14 @@ import { fileURLToPath } from 'node:url'
 import * as docker from '@pulumi/docker'
 import { Option } from 'effect'
 
-import { projectName } from '@app-template/kernel/aws'
+import { buildResourceName } from '@app-template/kernel/aws'
 import { ministackImage } from '@app-template/kernel/config'
 
 import { settings } from '#deployment/local/settings'
 
 const internalPort = 4566
-/**
- * The host port is the one in `AWS_ENDPOINT_URL`, and the container is named after it, so a
- * worktree's MiniStack runs beside the main tree's without sharing a port, a name or a state.
- * The Makefile rebuilds the name (`NAME_MINISTACK`); change both together.
- */
-const { region, endpoint } = settings.aws
+/** The host's TCP port is the one in `AWS_ENDPOINT_URL`, so each tree's MiniStack has its own. */
+const { region, endpoint, stage } = settings.aws
 const isPortSet = (url: URL) => url.port !== ''
 const endpointUrl = endpoint.pipe(
   Option.filter(isPortSet),
@@ -33,7 +29,7 @@ const remoteImage = new docker.RemoteImage('ministack-image', {
 export const ministack = new docker.Container(
   'ministack',
   {
-    name: `${projectName}-ministack-${port}`,
+    name: buildResourceName(stage, 'ministack'),
     image: remoteImage.imageId,
     ports: [{ internal: internalPort, external: port }],
     envs: [
@@ -45,7 +41,7 @@ export const ministack = new docker.Container(
       // RDS instances run as containers on the host's Docker; their data in a named volume.
       'MINISTACK_RDS_PUBLIC_ENDPOINT=1',
       'RDS_PERSIST=1',
-      `RDS_BASE_PORT=${settings.ministack.rdsBasePort}`,
+      `RDS_BASE_PORT=${settings.rdsBasePort}`,
     ],
     // The worker's proxy URL names the host; Docker Desktop resolves it alone, Linux needs this.
     hosts: [{ host: 'host.docker.internal', ip: 'host-gateway' }],
@@ -72,7 +68,7 @@ export const ministack = new docker.Container(
     stopTimeout: 15,
   },
   {
-    // A new name or image replaces the container; the old one holds the port until it is deleted.
+    // A new name or image replaces the container; the old one holds the TCP port until it is deleted.
     deleteBeforeReplace: true,
   },
 )
