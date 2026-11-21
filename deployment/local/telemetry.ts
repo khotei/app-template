@@ -25,6 +25,6 @@ export const telemetry = new docker.Container(
       { internal: otlpInternalPort, external: otlpPort },
     ],
   },
-  // A new name or image replaces the container; the old one holds the ports until it is deleted.
+  // A new name or image replaces the container; the old one holds the TCP ports until it is deleted.
   { deleteBeforeReplace: true },
 )

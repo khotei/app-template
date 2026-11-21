@@ -1,6 +1,6 @@
 import type { Resources } from '@app-template/packages/aws'
 
-/** Above the slowest reply: a run past it is killed, and its redelivery fails the reply. */
+/** Above the slowest reply: a handling past it is killed, and its redelivery fails the reply. */
 const workerTimeoutSeconds = 600
 
 export const resources = {

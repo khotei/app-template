@@ -304,7 +304,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's reply service (ReplyChatService), the worker's run of the reply's job, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
@@ -350,7 +350,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's title service (TitleChatService), the worker's run of the title's job, imports the workspaces a module's services do: no transaction, no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's title service (TitleChatService), the worker's work on the title's job, imports the workspaces a module's services do: no transaction, no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -436,7 +436,7 @@
                 "patterns": [
                   {
                     "group": ["@app-template/**"],
-                    "message": "an entry of application/ re-exports its own files through #<unit>/… and imports no workspace (decisions.md › Module contracts; Guards are configuration)"
+                    "message": "an entry of application/ re-exports its own files through #<part>/… and imports no workspace (decisions.md › Module contracts; Guards are configuration)"
                   }
                 ]
               }

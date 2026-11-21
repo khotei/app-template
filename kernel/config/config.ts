@@ -14,7 +14,7 @@ export const awsConfig = Config.all({
 })
 export type AwsConfig = Config.Success<typeof awsConfig>
 
-/** The local stand only: the host port MiniStack gives its first RDS instance. */
+/** The local stand only: the host's TCP port MiniStack gives its first RDS instance. */
 export const rdsBasePort = Config.Port('RDS_BASE_PORT')
 
 /** The local stand only: where the telemetry backend takes OTLP and serves Grafana. */

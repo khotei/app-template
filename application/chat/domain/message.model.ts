@@ -14,7 +14,7 @@ export const MessageFields = Schema.Struct({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
-  /** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
+  /** Finished text: a user's as asked, an assistant's as the Run that wrote it settled it. */
   text: Schema.String.check(
     Schema.isPattern(textPattern),
     Schema.makeFilter(Predicate.not(isBlank), {

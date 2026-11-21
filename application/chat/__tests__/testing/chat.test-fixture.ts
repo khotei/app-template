@@ -41,7 +41,7 @@ export const userMessageAt = (n: number, text: string) =>
 export const assistantMessageAt = (n: number, text: string) =>
   new Message({ author: 'assistant', id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
-/** The Run a send of `firstMessage` queues. */
+/** The Run an ask of `firstMessage` queues. */
 export const queuedRun = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
   chatId,

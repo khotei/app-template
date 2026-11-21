@@ -34,11 +34,11 @@ export type ChatFields = typeof ChatFields.Type
 
 export class Chat extends Schema.Class<Chat>('Chat')({
   ...ChatFields.fields,
-  /** The newest Run, flat, read with the chat and never written; none before its first send. */
+  /** The newest Run, flat, read with the chat and never written; none before its first ask. */
   run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
 
-/** What a chat's newest Run makes of it; a chat no send has reached yet is `idle`. */
+/** What a chat's newest Run makes of it; a chat no ask has reached yet is `idle`. */
 const chatStatuses = {
   queued: 'queued',
   generating: 'queued',
@@ -49,10 +49,10 @@ const chatStatuses = {
 export const buildChatStatus = (newestRun: Option.Option<RunFields>): ChatStatus =>
   Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
 
-/** True while no send has reached the chat: every user message starts a Run, so it has none. */
+/** True while no ask has reached the chat: every user message starts a Run, so it has none. */
 export const isNewChat = (chat: Chat): boolean => Option.isNone(chat.run)
 
-/** A send takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
+/** An ask takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
 export const ensureChatNotBusy = (newestRun: Option.Option<RunFields>) =>
   newestRun.pipe(
     Option.filter<RunFields>(isActiveRun),

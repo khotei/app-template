@@ -19,7 +19,7 @@ const runAt = (status: RunStatus) => Option.some({ ...queuedRun, status })
 const chatAt = (status: RunStatus) => new Chat({ ...chat, run: runAt(status) })
 
 describe('buildChatStatus', () => {
-  it('reads a chat no send has reached as idle', () => {
+  it('reads a chat no ask has reached as idle', () => {
     assert.strictEqual(buildChatStatus(Option.none()), 'idle')
   })
 
@@ -37,7 +37,7 @@ describe('buildChatStatus', () => {
 })
 
 describe('isNewChat', () => {
-  it('reads a chat no send has reached as new', () => {
+  it('reads a chat no ask has reached as new', () => {
     assert.isTrue(isNewChat(chat))
   })
 
@@ -47,7 +47,7 @@ describe('isNewChat', () => {
 })
 
 describe('ensureChatNotBusy', () => {
-  it.effect('takes a chat no send has reached', () => ensureChatNotBusy(Option.none()))
+  it.effect('takes a chat no ask has reached', () => ensureChatNotBusy(Option.none()))
 
   it.effect.each([{ status: 'done' }, { status: 'failed' }] as const)(
     'takes a chat whose newest Run is $status',

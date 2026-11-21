@@ -22,7 +22,7 @@ const writeProbeMigrations = Effect.gen(function* () {
 })
 
 describe('migrateDatabase', () => {
-  it.effect('applies the folder it is given once, a second run applying nothing', () =>
+  it.effect('applies the folder it is given once, a second call applying nothing', () =>
     Effect.gen(function* () {
       const folder = yield* writeProbeMigrations
       const sql = yield* SqlClient.SqlClient

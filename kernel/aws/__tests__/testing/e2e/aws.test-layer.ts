@@ -13,7 +13,7 @@ import { resources } from '#kernel/aws/resources/resources'
 import { provision } from '#testing/aws/e2e/provision.test-util'
 
 /**
- * A stage of its own per test on the run's MiniStack, its bucket and queues provisioned fresh.
+ * A stage of its own per test on the e2e run's MiniStack, its bucket and queues provisioned fresh.
  * Publishes the SDK clients too, which the kernel's `*FromConfig` layers keep closed, and the
  * stage's bucket.
  */

@@ -26,7 +26,7 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { askChat } from '#use-cases/chat/ask-chat.use-case'
 
-/** The read of `read`, the chat the send names, and inserts that keep nothing. */
+/** The read of `read`, the chat the ask names, and inserts that keep nothing. */
 const sendingTo = (read: Chat) =>
   ({
     chats: { selectOne: () => encodeWith(Chat)(read).pipe(Effect.map(Option.some)) },

@@ -27,7 +27,7 @@ const retrySchedule = Schedule.exponential('1 second').pipe(
 
 /**
  * `request` asked again while the provider marks its failure retryable, then its failure, or an
- * answer the model did not finish, as an `LlmError`. Checked after the retries, an unfinished
+ * answer the language model did not finish, as an `LlmError`. Checked after the call's retries, an unfinished
  * answer is not asked again: resent with the same prompt and limits, it would most likely end
  * the same way.
  */

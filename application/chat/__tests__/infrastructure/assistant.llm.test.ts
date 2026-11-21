@@ -95,7 +95,7 @@ const lisbon = 'Plan a weekend in Lisbon'
 
 describe('MessageAssistant and ChatAssistant', () => {
   it.effect(
-    "reply asks the reply model with the system prompt and each turn as its text, and returns the model's text",
+    "reply asks the reply's language model with the system prompt and each message as its text, and returns the language model's text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
@@ -117,7 +117,7 @@ describe('MessageAssistant and ChatAssistant', () => {
   )
 
   it.effect(
-    'proposeTitle asks the title model with the title instruction and the opening message, and returns the title trimmed',
+    "proposeTitle asks the title's language model with the title instruction and the opening message, and returns the title trimmed",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
       return Effect.gen(function* () {

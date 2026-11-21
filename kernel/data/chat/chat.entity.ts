@@ -4,7 +4,7 @@ import type { RequireAtLeastOne } from 'type-fest'
 import { ChatColumns } from '#kernel/data/chat/chat.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
-/** A chat with its newest Run, flat, none before its first send: every read nests it. */
+/** A chat with its newest Run, flat, none before its first ask: every read nests it. */
 export const ChatEntity = Schema.Struct({
   ...ChatColumns.fields,
   run: Schema.NullOr(RunColumns),

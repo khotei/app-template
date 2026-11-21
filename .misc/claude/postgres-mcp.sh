@@ -1,6 +1,6 @@
 #!/bin/sh
 # Postgres MCP Pro on the database of the tree this file lives in: each worktree's .env.pulumi
-# names its own port, so the one .mcp.json entry reaches the right database in every tree.
+# names its own TCP port, so the one .mcp.json entry reaches the right database in every tree.
 # Read-only (--access-mode=restricted); schema changes stay with make migration. The image maps
 # localhost to the host itself. set -eu: without the file `make up` writes, nothing starts.
 set -eu

@@ -51,7 +51,7 @@ export function consumeQueue<A, I, R>(
         onSuccess: handle,
       }),
       Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
-      Effect.annotateLogs({ messageId: record.messageId }),
+      Effect.annotateLogs({ queueMessageId: record.messageId }),
       Effect.withSpan(`process ${definition.name}`, {
         kind: 'consumer',
         parent: Option.getOrUndefined(sender),

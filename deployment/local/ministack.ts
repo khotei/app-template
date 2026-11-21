@@ -9,7 +9,7 @@ import { ministackImage } from '@app-template/kernel/config'
 import { settings } from '#deployment/local/settings'
 
 const internalPort = 4566
-/** The host port is the one in `AWS_ENDPOINT_URL`, so each tree's MiniStack has its own. */
+/** The host's TCP port is the one in `AWS_ENDPOINT_URL`, so each tree's MiniStack has its own. */
 const { region, endpoint, stage } = settings.aws
 const isPortSet = (url: URL) => url.port !== ''
 const endpointUrl = endpoint.pipe(
@@ -68,7 +68,7 @@ export const ministack = new docker.Container(
     stopTimeout: 15,
   },
   {
-    // A new name or image replaces the container; the old one holds the port until it is deleted.
+    // A new name or image replaces the container; the old one holds the TCP port until it is deleted.
     deleteBeforeReplace: true,
   },
 )

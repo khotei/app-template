@@ -27,13 +27,13 @@ export class AskChatService extends Context.Service<
   {
     /**
      * Asks `chat` for a reply to the user's `text`: stores the message with its queued Run, then
-     * asks for a new chat's title and for the reply; returns the Run sent, or failed with the full
+     * sends a new chat's title job and the reply's; returns the Run sent, or failed with the full
      * text of SQS's refusal.
      */
     readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError, Sending>
     /**
-     * Retries `chat`'s failed newest Run: stores a new queued Run of its user message, then asks
-     * for the reply as `ask` does.
+     * Retries `chat`'s failed newest Run: stores a new queued Run of its user message, then
+     * sends the reply's job as `ask` does.
      */
     readonly retry: (
       chat: Chat,
@@ -46,7 +46,7 @@ export class AskChatService extends Context.Service<
     const moves = yield* MoveRunService
     const transaction = yield* Transaction
 
-    // A chat no send has reached yet is titled once, from its first message.
+    // A chat no ask has reached yet is titled once, from its first message.
     const askTitle = Effect.fnUntraced(function* (chat: Chat) {
       if (!isNewChat(chat)) return
       yield* sendTitleChat(chat)

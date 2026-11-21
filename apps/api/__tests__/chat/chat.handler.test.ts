@@ -92,16 +92,16 @@ describe('chats', () => {
     Effect.gen(function* () {
       const api = yield* ApiClient
 
-      const [sent, response] = yield* api.chats.ask({
+      const [queued, response] = yield* api.chats.ask({
         params: { chatId: chat.id },
         payload: hello,
         responseMode: 'decoded-and-response',
       })
 
       assert.strictEqual(response.status, 202)
-      assert.deepInclude(sent, { chatId: chat.id, status: 'queued' })
-      assert.deepInclude(sent.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
-      assert.deepStrictEqual(sent.assistantMessage, Option.none())
+      assert.deepInclude(queued, { chatId: chat.id, status: 'queued' })
+      assert.deepInclude(queued.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
+      assert.deepStrictEqual(queued.assistantMessage, Option.none())
     }).pipe(
       Effect.provide(
         asOwner({
@@ -170,11 +170,11 @@ describe('chats', () => {
       const renamed = yield* http.patch(`/chats/${chat.id}`, {
         body: HttpBody.jsonUnsafe({ title: 'a\u0000b' }),
       })
-      const sent = yield* http.post(`/chats/${chat.id}/messages`, {
+      const asked = yield* http.post(`/chats/${chat.id}/messages`, {
         body: HttpBody.jsonUnsafe({ text: 'a\u0000b' }),
       })
 
-      assert.deepStrictEqual([renamed.status, sent.status], [400, 400])
+      assert.deepStrictEqual([renamed.status, asked.status], [400, 400])
     }).pipe(Effect.provide(asOwner())),
   )
 

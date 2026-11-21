@@ -2,7 +2,7 @@ import { Predicate, Schema } from 'effect'
 
 /**
  * The one status vocabulary: `idle` waits for work, `queued` has work in flight, `generating`
- * runs it, `done` and `failed` end it. A status picks its subset (`RunStatus`, and `ChatStatus`,
+ * works on it, `done` and `failed` end it. A status picks its subset (`RunStatus`, and `ChatStatus`,
  * which a chat's newest Run gives it).
  */
 export const Status = Schema.Literals(['idle', 'queued', 'generating', 'done', 'failed'])

@@ -14,7 +14,10 @@ import { recordLogs } from '@app-template/packages/testing'
 import { retryWhileUnreachable } from '#db/db-migrate'
 
 const refusals = {
-  'a closed port': new ConnectionError({ cause: new Error('ECONNREFUSED'), operation: 'connect' }),
+  'a closed TCP port': new ConnectionError({
+    cause: new Error('ECONNREFUSED'),
+    operation: 'connect',
+  }),
   'a database still starting up': new UnknownError({
     cause: Object.assign(new Error('the database system is starting up'), { code: '57P03' }),
     operation: 'connect',
@@ -55,7 +58,7 @@ describe('retryWhileUnreachable', () => {
   it.effect('gives up after 30 retries, logging none after the last', () =>
     Effect.gen(function* () {
       const { logs, layer: recordedLogs } = recordLogs()
-      const { connect, attempts } = refuseConnections(refusals['a closed port'], Infinity)
+      const { connect, attempts } = refuseConnections(refusals['a closed TCP port'], Infinity)
 
       const fiber = yield* retryWhileUnreachable(connect).pipe(
         Effect.flip,

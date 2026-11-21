@@ -91,7 +91,7 @@ const doneRun = new Run({
   assistantMessage: Option.some(reply),
 })
 
-/** A chat a send has reached before, so an ask sends the reply's job alone. */
+/** A chat an ask has reached before, so an ask sends the reply's job alone. */
 const answeredChat = withNewest(doneRun)
 
 const replyJob = (run: Run) => ({

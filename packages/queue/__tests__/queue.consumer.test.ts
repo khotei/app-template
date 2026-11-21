@@ -81,7 +81,7 @@ describe('consumeQueue', () => {
   )
 
   it.effect('acknowledges a body that does not decode, unrun, and logs its decode error', () => {
-    const { logs, layer: logger } = recordLogs('messageId')
+    const { logs, layer: logger } = recordLogs('queueMessageId')
     return Effect.gen(function* () {
       const response = yield* consumeQueue(pingQueue, () => Effect.die('handler ran'))({
         Records: [buildRecord('a', '{"ping":1}')],
@@ -89,10 +89,10 @@ describe('consumeQueue', () => {
 
       assert.deepStrictEqual(response, { batchItemFailures: [] })
       assert.deepStrictEqual(
-        Arr.map(logs, ([level, message, messageId, error]) => [
+        Arr.map(logs, ([level, message, queueMessageId, error]) => [
           level,
           message,
-          messageId,
+          queueMessageId,
           Schema.isSchemaError(error),
         ]),
         [['Error', 'queue message does not decode', 'a', true]],

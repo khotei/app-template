@@ -28,7 +28,7 @@ export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<t
     Layer.effect(this, HttpApiClient.make(Api, { baseUrl }))
 }
 
-/** The host `BunHttpServer.layerTest` serves on; a cookie is scoped to a host, whatever its port. */
+/** The host `BunHttpServer.layerTest` serves on; a cookie is scoped to a host, whatever its TCP port. */
 const testServerUrl = 'http://127.0.0.1'
 
 /**
@@ -59,8 +59,8 @@ export interface ApiRepositoryMocks {
 }
 
 /**
- * The api on an ephemeral port over `mocks`, the identity transaction and a queue that only
- * records. Its `HttpClient` targets that port.
+ * The api on an ephemeral TCP port over `mocks`, the identity transaction and a queue that only
+ * records. Its `HttpClient` targets that TCP port.
  *
  * A real server, not `HttpApiTest`: its client takes no cookie jar, and a defect is no response
  * there.

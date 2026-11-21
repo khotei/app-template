@@ -1,7 +1,7 @@
 #!/bin/sh
 # Sets up a worktree, run inside it by `make worktree N=<n> NAME=<name> [KEEP=1]`: the branch
 # wt/<name> (with KEEP=1 the branch stays, for a worktree on a ticket branch), a symlink <name>
-# beside the folder, its .env (the main tree's with the ports and the stage of number N:
+# beside the folder, its .env (the main tree's with the TCP ports and the stage of number N:
 # docs/knowledge/tooling.md › Worktrees) and its dependencies. Every step is safe to repeat, so a
 # rerun with the same N finishes a run that failed midway.
 set -eu
@@ -15,7 +15,7 @@ common=$(git rev-parse --path-format=absolute --git-common-dir)
 main=$(dirname "$common")
 [ ! "$main" -ef . ] || refuse 'this is the main tree, the source of every .env'
 stage="STAGE=\"local$N\""
-# Two trees on one N would share the ports and, through the stage, the database.
+# Two trees on one N would share the TCP ports and, through the stage, the database.
 trees=$(git worktree list --porcelain)
 printf '%s\n' "$trees" | sed -n 's/^worktree //p' | while IFS= read -r tree; do
   [ "$tree" -ef . ] || ! grep -qxF "$stage" "$tree/.env" 2> /dev/null ||

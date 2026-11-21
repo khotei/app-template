@@ -58,7 +58,7 @@ const receive = (waitSeconds: number) =>
 
 // Live: SQS long-polls in real time.
 describe('QueueSender', { concurrent: false }, () => {
-  it.live("a sent message reaches the stage's queue with the trace it was sent in", () =>
+  it.live("a sent queue message reaches the stage's queue with the trace it was sent in", () =>
     Effect.gen(function* () {
       const { traceId } = yield* Effect.currentSpan.pipe(Effect.orDie)
       yield* send

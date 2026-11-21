@@ -64,7 +64,7 @@ reset: ## Remove MiniStack, the database's container and volume, the telemetry b
 		xargs -r docker rm -fv && docker volume ls -q --filter "$(STAND)" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
-# Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
+# Run inside the new worktree; the TCP ports it moves: docs/knowledge/tooling.md › Worktrees.
 worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEEP=1, the branch stays]
 	@sh .claude/skills/lab/worktree.sh "$$N" "$$NAME" "$$KEEP"
 
@@ -146,7 +146,7 @@ review-rules: ## List the rules that bind the diff from BASE (default HEAD): no 
 	@bun .misc/lint/rule-filters.mjs '$(BASE)'
 
 # A plugin that errors on a file is skipped there with a notice, `  i <plugin> errored: <reason>`,
-# and Biome still exits 0: that line stops the run with 2. The pattern is anchored, as the output
+# and Biome still exits 0: that line stops the lint with 2. The pattern is anchored, as the output
 # also quotes source lines. CI runs `make -k check BIOME=ci`.
 BIOME = check
 
@@ -192,7 +192,7 @@ vendor-effect: ## Pull Effect-TS/effect at the catalog pin into repos/effect (co
 	git subtree pull --squash --prefix repos/effect https://github.com/Effect-TS/effect.git \
 		$(EFFECT_TAG) -m ':wrench: chore(deps): Vendor effect at $(EFFECT_TAG)'
 
-# The first run adds the subtree, later runs pull it.
+# The first call adds the subtree, later calls pull it.
 vendor-drizzle: DRIZZLE_TAG = v$(shell bun pm pkg get catalogs.drizzle.drizzle-orm 2>/dev/null | tr -d '"')
 vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/drizzle (commits)
 	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \

@@ -10,7 +10,7 @@ import { ChatTitle } from '#chat/domain/chat.model'
 
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 
-/** A bare `String`: `Schema.Trim` would send the model its `expected` text as a description. */
+/** A bare `String`: `Schema.Trim` would send the language model its `expected` text as a description. */
 const TitleAnswer = Schema.Struct({
   title: Schema.String.pipe(Schema.decodeTo(ChatTitle, SchemaTransformation.trim())),
 })

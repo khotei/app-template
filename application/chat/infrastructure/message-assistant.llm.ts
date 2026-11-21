@@ -24,7 +24,7 @@ const toMessage = ({ author, text }: MessageFields): Prompt.MessageEncoded => ({
 export class MessageAssistant extends Context.Service<
   MessageAssistant,
   {
-    /** The next message of the chat whose completed messages are `history`, oldest first. */
+    /** The next message of the chat whose finished messages are `history`, oldest first. */
     readonly reply: (
       history: ReadonlyArray<MessageFields>,
     ) => Effect.Effect<AssistantReply, LlmError>
@@ -37,7 +37,7 @@ export class MessageAssistant extends Context.Service<
       config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
     })
 
-    // Decoded after the retries, a blank reply is not asked again: it would most likely recur.
+    // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
       (history: ReadonlyArray<MessageFields>) =>
         model.generateText({ prompt: Arr.map(history, toMessage) }),

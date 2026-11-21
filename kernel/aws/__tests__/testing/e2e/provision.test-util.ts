@@ -47,7 +47,7 @@ const provisionBuckets = Effect.fn('provisionBuckets')(
 )
 
 /**
- * Creates each queue with its dead-letter queue, named for `stage`; a second run on the same
+ * Creates each queue with its dead-letter queue, named for `stage`; a second call on the same
  * queues changes nothing.
  *
  * A queue whose attributes drifted from the inventory fails with `QueueNameExists`: SQS never

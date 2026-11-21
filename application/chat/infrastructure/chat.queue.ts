@@ -43,7 +43,7 @@ export const sendReplyToMessage = Effect.fn('sendReplyToMessage')((run: Run) =>
   ),
 )
 
-/** Sends the job that titles the chat; one SQS refuses is logged, and the send goes on. */
+/** Sends the job that titles the chat; one SQS refuses is logged, and the ask goes on. */
 export const sendTitleChat = Effect.fn('sendTitleChat')((chat: Chat) =>
   QueueSender.use((queue) => queue.send(titleChatQueue, new TitleChat({ chatId: chat.id }))).pipe(
     Effect.ignore({ log: 'Error', message: 'title job not queued' }),

@@ -38,7 +38,7 @@ describe('sendReplyToMessage', () => {
 
 describe('sendTitleChat', () => {
   it.effect(
-    'a title job SQS refuses is logged with its chat and error, and the send goes on',
+    'a title job SQS refuses is logged with its chat and error, and the ask goes on',
     () => {
       const { logs, layer: logger } = recordLogs('chatId')
       return Effect.gen(function* () {
