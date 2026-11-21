@@ -7,7 +7,7 @@ import { Base64Url, Hex } from 'effect/encoding'
 import { type UserEntityWhere, UserRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { UserId } from '#identity/contract/user.id'
+import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
 import type { UserSecret } from '#identity/domain/user.model'
 import { UserService } from '#identity/services/user.service'

@@ -1,7 +1,7 @@
 import { Array as Arr, Cause, Effect, Exit, Option, Schema } from 'effect'
 import { Headers, HttpTraceContext } from 'effect/http'
 
-import { buildMessageCodec, type QueueDefinition } from '#queue/queue.model'
+import { buildMessageCodec, type QueueDefinition } from '#queue/queue-definition'
 
 const SqsRecord = Schema.Struct({
   messageId: Schema.String,

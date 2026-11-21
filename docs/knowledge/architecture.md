@@ -171,7 +171,7 @@ Using the files of `chat` as the map:
 | worker route: each queue's use case | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
-| the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.ts` | `Api`, `ApiClient` |
+| the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.client.ts` | `Api`, `ApiClient` |
 
 Every store folder of `kernel/data`, and every layer of a module, has an `index.ts` barrel, and
 each module's own `index.ts` re-exports its layers. The

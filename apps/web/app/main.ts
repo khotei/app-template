@@ -1,7 +1,7 @@
 import { Effect } from 'effect'
 
 import { renderHealthPanel } from '#web/features/health/health-panel'
-import { ApiClient } from '#web/shared/api'
+import { ApiClient } from '#web/shared/api.client'
 
 const root = document.getElementById('root')
 if (root === null) throw new Error('#root element is missing from index.html')

@@ -5,7 +5,7 @@ import { HttpTraceContext } from 'effect/http'
 import { encodeWith } from '@app-template/packages/schema'
 
 import { QueueClient, QueueError } from '#queue/queue.client'
-import { buildMessageCodec, type QueueDefinition } from '#queue/queue.model'
+import { buildMessageCodec, type QueueDefinition } from '#queue/queue-definition'
 
 export class QueueSender extends Context.Service<
   QueueSender,

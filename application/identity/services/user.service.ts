@@ -5,7 +5,7 @@ import { Base64Url } from 'effect/encoding'
 import { UserRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
-import { UserId } from '#identity/contract/user.id'
+import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
 import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
 

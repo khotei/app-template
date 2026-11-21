@@ -1,6 +1,6 @@
 import { type Redacted, Schema } from 'effect'
 
-import { UserId } from '#identity/contract/user.id'
+import { UserId } from '#identity/contract/user.util'
 
 export class User extends Schema.Class<User>('User')({
   id: UserId,
