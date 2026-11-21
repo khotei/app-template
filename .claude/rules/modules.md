@@ -19,7 +19,9 @@ Record: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
 Two modules that import each other's entries form a cycle, which `noImportCycles` refuses for
 value imports and misses through `import type`: move the shared id or error into the contract of
-the module that owns it, or the flow into a use case. Refuse too:
+the module that owns it, or the flow into a use case. A cycle inside a module is broken by
+widening a type, or, where two models nest each other's fields, by a `<name>-fields.model.ts`
+that both import. Refuse too:
 
 - a unit importing one above it in its folder (a module the entry of a module above it, a kernel
   part or a package one above it, a module's infrastructure the use cases);

@@ -6,8 +6,9 @@ paths:
 # Composition: wrap or compose
 
 Every unit, a model's function, a domain service, a util or a use case, starts simple and keeps
-the one job it was made for, one reason to change; the code grows by new units over it. Record:
-[Composition: wrap or compose](../../docs/knowledge/decisions.md#composition-wrap-or-compose).
+the one job it was made for, one reason to change; the code grows by new units over it, and each
+interface stays deep: much behaviour behind few methods, argument and answer shapes, error modes.
+Record: [Composition: wrap or compose](../../docs/knowledge/decisions.md#composition-wrap-or-compose).
 
 ## Where a change goes
 
@@ -49,10 +50,16 @@ static readonly layerAudited = Layer.effect(
 - Less code in each unit and no dead code, never fewer units: a line count, a caller count or a
   count of names never folds a wrap or a composed unit into the one below, nor merges two units
   of different jobs.
-- What still goes: dead code; a pass-through that adds nothing and owns nothing its callers go
-  through ([deep-modules.md › The tests](deep-modules.md#the-tests)), its callers taking the
-  unit below; a copy per variant, which becomes one unit over the varying value (a model's
-  predicate or a value its service builds is no copy, however short or few its callers). A
-  deletion never moves a unit's added behaviour into the unit below.
+- Deletion: delete the unit in thought. Its job reappears in a caller, however few its callers
+  and however short its body → it earns its place. Nothing reappears, and it owns nothing its
+  callers go through (a model's records, a seam) → a pass-through: delete it, its callers taking
+  the unit below.
+- Interface: a variation of a method's question is a value it already takes (a `where` field, a
+  model field), never a new name; another job is a unit of its own (2 and 3 above), never a
+  method or an option stretched to hold it.
+- Caller: what only tests use is no interface; delete it with its mapper, fake branch and test.
+- What still goes: dead code; a pass-through; a copy per variant, which becomes one unit over the
+  varying value (a model's predicate or a value its service builds is no copy, however short or
+  few its callers). A deletion never moves a unit's added behaviour into the unit below.
 - A fold or a merge is the owner's call: its proposal names the job each unit holds and where it
   lives after.

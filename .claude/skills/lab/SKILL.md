@@ -178,7 +178,7 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
      and the `CLAUDE.md` of each touched workspace; on an instruction file, also
      `mattpocock-skills:writing-for-agents`;
    - **Design**, only given `design`, on `opus high`: the range's files and their callers,
-     [stops.md](stops.md), `.claude/rules/deep-modules.md`, `.claude/rules/composition.md`,
+     [stops.md](stops.md), `.claude/rules/repositories.md`, `.claude/rules/composition.md`,
      `docs/knowledge/architecture.md`
      and the records of `docs/knowledge/decisions.md` that bind those files.
 4. **Decide** on each finding as its report states it:

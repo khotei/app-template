@@ -835,8 +835,7 @@ alone answers newest first.
 
 A chat has no status column: the chat model's `buildChatStatus` derives it from the chat's newest
 Run, which every read of a chat nests. Any other value another table implies is a column the
-transactions that change it move (`.claude/rules/deep-modules.md › Composition over
-pass-through`).
+transactions that change it move (`.claude/rules/repositories.md › What is stored`).
 
 - **Why:** the Run holds the status already; a column would be its second copy, written by each
   of the Run's moves (its creation, a retry, `generating`, `done`, `failed`) in that
@@ -849,7 +848,7 @@ pass-through`).
   keep a value that one row already gives.
 - **Cost:** a query over chats by status joins each chat's newest Run, and a read that needs the
   status has to nest that Run.
-- **Guarded by:** review, by `deep-modules.md`; nothing mechanical.
+- **Guarded by:** review, by `.claude/rules/repositories.md`; nothing mechanical.
 - **If reversed:** a migration adds the column, each Run move writes it in its transaction, and
   `buildChatStatus` moves from the reads to the writes.
 - **Revisit when:** a read lists or filters chats by status, or reads a chat's status without its

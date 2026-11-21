@@ -1,25 +1,11 @@
 ---
 paths:
-  - "application/**"
-  - "apps/**"
-  - "kernel/**"
+  - "kernel/data/**"
+  - "application/*/services/**"
+  - "application/*/domain/**"
 ---
 
-# Deep modules
-
-A unit earns its place by a job of its own ([composition.md](composition.md)); its interface stays
-deep: much behaviour behind few methods, argument and answer shapes, error modes.
-
-## The tests
-
-- Deletion: delete the module in thought. Nothing reappears in its callers, and it owns nothing
-  they go through (a model's records, a seam) → a pass-through: delete it, its callers taking the
-  unit below. Its job reappears in a caller, however few its callers and however short its body →
-  it earns its place ([composition.md](composition.md)).
-- Interface: a variation of a method's question is a value it already takes (a `where` field, a
-  model field), never a new name; an operation the unit's job lacks is a method of it; another job
-  is a new unit that wraps or composes it, never a method or an option stretched to hold it.
-- Caller: what only tests use is no interface; delete it with its mapper, fake branch and test.
+# Repositories: how they are asked, what they return and what the tables store
 
 ## A deep repository
 
@@ -51,10 +37,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   after the read. The field mappers and a relational query's alias:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
 
-## Composition over pass-through
+## What is stored
 
-- A value another table implies is a column the transactions that change it move, not derived on
-  each read; one a model function derives from the one row its read already nests stays derived
-  ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
-- An import cycle is broken by widening a type, or, where two models nest each other's fields,
-  by a `<name>-fields.model.ts` that both import.
+A value another table implies is a column the transactions that change it move, not derived on
+each read; one a model function derives from the one row its read already nests stays derived
+([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).

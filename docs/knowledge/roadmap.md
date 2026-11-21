@@ -352,7 +352,7 @@ moves it into its own `Later` and deletes it here.
   `RunService.create`). Left: a lost race dies by
   [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
   weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
-  `ChatBusyError` (an exception to `deep-modules.md`'s "a write dies where it misses"), or a
+  `ChatBusyError` (an exception to `repositories.md`'s "a write dies where it misses"), or a
   `SELECT … FOR UPDATE` on the chat before the check.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
   a send of a newer message whose Run commits and fails between the two lets the insert pass the
