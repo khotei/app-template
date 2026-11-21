@@ -1103,8 +1103,8 @@ then finds it started and fails it with `RunStartedError`, and the user retries 
 tail reads the Run it fails by the message too, so a reply that dies after such a delivery
 failed its Run and the user retried fails the retry's Run. `AskChatService` fails a refused
 send's Run by its message as well, so a refusal that arrives after SQS took the job anyway, a
-worker failed the Run and the user retried fails the retry's Run, and the request answers that
-Run.
+worker failed the Run and the user retried fails the retry's Run, and the request responds with
+that Run.
 
 - **Why:** the handler sits on the whole function, so no failure or interrupt of the reply leaves
   the Run started for the next delivery, and the reply reads as if nothing failed. A race of two

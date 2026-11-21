@@ -29,7 +29,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   runs → `Reply<Model>Service`, each settling what ends it on its record. Only these two take
   `Transaction` and another model's service of their module, the first its queue file, the
   second its `.llm` files ([record](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- A status move is a pure transition named for the status it moves to (`naming.md`): it checks
+- A status move is a pure transition ([its name](naming.md#symbols)): it checks
   one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as its
   callers move a record just read or moved; a refusal the user can reach is a check of its own
   before it, failing its own error (`<Model>BusyError`). `Move<Model>Service` writes each move
@@ -60,7 +60,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
   through its `send<Job>` beside its queue's definition, which logs a refusal and returns it
   ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
-- A job runs once, unretried: its run, the `Reply<Model>Service` method named for it, ends its
+- A job runs once, unretried: its run, the `Reply<Model>Service` method that runs it, ends its
   work on any outcome but success, an interrupt included, and work it finds started, left by a
   run that died; the use case ends the job in one tail
   ([record](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).

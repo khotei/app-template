@@ -30,7 +30,8 @@ more only when the diff touches a contract they do not quote, and say so.
   line; read each whole, and name each in the report with its findings or `none`. No finding
   without a line to cite, and none on the shape. On an instruction file, also judge it by
   `mattpocock-skills:writing-for-agents`; where it and `.claude/rules/claude-md.md` disagree,
-  the rule wins.
+  the rule wins. Where a rule's line asks for a name, a body or a doc that
+  `.claude/rules/name-and-body.md` refuses, report that line (`judgement`).
 - **Design:** at most five changes to the shape, most valuable first: a narrower interface; a
   purpose edited into a unit not made for it, moved to a unit that wraps or composes it
   (`.claude/rules/composition.md`); one function over the varying value in place of a copy per

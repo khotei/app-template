@@ -31,12 +31,12 @@ paths:
 - A domain error is a `Schema.TaggedError` tagged with its class name, so the api's endpoint
   serves it as it is, with the status the endpoint gives it (`apps/CLAUDE.md`). A marker that
   never leaves its module is `Data.TaggedError`.
-- Not-found from a port is a value (`Option`, or an id left out of an array); its reader turns it
-  into the domain's `*NotFoundError`.
-- A port declares no error channel: its adapter turns a client's failure, or a stored value that
-  no longer decodes, into a defect. The exception is a port whose failures are outcomes a use case
-  settles each its own way (an external service that declines or gives up): one final
-  `<Port><Problem>Error` per outcome, raised after the adapter's retries.
+- Not-found from a repository or a port is a value (`Option`, or an id left out of an array);
+  its reader turns it into the domain's `*NotFoundError`. A `*NotFoundError` carries the key of
+  its read; a read by another key raises its own.
+- A client's failure, or a stored value that no longer decodes, is a defect where it is read.
+  Failures a caller settles differently get a class each, raised after the retries of the
+  service over the client (or a port's adapter); failures it does not tell apart, one.
 - One name per failure and value: a failure keeps its own error, never one that only wraps it
   nor a table from error tags to a second list; a schema has no alias; and a field nobody reads
   (no code branches on it, no operator looks at it) is not written.

@@ -29,9 +29,10 @@ deleted.
 ## How to write it
 
 A survivor is a TSDoc `/** … */`: one declarative sentence a caller can act on without reading
-the body (if it cannot be written, fix the interface), and an optional second paragraph for the
-reason it passed. A single-line `//` is for a pinpoint gotcha inside a body. `@param` and
-`@returns` only when name and type do not say it; never `@since` or `@category`.
+the body (if it cannot be written, fix the interface: [name-and-body.md](name-and-body.md), 6),
+and an optional second paragraph for the reason it passed. A single-line `//` is for a pinpoint
+gotcha inside a body. `@param` and `@returns` only when name and type do not say it; never
+`@since` or `@category`.
 
 A change that makes a comment wrong shows it restated code: delete it, do not update it.
 

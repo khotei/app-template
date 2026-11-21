@@ -44,19 +44,26 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 - Types are `PascalCase` `<Name><Role>`: `<Model><Problem>Error`, a port's `<Port><Problem>Error`,
   `<Model>Service` (`<Aspect><Model>Service` composed over it) or, for one operation of no model,
   that operation.
-- Functions are verb-first, and the verb marks the kind of work:
+- Functions are verb-first, and the verb marks the kind of work (whether a name passes:
+  [name-and-body.md](name-and-body.md)):
   - `create<Thing>`: a factory that takes dependencies and wires them, or a write that takes a
     new record's fields and stores it (a domain service's `create`, a use case's step over it);
   - `layer<Variant>`: a static building one variant of a service's `Layer`; a `Layer` that runs
     work is named for it;
   - `build` / `ensure`: a pure function that derives a value or guards an invariant; a pure
-    transition is named for the status it moves to, as a verb, which wins over this list;
+    transition is named for the move, as a verb (`start<Model>`, `complete<Model>`,
+    `fail<Model>`), which wins over this list;
   - `generate`: an impure function that makes a fresh value; `is` / `has`: a predicate;
   - `getOne` / `getMany`: a domain service's read over a `where`, returning the records or their
     `*NotFoundError`; `get<Payload>` a payload a record's store holds (its bytes), or its
     `*NotFoundError`; `delete<Payload>` that payload's removal, the record's left to its owner;
+  - `get<Qualifier>`: a domain service's read of the one record another key and a qualifier name
+    (`getActive(<key>)`), returning the record itself or its own `<Qualifier><Model>NotFoundError`;
   - `list`: a domain service's read by the user alone, with no `where`, of the set a user browses;
   - `select<One|Many>` / `insert` / `update` / `delete`: a repository's; `update` never creates.
+- A job is named `<Verb><Object>` in the glossary's words for the work it asks of its worker
+  (`ShipOrder`), never after a method, its queue or one step of the work; its queue
+  (`ship-order`), its `send<Job>` and the use case that ends it (`shipOrder`) take that name.
 - Other constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant
   is `PascalCase`, `<Service><Variant>` for a service declared elsewhere.
 - A test-only layer ends in `Test`: a fake `<Service>Test`, a model's real services over fakes

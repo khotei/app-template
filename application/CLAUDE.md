@@ -18,8 +18,9 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   `services/`, never beside a model.
   Records: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers),
   [The language model in the kernel](../docs/knowledge/decisions.md#the-language-model-in-the-kernel).
-- **Each port and infrastructure service has one memory layer** in its module's test support,
-  for every workspace's unit tests: [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
+- **Each service in a module's `infrastructure/` has one memory layer** in its module's test
+  support (a port would too), for every workspace's unit tests:
+  [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
   ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a service
   a use case or the asked model's `Reply<Model>Service` calls there, keeps its client and prompts

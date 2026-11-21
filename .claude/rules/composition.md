@@ -6,8 +6,9 @@ paths:
 # Composition: wrap or compose
 
 Every unit, a model's function, a domain service, a util or a use case, starts simple and keeps
-the one purpose it was made for, one reason to change; the code grows by new units over it, and each
-interface stays deep: much behaviour behind few methods, argument and return shapes, error modes.
+the one purpose it was made for, one reason to change ([name-and-body.md](name-and-body.md), 5,
+measures it); the code grows by new units over it, and each interface stays deep: much
+behaviour behind few methods, argument and return shapes, error modes.
 Record: [Composition: wrap or compose](../../docs/knowledge/decisions.md#composition-wrap-or-compose).
 
 ## Where a change goes

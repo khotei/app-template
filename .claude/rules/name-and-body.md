@@ -7,7 +7,12 @@ paths:
 
 A reader sees the call, not the body: what the name, the parameters and the result promise is
 all they act on. Ask these six in order, of every public name a change adds, renames or gives a
-new body; each builds on the one before. Which word a kind of work takes: [naming.md](naming.md).
+new body; each builds on the one before. This rule heads the naming rules and decides only
+names, bodies and their doc sentences: a line of another rule that asks for a name, a body or a
+doc these questions refuse is a defect of that line, fixed or reported with the change.
+[naming.md](naming.md) stays the owner of which word a kind of work takes,
+[comments.md](comments.md) of when a comment exists, [composition.md](composition.md) of one
+purpose per unit.
 
 1. **The name tells the intent** (intention-revealing name). Read the call aloud: it says what
    is true after it, not how. A call that needs a comment beside it, or a name of `process`,
@@ -34,15 +39,18 @@ new body; each builds on the one before. Which word a kind of work takes: [namin
    another word than the method (`OrderShippedError` beside `dispatch`), the method's is wrong.
 4. **One level of abstraction in a body.** Its lines are steps of one size, one step below the
    name; a line smaller than its neighbours (a field test beside a rule's call, a query beside
-   a move) goes to the unit that owns its level, under a name that passes 1. A step is cut out
-   only when it has a name of the glossary, never to shorten a body.
+   a move) goes to the unit that owns its level. A step is cut out under a name that passes 1
+   for a reason other than length: its level is below its caller's, two callers share it, or it
+   is a piece of its model's rule ([composition.md](composition.md)); a step with none stays in
+   place, piped.
 5. **Know what holds a unit's methods together** (cohesion), from strongest to weakest:
    functional (one purpose) · sequential (one's result is the next one's input) · communicational
    (the same records) · procedural (a fixed order) · temporal (the same moment) · logical (one
    kind, picked by a flag) · coincidental (one folder). Measure, never argue: list per method
    what it requires, who calls it, and who would ask for its change. Sets that do not overlap
    are two units under one name. Below functional is allowed when it is chosen: say which kind
-   and why in the unit's record ([composition.md](composition.md)).
+   and why in the decision that binds the unit
+   ([decisions.md](../../docs/knowledge/decisions.md)).
 6. **One sentence, no "and"** (hard to describe, hard to name). Write the doc comment before the
    body: a method's opens with the method's own verb, a unit's is one sentence. An "and", or a
    verb the name lacks, means one of two things: split the unit, or find the word one level up
