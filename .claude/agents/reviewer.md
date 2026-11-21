@@ -61,4 +61,4 @@ Prefer removal in tests: never propose a new test helper, fake or test wrapper u
 asks for one; for a weak test, propose a plainer test or a dropped assertion. In code, removal
 is of pass-throughs and dead code, never of a unit that holds a purpose of its own
 (`.claude/rules/composition.md`). Write the report in English, for the
-main session, without the status block the user's style asks for.
+main session, without the status block the owner's style asks for.

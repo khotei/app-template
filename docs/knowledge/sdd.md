@@ -52,7 +52,7 @@ settled steps run unattended only on your word, as a workflow.
 | Rules pass; `hard` fixed, `judgement` deferred | the repo's rules drifting | 51 of 93 Standards findings taken in plan Findings, 42 rejected; a `judgement` finding now costs a `Later` line, not a fix round |
 | Design pass, on request | a shape question raised when you are not deciding shape | 12 of 22 Design findings taken; you write the Shape, so it runs when you ask |
 | One review round; an edge case met by deleting first | review rounds that add guards | the observability branch: about half of ~4,700 lines cut; "a reviewer … will always find something" |
-| A `claimed` bug rejected only by a run of its input as a test | a claim argued away instead of run | your rule: a check counts only through a run or you |
+| A `claimed` bug rejected only by a run of its input as a test | a claim argued away instead of run | your rule: a check counts only through a test run or you |
 | Minimal, right, hard, and `Later` | hardening before anything runs | below |
 | The stops file | the same rejected design proposed again | one pair was recorded against at least nine of your stops; pairs are now written at each step's close |
 
@@ -121,14 +121,14 @@ overlap these are off in `.claude/settings.json`. Two overrides hold: the glossa
 
 ## Evaluating the toolkit
 
-A change to the skill, an agent or a process rule is judged by a run, not by argument: a
+A change to the skill, an agent or a process rule is judged by a replay run, not by argument: a
 one-line instruction cut once lowered coding quality in a way the vendor's own evals missed
 ([Anthropic, 2026-04-23](https://www.anthropic.com/engineering/april-23-postmortem)).
 
 - **The replays:** past steps with a known result, each run from the commit named, in a
   `git clone --local` under a temp directory, in fresh `claude -p --output-format json` sessions
-  with stdin closed, three times on each toolkit, or on the new one against the record. Grade
-  what each run produced, read the transcripts, and record tokens from the JSON's `modelUsage`,
+  with stdin closed, three times on each toolkit, or on the new one against that result. Grade
+  what each replay run produced, read the transcripts, and record tokens from the JSON's `modelUsage`,
   which counts the subagents, and wall-clock from the transcript's first and last timestamps:
   `duration_ms` leaves out the wait for background agents. An untrusted clone runs no agent's
   frontmatter hooks under `-p`, so the `implementer`'s gate is checked apart, in a trusted tree,
@@ -136,7 +136,7 @@ one-line instruction cut once lowered coding quality in a way the vendor's own e
 
   | # | Replays | Passes when |
   |---|---|---|
-  | R1 | micro: `attachment-model-rules`, its request, from the parent of `0dada95759` | no gate fails that passed before the run; lines within ±30% of the merged +67 −10; no ticket file |
+  | R1 | micro: `attachment-model-rules`, its request, from the parent of `0dada95759` | no gate fails that passed before the replay run; lines within ±30% of the merged +67 −10; no ticket file |
   | R2 | `review L5` of telemetry-minimal at `95584422bf` | the hunt names the non-string `traceparent` attribute at least as often as on the old toolkit |
   | R3 | `review all` of modular-monolith at `dc1eec9fd9`, base `5bfec347df`, its `feature.md` R1 quoted as the Intent | Intent names the changed error body and the race's `500` with its widened assertion in two runs of three |
   | R4 | shared-files at `L0.2`, with and without `stops.md` | with it, no second noun, link table or copy of bytes proposed in two runs of three, and fewer than without it |

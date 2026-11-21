@@ -63,14 +63,14 @@ left.
 
 ### 7. `web-app`
 
-- **Goal.** The chat UI a visitor uses: TanStack Start on React 19, `@effect/atom-react` for
+- **Goal.** The chat UI a user uses: TanStack Start on React 19, `@effect/atom-react` for
   state over the typed client, Chakra UI v3 for components, streaming replies, inline
   placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
   atoms with `AtomHttpApi` over the web's generated client and `HydrationBoundary` for SSR; Chakra
   UI v3 theme in `packages/ui`; a nested `biome.json` (`"root": false, "extends": "//"`) with the
-  `react` domain; the visitor cookie flowing through the Start server; the web `Dockerfile` or
+  `react` domain; the user cookie flowing through the Start server; the web `Dockerfile` or
   Nitro output for 9.
 - **Out of scope.** Authentication; mobile; i18n.
 - **Open questions for its feature phase.** TanStack Query and TanStack DB overlap with
@@ -85,7 +85,7 @@ left.
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
+  The web's cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
   `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
   `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
@@ -196,7 +196,7 @@ left.
 - **Goal.** A user uploads files to a pool of their own and links them to a message or a chat
   later, instead of uploading for one message.
 - **Scope.** The pool and the link as domain concepts, the words first; upload, list and delete
-  of pool files; linking at send and to a chat; what the reply reads when a chat has linked
+  of pool files; linking at an ask and to a chat; what the reply reads when a chat has linked
   files.
 - **Out of scope.** Sharing between users; assistant-produced files (`assistant-files`, 18).
 - **Paused (2026-11-19).** The owner removed attachments from every ring, to be rethought
@@ -208,14 +208,14 @@ left.
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
   no expiry of unlinked files, so no unbound lifetime or `unbound` S3 tag.
 - **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** A module of its own for the
-  files, reached by chat only through its contract, with a send that links files as one use
-  case over both modules, in one transaction; the split rewrites the records
+  files, reached by chat only through its contract, with an ask that links files as one use
+  case over both modules, in one transaction; the split rewrites the decisions
   [Modules by capability](decisions.md#modules-by-capability) and
   [Files in the data layer](decisions.md#files-in-the-data-layer), whose *Revisit when* name
   files outside a chat.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
   whether deleting a chat deletes its linked files or only the links; the quota per user; the
-  owner's draft idea (2026-11-19): a library file copied into a chat before the send, so the
+  owner's draft idea (2026-11-19): a library file copied into a chat before the ask, so the
   draft lives on the server.
 - **Status.** Paused: attachments removed, to be rethought. Its lab:
   [docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md).
@@ -325,12 +325,12 @@ moves it into its own `Later` and deletes it here.
 
 ### From `lambda-processes`
 
-- (2026-11-09) A reply that never settles leaves its chat `queued` for good, so every next send
+- (2026-11-09) A reply that never settles leaves its chat `queued` for good, so every next ask
   fails `ChatBusyError`: a job whose body no longer decodes is failed unrun, so the reply's use
   case never runs; every delivery of a job dies, 3 receives, and nothing reads the dead-letter
   queue; or the queue drops its messages (a purge, a replaced queue, SQS's retention, 4 days by
   default and unset in the inventory). Ways out to weigh: the handler gets the undecodable body
-  to fail its own work, a consumer of the dead-letter queues, or a sweep of active replies
+  to fail its own work, a consumer of the dead-letter queues, or a sweep of active Runs
   ([database.md › Stuck Runs](database.md#stuck-runs)).
 
 ### From `reply-run`
@@ -344,8 +344,8 @@ moves it into its own `Later` and deletes it here.
   to weigh: one uninterruptible step from the Run's write through its send (the abort only), a
   ledger of jobs, a sweep of active Runs. The owner refused a rule by a Run's age, and keeps the
   abort's window as a cost (2026-11-20).
-- (2026-11-13) Two sends or two retries of one chat that arrive within the few milliseconds between
-  the check and the insert (two tabs, a client that resends) both pass their check
+- (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
+  the check and the insert (two tabs, a client that asks again) both pass their check
   (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
   which dies, so the client gets a bare `500`, not a `409`; a double click, its second request
   arriving after the first Run is stored, already gets the `409` (`RunRepository.insert`,
@@ -355,11 +355,11 @@ moves it into its own `Later` and deletes it here.
   `ChatBusyError` (an exception to `repositories.md`'s "a write dies where it misses"), or a
   `SELECT … FOR UPDATE` on the chat before the check.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
-  a send of a newer message whose Run commits and fails between the two lets the insert pass the
+  an ask of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that
   only the newest user message gets one (`application/use-cases/chat/retry-run.use-case.ts`, the
   chat's read, and `AskChatService.retry`'s `runs.create`).
-  Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
+  Claimed by a review, not reproduced: it needs an ask, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
 - (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
@@ -377,7 +377,7 @@ moves it into its own `Later` and deletes it here.
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
   (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `UserUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
-  First check, by a run, which of an error's fields reach the api's and the worker's logs and
+  First check, by a live run, which of an error's fields reach the api's and the worker's logs and
   spans.
 
 ### From `telemetry-minimal`
@@ -431,7 +431,7 @@ moves it into its own `Later` and deletes it here.
   audit, not verified).
 - (2026-11-19) The Design pass reads the rules `make review-rules` prints; `stops.md` question 5
   goes (found by the audit, not verified).
-- (2026-11-19) Small doc fixes: duplicate pointers, dates in records, a lost verb, extension entries
+- (2026-11-19) Small doc fixes: duplicate pointers, dates in decisions, a lost verb, extension entries
   (found by the audit, not verified).
 - (2026-11-19) The e2e provisioner drops its guard against reruns that never happen (found by the
   audit, not verified).
@@ -456,7 +456,7 @@ moves it into its own `Later` and deletes it here.
   (found by the audit, not verified).
 - (2026-11-19) `Status` takes the Run statuses from their table; Run predicates and types in the Run
   model (found by the audit, not verified).
-- (2026-11-19) `"sideEffects": false` weighed against its record's 27 KB clause (found by the last
+- (2026-11-19) `"sideEffects": false` weighed against its decision's 27 KB clause (found by the last
   audit, not verified).
 - (2026-11-19) Tables of effects drop the type scaffolding `effect-style.md` forces (found by the
   audit, not verified).
@@ -483,13 +483,13 @@ moves it into its own `Later` and deletes it here.
   `transaction.run`, its transaction becomes a savepoint (`makeWithTransaction` "uses savepoints
   for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect
   4.1.5), and its jobs are sent before the outer `COMMIT`, against the send after the commit. The
-  send that binds files in one transaction over two modules (`shared-files`, 16) meets this. Ways
+  ask that binds files in one transaction over two modules (`shared-files`, 16) meets this. Ways
   out to weigh: the service's sends through `SqlClient.afterCommit` (the item above names its
   limits); the service's writes split from its sends, the use case ordering them, which walks back
   "its writes in a helper beside them" of
   [Composition: wrap or compose](decisions.md#composition-wrap-or-compose); the service taking the
   attachments, refused today, as a module's services import no other module.
-  Ways out to weigh: wait for a Bun with the call, or move every run to threads on the owner's
+  Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
   word.
 - (2026-11-21) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
   `make vendor-drizzle`, so no commit carries the trailers their next `git subtree pull` looks
@@ -523,8 +523,8 @@ What its third verification left open
   - **R4, a known limit:** the hunt names a discarded result and clears it. In 3 of 4 runs it
     did not name the foreign-key 500 that `Effect.asVoid` hid on `postgres-drizzle` S8.1. A line
     in `reviewer.md` would ask it to follow the hidden failure to what the caller returns.
-  - **A rate, not one run:** a requirement on what a model does passes when it holds in N of M
-    runs (say 3 of 5). Otherwise R4 passes and fails by chance.
+  - **A rate, not one eval run:** a requirement on what a model does passes when it holds in N of
+    M eval runs (say 3 of 5). Otherwise R4 passes and fails by chance.
   - **Its lesson L3:** a lesson about an agent's tool habit proposes a check of the output, never
     a hook.
 - **Costs:** a step or two in a later toolkit ticket; the rate makes a no-op run five times longer.
@@ -548,7 +548,7 @@ For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-code
 
 ### Queue on SQS or in Postgres
 
-For `aws-deployment` (9), and the record
+For `aws-deployment` (9), and the decision
 [Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps

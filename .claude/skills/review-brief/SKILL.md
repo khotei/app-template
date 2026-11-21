@@ -41,10 +41,10 @@ code and spawns no agent. It takes one session's reading, about ten tool calls.
    7. **Review map:** the reading path, data first and the API last, each stop a few files with
       `path:line`, its size and the one question to answer there; then what to skip and why.
    8. **Decisions:** each non-obvious choice and deviation: the rejected alternative, its cost.
-   9. **Unverified and risks:** what no run proved, gaps sent to Later, own mistakes as
+   9. **Unverified and risks:** what no run proved, gaps moved to Later, own mistakes as
       "моя ошибка: …; вывод: …".
    10. **Questions:** numbered, each one the owner answers with "yes" to take the recommendation.
-5. **Check before sending.** Every number comes from git; every path exists (`git ls-files`);
+5. **Check before posting.** Every number comes from git; every path exists (`git ls-files`);
    every file of the diff sits in a stop of the review map or on its skip line; each diagram is
    ASCII, one idea, at most 15 lines. Over three screens, the detail goes to "ещё N, перечислю,
-   если нужно". Then send it in the chat, offering an HTML page in one line.
+   если нужно". Then post it in the session, offering an HTML page in one line.

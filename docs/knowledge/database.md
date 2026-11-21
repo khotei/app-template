@@ -180,7 +180,7 @@ touches no row:
   active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat
   read with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
   `ChatBusyError`, 409);
-  of two sends that both read none at once, the second's Run insert, its last write, dies on the
+  of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
@@ -194,7 +194,7 @@ touches no row:
   assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
   keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
-  finished when sent, an assistant's when its Run writes it. The Run names its reply:
+  finished when the user asks, an assistant's when its Run writes it. The Run names its reply:
   `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
   `runs_assistant_message_id_unique` that a reply belongs to one Run. The key sits on `runs`, so
   `messages` names no Run and the two tables never import each other.
@@ -252,7 +252,7 @@ stateDiagram-v2
 
 ## Stuck Runs
 
-A Run that no worker settles stays active and its chat `queued`, so every next send to the chat
+A Run that no worker settles stays active and its chat `queued`, so every next ask of the chat
 fails `ChatBusyError`. A worker that dies (a killed process, the function's timeout) is settled
 by the next delivery, up to the queue's visibility timeout later, which finds the Run started,
 and fails it; a store failing
@@ -263,11 +263,11 @@ age alone it could not tell a dead Run from one waiting in a backlog.
 
 ## The sends
 
-A job is a message on its queue, and no table holds it: the record of its work (the Run, the
+A job is a queue message, and no table holds it: the record of its work (the Run, the
 chat's title) is the one the worker reads
 ([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
-- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the message through the
+- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through the
   definition's schema to a JSON string and sends it to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction

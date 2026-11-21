@@ -1,19 +1,19 @@
 # Decisions
 
-The architecture decisions that bind the code today, one record each: why it holds, what it costs,
-what refuses a change that breaks it, and what a reversal would undo. **Read a decision's record
-before changing a module boundary, the data layer, the kernel, a guard or anything a record
-names, and state the consequences first.** A change to a decision rewrites its record in the
-same commit; a new binding decision adds one. The history, the dates and the rounds stay in the
-ticket that made it and in `git log`.
+The architecture decisions that bind the code today, one entry each: why it holds, what it costs,
+what refuses a change that breaks it, and what a reversal would undo. **Read a decision before
+changing a module boundary, the data layer, the kernel, a guard or anything a decision names,
+and state the consequences first.** A change to a decision rewrites it in the same commit; a new
+binding decision adds one. The history, the dates and the rounds stay in the ticket that made it
+and in `git log`.
 
-Each record has seven fields: **Why**, **Sources**, **Rejected**, **Cost**, **Guarded by**, **If
+Each decision has seven fields: **Why**, **Sources**, **Rejected**, **Cost**, **Guarded by**, **If
 reversed** and **Revisit when**. The guide is the Software Architecture Guild's
 [architecture guide](https://software-architecture-guild.com/guide/architecture/); "the ticket"
-of a record's Sources is the one that made the first records,
+of a decision's Sources is the one that made the first decisions,
 `docs/tickets/2026-10-31-0926_modular-monolith/`, its sources in
-[research.md](../tickets/2026-10-31-0926_modular-monolith/research.md); a later record that cites
-its ticket links it. Decisions older than the first records live in `architecture.md › Decisions`
+[research.md](../tickets/2026-10-31-0926_modular-monolith/research.md); a later decision that cites
+its ticket links it. Decisions older than the first ones live in `architecture.md › Decisions`
 of their tickets ([architecture.md](architecture.md) names them). How the code is cut and what
 may import what:
 [architecture.md › Dependency rules](architecture.md#dependency-rules).
@@ -112,8 +112,8 @@ inferred. The process provides the services it reads: the api in `ApiHttp`, afte
 
 ### Module contracts
 
-A module other modules need exposes a contract, a folder of the module created with its first
-consumer, `application/<module>/contract/`, exported through the module's one entry with the
+A module other modules need exposes a contract, a folder of the module created with the first module
+that imports it, `application/<module>/contract/`, exported through the module's one entry with the
 rest of the module. A dependency on a module's contract counts as one on the module.
 
 - **Why:** `chat` needs a few names of identity and little else; one entry per module is all a
@@ -135,9 +135,9 @@ rest of the module. A dependency on a module's contract counts as one on the mod
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
   and a cycle through contracts.
-- **If reversed:** a consumer that takes the module's entry reaches its services and
+- **If reversed:** a module that imports another's entry reaches its services and
   models, and two modules can depend on each other with no tool noticing.
-- **Revisit when:** a second consumer needs more of a module than its contract holds: grow the
+- **Revisit when:** a second module needs more of a module than its contract holds: grow the
   contract, never import past it.
 
 ### A module's layers
@@ -182,7 +182,7 @@ the data layer's repository directly.
   repositories; the domain loads the data layer's entry, and its guard admits of it only the names
   of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
   shape widens the guard's pattern; one entry opens the
-  module whole, so another unit's ban on a layer matches the names it imports. A layer's override
+  module whole, so another part's ban on a layer matches the names it imports. A layer's override
   covers its tests, save the services', so what they need passes in its source too. What passes
   every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
@@ -305,7 +305,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
   `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause in the worker's
-  log alone, kept out of the model: lost once the log rolls over, and apart from the Run it
+  log alone, kept out of the Run's model: lost once the log rolls over, and apart from the Run it
   belongs to.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
@@ -372,8 +372,8 @@ failure from the Run's status `failed`.
   branches on, with a placeholder where nothing names the end. A closed list of reasons with a
   table from the errors' tags to it: a rename of names that already exist, and a table per new
   failure.
-- **Cost:** a client tells a failed Run only by its status, not a model's refusal from an error;
-  bringing a reason back changes the wire contract and the column's shape.
+- **Cost:** a client tells a failed Run only by its status, not the language model's refusal from an
+  error; bringing a reason back changes the wire contract and the column's shape.
 - **Guarded by:** `RunFailure`'s schema in the data layer; the api's test that a failed Run's
   wire has no failure; the use cases' tests, which assert each path's text.
 - **If reversed:** `reason` returns to `RunFailure` in `kernel/data/chat/run.table.ts` and to
@@ -426,11 +426,11 @@ plain one; another model's service stays a use case's, save in the last grouping
 logic before a use case, a `<Verb><Model>Service` named for its verb, its main method that verb,
 which use cases share: the chat's services of its jobs
 ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). `AskChatService`, the
-api's, takes a chat as read, checks a request to it (a send to a busy chat; a retry of a newest
+api's, takes a chat as read, checks a request to it (an ask of a busy chat; a retry of a newest
 Run that is not failed, one in work included), stores what the jobs read, the user's message with
 its queued Run in one transaction, or a retry's new Run of the failed Run's message, and sends the
 jobs after the commit; the worker's, one per job, `ReplyChatService` and `TitleChatService`, write
-other models' records of its module. The use cases that ask, a send and a retry, keep the chat's
+other models' records of its module. The use cases of a request, an ask and a retry, keep the chat's
 read scoped to the user.
 
 ```ts
@@ -453,8 +453,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   stored, and the bytes are stored and removed with their record in one service; a holder that
   needs the records alone (a list, a bind) holds no byte store. The row's coding and its guards
   have one owner, so a change of the model's row lands in the plain service alone. A request's
-  rules, its writes and its jobs' sends sit in the api's service of the chat, and the jobs' runs
-  in the worker's, so the busy check and the reply's send are written once for the send and the
+  rules, its writes and its jobs' sends sit in the api's service of the chat, and the jobs' handling
+  in the worker's, so the busy check and the reply's send are written once for the ask and the
   retry, and neither flow holds a rule, a transaction or a send; each service holds what one
   process provides.
 - **Sources:** the owner's principle (2026-11-19): wrap or compose, and change a unit only for a
@@ -479,9 +479,9 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   service writing or reading the rows through the repository itself: a second owner of the row's
   coding. A request's rules called in the use cases' flow, its writes in a helper beside them: a
   rule's call and a transaction in a flow, the busy check in two flows. The request in
-  `AskChatService` and the Run's job, its send and its run, in a service of the Run: each use case
+  `AskChatService` and the Run's job, its send and its handling, in a service of the Run: each use case
   that asks composed the request, the title's send and the reply's, and the new chat's rule sat in
-  one of them. One service holding the request, the sends and the runs: the needs of two
+  one of them. One service holding the request, the sends and the handling: the needs of two
   processes (the queue's sender, the assistants) in one unit, which each process provides whole.
 - **Cost:** more units, files and layers, and longer provide lists; Gamma et al. name the price,
   "more objects (if fewer classes)". Whether a change extends a unit's purpose or adds another is
@@ -505,8 +505,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   any other. The ask and reply services' Biome overrides admit of `@app-template/packages/db`
   only `Transaction`, the title service's none of it; of the infrastructure the ask service's
   admits only the queue file, the reply and title services' only their assistant's `.llm` file;
-  the ask service's unit test pins each refusal before any write or job, and the api's e2e of a
-  send whose Run Postgres refuses keeps no message.
+  the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
+  ask whose Run Postgres refuses keeps no message.
 - **If reversed:** a new purpose edits the unit nearest to it, and each unit's tests gain cases for
   purposes not its own; the file methods fold into one `<Model>Service`, and every holder of the
   records depends on the byte store.
@@ -599,9 +599,10 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
   with a Run it did not create; the worker's tail never sees the Run the body read, so
   `failActive` reads its own, and no caller can hand it a stale Run. That a job takes only an
   unstarted Run is a rule of the Run, so the service that moves it calls it, as `failActive` reads
-  its own Run, and `ReplyChatService.reply`, which runs the job, calls `start` ([The chat's jobs in
-  their services](#the-chats-jobs-in-their-services)). One started status: a status of its own
-  before `generating` lasted one read of the chat's history, and no code branched on it.
+  its own Run, and `ReplyChatService.reply`, which does the job's work, calls `start`
+  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). One started status: a
+  status of its own before `generating` lasted one read of the chat's history, and no code branched
+  on it.
 - **Sources:** the owner's call in the design audit;
   [Composition: wrap or compose](#composition-wrap-or-compose); the owner's call of one class per
   not-found and the message as the worker's one key (2026-11-21), on the design audit's research
@@ -723,7 +724,7 @@ client.
   `Llm…Error` only, so a use case names a kernel error; the domain's admits none. The use
   cases import a class whose file names the provider's package, so loading them loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
-  adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the application
+  adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the `application`
   workspace and of the kernel. An operator tells a refusal from any other end only by the
   cause's text, not by a tag. No test checks the 10-minute wait, nor a request setting beside
   the model.
@@ -839,7 +840,7 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a
   loser that reads after it gets its `409`.
 - **Guarded by:** the repositories' writes die on a missed row, each with its e2e; the e2e race
-  of two sends to one chat asserts one sent, one refused.
+  of two asks of one chat asserts one stored, one refused.
 - **If reversed:** the reads take `forUpdate` again, and a check whose loser must get a domain
   error waits on the winner's commit.
 - **Revisit when:** a race's `500` reaches users often enough to need its own refusal.
@@ -854,7 +855,7 @@ alone returns newest first.
   index that serves it).
 - **Rejected:** an order a caller passes: a second order for one read, lost again when the chat is
   read back.
-- **Cost:** messages created in one millisecond come back by id, not by the order sent.
+- **Cost:** messages created in one millisecond come back by id, not by the order they were written.
 - **Guarded by:** the repositories' e2e read rows created out of id order in creation order.
 - **If reversed:** each read takes its order from its caller.
 - **Revisit when:** a client needs a chat's contents in an order it chooses.
@@ -912,7 +913,7 @@ only `download` reads the bytes, returning `DownloadedFileEntity`, the entity wi
 layer declares the key; `kernel/aws/resources` declares the bucket's name and lifecycle, which
 `deployment` reads.
 
-- **Why:** a consumer reads and writes through one kind of repository, whichever store holds the
+- **Why:** a caller reads and writes through one kind of repository, whichever store holds the
   data; the objects stay in their bucket under their keys.
 - **Sources:** the ticket's design; `docs/knowledge/aws.md`.
 - **Rejected:** a bucket port in `chat` with an S3 adapter: a module's adapter over data every
@@ -932,7 +933,7 @@ layer declares the key; `kernel/aws/resources` declares the bucket's name and li
 ### Attachments removed
 
 The app holds no attachments: a message is its text alone. Removed in every ring: the api's
-`attachments` routes and the send's `attachmentIds`, chat's `Attachment` model with its rules,
+`attachments` routes and the ask's `attachmentIds`, chat's `Attachment` model with its rules,
 errors and two services, the reply's file parts, `Chat.attachments` and `Message.attachments`, and
 the data layer's `attachments` table with its entity, repository and relations, gone from the one
 `init` migration. What stays is the generic core they were built on: `FileEntity`, `FileRepository`
@@ -943,7 +944,7 @@ name `attachments` and the key prefix `attachments/`, so a redesign starts from 
 without renaming provisioned resources. No app wires the files today.
 
 - **Why:** the owner's call on the design audit of 2026-11-19: the attachments' design (a library,
-  copies per send, bytes by source) is to be rethought, and code kept for a design that changes
+  copies per ask, bytes by source) is to be rethought, and code kept for a design that changes
   is read, tested and reviewed for nothing; the store underneath is generic and proven by its
   e2e.
 - **Sources:** the owner's word on the design audit
@@ -962,18 +963,18 @@ without renaming provisioned resources. No app wires the files today.
 
 ### Jobs as queue messages
 
-A job is a message on its queue, and no table holds it: the work it asks for keeps its own record
-(the Run, the chat's title), which the worker reads to run it once, to settle a Run whose worker
-died and to record a failure. `QueueSender.send` encodes the job by its definition; a use case sends
+A job is a queue message, and no table holds it: the work it hands over keeps its own record
+(the Run, the chat's title), which the worker reads to handle it once, to settle a Run whose worker
+died and to write a failure. `QueueSender.send` encodes the job by its definition; a use case sends
 it after its commit, so every delivery finds its record. Each job goes through its `send<Job>` in
 its module's infrastructure, in the file of its queue's definition, which only sends it and logs a
-send SQS refuses. A job asks its worker for one piece of work, as a command message does in
-messaging, and is named as one: `<Verb><Object>` in the glossary's words for the work it asks
-for, never after a method, its queue or one step of the work; its queue, its `send<Job>` and the
+send SQS refuses. A job hands its worker one piece of work, as a command message does in
+messaging, and is named as one: `<Verb><Object>` in the glossary's words for the work it hands
+over, never after a method, its queue or one step of the work; its queue, its `send<Job>` and the
 use case that ends it take its name. The chat's two are `ReplyToMessage { messageId }`, on
 `reply-to-message`, sent by `sendReplyToMessage` and ended by `replyToMessage`, and
 `TitleChat { chatId }`, on `title-chat`, sent by `sendTitleChat` and ended by `titleChat`. The
-reply's names the user's message and runs its active Run, which the unique index on a chat's
+reply's names the user's message and starts its active Run, which the unique index on a chat's
 active Run keeps to one; what a job that names no one Run costs: [A Run's job on interrupt and on
 two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's names the chat, whose
 first message the worker reads. The reply's send returns its
@@ -983,7 +984,7 @@ the request responds with `202` and that failed Run. The send and that failure r
 uninterruptibly, so a client that aborts mid-send still leaves the Run sent or failed. The title's
 send only logs it, as its work has no record to settle. Which services a Run has and over which:
 [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
-who runs each job: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
+who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -1045,13 +1046,13 @@ who runs each job: [The chat's jobs in their services](#the-chats-jobs-in-their-
 
 ### The chat's jobs in their services
 
-A chat's jobs are split at the queue: `AskChatService`, in the api, stores a request and sends
-its jobs after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and the worker runs
-each in a service of its own. Each is the last grouping of the module's logic before a use case:
-its class is named for its verb and its main method repeats that verb, any other method named for
-its own act in the model's words. The two sides meet by one grammar: the api's private step
-`ask<Verb>` sends the job `<Verb><Object>`, and the worker's `<Verb><Model>Service.<verb>` does
-that work.
+A chat's jobs are split at the queue: `AskChatService`, in the api, stores a request and sends its
+jobs after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and the worker does each
+one's work in a service of its own. Each is the last grouping of the module's logic before a use
+case: its class is named for its verb and its main method repeats that verb, any other method named
+for its own act in the model's words. The two sides meet by one grammar: the api's private step
+`ask<Verb>` sends the job `<Verb><Object>`, and the worker's `<Verb><Model>Service.<verb>` does that
+work.
 
 ```text
 api:    AskChatService.ask ──askTitle──▶ TitleChat ──────▶ titleChat ──────▶ TitleChatService.title
@@ -1059,14 +1060,14 @@ api:    AskChatService.ask ──askTitle──▶ TitleChat ──────�
         AskChatService.retry ─askReply─▶ (the same)
 ```
 
-`ReplyChatService.reply` runs the reply's job, given the user's message the job names:
+`ReplyChatService.reply` does the reply's job's work, given the user's message the job names:
 `MoveRunService.start` moves that message's active Run to `generating` if unstarted, then the
 chat's history, the assistant's reply, and the assistant's message with the Run's `done` in one
 transaction; one tail on the whole function fails the message's active Run as it stands now on
 whatever ends it, `start`'s refusal included. A Run some worker started fails `RunStartedError`,
 whose text says its worker stopped, and is failed with it; a message with no active Run fails
 `ActiveRunNotFoundError`, unwritten, as the tail finds nothing to fail. `TitleChatService.title`
-runs the title's job, given the chat the job names: the chat's first message, the assistant's
+does the title's job's work, given the chat the job names: the chat's first message, the assistant's
 title, and the title written while the chat is untitled, so a rename by the user wins; a chat with
 no message fails `ChatNotFoundError`, as a message leaves only with its chat. Each job's use case
 ends the job in one tail: the reply's skips a Run settled or gone, ends on a started Run and on the
@@ -1088,7 +1089,7 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   queue's sender) is the ask service's alone, what the worker provides (the assistants) the
   worker's services', so each process builds only its side, and each service's guard admits only
   its own infrastructure. Each worker service is functional, one purpose: the reply's and the
-  title's runs share only `MessageService`, and their callers and reasons to change (the Run's
+  title's services share only `MessageService`, and their callers and reasons to change (the Run's
   life, the title's policy) are disjoint. `AskChatService`'s two methods share the reply's send
   and its settlement and the Run's create, so one unit holds them. The repeated verb shows the
   tier in every call (`askChat.ask`, `replyChat.reply`) with no word, suffix or folder of its own.
@@ -1104,7 +1105,7 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   nothing, and the job's end is the job's policy. A port in `domain/` for the assistants the
   service calls: an interface with one implementation for one caller, where its own override
   admits the `.llm` file by name. The title's run left in its use case: one of the chat's two
-  jobs read and wrote records in a flow. One service sending and running the jobs: each process
+  jobs read and wrote records in a flow. One service sending the jobs and doing their work: each process
   would provide the other's requirement, and one guard would admit both the queue file and the
   `.llm` files. One worker service for both jobs, `ReplyChatService { replyMessage, replyTitle }`:
   temporal cohesion, two units under one name, and a Reply that titles, which the glossary's
@@ -1128,12 +1129,12 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
 - **If reversed:** the Run's rule and moves go back into the job's use case, which then fails the
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
-- **Revisit when:** a job of the chat runs in the api, or one the worker sends, so a side would
+- **Revisit when:** a job of the chat is handled in the api, or one the worker sends, so a side would
   need the other process's requirement.
 
 ### A Run's job on interrupt and on two deliveries
 
-What a Run's job accepts when it is cut short or run twice. The tail on the whole of
+What a Run's job accepts when it is cut short or handled twice. The tail on the whole of
 `ReplyChatService.reply` fails the Run on an interrupt as on any failure, so a worker
 interrupted while the job reads its Run or while the assistant answers leaves the Run `failed`,
 not started; the reply's send in `AskChatService` and a refused send's failure run
@@ -1143,7 +1144,7 @@ send starts, and the Run stays queued. Two deliveries at the same instant both r
 queued; the loser's guarded `generating` write dies and its handler fails the Run the winner works
 on, so the winner's next write dies, the reply is lost and the user retries. A Run settled or
 deleted under the reply is left as it is, so the job ends on the answer's own failure. The job
-names the user's message, not a Run, so a delivery runs whichever Run of it is active then: a
+names the user's message, not a Run, so a delivery starts whichever Run of it is active then: a
 failed Run's job delivered again after the user's retry starts the retry's Run, whose own job
 then finds it started and fails it with `RunStartedError`, and the user retries once more. The
 tail reads the Run it fails by the message too, so a reply that dies after such a delivery
@@ -1208,35 +1209,35 @@ The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL p
 bundle check, which reads the web build's metafile against the packages the web's manifest lists
 in `browserPackages`; what no configuration expresses are the review rules `.claude/rules/modules.md`
 and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
-by the guard that can see it: the linker and `tsc -b` see a workspace but no unit inside a
+by the guard that can see it: the linker and `tsc -b` see a workspace but no part inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one
 `tsconfig.json` project each; `.misc/lint/biome.base.json` has one override per layer, never
-per unit, and the plugin reads the unit and the ring from the file's path. Which guard refuses
+per part, and the plugin reads the part and the ring from the file's path. Which guard refuses
 what:
 [architecture.md › Dependency rules](architecture.md#dependency-rules) and
 [Boundary guards](architecture.md#boundary-guards).
 
 - **Why:** every guard is configuration of a tool the repo has; a fitness test is code to keep,
-  and drifts. A list per unit repeated what the linker already refused and grew past what a
+  and drifts. A list per part repeated what the linker already refused and grew past what a
   reader checks whole; a rule held once, by the one tool that can, stays read. Biome's message
-  names its record, which TS2307 never could, so it keeps the boundaries whose breach is
+  names its decision, which TS2307 never could, so it keeps the boundaries whose breach is
   costly: the browser's, the kernel's boundary in a service, the data layer.
 - **Sources:** the guide's "Add fitness functions in CI … turn violations into failing builds"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   in modular-monolith-with-ddd an architecture test checks the wrong assembly (research); Biome's
   GritQL plugins, which read `$filename`.
 - **Rejected:** a module-graph test: test code for a rule review can hold. dependency-cruiser: it
-  needs a TypeScript parser the repo lacks. A list per unit, `@app-template/**` refused but for
-  each unit below it: an override per unit and per test folder, since Biome replaces an earlier
+  needs a TypeScript parser the repo lacks. A list per part, `@app-template/**` refused but for
+  each part below it: an override per part and per test folder, since Biome replaces an earlier
   override's options instead of merging them, most of them repeating TS2307. A `tsconfig.json`
-  project per unit beside a list: its `references` would repeat the list, one rule in two places.
+  project per part beside a list: its `references` would repeat the list, one rule in two places.
 - **Cost:** what only review refuses, the lists in `modules.md` and `layering.md`, passes
-  `make check` when review misses it; `noImportCycles` refuses a unit importing one above it only
+  `make check` when review misses it; `noImportCycles` refuses a part importing one above it only
   where a cycle of value imports forms, and `make test-unit` e2e support in a unit test only where
-  the test builds it, since it starts no database. A refusal by TS2307 names no record. `tsc -b` no
-  longer refuses a cycle between the units of one folder (TS6202). Grit gives the plugin only the
-  absolute path, so it names the unit by the last `application/`, `kernel/` or `packages/` folder on
-  it: a folder of that name inside a unit misreads its files, and a checkout under one
+  the test builds it, since it starts no database. A refusal by TS2307 names no decision. `tsc -b`
+  no longer refuses a cycle between the parts of one folder (TS6202). Grit gives the plugin only the
+  absolute path, so it names the part by the last `application/`, `kernel/` or `packages/` folder on
+  it: a folder of that name inside a part misreads its files, and a checkout under one
   (`~/packages/<repo>/`) misreads every file outside the three folders, refusing an app's own
   `#<app>/…`; the rules of the apps and `deployment` read the last ring folder on it the same way.
 - **Guarded by:** `make check` runs them all; the Rules reviewer reads the rules that bind
@@ -1244,43 +1245,43 @@ what:
   it, `biome-imports.grit` for the imports and `biome-effect.grit` for the Effect style a
   type-blind reader can see; the Effect language service's `overrides` in `tsconfig.base.json`,
   for the ambient globals `application/` bans.
-- **If reversed:** a test beside the rule, kept in step with every new module; a list per unit
-  again, or a folder split into a workspace per unit
+- **If reversed:** a test beside the rule, kept in step with every new module; a list per part
+  again, or a folder split into a workspace per part
   ([Imports through subpaths](#imports-through-subpaths)), its dependencies in place of the lists.
 - **Revisit when:** review misses a violation the rule names, or a tool gains the check.
 
 ### Imports through subpaths
 
-A file imports its own unit's files through the workspace's `#…` subpaths, never a relative path,
-and another unit only through that unit's entry, even inside one workspace. A unit of the
+A file imports its own part's files through the workspace's `#…` subpaths, never a relative path,
+and another part only through that part's entry, even inside one workspace. A part of the
 kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
-is one workspace with one export per unit, its `index.ts`, and its test support. The apps keep
+is one workspace with one export per part, its `index.ts`, and its test support. The apps keep
 their package names. The forms, with examples:
 [architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
-- **Why:** an import tells where its code lives, and one entry per unit is all a caller must know;
-  a subpath inside a workspace names the unit and the layer it reaches, so a Biome override can
+- **Why:** an import tells where its code lives, and one entry per part is all a caller must know;
+  a subpath inside a workspace names the part and the layer it reaches, so a Biome override can
   refuse it by pattern, while a relative path hides the layer and can reach into another
   workspace's files.
 - **Sources:** `.claude/rules/naming.md`; npm names allow one `/` after the scope, so a folder's
   path is a subpath of its folder's workspace; `tsc -b`'s TS6059 and TS6307 on a path into an
   unreferenced project.
 - **Rejected:** relative paths inside a layer only: one more rule for a reader to apply, and no
-  pattern tells a layer's own folder from the next. A workspace per unit with `paths` aliases
+  pattern tells a layer's own folder from the next. A workspace per part with `paths` aliases
   in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
   tool. A subpath per store or per layer (`/data/<store>`, `/chat/domain`): a caller must know
-  the unit's inside. A `tsconfig.json` project per module: its `references` would repeat the
+  the part's inside. A `tsconfig.json` project per module: its `references` would repeat the
   Biome overrides, one rule in two places.
-- **Cost:** every workspace declares its `imports`; one manifest declares every unit's
-  dependencies, so the linker tells the folders apart but not one unit from another; a unit's
-  one entry opens it whole, so a layer that may take only part of it (the inventory of `/aws`,
+- **Cost:** every workspace declares its `imports`; one manifest declares every part's
+  dependencies, so the linker tells the folders apart but not one part from another; a part's
+  one entry opens it whole, so a layer that may take only some of it (the inventory of `/aws`,
   the stores of `/data`, a module's contract) is held by the names it imports; `application/`
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
-  refuses an import between their units ([Guards are configuration](#guards-are-configuration)
+  refuses an import between their parts ([Guards are configuration](#guards-are-configuration)
   says what does).
 - **Guarded by:** `biome-imports.grit` and the overrides' `importNamePattern`, in the forms
   [architecture.md › Boundary guards](architecture.md#boundary-guards) lists.
-- **If reversed:** a folder splits into a workspace per unit, each with its manifest, and the
+- **If reversed:** a folder splits into a workspace per part, each with its manifest, and the
   specifiers lose the folder; without the `#…` subpaths, the per-layer overrides no longer see
   which layer a relative import reaches.
 - **Revisit when:** Biome can restrict an import by the folder it resolves to.
@@ -1309,7 +1310,7 @@ never code.
 
 Every workspace keeps its unit tests in `__tests__/` and its e2e in `__e2e__/`, each kernel part
 as a package does. `application` has unit tests alone; its e2e, through the api, live in the
-test app `apps/e2e`. Test support lives with the unit that uses it. The layout, the entries and
+test app `apps/e2e`. Test support lives with the part that uses it. The layout, the entries and
 what a test may import: [tooling.md › Tests](tooling.md#tests).
 
 - **Why:** the folder tells a unit test from an e2e and from source; a test sits beside what it
@@ -1322,7 +1323,7 @@ what a test may import: [tooling.md › Tests](tooling.md#tests).
 - **Rejected:** test folders at a workspace's top: support beside the source folders. The kernel's
   tests in one pair of test folders at its top: a part's tests away from it, and one support barrel
   for every part. Every package's support in `packages/testing`: a package's own harness away from
-  it, behind a barrel every unit imports. The use cases' e2e in `application`, a use case called on
+  it, behind a barrel every part imports. The use cases' e2e in `application`, a use case called on
   Postgres: a call, not the flow a user starts. The e2e in each app: the journey would make the api
   import the worker, and apps never import each other. The e2e workspace at the root: a test of the
   processes away from them. The workspace as an `__e2e__/` folder in `apps/`: such a folder
@@ -1336,7 +1337,7 @@ what a test may import: [tooling.md › Tests](tooling.md#tests).
   call of the use case. A unit test sees no store: a mock returns what its case gives, so a case
   passes on a row Postgres would refuse, and each rule the database enforces needs its own case on
   the repository's e2e. The kernel declares an alias per part's support, and an export where another
-  unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the
+  part reads it. The e2e run's `globalSetup` sits in the data's e2e support, though it starts the
   MiniStack every workspace's e2e uses. No tool refuses an import of e2e support a unit test never
   builds, nor test support in source: review does.
 - **Guarded by:** `make test-unit`: its vitest project has no `globalSetup`, so a unit test that
@@ -1367,7 +1368,7 @@ have no contract suite: no set of cases runs on both a double and the leaf's rea
 - **Why:** a suite run on a double tests test support, which `.claude/rules/effect-tests.md`
   › What to test refuses; each leaf has one real layer.
 - **Sources:** Andrew Trenk and Dillon Bly, "Test Doubles", chapter 13 of *Software Engineering
-  at Google* (2020), asks for a fake's own tests run against the real implementation; this record
+  at Google* (2020), asks for a fake's own tests run against the real implementation; this decision
   departs from it.
 - **Rejected:** one suite per leaf, run on the double and on the real layer: a test of test
   support.
@@ -1383,7 +1384,7 @@ have no contract suite: no set of cases runs on both a double and the leaf's rea
 ### Decisions recorded in one page
 
 The decisions live here; `CLAUDE.md` points to it, and every Biome message and review rule names
-its record.
+its decision.
 
 - **Why:** a session about to change a boundary reads why it exists first.
 - **Sources:** `CLAUDE.md` bans `docs/adr/`.
@@ -1395,7 +1396,7 @@ its record.
   `.claude/rules/comments.md` and in an instruction file by `.claude/rules/claude-md.md`, by
   review alone: the user wants no check for it.
 - **If reversed:** the decisions go back to the tickets, and the pointer in `CLAUDE.md` goes.
-- **Revisit when:** the records outgrow one page.
+- **Revisit when:** the decisions outgrow one page.
 
 ### Instructions name patterns
 
@@ -1407,7 +1408,7 @@ An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern
   are the instances that move, and Claude reads an instruction file in every session it matches,
   so a stale path there misleads the most.
 - **Sources:** `.claude/rules/claude-md.md` (the pattern, not the instance); the audit of
-  [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
+  [the ticket that made this decision](../tickets/2026-11-02-1820_lean-instructions/feature.md).
 - **Rejected:** a separate check with allowed prefixes and a depth limit: four heuristics for the
   few source paths the files then named. An allowlist of names: itself a copy that goes stale.
 - **Cost:** a bare file name or a folder (`shared/`) passes until it goes stale; `make doc-lint`
@@ -1429,7 +1430,7 @@ A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the li
   appending: rules sat at or over the limit while the limits were advice that nothing checked.
   A hard limit makes the next fix cut a line instead of adding one.
 - **Sources:** `.claude/rules/claude-md.md` (the test a line must pass, the limits); the audit of
-  [the ticket that made this record](../tickets/2026-11-02-1820_lean-instructions/feature.md).
+  [the ticket that made this decision](../tickets/2026-11-02-1820_lean-instructions/feature.md).
 - **Rejected:** the numbers in the doc lint's config, the rule pointing to them: a reader of the
   rule must open the config to learn a limit. Soft limits ("about" a number): nothing refuses them.
 - **Cost:** the check depends on one line's shape, so a reworded limits line makes it exit 2,
@@ -1455,7 +1456,7 @@ before the PR.
   it and what it corrects. Committing before reading costs nothing on `main`, which takes the
   ticket as one squash.
 - **Sources:** `.claude/skills/lab/SKILL.md` (rails 1 and 5, Rounds);
-  [the ticket that made this record](../tickets/2026-11-07-1232_sdd-stages/feature.md).
+  [the ticket that made this decision](../tickets/2026-11-07-1232_sdd-stages/feature.md).
 - **Rejected:** the kind of change in the brackets (`FIX`): it repeats the gitmoji and type and
   leaves the source unnamed. The fixed commit's hash in a fix's body: it goes stale after a
   cherry-pick. A review of the uncommitted step: the user's edits over it mix with the round. The
@@ -1507,10 +1508,10 @@ the session, or by an `implementer` once its Shape is settled.
   behaviour against a requirement list apart from the branch review. The review per range is one
   round, so a finding its fix introduces waits for the branch review; a micro's one review is its
   branch's, so the owner alone reads its fixes. A code range gets three reviewers, one more than
-  the lab's review before: replay R2 cost $3.72 a run against $2.21.
+  the lab's review before: replay R2 cost $3.72 a replay run against $2.21.
 - **Guarded by:** review against the skill; the replays of
   `docs/knowledge/sdd.md › Evaluating the toolkit`, run before and after each toolkit change.
 - **If reversed:** the `/ticket-*` skills, the `verifier` and the templates come back from the
-  commit before this record; the tickets written under them keep their files.
+  commit before this decision; the tickets written under them keep their files.
 - **Revisit when:** a macro lab's owner rework or stops exceed those of the SDD tickets before it,
   or a defect merges that a replay shows a verifier would have caught.

@@ -17,7 +17,7 @@ and `make setup` and `make test-unit` need neither.
 step report.
 
 The lint configuration lives in `.misc/lint/`, the folder for what serves the repo and not the
-application; a lint rule is written only there. `make doc-lint` hands `markdownlint-cli2` its
+template's code; a lint rule is written only there. `make doc-lint` hands `markdownlint-cli2` its
 config with `--config`, so an editor's markdownlint, which looks for a config by name, does not
 apply the repo's rules; `make sh-lint` hands ShellCheck its config with `--rcfile` for the same
 reason. Biome reads a config only in the folder it starts from and its parents,
@@ -39,7 +39,7 @@ runner, which ignores the vitest projects and their setup.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare` (`make lint`
 and `make fmt` call Biome themselves); each process app (`api`, `worker`, `web`) holds
-`dev` and `debug`; `apps/e2e` and the library workspaces hold none.
+`dev` and `debug`; `apps/e2e` and the other workspaces hold none.
 
 ## Tests
 
@@ -49,29 +49,29 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 
 - **Unit and e2e: only our code is under test.** A unit test runs our domain services, use cases
   and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
-  transaction or the journey on the run's containers. What each kind checks and how to write it:
+  transaction or the journey on the e2e run's containers. What each kind checks and how to write it:
   [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/` and
   its e2e in `__e2e__/`, at its top, but for the test app `apps/e2e`, which is all e2e; a test
   mirrors its source path there, and a suite with no source is named for what it checks. A module
-  folder holds no test. The kernel's parts are units like packages, so each part keeps its own
+  folder holds no test. A kernel part is a part as a package is, so each keeps its own
   (`kernel/<part>/__tests__/`, `kernel/<part>/__e2e__/`). Why, and what refuses a test in the wrong
   place: [decisions.md › Tests in their folders](decisions.md#tests-in-their-folders).
 - **Test support in `__tests__/testing/`,** the files ending in a `.test-<role>` suffix
   ([naming.md › Files](../../.claude/rules/naming.md#files)), imported as
-  `@app-template/<folder>/testing` and aliased `#testing/<unit>/*` (`#testing/*` in a workspace
-  of one unit, as an app). The part only the e2e use, since it reads the run's containers, sits
-  in `__tests__/testing/e2e/` (the run's `globalSetup` in the data layer's), behind an `index.ts`
-  of its own that `__tests__/testing/index.ts` does not re-export: imported as
-  `@app-template/<folder>/testing/e2e` and aliased `#testing/<unit>/e2e/*`. Support one unit
+  `@app-template/<folder>/testing` and aliased `#testing/<part>/*` (`#testing/*` in a workspace
+  of one part, as an app). The support only the e2e use, since it reads the e2e run's
+  containers, sits in `__tests__/testing/e2e/` (the e2e run's `globalSetup` in the data layer's),
+  behind an `index.ts` of its own that `__tests__/testing/index.ts` does not re-export: imported as
+  `@app-template/<folder>/testing/e2e` and aliased `#testing/<part>/e2e/*`. Support one part
   alone reads keeps the alias and no entry. Suites compose these barrels instead of copying them.
-  A unit test mocks each repository it calls with `Layer.mock`, in the test; the memory
-  `FileRepositoryTest` lives in `kernel/data/__tests__/testing/`, and a module's memory layers of
-  its ports and infrastructure services in that module's. The shared `packages/testing` holds
-  only the support several units use; a package's own (its Postgres or MiniStack clients) lives
+  A unit test mocks each repository it calls with `Layer.mock`, in the test; the fake
+  `FileRepositoryTest` lives in `kernel/data/__tests__/testing/`, and a module's fakes of its
+  ports and infrastructure services in that module's. The shared `packages/testing` holds
+  only the support several parts use; a package's own (its Postgres or MiniStack clients) lives
   in that package, as a kernel part's does.
 - **What a test may import.** A unit test imports its workspace's source and the `/testing` of
-  the units its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
+  the parts its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
   imports e2e support. The `apps/e2e` test app holds e2e alone, the suites through the api in
   `apps/e2e/api/`, aliases its own support `#testing/*` (`apps/e2e/testing/`) and is the one
   workspace that imports the apps' `./testing`, so an app has no `__e2e__/` of its own.
@@ -80,11 +80,11 @@ Which suite runs where:
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's memory layers of its ports and infrastructure services (`@app-template/application/<module>/testing`), `TransactionTest` |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its ports and infrastructure services (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
-| boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the run's containers; the assistants over a recording client |
+| boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistants over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the memory layers of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants |
 | assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -98,9 +98,9 @@ Which suite runs where:
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the
   shared `exclude` (`repos/**` and `.claude/worktrees/**` added to the default) and `sequence`
-  itself, and the root sets no `globalSetup`, so a unit run starts no container. A new workspace
-  needs no test config, and the vendored suites and the worktrees' copies stay out.
-- **One Postgres and one MiniStack per e2e run, a database and a stage per test.** The run's
+  itself, and the root sets no `globalSetup`, so a unit-test run starts no container. A new
+  workspace needs no test config, and the vendored suites and the worktrees' copies stay out.
+- **One Postgres and one MiniStack per e2e run, a database and a stage per test.** The e2e run's
   `globalSetup`, in the data layer's e2e support, starts both containers and migrates a template
   database; each test provides `PgClientTest` from `@app-template/packages/db/testing/e2e`, a
   fresh database copied from the template, and a test on S3 or SQS `AwsTest` from the kernel's
@@ -174,7 +174,7 @@ Each gets a number `N`, the main tree 0, and owns its `node_modules` (`bun insta
 (with the Pulumi state), MiniStack container, database container and telemetry backend
 ([observability.md](observability.md)). It shares only the Pulumi
 provider plugins, the main tree's `.pulumi/`, which never change once installed. Its `.env` is
-the main tree's with seven ports and the stage moved, since MiniStack names the database's
+the main tree's with seven TCP ports and the stage moved, since MiniStack names the database's
 container and volume after the stage:
 
 | Variable | Value | Main tree | `N=1` |
@@ -194,7 +194,7 @@ the worktree's branch `wt/<name>`; with `KEEP=1` the branch keeps its name, for 
 which stands on its ticket branch so accepted code needs no moving
 ([`/lab`](../../.claude/skills/lab/SKILL.md)).
 Run `make reset` in a worktree before it is removed, or its containers outlive it and keep their
-ports, and the database's volume stays.
+TCP ports, and the database's volume stays.
 
 ## Environment
 
@@ -222,8 +222,8 @@ ports, and the database's volume stays.
   `Config.all`, and a reader yields it where it builds its layer. The one exception is the web
   server, `apps/web/main.ts`, which declares its three settings itself, since the web declares no
   kernel. Tests provide a
-  `ConfigProvider.fromUnknown` record, so they never need `.env`; a test process reads no `.env`
-  either, so a test without its record fails with a `ConfigError`.
+  `ConfigProvider.fromUnknown` object, so they never need `.env`; a test process reads no `.env`
+  either, so a test without its object fails with a `ConfigError`.
 
 ## Dependencies
 
@@ -250,7 +250,7 @@ Where a family is easy to misplace:
 
 ### Add a dependency
 
-Run `bun add` inside the consuming workspace:
+Run `bun add` inside the workspace that imports it:
 
 ```sh
 cd <workspace>
@@ -262,9 +262,9 @@ Bun writes `"<pkg>": "<exact>"` into the root `catalogs.<namespace>` and
 needs the same package declares `"<pkg>": "catalog:<namespace>"` by hand and runs `bun install`.
 
 A dependency on another workspace is declared as `"@app-template/<name>": "workspace:*"`. Also add
-that workspace to the consumer's `tsconfig.json` `references`, so `tsc -b` builds it first. No gate
-catches a missing reference: the pinned TypeScript resolves the workspace through its package
-symlink and checks its sources either way.
+that workspace to the importing workspace's `tsconfig.json` `references`, so `tsc -b` builds it
+first. No gate catches a missing reference: the pinned TypeScript resolves the workspace through
+its package symlink and checks its sources either way.
 
 ### Add a workspace
 
@@ -317,7 +317,7 @@ version.
 - **Project references.** The root `tsconfig.json` has no files of its own and references every
   project, one per workspace. Each is a `composite` project that references what it imports;
   inside `kernel/`, `packages/` and `application/` the plugin `biome-imports.grit` tells the
-  units apart.
+  parts apart.
 - **The Effect compiler's `tsc -b` is the only typecheck gate,** started by its own path
   (`effect-tsgo get-exe-path`), so it holds on an install whose `prepare` did not patch `tsc`.
   It walks the references, reports every type error, and runs the Effect language service,
@@ -401,7 +401,7 @@ Never skip a hook with `--no-verify`. CI runs the same checks, so a skipped hook
 CI (`.github/workflows/ci.yml`) runs on every pull request and on pushes to `main`:
 
 `bun install --frozen-lockfile`, then `make -k check BIOME=ci`, so its gates are the `Makefile`'s
-list and one run reports every red gate, on the Bun that `packageManager` pins.
+list and one CI run reports every red gate, on the Bun that `packageManager` pins.
 
 ## Troubleshooting
 
@@ -409,9 +409,9 @@ list and one run reports every red gate, on the Bun that `packageManager` pins.
 |---|---|---|
 | `TS2307: Cannot find module '@app-template/<name>'` from `make typecheck`, or `Cannot find module` at runtime | the workspace is not declared in this workspace's `package.json`: a missing declaration, or an import the rings refuse (a module in the kernel, the kernel in a package, one app in another) | if [architecture.md › Dependency rules](architecture.md#dependency-rules) allows it, add `"@app-template/<name>": "workspace:*"` and a `tsconfig.json` reference, then `bun install`; else move the code down a ring |
 | `TS6059 … is not under 'rootDir'` and `TS6307 … is not listed within the file list of project` | a relative path reaches into another workspace that is not referenced | import it as `@app-template/<name>/…`; relative paths are banned anyway |
-| Biome `lint/style/noRestrictedImports`: `… (decisions.md › <record>)` | the import points outward or across a ring or layer, or a module's `domain/` imports an `@effect/*` package | read the named record in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
-| Biome `plugin`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<unit>/<path>`, for example `#chat/domain/chat.model` |
-| Biome `plugin`: `a unit reaches its own files …` | a file of another module, kernel part or package, through its `#…` alias | import that unit's entry, `@app-template/<folder>/<unit>`, or its `/testing` |
+| Biome `lint/style/noRestrictedImports`: `… (decisions.md › <decision>)` | the import points outward or across a ring or layer, or a module's `domain/` imports an `@effect/*` package | read the named decision in [decisions.md](decisions.md); move the shared code down a layer, or receive it as an argument; in a module's `domain/`, use an `effect` module; see [architecture.md](architecture.md#dependency-rules) |
+| Biome `plugin`: `… never a relative path` | a `./` or `../` import inside a workspace | use `#<part>/<path>`, for example `#chat/domain/chat.model` |
+| Biome `plugin`: `a part reaches its own files …` | a file of another module, kernel part or package, through its `#…` alias | import that part's entry, `@app-template/<folder>/<part>`, or its `/testing` |
 | Biome `lint/suspicious/noImportCycles`: `This import is part of a cycle` | two files import each other, typically two aggregates' models through their ids | import the other aggregate's id from its `<aggregate>.util.ts`, never its model |
 | Biome `assist/source/organizeImports`: `Sort these imports.` | import groups out of order or without blank lines between them | `make fmt` |
 | a commit is rejected after `tsc` or Biome output | the `pre-commit` hook failed | fix the reported error, `git add`, and commit again |

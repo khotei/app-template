@@ -3,8 +3,8 @@
 How the code is cut and how to extend it: the three rings, what may import what and the guard
 that refuses the rest, where tests live, the shape of a use case, and the checklists to add an
 entity, a store's client or a module. **Why each boundary holds, what it costs and what breaks if
-it is reversed live in [decisions.md](decisions.md),** the living decisions, one record each;
-read the record before changing a boundary. Decisions older than those records live in
+it is reversed live in [decisions.md](decisions.md),** the living decisions, one entry each;
+read the decision before changing a boundary. Decisions older than those live in
 [architecture.md › Decisions](../tickets/2026-10-16-1433_monorepo-setup/architecture.md#decisions)
 of the scaffold ticket and of the architecture audit
 (`docs/tickets/2026-10-27-1433_architecture-audit/`). Each layer's binding rules live in its
@@ -34,7 +34,7 @@ Every dependency points inward, from the boundary to the behaviour to the data:
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
 provisions the stores of the local stand ([aws.md](aws.md)). What each ring and layer may import:
-[Dependency rules](#dependency-rules). The records:
+[Dependency rules](#dependency-rules). The decisions:
 [Modules by capability](decisions.md#modules-by-capability),
 [A module's layers](decisions.md#a-modules-layers), [One kernel](decisions.md#one-kernel),
 [The data at the centre](decisions.md#the-data-at-the-centre),
@@ -92,7 +92,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   `.llm` file, and
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
   through a port its `domain/` declares, a job's send in that queue file, or, in the worker's
-  services, the assistants that run the jobs, and a module reaches its
+  services, the assistants that do the jobs' work, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. Of another module's
   entry a module takes only the names of its contract, which review holds
   ([modules.md](../../.claude/rules/modules.md)), not Biome.
@@ -111,31 +111,31 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   ([modules.md](../../.claude/rules/modules.md)).
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
   `package.json`, or the isolated linker and `tsc -b` refuse it. Inside the kernel and
-  `packages/` the units are ordered: a kernel part imports only the parts below it (`/config` at
+  `packages/` the parts are ordered: a kernel part imports only the parts below it (`/config` at
   the bottom, `/data` beside it and importing none), a package only the packages below it.
 - **Tests** and the support they may import: [tooling.md › Tests](tooling.md#tests).
 
 ## Imports: `#<workspace>/` vs `@app-template/`
 
-Every import line says where its module lives:
+Every import line says where its code lives:
 
 ```ts
 import { readFileSync } from 'node:fs'                      // Bun and Node built-ins
 
 import { Effect } from 'effect'                             // external packages
 
-import { ChatService } from '@app-template/application/chat'  // another unit
+import { ChatService } from '@app-template/application/chat'  // another part
 
-import { askChat } from '#use-cases/chat/ask-chat.use-case'  // this unit
+import { askChat } from '#use-cases/chat/ask-chat.use-case'  // this part
 ```
 
-- **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
+- **`@app-template/<folder>`** reaches another part through its workspace's `exports`, each
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
   a module or the use cases by theirs (`@app-template/application/<module>` →
   `application/<module>/index.ts`, every layer), each with its test support's entries
   ([tooling.md › Tests](tooling.md#tests)).
-- **`#<unit>/<path>`** reaches a file of the same unit, through the `imports` map in its
+- **`#<part>/<path>`** reaches a file of the same part, through the `imports` map in its
   workspace's `package.json` (`"#chat/*": "./chat/*.ts"`, `"#api/*": "./*.ts"`); a kernel part,
   a package or a module reaches another through that one's entry, never its files. Each layer
   of a module keeps its name in the path (`#chat/services/…`), so a layer's Biome override
@@ -211,14 +211,14 @@ export const placeOrder = Effect.fn('placeOrder')(
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
   method, and the endpoint's error list checks what it fails with; the api provides the services
   it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer, and a unit test from
-  its mocks. Record: [Use cases as functions](decisions.md#use-cases-as-functions).
+  its mocks. Decision: [Use cases as functions](decisions.md#use-cases-as-functions).
 - **A rule another module owns is called, never copied.** The order module may read the
   customer's row itself, but whether a customer may order is the customer module's rule, so the
   use case calls it. How to tell one rule from two that only look alike:
   [modules.md › Another module's rule copied](../../.claude/rules/modules.md#another-modules-rule-copied).
-  Record: [Records open, rules called](decisions.md#records-open-rules-called).
+  Decision: [Records open, rules called](decisions.md#records-open-rules-called).
 - **No module reacts to another's write.** The flow runs synchronously in one use case; a job
-  carries only work that outlives the request (the assistant's reply, the title). Record:
+  carries only work that outlives the request (the assistant's reply, the title). Decision:
   [Use cases above the modules](decisions.md#use-cases-above-the-modules).
 
 ## Add a new entity
@@ -276,7 +276,7 @@ A new entity in existing workspaces usually needs no new dependency; an undeclar
 ## Add a store's client
 
 The data layer names the client it needs, the kernel builds it from config, the process provides
-it. Record: [Clients from the context](decisions.md#clients-from-the-context).
+it. Decision: [Clients from the context](decisions.md#clients-from-the-context).
 
 ```ts
 // kernel/data: the repository asks the context for the client
@@ -305,7 +305,7 @@ Layer.provide([Db.layer, FileRepository.layer]), Layer.provide([PgClientFromConf
 A module is a folder `application/<module>/` of the `@app-template/application` workspace,
 imported as `@app-template/application/<module>`; its contract, once another module needs it,
 the folder `application/<module>/contract/`, exported through the same entry.
-Record: [Modules by capability](decisions.md#modules-by-capability).
+Decision: [Modules by capability](decisions.md#modules-by-capability).
 
 1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel; in
    `application/package.json`, an `exports` entry `./<module>` and the alias `#<module>/*`, and
@@ -316,25 +316,25 @@ Record: [Modules by capability](decisions.md#modules-by-capability).
    new name passes every ban but the plugin's
    ([Guards are configuration](decisions.md#guards-are-configuration)).
 3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry;
-   the `application/*/contract/**` override already covers it. Record:
+   the `application/*/contract/**` override already covers it. Decision:
    [Module contracts](decisions.md#module-contracts).
-4. **The consumers** declare `@app-template/application` in their `package.json`; the browser is
-   none, and `make bundle-check` refuses the module in its bundle with no edit.
-5. **The docs.** The glossary gains the module's words; `decisions.md` a record if the cut is a
-   decision ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
+4. **The workspaces that import it** declare `@app-template/application` in their `package.json`;
+   the browser is none, and `make bundle-check` refuses the module in its bundle with no edit.
+5. **The docs.** The glossary gains the module's words; `decisions.md` a decision if the cut is
+   one ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
 ## Boundary guards
 
 Each import rule of [Dependency rules](#dependency-rules) is held once, by the guard that can see
 it, and a last guard checks what an allowed import brings into the web bundle; what no
 guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modules.md), and
-[layering.md](../../.claude/rules/layering.md) for a handler). Record:
+[layering.md](../../.claude/rules/layering.md) for a handler). Decision:
 [Guards are configuration](decisions.md#guards-are-configuration).
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `.misc/lint/biome.base.json`, covering the layer's tests (the services' tests: one of their own) | the ✗ of each row whose *Refused by* names its glob, by unit and by imported name, test support aside in the tests; a layer that points outward inside a module; any workspace in an entry of `application/`; the record named in the message | `make lint`, `pre-commit`, CI |
-| the GritQL plugin `biome-imports.grit`, which reads the unit (`application/<module>`, `kernel/<part>`, `packages/<package>`) and the ring (`apps/<app>`, `deployment`) from the file's path | another unit's `#<unit>/…`, `#kernel/<unit>/…` or `#testing/<unit>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; the workspaces the rows whose *Refused by* names it refuse, even when the manifest declares them | the same |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `.misc/lint/biome.base.json`, covering the layer's tests (the services' tests: one of their own) | the ✗ of each row whose *Refused by* names its glob, by part and by imported name, test support aside in the tests; a layer that points outward inside a module; any workspace in an entry of `application/`; the decision named in the message | `make lint`, `pre-commit`, CI |
+| the GritQL plugin `biome-imports.grit`, which reads the part (`application/<module>`, `kernel/<part>`, `packages/<package>`) and the ring (`apps/<app>`, `deployment`) from the file's path | another part's `#<part>/…`, `#kernel/<part>/…` or `#testing/<part>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; the workspaces the rows whose *Refused by* names it refuse, even when the manifest declares them | the same |
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
@@ -379,5 +379,5 @@ them:
   there; `tsc -b` too, as the folder's manifest declares the kernel.
 - **A specifier the plugin cannot read.** `biome-imports.grit` reads a literal in the forms
   [Boundary guards](#boundary-guards) lists; one built at runtime (`import(name)`, a string
-  joined from parts) or handed to another loader passes it. In `packages/` it then reaches any
-  workspace the one manifest declares, elsewhere another unit's file.
+  joined at runtime) or handed to another loader passes it. In `packages/` it then reaches any
+  workspace the one manifest declares, elsewhere another part's file.

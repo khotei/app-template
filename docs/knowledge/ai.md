@@ -1,15 +1,15 @@
 # AI
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
-`@effect/ai-anthropic` it uses, and what to know before changing its prompt or the title's
-schema. The code: the chat module's two services in its `infrastructure/`, one per job,
-`MessageAssistant` (the reply: the system prompt and the reply model of `LLM_REPLY_MODEL`) and
-`ChatAssistant` (the title: its instruction, its schema and the title model of
+`@effect/ai-anthropic` it uses, and what to know before changing its prompt or the title's schema.
+The code: the chat module's two services in its `infrastructure/`, one per job, `MessageAssistant`
+(the reply: the system prompt and the reply's language model of `LLM_REPLY_MODEL`) and
+`ChatAssistant` (the title: its instruction, its schema and the title's language model of
 `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
-`@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the
-finish-reason check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's
-client with the key of `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its one error,
-`LlmError`; and those settings in `@app-template/kernel/config`.
+`@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the finish-reason
+check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's client with the key of
+`ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its one error, `LlmError`; and those
+settings in `@app-template/kernel/config`.
 The assistants' suite runs over a fake `HttpClient` that returns canned Anthropic bodies, so no
 test needs a key or the network.
 
@@ -27,16 +27,16 @@ graph LR
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
 
-1. Each model sends its fixed prompt as the request's `system`, set in its `config`: the system
-   prompt for a reply, the title instruction for a title. A prompt that asks the model to show
-   its reasoning invites a refusal.
-2. `MessageAssistant.reply` calls `generateText` on the reply model with the chat's messages:
-   each turn, the user's and the assistant's, as its text. A failed Run leaves no reply, so two
-   user turns may follow each other: `@effect/ai-anthropic` folds them into one, and the
+1. Each language model sends its fixed prompt as the request's `system`, set in its `config`: the
+   system prompt for a reply, the title instruction for a title. A prompt that asks the language
+   model to show its reasoning invites a refusal.
+2. `MessageAssistant.reply` calls `generateText` on the reply's language model with the chat's messages:
+   each message, the user's and the assistant's, as its text. A failed Run leaves no reply, so two
+   user messages may follow each other: `@effect/ai-anthropic` folds them into one, and the
    Messages API takes either shape. The text is decoded as the domain's `AssistantReply`, which
    drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
    Nothing streams: the answer arrives whole.
-3. `ChatAssistant.proposeTitle` calls `generateObject` on the title model with the opening
+3. `ChatAssistant.proposeTitle` calls `generateObject` on the title's language model with the opening
    message and `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's
    native structured output). The schema's checks are not sent: the instruction states the
    language and the 120-character bound; the decode of the JSON answer trims the title and
@@ -50,12 +50,12 @@ covers these steps.
 
 | Purpose | Model setting | Sent |
 |---|---|---|
-| reply | `LLM_REPLY_MODEL` | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the model's default |
+| reply | `LLM_REPLY_MODEL` | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
 | title | `LLM_TITLE_MODEL` | `max_tokens` 1 000, `output_config.effort: 'low'`, `thinking: { type: 'disabled' }`; no cache |
 
-- **The title model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects it, so a
-  title model set to Sonnet 5.5 fails every title request with a 400, which is not retried;
-  `.env.example` names a model that accepts it.
+- **The title's language model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects
+  it, so a title's language model set to Sonnet 5.5 fails every title request with a 400, which is
+  not retried; `.env.example` names a language model that accepts it.
 - No `temperature` is sent: the package sends none by default, and the Claude 5 models want it
   left out.
 - Anthropic's requests wait up to 10 minutes for a byte (`transformClient` on
@@ -100,15 +100,15 @@ title's use case logs either and leaves the chat untitled.
   prompt alone is far below it, so two chats never share a cached prefix; a chat starts reading
   its cache once its history passes the floor. `usage.cache_creation_input_tokens` and
   `usage.cache_read_input_tokens` both 0 means nothing was cached.
-- **What breaks it.** A cache belongs to one model and one prefix. Changing the reply model, the
-  system prompt, the thinking setting or the effort invalidates every chat's cached prefix once;
-  the next reply of each chat writes it again at the write price.
+- **What breaks it.** A cache belongs to one language model and one prefix. Changing the reply's
+  language model, the system prompt, the thinking setting or the effort invalidates every chat's
+  cached prefix once; the next reply of each chat writes it again at the write price.
 
 ## Modules left unused
 
-Four modules a reader would reach for are left alone on purpose: `Chat`, since the history lives
-in the database and every request is rebuilt from it; `Model`, since each assistant holds
-its one `LanguageModel` value; `ResponseIdTracker`, since Anthropic's Messages API keeps
-no server-side conversation; and `AnthropicConfig`, since the wait is set once, on
-`AnthropicClient.layer`, for every request. What every other module of the two vendored folders
-is: its first comment.
+Four Effect modules of `effect/ai` a reader would reach for are left alone on purpose: `Chat`, since
+the history lives in the database and every request is rebuilt from it; `Model`, since each
+assistant holds its one `LanguageModel` value; `ResponseIdTracker`, since Anthropic's Messages API
+keeps no server-side history; and `AnthropicConfig`, since the wait is set once, on
+`AnthropicClient.layer`, for every request. What every other Effect module of the two vendored
+folders is: its first comment.

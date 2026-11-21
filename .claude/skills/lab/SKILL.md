@@ -35,7 +35,7 @@ owner's explicit word lifts one, for one step.
    never amended or squashed: revert it while it is the branch's last, else fix forward. The
    owner's "don't commit" holds until their next "commit", which covers only what exists then.
 6. **Facts are yours, decisions the owner's.** Answer a question from the code and `repos/`, or
-   send it to a `researcher`; ask the owner only to decide. A claim carries its `path:line` or its
+   hand it to a `researcher`; ask the owner only to decide. A claim carries its `path:line` or its
    run, else says "I assume".
 7. **Done is visible:** a command or link the owner can repeat, `make check` green, and the
    step's review settled; a case seen only on a stub is not fixed.
@@ -137,7 +137,7 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   owner in a few lines what the step will produce: each file or rule it changes, and how. A
   report that starts with `BLOCKED:` goes to the owner as a question, its red unit left in the
   tree. After any other, `make check` is green, `git log` since its start lists exactly the
-  reported rounds and the tree is clean, else send it back. Then `review`, its fixes sent to the
+  reported rounds and the tree is clean, else hand it back. Then `review`, its fixes handed to the
   same `implementer` as one fix pass; then propose the Output and present the step, its rounds,
   findings and duration. Several settled steps run unattended only on the owner's word, as a
   workflow that gives each step to an `implementer` this way.
@@ -150,7 +150,7 @@ stays in git, each round named by its id, never by a hash. Markers: the owner's 
   `make reset` inside it, `git worktree remove --force`, `git branch -D wt/<name>`. The whole lab,
   once every step is `done`: run every Map row's visible check and show the output, `review all`,
   propose what of Knowledge moves to `docs/knowledge/` (terms
-  to the glossary, a binding rule to a record of `docs/knowledge/decisions.md`), ask each open
+  to the glossary, a binding rule to a decision of `docs/knowledge/decisions.md`), ask each open
   `Later` item's fate, mark the slug's roadmap row done with a link to the folder and cut its
   entry's section, propose the lessons, and commit as the next `L0` round.
 
@@ -180,7 +180,7 @@ One round per step or branch, in fresh contexts; no pass runs again unless the o
    - **Design**, only given `design`, on `opus high`: the range's files and their callers,
      [stops.md](stops.md), `.claude/rules/repositories.md`, `.claude/rules/composition.md`,
      `docs/knowledge/architecture.md`
-     and the records of `docs/knowledge/decisions.md` that bind those files.
+     and the decisions of `docs/knowledge/decisions.md` that bind those files.
 4. **Decide** on each finding as its report states it:
    - it breaks the intent, or is of a kind never deferred: fix it, a behaviour one test first; a
      test that stays green refutes it, so drop it and say so, quoting the test;

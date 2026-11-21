@@ -8,17 +8,17 @@ and the resource code it runs); the e2e support, [tooling.md › Tests](tooling.
 
 ## The local stand-in
 
-[MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3, SQS and RDS on the port of
-`AWS_ENDPOINT_URL`, one per tree ([tooling.md › Worktrees](tooling.md#worktrees)).
+[MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3, SQS and RDS on the TCP
+port of `AWS_ENDPOINT_URL`, one per tree ([tooling.md › Worktrees](tooling.md#worktrees)).
 `deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
 the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
 only once MiniStack responds. The program reads `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` from
 `.env` (how `make up` passes it:
 [tooling.md › Environment](tooling.md#environment)): MiniStack's default region is `AWS_REGION`,
-its 4566 is published on the endpoint's port, and the container is named
+its 4566 is published on the endpoint's TCP port, and the container is named
 `app-template-<STAGE>-ministack`, so the stacks of several trees share no port, container or state.
-A new name or image replaces the container, the old one deleted first because it holds the port.
+A new name or image replaces the container, the old one deleted first because it holds the TCP port.
 
 Through an `aws.Provider` that waits for the healthy container, the same program creates inside
 MiniStack the inventory (below) and the database: an `aws.rds.Instance` of Postgres, named
@@ -49,7 +49,7 @@ local program and the tests' container both read.
 | Target | Does |
 |---|---|
 | `make stack` | creates the tree's file backend under `.data/pulumi` and selects the `local` stack or creates it; it never runs `pulumi login`. Idempotent; `up` runs it first. |
-| `make up` | refreshes the containers alone, MiniStack and the telemetry backend ([observability.md](observability.md)), so a stopped one starts again; a full refresh, or `up --refresh`, while MiniStack is down would drop the bucket from the state. Then `pulumi up`, `.env.pulumi` and `make migrate`, which waits for a database MiniStack is still respawning ([database.md › Migrations](database.md#migrations)). A second run changes nothing. |
+| `make up` | refreshes the containers alone, MiniStack and the telemetry backend ([observability.md](observability.md)), so a stopped one starts again; a full refresh, or `up --refresh`, while MiniStack is down would drop the bucket from the state. Then `pulumi up`, `.env.pulumi` and `make migrate`, which waits for a database MiniStack is still respawning ([database.md › Migrations](database.md#migrations)). A second `make up` changes nothing. |
 | `make down` | `docker stop` of MiniStack, which saves its state under `.data/ministack/` and stops the instance's container, and of the telemetry backend; the stack keeps every resource. |
 | `make reset` | `docker rm -f` of MiniStack, of the telemetry backend, of the instance's container and of the tree's Postgres MCP containers ([tooling.md › Claude Code's Postgres MCP](tooling.md#claude-codes-postgres-mcp)), `docker volume rm` of its volume, then removes `.data/` (MiniStack's state and the Pulumi stack) and `.env.pulumi`. No `pulumi destroy` runs: every resource lives in what these commands remove, and the stack's state goes with `.data/`. `.pulumi/` (the provider plugins) stays. |
 
@@ -71,7 +71,7 @@ path-style addressing; without one, the SDK's own endpoints.
 | the Pulumi CLI is missing | `make up`, `down`, `reset` and `stack` fail at `pulumi`; install it (<https://www.pulumi.com/docs/install/>). `make check` does not need it |
 | an older `.env` lacks `AWS_*`, `STAGE` or `RDS_BASE_PORT` | `make up` fails with a `ConfigError` naming the variable; `make setup` leaves an existing `.env` alone, so copy the block from `.env.example` |
 | the first `make up` takes longer | it downloads the Docker and AWS provider plugins into `.pulumi/` once; worktrees reuse them |
-| the endpoint's port is taken | the container fails to start; free the port (a leftover MiniStack container, or another emulator) |
+| the endpoint's TCP port is taken | the container fails to start; free the TCP port (a leftover MiniStack container, or another emulator) |
 | `make up` failed midway | run it again; it goes on from what it created |
 | you want a clean slate | `make reset` also wipes the database, not only MiniStack |
 
@@ -98,7 +98,7 @@ e2e tests create each test's stage with `provision(resources, stage)` from the e
 on create; Pulumi updates the queue in place. A queue whose `name` changed is a new queue, as SQS
 renames none: the next `make up` on a stack that holds the old one creates the new queue, its
 dead-letter queue and its mapping, and deletes the old three with the messages they held; an e2e
-stage is new on every run.
+stage is new on every e2e run.
 
 ### Adding a resource
 
@@ -149,16 +149,16 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`. A queue of the inventory with no consumer fails typecheck; a batch of
   a queue outside the inventory responds with `500`, a deployment bug.
-- **The work's record runs a job once.** A queue's use case reads the record of its work (the Run
-  and the chat's title, through `ReplyChatService` and `TitleChatService`, which report one
-  settled, started or gone as a typed error) and skips work already settled; it ends its own work
-  on any outcome but success, an interrupt included
+- **The work's record keeps a job's work to one.** A queue's use case reads the record of its work
+  (the Run and the chat's title, through `ReplyChatService` and `TitleChatService`, which report one
+  settled, started or gone as a typed error) and skips work already settled; it ends its own work on
+  any outcome but success, an interrupt included
   ([database.md › Stuck Runs](database.md#stuck-runs)). A body that does not decode never will, so
   it is logged and acknowledged, unrun.
-- **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker
-  that started it died, so a copy delivered while the first still runs fails a live Run, and of
-  two delivered at the same instant the one that loses its start's write fails the Run the
-  other works on, a rare case accepted.
+- **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker that
+  started it died, so a copy delivered while the first is still handled fails a live Run, and of two
+  delivered at the same instant the one that loses its start's write fails the Run the other works
+  on, a rare case accepted.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles
   its work's failure itself. A record whose handler dies (a process that dies included) is
   returned in `batchItemFailures`, or not returned at all; SQS delivers it again once the queue's
@@ -168,7 +168,7 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
 - **Nothing consumes a dead-letter queue.** A Run's worker writes `failed` on any outcome but
   success; one that no worker settles stays active
   ([database.md › Stuck Runs](database.md#stuck-runs)).
-- **AWS differs in one status.** MiniStack counts any non-2xx response as a failed invoke; Lambda
+- **AWS differs in one HTTP status.** MiniStack counts any non-2xx response as a failed invoke; Lambda
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 
@@ -184,7 +184,7 @@ publishes the SDK clients too, which the kernel's `*FromConfig` layers keep clos
 stage's `S3Bucket`. The e2e
 through the api add the worker's function and its mappings with `provisionWorker`, its proxy on
 the stand's worker, and the `s3` suite creates one bucket, named as a stage is, for its
-`S3Bucket`. Nothing cleans a stage up: the container goes with the run. The Pulumi
+`S3Bucket`. Nothing cleans a stage up: the container goes with the e2e run. The Pulumi
 project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, and the 5 MiB minimum

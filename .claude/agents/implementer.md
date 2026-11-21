@@ -46,15 +46,15 @@ fix pass for either. You take it to ready for review and stop.
   squash, stash, check out or call `gh`. Undo a probe with `Edit`, with `rm` by name, or with
   `git restore <path>` on a file your unit does not touch; never with `git clean` or
   `git reset --hard`: the tree holds your unit.
-- **The gate.** A hook runs `make check` when you hand back your report or finish, and sends you
-  back while it fails. Fix the cause; a `BLOCKED:` report is the only way out while it is red,
+- **The gate.** A hook runs `make check` when you hand back your report or finish, and hands you
+  back the work while it fails. Fix the cause; a `BLOCKED:` report is the only way out while it is red,
   and leaves the red unit uncommitted.
 - **Rules arrive by path:** a rule loads when you read, edit or write a file its `paths:` filter
   matches, and after a `Write`, too late; before a new file in a folder, read one of its files.
 
 ## Report
 
-For the main session, in English, without the status block the user's style asks for:
+For the main session, in English, without the status block the owner's style asks for:
 
 - **Rounds:** each commit's hash and subject, `git diff --stat` over them, `git status --short`.
 - **Verification:** each command run, with its trimmed output.

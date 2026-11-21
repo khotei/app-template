@@ -1,9 +1,9 @@
 # App Template
 
-A working enterprise application to start new ones from, and the AI-assisted process that builds
+A working enterprise project to start new ones from, and the AI-assisted process that builds
 it.
 
-The application is a chat clone: a user sends a message, the assistant replies. The chat is only
+The template is a chat clone: a user asks in a chat, the assistant replies. The chat is only
 the worked example; what a new project inherits is around it:
 
 - 🏛️ **An architecture that holds.** A Bun, TypeScript and Effect modular monolith: three
@@ -22,7 +22,7 @@ copied and changed.
 
 ## ✨ What the example does
 
-An anonymous user gets a secret in a cookie, creates chats, sends messages, and the assistant
+A user, an anonymous browser, gets a secret in a cookie, creates chats, asks in them, and the assistant
 answers. A user's message starts a Run, the work of answering it: the api writes the message and its
 queued Run in one transaction, sends the jobs to SQS after it commits and responds with `202` and the
 Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run to
@@ -57,17 +57,17 @@ How the transaction and the jobs work:
 
 Requires Bun at the version in `package.json › packageManager`, GNU Make, Docker running and the
 [Pulumi CLI](https://www.pulumi.com/docs/install/). The development process also needs
-[Claude Code](https://code.claude.com/docs/en); the application does not.
+[Claude Code](https://code.claude.com/docs/en); the template does not.
 
 ```sh
 make setup   # bun install, git hooks, the Claude Code plugin, .env from .env.example
 make up      # MiniStack with Postgres, the bucket and the queues inside it, and Grafana; migrates
-             # (the first run downloads several GB: the provider plugins and the Grafana image)
+             # (the first make up downloads several GB: the provider plugins and the Grafana image)
 make dev     # runs make migrate, then api, worker and web together; needs make up's stand
 ```
 
-`.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the models in
-`LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. An empty or missing key stops the worker at start with a
+`.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the language models
+in `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. An empty or missing key stops the worker at start with a
 `ConfigError` naming it; the api and the web read none of them.
 
 | Process | URL | Try |
@@ -77,7 +77,7 @@ make dev     # runs make migrate, then api, worker and web together; needs make 
 | `apps/worker` | <http://localhost:3002> | `POST /events`, the batches MiniStack's SQS mappings send |
 | Grafana | <http://localhost:3003> | `admin`/`admin`: one trace per message, its logs inside ([observability.md](docs/knowledge/observability.md)) |
 
-A whole conversation from the shell, with the cookie kept in a jar:
+A whole chat from the shell, with the cookie kept in a jar:
 
 ```sh
 curl -s -c jar -X POST localhost:3000/users
@@ -95,7 +95,7 @@ fails: [aws.md › When the stand fails](docs/knowledge/aws.md#when-the-stand-fa
 
 ## 🗺️ The repository as a system
 
-The repository holds three things: the application, the knowledge about it, and the toolkit that
+The repository holds three things: the template's code, the knowledge about it, and the toolkit that
 changes it.
 
 | Folder | What it holds |
@@ -142,7 +142,7 @@ One name crosses every ring: a module's files read from the data outward, table 
 then model, service, use case, adapter and handler. Every file of `chat`:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live). Why each
 boundary holds, what it costs and what breaks if it is reversed:
-[decisions.md](docs/knowledge/decisions.md), one record per decision.
+[decisions.md](docs/knowledge/decisions.md), one entry per decision.
 
 ## 🤖 How work gets done
 
@@ -176,7 +176,7 @@ Why it is cut so: [sdd.md](docs/knowledge/sdd.md).
 | fix formatting and import order | `make fmt` | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
 | change a table | edit its `.table.ts`, regenerate the one `init` migration, rebuild the local database | [database.md › Migrations](docs/knowledge/database.md#migrations) |
 | start over with an empty database | `make reset && make up` | [tooling.md › Environment](docs/knowledge/tooling.md#environment) |
-| work on two branches at once | a worktree with its own ports and containers | [tooling.md › Worktrees](docs/knowledge/tooling.md#worktrees) |
+| work on two branches at once | a worktree with its own TCP ports and containers | [tooling.md › Worktrees](docs/knowledge/tooling.md#worktrees) |
 | learn why a check failed | the symptom table | [tooling.md › Troubleshooting](docs/knowledge/tooling.md#troubleshooting) |
 | learn why a commit or a push was rejected | the hooks; never `--no-verify` | [tooling.md › Git hooks and CI](docs/knowledge/tooling.md#git-hooks-and-ci) |
 | write a test | the kinds, where each goes, and time in `it.effect` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
@@ -207,7 +207,7 @@ which order: [roadmap.md](docs/knowledge/roadmap.md).
 | Which ring and layer does my code belong to, and what may it import? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
 | How are records stored, guarded, migrated and tested? | [docs/knowledge/database.md](docs/knowledge/database.md) |
 | How do the apps reach S3 and SQS, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
-| How does the assistant ask the model for a reply or a title? | [docs/knowledge/ai.md](docs/knowledge/ai.md) |
+| How does the assistant ask the language model for a reply or a title? | [docs/knowledge/ai.md](docs/knowledge/ai.md) |
 | How do I follow one message through the api and the worker? | [docs/knowledge/observability.md](docs/knowledge/observability.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
 | How does a change get built, and why that way? | [docs/knowledge/sdd.md](docs/knowledge/sdd.md) |
