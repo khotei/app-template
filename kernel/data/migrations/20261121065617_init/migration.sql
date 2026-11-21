@@ -1,5 +1,5 @@
 CREATE TYPE "message_author" AS ENUM('user', 'assistant');--> statement-breakpoint
-CREATE TYPE "run_status" AS ENUM('queued', 'preparing', 'generating', 'done', 'failed');--> statement-breakpoint
+CREATE TYPE "run_status" AS ENUM('queued', 'generating', 'done', 'failed');--> statement-breakpoint
 CREATE TYPE "credential_kind" AS ENUM('secret');--> statement-breakpoint
 CREATE TABLE "chats" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
@@ -46,7 +46,7 @@ CREATE TABLE "users" (
 --> statement-breakpoint
 CREATE INDEX "chats_user_id_created_at_index" ON "chats" ("user_id","created_at" DESC);--> statement-breakpoint
 CREATE INDEX "messages_chat_id_created_at_index" ON "messages" ("chat_id","created_at");--> statement-breakpoint
-CREATE UNIQUE INDEX "runs_chat_id_active_index" ON "runs" ("chat_id") WHERE "status" in ('queued', 'preparing', 'generating');--> statement-breakpoint
+CREATE UNIQUE INDEX "runs_chat_id_active_index" ON "runs" ("chat_id") WHERE "status" in ('queued', 'generating');--> statement-breakpoint
 CREATE INDEX "runs_user_message_id_created_at_index" ON "runs" ("user_message_id","created_at");--> statement-breakpoint
 ALTER TABLE "chats" ADD CONSTRAINT "chats_user_id_users_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id");--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_chat_id_chats_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE;--> statement-breakpoint

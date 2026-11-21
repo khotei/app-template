@@ -913,7 +913,6 @@
             "type": "string",
             "enum": [
               "queued",
-              "preparing",
               "generating",
               "done",
               "failed"
@@ -1123,7 +1122,6 @@
             "type": "string",
             "enum": [
               "queued",
-              "preparing",
               "generating",
               "done",
               "failed"

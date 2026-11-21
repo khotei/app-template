@@ -40,7 +40,7 @@ describe('generateAssistantMessage', () => {
 
         assert.deepStrictEqual(
           Arr.map(updates, ({ status }) => status),
-          ['preparing', 'generating', 'failed'],
+          ['generating', 'failed'],
         )
         assert.include(updates.at(-1)?.failure?.cause, error.cause)
         assert.strictEqual((yield* assistant.histories).length, 1)

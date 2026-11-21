@@ -195,7 +195,7 @@ describe('AskRunService', () => {
   })
 
   it.effect(
-    "reply moves the Run through preparing and generating, then writes the assistant's message and done",
+    "reply moves the Run to generating, then writes the assistant's message and done",
     () => {
       const held = holdAssistantCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
@@ -212,7 +212,7 @@ describe('AskRunService', () => {
         yield* TestClock.adjust('500 millis')
         yield* Fiber.join(running)
 
-        const generatingMoves = ['queued → preparing', 'preparing → generating']
+        const generatingMoves = ['queued → generating']
         assert.deepStrictEqual(asked, generatingMoves)
         assert.deepStrictEqual(halfway, generatingMoves)
         const stored = yield* decodeWith(Schema.Array(MessageFields))(writes.messages).pipe(
@@ -310,16 +310,16 @@ describe('AskRunService', () => {
     )
   })
 
-  it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
-    'reply of a $status Run fails RunStartedError, failing the Run as its worker stopped, unasked',
-    ({ status }) => {
+  it.effect(
+    'reply of a generating Run fails RunStartedError, failing the Run as its worker stopped, unasked',
+    () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
       return Effect.gen(function* () {
         const error = yield* reply.pipe(Effect.flip)
 
         assert.strictEqual(error._tag, 'RunStartedError')
-        assert.deepStrictEqual(moves(writes), [`${status} → failed`])
+        assert.deepStrictEqual(moves(writes), ['generating → failed'])
         assert.include(
           lastWrite(writes).cause,
           'the worker that started the Run stopped before it ended',
@@ -327,9 +327,9 @@ describe('AskRunService', () => {
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
-          layerChatTest(
-            replyingTo(writes, { runs: readsInTurn(new Run({ ...queuedRun, status })) }),
-          ).pipe(Layer.provideMerge(assistant.layer)),
+          layerChatTest(replyingTo(writes, { runs: readsInTurn(generating) })).pipe(
+            Layer.provideMerge(assistant.layer),
+          ),
         ),
       )
     },
@@ -364,7 +364,7 @@ describe('AskRunService', () => {
         const exit = yield* reply.pipe(Effect.exit)
 
         assert.isTrue(Exit.hasDies(exit))
-        assert.deepStrictEqual(moves(writes), ['queued → preparing', 'preparing → generating'])
+        assert.deepStrictEqual(moves(writes), ['queued → generating'])
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
@@ -387,18 +387,16 @@ describe('AskRunService', () => {
   )
 
   it.effect(
-    'reply losing its preparing write to a rival delivery dies, failing the Run the rival took',
+    'reply losing its generating write to a rival delivery dies, failing the Run the rival took',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
-      const mocks = replyingTo(writes, {
-        runs: readsInTurn(queuedRun, new Run({ ...queuedRun, status: 'preparing' })),
-      })
+      const mocks = replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })
       return Effect.gen(function* () {
         const exit = yield* reply.pipe(Effect.exit)
 
         assert.isTrue(Exit.hasDies(exit))
-        assert.deepStrictEqual(moves(writes), ['preparing → failed'])
+        assert.deepStrictEqual(moves(writes), ['generating → failed'])
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
@@ -407,7 +405,7 @@ describe('AskRunService', () => {
             runs: {
               ...mocks.runs,
               update: (set, where) =>
-                set.status === 'preparing'
+                set.status === 'generating'
                   ? Effect.die('no run was updated')
                   : Effect.sync(() => {
                       writes.runs.push([set, where])

@@ -25,8 +25,8 @@ copied and changed.
 An anonymous user gets a secret in a cookie, creates chats, sends messages, and the assistant
 answers. A user's message starts a Run, the work of answering it: the api writes the message and its
 queued Run in one transaction, sends the jobs to SQS after it commits and answers `202` with the
-Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run through
-`preparing` and `generating`, then writes the assistant's message and the Run's `done` in one
+Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run to
+`generating`, then writes the assistant's message and the Run's `done` in one
 transaction, or the Run's `failed` with the text of what ended it, and titles the chat. The
 client polls the Run, reads the chat's messages with their Runs after a reload, and retries a
 failed Run as a new Run of the same message. The language model is Anthropic's. The browser UI
@@ -44,7 +44,7 @@ sequenceDiagram
   A->>Q: after the commit: the reply's job (+ the title's on the chat's first message)
   A-->>W: 202 with the Run
   Q->>K: a Lambda mapping posts the batch to POST /events
-  K->>S: Run preparing → generating → done with the assistant's message | failed
+  K->>S: Run generating → done with the assistant's message | failed
   W->>A: GET /chats/:chatId/runs/:runId (poll), GET /chats/:chatId/messages (reload)
   W->>A: POST /chats/:chatId/runs (retry the chat's failed newest Run)
 ```
@@ -84,7 +84,7 @@ curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello"}'
-# repeat while the Run is queued, preparing or generating: its assistantMessage arrives whole
+# repeat while the Run is queued or generating: its assistantMessage arrives whole
 curl -s -b jar localhost:3000/chats/<chatId>/runs/<runId>
 # the reload: the chat's messages, each with its Run
 curl -s -b jar localhost:3000/chats/<chatId>/messages

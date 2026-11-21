@@ -8,7 +8,6 @@ import {
   ensureRunUnstarted,
   failRun,
   generateRun,
-  prepareRun,
   type Run,
 } from '#chat/domain/run.model'
 import type { RunId } from '#chat/domain/run.util'
@@ -19,12 +18,10 @@ export class MoveRunService extends Context.Service<
   MoveRunService,
   {
     /**
-     * Moves the Run `id` from `queued` to `preparing` as it stands now; `RunStartedError` once
+     * Moves the Run `id` from `queued` to `generating` as it stands now; `RunStartedError` once
      * some worker started it, `RunNotFoundError` once it is settled or gone.
      */
-    readonly prepare: (id: RunId) => Effect.Effect<Run, RunNotFoundError | RunStartedError>
-    /** Moves a preparing Run to `generating`. */
-    readonly generate: (run: Run) => Effect.Effect<Run>
+    readonly generate: (id: RunId) => Effect.Effect<Run, RunNotFoundError | RunStartedError>
     /** Moves a generating Run to `done`, naming `reply`. */
     readonly complete: (run: Run, reply: MessageFields) => Effect.Effect<Run>
     /**
@@ -43,14 +40,12 @@ export class MoveRunService extends Context.Service<
       )
     }
 
-    const prepare = Effect.fn('MoveRunService.prepare')(function* (id: RunId) {
+    const generate = Effect.fn('MoveRunService.generate')(function* (id: RunId) {
       const queued = yield* runs
         .getOne({ id, status: activeRunStatuses })
         .pipe(Effect.flatMap(ensureRunUnstarted))
-      return yield* move(queued, prepareRun(queued))
+      return yield* move(queued, generateRun(queued))
     })
-
-    const generate = Effect.fn('MoveRunService.generate')((run: Run) => move(run, generateRun(run)))
 
     const complete = Effect.fn('MoveRunService.complete')((run: Run, reply: MessageFields) =>
       move(run, completeRun(run, reply)),
@@ -64,7 +59,7 @@ export class MoveRunService extends Context.Service<
       return yield* move(active, failRun(active, { cause: Cause.pretty(cause) }))
     })
 
-    return { prepare, generate, complete, fail }
+    return { generate, complete, fail }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

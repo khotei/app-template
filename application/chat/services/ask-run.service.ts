@@ -56,9 +56,8 @@ export class AskRunService extends Context.Service<
       function* (id: RunId) {
         const assistant = yield* MessageAssistant
 
-        const prepared = yield* moves.prepare(id)
-        const history = yield* messages.getMany({ chatId: prepared.chatId })
-        const generating = yield* moves.generate(prepared)
+        const generating = yield* moves.generate(id)
+        const history = yield* messages.getMany({ chatId: generating.chatId })
         const generated = yield* assistant.reply(history)
         // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
         // its update, and the transaction takes the reply back.
@@ -69,8 +68,8 @@ export class AskRunService extends Context.Service<
             transaction.run,
           )
       },
-      // Any failure fails the Run as it stands, `prepare`'s included; one already settled or gone
-      // has nothing to fail.
+      // Any failure fails the Run as it stands, `generate`'s included; one already settled or
+      // gone has nothing to fail.
       (replied, id) =>
         replied.pipe(
           Effect.onError((cause) =>

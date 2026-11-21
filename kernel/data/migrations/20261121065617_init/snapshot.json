@@ -2,7 +2,7 @@
   "type": "base",
   "version": "9",
   "dialect": "postgres",
-  "id": "63162bc7-0f6c-4826-bb99-4f2a0b283e40",
+  "id": "be10ab53-90ac-4caa-93b9-1b4d4c57f122",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -427,7 +427,6 @@
       "name": "run_status",
       "values": [
         "queued",
-        "preparing",
         "generating",
         "done",
         "failed"
@@ -812,7 +811,7 @@
         }
       ],
       "isUnique": true,
-      "where": "\"status\" in ('queued', 'preparing', 'generating')",
+      "where": "\"status\" in ('queued', 'generating')",
       "with": "",
       "method": "btree",
       "concurrently": false,

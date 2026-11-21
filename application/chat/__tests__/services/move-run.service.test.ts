@@ -26,12 +26,11 @@ const moves: ReadonlyArray<{
     run: Run,
   ) => Effect.Effect<Run, RunNotFoundError | RunStartedError>
 }> = [
-  { name: 'prepare', from: 'queued', to: 'preparing', move: (moves, run) => moves.prepare(run.id) },
   {
     name: 'generate',
-    from: 'preparing',
+    from: 'queued',
     to: 'generating',
-    move: (moves, run) => moves.generate(run),
+    move: (moves, run) => moves.generate(run.id),
   },
   {
     name: 'complete',
@@ -87,12 +86,14 @@ describe('MoveRunService', () => {
     return Effect.gen(function* () {
       const service = yield* MoveRunService
 
-      const defect = yield* service.generate(queuedRun).pipe(Effect.catchDefect(Effect.succeed))
+      const defect = yield* service
+        .complete(queuedRun, assistantMessageAt(1, 'Sure.'))
+        .pipe(Effect.catchDefect(Effect.succeed))
 
       assertSchemaEquals(
         RunStatusInvalidError,
         defect,
-        new RunStatusInvalidError({ id: queuedRun.id, from: 'queued', to: 'generating' }),
+        new RunStatusInvalidError({ id: queuedRun.id, from: 'queued', to: 'done' }),
       )
       assert.deepStrictEqual(updates, [])
     }).pipe(Effect.provide(layer))
@@ -112,22 +113,25 @@ describe('MoveRunService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('prepare of a Run some worker started fails RunStartedError and writes nothing', () => {
-    const { updates, layer } = recordUpdates(
-      Option.some(new Run({ ...queuedRun, status: 'preparing' })),
-    )
-    return Effect.gen(function* () {
-      const service = yield* MoveRunService
+  it.effect(
+    'generate of a Run some worker started fails RunStartedError and writes nothing',
+    () => {
+      const { updates, layer } = recordUpdates(
+        Option.some(new Run({ ...queuedRun, status: 'generating' })),
+      )
+      return Effect.gen(function* () {
+        const service = yield* MoveRunService
 
-      const error = yield* service.prepare(queuedRun.id).pipe(Effect.flip)
+        const error = yield* service.generate(queuedRun.id).pipe(Effect.flip)
 
-      assert.deepStrictEqual([error._tag, error.id], ['RunStartedError', queuedRun.id])
-      assert.deepStrictEqual(updates, [])
-    }).pipe(Effect.provide(layer))
-  })
+        assert.deepStrictEqual([error._tag, error.id], ['RunStartedError', queuedRun.id])
+        assert.deepStrictEqual(updates, [])
+      }).pipe(Effect.provide(layer))
+    },
+  )
 
   it.effect.each([
-    { name: 'prepare', move: (moves: MoveRunService['Service']) => moves.prepare(queuedRun.id) },
+    { name: 'generate', move: (moves: MoveRunService['Service']) => moves.generate(queuedRun.id) },
     {
       name: 'fail',
       move: (moves: MoveRunService['Service']) =>

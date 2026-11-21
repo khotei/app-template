@@ -25,7 +25,6 @@ describe('buildChatStatus', () => {
 
   it.each([
     { status: 'queued', chatStatus: 'queued' },
-    { status: 'preparing', chatStatus: 'queued' },
     { status: 'generating', chatStatus: 'queued' },
     { status: 'done', chatStatus: 'idle' },
     { status: 'failed', chatStatus: 'failed' },
@@ -55,16 +54,14 @@ describe('ensureChatNotBusy', () => {
     ({ status }) => ensureChatNotBusy(runAt(status)),
   )
 
-  it.effect.each([
-    { status: 'queued' },
-    { status: 'preparing' },
-    { status: 'generating' },
-  ] as const)('refuses a chat whose newest Run is $status with ChatBusyError', ({ status }) =>
-    Effect.gen(function* () {
-      const error = yield* ensureChatNotBusy(runAt(status)).pipe(Effect.flip)
+  it.effect.each([{ status: 'queued' }, { status: 'generating' }] as const)(
+    'refuses a chat whose newest Run is $status with ChatBusyError',
+    ({ status }) =>
+      Effect.gen(function* () {
+        const error = yield* ensureChatNotBusy(runAt(status)).pipe(Effect.flip)
 
-      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-    }),
+        assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+      }),
   )
 })
 

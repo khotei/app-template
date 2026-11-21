@@ -25,7 +25,7 @@ export const RunFailure = Schema.Struct({
 })
 export type RunFailure = typeof RunFailure.Type
 
-export const runStatuses = ['queued', 'preparing', 'generating', 'done', 'failed'] as const
+export const runStatuses = ['queued', 'generating', 'done', 'failed'] as const
 
 export const runStatus = pgEnum('run_status', runStatuses)
 
@@ -66,7 +66,7 @@ export const runs = snakeCase.table(
 )
 
 /** The statuses of a Run still in flight, read by the index's predicate. */
-export const activeRunStatuses = ['queued', 'preparing', 'generating'] as const
+export const activeRunStatuses = ['queued', 'generating'] as const
 
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
 const runJsonColumns = {

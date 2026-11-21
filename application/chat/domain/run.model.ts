@@ -30,7 +30,7 @@ export { activeRunStatuses }
 export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run past `queued` that has not ended. */
-export const isStartedRun = hasStatus(['preparing', 'generating'])
+export const isStartedRun = hasStatus(['generating'])
 
 /** A job refuses a Run some worker started (`RunStartedError`): that worker has died. */
 export const ensureRunUnstarted = Effect.fnUntraced(function* (run: Run) {
@@ -57,8 +57,7 @@ export const ensureRunRetryable = (latestRun: Option.Option<RunFields>) =>
 
 /** Where a Run may move from each status; `done` and `failed` end it. */
 const moveRunRules: Record<RunStatus, ReadonlyArray<RunStatus>> = {
-  queued: ['preparing', 'failed'],
-  preparing: ['generating', 'failed'],
+  queued: ['generating', 'failed'],
   generating: ['done', 'failed'],
   done: [],
   failed: [],
@@ -79,8 +78,6 @@ const move = Effect.fnUntraced(function* (
   yield* ensureRunMove(run, to)
   return new Run({ ...run, ...fields, status: to })
 })
-
-export const prepareRun = Effect.fn('prepareRun')((run: Run) => move(run, 'preparing'))
 
 export const generateRun = Effect.fn('generateRun')((run: Run) => move(run, 'generating'))
 

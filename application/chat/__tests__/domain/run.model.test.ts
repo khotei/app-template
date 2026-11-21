@@ -16,7 +16,6 @@ import {
   generateRun,
   isActiveRun,
   isStartedRun,
-  prepareRun,
   Run,
 } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
@@ -60,7 +59,6 @@ const runAt = (status: RunStatus) => new Run({ ...queued, status })
 
 it.each([
   { status: 'queued', active: true, started: false },
-  { status: 'preparing', active: true, started: true },
   { status: 'generating', active: true, started: true },
   { status: 'done', active: false, started: false },
   { status: 'failed', active: false, started: false },
@@ -78,8 +76,7 @@ const moves: ReadonlyArray<{
   readonly from: ReadonlyArray<RunStatus>
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { to: 'preparing', from: ['queued'], move: (run) => prepareRun(run) },
-  { to: 'generating', from: ['preparing'], move: (run) => generateRun(run) },
+  { to: 'generating', from: ['queued'], move: (run) => generateRun(run) },
   {
     to: 'done',
     from: ['generating'],
@@ -146,14 +143,12 @@ describe('ensureRunUnstarted', () => {
     }),
   )
 
-  it.effect.each([{ status: 'preparing' }, { status: 'generating' }] as const)(
-    'refuses a $status Run with RunStartedError, naming the Run',
-    ({ status }) =>
-      Effect.gen(function* () {
-        const error = yield* ensureRunUnstarted(runAt(status)).pipe(Effect.flip)
+  it.effect('refuses a generating Run with RunStartedError, naming the Run', () =>
+    Effect.gen(function* () {
+      const error = yield* ensureRunUnstarted(runAt('generating')).pipe(Effect.flip)
 
-        assert.strictEqual(error.id, queued.id)
-      }),
+      assert.strictEqual(error.id, queued.id)
+    }),
   )
 })
 

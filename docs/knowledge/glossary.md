@@ -39,22 +39,22 @@ the Run is done, the assistant's message that holds it. Never the Run, which is 
 _Avoid_: Response, completion
 
 **Run status**:
-Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `preparing` (the
-assistant is reading the chat), `generating` (the assistant is writing; the text appears whole
-when it is done), `done`, or `failed` (the assistant gave up or declined; the Run keeps the
-full text of what ended it, off the wire). The last two are terminal.
+Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `generating` (the
+assistant reads the chat and writes; the text appears whole when it is done), `done`, or
+`failed` (the assistant gave up or declined; the Run keeps the full text of what ended it, off
+the wire). The last two are terminal.
 _Avoid_: Stage, state, completed, in-progress, pending, streaming
 
 **Active Run**:
-A Run that is not yet terminal (`queued`, `preparing` or `generating`). A chat has at most one.
+A Run that is not yet terminal (`queued` or `generating`). A chat has at most one.
 _Avoid_: Pending run, current reply
 
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
-`preparing` and `generating` run it in stages, `done` and `failed` end it.
+`generating` runs it, `done` and `failed` end it.
 Every status picks its subset of `Status` (the Run's, the chat's), and a check on one value
 reads the shared predicate.
-_Avoid_: State, stage, in progress; a new word for one of the six
+_Avoid_: State, stage, in progress; a new word for one of the five
 
 **Chat status**:
 What the chat's newest Run makes of it: `queued` while that Run is active, `failed` after it

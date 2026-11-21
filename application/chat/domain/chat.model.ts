@@ -41,7 +41,6 @@ export class Chat extends Schema.Class<Chat>('Chat')({
 /** What a chat's newest Run makes of it; a chat no send has reached yet is `idle`. */
 const chatStatuses = {
   queued: 'queued',
-  preparing: 'queued',
   generating: 'queued',
   done: 'idle',
   failed: 'failed',

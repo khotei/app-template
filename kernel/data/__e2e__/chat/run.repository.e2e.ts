@@ -94,7 +94,7 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const active = yield* runs.selectOne({ id: queued.id, status: ['queued', 'preparing'] })
+      const active = yield* runs.selectOne({ id: queued.id, status: ['queued', 'generating'] })
       const settled = yield* runs.selectOne({ id: queued.id, status: ['done', 'failed'] })
 
       assertSchemaEquals(SelectedRun, active, Option.some(read(queued)))
@@ -112,7 +112,7 @@ describe('RunRepository', () => {
 
       yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: ['queued'] })
       const exit = yield* runs
-        .update({ status: 'preparing' }, { id: queued.id, status: ['queued'] })
+        .update({ status: 'generating' }, { id: queued.id, status: ['queued'] })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))

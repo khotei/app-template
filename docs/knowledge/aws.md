@@ -153,7 +153,7 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   not decode never will, so it is logged and acknowledged, unrun.
 - **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker
   that started it died, so a copy delivered while the first still runs fails a live Run, and of
-  two delivered at the same instant the one that loses the `preparing` write fails the Run the
+  two delivered at the same instant the one that loses the `generating` write fails the Run the
   other works on, a rare case accepted.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles
   its work's failure itself. A record whose handler dies (a process that dies included) is
