@@ -3,66 +3,78 @@ paths:
   - "**/*.ts"
 ---
 
-# A name, its signature and its body say one thing
+# A name, its signature, its body and its doc say one thing
 
-A reader sees the call, not the body: what the name, the parameters and the result promise is
-all they act on. Ask these six in order, of every public name a change adds, renames or gives a
-new body; each builds on the one before. This rule heads the naming rules and decides only
-names, bodies and their doc sentences: a line of another rule that asks for a name, a body or a
-doc these questions refuse is a defect of that line, fixed or reported with the change.
-[naming.md](naming.md) stays the owner of which word a kind of work takes,
-[comments.md](comments.md) of when a comment exists, [composition.md](composition.md) of one
-purpose per unit.
+A reader sees the call, not the body: name, parameters, result and doc are all they act on. Ask
+these six in order of every public name a change adds, renames or gives a new body. This rule
+heads the naming rules: another rule's line that asks for a name, body or doc these refuse is a
+defect of that line, fixed or reported with the change ([naming.md](naming.md) holds the words,
+[composition.md](composition.md) one purpose per unit). Examples: `-` wrong, why; `+` passes.
 
-1. **The name tells the intent** (intention-revealing name). Read the call aloud: it says what
-   is true after it, not how. A call that needs a comment beside it, or a name of `process`,
-   `handle`, `manage`, `data`, `helper`, fails.
+1. **The name tells the intent.** Read the call aloud: it says what is true after it, not how
+   (`orders.update(order, { status: 'shipped' })` → `shipments.ship(order)`). A call that needs a
+   comment beside it fails, and so does a name that is only `process`, `handle`, `manage`, `data`
+   or `helper`; a glossary term that holds one (a handler) passes.
 2. **One word per concept, one concept per word.** Before a new name, grep the unit for its
-   synonyms and for the word's other uses. A verb that means two acts in one flow is a pun; one
-   act under two verbs is a synonym. A word the glossary gives a domain meaning is never used
-   in its everyday sense, in a comment and a test's name as in code.
-
-   ```ts
-   const order = yield* placeOrder.place(cart) // stores the order
-   yield* shipOrder.place(order)               // sends it to the warehouse: a pun on `place`
+   synonyms and for the word's other uses. One verb for two acts in one flow is a pun; one act
+   under two words, across a method, its model's function, its errors and its tests, a synonym. A
+   word of the [glossary](../../docs/knowledge/glossary.md) means only what its entry says.
+   ```diff
+     yield* orders.place(cart)       // stores the order
+   - yield* shipments.place(order)   // sends it to the warehouse: a pun on `place`
+   + yield* shipments.dispatch(order)
    ```
-
-3. **The body does what the name and the types promise, no more, no less, never the opposite**
-   (linguistic antipatterns). Read name, parameters, result and errors as one sentence.
-   - *Does more:* a `get` or `is` that writes; an `is` that returns more than a boolean; a
-     command that also answers a question about the world.
-   - *Says more:* a `validate` that neither returns nor fails; a plural name returning one; a
-     verb for work the body leaves to its caller.
-   - *The opposite:* a name against its result type, a doc comment against its error type.
-
-   The errors and the tests of a unit are named later and closer to the fact: when they use
-   another word than the method (`OrderShippedError` beside `dispatch`), the method's is wrong.
+3. **The body does what the name and the types promise, no more, no less, never the opposite.**
+   Read name, parameters, result and errors as one sentence. *Does more:* a `getProfile()` that
+   stamps the visit → `getProfile()` and `touchLastSeen()`; `isValid(order): string[]` →
+   `findOrderProblems(order)`. *Says more:* a `validate` that neither returns nor fails;
+   `getOrders()` returning one. *The opposite:* `disable(): Enabled`; "never fails" over an error
+   type. Errors and tests are named later and closer to the fact: `OrderShippedError` beside
+   `dispatch` says the method's word is wrong.
 4. **One level of abstraction in a body.** Its lines are steps of one size, one step below the
-   name; a line smaller than its neighbours (a field test beside a rule's call, a query beside
-   a move) goes to the unit that owns its level. A step is cut out under a name that passes 1
-   for a reason other than length: its level is below its caller's, two callers share it, or it
-   is a piece of its model's rule ([composition.md](composition.md)); a step with none stays in
-   place, piped.
-5. **Know what holds a unit's methods together** (cohesion), from strongest to weakest:
-   functional (one purpose) · sequential (one's result is the next one's input) · communicational
-   (the same records) · procedural (a fixed order) · temporal (the same moment) · logical (one
-   kind, picked by a flag) · coincidental (one folder). Measure, never argue: list per method
-   what it requires, who calls it, and who would ask for its change. Sets that do not overlap
-   are two units under one name. Below functional is allowed when it is chosen: say which kind
-   and why in the decision that binds the unit
-   ([decisions.md](../../docs/knowledge/decisions.md)).
-6. **One sentence, no "and"** (hard to describe, hard to name). Write the doc comment before the
-   body: a method's opens with the method's own verb, a unit's is one sentence. An "and", or a
-   verb the name lacks, means one of two things: split the unit, or find the word one level up
-   that is true of every part and check each part against it by 3. A name that will not come is
-   a finding about the design; report it, never settle it with a vaguer word.
+   name. A step is cut out under a name that passes 1 when its level is below its caller's, two
+   callers share it, or it is a piece of its model's rule; else it stays in place, piped.
+   ```diff
+   - if (Arr.isReadonlyArrayEmpty(order.lines)) return yield* new OrderEmptyError() // a field test
+   + yield* ensureOrderNotEmpty(order)                              // a piece of the model's rule
+   ```
+5. **Know what holds a unit's methods together** (cohesion), strongest first: functional (one
+   purpose) · sequential (one's result feeds the next) · communicational (the same stored
+   values) · procedural (a fixed order) · temporal (the same moment or process) · logical (one
+   kind, picked by a flag) · coincidental (one folder). Measure, never argue: list per method what
+   it requires, who calls it and who would ask for its change; sets that do not overlap are two
+   units under one name. A `<Model>Service` and a repository are communicational by design; any
+   other unit below functional names its kind in the decision that binds it.
+6. **One sentence, no "and".** Before the body, say the method in one sentence: a command's opens
+   with its own verb, a query's names what it returns. An "and", or a verb the name lacks, means
+   split the unit or find the word one level up true of every part, checked by 3
+   (`Validates the order and saves it` → `placeOrder`, two steps). A name that will not come is a
+   design finding: report it, never settle it with a vaguer word.
+
+## What stays as a comment
+
+None by default: a stale comment is acted on with full confidence. The sentence of 6 stays as a
+TSDoc `/** … */` only when a caller cannot get it from the name, the types or a rule; an optional
+second paragraph says why. A comment says why, never what: a decision and its rejected
+alternative, a gotcha or a coupling surprising from a distance, an invariant the type cannot
+express (once, on the port or the repository), a usage constraint.
+```diff
+- // loop over the lines and add up the totals
++ // the queue may deliver a job twice, so this write must stay idempotent
+```
+Never step markers, a doc that repeats the name, a `@param` that restates a type, `@since`,
+`@category`, layering or a ticket id (the commit's `Refs:`). A change that makes a comment wrong
+shows it restated code: delete it. `biome-ignore`, `@ts-expect-error` and pragmas are code: keep.
+
+## When two rules pull apart
+
+Before settling a choice, list each rule line that applies. When two ask for different code,
+never pick silently: say what each protects and what goes wrong here if it loses; apply the one
+whose loss does concrete harm, and when neither does, leave the code. Write the trade-off as one
+`Decision:` paragraph; when both losses are concrete, give both options with their cost and ask.
+The owner's word is no rule line: it stands, and the line it changes is named with its cost.
 
 ## In a review
 
-A finding names the question's number, quotes the call or the comment that shows it, and gives
-the name or the cut that would pass. A rename that only swaps a word for its synonym is no fix.
-
-Sources: Beck, *Smalltalk Best Practice Patterns* (Intention Revealing Selector, Composed
-Method); Martin, *Clean Code*, ch. 2; Arnaoudova et al., *Linguistic Anti-Patterns* (2013);
-Yourdon and Constantine, *Structured Design*; Ousterhout, *A Philosophy of Software Design*,
-ch. 14 and 15.
+A finding names the question's number, quotes the call or comment that shows it, and gives the
+name or cut that passes. A rename that swaps a word for its synonym is no fix.

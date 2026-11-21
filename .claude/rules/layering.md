@@ -13,7 +13,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A model imports of another aggregate only its `.util` file, save a model it holds as a field it
   never writes; a port may `import type` another aggregate's model.
 - A port speaks the domain's words, never a client's type or error; which failures it declares:
-  [effect-schema.md › Failures](effect-schema.md#failures).
+  [effect.md › Failures](effect.md#failures).
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
   key with its `*NotFoundError`), coding the rows through the model (`encodeWith`, `decodeWith`;

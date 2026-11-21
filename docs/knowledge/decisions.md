@@ -1393,7 +1393,7 @@ its decision.
 - **Cost:** each decision is written twice: in its ticket as history, here as the binding rule.
 - **Guarded by:** `make doc-lint` (every backticked repo path exists); review against
   `.claude/rules/claude-md.md`. A ticket id is refused in a code comment by
-  `.claude/rules/comments.md` and in an instruction file by `.claude/rules/claude-md.md`, by
+  `.claude/rules/name-and-body.md` and in an instruction file by `.claude/rules/claude-md.md`, by
   review alone: the user wants no check for it.
 - **If reversed:** the decisions go back to the tickets, and the pointer in `CLAUDE.md` goes.
 - **Revisit when:** the decisions outgrow one page.
@@ -1420,6 +1420,30 @@ An instruction file, a `CLAUDE.md`, a rule, a skill or an agent, names a pattern
 - **If reversed:** drop the `source-path` rule of the doc lint; a source path is then checked
   only for existing, so a moved file's line is caught but its rename still forces a doc edit.
 - **Revisit when:** an instruction file must name a source file no pattern describes.
+
+### Names judged by one rule
+
+`.claude/rules/name-and-body.md` asks six questions of every public name a change adds, renames
+or gives a new body, and heads the naming rules: a line of another rule that asks for a name, a
+body or a doc the questions refuse is a defect of that line.
+
+- **Why:** a caller reads the name, the types and the doc, never the body. `naming.md` gives a
+  kind of work its verb and `composition.md` a unit its one purpose; each can still ask for a
+  name that misleads in a case it did not foresee, and the questions are what tells it.
+- **Sources:** Beck, *Smalltalk Best Practice Patterns* (Intention Revealing Selector, Composed
+  Method): questions 1 and 4; Martin, *Clean Code*, ch. 2: 1 and 2; Arnaoudova et al.,
+  *Linguistic Anti-Patterns* (2013): 3; Yourdon and Constantine, *Structured Design*: the
+  cohesion scale of 5; Ousterhout, *A Philosophy of Software Design*, ch. 14 and 15: 6 and the
+  comment section.
+- **Rejected:** the questions as a peer of the naming rules: two lines that disagree would be
+  settled by whichever an agent read last. The sources in the rule: they change no line an agent
+  writes, and every `.ts` session pays for them.
+- **Cost:** a naming change that meets a refused rule line fixes or reports that line too.
+- **Guarded by:** review; the `reviewer`'s Rules pass reports such a line. Nothing in
+  `make check`.
+- **If reversed:** each naming rule decides its names alone, and a conflict between two of them
+  goes to the owner each time.
+- **Revisit when:** a question refuses a name the owner keeps.
 
 ### Instructions within size limits
 
