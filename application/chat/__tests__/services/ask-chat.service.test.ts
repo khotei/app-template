@@ -1,12 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Fiber, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option } from 'effect'
 
 import type {
   MessageColumns,
   MessageEntityWhere,
   RunColumns,
-  RunEntitySelectWhere,
   RunEntitySet,
   RunEntityWhere,
 } from '@app-template/kernel/data'
@@ -20,13 +19,12 @@ import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
-import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
-import { holdAssistantCall } from '#testing/chat/message-assistant.test-fake'
+import { holdCall } from '#testing/chat/chat.test-util'
 import { layerRefusingQueueTest } from '#testing/chat/queue-sender.test-fake'
 
 /** The rows each repository's `insert` is handed. */
@@ -60,17 +58,13 @@ const readsFirstMessage = {
   messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
 } satisfies ChatRepositoryMocks
 
-/**
- * The services over `queue`, inserts that keep nothing and a store that reads `queuedRun`, whose
- * updates land in `updates`.
- */
+/** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
 function recordUpdates<Queue>(queue: Layer.Layer<Queue>) {
   const updates: Array<RunEntitySet> = []
   const layer = layerChatTest({
     messages: { insert: () => Effect.void },
     runs: {
       insert: () => Effect.void,
-      selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
       update: (set) =>
         Effect.sync(() => {
           updates.push(set)
@@ -179,38 +173,60 @@ describe('AskChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
+  it.effect("retry's refused send fails the Run it stored, by its id, reading no Run", () => {
+    const stored: Array<RunColumns> = []
+    const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
+    return Effect.gen(function* () {
+      const sent = yield* retry(withNewest(failedRun))
+
+      assert.deepStrictEqual(
+        Arr.map(updates, ([set, where]) => [set.status, where]),
+        [['failed', { id: sent.id, status: ['queued'] }]],
+      )
+      assert.deepStrictEqual([Arr.map(stored, ({ id }) => id), sent.status], [[sent.id], 'failed'])
+    }).pipe(
+      Effect.provide(
+        // No `selectOne`: a read of the message's active Run, a later retry's, would die on it.
+        layerChatTest({
+          ...readsFirstMessage,
+          runs: {
+            insert: (row) =>
+              Effect.sync(() => {
+                stored.push(row)
+              }),
+            update: (...update) =>
+              Effect.sync(() => {
+                updates.push(update)
+              }),
+          },
+        }).pipe(Layer.provideMerge(layerRefusingQueueTest())),
+      ),
+    )
+  })
+
   it.effect(
-    "retry's refused send fails its message's active Run as it stands, a later retry's included",
+    "a refused send whose Run a worker settled meanwhile dies on the write's guard, failing no later Run",
     () => {
-      // A worker failed the Run sent, as SQS took it after all, and the user retried again.
-      const laterRetry = new Run({
-        ...queuedRun,
-        id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000033'),
-      })
-      const reads: Array<RunEntitySelectWhere> = []
       const updates: Array<RunEntityWhere> = []
       return Effect.gen(function* () {
-        const sent = yield* retry(withNewest(failedRun))
+        const exit = yield* retry(withNewest(failedRun)).pipe(Effect.exit)
 
-        assert.deepStrictEqual(reads, [
-          { userMessageId: firstMessage.id, status: ['queued', 'generating'] },
-        ])
-        assert.deepStrictEqual(updates, [{ id: laterRetry.id, status: ['queued'] }])
-        assert.deepStrictEqual([sent.id, sent.status], [laterRetry.id, 'failed'])
+        assert.isTrue(Exit.hasDies(exit))
+        assert.deepStrictEqual(
+          Arr.map(updates, ({ status }) => status),
+          [['queued']],
+        )
       }).pipe(
         Effect.provide(
           layerChatTest({
             ...readsFirstMessage,
             runs: {
               insert: () => Effect.void,
-              selectOne: (where) =>
-                Effect.sync(() => {
-                  reads.push(where)
-                }).pipe(Effect.andThen(encodeWith(Run)(laterRetry)), Effect.map(Option.some)),
+              // The Run stored is no longer queued, so the guarded write touches no row.
               update: (_, where) =>
                 Effect.sync(() => {
                   updates.push(where)
-                }),
+                }).pipe(Effect.andThen(Effect.die('no run was updated'))),
             },
           }).pipe(Layer.provideMerge(layerRefusingQueueTest())),
         ),
@@ -219,11 +235,11 @@ describe('AskChatService', () => {
   )
 
   it.effect('ask interrupted while SQS refuses the job still fails the Run', () => {
-    const held = holdAssistantCall()
+    const held = holdCall()
     const { updates, layer } = recordUpdates(layerRefusingQueueTest(held.hold))
     return Effect.gen(function* () {
       const running = yield* ask(answeredChat, 'And in Porto?').pipe(Effect.forkChild)
-      yield* held.asked
+      yield* held.reached
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),
       )

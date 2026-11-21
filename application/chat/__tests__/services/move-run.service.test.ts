@@ -40,9 +40,15 @@ const moves: ReadonlyArray<{
   },
   {
     name: 'fail',
+    from: 'queued',
+    to: 'failed',
+    move: (moves, run) => moves.fail(run, Cause.fail('SQS is unavailable')),
+  },
+  {
+    name: 'failActive',
     from: 'generating',
     to: 'failed',
-    move: (moves, run) => moves.fail(run.userMessageId, Cause.fail('SQS is unavailable')),
+    move: (moves, run) => moves.failActive(run.userMessageId, Cause.fail('the assistant failed')),
   },
 ]
 
@@ -110,12 +116,12 @@ describe('MoveRunService', () => {
   })
 
   it.effect('fail keeps the full text of the cause, its nested causes included', () => {
-    const { layer } = recordUpdates(Option.some(new Run({ ...queuedRun, status: 'generating' })))
+    const { layer } = recordUpdates()
     return Effect.gen(function* () {
       const service = yield* MoveRunService
       const refused = new Error('SQS is unavailable', { cause: new Error('the broker is down') })
 
-      const failed = yield* service.fail(queuedRun.userMessageId, Cause.die(refused))
+      const failed = yield* service.fail(queuedRun, Cause.die(refused))
 
       const { cause } = Option.getOrThrow(failed.failure)
       assert.include(cause, 'Error: SQS is unavailable')
@@ -146,9 +152,9 @@ describe('MoveRunService', () => {
       move: (moves: MoveRunService['Service']) => moves.start(queuedRun.userMessageId),
     },
     {
-      name: 'fail',
+      name: 'failActive',
       move: (moves: MoveRunService['Service']) =>
-        moves.fail(queuedRun.userMessageId, sqsUnavailable),
+        moves.failActive(queuedRun.userMessageId, sqsUnavailable),
     },
   ])('$name reads the active Run of its user message', ({ move }) => {
     const { reads, layer } = recordUpdates()
@@ -169,9 +175,9 @@ describe('MoveRunService', () => {
       move: (moves: MoveRunService['Service']) => moves.start(queuedRun.userMessageId),
     },
     {
-      name: 'fail',
+      name: 'failActive',
       move: (moves: MoveRunService['Service']) =>
-        moves.fail(queuedRun.userMessageId, sqsUnavailable),
+        moves.failActive(queuedRun.userMessageId, sqsUnavailable),
     },
   ])(
     '$name of a message with no active Run fails ActiveRunNotFoundError and writes nothing',

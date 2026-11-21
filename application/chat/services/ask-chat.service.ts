@@ -52,13 +52,13 @@ export class AskChatService extends Context.Service<
       yield* sendTitleChat(chat)
     })
 
-    // After the commit of `run`, so every delivery finds it; SQS's refusal fails it.
+    // After the commit of `run`, so every delivery finds it; SQS's refusal fails that Run alone,
+    // by its id: one a worker settled meanwhile, as SQS took the job after all, dies on the
+    // write's guard.
     const askReply = (run: Run) =>
       sendReplyToMessage(run).pipe(
         Effect.as(run),
-        Effect.catch((error) => moves.fail(run.userMessageId, Cause.fail(error))),
-        // The Run was stored queued a moment before, so a message with no active Run is a defect.
-        Effect.orDie,
+        Effect.catch((error) => moves.fail(run, Cause.fail(error))),
         // A client's abort mid-send still leaves the Run sent or failed.
         Effect.uninterruptible,
       )

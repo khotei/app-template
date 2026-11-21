@@ -12,7 +12,7 @@ import {
 } from '#chat/domain/run.model'
 import { RunService } from '#chat/services/run.service'
 
-/** Moves a Run by its model and writes it under the status it was read in. */
+/** Moves a Run under the status it was read in. */
 export class MoveRunService extends Context.Service<
   MoveRunService,
   {
@@ -25,11 +25,13 @@ export class MoveRunService extends Context.Service<
     ) => Effect.Effect<Run, ActiveRunNotFoundError | RunStartedError>
     /** Moves a generating Run to `done`, naming `reply`. */
     readonly complete: (run: Run, reply: MessageFields) => Effect.Effect<Run>
+    /** Moves `run` to `failed`, keeping the full text of `cause`. */
+    readonly fail: (run: Run, cause: Cause.Cause<unknown>) => Effect.Effect<Run>
     /**
-     * Moves the active Run of the user's message `userMessageId` to `failed` as it stands now,
-     * keeping the full text of `cause`.
+     * Fails the active Run of the user's message `userMessageId` as it stands now, keeping the
+     * full text of `cause`.
      */
-    readonly fail: (
+    readonly failActive: (
       userMessageId: MessageId,
       cause: Cause.Cause<unknown>,
     ) => Effect.Effect<Run, ActiveRunNotFoundError>
@@ -53,15 +55,19 @@ export class MoveRunService extends Context.Service<
       move(run, completeRun(run, reply)),
     )
 
-    const fail = Effect.fn('MoveRunService.fail')(function* (
+    const fail = Effect.fn('MoveRunService.fail')((run: Run, cause: Cause.Cause<unknown>) =>
+      move(run, failRun(run, { cause: Cause.pretty(cause) })),
+    )
+
+    const failActive = Effect.fn('MoveRunService.failActive')(function* (
       userMessageId: MessageId,
       cause: Cause.Cause<unknown>,
     ) {
       const active = yield* runs.getActive(userMessageId)
-      return yield* move(active, failRun(active, { cause: Cause.pretty(cause) }))
+      return yield* fail(active, cause)
     })
 
-    return { start, complete, fail }
+    return { start, complete, fail, failActive }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

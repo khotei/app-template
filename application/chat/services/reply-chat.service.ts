@@ -58,7 +58,7 @@ export class ReplyChatService extends Context.Service<
         replied.pipe(
           Effect.onError((cause) =>
             moves
-              .fail(messageId, cause)
+              .failActive(messageId, cause)
               .pipe(Effect.catchTag('ActiveRunNotFoundError', () => Effect.void)),
           ),
         ),

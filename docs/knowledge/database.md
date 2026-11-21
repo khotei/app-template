@@ -189,9 +189,10 @@ touches no row:
   it is, which requires the id, where a read's `RunEntitySelectWhere` takes the id or the user's
   message under a status; `MoveRunService`, which writes every status move, passes the status it
   read too, so a write whose expected status another worker has left, or whose Run is gone, changes
-  nothing and dies; the `fail` that follows reads the message's active Run again and fails it, else
-  leaves it, and the next delivery skips it. A Run's completion writes the assistant's message, then
-  moves the Run to `done` naming it, in one transaction, so a lost race keeps no reply.
+  nothing and dies; the reply's `failActive` that follows reads the message's active Run again and
+  fails it, else leaves it, and the next delivery skips it. A Run's completion writes the
+  assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
+  keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
   finished when sent, an assistant's when its Run writes it. The Run names its reply:
   `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
@@ -242,9 +243,9 @@ writes the move, and in brackets its caller; every move is written under the sta
 stateDiagram-v2
   [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
   queued --> generating: MoveRunService.start (ReplyChatService.reply)
-  queued --> failed: MoveRunService.fail (AskChatService on a refused send, reply's tail)
+  queued --> failed: MoveRunService.fail (AskChatService on a refused send), .failActive (reply's tail)
   generating --> done: MoveRunService.complete (ReplyChatService.reply)
-  generating --> failed: MoveRunService.fail (ReplyChatService.reply's tail)
+  generating --> failed: MoveRunService.failActive (ReplyChatService.reply's tail)
   done --> [*]
   failed --> [*]
 ```
@@ -273,7 +274,7 @@ chat's title) is the one the worker reads
   that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
   message's and its Run's too. For the reply's,
-  `AskChatService` also fails its Run through `MoveRunService.fail`, as it stands now, with
+  `AskChatService` also fails the Run it sent through `MoveRunService.fail`, by its id, with
   the queue's error's full text as its failure, and the request responds with `202` and that failed
   Run; the message is stored and shown failed with its retry,
   `POST /chats/:chatId/runs`. The title's send only logs it. A send that never happens after the

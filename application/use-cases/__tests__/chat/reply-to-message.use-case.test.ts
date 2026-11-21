@@ -5,7 +5,7 @@ import { Array as Arr, Effect, Fiber, Layer, Option } from 'effect'
 import { Message, ReplyToMessage, Run } from '@app-template/application/chat'
 import {
   firstMessage,
-  holdAssistantCall,
+  holdCall,
   layerChatTest,
   queuedRun,
   recordMessageAssistant,
@@ -166,12 +166,12 @@ describe('replyToMessage', () => {
   })
 
   it.effect('reply interrupted while the assistant answers warns once, with the interrupt', () => {
-    const held = holdAssistantCall()
+    const held = holdCall()
     const assistant = recordMessageAssistant(held.hold.pipe(Effect.andThen(Effect.never)))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       const running = yield* Effect.forkChild(reply)
-      yield* held.asked
+      yield* held.reached
       yield* Fiber.interrupt(running)
 
       assert.deepStrictEqual(logs, [['Warn', 'reply failed']])

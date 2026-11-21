@@ -42,10 +42,8 @@ import {
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
-import {
-  holdAssistantCall,
-  recordMessageAssistant,
-} from '#testing/chat/message-assistant.test-fake'
+import { holdCall } from '#testing/chat/chat.test-util'
+import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fake'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
@@ -176,14 +174,14 @@ describe('ReplyChatService', () => {
   it.effect(
     "reply moves the Run to generating, then writes the assistant's message and done",
     () => {
-      const held = holdAssistantCall()
+      const held = holdCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
       const assistant = recordMessageAssistant(slowReply)
       const { logs, layer: logger } = recordLogs()
       const writes = noWrites()
       return Effect.gen(function* () {
         const running = yield* Effect.forkChild(reply)
-        yield* held.asked
+        yield* held.reached
         const asked = moves(writes)
         yield* held.release
         yield* TestClock.adjust('500 millis')
@@ -247,12 +245,12 @@ describe('ReplyChatService', () => {
   })
 
   it.effect('reply interrupted while the assistant answers fails the Run it reads again', () => {
-    const held = holdAssistantCall()
+    const held = holdCall()
     const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
     const writes = noWrites()
     return Effect.gen(function* () {
       const running = yield* Effect.forkChild(reply)
-      yield* held.asked
+      yield* held.reached
       yield* Fiber.interrupt(running)
 
       assert.strictEqual(lastWrite(writes).move, 'generating → failed')
@@ -399,7 +397,7 @@ describe('ReplyChatService', () => {
   it.effect(
     "a failed Run's job delivered again after its retry starts the retry's Run, whose own job then fails it as started",
     () => {
-      const held = holdAssistantCall()
+      const held = holdCall()
       const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
       const writes = noWrites()
       const mocks = replyingTo(writes, {
@@ -411,7 +409,7 @@ describe('ReplyChatService', () => {
         const again = yield* replyChat
           .reply(queuedRun.userMessageId)
           .pipe(Effect.exit, Effect.forkChild)
-        yield* held.asked
+        yield* held.reached
         const own = yield* replyChat.reply(retried.userMessageId).pipe(Effect.flip)
         yield* held.release
         const againExit = yield* Fiber.join(again)

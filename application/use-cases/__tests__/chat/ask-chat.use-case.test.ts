@@ -91,7 +91,6 @@ describe('askChat', () => {
             ...mocks,
             runs: {
               ...mocks.runs,
-              selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
               update: () => Effect.void,
             },
           }).pipe(Layer.provideMerge(RefusingReplyQueueTest)),
