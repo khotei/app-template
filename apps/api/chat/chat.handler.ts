@@ -6,7 +6,7 @@ import { askChat, listMessages, retryRun } from '@app-template/application/use-c
 
 import { Api } from '#api/api'
 import { buildApiChat } from '#api/chat/chat.mapper'
-import { CurrentUser } from '#api/shared/security'
+import { CurrentUser } from '#api/shared/api-security'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,

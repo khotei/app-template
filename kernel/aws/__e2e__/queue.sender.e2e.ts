@@ -6,8 +6,8 @@ import { awsConfig } from '@app-template/kernel/config'
 import { type QueueDefinition, QueueError, QueueSender } from '@app-template/packages/queue'
 
 import { QueueSenderOfStage } from '#kernel/aws/aws.client'
-import { buildResourceName } from '#kernel/aws/resources/naming'
 import { resources } from '#kernel/aws/resources/resources'
+import { buildResourceName } from '#kernel/aws/resources/resources-naming'
 import { AwsTest } from '#testing/aws/e2e/aws.test-layer'
 
 const QueueSenderTest = QueueSenderOfStage.pipe(Layer.provideMerge(AwsTest))

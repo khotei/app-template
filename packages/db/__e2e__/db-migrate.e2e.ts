@@ -3,7 +3,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, FileSystem, Path } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { migrateDatabase } from '#db/migrate'
+import { migrateDatabase } from '#db/db-migrate'
 import { PgClientTest } from '#testing/db/e2e/postgres.test-layer'
 
 /** A migrations folder of one migration, `20990101000000_probes`, that creates `probes`. */

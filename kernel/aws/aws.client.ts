@@ -6,8 +6,8 @@ import { type AwsConfig, awsConfig } from '@app-template/kernel/config'
 import { QueueSender } from '@app-template/packages/queue'
 import { S3Bucket } from '@app-template/packages/s3'
 
-import { buildResourceName } from '#kernel/aws/resources/naming'
 import { resources } from '#kernel/aws/resources/resources'
+import { buildResourceName } from '#kernel/aws/resources/resources-naming'
 
 const buildClientOptions = ({ region, endpoint }: AwsConfig) => ({
   region,

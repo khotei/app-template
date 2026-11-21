@@ -16,7 +16,7 @@ import type { MessageEntityWhere, RunEntitySelectWhere } from '@app-template/ker
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RequestInvalidError } from '#api/shared/security'
+import { RequestInvalidError } from '#api/shared/api-security'
 import {
   ApiClient,
   type ApiRepositoryMocks,

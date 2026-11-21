@@ -11,7 +11,7 @@ import { TestClock } from 'effect/testing'
 
 import { recordLogs } from '@app-template/packages/testing'
 
-import { retryWhileUnreachable } from '#db/migrate'
+import { retryWhileUnreachable } from '#db/db-migrate'
 
 const refusals = {
   'a closed port': new ConnectionError({ cause: new Error('ECONNREFUSED'), operation: 'connect' }),

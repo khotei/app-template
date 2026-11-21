@@ -21,7 +21,7 @@ import { Transaction } from '@app-template/packages/db'
 import { Api } from '#api/api'
 import { ChatHandler } from '#api/chat/chat.handler'
 import { HealthHandler } from '#api/health/health.handler'
-import { Auth, SchemaErrors } from '#api/shared/security'
+import { Auth, SchemaErrors } from '#api/shared/api-security'
 import { UserHandler } from '#api/user/user.handler'
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(

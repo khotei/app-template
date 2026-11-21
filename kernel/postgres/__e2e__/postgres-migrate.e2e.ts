@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { recordLogs } from '@app-template/packages/testing'
 
-import { applyMigrations } from '#kernel/postgres/migrate'
+import { applyMigrations } from '#kernel/postgres/postgres-migrate'
 
 describe('applyMigrations', () => {
   it.effect('migrates a database copied from the migrated template, and says so', () => {

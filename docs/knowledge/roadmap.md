@@ -375,7 +375,7 @@ moves it into its own `Later` and deletes it here.
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`toLlmError` in `kernel/llm/llm.ask.ts`); `UserUnknownError`
+  (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `UserUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
   First check, by a run, which of an error's fields reach the api's and the worker's logs and
   spans.

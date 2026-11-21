@@ -69,7 +69,7 @@ worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEE
 	@sh .claude/skills/lab/worktree.sh "$$N" "$$NAME" "$$KEEP"
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
-	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts
+	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/postgres-migrate.ts
 
 # drizzle-kit is a root devDependency: the isolated linker links a workspace's binary only in that
 # workspace. The config's paths resolve against the working directory, the root.

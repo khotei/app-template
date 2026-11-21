@@ -8,6 +8,9 @@ queue sender as a function). Where each part sits in the rings and what it may i
 [architecture.md › Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
 - A client or tool any app could use goes to `packages/*`; the kernel only configures it.
+- A function that fixes this app's numbers or names this app's error over a library's API (a
+  retry policy, an error mapping) stays in the kernel part of that library; it moves to
+  `packages/` only when its numbers are options and its error is the library's own.
 - The migrations live here, not in `packages/db`: the schema and the client's config are this
   app's, and `packages/db` only applies the folder it is given.
 - How the data layer gets a store's client:

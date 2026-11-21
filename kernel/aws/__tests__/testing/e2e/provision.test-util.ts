@@ -5,7 +5,7 @@ import { Effect, pipe, Record as Rec } from 'effect'
 
 import { buildDeadLetterName, type Resources } from '@app-template/packages/aws'
 
-import { buildResourceName } from '#kernel/aws/resources/naming'
+import { buildResourceName } from '#kernel/aws/resources/resources-naming'
 
 type BucketResource = Resources['buckets'][string]
 type QueueResource = Resources['queues'][string]

@@ -5,7 +5,7 @@ import { UserService } from '@app-template/application/identity'
 import { nodeEnv } from '@app-template/kernel/config'
 
 import { Api } from '#api/api'
-import { Auth } from '#api/shared/security'
+import { Auth } from '#api/shared/api-security'
 
 const cookieMaxAge = Duration.days(365)
 

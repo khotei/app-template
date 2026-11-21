@@ -161,7 +161,7 @@ Using the files of `chat` as the map:
 | use case | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
-| database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
+| database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | codecs that turn a failure into a defect; the id format, its schema and its generation | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema`, `idGenerator` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.mapFields(…)`) |
