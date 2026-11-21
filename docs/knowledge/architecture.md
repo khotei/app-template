@@ -76,7 +76,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
-| rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above it: `noImportCycles` on a cycle, else review |
+| rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above or beside it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
 | `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
 | `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
@@ -110,9 +110,16 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
 - **A ✓ is permission, not a declaration.** The dependency must also be in the importer's
-  `package.json`, or the isolated linker and `tsc -b` refuse it. Inside the kernel and
-  `packages/` the parts are ordered: a kernel part imports only the parts below it (`/config` at
-  the bottom, `/data` beside it and importing none), a package only the packages below it.
+  `package.json`, or the isolated linker and `tsc -b` refuse it. A package imports only the
+  packages below it.
+- **The kernel's parts are ordered.** `/config` and `/data` are at the bottom, and `/data`
+  imports no other part. `/aws`, `/llm` and `/postgres` sit above them: each imports `/config`
+  through its entry, `/postgres` `/data` too, and none of the three imports another. Only the
+  data's e2e reaches up, to the part whose containers it runs on (`/aws`'s inventory and
+  `AwsTest`, through its entry and `/testing/e2e`). Biome refuses a part reaching another part's
+  files (`biome-imports.grit`) and `kernel/data`'s source importing any part (its override); a
+  part importing one beside it, `/aws` the `/llm` entry say, passes Biome unless the two form a
+  cycle, and review alone refuses it ([modules.md](../../.claude/rules/modules.md)).
 - **Tests** and the support they may import: [tooling.md › Tests](tooling.md#tests).
 
 ## Imports: `#<workspace>/` vs `@app-template/`

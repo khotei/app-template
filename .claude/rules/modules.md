@@ -24,8 +24,9 @@ widening a type, or, where two models nest each other's fields, by a `<name>-fie
 that both import. Refuse too:
 
 - a part importing one above it in its folder (a module the entry of a module above it, a kernel
-  part or a package one above it, but in the data's e2e below), or a module's infrastructure the
-  use cases;
+  part one above or beside it, but in the data's e2e below, a package one above it), or a module's
+  infrastructure the use cases; the kernel's order:
+  [architecture.md](../../docs/knowledge/architecture.md#dependency-rules);
 - test support (`<folder>/testing`, `#testing/<part>/…`) in source, and e2e support
   (`<folder>/testing/e2e`) in a unit test;
 - of the kernel, in the data's tests more than its configuration and, in their e2e, the part whose
