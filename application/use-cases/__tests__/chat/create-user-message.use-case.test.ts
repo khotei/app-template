@@ -71,7 +71,7 @@ describe('createUserMessage', () => {
   })
 
   it.effect(
-    'a first create whose reply job SQS refuses answers the failed Run and queues the title job',
+    'a first create whose reply job SQS refuses returns the failed Run and queues the title job',
     () => {
       const queued: Array<string> = []
       const RefusingReplyQueueTest = Layer.mock(QueueSender, {

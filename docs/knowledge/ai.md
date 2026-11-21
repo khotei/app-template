@@ -10,7 +10,7 @@ schema. The code: the chat module's two services in its `infrastructure/`, one p
 finish-reason check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's
 client with the key of `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its one error,
 `LlmError`; and those settings in `@app-template/kernel/config`.
-The assistants' suite runs over a fake `HttpClient` that answers canned Anthropic bodies, so no
+The assistants' suite runs over a fake `HttpClient` that returns canned Anthropic bodies, so no
 test needs a key or the network.
 
 Every module named here is unstable at the pinned version: check an API against the vendored

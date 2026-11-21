@@ -18,7 +18,7 @@ const S3BucketTest = S3Bucket.layer({ bucket }).pipe(
   Layer.provide(S3ClientTest),
 )
 
-// Not `Arr.makeBy`: it answers at least one element, and the 0-byte case needs none.
+// Not `Arr.makeBy`: it returns at least one element, and the 0-byte case needs none.
 const buildContent = (size: number): Uint8Array =>
   new Uint8Array(size).map((_, index) => index % 251)
 
@@ -110,7 +110,7 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
       { name: 'with an empty name', key: 'empty-name', fileName: Option.some('') },
       { name: 'without a name', key: 'nameless', fileName: Option.none() },
     ])(
-      'head answers the media type and the file name of an object put $name',
+      'head returns the media type and the file name of an object put $name',
       ({ key, fileName }) =>
         Effect.gen(function* () {
           const files = yield* S3Bucket
@@ -123,7 +123,7 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
         }),
     )
 
-    it.effect('head answers none for a missing key', () =>
+    it.effect('head returns none for a missing key', () =>
       Effect.gen(function* () {
         const files = yield* S3Bucket
 

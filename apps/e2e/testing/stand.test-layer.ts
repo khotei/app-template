@@ -25,7 +25,7 @@ const findFreePort = Effect.sync(() => {
 })
 
 /**
- * The processes' environment beside `AwsTest`'s, which answers first: the test's database, the
+ * The processes' environment beside `AwsTest`'s, which is asked first: the test's database, the
  * rest as `.env.example` has it.
  */
 const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, workerPort: number) {

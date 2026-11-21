@@ -24,7 +24,7 @@ copied and changed.
 
 An anonymous user gets a secret in a cookie, creates chats, sends messages, and the assistant
 answers. A user's message starts a Run, the work of answering it: the api writes the message and its
-queued Run in one transaction, sends the jobs to SQS after it commits and answers `202` with the
+queued Run in one transaction, sends the jobs to SQS after it commits and responds with `202` and the
 Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run to
 `generating`, then writes the assistant's message and the Run's `done` in one
 transaction, or the Run's `failed` with the text of what ended it, and titles the chat. The

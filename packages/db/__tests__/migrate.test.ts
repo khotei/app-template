@@ -34,7 +34,7 @@ function refuseConnections(reason: SqlErrorReason, times: number) {
 const retryingLine = ['Info', 'database not reachable yet, retrying']
 
 describe('retryWhileUnreachable', () => {
-  it.effect.each(Object.entries(refusals))('retries %s until the database answers', ([, reason]) =>
+  it.effect.each(Object.entries(refusals))('retries %s until the database responds', ([, reason]) =>
     Effect.gen(function* () {
       const { logs, layer: recordedLogs } = recordLogs()
       const { connect, attempts } = refuseConnections(reason, 3)

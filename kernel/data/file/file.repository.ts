@@ -22,7 +22,7 @@ const buildFileEntity =
       onSome: (name) => Effect.succeed({ id, mediaType: contentType, fileName: name, url }),
     })
 
-/** The answers of `read` for each id of `where`, concurrently, a missing one left out. */
+/** What `read` returns for each id of `where`, concurrently, a missing one left out. */
 const readEach =
   <A>(read: (id: string) => Effect.Effect<Option.Option<A>>) =>
   ({ id }: FileEntityWhere) =>
@@ -36,12 +36,12 @@ const readEach =
 /**
  * An object store joins no transaction: keep the bytes before the row that binds them, delete
  * them after the rows. Every write is idempotent, and none dies on a missing file. A read sends
- * one request per id, concurrently, and answers in the order asked.
+ * one request per id, concurrently, and returns in the order asked.
  */
 export class FileRepository extends Context.Service<
   FileRepository,
   {
-    /** Writes the bytes and answers their count; fails with the stream's error and leaves nothing behind. */
+    /** Writes the bytes and returns their count; fails with the stream's error and leaves nothing behind. */
     readonly insert: <E>(file: FileEntityInsert<E>) => Effect.Effect<number, E>
     /** A `HeadObject`, no bytes read. */
     readonly selectOne: (where: FileEntityWhere) => Effect.Effect<Option.Option<FileEntity>>

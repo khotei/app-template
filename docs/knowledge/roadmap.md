@@ -154,10 +154,10 @@ left.
   proxy mode: the code stays on the host. The production build in dev, api and worker as real
   Lambda functions inside MiniStack (a Bun image with Lambda Web Adapter,
   `LAMBDA_EXECUTOR=docker`, a Function URL for the api), moved here unbuilt. Two researchers'
-  runs, stopped before their reports and not rechecked: an image function answered through a
+  runs, stopped before their reports and not rechecked: an image function responded through a
   Function URL with a cold start of 130–180 ms; a partial batch failure worked; the function
   reaches Postgres only at `host.docker.internal`, not at the `localhost` the RDS endpoint
-  reports; a rebuild to an answer took about 2 s. Pulumi creating these functions was not run.
+  reports; a rebuild to a response took about 2 s. Pulumi creating these functions was not run.
 - **Inherits from `telemetry-minimal` (2026-11-14).** Two things only AWS can show, researched
   there with sources (`docs/tickets/2026-11-07-0944_telemetry-minimal/lab.md`, L3 and L6 Notes):
   the OTLP receivers (X-Ray traces, CloudWatch Logs and CloudWatch metrics take OTLP/HTTP directly
@@ -363,7 +363,8 @@ moves it into its own `Later` and deletes it here.
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
 - (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
-  between the two answers `200 []`, not `404 ChatNotFoundError`; the next read gives the `404`
+  between the two leaves it responding with `200 []`, not `404 ChatNotFoundError`; the next read
+  gives the `404`
   (`application/use-cases/chat/list-messages.use-case.ts`). Way out: one query that reads the
   chat with its messages, or the two reads in one `REPEATABLE READ` transaction: `Transaction`
   opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
@@ -491,7 +492,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
   (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
-  `maxLength`, so the web's generated client accepts a blank text the api answers with
+  `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
   (a pattern with a non-whitespace character), or accept the round trip.
 

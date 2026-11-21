@@ -152,7 +152,7 @@ Using the files of `chat` as the map:
 | model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
-| what a service over a client takes and answers | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
+| what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | domain service layered over another of its model | `application/chat/services/move-run.service.ts` | `MoveRunService`, over `RunService` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema; `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
@@ -251,7 +251,7 @@ imports need.
    repository, coding its rows through the model with `encodeWith` and `decodeWith`, the
    one owner every handler goes through, tested over mocks of the repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
-   the new files. A job the service was not made for comes later as a service composed over it,
+   the new files. A purpose the service was not made for comes later as a service composed over it,
    never as an edit of it ([Composition: wrap or compose](decisions.md#composition-wrap-or-compose)).
 4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
    queue to the inventory and its definition to the module's `infrastructure/`

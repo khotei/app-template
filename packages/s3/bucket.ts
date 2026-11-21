@@ -123,7 +123,7 @@ const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8
     Stream.filter(hasBytes),
   )
 
-/** `Quiet` answers only the keys it failed on; a missing key is no failure. */
+/** `Quiet` returns only the keys it failed on; a missing key is no failure. */
 const hasKeptKeys = ({ Errors }: { readonly Errors?: ReadonlyArray<unknown> | undefined }) =>
   Option.fromNullishOr(Errors).pipe(Option.exists(Arr.isReadonlyArrayNonEmpty))
 
@@ -135,7 +135,7 @@ export class S3Bucket extends Context.Service<
   {
     /**
      * One `PutObject` while the content fits one part, else a multipart upload that a failed
-     * stream aborts, leaving no object; answers the byte count.
+     * stream aborts, leaving no object; returns the byte count.
      */
     readonly put: <E>(
       key: string,

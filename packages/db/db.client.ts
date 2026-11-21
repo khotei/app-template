@@ -56,7 +56,7 @@ export function unwrapQueryError(error: EffectDrizzleQueryError) {
 const isQueryError = Schema.is(EffectDrizzleQueryError)
 
 /**
- * Dies with `message` unless the rows a write's `RETURNING` answers satisfy `holds`.
+ * Dies with `message` unless the rows a write's `RETURNING` returns satisfy `holds`.
  *
  * The caller checked the rule before writing, so a write the guard refuses only lost a race.
  */

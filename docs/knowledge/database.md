@@ -111,7 +111,7 @@ The data layer declares the relations once, with `defineRelations` over every ta
 built with them (`PgDrizzle.make({ relations })`), so `db.query.<table>` is typed. A relation
 names its columns (`from`, `to`) and joins on their equality only, and holds no order: a query
 states it with `orderBy`. A relational query returns nested rows typed as the entity, so a
-repository answers them as they are:
+repository returns them as they are:
 
 ```ts
 const rows = yield* db.query.runs.findMany({ with: { userMessage: true } })
@@ -132,7 +132,7 @@ A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
 `kernel/data/<store>/`, `FileRepository` over the bucket's objects among them
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
-object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and answer
+object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and return
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
 through its models (`UserService` over `UserRepository`). A method that writes several tables
 runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
@@ -151,7 +151,7 @@ and `findMany`); a read of one table with neither goes through the core builder
 (`db.select().from(<table>)`), and so do the writes
 (`db.insert`, `db.update`, `db.delete`). A relational read of at most one row is a `findFirst`,
 which emits the `limit 1` itself, even where a key makes the row unique, so the query states its
-intent; the row it finds is the entity as Drizzle types it, answered with no decode, and
+intent; the row it finds is the entity as Drizzle types it, returned with no decode, and
 `Option.fromUndefinedOr` turns the `undefined` of none into `Option.none()`. A core-builder read
 of one row takes the head of its many (`Arr.head`). A filter on a relation (`{ credentials: {
 kind, hash } }`) renders as `exists (…)`.
@@ -163,8 +163,8 @@ fails typecheck on the tuple, and derives the `Set` type from it over the same c
 repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
 only those columns, and an `undefined` field is skipped by Drizzle's `set`.
 `buildWhere<Fields>(columns)` from `@app-template/packages/db` takes a `WhereColumns<Fields>`,
-one mapper per field answering `SQL | undefined`, and joins them with `and`, which skips an
-absent field (`UndefinedOr.map`); a mapper answering the wrong shape and a field the type gains
+one mapper per field returning `SQL | undefined`, and joins them with `and`, which skips an
+absent field (`UndefinedOr.map`); a mapper returning the wrong shape and a field the type gains
 without a mapper fail typecheck.
 A nullable field's mapper is `eqOrIsNull(column)`, which renders `null` as `IS NULL`, since
 SQL's `=` never matches it.
@@ -181,7 +181,7 @@ touches no row:
   read with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
   `ChatBusyError`, 409);
   of two sends that both read none at once, the second's Run insert, its last write, dies on the
-  index, rolled back whole with its message and binds: a lost race of that narrow window answers
+  index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
   and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.update(run, where)` stamps the
@@ -271,11 +271,11 @@ chat's title) is the one the worker reads
   definition's schema to a JSON string and sends it to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
-  that fails keeps no row and answers `500`.
+  that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with the ids of its chat and its user message, and the
   reply's with its Run's too. For the reply's,
   `AskChatService` also fails its Run through `MoveRunService.fail`, as it stands now, with
-  the queue's error's full text as its failure, and the request answers `202` with that failed
+  the queue's error's full text as its failure, and the request responds with `202` and that failed
   Run; the message is stored and shown failed with its retry,
   `POST /chats/:chatId/runs`. The title's send only logs it. A send that never happens after the
   commit: [Stuck Runs](#stuck-runs).

@@ -6,7 +6,7 @@ import type { AssistantReply } from '#chat/domain/assistant.model'
 import type { MessageFields } from '#chat/domain/message.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 
-/** A `MessageAssistant` answering every reply with `reply`, keeping each history it took. */
+/** A `MessageAssistant` returning `reply` for every call, keeping each history it took. */
 export function recordMessageAssistant(reply: Effect.Effect<AssistantReply, LlmError>) {
   const histories = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<MessageFields>>>([])
   const layer = Layer.succeed(MessageAssistant, {

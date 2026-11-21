@@ -12,7 +12,7 @@ import { MoveRunService } from '#chat/services/move-run.service'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import { RunService } from '#chat/services/run.service'
 
-/** What each repository answers in a case, as `Layer.mock` takes it; a method left out dies. */
+/** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ChatRepositoryMocks {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
   readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>

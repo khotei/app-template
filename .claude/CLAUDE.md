@@ -18,7 +18,7 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
   ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
 - **Before naming an Effect or Drizzle API, in a plan as in code, read
   `.claude/rules/effect.md`.**
-- **Composition: a unit keeps its one job; new behaviour wraps or composes it.** Before shaping
+- **Composition: a unit keeps its one purpose; new behaviour wraps or composes it.** Before shaping
   a model, service, util or use case, in a plan as in code, read `.claude/rules/composition.md`.
 - Update `docs/knowledge/` and `.claude/` in the commit that changes what they describe.
 - **A change of substance runs through the lab, `.claude/skills/lab/SKILL.md`: micro on a branch

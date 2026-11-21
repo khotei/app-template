@@ -25,7 +25,7 @@ const buildRecord = (queue: string, body: unknown) => ({
 describe('POST /events', () => {
   it.effect('runs a batch on the use case of the queue it came from', () => {
     const reads: Array<MessageEntityWhere> = []
-    // Only the title job's first read answers: any other store call dies, and fails the batch.
+    // Only the title job's first read returns: any other store call dies, and fails the batch.
     const events = WorkerHttp.pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
       Layer.provide([

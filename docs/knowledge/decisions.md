@@ -217,7 +217,7 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
   handler would make a cycle. No module raises them. The id format knows no app (a brand in, a
   schema out; a schema in, a fresh UUIDv7 of its brand out), every module's ids share it, and in
   one file a change of format moves the schema and the generation together. `idGenerator` is
-  a constant, an effect that reads `SecureRandom` once and answers the generator, not a
+  a constant, an effect that reads `SecureRandom` once and returns the generator, not a
   `Context.Service`: no test or second implementation stands in for it, since `SecureRandom`
   already is that seam (tests provide `BunCrypto.layer`, or a `Layer.mock` of `SecureRandom` to
   assert an id). A service yields it in its `make`, so its methods require no `SecureRandom`.
@@ -298,7 +298,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   web, where the generator's command and `cmp` check the same. Track B had rejected that command,
   as the test called the same service and `bunx` wrote 33 lines apart on a fetched peer `effect`
   4.1.4; the installed command, run with `--no-install` over its peer pinned in the catalog,
-  answers the second half. The web importing the api's `Api`: it would install the api and the
+  covers the second half. The web importing the api's `Api`: it would install the api and the
   modules. The api's tests on the web's generated client: they assert the domain's brands,
   `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
@@ -316,11 +316,11 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   shape swaps the field. A field added to a model, a secret included, reaches the wire unless its
   wire shape omits it; the snapshot test stops it until `make api-snapshot` writes it into the
   diff, and only review of that diff refuses it. An error's status is spelled at each listing
-  (13 for 7 errors), and a listing without `HttpApiSchema.status` answers `500`, which likewise
+  (13 for 7 errors), and a listing without `HttpApiSchema.status` responds with `500`, which likewise
   only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class answered through more
+  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class returned through more
   than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
   a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
   for the Run's three). Two checked-in files move with every
@@ -404,7 +404,7 @@ called; no, two rules, each kept by its module.
 ### Composition: wrap or compose
 
 Every unit, a model's function, a domain service, a util or a use case, starts simple and keeps
-the one job it was made for. A change edits a unit only to fix it or to extend that job; any
+the one purpose it was made for. A change edits a unit only to fix it or to extend that purpose; any
 other change is a new unit that wraps it (the same interface, adding one responsibility around
 its calls for every holder) or composes it (a new name built from it, for the callers that need
 what it adds). A use case composes services, ports and model rules and holds only its flow.
@@ -439,13 +439,13 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 })
 ```
 
-- **Why:** a unit with one job has one reason to change, so a fix lands in one place and its
-  tests stay its own; a new job added as a new unit leaves the tested units and their callers as
-  they were. A composed unit's name says what it answers (the records as stored, or with their
+- **Why:** a unit with one purpose has one reason to change, so a fix lands in one place and its
+  tests stay its own; a new purpose added as a new unit leaves the tested units and their callers as
+  they were. A composed unit's name says what it returns (the records as stored, or with their
   bytes), so a caller picks it by name. The plain `getMany` that hid the live check and the
   plain `delete` that hardcoded the unbound guard were rules edited into units named for records
   (the lesson in `roadmap.md`, entry 27); a Run's guarded write coded in two use cases was a step
-  copied outside its service. For a model's services: the plain service answers the records as
+  copied outside its service. For a model's services: the plain service returns the records as
   stored, and the bytes are stored and removed with their record in one service; a holder that
   needs the records alone (a list, a bind) holds no byte store. The row's coding and its guards
   have one owner, so a change of the model's row lands in the plain service alone. A request's
@@ -467,10 +467,11 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   the request in `AskChatService`; the owner's split of the chat's jobs at the queue, the api's
   half and the worker's (2026-11-21).
 - **Rejected:** folding a unit into another for its line count or its single caller: neither says
-  anything of the job the unit holds, and the fold edits a tested unit for a job not its own. One
-  service per model: one unit with several reasons to change; the bytes in `<Model>Service` are
-  two reasons to change in one unit, and a byte store every holder of the records depends on. A
-  flag or an option added to a unit for one caller: the unit then answers two callers. The file
+  anything of the purpose the unit holds, and the fold edits a tested unit for a purpose not its
+  own. One service per model: one unit with several reasons to change; the bytes in
+  `<Model>Service` are two reasons to change in one unit, and a byte store every holder of the
+  records depends on. A flag or an option added to a unit for one caller: the unit then serves
+  two callers. The file
   service writing or reading the rows through the repository itself: a second owner of the row's
   coding. A request's rules called in the use cases' flow, its writes in a helper beside them: a
   rule's call and a transaction in a flow, the busy check in two flows. The request in
@@ -479,7 +480,7 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   one of them. One service holding the request, the sends and the runs: the needs of two
   processes (the queue's sender, the assistants) in one unit, which each process provides whole.
 - **Cost:** more units, files and layers, and longer provide lists; Gamma et al. name the price,
-  "more objects (if fewer classes)". Whether a change extends a unit's job or adds another is
+  "more objects (if fewer classes)". Whether a change extends a unit's purpose or adds another is
   judgement: review decides it, and the owner settles a dispute. For a model with bytes, two
   services and two layers; a handler of the model takes both; the plain `create` and `delete`
   have one caller, the file service, and `delete` only forwards to the repository with its span:
@@ -500,12 +501,12 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   `Transaction`, the ask service's of the infrastructure only the queue file and the reply
   service's only the `.llm` files; the ask service's unit test pins each refusal before any write
   or job, and the api's e2e of a send whose Run Postgres refuses keeps no message.
-- **If reversed:** a new job edits the unit nearest to it, and each unit's tests gain cases for
-  jobs not its own; the file methods fold into one `<Model>Service`, and every holder of the
+- **If reversed:** a new purpose edits the unit nearest to it, and each unit's tests gain cases for
+  purposes not its own; the file methods fold into one `<Model>Service`, and every holder of the
   records depends on the byte store.
 - **Revisit when:** a chain of wraps over one unit grows so long that a caller cannot tell from the
   names which unit holds a rule; or two units change together in every change, so they hold one
-  job, which the owner then merges; or a rule over the reads must reach every reader, so a service
+  purpose, which the owner then merges; or a rule over the reads must reach every reader, so a service
   named for it takes the pipe.
 
 ### Rules as pure functions
@@ -657,7 +658,7 @@ holds one service per job, each a `Context.Service` with its `static layer`: `Me
 answers the chat's next message from its history, `ChatAssistant` the chat's title from its
 opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
 `LLM_REPLY_MODEL` or `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes
-`askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
+`askModel` and fails with its `LlmError`. The domain keeps only what they take and return
 (`MessageFields`, `AssistantReply`), and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in
 front of the services. A use case, or `ReplyChatService`, yields the service it needs, a unit
@@ -677,10 +678,10 @@ test swaps that service's layer, and the suite builds both layers over a recordi
   which hold Anthropic's request settings anyway, build their models where they use them; the
   client stays a leaf the worker provides once.
 - **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
-  are statics, the client a leaf left open); `.claude/rules/composition.md` (one job per unit);
+  are statics, the client a leaf left open); `.claude/rules/composition.md` (one purpose per unit);
   the roadmap's `bedrock-provider`.
 - **Rejected:** one `Assistant` port with `reply` and `suggestTitle` and one adapter
-  (`AssistantLlmFromConfig`): two jobs in one unit, an interface with one implementation, and a
+  (`AssistantLlmFromConfig`): two purposes in one unit, an interface with one implementation, and a
   fake scripted per method. A base class or a shared service holding the retries: an
   inheritance or a third service for what one function does. Each service closing the client
   in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
@@ -818,8 +819,8 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 
 ### Reads in creation order
 
-A read of a chat's messages answers them in creation order, `createdAt` then `id`. The chat list
-alone answers newest first.
+A read of a chat's messages returns them in creation order, `createdAt` then `id`. The chat list
+alone returns newest first.
 
 - **Why:** one order for a chat's contents, written once, in each repository's `ORDER BY`.
 - **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files) (the
@@ -880,7 +881,7 @@ need (none provides `S3Bucket` while no module stores files), the data's e2e `Db
 
 Files are `FileEntity` and `FileRepository` in the data layer, over the `S3Bucket` in the
 context. A file is one entity read from its object's metadata, with its signed URL as a field;
-only `download` reads the bytes, answering `DownloadedFileEntity`, the entity with them. The data
+only `download` reads the bytes, returning `DownloadedFileEntity`, the entity with them. The data
 layer declares the key; `kernel/aws/resources` declares the bucket's name and lifecycle, which
 `deployment` reads.
 
@@ -945,11 +946,11 @@ names no one Run costs: [A Run's job on interrupt and on two
 deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `MoveRunService.fail`, with the error's full text as its failure;
-the request answers `202` with that failed Run. The send and that failure run uninterruptibly, so a
-client that aborts mid-send still leaves the Run sent or failed. The title's send only logs it, as
-its work has no record to settle. Which services a Run has and over which: [layering.md › Ports and
-domain services](../../.claude/rules/layering.md#ports-and-domain-services); who runs each job: [The
-chat's jobs in their services](#the-chats-jobs-in-their-services).
+the request responds with `202` and that failed Run. The send and that failure run
+uninterruptibly, so a client that aborts mid-send still leaves the Run sent or failed. The title's
+send only logs it, as its work has no record to settle. Which services a Run has and over which:
+[layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
+who runs each job: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -983,7 +984,7 @@ chat's jobs in their services](#the-chats-jobs-in-their-services).
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its
   chat busy ([roadmap.md › Later](roadmap.md#later)); a client's abort before the send:
   [A Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries).
-  A refused send answers `202`, so a client reads the failure from the Run's status, not
+  A refused send responds with `202`, so a client reads the failure from the Run's status, not
   the response's. A domain service now reaches its module's queue file, so the ask service's
   guard admits that one file of infrastructure; a send inside its transaction would send before
   the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
@@ -1253,7 +1254,7 @@ what a test may import: [tooling.md › Tests](tooling.md#tests).
   per-test Postgres: `make test-unit` would need Docker. Memory repositories in place of the mocks:
   a second store, kept in step with Postgres by hand.
 - **Cost:** a use case's race or rollback runs through the api with both processes up, slower than a
-  call of the use case. A unit test sees no store: a mock answers what its case gives, so a case
+  call of the use case. A unit test sees no store: a mock returns what its case gives, so a case
   passes on a row Postgres would refuse, and each rule the database enforces needs its own case on
   the repository's e2e. The kernel declares an alias per part's support, and an export where another
   unit reads it. The run's `globalSetup` sits in the data's e2e support, though it starts the
@@ -1414,7 +1415,7 @@ the session, or by an `implementer` once its Shape is settled.
 - **Rejected:** two cycles routed by a table in a human doc, each with its own rules: the agent
   loaded both, and the table had no row for the one in use. Plans in stages: never run. A
   verification phase with its verifiers: its two recorded catches that every step review had
-  passed (an HTTP answer changed with no requirement asking, a guard a re-export bypassed) are
+  passed (an HTTP response changed with no requirement asking, a guard a re-export bypassed) are
   the branch review's Intent and Hunt duties now. Replay R3 holds the first in 2 of 3 runs; the
   second rests on the guard-probe line of `.claude/rules/tooling.md` and the Hunt on a guard's
   range, with no replay (R3's Hunt named the manifest gap in 0 of 3). A Design pass on every new

@@ -14,14 +14,14 @@ import type { ChatId } from '#chat/domain/chat.util'
 import { ChatService } from '#chat/services/chat.service'
 import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 
-/** The service over a repository that answers only the methods the case gives; any other dies. */
+/** The service over a repository that implements only the methods the case gives; any other dies. */
 const chatServiceOver = ({
   chats = {},
 }: {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
 }) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
 
-/** A `selectOne` that answers `found` as its row. */
+/** A `selectOne` that returns `found` as its row. */
 const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
 
 const trip = ChatTitle.make('Trip')

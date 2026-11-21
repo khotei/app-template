@@ -62,7 +62,7 @@ describe('FileRepository on AwsTest', () => {
     )
 
     it.effect(
-      'selectMany answers the stored files in the order asked with their media type and file name, leaving out a missing id',
+      'selectMany returns the stored files in the order asked with their media type and file name, leaving out a missing id',
       () =>
         Effect.gen(function* () {
           const files = yield* FileRepository
@@ -83,7 +83,7 @@ describe('FileRepository on AwsTest', () => {
         }),
     )
 
-    it.effect('download answers the file with its bytes, and none for a missing id', () =>
+    it.effect('download returns the file with its bytes, and none for a missing id', () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
         const id = fileId(8)

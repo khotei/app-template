@@ -13,7 +13,7 @@ and the resource code it runs); the e2e support, [tooling.md › Tests](tooling.
 `deployment/local/` is a Pulumi project of its
 own (`runtime: bun`): `@pulumi/docker`'s `Container` with the image by digest, the environment,
 the bind mount of `.data/ministack` and the health check with `wait: true`, so `pulumi up` returns
-only once MiniStack answers. The program reads `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` from
+only once MiniStack responds. The program reads `AWS_REGION`, `AWS_ENDPOINT_URL` and `STAGE` from
 `.env` (how `make up` passes it:
 [tooling.md › Environment](tooling.md#environment)): MiniStack's default region is `AWS_REGION`,
 its 4566 is published on the endpoint's port, and the container is named
@@ -127,7 +127,7 @@ gone.
   upload; the bucket's rule that aborts incomplete uploads is the backstop for a crashed process.
 - **The object says how it is served.** Its media type and an `inline` disposition with the file
   name are written at upload, so the URL a read signs needs no overrides.
-- **The signed URL.** A read answers a `GetObject` URL presigned for 300 seconds.
+- **The signed URL.** A read returns a `GetObject` URL presigned for 300 seconds.
 - **The signed host.** The host is part of the signature, so the browser must reach the host the
   process signs with. With an endpoint set, S3 uses path-style addressing and the URL is
   `http://localhost:<port>/<bucket>/attachments/<id>?X-Amz-…`, which the browser reaches because
@@ -145,7 +145,7 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   goes to the worker's `POST /events` on the host (`MINISTACK_LAMBDA_PROXY_URL`), the request
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`. A queue of the inventory with no consumer fails typecheck; a batch of
-  a queue outside the inventory answers `500`, a deployment bug.
+  a queue outside the inventory responds with `500`, a deployment bug.
 - **The work's record runs a job once.** A queue's use case reads the record of its work (the Run
   and the chat's title, through `ReplyChatService`, which reports one settled, started or gone as a
   typed error) and skips work already settled; it ends its own work on any outcome but success, an
@@ -157,14 +157,14 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   other works on, a rare case accepted.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles
   its work's failure itself. A record whose handler dies (a process that dies included) is
-  answered in `batchItemFailures`, or not answered at all; SQS delivers it again once the queue's
+  returned in `batchItemFailures`, or not returned at all; SQS delivers it again once the queue's
   visibility timeout, the worker function's 600 s, has passed, and after `maxReceiveCount`, 3,
   redrives it to `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping
   on a queue that hides a message less than its function's timeout.
 - **Nothing consumes a dead-letter queue.** A Run's worker writes `failed` on any outcome but
   success; one that no worker settles stays active
   ([database.md › Stuck Runs](database.md#stuck-runs)).
-- **AWS differs in one status.** MiniStack counts any non-2xx answer as a failed invoke; Lambda
+- **AWS differs in one status.** MiniStack counts any non-2xx response as a failed invoke; Lambda
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 

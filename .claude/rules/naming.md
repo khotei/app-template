@@ -26,7 +26,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 |---|---|
 | `.model` · `.error` | `Schema.Class`es and their pure operations, split by the value they act on · domain errors |
 | `.util` | `<model>.util.ts`: the model's branded id and its utils ([glossary › Architecture language](../../docs/knowledge/glossary.md#architecture-language), [record](../../docs/knowledge/decisions.md#utils-apart-from-models)); it imports only `effect`, `@app-template/packages/schema` and other `.util` files, never a model |
-| `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
+| `.port` | a module's ports, `Context.Service`s, beside the values they take and return |
 | `.service` | a domain service: `<model>.service.ts`, `<aspect>-<model>.service.ts` for one composed over it, named for what it adds, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services, the function `<verb><Object>` |
 | `.handler` | api: one HTTP group's handlers · worker: its one route, each queue's use case |
@@ -52,7 +52,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
   - `build` / `ensure`: a pure function that derives a value or guards an invariant; a pure
     transition is named for the status it moves to, as a verb, which wins over this list;
   - `generate`: an impure function that makes a fresh value; `is` / `has`: a predicate;
-  - `getOne` / `getMany`: a domain service's read over a `where`, answering the records or their
+  - `getOne` / `getMany`: a domain service's read over a `where`, returning the records or their
     `*NotFoundError`; `get<Payload>` a payload a record's store holds (its bytes), or its
     `*NotFoundError`; `delete<Payload>` that payload's removal, the record's left to its owner;
   - `list`: a domain service's read by the user alone, with no `where`, of the set a user browses;

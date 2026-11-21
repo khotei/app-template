@@ -137,7 +137,7 @@ describe('completeRun', () => {
 })
 
 describe('ensureRunUnstarted', () => {
-  it.effect('answers a queued Run', () =>
+  it.effect('returns a queued Run', () =>
     Effect.gen(function* () {
       assert.strictEqual(yield* ensureRunUnstarted(queued), queued)
     }),
@@ -153,7 +153,7 @@ describe('ensureRunUnstarted', () => {
 })
 
 describe('ensureRunRetryable', () => {
-  it.effect('answers a failed newest Run', () =>
+  it.effect('returns a failed newest Run', () =>
     Effect.gen(function* () {
       const newest = runAt('failed')
 

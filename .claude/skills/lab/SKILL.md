@@ -17,7 +17,7 @@ owner's explicit word lifts one, for one step.
 2. **No by default.** A proposal to add something says what the system loses without it. No
    timeout, cap, retry or guard that the intent or a `Later` item the owner picked does not name.
    When a review finds an edge case in code this branch wrote, first try deleting its cause.
-   This rail weighs behaviour, never units: a unit that takes a job out of another, or wraps
+   This rail weighs behaviour, never units: a unit that takes a purpose out of another, or wraps
    or composes one instead of editing it, adds no behaviour, and a fold for fewer lines is no
    deletion (`.claude/rules/composition.md`).
 3. **Stop.** `[!]`, or a phrase such as "too much", "hack?", "do we need this?", stops the whole

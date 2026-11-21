@@ -33,7 +33,7 @@ code and spawns no agent. It takes one session's reading, about ten tool calls.
    3. **Flow:** an ASCII diagram per path that changed, the happy one first, every arrow named by
       its message or write, a changed arrow marked `*`; a failure branch under it.
    4. **Entities:** the tables with their keys, cardinality and cascades; under them the shape a
-      read answers, the nesting of the models.
+      read returns, the nesting of the models.
    5. **Invariants:** a table: the rule, what holds it (a constraint, a model function, a guard
       in a write), the test that proves it.
    6. **Contracts:** before → after code for each signature, wire shape or job body a caller

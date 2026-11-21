@@ -110,7 +110,7 @@ const holdsWhere = (where: RunEntityWhere): Predicate.Predicate<RunColumns> =>
   )
 
 /**
- * A Run read that answers `reads` in turn, the last one from then on, and none of one outside
+ * A Run read that returns `reads` in turn, the last one from then on, and none of one outside
  * the `where`, as the store filters them.
  */
 const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {

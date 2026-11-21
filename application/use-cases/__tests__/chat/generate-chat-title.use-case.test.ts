@@ -15,7 +15,7 @@ import { recordLogs } from '@app-template/packages/testing'
 
 import { generateChatTitle } from '#use-cases/chat/generate-chat-title.use-case'
 
-/** A message read that answers `message` as its row. */
+/** A message read that returns `message` as its row. */
 const selectsMessage = (message: Message) => () =>
   encodeWith(Message)(message).pipe(Effect.map(Option.some))
 

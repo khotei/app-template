@@ -69,7 +69,7 @@ pipe(orders, sumBy((order) => order.refunded))
 
 ## Errors and logs
 
-- One job per combinator: log in `Effect.tapCauseIf` / `Effect.tapError`, passing the `Cause`
+- One purpose per combinator: log in `Effect.tapCauseIf` / `Effect.tapError`, passing the `Cause`
   (`Effect.logError('…', cause)`); recover in `catch*`; annotate in `Effect.annotateLogs`, the
   flow's ids once at its end.
 - A flow's main path reads as if nothing fails: each failure is handled once, in a tail

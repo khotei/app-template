@@ -50,7 +50,7 @@ export const layerApiClient = (baseUrl = '', cookies = Cookies.empty) =>
     ),
   )
 
-/** What each repository answers in a case, as `Layer.mock` takes it; a method left out dies. */
+/** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ApiRepositoryMocks {
   readonly users?: Layer.PartialEffectful<UserRepository['Service']>
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>

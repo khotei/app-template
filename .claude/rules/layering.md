@@ -20,7 +20,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   no port between, [why](effect-services.md#services)). It sees the repositories, its ports, the
   clock, `SecureRandom` and `Digest`; never another model's service or the transaction, which are
   a use case's ([composition.md](composition.md)), nor its infrastructure but as below.
-- A service composed over `<Model>Service` holds the job it adds and reaches the model's records
+- A service composed over `<Model>Service` holds the purpose it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
   moves → `Move<Model>Service`; a request that starts jobs → `Ask<Model>Service` of the model

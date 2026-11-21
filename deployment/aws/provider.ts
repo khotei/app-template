@@ -5,7 +5,7 @@ import { Option } from 'effect'
 import type { AwsConfig } from '@app-template/kernel/config'
 
 /**
- * MiniStack answers every service on one URL and accepts any credentials, so the provider skips
+ * MiniStack responds for every service on one URL and accepts any credentials, so the provider skips
  * the calls that would reach AWS itself: STS for the account, IMDS for the region.
  */
 const buildEndpointArgs = (url: URL): aws.ProviderArgs => ({

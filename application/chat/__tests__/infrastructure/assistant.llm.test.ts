@@ -22,7 +22,7 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** Both assistants over Anthropic's client and an `HttpClient` that keeps each request body and its time, and answers it by `respond`. */
+/** Both assistants over Anthropic's client and an `HttpClient` that keeps each request body and its time, and responds to it by `respond`. */
 function recordAnthropic(respond: () => Response) {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
@@ -95,7 +95,7 @@ const lisbon = 'Plan a weekend in Lisbon'
 
 describe('MessageAssistant and ChatAssistant', () => {
   it.effect(
-    "reply asks the reply model with the system prompt and each turn as its text, and answers the model's text",
+    "reply asks the reply model with the system prompt and each turn as its text, and returns the model's text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
@@ -117,7 +117,7 @@ describe('MessageAssistant and ChatAssistant', () => {
   )
 
   it.effect(
-    'suggestTitle asks the title model with the title instruction and the opening message, and answers the title trimmed',
+    'suggestTitle asks the title model with the title instruction and the opening message, and returns the title trimmed',
     () => {
       const { bodies, layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
       return Effect.gen(function* () {

@@ -9,8 +9,8 @@ deleted here: the rule is its author.
 1. What breaks if this is removed?
 2. Is it already in Effect, or in the code?
 3. Is the rule a pure function in the model?
-4. Is each method named for what it answers, with no pass-through and no probe, and is each new
-   job a unit that wraps or composes, the units below unedited?
+4. Is each method named for what it returns, with no pass-through and no probe, and is each new
+   purpose a unit that wraps or composes, the units below unedited?
 5. Does each test helper sit beside its one test?
 6. Who reads this type, field, error or method: a branch in code, an operator? None: not written.
 7. Does each unit know only its own, a service and a model nothing of who calls them (a queue, a

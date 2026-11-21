@@ -21,7 +21,7 @@ function buildRecord(
 }
 
 describe('consumeQueue', () => {
-  it.effect('runs each decoded message and answers only the record whose handler died', () =>
+  it.effect('runs each decoded message and returns only the record whose handler died', () =>
     Effect.gen(function* () {
       const seen = yield* Ref.make<ReadonlyArray<string>>([])
       const event: SqsEvent = {

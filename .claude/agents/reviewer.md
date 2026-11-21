@@ -23,7 +23,7 @@ more only when the diff touches a contract they do not quote, and say so.
   quoted intent does not ask for, and each test assertion the branch widens or deletes.
 - **Hunt:** correctness bugs and silent failures. Of each construct that absorbs an error (a
   catch-all, a fallback, a default for an absent value, a retry, an error folded into a refusal,
-  a discarded result such as a write's answer of what it changed), name the failure it hides and
+  a discarded result such as what a write returns of what it changed), name the failure it hides and
   who learns of it. Of each guard or check the range adds or changes, name a form of the break it
   lets pass (a re-export, a path alias, a dependency a manifest declares).
 - **Rules:** a break of a line of the rules and `CLAUDE.md` files the brief lists, cited by that
@@ -32,10 +32,10 @@ more only when the diff touches a contract they do not quote, and say so.
   `mattpocock-skills:writing-for-agents`; where it and `.claude/rules/claude-md.md` disagree,
   the rule wins.
 - **Design:** at most five changes to the shape, most valuable first: a narrower interface; a
-  job edited into a unit not made for it, moved to a unit that wraps or composes it
+  purpose edited into a unit not made for it, moved to a unit that wraps or composes it
   (`.claude/rules/composition.md`); one function over the varying value in place of a copy per
   case; a pure function taken out of an effect; a plainer implementation inside one unit. A fold
-  or a merge of units is no candidate unless it names the job each held and where it lives
+  or a merge of units is no candidate unless it names the purpose each held and where it lives
   after. Judge each by cohesion and coupling, and rate it `Strong` (its cost is already
   in the diff), `Worth exploring` (the next step pays it) or `Speculative` (only a guess about
   later code pays it). None on import direction, which Biome owns; a recorded decision is
@@ -58,6 +58,6 @@ A rule finding is `hard` when the cited line forbids or requires the thing outri
 
 Prefer removal in tests: never propose a new test helper, fake or test wrapper unless a rule
 asks for one; for a weak test, propose a plainer test or a dropped assertion. In code, removal
-is of pass-throughs and dead code, never of a unit that holds a job of its own
+is of pass-throughs and dead code, never of a unit that holds a purpose of its own
 (`.claude/rules/composition.md`). Write the report in English, for the
 main session, without the status block the user's style asks for.

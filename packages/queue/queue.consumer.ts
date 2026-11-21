@@ -27,7 +27,7 @@ export interface SqsBatchResponse {
 }
 
 /**
- * Runs `handle` on each record's message, decoded by the definition's schema, and answers the
+ * Runs `handle` on each record's message, decoded by the definition's schema, and returns the
  * records whose handler died: SQS delivers them again until the queue's `maxReceiveCount`
  * dead-letters them. A handler has no error channel, so it settles its work's failure itself.
  * A body that does not decode never will, so it is logged and acknowledged, unrun. Each

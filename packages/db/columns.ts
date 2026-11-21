@@ -26,7 +26,7 @@ export type WhereColumns<Fields> = {
 }
 
 /**
- * Joins the conditions of the fields `columns` names with `and`: an absent field answers
+ * Joins the conditions of the fields `columns` names with `and`: an absent field returns
  * `undefined`, which `and` skips, so a `Where` whose every field is absent yields no condition;
  * every `Where` keeps one required field.
  */

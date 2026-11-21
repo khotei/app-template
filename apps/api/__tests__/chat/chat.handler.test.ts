@@ -29,7 +29,7 @@ import {
 const asOwner = (mocks: ApiRepositoryMocks = {}) =>
   layerApiTest({ users: signedIn, ...mocks }, ownerCookie)
 
-/** Reads that answer the value given as their one row. */
+/** Reads that return the value given as their one row. */
 const reads = {
   chat: (value: Chat) => () => encodeWith(Chat)(value).pipe(Effect.map(Option.some)),
   message: (value: Message) => () => encodeWith(Message)(value).pipe(Effect.map(Option.some)),

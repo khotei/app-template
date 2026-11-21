@@ -23,14 +23,14 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - One method per verb over a `where` typed from the entity; reads that filter alike share one
   `where`, and a new filter is a field. A write finds its row by the key, never matching every
   row. A value a store derives per record (a signed URL) is a field its reads fill, never a verb
-  of its own; a payload few callers need (an object's bytes) is one verb answering the entity
+  of its own; a payload few callers need (an object's bytes) is one verb returning the entity
   extended with it (`Downloaded<Name>Entity`).
-- A write answers `void` and dies where it misses a row it names: the caller checked the rule, so
+- A write returns `void` and dies where it misses a row it names: the caller checked the rule, so
   a miss is a lost race. An object store's writes are idempotent and never die on a missing
-  object; a write that measures what it stores answers the measure.
+  object; a write that measures what it stores returns the measure.
 - One shape per entity: a related entity is a field the same relational query fills, one level
   deep as the neighbour's `<Name>Columns`, and never becomes a second type
-  (`<Name>EntityWith<Thing>`); an option never changes the answer's type. A model's
+  (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's
   `<Model>Fields` supertype, its own fields, which a write encodes and a neighbour may nest, is no
   second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code

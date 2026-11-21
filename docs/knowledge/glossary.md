@@ -159,13 +159,13 @@ _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
-guards goes through it. A model starts with `<Model>Service` over its repository; a job past it
+guards goes through it. A model starts with `<Model>Service` over its repository; a purpose past it
 is a service composed over it, named for what it adds: a request that starts jobs its
 `Ask<Model>Service`, in the api, the jobs' runs its `Reply<Model>Service`, in the worker.
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Composition**:
-How the code grows: a change edits a unit only to fix it or extend the job it was made for; any
+How the code grows: a change edits a unit only to fix it or extend the purpose it was made for; any
 other change is a new unit that wraps it (the same interface, for every holder) or composes it
 (a new name built from it, for the callers that need what it adds), for models, services, utils
 and use cases alike. Record: [Composition: wrap or compose](decisions.md#composition-wrap-or-compose).
@@ -208,7 +208,7 @@ whose whole promise it keeps.
 _Avoid_: Mock, stub, in-memory repository
 
 **Mock**:
-A `Layer.mock` of a repository in a unit test, answering only the methods the test gives; any
+A `Layer.mock` of a repository in a unit test, implementing only the methods the test gives; any
 other call dies with `UnimplementedError`.
 _Avoid_: Fake, stub, memory repository
 

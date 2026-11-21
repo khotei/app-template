@@ -25,7 +25,7 @@ const pollTitledChat = (chatId: ChatId) =>
     poll(api.chats.get({ params: { chatId } }), (chat) => Option.isSome(chat.title)),
   )
 
-/** The api answers a defect, such as a write Postgres refuses, with a bare `500`. */
+/** The api responds to a defect, such as a write Postgres refuses, with a bare `500`. */
 const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
   Option.fromUndefinedOr(error.response).pipe(Option.exists(({ status }) => status === 500))
 
@@ -93,7 +93,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           yield* api.users.ensure()
           const chat = yield* api.chats.create()
           // The loser reads the winner's active Run (ChatBusyError) or, having read none, dies on
-          // the index on the active Run, which the api answers with a bare 500: both roll it back whole.
+          // the index on the active Run, which the api responds to with a bare 500: both roll it back whole.
           const send = api.chats
             .createMessage({
               params: { chatId: chat.id },

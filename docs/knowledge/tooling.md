@@ -161,7 +161,7 @@ Under `--hot`, `Bun.serve` swaps its routes in place, which is all `web` needs. 
 is not swapped: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
 one. So the api and the worker run under `--watch`: a re-exec leaves nothing to stop, and each
 `main.ts` is one `runMain`. While the api re-execs its port is closed, about 0.3 s from
-`api stopped` to `Listening on`, and a request the web proxies then answers `500`.
+`api stopped` to `Listening on`, and a request the web proxies then responds with `500`.
 
 Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
@@ -344,7 +344,7 @@ version.
   `node_modules/.bin/tsc --lsp --stdio` from the project root: the pinned TypeScript 7 with the
   Effect plugin, nothing downloaded. The official `typescript-lsp` plugin is off for the project:
   its `typescript-language-server` needs the `tsserver.js` TypeScript 7 no longer ships.
-- **Navigation only.** The `LSP` tool answers definition, references, hover and symbols. Type
+- **Navigation only.** The `LSP` tool returns definitions, references, hovers and symbols. Type
   errors stay with `make check`: TypeScript 7 serves only pulled diagnostics
   (`textDocument/diagnostic`), Claude Code reads only pushed ones, so the entry sets
   `"diagnostics": false` (roadmap: [Ideas to weigh › Post-edit type

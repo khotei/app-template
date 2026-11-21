@@ -14,8 +14,8 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
 `repos/drizzle/drizzle-orm/src`: its rc line changes between releases.
 
 - Write with effect's modules. Code over a value uses the module named for its type (`Array as
-  Arr`, `String as Str`, `Struct`, `DateTime`, …); a job on values uses the module named for the
-  job: a condition `Predicate`, a check that narrows or maps `Filter`, three arms or more `Match`,
+  Arr`, `String as Str`, `Struct`, `DateTime`, …); a purpose on values uses the module named for the
+  purpose: a condition `Predicate`, a check that narrows or maps `Filter`, three arms or more `Match`,
   sorting and extremes `Order`, sameness `Equivalence`, merging two `Combiner`, folding many
   `Reducer`, a nested update `Optic`, success or failure as data `Result`, text for a log
   `Formatter`, composing functions `Function`.

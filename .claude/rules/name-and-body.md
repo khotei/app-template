@@ -37,7 +37,7 @@ new body; each builds on the one before. Which word a kind of work takes: [namin
    a move) goes to the unit that owns its level, under a name that passes 1. A step is cut out
    only when it has a name of the glossary, never to shorten a body.
 5. **Know what holds a unit's methods together** (cohesion), from strongest to weakest:
-   functional (one job) · sequential (one's result is the next one's input) · communicational
+   functional (one purpose) · sequential (one's result is the next one's input) · communicational
    (the same records) · procedural (a fixed order) · temporal (the same moment) · logical (one
    kind, picked by a flag) · coincidental (one folder). Measure, never argue: list per method
    what it requires, who calls it, and who would ask for its change. Sets that do not overlap

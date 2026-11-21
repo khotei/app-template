@@ -27,8 +27,8 @@ fix pass for either. You take it to ready for review and stop.
 - **The least behaviour, in composed units.** Before code, name what each part of the goal adds
   and what the system loses without it. No timeout, cap, retry or guard that the goal does not
   name; an edge case a review finds in code you wrote is first met by deleting that code. Lines
-  count inside a unit, never across units: a new job is a unit that wraps or composes the
-  existing ones, and a unit is edited only to fix it or extend its own job
+  count inside a unit, never across units: a new purpose is a unit that wraps or composes the
+  existing ones, and a unit is edited only to fix it or extend its own purpose
   (`.claude/rules/composition.md`).
 - **Test first**, through the preloaded `tdd`, at the interface the Shape names; a step that adds
   a check proves it red on the break it catches. A step past ~400 changed lines of code and tests
