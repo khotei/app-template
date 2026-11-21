@@ -141,13 +141,17 @@ export type ChatsListMessages200 = globalThis.ReadonlyArray<ApiMessage>
 
 export const ChatsListMessages200 = Schema.Array(ApiMessage)
 
-export type ChatsListMessages400 = ChatNotFoundErrorEncoded | RequestInvalidErrorEncoded
+export type ChatsListMessages400 = RequestInvalidErrorEncoded
 
-export const ChatsListMessages400 = Schema.Union([ChatNotFoundErrorEncoded, RequestInvalidErrorEncoded])
+export const ChatsListMessages400 = RequestInvalidErrorEncoded
 
 export type ChatsListMessages401 = UserUnknownErrorEncoded
 
 export const ChatsListMessages401 = UserUnknownErrorEncoded
+
+export type ChatsListMessages404 = ChatNotFoundErrorEncoded
+
+export const ChatsListMessages404 = ChatNotFoundErrorEncoded
 
 export type ChatsCreateMessagePathParams = { readonly "chatId": string }
 
@@ -161,13 +165,17 @@ export type ChatsCreateMessage202 = ApiRun
 
 export const ChatsCreateMessage202 = ApiRun
 
-export type ChatsCreateMessage400 = ChatNotFoundErrorEncoded | RequestInvalidErrorEncoded
+export type ChatsCreateMessage400 = RequestInvalidErrorEncoded
 
-export const ChatsCreateMessage400 = Schema.Union([ChatNotFoundErrorEncoded, RequestInvalidErrorEncoded])
+export const ChatsCreateMessage400 = RequestInvalidErrorEncoded
 
 export type ChatsCreateMessage401 = UserUnknownErrorEncoded
 
 export const ChatsCreateMessage401 = UserUnknownErrorEncoded
+
+export type ChatsCreateMessage404 = ChatNotFoundErrorEncoded
+
+export const ChatsCreateMessage404 = ChatNotFoundErrorEncoded
 
 export type ChatsCreateMessage409 = ChatBusyErrorEncoded
 
@@ -181,17 +189,17 @@ export type ChatsRetryRun202 = ApiRun
 
 export const ChatsRetryRun202 = ApiRun
 
-export type ChatsRetryRun400 = ChatNotFoundErrorEncoded | RequestInvalidErrorEncoded
+export type ChatsRetryRun400 = RequestInvalidErrorEncoded
 
-export const ChatsRetryRun400 = Schema.Union([ChatNotFoundErrorEncoded, RequestInvalidErrorEncoded])
+export const ChatsRetryRun400 = RequestInvalidErrorEncoded
 
 export type ChatsRetryRun401 = UserUnknownErrorEncoded
 
 export const ChatsRetryRun401 = UserUnknownErrorEncoded
 
-export type ChatsRetryRun404 = MessageNotFoundErrorEncoded
+export type ChatsRetryRun404 = MessageNotFoundErrorEncoded | ChatNotFoundErrorEncoded
 
-export const ChatsRetryRun404 = MessageNotFoundErrorEncoded
+export const ChatsRetryRun404 = Schema.Union([MessageNotFoundErrorEncoded, ChatNotFoundErrorEncoded])
 
 export type ChatsRetryRun409 = RunNotRetryableErrorEncoded
 
@@ -273,10 +281,10 @@ class ChatsGroup extends HttpApiGroup.make("chats")
     HttpApiEndpoint.patch("chatsRename", "/chats/:chatId", { params: ChatsRenamePathParams, payload: ChatsRenameRequestJson, success: ChatsRename200, error: [ChatsRename400.pipe(HttpApiSchema.status(400)), ChatsRename401.pipe(HttpApiSchema.status(401)), ChatsRename404.pipe(HttpApiSchema.status(404))] })
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "chats.rename"), 
-    HttpApiEndpoint.get("chatsListMessages", "/chats/:chatId/messages", { params: ChatsListMessagesPathParams, success: ChatsListMessages200, error: [ChatsListMessages400.pipe(HttpApiSchema.status(400)), ChatsListMessages401.pipe(HttpApiSchema.status(401))] })
+    HttpApiEndpoint.get("chatsListMessages", "/chats/:chatId/messages", { params: ChatsListMessagesPathParams, success: ChatsListMessages200, error: [ChatsListMessages400.pipe(HttpApiSchema.status(400)), ChatsListMessages401.pipe(HttpApiSchema.status(401)), ChatsListMessages404.pipe(HttpApiSchema.status(404))] })
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "chats.listMessages"), 
-    HttpApiEndpoint.post("chatsCreateMessage", "/chats/:chatId/messages", { params: ChatsCreateMessagePathParams, payload: ChatsCreateMessageRequestJson, success: ChatsCreateMessage202.pipe(HttpApiSchema.status(202)), error: [ChatsCreateMessage400.pipe(HttpApiSchema.status(400)), ChatsCreateMessage401.pipe(HttpApiSchema.status(401)), ChatsCreateMessage409.pipe(HttpApiSchema.status(409))] })
+    HttpApiEndpoint.post("chatsCreateMessage", "/chats/:chatId/messages", { params: ChatsCreateMessagePathParams, payload: ChatsCreateMessageRequestJson, success: ChatsCreateMessage202.pipe(HttpApiSchema.status(202)), error: [ChatsCreateMessage400.pipe(HttpApiSchema.status(400)), ChatsCreateMessage401.pipe(HttpApiSchema.status(401)), ChatsCreateMessage404.pipe(HttpApiSchema.status(404)), ChatsCreateMessage409.pipe(HttpApiSchema.status(409))] })
       .middleware(CookieSecurityMiddleware)
       .annotate(OpenApi.Identifier, "chats.createMessage"), 
     HttpApiEndpoint.post("chatsRetryRun", "/chats/:chatId/runs", { params: ChatsRetryRunPathParams, success: ChatsRetryRun202.pipe(HttpApiSchema.status(202)), error: [ChatsRetryRun400.pipe(HttpApiSchema.status(400)), ChatsRetryRun401.pipe(HttpApiSchema.status(401)), ChatsRetryRun404.pipe(HttpApiSchema.status(404)), ChatsRetryRun409.pipe(HttpApiSchema.status(409))] })

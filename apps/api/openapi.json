@@ -345,18 +345,11 @@
             }
           },
           "400": {
-            "description": "ChatNotFoundError | RequestInvalidError",
+            "description": "RequestInvalidError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
                 }
               }
             }
@@ -367,6 +360,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ChatNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
                 }
               }
             }
@@ -407,18 +410,11 @@
             }
           },
           "400": {
-            "description": "ChatNotFoundError | RequestInvalidError",
+            "description": "RequestInvalidError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
                 }
               }
             }
@@ -429,6 +425,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ChatNotFoundError",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
                 }
               }
             }
@@ -502,18 +508,11 @@
             }
           },
           "400": {
-            "description": "ChatNotFoundError | RequestInvalidError",
+            "description": "RequestInvalidError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RequestInvalidErrorEncoded"
                 }
               }
             }
@@ -529,11 +528,18 @@
             }
           },
           "404": {
-            "description": "MessageNotFoundError",
+            "description": "MessageNotFoundError | ChatNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MessageNotFoundErrorEncoded"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/MessageNotFoundErrorEncoded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
+                    }
+                  ]
                 }
               }
             }
