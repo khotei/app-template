@@ -25,11 +25,10 @@ import type {
   RunEntityWhere,
 } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
-import { ActiveRunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
@@ -450,10 +449,9 @@ describe('ReplyChatService', () => {
     return Effect.gen(function* () {
       const error = yield* reply.pipe(Effect.flip)
 
-      assertSchemaEquals(
-        ActiveRunNotFoundError,
-        error,
-        new ActiveRunNotFoundError({ userMessageId: queuedRun.userMessageId }),
+      assert.deepStrictEqual(
+        [error._tag, error._tag === 'ActiveRunNotFoundError' && error.userMessageId],
+        ['ActiveRunNotFoundError', queuedRun.userMessageId],
       )
       assertEquals(yield* assistant.histories, [])
     }).pipe(

@@ -1092,7 +1092,7 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   title's services share only `MessageService`, and their callers and reasons to change (the Run's
   life, the title's policy) are disjoint. `AskChatService`'s two methods share the reply's send
   and its settlement and the Run's create, so one unit holds them. The repeated verb shows the
-  tier in every call (`askChat.ask`, `replyChat.reply`) with no word, suffix or folder of its own.
+  tier in every call (`asks.ask`, `replies.reply`) with no word, suffix or folder of its own.
 - **Sources:** the owner's call in the design audit, the reply in its job's service; the owner's
   split at the queue (2026-11-21); the owner's names, `AskChatService { ask, retry }`,
   `ReplyChatService { reply }` and `TitleChatService { title }` (2026-11-21), on the design

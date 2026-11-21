@@ -11,7 +11,7 @@ import { ChatTitle } from '#chat/domain/chat.model'
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 
 /** A bare `String`: `Schema.Trim` would send the language model its `expected` text as a description. */
-const TitleAnswer = Schema.Struct({
+const TitleObject = Schema.Struct({
   title: Schema.String.pipe(Schema.decodeTo(ChatTitle, SchemaTransformation.trim())),
 })
 
@@ -38,7 +38,7 @@ export class ChatAssistant extends Context.Service<
     })
 
     const proposeTitle = Effect.fn('ChatAssistant.proposeTitle')(
-      (text: string) => model.generateObject({ prompt: text, schema: TitleAnswer }),
+      (text: string) => model.generateObject({ prompt: text, schema: TitleObject }),
       askModel,
       Effect.map(({ value }) => value.title),
     )

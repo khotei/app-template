@@ -56,12 +56,12 @@ export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
   )
 
 /** Where a Run may move from each status; `done` and `failed` end it. */
-const moveRunRules: Record<RunStatus, ReadonlyArray<RunStatus>> = {
+const moveRunRules = {
   queued: ['generating', 'failed'],
   generating: ['done', 'failed'],
   done: [],
   failed: [],
-}
+} as const satisfies Record<RunStatus, ReadonlyArray<RunStatus>>
 
 /** A move the table refuses dies: every caller moves a Run it has just read or moved. */
 const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {

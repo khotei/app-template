@@ -16,7 +16,7 @@ const systemPrompt = [
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-const toMessage = ({ author, text }: MessageFields): Prompt.MessageEncoded => ({
+const buildPromptMessage = ({ author, text }: MessageFields): Prompt.MessageEncoded => ({
   role: author,
   content: [{ type: 'text', text }],
 })
@@ -40,7 +40,7 @@ export class MessageAssistant extends Context.Service<
     // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
       (history: ReadonlyArray<MessageFields>) =>
-        model.generateText({ prompt: Arr.map(history, toMessage) }),
+        model.generateText({ prompt: Arr.map(history, buildPromptMessage) }),
       askModel,
       Effect.flatMap(({ text }) =>
         Schema.decodeEffect(AssistantReply)({ text }).pipe(

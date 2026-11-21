@@ -1,6 +1,6 @@
 import { Data, Schema } from 'effect'
 
-import { MessageId } from '#chat/domain/message.util'
+import type { MessageId } from '#chat/domain/message.util'
 import { RunId } from '#chat/domain/run.util'
 import { Status } from '#chat/domain/status.model'
 
@@ -17,10 +17,9 @@ export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('Ru
  * The user's message `userMessageId` has no active Run: its Run is done or failed, or its chat is
  * deleted.
  */
-export class ActiveRunNotFoundError extends Schema.TaggedError<ActiveRunNotFoundError>()(
-  'ActiveRunNotFoundError',
-  { userMessageId: MessageId },
-) {}
+export class ActiveRunNotFoundError extends Data.TaggedError('ActiveRunNotFoundError')<{
+  readonly userMessageId: MessageId
+}> {}
 
 export class RunStartedError extends Data.TaggedError('RunStartedError')<{
   readonly id: RunId

@@ -6,7 +6,7 @@ import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import {
-  ActiveRunNotFoundError,
+  type ActiveRunNotFoundError,
   type RunStartedError,
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
@@ -188,10 +188,9 @@ describe('MoveRunService', () => {
 
         const error = yield* move(service).pipe(Effect.flip)
 
-        assertSchemaEquals(
-          ActiveRunNotFoundError,
-          error,
-          new ActiveRunNotFoundError({ userMessageId: queuedRun.userMessageId }),
+        assert.deepStrictEqual(
+          [error._tag, error._tag === 'ActiveRunNotFoundError' && error.userMessageId],
+          ['ActiveRunNotFoundError', queuedRun.userMessageId],
         )
         assert.deepStrictEqual(updates, [])
       }).pipe(Effect.provide(layer))

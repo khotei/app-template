@@ -37,7 +37,7 @@ graph LR
    drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
    Nothing streams: the answer arrives whole.
 3. `ChatAssistant.proposeTitle` calls `generateObject` on the title's language model with the opening
-   message and `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's
+   message and `TitleObject`, which the package sends as `output_config.format` (Anthropic's
    native structured output). The schema's checks are not sent: the instruction states the
    language and the 120-character bound; the decode of the JSON answer trims the title and
    enforces the bound.

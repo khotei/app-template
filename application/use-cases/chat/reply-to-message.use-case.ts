@@ -10,7 +10,7 @@ const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply fail
  */
 export const replyToMessage = Effect.fn('replyToMessage')(
   (job: ReplyToMessage) =>
-    ReplyChatService.use((replyChat) => replyChat.reply(job.messageId)).pipe(
+    ReplyChatService.use((replies) => replies.reply(job.messageId)).pipe(
       Effect.catchTag('ActiveRunNotFoundError', () =>
         Effect.logInfo('reply skipped: its Run is done, failed or gone'),
       ),
