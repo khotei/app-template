@@ -66,4 +66,4 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
 - One name per failure and value: never an error that only wraps another, a table from error
   tags to a second list or a schema alias; a field nobody reads (no branch, no operator) is not
   written. A failed record keeps the full text of what ended it, for operators, and every wire
-  shape omits it ([record](../../docs/knowledge/decisions.md#a-failed-run-keeps-its-text)).
+  shape omits it ([decision](../../docs/knowledge/decisions.md#a-failed-run-keeps-its-text)).

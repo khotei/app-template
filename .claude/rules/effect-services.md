@@ -8,9 +8,9 @@ paths:
 ## Functions
 
 - An effectful function follows `repos/effect/LLMS.md › Using Effect.fn and Effect.fnUntraced`. A
-  service method's span is `'<Service>.<method>'`; its pipeables (`transaction.run`) are
-  `Effect.fn`'s extra arguments; a body that only delegates is passed as is
-  (`Effect.fn('<Service>.<method>')(port.<method>)`).
+  service method's span is `'<Service>.<method>'`; its pipeables are `Effect.fn`'s extra
+  arguments, save `Transaction`'s `run` ([layering.md › Use cases](layering.md#use-cases)); a body
+  that only delegates is passed as is (`Effect.fn('<Service>.<method>')(port.<method>)`).
 - The variable holding it is named after the span's last segment, a reserved word its plain
   synonym (`remove` for `'<Model>Service.delete'`), never with a model suffix. A method that needs
   the model in its name is often doing a neighbouring service's work.
@@ -30,7 +30,7 @@ paths:
   - a domain service ([layering.md](layering.md)); a use case and a job's `send<Job>` are functions.
 - No port in front of one implementation: a service over a client (a language model, a store)
   is its own class with its layer, and a test provides a layer of that class; a port comes with
-  the second implementation ([record](../../docs/knowledge/decisions.md#a-modules-layers)).
+  the second implementation ([decision](../../docs/knowledge/decisions.md#a-modules-layers)).
 - Its key is `'@app-template/<folder>/<Name>'`, `<folder>` its file's folder from the repository
   root, so the key says where to look.
 - One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:

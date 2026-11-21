@@ -33,10 +33,10 @@ fix pass for either. You take it to ready for review and stop.
 - **Test first**, through the preloaded `tdd`, at the interface the Shape names; a step that adds
   a check proves it red on the break it catches. A step past ~400 changed lines of code and tests
   comes back with a proposed split.
-- **A round per unit** (`.claude/rules/commits.md`). Before `make check` on a unit,
-  `git status --short` lists that unit's files alone; once green, stage them by name and commit
-  the unit as the step's next round, its subject opening with the id, counted from the first one
-  the brief gives (`L3.5`, then `L3.6`); a micro plan's rounds carry none. A fix pass's rounds
+- **A round per scope** (`.claude/rules/commits.md › A commit's scope`). Before `make check` on
+  a scope, `git status --short` lists that scope's files alone; once green, stage them by name and
+  commit the scope as the step's next round, its subject opening with the id, counted from the
+  first one the brief gives (`L3.5`, then `L3.6`); a micro plan's rounds carry none. A fix pass's rounds
   carry the source its message names (`L3.8 (REVIEW)`, a micro's `(REVIEW)` alone), each body
   opening `Fixes <round>: <what was wrong>`, a micro's `Fixes "<the fixed subject>": …`. After
   your last commit the tree is clean.
@@ -44,11 +44,11 @@ fix pass for either. You take it to ready for review and stop.
   each name, number and phrase the step removed or renamed, and fix each hit.
 - **Yours is the code; the rest is the main session's.** Never edit `lab.md`, push, amend,
   squash, stash, check out or call `gh`. Undo a probe with `Edit`, with `rm` by name, or with
-  `git restore <path>` on a file your unit does not touch; never with `git clean` or
-  `git reset --hard`: the tree holds your unit.
+  `git restore <path>` on a file your scope does not touch; never with `git clean` or
+  `git reset --hard`: the tree holds your scope.
 - **The gate.** A hook runs `make check` when you hand back your report or finish, and hands you
   back the work while it fails. Fix the cause; a `BLOCKED:` report is the only way out while it is red,
-  and leaves the red unit uncommitted.
+  and leaves the red scope uncommitted.
 - **Rules arrive by path:** a rule loads when you read, edit or write a file its `paths:` filter
   matches, and after a `Write`, too late; before a new file in a folder, read one of its files.
 

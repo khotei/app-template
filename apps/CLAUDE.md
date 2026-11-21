@@ -1,6 +1,6 @@
 # apps
 
-Thin entry points: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev server).
+Thin processes: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev server).
 
 - `main.ts` starts the process. `api` and `worker` build it in `layer.ts`, which `main.ts` runs
   and no package exports, except the app's `./testing` for the e2e through the api. `ApiHttp`
@@ -18,7 +18,7 @@ Thin entry points: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its 
 - **An api group takes the domain's schemas as they are** (ids, checks, models, errors): every
   error gets its status where an endpoint or a middleware lists it (`HttpApiSchema.status`),
   never on its class, and a model goes on the wire whole or as `<Model>.mapFields(…)`, which
-  omits by name what stays off the wire or swaps a field, named by an `identifier`. Record:
+  omits by name what stays off the wire or swaps a field, named by an `identifier`. Decision:
   [The API contract in the api](../docs/knowledge/decisions.md#the-api-contract-in-the-api).
 - **`apps/e2e` is a test app, not a fourth process:** it starts nothing of its own, and its
   suites run the apps' layers in the test's runtime; what it may import:

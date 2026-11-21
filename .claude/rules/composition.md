@@ -9,7 +9,7 @@ Every unit, a model's function, a domain service, a util or a use case, starts s
 the one purpose it was made for, one reason to change ([name-and-body.md](name-and-body.md), 5,
 measures it); the code grows by new units over it, and each interface stays deep: much
 behaviour behind few methods, argument and return shapes, error modes.
-Record: [Composition: wrap or compose](../../docs/knowledge/decisions.md#composition-wrap-or-compose).
+Decision: [Composition: wrap or compose](../../docs/knowledge/decisions.md#composition-wrap-or-compose).
 
 ## Where a change goes
 
@@ -26,8 +26,8 @@ Ask in order; the first yes decides:
    unit named for what it adds (`<Aspect><Model>Service`, `ensure<Combined>`), built from the old
    ones; a caller that needs only the old one keeps it.
 4. **An order of calls over several models of one module, their transaction or their sends** →
-   the module's `<Verb><Model>Service` ([layering.md](layering.md#ports-and-domain-services)),
-   which use cases share; an order over modules, or what an entry adds, → a use case.
+   the module's `<Verb><Model>Service` ([its role](layering.md#ports-and-domain-services)); an
+   order over modules, or what an entry adds, → a use case.
 
 ```ts
 // a wrap, a static beside `layer`: each holder from this layer gets the audit; `make` is unedited

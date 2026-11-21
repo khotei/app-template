@@ -31,7 +31,9 @@ more only when the diff touches a contract they do not quote, and say so.
   without a line to cite, and none on the shape. On an instruction file, also judge it by
   `mattpocock-skills:writing-for-agents`; where it and `.claude/rules/claude-md.md` disagree,
   the rule wins. Where a rule's line asks for a name, a body or a doc that
-  `.claude/rules/name-and-body.md` refuses, report that line (`judgement`).
+  `.claude/rules/name-and-body.md` refuses, report that line (`judgement`). A finding where two
+  rule lines pull apart names both and the trade-off, as that rule's *When two rules pull apart*
+  asks.
 - **Design:** at most five changes to the shape, most valuable first: a narrower interface; a
   purpose edited into a unit not made for it, moved to a unit that wraps or composes it
   (`.claude/rules/composition.md`); one function over the varying value in place of a copy per

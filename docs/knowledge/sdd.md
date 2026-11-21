@@ -122,7 +122,7 @@ overlap these are off in `.claude/settings.json`. Two overrides hold: the glossa
 ## Evaluating the toolkit
 
 A change to the skill, an agent or a process rule is judged by a replay run, not by argument: a
-one-line instruction cut once lowered coding quality in a way the vendor's own evals missed
+one-line instruction added once lowered coding quality in a way the vendor's own evals missed
 ([Anthropic, 2026-04-23](https://www.anthropic.com/engineering/april-23-postmortem)).
 
 - **The replays:** past steps with a known result, each run from the commit named, in a

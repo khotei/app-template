@@ -22,7 +22,7 @@ back) · invariants types cannot express · cross-workspace coupling · non-obvi
 (ordering, version quirks) · boundaries (import direction, ownership) · one pointer to the file
 where a surface lives. What fails: behaviour narration (per-function descriptions, signatures,
 test walkthroughs). When in doubt, cut. A dispute over whether a line changes what an agent does
-is settled by a run, never argued
+is settled by a replay run, never argued
 ([how](../../docs/knowledge/sdd.md#evaluating-the-toolkit)).
 
 ## The owner
@@ -38,7 +38,7 @@ Each fact has one author; every other file links it by name and never restates i
 | One change's intent, steps and decisions | its `lab.md` in `docs/tickets/`, or a micro's first commit |
 | What changed and why | `git log` |
 
-A `CLAUDE.md` or rule states only the *currently binding* constraint and links its record: its
+A `CLAUDE.md` or rule states only the *currently binding* constraint and links its decision: its
 history lives in commit `Decision:` paragraphs and the lab's Knowledge, so no dates, superseded
 chains, ticket numbers or tombstones. A lesson learned from building changes a skill, a rule or a
 check, never a `CLAUDE.md`, only on the user's OK, and a line it adds names the line it replaces.
@@ -52,6 +52,10 @@ API, the template's own infrastructure (the transaction, the queue sender, the t
 Before stating a fact, grep for it: when another file owns it, link there. Never list what `ls`
 or `grep` reproduces. If a rename forces a doc edit, the doc held *what*, not *why*: delete the
 line, don't update it.
+
+A line a reader could apply two ways carries one example in that neutral domain: inline
+`wrong → right`, or a fenced `diff` whose `-` line ends in `// why` and whose `+` line passes;
+its API is checked like code. None where a check prints the fix.
 
 ## The limits and the checks
 

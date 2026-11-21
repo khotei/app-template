@@ -715,11 +715,11 @@ client.
   in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
   a purpose: its parameter was typed by Anthropic's request settings, so the services held one
   provider's settings all the same. The module's own errors passed to `askModel` as two
-  constructors: it kept the domain's guard whole, but every module that asks a model would
-  declare the same error again and a mapping for it. Each service mapping
-  `AiError` with its own `mapError`: the retry and finish-reason policy copied per service. A
-  `packages/` workspace for the policy: a tool for every app for some 40 lines of this app's
-  policy.
+  constructors: every module that asks a model would declare the same error again and a mapping
+  for it, and the domain's guard, which admits no kernel error, would gain nothing by it. Each
+  service mapping `AiError` with its own `mapError`: the retry and finish-reason policy copied per
+  service. A `packages/` workspace for the policy: a tool for every app for some 40 lines of this
+  app's policy.
 - **Cost:** the use cases' guard admits `@app-template/kernel/llm/error`, for names matching
   `Llm…Error` only, so a use case names a kernel error; the domain's admits none. The use
   cases import a class whose file names the provider's package, so loading them loads
@@ -1466,8 +1466,8 @@ A `CLAUDE.md` and a rule each have a line limit; the numbers live only in the li
 
 ### Rounds by commit
 
-Every round of a lab's step is a commit of one unit
-(`.claude/rules/commits.md › A commit's unit`), named by its step, round and source
+Every round of a lab's step is a commit of one scope
+(`.claude/rules/commits.md › A commit's scope`), named by its step, round and source
 (`.claude/skills/lab/SKILL.md › Rounds`), committed by whoever wrote it, the main session or an
 `implementer`, as soon as `make check` is green and before the user reads it; the user's own edits,
 found between rounds, are a round of their own, and no commit the user has seen is rewritten

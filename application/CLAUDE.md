@@ -15,14 +15,12 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   pattern, enum values or JSON column's shape, never a table, entity or repository), no other
   workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and domain
   services only in `services/`, never beside a model.
-  Record: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
-- **Each service in a module's `infrastructure/` has one memory layer** in its module's test
+  Decision: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
+- **Each service in a module's `infrastructure/` has one fake** in its module's test
   support (a port would too), for every workspace's unit tests:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
-  ([record](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a service
-  a use case or the worker's `<Verb><Model>Service` calls there, keeps its client and prompts
-  inside, so callers never see them.
+  ([decision](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a
+  service its module calls there, keeps its client and prompts inside, so callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and each job's
-  `send<Job>`, which the api's `<Verb><Model>Service` calls after the commit; no adapter wraps
-  the worker.
+  `send<Job>`; no adapter wraps the worker.

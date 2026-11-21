@@ -123,7 +123,9 @@ _Avoid_: Unit (the code a change composes, below), slice, component
 
 **Entry**:
 A part's `index.ts`, published as `@app-template/<folder>` and, for its test support,
-`<folder>/testing` and `<folder>/testing/e2e`. Not a process's `main.ts`, its *main*.
+`<folder>/testing` and `<folder>/testing/e2e`; a kernel part may also publish one file straight
+as a sub-path, `@app-template/kernel/<part>/<role>`, which loads none of the part's clients. Not
+a process's `main.ts`, its *main*.
 _Avoid_: Barrel, entry point, public API
 
 **Unit**:
@@ -268,10 +270,10 @@ _Avoid_: Implementation, provider, DAO, store
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
 guards goes through it. A model starts with `<Model>Service` over its repository; a purpose past it
 is a service composed over it, named for what it adds (`File<Model>Service`,
-`Move<Model>Service`). The last grouping of a module's logic before a use case, which any use case
-may call, is named for its verb, its main method that verb: the api's `AskChatService.ask` stores
-the user's ask and sends the jobs that answer it, and the worker's `<Verb><Model>Service.<verb>`
-does each job's work (`ReplyChatService.reply`, `TitleChatService.title`).
+`Move<Model>Service`). The last grouping of a module's logic before a use case is a
+`<Verb><Model>Service` (`AskChatService`, `ReplyChatService`, `TitleChatService`): its role in
+[layering.md](../../.claude/rules/layering.md#ports-and-domain-services), its form in
+[naming.md](../../.claude/rules/naming.md#symbols).
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Composition**:

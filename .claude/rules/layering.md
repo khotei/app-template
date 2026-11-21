@@ -28,7 +28,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   `<Verb><Model>Service` ([its form](naming.md#symbols)): it composes the module's services, rules,
   `Transaction` and what one process provides, the api's its `<model>.queue` sends, the worker's
   its `.llm` files, each admitted by its file's own Biome override, and calls no use case
-  ([record](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+  ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - A status move is a pure transition ([its name](naming.md#symbols)): it checks
   one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as its
   callers move a record just read or moved; a refusal the user can reach is a check of its own
@@ -46,24 +46,24 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A use case is what a handler calls, and only a handler: it adds what the entry needs (the
   caller's scope, a job's end and its logs) to the services it calls, and orders work over modules.
-- An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Record:
+- An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
 - It holds only its flow: the order of the calls, the transaction, what it skips and logs. It
   reads and writes through domain services, never a repository: a read, a write or a rule no
   service offers goes to the service or model it belongs to, and a step two use cases share lives
   once, as a service's method; a use case holds no rule of its own and never calls another
-  ([record](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
+  ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
 - All checks precede every write; a step's own guard may repeat a check the use case made.
-- The writes commit in one transaction, `Transaction`'s `run` piped on the `Effect.fn` that holds
-  them. An object store joins none: keep the bytes before the row that binds them, delete them
-  once the rows are gone.
+- The writes commit in one transaction, `Transaction`'s `run` piped on the effect of the writes
+  it commits, never around a send or a language-model call. An object store joins none: keep the
+  bytes before the row that binds them, delete them once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
-  through its `send<Job>` beside its queue's definition, which logs a refusal and returns it
-  ([decisions.md › Jobs as queue messages](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
-- A job runs once, unretried: its run, the worker's `<Verb><Model>Service`, ends its
+  through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
+  on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
+- A job is handled once, unretried: its handling, the worker's `<Verb><Model>Service`, ends its
   work on any outcome but success, an interrupt included, and work it finds started, left by a
-  run that died; the use case ends the job in one tail
-  ([record](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+  handling that died; the use case ends the job in one tail
+  ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 
