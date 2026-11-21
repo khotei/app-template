@@ -564,9 +564,7 @@ built-in call is not written; the built-in is called.
   that util file. A util a second workspace needs moves into a package, and the domain's Biome
   override then admits that package by name, as it admits `@app-template/packages/schema` for
   `buildIdSchema`, which the contracts' override admits too (`UserId`).
-- **Guarded by:** review, by the util's imports in
-  [architecture.md › Where things live](architecture.md#where-things-live) and its file name in
-  `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
+- **Guarded by:** review, by `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
   a util that imports a model importing it back; nothing refuses a rule written in a util.
 - **If reversed:** the utils go back into the model files beside the rules they serve, and each
   aggregate's ids back into an `.id` file.

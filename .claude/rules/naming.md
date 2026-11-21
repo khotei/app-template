@@ -20,7 +20,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | Suffix | Holds | Where |
 |---|---|---|
 | `.model` | a concept's schemas with their pure rules, a file per value they act on; `<name>-fields.model.ts` the fields two models nest | `domain/` |
-| `.util` | `<model>.util.ts`: the model's branded id and the utils its module shares | `domain/`; the id alone in `contract/` |
+| `.util` | `<model>.util.ts`: the model's branded id and the utils its module shares, importing only `effect`, `packages/schema` and other utils | `domain/`; the id alone in `contract/` |
 | `.error` | the errors a module fails with | `domain/` or `contract/`; a kernel part's, behind an entry of its own |
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
 | `.service` | `<model>.service.ts`, `<aspect>-<model>.service.ts` composed over it, `<operation>.service.ts` for one of no model | `services/`; a package's or kernel part's takes its role's (`.client`, `.sender`) |

@@ -199,7 +199,7 @@ What goes where, which support a test may import and what runs on what:
 
 ## A use case
 
-Every use case lives in `application/use-cases/<object>/<verb>-<object>.use-case.ts`, whichever
+Every use case lives in `application/use-cases/<module>/<verb>-<object>.use-case.ts`, whichever
 modules it touches: it composes their services and model rules, holds the transaction and
 enqueues the jobs, and holds nothing else: a rule, a read or a write stays in its module's models
 and services. When a flow becomes one and how it orders its writes:
