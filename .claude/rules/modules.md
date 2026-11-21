@@ -47,14 +47,6 @@ case, never repeated. The test: if the owner changes the rule, must this module 
 one rule, call it. No: two rules that only look alike, each kept by its module.
 Record: [Records open, rules called](../../docs/knowledge/decisions.md#records-open-rules-called).
 
-## A rule or a capability in a use case
-
-A branch on a model's state, a limit, a refusal of the use case's own, or a read or a write it
-codes against a repository belongs in the module whose model it touches, as a model function, a
-service method or a service composed over one; the use case calls it
-([composition.md](composition.md)). Record:
-[Use cases above the modules](../../docs/knowledge/decisions.md#use-cases-above-the-modules).
-
 ## A job that reacts to another module's write
 
 A job carries work that outlives a request (a slow call, a retry), never a module's reaction to

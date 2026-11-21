@@ -44,22 +44,6 @@ static readonly layerAudited = Layer.effect(
 ).pipe(Layer.provide(this.layer))
 ```
 
-## By kind
-
-- **Model:** a rule is small pure pieces of one condition or step each; a new rule composes them
-  (`Effect.succeed(order).pipe(ensureUnpaid, Effect.flatMap(ensureInStock(stock)))`), never a
-  flag added to a piece for one caller.
-- **Domain service:** `<Model>Service` starts as its model's records
-  ([layering.md › Ports and domain services](layering.md#ports-and-domain-services)); a job past
-  that wraps it (`layer<Variant>`) or is a service composed over it, built from services of its
-  own model and a repository only for what it adds; which composed services a model may have,
-  over which, and what its `Ask<Model>Service` and `Reply<Model>Service` take besides: the same
-  section.
-- **Util:** a variation inside its job is a value it takes; another job is a function over it.
-- **Use case:** the composer; it holds only its flow
-  ([layering.md › Use cases](layering.md#use-cases)). A step two use cases share lives once, as a
-  method of the service of the model it serves, and both call it; a use case never calls another.
-
 ## Minimal means inside each unit
 
 - Less code in each unit and no dead code, never fewer units: a line count, a caller count or a
@@ -67,7 +51,8 @@ static readonly layerAudited = Layer.effect(
   of different jobs.
 - What still goes: dead code; a pass-through that adds nothing and owns nothing its callers go
   through ([deep-modules.md › The tests](deep-modules.md#the-tests)), its callers taking the
-  unit below; a copy per variant, which becomes one unit over the varying value. A deletion never
-  moves a unit's added behaviour into the unit below.
+  unit below; a copy per variant, which becomes one unit over the varying value (a model's
+  predicate or a value its service builds is no copy, however short or few its callers). A
+  deletion never moves a unit's added behaviour into the unit below.
 - A fold or a merge is the owner's call: its proposal names the job each unit holds and where it
   lives after.

@@ -8,8 +8,7 @@ paths:
 
 ## Imports
 
-- A unit reaches its own files through `#<unit>/<path>`, another unit only through its entry or
-  its `/testing` (`make check` refuses the rest). Which may import which:
+- Which unit may import which:
   [architecture.md › Dependency rules](../../docs/knowledge/architecture.md#dependency-rules).
 - A unit's `index.ts` only re-exports; code it would hold gets a file of its own. It re-exports
   what other units import, never what loads code they do not run (a process's entry, the
@@ -26,7 +25,7 @@ and its support go: [tooling.md › Tests](../../docs/knowledge/tooling.md#tests
 | Suffix | Role |
 |---|---|
 | `.model` · `.error` | `Schema.Class`es and their pure operations, split by the value they act on · domain errors |
-| `.util` | `<model>.util.ts`, one per model that needs one: the model's branded id and its generic helpers, pure functions with no domain meaning, generic over their types, that the module's code shares; it imports only `effect`, `@app-template/packages/schema` and other `.util` files, never a model, and takes a refusal or a value it builds from its caller. Never a rename of one built-in call, nor a rule, a refusal or a lifecycle move, however short: those are a `.model`'s. Where it lives: [record](../../docs/knowledge/decisions.md#utils-apart-from-models) |
+| `.util` | `<model>.util.ts`: the model's branded id and its utils ([glossary › Architecture language](../../docs/knowledge/glossary.md#architecture-language), [record](../../docs/knowledge/decisions.md#utils-apart-from-models)); it imports only `effect`, `@app-template/packages/schema` and other `.util` files, never a model |
 | `.port` | a module's ports, `Context.Service`s, beside the values they take and answer |
 | `.service` | a domain service: `<model>.service.ts`, `<aspect>-<model>.service.ts` for one composed over it, named for what it adds, or `<operation>.service.ts` for one operation of no model |
 | `.use-case` | `<verb>-<object>.use-case.ts`, a flow over domain services, the function `<verb><Object>` |

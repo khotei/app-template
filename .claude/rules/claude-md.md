@@ -40,9 +40,8 @@ Each fact has one author; every other file links it by name and never restates i
 
 A `CLAUDE.md` or rule states only the *currently binding* constraint and links its record: its
 history lives in commit `Decision:` paragraphs and the lab's Knowledge, so no dates, superseded
-chains, ticket numbers or tombstones. Refresh a doc only when a real change lands, inside that
-change's commit. A lesson learned from building changes a skill, a rule or a check, never a
-`CLAUDE.md`, only on the user's OK, and a line it adds names the line it replaces.
+chains, ticket numbers or tombstones. A lesson learned from building changes a skill, a rule or a
+check, never a `CLAUDE.md`, only on the user's OK, and a line it adds names the line it replaces.
 
 ## The pattern
 
@@ -59,9 +58,6 @@ line, don't update it.
 - **Limits, checked by `make doc-lint`:** a `CLAUDE.md` 40 lines, a rule 80.
   Over a limit, cut; never append
   ([why](../../docs/knowledge/decisions.md#instructions-within-size-limits)).
-- `make doc-lint` also fails on a backticked path the repo lacks, on a source path in an
-  instruction file ([why](../../docs/knowledge/decisions.md#instructions-name-patterns)) and on a
-  rule whose `paths:` filter matches no file.
 
 ## The toolkit
 

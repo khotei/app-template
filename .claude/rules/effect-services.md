@@ -19,11 +19,6 @@ paths:
   (`Effect.orDie`), or a use case, whose endpoint's error list or `consumeQueue`'s `never` checks
   it, stays inferred.
 - A pure builder that cannot fail returns the model, not an `Effect`.
-- A pure transition (`naming.md`) checks its source in one shared table of allowed moves and
-  dies with one `<Model>StatusInvalidError { id, from, to }`: its callers move a record they
-  have just read or moved, so a refusal is a bug. A refusal the user can reach is a check of its
-  own before the move, failing its own error (`<Model>BusyError`), so the contract names the
-  refusal and the table holds the lifecycle.
 
 ## Services
 

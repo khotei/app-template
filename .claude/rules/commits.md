@@ -27,8 +27,7 @@ Refs: docs/tickets/<ticket folder>/
   or task are separate commits; a part that cannot be green alone joins the one it needs.
 - **The body says what and why.** A fact (a number, a behaviour, "X fails") is written only when a
   run showed it, naming the command and its result. A `Decision:` paragraph states the choice and
-  its trade-off without a run, but a fact inside it follows the same rule. A doc or rule line the
-  change makes false is fixed in the same commit.
+  its trade-off without a run, but a fact inside it follows the same rule.
 
 ## Vocabulary
 

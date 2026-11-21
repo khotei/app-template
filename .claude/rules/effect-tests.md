@@ -24,12 +24,13 @@ Where each kind of test and its support live, and what a test may import:
 
 - A unit test runs the real services and use cases over a `Layer.mock(<Name>Repository, { … })` of
   each repository, giving only the methods its flow may call (any other dies with
-  `UnimplementedError`), and the memory layers of the ports; it starts no container. It asserts the
+  `UnimplementedError`), and the memory layers of the leaves; it starts no container. It asserts the
   row or the `set` and `where` a write was handed, never a read back. A use case's unit test checks
   the order of its steps and the jobs it sends, not the rules.
-- Mock a leaf only, a repository or a port: a layer that provides its own dependency ignores a
-  double given from outside. What the database accepts, refuses, races or rolls back has its case on
-  the repository's e2e or through the api, never a unit test: `TransactionTest` takes nothing back
+- Mock a leaf only, a repository or a leaf service (an assistant, the queue's sender): a layer
+  that provides its own dependency ignores a double given from outside. What the database
+  accepts, refuses, races or rolls back has its case on the repository's e2e or through the api,
+  never a unit test: `TransactionTest` takes nothing back
   ([database.md › Tests](../../docs/knowledge/database.md#tests)).
 - An e2e test proves an adapter on the run's containers, or a flow through the api, never a call
   of the use case. Atomicity: the database refuses one write (a constraint the test adds) and no
@@ -47,15 +48,12 @@ Where each kind of test and its support live, and what a test may import:
   small problem (time, isolation, ordering) changes the test or drops the minor assertion.
 - A test reads its services from the context (`yield* <Model>Service`) under a layer it provides
   (`Effect.provide(<Model>Test)`), never through a callback runner.
-- Every support file is `<name>.test-<role>.ts` and every test-only layer ends in `Test`, so
-  `**/*.test-*.ts` and `\w+Test\b` find them all.
 
 ## Resources and time
 
 - Every test owns its resources (a database from `PgClientTest` or `DbTest`, a stage from
   `AwsTest`), provided in the test, never cleaned up by hand. Tests in a file run concurrently; a
-  suite sharing one resource opts out with `describe(name, { concurrent: false }, …)` (vitest has
-  no `describe.sequential`).
+  suite sharing one resource opts out with `describe(name, { concurrent: false }, …)`.
 - `it.effect`'s `TestClock` stands at 0, the fixtures' `epoch`. A test whose point is that time
   moves runs `it.live` and asserts relations (`child.createdAt == parent.updatedAt > epoch`), not
   instants. Move a `TestClock` only in a test about a delay or an expiry, never inside a shared

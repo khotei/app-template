@@ -74,8 +74,8 @@ commit together sit in a service of that module, the transaction piped on those 
   to extract. A read or a write one flow needs becomes a service method first.
 - **Guarded by:** the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
-  `.claude/rules/modules.md` refuses a rule or a capability in a use case and a job that carries a
-  module's reaction to another module's write.
+  `.claude/rules/layering.md › Use cases` refuses a rule or a capability in a use case, and
+  `.claude/rules/modules.md` a job that carries a module's reaction to another module's write.
 - **If reversed:** events between modules need an event ledger, a handler per reaction and
   at-least-once delivery; a send that spans modules loses its one transaction.
 - **Revisit when:** a module must be extracted into its own process, or a flow must outlive the
@@ -224,7 +224,8 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
 - **Sources:** departs from the guide's "Keep internal layering per module (API → domain →
   infrastructure)"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
-  `.claude/rules/deep-modules.md`'s id generator given the brand's `make`.
+  `.claude/rules/composition.md › Minimal means inside each unit` (a copy per variant becomes one
+  unit over the varying value).
 - **Rejected:** the generation spelled out at each call, or copied per module: two copies of a
   rule no module owns. A `generateId` that reads `SecureRandom` itself: `SecureRandom` is
   Effect's own service with no default, so it would enter every service method's requirements. A
@@ -287,7 +288,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   them, guards for a browser that no longer imports it. A status on the domain's class: an HTTP
   fact in a `domain/` the worker loads too. A status on the class only for an error HTTP alone
   raises: two forms for one fact. A constant per error with its status: a second name for one
-  class, the alias `.claude/rules/deep-modules.md` refuses. A `pick`
+  class, the alias `.claude/rules/effect-style.md › Composition` refuses. A `pick`
   of the wire's fields: every field listed again. `Model.Class` variants: every domain class
   rewritten as a `Model`, whose select, insert and update variants restate the row the Drizzle
   table and the model as its row's codec already state ([Entity names](#entity-names)), and
@@ -609,7 +610,7 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
   refused move dies and writes nothing, `start` of a started Run fails `RunStartedError`,
   `start` and `fail` read the active Run they name, and of a Run settled or gone fail
   `RunNotFoundError`; the model's test of
-  `ensureRunUnstarted`; review, by `deep-modules.md › Composition over pass-through`.
+  `ensureRunUnstarted`; review, by `.claude/rules/layering.md › Ports and domain services`.
 - **If reversed:** each use case composes the transition and `RunService.update` again.
 - **Revisit when:** a move needs a guard other than the status read and the model's rule.
 

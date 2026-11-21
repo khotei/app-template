@@ -22,12 +22,11 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
 - Look one up in `repos/effect/packages/effect/src/<Module>.ts`: its first comment says what it
   covers, its exports list the functions, each with an example;
   `repos/effect/ai-docs/src/` shows them in use.
-- Native code that signals a missing module: `=== undefined` on a value (`UndefinedOr`,
-  `Option`); a comparator lambda in a sort (`Order`); an accumulator in a loop or `reduce` (`Arr`,
+- Native code that signals a missing module: an accumulator in a loop or `reduce` (`Arr`,
   `Reducer`); a spread that appends (`Arr.append`) or rebuilds a nested object (`Struct`, `Optic`);
   filter then map (`Arr.filterMap`, `Filter`); `flatMap(Option.toArray)` (`Arr.getSomes`);
-  `JSON.stringify` in a log (`Formatter`). `make lint` fails on `=== undefined` and a comparator
-  sort. A lone default stays a plain `??`, a `null` branch a ternary.
+  `JSON.stringify` in a log (`Formatter`). A lone default stays a plain `??`, a `null` branch a
+  ternary.
 - Look for a utility type in effect's `Types` module, then in `type-fest`, before writing one.
 - Wrap a type built from others (`Pick`, `Omit`, `Partial`, `RequireAtLeastOne`, an
   intersection) in `Types.Simplify`, so a hover shows its fields, not the recipe. An `interface …

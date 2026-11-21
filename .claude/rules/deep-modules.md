@@ -53,26 +53,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 
 ## Composition over pass-through
 
-```ts
-// MoveOrderService.ship, the method a use case calls; `orders` is OrderService
-const shipped = yield* shipOrder(order)               // the model moves it, names the refusal
-return yield* orders.update(shipped, { id: order.id, status: [order.status] }) // or it dies
-```
-
-- A model's status move meets its write in `Move<Model>Service`
-  ([layering.md](layering.md#ports-and-domain-services)), so `<Model>Service` knows no
-  transition: its method calls the transition on the record read and writes it
-  under the status it was read in; a use case calls that method, never a transition or a
-  repository, and nothing else sits between a transition and its write. Two methods that differ
-  by their `where`, `set` or step are one, taking them from the caller.
-- A copy per model is one function over the varying part (an id generator given the brand's
-  `make`, an id's schema given its brand). A model's predicate and a value its service builds keep
-  their names, however short or few their callers; the alias `effect-style.md › Composition`
-  refuses is only a helper copied per variant (`sumRefunded` beside `sumTotal`), where each caller
-  could pass its step in place.
 - A value another table implies is a column the transactions that change it move, not derived on
   each read; one a model function derives from the one row its read already nests stays derived
   ([record](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
-- Plumbing is a pipeable, never `if (…) return yield* Effect.die(…)`; an import cycle is broken by
-  widening a type, or, where two models nest each other's fields, by a `<name>-fields.model.ts`
-  that both import.
+- An import cycle is broken by widening a type, or, where two models nest each other's fields,
+  by a `<name>-fields.model.ts` that both import.

@@ -14,12 +14,13 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
   `make check` passes before work is reported. Tests: `make test-unit` (no Docker),
   `make test-e2e` (Docker running). Debug: `make debug-<app>`.
 - Add a dependency with `bun add [-d] --catalog=<namespace> <pkg>@<exact>`, never a version in a
-  workspace ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
+  workspace nor the unnamed `catalog:`
+  ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
 - **Before naming an Effect or Drizzle API, in a plan as in code, read
   `.claude/rules/effect.md`.**
 - **Composition: a unit keeps its one job; new behaviour wraps or composes it.** Before shaping
   a model, service, util or use case, in a plan as in code, read `.claude/rules/composition.md`.
-- Update `docs/knowledge/` in the commit that changes the behaviour it describes.
+- Update `docs/knowledge/` and `.claude/` in the commit that changes what they describe.
 - **A change of substance runs through the lab, `.claude/skills/lab/SKILL.md`: micro on a branch
   alone, macro with a `lab.md` in `docs/tickets/`.** The owner starts it with `/lab`; asked for
   such a change without it, read that file and follow it as if `/lab <request>` had been typed.

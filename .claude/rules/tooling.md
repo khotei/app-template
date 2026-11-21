@@ -11,8 +11,6 @@ paths:
 
 # Tooling
 
-- A version lives only in a root catalog, pinned exactly; a workspace references it as
-  `catalog:<namespace>`, never the unnamed `catalog:`.
 - Settings are read only through the `Config` values of `@app-template/kernel/config`, save the
   `OTEL_*` variables `Otlp.layerFromConfig` reads itself and the web server's, which its entry
   declares, since the web declares no kernel; `.env.pulumi` is written by `make up`, never by

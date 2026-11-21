@@ -37,7 +37,7 @@ Code reads top to bottom and extends by adding a row or a unit, not a branch
   `Effect.Do`; a one-step transformation is a combinator. Plumbing (encoding, error mapping,
   logging, retries, transactions, tracing) is piped onto the step it serves, or passed as
   `Effect.fn`'s pipeables (`effect-services.md › Functions`), never a function taking the step
-  (`withRetry(step)`).
+  (`withRetry(step)`) nor a branch that dies (`if (…) return yield* Effect.die(…)`).
 - A generator reads a service with `yield*`; outside one it is `Service.use((s) => s.m(…))`, or
   `useSync` for a plain value, never `Effect.flatMap` over it. A call never takes another call's
   result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
