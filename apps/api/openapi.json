@@ -380,7 +380,7 @@
         "tags": [
           "chats"
         ],
-        "operationId": "chats.createMessage",
+        "operationId": "chats.ask",
         "parameters": [
           {
             "name": "chatId",

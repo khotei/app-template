@@ -22,15 +22,15 @@ export type MessageEntityWhere = Types.Simplify<
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
 
 interface MessageRead extends Omit<MessageEntity, 'run'> {
-  readonly latestRun: RunColumns | null
+  readonly newestRun: RunColumns | null
   readonly replyOf: RunColumns | null
 }
 
 export const buildMessageEntity = ({
-  latestRun,
+  newestRun,
   replyOf,
   ...message
 }: MessageRead): MessageEntity => ({
   ...message,
-  run: { user: latestRun, assistant: replyOf }[message.author],
+  run: { user: newestRun, assistant: replyOf }[message.author],
 })

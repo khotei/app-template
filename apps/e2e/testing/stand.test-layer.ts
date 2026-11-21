@@ -49,7 +49,7 @@ export const scriptedAnswers = {
 
 const AssistantsTest = Layer.mergeAll(
   Layer.mock(MessageAssistant, { reply: () => Effect.succeed(scriptedAnswers.reply) }),
-  Layer.mock(ChatAssistant, { suggestTitle: () => Effect.succeed(scriptedAnswers.title) }),
+  Layer.mock(ChatAssistant, { proposeTitle: () => Effect.succeed(scriptedAnswers.title) }),
 )
 
 /** Fresh, so the apps share no layer with the test and run on the clients their config builds. */

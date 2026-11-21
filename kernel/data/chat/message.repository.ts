@@ -33,7 +33,7 @@ const select = (where: MessageEntityWhere) =>
   ({
     where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
     orderBy: inCreationOrder,
-    with: { latestRun: { orderBy: newestFirst }, replyOf: true },
+    with: { newestRun: { orderBy: newestFirst }, replyOf: true },
   }) as const
 
 export class MessageRepository extends Context.Service<

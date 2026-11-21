@@ -40,7 +40,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
         yield* api.users.recognise()
         const chat = yield* api.chats.create()
 
-        const sent = yield* api.chats.createMessage({
+        const sent = yield* api.chats.ask({
           params: { chatId: chat.id },
           payload: { text: 'Hello' },
         })
@@ -64,7 +64,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           const api = yield* ApiClient
           yield* api.users.recognise()
           const chat = yield* api.chats.create()
-          const sent = yield* api.chats.createMessage({
+          const sent = yield* api.chats.ask({
             params: { chatId: chat.id },
             payload: { text: 'Hello' },
           })
@@ -95,7 +95,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           // The loser reads the winner's active Run (ChatBusyError) or, having read none, dies on
           // the index on the active Run, which the api responds to with a bare 500: both roll it back whole.
           const send = api.chats
-            .createMessage({
+            .ask({
               params: { chatId: chat.id },
               payload: { text: 'Lisbon?' },
             })
@@ -136,7 +136,7 @@ describe('a write Postgres refuses, through the api', () => {
         .pipe(Effect.orDie)
 
       const outcome = yield* api.chats
-        .createMessage({
+        .ask({
           params: { chatId: chat.id },
           payload: { text: 'Look' },
         })
@@ -166,7 +166,7 @@ describe('a write Postgres refuses, through the api', () => {
           .unsafe(`ALTER TABLE runs ADD CONSTRAINT refuse_done CHECK (status <> 'done')`)
           .pipe(Effect.orDie)
 
-        const sent = yield* api.chats.createMessage({
+        const sent = yield* api.chats.ask({
           params: { chatId: chat.id },
           payload: { text: 'Hello' },
         })
@@ -192,7 +192,7 @@ describe('a write Postgres refuses, through the api', () => {
         yield* client
           .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
           .pipe(Effect.orDie)
-        const sent = yield* api.chats.createMessage({
+        const sent = yield* api.chats.ask({
           params: { chatId: chat.id },
           payload: { text: 'Hello' },
         })
@@ -223,7 +223,7 @@ describe('a write Postgres refuses, through the api', () => {
       const client = yield* SqlClient.SqlClient
       yield* api.users.recognise()
       const chat = yield* api.chats.create()
-      const sent = yield* api.chats.createMessage({
+      const sent = yield* api.chats.ask({
         params: { chatId: chat.id },
         payload: { text: 'Look' },
       })

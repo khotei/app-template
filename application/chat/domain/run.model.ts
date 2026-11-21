@@ -46,8 +46,8 @@ const isFailedRun = hasStatus(['failed'])
  * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
  * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = (latestRun: Option.Option<RunFields>) =>
-  latestRun.pipe(
+export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
+  newestRun.pipe(
     Option.filter<RunFields>(isFailedRun),
     Option.match({
       onNone: () => Effect.fail(new RunNotRetryableError()),

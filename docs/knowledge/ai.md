@@ -22,7 +22,7 @@ before using it, and read this page again after an upgrade.
 ```mermaid
 graph LR
   M["MessageAssistant.reply<br/>generateText"] --> R["askModel<br/>retries · finish reason · errors"]
-  T["ChatAssistant.suggestTitle<br/>generateObject"] --> R
+  T["ChatAssistant.proposeTitle<br/>generateObject"] --> R
   R --> A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
@@ -36,7 +36,7 @@ graph LR
    Messages API takes either shape. The text is decoded as the domain's `AssistantReply`, which
    drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
    Nothing streams: the answer arrives whole.
-3. `ChatAssistant.suggestTitle` calls `generateObject` on the title model with the opening
+3. `ChatAssistant.proposeTitle` calls `generateObject` on the title model with the opening
    message and `TitleAnswer`, which the package sends as `output_config.format` (Anthropic's
    native structured output). The schema's checks are not sent: the instruction states the
    language and the 120-character bound; the decode of the JSON answer trims the title and

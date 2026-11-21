@@ -7,7 +7,7 @@ import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 
 /** The assistant's failures, named through it, as a service imports no part of the kernel. */
-type ChatAssistantError = Effect.Error<ReturnType<ChatAssistant['Service']['suggestTitle']>>
+type ChatAssistantError = Effect.Error<ReturnType<ChatAssistant['Service']['proposeTitle']>>
 
 /** Titles an untitled chat from its first message. */
 export class TitleChatService extends Context.Service<
@@ -37,7 +37,7 @@ export class TitleChatService extends Context.Service<
           Effect.map(Arr.head),
           Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))),
         )
-      const proposed = yield* assistant.suggestTitle(first.text)
+      const proposed = yield* assistant.proposeTitle(first.text)
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
       yield* chats.update({ title: Option.some(proposed) }, { id: chatId, title: Option.none() })

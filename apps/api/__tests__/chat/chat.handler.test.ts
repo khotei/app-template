@@ -92,7 +92,7 @@ describe('chats', () => {
     Effect.gen(function* () {
       const api = yield* ApiClient
 
-      const [sent, response] = yield* api.chats.createMessage({
+      const [sent, response] = yield* api.chats.ask({
         params: { chatId: chat.id },
         payload: hello,
         responseMode: 'decoded-and-response',

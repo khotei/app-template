@@ -86,8 +86,8 @@ const apiError = (
 const reply = (history: ReadonlyArray<MessageFields>) =>
   MessageAssistant.use((assistant) => assistant.reply(history))
 
-const suggestTitle = (text: string) =>
-  ChatAssistant.use((assistant) => assistant.suggestTitle(text))
+const proposeTitle = (text: string) =>
+  ChatAssistant.use((assistant) => assistant.proposeTitle(text))
 
 const hi = [userMessageAt(1, 'Hi')]
 
@@ -117,11 +117,11 @@ describe('MessageAssistant and ChatAssistant', () => {
   )
 
   it.effect(
-    'suggestTitle asks the title model with the title instruction and the opening message, and returns the title trimmed',
+    'proposeTitle asks the title model with the title instruction and the opening message, and returns the title trimmed',
     () => {
       const { bodies, layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
       return Effect.gen(function* () {
-        const title = yield* suggestTitle(lisbon)
+        const title = yield* proposeTitle(lisbon)
 
         const [body] = yield* bodies
         assert.strictEqual(body?.model, 'claude-haiku-5-5')
@@ -198,15 +198,15 @@ describe('MessageAssistant and ChatAssistant', () => {
       cause: 'invalid x-api-key',
     },
     {
-      name: 'suggestTitle on a title of 121 characters',
-      ask: suggestTitle(lisbon),
+      name: 'proposeTitle on a title of 121 characters',
+      ask: proposeTitle(lisbon),
       answer: () => message(JSON.stringify({ title: 'a'.repeat(121) })),
       sentAt: [0, 1_000, 3_000],
       cause: '120',
     },
     {
-      name: 'suggestTitle on a refusal',
-      ask: suggestTitle(lisbon),
+      name: 'proposeTitle on a refusal',
+      ask: proposeTitle(lisbon),
       answer: () => message('{"title":"Lisbon weekend"}', 'refusal'),
       sentAt: [0],
       cause: 'content-filter',

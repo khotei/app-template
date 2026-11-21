@@ -46,15 +46,15 @@ const chatStatuses = {
   failed: 'failed',
 } as const satisfies Record<RunStatus, ChatStatus>
 
-export const buildChatStatus = (latestRun: Option.Option<RunFields>): ChatStatus =>
-  Option.match(latestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
+export const buildChatStatus = (newestRun: Option.Option<RunFields>): ChatStatus =>
+  Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
 
 /** True while no send has reached the chat: every user message starts a Run, so it has none. */
 export const isNewChat = (chat: Chat): boolean => Option.isNone(chat.run)
 
 /** A send takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
-export const ensureChatNotBusy = (latestRun: Option.Option<RunFields>) =>
-  latestRun.pipe(
+export const ensureChatNotBusy = (newestRun: Option.Option<RunFields>) =>
+  newestRun.pipe(
     Option.filter<RunFields>(isActiveRun),
     Option.match({
       onNone: () => Effect.void,

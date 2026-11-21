@@ -694,7 +694,7 @@ client.
 - **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
   are statics, the client a leaf left open); `.claude/rules/composition.md` (one purpose per unit);
   the roadmap's `bedrock-provider`.
-- **Rejected:** one `Assistant` port with `reply` and `suggestTitle` and one adapter
+- **Rejected:** one `Assistant` port with `reply` and `proposeTitle` and one adapter
   (`AssistantLlmFromConfig`): two purposes in one unit, an interface with one implementation, and a
   fake scripted per method. A base class or a shared service holding the retries: an
   inheritance or a third service for what one function does. Each service closing the client
@@ -1101,13 +1101,13 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   `RunNotRetryableError`, `retryRun`). A word or a file suffix for the tier (application service,
   act, orchestrator): the glossary avoids or holds each, and a suffix's glob would widen each
   service's override to the others' infrastructure.
-- **Cost:** three services and three Biome overrides, each of one process. `ReplyChatService`
-  comes near a use case in reach (a transaction, an assistant, other models' services): its own
-  Biome override admits it by its path (`reply-chat.service.ts`), and review keeps it to its job;
-  each worker service names its assistant's errors through its type, as a service imports no part
-  of the kernel. `reply` requires the message's assistant and `title` the chat's, which the worker
-  provides, so the module's test layer builds without either. A service holding its own
-  transaction cannot join a caller's ([roadmap.md › Later](roadmap.md#later)).
+- **Cost:** three services and three Biome overrides, each of one process. `ReplyChatService` comes
+  near a use case in reach (a transaction, an assistant, other models' services): its own Biome
+  override admits it by its path (`reply-chat.service.ts`), and review keeps it to the reply's job;
+  each worker service names its assistant's errors through its type, as a service imports no part of
+  the kernel. `reply` requires the message's assistant and `title` the chat's, which the worker
+  provides, so the module's test layer builds without either. A service holding its own transaction
+  cannot join a caller's ([roadmap.md › Later](roadmap.md#later)).
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
   end and its logs in its use case; the reply service's Biome override, which adds to the
   services' the message's assistant's `.llm` file and of `@app-template/packages/db` only

@@ -19,10 +19,10 @@ export class ChatAssistant extends Context.Service<
   ChatAssistant,
   {
     /**
-     * A title for a chat opened by `text`, which is never blank; an answer that fails the title's
-     * schema is asked again, then fails.
+     * Proposes a title for a chat opened by `text`, which is never blank; an answer that fails the
+     * title's schema is asked again, then fails.
      */
-    readonly suggestTitle: (text: string) => Effect.Effect<ChatTitle, LlmError>
+    readonly proposeTitle: (text: string) => Effect.Effect<ChatTitle, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/ChatAssistant', {
   make: Effect.gen(function* () {
@@ -37,13 +37,13 @@ export class ChatAssistant extends Context.Service<
       },
     })
 
-    const suggestTitle = Effect.fn('ChatAssistant.suggestTitle')(
+    const proposeTitle = Effect.fn('ChatAssistant.proposeTitle')(
       (text: string) => model.generateObject({ prompt: text, schema: TitleAnswer }),
       askModel,
       Effect.map(({ value }) => value.title),
     )
 
-    return { suggestTitle }
+    return { proposeTitle }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

@@ -15,7 +15,7 @@ export const relations = defineRelations({ users, credentials, chats, messages, 
   },
   messages: {
     // A user's message: the newest of the Runs that answer it, ordered by the read.
-    latestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
+    newestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
     // An assistant's message: the Run that wrote it.
     replyOf: r.one.runs({ from: r.messages.id, to: r.runs.assistantMessageId }),
   },

@@ -62,7 +62,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     success: Schema.Array(ApiMessage),
     error: ChatNotFoundError.pipe(HttpApiSchema.status(404)),
   }),
-  HttpApiEndpoint.post('createMessage', '/chats/:chatId/messages', {
+  HttpApiEndpoint.post('ask', '/chats/:chatId/messages', {
     params: chatPath,
     payload: Schema.Struct({
       text: MessageFields.fields.text.check(Schema.isMaxLength(20_000)),

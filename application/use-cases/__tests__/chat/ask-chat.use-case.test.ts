@@ -24,7 +24,7 @@ import { recordMessages } from '@app-template/packages/queue/testing'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'
+import { askChat } from '#use-cases/chat/ask-chat.use-case'
 
 /** The read of `read`, the chat the send names, and inserts that keep nothing. */
 const sendingTo = (read: Chat) =>
@@ -46,18 +46,18 @@ const answeredChat = new Chat({
 
 const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
 
-describe('createUserMessage', () => {
+describe('askChat', () => {
   it.effect.each([
-    { name: 'the first create queues the title job, then the reply job', read: chat, title: true },
+    { name: 'the first ask queues the title job, then the reply job', read: chat, title: true },
     {
-      name: 'a create after an answered one queues the reply job only',
+      name: 'an ask after an answered one queues the reply job only',
       read: answeredChat,
       title: false,
     },
   ])('$name', ({ read, title }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
+      const run = yield* askChat(owner, chat.id, 'Plan a weekend in Lisbon')
 
       const titleJob = { queue: 'title-chat', message: new TitleChat({ chatId: run.chatId }) }
       assertEquals(
@@ -68,7 +68,7 @@ describe('createUserMessage', () => {
   })
 
   it.effect(
-    'a first create whose reply job SQS refuses returns the failed Run and queues the title job',
+    'a first ask whose reply job SQS refuses returns the failed Run and queues the title job',
     () => {
       const queued: Array<string> = []
       const RefusingReplyQueueTest = Layer.mock(QueueSender, {
@@ -81,7 +81,7 @@ describe('createUserMessage', () => {
       })
       const mocks = sendingTo(chat)
       return Effect.gen(function* () {
-        const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
+        const run = yield* askChat(owner, chat.id, 'Plan a weekend in Lisbon')
 
         assert.strictEqual(run.status, 'failed')
         assert.deepStrictEqual(queued, [titleChatQueue.name])
@@ -100,10 +100,10 @@ describe('createUserMessage', () => {
     },
   )
 
-  it.effect('a create refused while a Run is in work queues no job', () => {
+  it.effect('an ask refused while a Run is in work queues no job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* createUserMessage(owner, chat.id, 'And in Porto?').pipe(Effect.flip)
+      const refused = yield* askChat(owner, chat.id, 'And in Porto?').pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, refused, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])

@@ -126,7 +126,7 @@ import { Effect } from 'effect'                             // external packages
 
 import { ChatService } from '@app-template/application/chat'  // another unit
 
-import { createUserMessage } from '#use-cases/chat/create-user-message.use-case'  // this unit
+import { askChat } from '#use-cases/chat/ask-chat.use-case'  // this unit
 ```
 
 - **`@app-template/<folder>`** reaches another unit through its workspace's `exports`, each
@@ -158,7 +158,7 @@ Using the files of `chat` as the map:
 | domain service layered over another of its model | `application/chat/services/move-run.service.ts` | `MoveRunService`, over `RunService` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `replyToMessageQueue` with its job's schema `ReplyToMessage`; `sendReplyToMessage`, `sendTitleChat` |
 | service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
-| use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
+| use case | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
