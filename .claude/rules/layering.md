@@ -22,18 +22,18 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   infrastructure but as below ([composition.md](composition.md)).
 - A service composed over `<Model>Service` holds the purpose it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
-  stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
-  moves → `Move<Model>Service`.
+  stores bytes with its records → `File<Model>Service`, holding the bytes' store.
 - The last grouping of a module's logic before a use case, which use cases share, is a
   `<Verb><Model>Service` ([its form](naming.md#symbols)): it composes the module's services, rules,
   `Transaction` and what one process provides, the api's its `<model>.queue` sends, the worker's
   its `.llm` files, each admitted by its file's own Biome override, and calls no use case
   ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- A status move is a pure transition ([its name](naming.md#symbols)): it checks
-  one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as its
-  callers move a record just read or moved; a refusal the user can reach is a check of its own
-  before it, failing its own error (`<Model>BusyError`). `Move<Model>Service` writes each move
-  under the status read; a caller moves a record through it, never by a transition and a write.
+- A status move is a pure transition, a function of the model ([its name](naming.md#symbols)): it
+  checks one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as
+  its callers move a record just read or moved; a refusal the user can reach is a check of its own
+  before it, failing its own error (`<Model>BusyError`). `<Model>Service.update(<record>,
+  <transition>)` writes the moved record under the status it was read in, and no other write of
+  that record exists ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
   service, use case or repository only reads, calls it and writes

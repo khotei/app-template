@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Fiber, Layer, Option } from 'effect'
+import { Array as Arr, Effect, Exit, Fiber, Layer, Option } from 'effect'
 
 import { Message, ReplyToMessage, Run } from '@app-template/application/chat'
 import {
@@ -66,22 +66,23 @@ describe('replyToMessage', () => {
   )
 
   it.effect(
-    "reply ends on the assistant's error with a warning when the Run goes meanwhile",
+    "reply on the assistant's error dies, logging nothing, when its Run goes meanwhile",
     () => {
       const refused = new LlmError({ cause: 'stop_reason refusal' })
       const { logs, layer: logger } = recordLogs()
-      let reads = 0
       return Effect.gen(function* () {
-        yield* reply
+        const exit = yield* reply.pipe(Effect.exit)
 
-        assert.deepStrictEqual(levels(logs), [['Warn', 'reply failed']])
-        assert.strictEqual(logs[0]?.[2], refused)
+        assert.isTrue(Exit.hasDies(exit))
+        assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
           layerChatTest({
             runs: {
-              selectOne: () => (reads++ === 0 ? readRun(queuedRun)() : Effect.succeedNone),
-              update: () => Effect.void,
+              selectOne: readRun(queuedRun),
+              // The Run is gone once started, so the guarded failed write touches no row.
+              update: (set) =>
+                set.status === 'failed' ? Effect.die('no run was updated') : Effect.void,
             },
             messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
           }).pipe(Layer.provideMerge(recordMessageAssistant(Effect.fail(refused)).layer)),
@@ -145,19 +146,19 @@ describe('replyToMessage', () => {
     )
   })
 
-  it.effect('reply warns once on a started Run settled before it fails it', () => {
+  it.effect('reply dies, logging nothing, on a started Run settled before it fails it', () => {
     const { logs, layer: logger } = recordLogs()
-    let reads = 0
     return Effect.gen(function* () {
-      yield* reply
+      const exit = yield* reply.pipe(Effect.exit)
 
-      assert.deepStrictEqual(levels(logs), [['Warn', 'reply failed']])
-      assert.propertyVal(logs[0]?.[2], '_tag', 'RunStartedError')
+      assert.isTrue(Exit.hasDies(exit))
+      assert.deepStrictEqual(logs, [])
     }).pipe(
       Effect.provide([
         layerChatTest({
           runs: {
-            selectOne: () => (reads++ === 0 ? readRun(generating)() : Effect.succeedNone),
+            selectOne: readRun(generating),
+            update: () => Effect.die('no run was updated'),
           },
         }).pipe(Layer.provideMerge(recordMessageAssistant(Effect.never).layer)),
         logger,

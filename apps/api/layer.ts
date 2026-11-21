@@ -8,7 +8,6 @@ import {
   AskChatService,
   ChatService,
   MessageService,
-  MoveRunService,
   RunService,
 } from '@app-template/application/chat'
 import { UserService } from '@app-template/application/identity'
@@ -33,7 +32,6 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
 // the handler calls reads its services so, and a handler group's provide never reaches them.
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide(AskChatService.layer),
-  Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer, UserService.layer]),
 )
 

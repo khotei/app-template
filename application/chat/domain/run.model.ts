@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
@@ -8,7 +8,7 @@ import {
   RunStartedError,
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
-import { type RunFailure, RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { hasStatus } from '#chat/domain/status.model'
 
 /**
@@ -81,13 +81,18 @@ const move = Effect.fnUntraced(function* (
 
 export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
 
-export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
-  move(run, 'done', {
-    assistantMessageId: Option.some(reply.id),
-    assistantMessage: Option.some(reply),
-  }),
-)
+export function completeRun(reply: MessageFields) {
+  return Effect.fn('completeRun')((run: Run) =>
+    move(run, 'done', {
+      assistantMessageId: Option.some(reply.id),
+      assistantMessage: Option.some(reply),
+    }),
+  )
+}
 
-export const failRun = Effect.fn('failRun')((run: Run, failure: RunFailure) =>
-  move(run, 'failed', { failure: Option.some(failure) }),
-)
+/** Fails a Run with the full text of `cause`, its nested causes included. */
+export function failRun(cause: Cause.Cause<unknown>) {
+  return Effect.fn('failRun')((run: Run) =>
+    move(run, 'failed', { failure: Option.some({ cause: Cause.pretty(cause) }) }),
+  )
+}

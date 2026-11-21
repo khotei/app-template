@@ -8,7 +8,6 @@ import {
   ChatService,
   MessageAssistant,
   MessageService,
-  MoveRunService,
   ReplyChatService,
   RunService,
   TitleChatService,
@@ -23,7 +22,6 @@ import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
   Layer.provide([ReplyChatService.layer, TitleChatService.layer]),
-  Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
 )
 

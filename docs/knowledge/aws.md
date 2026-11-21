@@ -156,9 +156,9 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   ([database.md › Stuck Runs](database.md#stuck-runs)). A body that does not decode never will, so
   it is logged and acknowledged, unrun.
 - **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker that
-  started it died, so a copy delivered while the first is still handled fails a live Run, and of two
-  delivered at the same instant the one that loses its start's write fails the Run the other works
-  on, a rare case accepted.
+  started it died, so a copy delivered while the first is still handled fails a live Run, a rare
+  case accepted; of two delivered at the same instant, the one that loses its start's write dies
+  and fails nothing.
 - **Only a defect returns to the queue.** A handler has no error channel: its use case settles
   its work's failure itself. A record whose handler dies (a process that dies included) is
   returned in `batchItemFailures`, or not returned at all; SQS delivers it again once the queue's

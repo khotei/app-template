@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema, Struct } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Option, Schema, Struct } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -19,7 +19,7 @@ import {
   startRun,
 } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFailure, RunStatus } from '#chat/domain/run-fields.model'
+import { RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
@@ -76,17 +76,9 @@ const moves: ReadonlyArray<{
   readonly from: ReadonlyArray<RunStatus>
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { to: 'generating', from: ['queued'], move: (run) => startRun(run) },
-  {
-    to: 'done',
-    from: ['generating'],
-    move: (run) => completeRun(run, reply),
-  },
-  {
-    to: 'failed',
-    from: activeRunStatuses,
-    move: (run) => failRun(run, { cause: '529 overloaded' }),
-  },
+  { to: 'generating', from: ['queued'], move: startRun },
+  { to: 'done', from: ['generating'], move: completeRun(reply) },
+  { to: 'failed', from: activeRunStatuses, move: failRun(Cause.fail('529 overloaded')) },
 ]
 
 const cases = Arr.flatMap(moves, ({ to, from, move }) =>
@@ -118,19 +110,22 @@ it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
     }),
 )
 
-it.effect('failRun keeps the failure', () =>
+it.effect('failRun keeps the full text of the cause, its nested causes included', () =>
   Effect.gen(function* () {
-    const failure = { cause: 'stop_reason refusal' }
-    const failed = yield* failRun(runAt('generating'), failure)
+    const refused = new Error('SQS is unavailable', { cause: new Error('the broker is down') })
 
-    assertSchemaEquals(Schema.Option(RunFailure), failed.failure, Option.some(failure))
+    const failed = yield* failRun(Cause.die(refused))(runAt('generating'))
+
+    const { cause } = Option.getOrThrow(failed.failure)
+    assert.include(cause, 'Error: SQS is unavailable')
+    assert.include(cause, 'Error: the broker is down')
   }),
 )
 
 describe('completeRun', () => {
   it.effect('keeps the reply it settled with', () =>
     Effect.gen(function* () {
-      const done = yield* completeRun(runAt('generating'), reply)
+      const done = yield* completeRun(reply)(runAt('generating'))
 
       assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
     }),

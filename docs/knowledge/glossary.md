@@ -228,8 +228,9 @@ _Avoid_: Policy, validator, business logic
 
 **Move**:
 A record's change of status to an allowed next one: the model's pure transition, named for the
-act (`startRun`, `completeRun`, `failRun`), then the write under the status read
-(`MoveRunService.start`). A move the model's table refuses dies (`RunStatusInvalidError`).
+act (`startRun`, `completeRun`, `failRun`), which `<Model>Service.update` writes under the
+status the record was read in (`runs.update(run, startRun)`). A move the model's table refuses
+dies (`RunStatusInvalidError`).
 _Avoid_: Transition (the move's pure half), state change
 
 **Refusal**:
@@ -269,9 +270,9 @@ _Avoid_: Implementation, provider, DAO, store
 **Domain service**:
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
 guards goes through it. A model starts with `<Model>Service` over its repository; a purpose past it
-is a service composed over it, named for what it adds (`File<Model>Service`,
-`Move<Model>Service`). The last grouping of a module's logic before a use case is a
-`<Verb><Model>Service` (`AskChatService`, `ReplyChatService`, `TitleChatService`): its role in
+is a service composed over it, named for what it adds (`File<Model>Service`). The last grouping
+of a module's logic before a use case is a `<Verb><Model>Service` (`AskChatService`,
+`ReplyChatService`, `TitleChatService`): its role in
 [layering.md](../../.claude/rules/layering.md#ports-and-domain-services), its form in
 [naming.md](../../.claude/rules/naming.md#symbols).
 _Avoid_: Manager, helper, application service, business logic, service layer

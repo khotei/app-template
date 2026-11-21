@@ -6,10 +6,9 @@ import type { ChatBusyError } from '#chat/domain/chat.error'
 import { type Chat, ensureChatNotBusy, isNewChat } from '#chat/domain/chat.model'
 import type { MessageNotFoundError } from '#chat/domain/message.error'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
-import { ensureRunRetryable, type Run } from '#chat/domain/run.model'
+import { ensureRunRetryable, failRun, type Run } from '#chat/domain/run.model'
 import { sendReplyToMessage, sendTitleChat } from '#chat/infrastructure/chat.queue'
 import { MessageService } from '#chat/services/message.service'
-import { MoveRunService } from '#chat/services/move-run.service'
 import { RunService } from '#chat/services/run.service'
 
 /**
@@ -43,7 +42,6 @@ export class AskChatService extends Context.Service<
   make: Effect.gen(function* () {
     const messages = yield* MessageService
     const runs = yield* RunService
-    const moves = yield* MoveRunService
     const transaction = yield* Transaction
 
     // A chat no ask has reached yet is titled once, from its first message.
@@ -58,7 +56,7 @@ export class AskChatService extends Context.Service<
     const askReply = (run: Run) =>
       sendReplyToMessage(run).pipe(
         Effect.as(run),
-        Effect.catch((error) => moves.fail(run, Cause.fail(error))),
+        Effect.catch((error) => runs.update(run, failRun(Cause.fail(error)))),
         // A client's abort mid-send still leaves the Run sent or failed.
         Effect.uninterruptible,
       )

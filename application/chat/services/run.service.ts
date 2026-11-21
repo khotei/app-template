@@ -1,7 +1,7 @@
 import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type RunEntityWhere, RunRepository } from '@app-template/kernel/data'
+import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
@@ -32,8 +32,11 @@ export class RunService extends Context.Service<
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** The active Run of the user's message `userMessageId`. */
     readonly getActive: (userMessageId: MessageId) => Effect.Effect<Run, ActiveRunNotFoundError>
-    /** Dies when no Run matches `where`. */
-    readonly update: (run: Run, where: RunEntityWhere) => Effect.Effect<Run>
+    /**
+     * Writes `run` moved by the model's `move` under the status it was read in, so a write that
+     * moved it since makes this one die.
+     */
+    readonly update: (run: Run, move: (run: Run) => Effect.Effect<Run>) => Effect.Effect<Run>
   }
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
@@ -75,12 +78,16 @@ export class RunService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('RunService.update')(function* (run: Run, where: RunEntityWhere) {
+    const update = Effect.fn('RunService.update')(function* (
+      run: Run,
+      move: (run: Run) => Effect.Effect<Run>,
+    ) {
+      const moved = yield* move(run)
       const updatedAt = yield* DateTime.now
-      const stamped = new Run({ ...run, updatedAt })
+      const stamped = new Run({ ...moved, updatedAt })
       const row = yield* encodeWith(RunFields)(stamped)
 
-      yield* runs.update(row, where)
+      yield* runs.update(row, { id: run.id, status: [run.status] })
       return stamped
     })
 

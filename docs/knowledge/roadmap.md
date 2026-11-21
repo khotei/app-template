@@ -506,6 +506,16 @@ moves it into its own `Later` and deletes it here.
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
   (a pattern with a non-whitespace character), or accept the round trip.
+- (2026-11-21) The reply's start (`ReplyChatService.reply` in
+  `application/chat/services/reply-chat.service.ts`) cannot tell a Run left `generating` by a dead
+  worker from one a live worker still answers, so it fails every Run it finds started: a failed
+  Run's job delivered again after a retry fails the retry's Run, and a copy delivered while the
+  first is still handled fails a live Run. A Run's age would tell them apart: a started Run older
+  than the worker's timeout is abandoned and failed, a younger one is left to its worker, which
+  closes both cases. Its cost: a rule by time in the Run's model (the clock passed in), and a bound
+  that must stay above the worker's timeout as either changes. The owner refused a rule by age for
+  the api's abort window (`reply-run` above); this entry, for the worker's start, is the owner's
+  (2026-11-21).
 
 ## Ideas to weigh
 
