@@ -4,8 +4,8 @@ import { Effect, Layer, Option } from 'effect'
 
 import {
   Chat,
-  GenerateAssistantMessage,
   Message,
+  ReplyToMessage,
   Run,
   RunNotRetryableError,
 } from '@app-template/application/chat'
@@ -51,8 +51,8 @@ describe('retryRun', () => {
 
       assertEquals(yield* jobs.sent, [
         {
-          queue: 'assistant-message',
-          message: new GenerateAssistantMessage({ messageId: retried.userMessageId }),
+          queue: 'reply-to-message',
+          message: new ReplyToMessage({ messageId: retried.userMessageId }),
         },
       ])
     }).pipe(

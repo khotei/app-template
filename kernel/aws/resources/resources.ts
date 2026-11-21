@@ -11,13 +11,13 @@ export const resources = {
     },
   },
   queues: {
-    assistantMessage: {
-      name: 'assistant-message',
+    replyToMessage: {
+      name: 'reply-to-message',
       maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },
-    chatTitle: {
-      name: 'chat-title',
+    titleChat: {
+      name: 'title-chat',
       maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },

@@ -155,7 +155,7 @@ Using the files of `chat` as the map:
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | domain service layered over another of its model | `application/chat/services/move-run.service.ts` | `MoveRunService`, over `RunService` |
-| a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `assistantMessageQueue` with its job schema; `sendGenerateAssistantMessage`, `sendGenerateChatTitle` |
+| a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | `replyToMessageQueue` with its job's schema `ReplyToMessage`; `sendReplyToMessage`, `sendTitleChat` |
 | service over a client, one per job, with its `static layer` | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/create-user-message.use-case.ts` | `createUserMessage` |
 | tables, entities, relations | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |

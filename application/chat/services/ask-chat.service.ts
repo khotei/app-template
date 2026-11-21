@@ -7,10 +7,7 @@ import { type Chat, ensureChatNotBusy, isNewChat } from '#chat/domain/chat.model
 import type { MessageNotFoundError } from '#chat/domain/message.error'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
 import { ensureRunRetryable, type Run } from '#chat/domain/run.model'
-import {
-  sendGenerateAssistantMessage,
-  sendGenerateChatTitle,
-} from '#chat/infrastructure/chat.queue'
+import { sendReplyToMessage, sendTitleChat } from '#chat/infrastructure/chat.queue'
 import { MessageService } from '#chat/services/message.service'
 import { MoveRunService } from '#chat/services/move-run.service'
 import { RunService } from '#chat/services/run.service'
@@ -19,7 +16,7 @@ import { RunService } from '#chat/services/run.service'
  * The queue's sender, which a service never names: the process provides it to the caller, so
  * every test layer of the module builds without one.
  */
-type Sending = Effect.Services<ReturnType<typeof sendGenerateAssistantMessage>>
+type Sending = Effect.Services<ReturnType<typeof sendReplyToMessage>>
 
 /** Asks a chat for a reply on the user's behalf, storing the request before it sends its jobs. */
 export class AskChatService extends Context.Service<
@@ -47,14 +44,14 @@ export class AskChatService extends Context.Service<
     const transaction = yield* Transaction
 
     // A chat no send has reached yet asks for its title once, from its first message.
-    const askTitle = Effect.fnUntraced(function* (chat: Chat, run: Run) {
+    const askTitle = Effect.fnUntraced(function* (chat: Chat) {
       if (!isNewChat(chat)) return
-      yield* sendGenerateChatTitle(run.userMessage)
+      yield* sendTitleChat(chat)
     })
 
     // After the commit of `run`, so every delivery finds it; SQS's refusal fails it.
     const askReply = (run: Run) =>
-      sendGenerateAssistantMessage(run).pipe(
+      sendReplyToMessage(run).pipe(
         Effect.as(run),
         Effect.catch((error) => moves.fail({ id: run.id }, Cause.fail(error))),
         // The Run was stored queued a moment before, so a Run gone is a defect.
@@ -72,7 +69,7 @@ export class AskChatService extends Context.Service<
         .pipe(Effect.flatMap(runs.create), transaction.run)
 
       // The title's send never fails, so the jobs go in either order.
-      yield* askTitle(chat, run)
+      yield* askTitle(chat)
       return yield* askReply(run)
     })
 

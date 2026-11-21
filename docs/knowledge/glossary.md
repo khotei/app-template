@@ -176,8 +176,10 @@ The entry point of one request or one job in an app.
 _Avoid_: Controller, consumer (the function that runs a queue's handler), processor, endpoint
 
 **Job**:
-A message on a queue that asks the worker for one unit of work, shaped by its queue definition.
-Both of chat's name the user's message: the reply's runs its active Run, the title's reads it.
+A message on a queue that asks the worker for one unit of work, shaped by its queue definition,
+and named `<Verb><Object>` in this glossary's words for that work (`ReplyToMessage`,
+`TitleChat`). The reply's names the user's message whose active Run it runs, the title's the chat
+it titles.
 _Avoid_: Task, event, command, message (the chat's word)
 
 **Kernel**:

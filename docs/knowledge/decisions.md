@@ -940,10 +940,16 @@ A job is a message on its queue, and no table holds it: the work it asks for kee
 died and to record a failure. `QueueSender.send` encodes the job by its definition; a use case sends
 it after its commit, so every delivery finds its record. Each job goes through its `send<Job>` in
 its module's infrastructure, in the file of its queue's definition, which only sends it and logs a
-send SQS refuses. Both of chat's jobs name the user's message: the title's reads it, and the reply's
-runs its active Run, which the unique index on a chat's active Run keeps to one; what a job that
-names no one Run costs: [A Run's job on interrupt and on two
-deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The reply's send returns its
+send SQS refuses. A job asks its worker for one piece of work, as a command message does in
+messaging, and is named as one: `<Verb><Object>` in the glossary's words for the work it asks
+for, never after a method, its queue or one step of the work; its queue, its `send<Job>` and the
+use case that ends it take its name. The chat's two are `ReplyToMessage { messageId }`, on
+`reply-to-message`, sent by `sendReplyToMessage` and ended by `replyToMessage`, and
+`TitleChat { chatId }`, on `title-chat`, sent by `sendTitleChat` and ended by `titleChat`. The
+reply's names the user's message and runs its active Run, which the unique index on a chat's
+active Run keeps to one; what a job that names no one Run costs: [A Run's job on interrupt and on
+two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's names the chat, whose
+first message the worker reads. The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `MoveRunService.fail`, with the error's full text as its failure;
 the request responds with `202` and that failed Run. The send and that failure run
@@ -961,9 +967,16 @@ who runs each job: [The chat's jobs in their services](#the-chats-jobs-in-their-
   `MoveRunService` the move to `failed` and its write, `AskChatService` the pair, a step its two
   methods share, which lives once there
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
-  another. A port for the send would put an interface and a layer in front of one call.
+  another. A port for the send would put an interface and a layer in front of one call. A
+  command's name belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun
+  sequence, following the tell style"), here the glossary's, so the job and the service method
+  that runs it share a verb because both take the glossary's word, not because one copies the
+  other; the class never rides on the wire (the body is its fields, the queue routes it), so its
+  name costs no deployed state.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
-  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2).
+  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2); the design audit's
+  research on naming a queue's message (EIP's Command, Document and Event Messages, NServiceBus,
+  MassTransit, the job frameworks) and the owner's call of the names (2026-11-21).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
@@ -980,7 +993,13 @@ who runs each job: [The chat's jobs in their services](#the-chats-jobs-in-their-
   policy, its log and its annotations in a flow, and a second form of the sending rule beside the
   reply's send. A domain error wrapping `QueueError` and a `503` for a refused reply: a second
   name for one failure, which the Run already holds, and a retry is the client's next step either
-  way.
+  way. Job names that follow the service methods (`ReplyMessage`, `ReplyTitle`): a method's
+  rename would ripple into the class, the send, the use case and the queue, and `ReplyMessage`
+  reads as a noun, a message holding a reply. The old `GenerateAssistantMessage` and
+  `GenerateChatTitle`: one act under two verbs, `generate` in the job and `reply` in the service
+  that runs it, and a name for one step of the work, the model's call. An event
+  (`UserMessageCreated`): the new chat's rule would move to the worker or ride as a flag, one event
+  for two consumers needs a fan-out, and a retry is not that fact.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its
   chat busy ([roadmap.md › Later](roadmap.md#later)); a client's abort before the send:
   [A Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries).
@@ -988,7 +1007,8 @@ who runs each job: [The chat's jobs in their services](#the-chats-jobs-in-their-
   the response's. A domain service now reaches its module's queue file, so the ask service's
   guard admits that one file of infrastructure; a send inside its transaction would send before
   the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
-  it.
+  it. A queue's name changes only as a new queue, as SQS renames none: each stack's next
+  `make up` replaces it, and what the old one held is lost.
 - **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of
   the create flow; the ask service's Biome override, which admits of its infrastructure only
   `#*/infrastructure/*.queue`; the `infrastructure/` and `use-cases` rows of
@@ -1007,8 +1027,10 @@ message with the Run's `done` in one transaction; one tail on the whole function
 message's active Run as it stands now on whatever ends it, `start`'s refusal included. A Run some
 worker started fails `RunStartedError`, whose text says its worker stopped, and is failed with
 it; a message with no active Run fails `RunNotFoundError`, unwritten, as the tail finds nothing
-to fail. Its `replyTitle` runs the title's job: the chat's first message, the assistant's title,
-and the title written while the chat is untitled, so a rename by the user wins. Each job's use
+to fail. Its `replyTitle` runs the title's job, given the chat the job names: the chat's first
+message, the assistant's title, and the title written while the chat is untitled, so a rename by
+the user wins; a chat with no message fails `ChatNotFoundError`, as a message leaves only with
+its chat. Each job's use
 case ends the job in one tail: the reply's skips a Run settled or gone, ends on a started Run and
 on the assistant's error, which the Run already holds, logging each end once with its cause, an
 interrupt included; the title's skips a chat gone or titled and logs the assistant's error; a
@@ -1080,8 +1102,8 @@ failed its Run and the user retried fails the retry's Run.
   ([Guards in the write, no lock](#guards-in-the-write-no-lock)).
 - **Sources:** the owner's call in the design audit, the reply in its job's service; the owner keeps
   the abort's window as a cost (2026-11-20, [roadmap.md › Later](roadmap.md#later)); the owner's
-  call that the reply's job carries the user's message, as the title's does, and accepts what a
-  second delivery then costs (2026-11-21).
+  call that the reply's job carries the user's message, as the title's then did, and accepts what
+  a second delivery then costs (2026-11-21).
 - **Rejected:** the handler after the first move: an interrupt between its write and the handler
   left the Run started until the next delivery, up to the queue's visibility timeout later, and
   the use case failed a started Run outside the service that holds the rule. The job carrying the

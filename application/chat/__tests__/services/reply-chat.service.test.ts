@@ -28,6 +28,7 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
+import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
@@ -40,7 +41,6 @@ import {
   chat,
   chatId,
   firstMessage,
-  messageId,
   queuedRun,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
@@ -470,13 +470,13 @@ describe('ReplyChatService', () => {
     )
   })
 
-  it.effect('replyTitle titles the chat of its first message while the chat is untitled', () => {
+  it.effect('replyTitle titles the chat from its first message while the chat is untitled', () => {
     const lisbonWeekend = ChatTitle.make('Lisbon weekend')
     const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     return Effect.gen(function* () {
-      yield* ReplyChatService.use((replyChat) => replyChat.replyTitle(messageId))
+      yield* ReplyChatService.use((replyChat) => replyChat.replyTitle(chatId))
 
       assert.deepStrictEqual(updates, [
         [
@@ -490,7 +490,8 @@ describe('ReplyChatService', () => {
       Effect.provide([
         layerChatTest({
           messages: {
-            selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)),
+            selectMany: () =>
+              Effect.forEach([firstMessage, aPhoto], (message) => encodeWith(Message)(message)),
           },
           chats: {
             selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
@@ -502,6 +503,24 @@ describe('ReplyChatService', () => {
         }).pipe(Layer.provideMerge(assistant.layer)),
         logger,
       ]),
+    )
+  })
+
+  it.effect('replyTitle fails a chat with no message as gone, without asking', () => {
+    const assistant = recordChatAssistant(Effect.succeed(ChatTitle.make('Lisbon weekend')))
+    return Effect.gen(function* () {
+      const error = yield* ReplyChatService.use((replyChat) => replyChat.replyTitle(chatId)).pipe(
+        Effect.flip,
+      )
+
+      assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chatId }))
+      assertEquals(yield* assistant.texts, [])
+    }).pipe(
+      Effect.provide(
+        layerChatTest({ messages: { selectMany: () => Effect.succeed([]) } }).pipe(
+          Layer.provideMerge(assistant.layer),
+        ),
+      ),
     )
   })
 })

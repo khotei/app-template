@@ -174,7 +174,7 @@ left.
   stops sending a field: a body with a field its schema no longer has decodes with the field
   dropped, while a reader of the old build refuses a body without it (`Missing key`), the case
   [aws.md › Queues](aws.md#queues) logs and acknowledges unrun. The reply and title jobs lost `chatId`
-  this way.
+  this way; the title's later took `chatId` in place of `messageId`, on a new queue (2026-11-21).
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller;
   [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws) the
@@ -336,7 +336,7 @@ moves it into its own `Later` and deletes it here.
 ### From `reply-run`
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
-  and the reply's send (`sendGenerateAssistantMessage`, called by
+  and the reply's send (`sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `askMessage` and
   `askRetryMessage`), or the client aborts after the commit but before the send starts: a send SQS
   refuses fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a

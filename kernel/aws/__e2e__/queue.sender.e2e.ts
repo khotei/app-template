@@ -19,7 +19,7 @@ class SampleMessage extends Schema.Class<SampleMessage>('SampleMessage')({
 
 /** On a queue every stage provisions, so the sender sends to its real queue. */
 const sampleQueue = {
-  name: resources.queues.assistantMessage.name,
+  name: resources.queues.replyToMessage.name,
   schema: SampleMessage,
 } satisfies QueueDefinition<typeof SampleMessage>
 

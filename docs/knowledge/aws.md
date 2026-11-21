@@ -95,7 +95,10 @@ e2e tests create each test's stage with `provision(resources, stage)` from the e
 `CreateQueue` on an identical queue both succeed. `CreateQueue` compares a repeated
 `RedrivePolicy` as a string, so its JSON is built with a fixed key order. A queue whose
 `maxReceiveCount` changed in the inventory fails with `QueueNameExists`, because SQS never updates
-on create; Pulumi updates the queue in place.
+on create; Pulumi updates the queue in place. A queue whose `name` changed is a new queue, as SQS
+renames none: the next `make up` on a stack that holds the old one creates the new queue, its
+dead-letter queue and its mapping, and deletes the old three with the messages they held; an e2e
+stage is new on every run.
 
 ### Adding a resource
 

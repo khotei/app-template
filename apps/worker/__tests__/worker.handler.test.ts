@@ -1,10 +1,10 @@
 import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
-import { ConfigProvider, Effect, Layer, Option } from 'effect'
+import { ConfigProvider, Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
 import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
-import { messageId } from '@app-template/application/chat/testing'
+import { chatId } from '@app-template/application/chat/testing'
 import {
   ChatRepository,
   type MessageEntityWhere,
@@ -30,10 +30,10 @@ describe('POST /events', () => {
       Layer.provideMerge(BunHttpServer.layerTest),
       Layer.provide([
         Layer.mock(MessageRepository, {
-          selectOne: (where) =>
+          selectMany: (where) =>
             Effect.sync(() => {
               reads.push(where)
-            }).pipe(Effect.as(Option.none())),
+            }).pipe(Effect.as([])),
         }),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
@@ -49,7 +49,7 @@ describe('POST /events', () => {
       ),
     )
     return Effect.gen(function* () {
-      const record = buildRecord('app-template-test-chat-title', { messageId })
+      const record = buildRecord('app-template-test-title-chat', { chatId })
 
       const response = yield* HttpClientRequest.post('/events').pipe(
         HttpClientRequest.bodyJsonUnsafe({ Records: [record] }),
@@ -58,7 +58,7 @@ describe('POST /events', () => {
 
       assert.strictEqual(response.status, 200)
       assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
-      assert.deepStrictEqual(reads, [{ id: messageId }])
+      assert.deepStrictEqual(reads, [{ chatId }])
     }).pipe(Effect.provide(events))
   })
 })

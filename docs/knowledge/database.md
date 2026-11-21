@@ -272,8 +272,8 @@ chat's title) is the one the worker reads
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and responds with `500`.
-- **A send SQS refuses** is logged with the ids of its chat and its user message, and the
-  reply's with its Run's too. For the reply's,
+- **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
+  message's and its Run's too. For the reply's,
   `AskChatService` also fails its Run through `MoveRunService.fail`, as it stands now, with
   the queue's error's full text as its failure, and the request responds with `202` and that failed
   Run; the message is stored and shown failed with its retry,

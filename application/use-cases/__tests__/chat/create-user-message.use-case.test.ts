@@ -3,14 +3,14 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer, Option } from 'effect'
 
 import {
-  assistantMessageQueue,
   Chat,
   ChatBusyError,
-  chatTitleQueue,
-  GenerateAssistantMessage,
-  GenerateChatTitle,
   type MessageId,
+  ReplyToMessage,
   Run,
+  replyToMessageQueue,
+  TitleChat,
+  titleChatQueue,
 } from '@app-template/application/chat'
 import {
   type ChatRepositoryMocks,
@@ -35,8 +35,8 @@ const sendingTo = (read: Chat) =>
   }) satisfies ChatRepositoryMocks
 
 const replyJob = (messageId: MessageId) => ({
-  queue: 'assistant-message',
-  message: new GenerateAssistantMessage({ messageId }),
+  queue: 'reply-to-message',
+  message: new ReplyToMessage({ messageId }),
 })
 
 const answeredChat = new Chat({
@@ -59,10 +59,7 @@ describe('createUserMessage', () => {
     return Effect.gen(function* () {
       const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
-      const titleJob = {
-        queue: 'chat-title',
-        message: new GenerateChatTitle({ messageId: run.userMessageId }),
-      }
+      const titleJob = { queue: 'title-chat', message: new TitleChat({ chatId: run.chatId }) }
       assertEquals(
         yield* jobs.sent,
         title ? [titleJob, replyJob(run.userMessageId)] : [replyJob(run.userMessageId)],
@@ -76,7 +73,7 @@ describe('createUserMessage', () => {
       const queued: Array<string> = []
       const RefusingReplyQueueTest = Layer.mock(QueueSender, {
         send: ({ name }) =>
-          name === assistantMessageQueue.name
+          name === replyToMessageQueue.name
             ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
             : Effect.sync(() => {
                 queued.push(name)
@@ -87,7 +84,7 @@ describe('createUserMessage', () => {
         const run = yield* createUserMessage(owner, chat.id, 'Plan a weekend in Lisbon')
 
         assert.strictEqual(run.status, 'failed')
-        assert.deepStrictEqual(queued, [chatTitleQueue.name])
+        assert.deepStrictEqual(queued, [titleChatQueue.name])
       }).pipe(
         Effect.provide(
           layerChatTest({

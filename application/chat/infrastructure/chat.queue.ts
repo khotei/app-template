@@ -3,57 +3,50 @@ import { Cause, Effect, Schema } from 'effect'
 import { resources } from '@app-template/kernel/aws'
 import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
 
-import type { MessageFields } from '#chat/domain/message.model'
+import type { Chat } from '#chat/domain/chat.model'
+import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
 import type { Run } from '#chat/domain/run.model'
 
-const { assistantMessage, chatTitle } = resources.queues
+const { replyToMessage, titleChat } = resources.queues
 
 /** `messageId` is the user's message the worker replies to, through its active Run. */
-export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
-  'GenerateAssistantMessage',
-)({
+export class ReplyToMessage extends Schema.Class<ReplyToMessage>('ReplyToMessage')({
   messageId: MessageId,
 }) {}
 
-export const assistantMessageQueue = {
-  name: assistantMessage.name,
-  schema: GenerateAssistantMessage,
-} satisfies QueueDefinition<typeof GenerateAssistantMessage>
+export const replyToMessageQueue = {
+  name: replyToMessage.name,
+  schema: ReplyToMessage,
+} satisfies QueueDefinition<typeof ReplyToMessage>
 
-/** `messageId` is the chat's first user message; the worker reads the rest from its row. */
-export class GenerateChatTitle extends Schema.Class<GenerateChatTitle>('GenerateChatTitle')({
-  messageId: MessageId,
+/** `chatId` is the chat the worker titles, from the first message it reads there. */
+export class TitleChat extends Schema.Class<TitleChat>('TitleChat')({
+  chatId: ChatId,
 }) {}
 
-export const chatTitleQueue = {
-  name: chatTitle.name,
-  schema: GenerateChatTitle,
-} satisfies QueueDefinition<typeof GenerateChatTitle>
+export const titleChatQueue = {
+  name: titleChat.name,
+  schema: TitleChat,
+} satisfies QueueDefinition<typeof TitleChat>
 
 /**
  * Sends the job that replies to the Run's user message; one SQS refuses is logged and fails with
  * its `QueueError`.
  */
-export const sendGenerateAssistantMessage = Effect.fn('sendGenerateAssistantMessage')((run: Run) =>
+export const sendReplyToMessage = Effect.fn('sendReplyToMessage')((run: Run) =>
   QueueSender.use((queue) =>
-    queue.send(
-      assistantMessageQueue,
-      new GenerateAssistantMessage({ messageId: run.userMessageId }),
-    ),
+    queue.send(replyToMessageQueue, new ReplyToMessage({ messageId: run.userMessageId })),
   ).pipe(
-    Effect.tapError((error) => Effect.logError('assistant message not queued', Cause.fail(error))),
+    Effect.tapError((error) => Effect.logError('reply job not queued', Cause.fail(error))),
     Effect.annotateLogs({ chatId: run.chatId, runId: run.id, messageId: run.userMessageId }),
   ),
 )
 
-/** Sends the job that titles the message's chat; one SQS refuses is logged, and the send goes on. */
-export const sendGenerateChatTitle = Effect.fn('sendGenerateChatTitle')(
-  (message: Pick<MessageFields, 'id' | 'chatId'>) =>
-    QueueSender.use((queue) =>
-      queue.send(chatTitleQueue, new GenerateChatTitle({ messageId: message.id })),
-    ).pipe(
-      Effect.ignore({ log: 'Error', message: 'chat title not queued' }),
-      Effect.annotateLogs({ chatId: message.chatId, messageId: message.id }),
-    ),
+/** Sends the job that titles the chat; one SQS refuses is logged, and the send goes on. */
+export const sendTitleChat = Effect.fn('sendTitleChat')((chat: Chat) =>
+  QueueSender.use((queue) => queue.send(titleChatQueue, new TitleChat({ chatId: chat.id }))).pipe(
+    Effect.ignore({ log: 'Error', message: 'title job not queued' }),
+    Effect.annotateLogs({ chatId: chat.id }),
+  ),
 )

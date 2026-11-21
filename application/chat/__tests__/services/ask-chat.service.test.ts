@@ -19,7 +19,7 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
-import { GenerateAssistantMessage, GenerateChatTitle } from '#chat/infrastructure/chat.queue'
+import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
@@ -98,8 +98,8 @@ const doneRun = new Run({
 const answeredChat = withNewest(doneRun)
 
 const replyJob = (run: Run) => ({
-  queue: 'assistant-message',
-  message: new GenerateAssistantMessage({ messageId: run.userMessageId }),
+  queue: 'reply-to-message',
+  message: new ReplyToMessage({ messageId: run.userMessageId }),
 })
 
 const askMessage = (read: Chat, text: string) =>
@@ -142,7 +142,7 @@ describe('AskChatService', () => {
         assert.deepStrictEqual(inserts.messages, [yield* encodeWith(MessageFields)(userMessage)])
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
         assertEquals(yield* jobs.sent, [
-          { queue: 'chat-title', message: new GenerateChatTitle({ messageId: userMessage.id }) },
+          { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
           replyJob(run),
         ])
       }).pipe(

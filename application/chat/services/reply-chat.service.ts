@@ -1,9 +1,9 @@
-import { Context, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { ChatNotFoundError } from '#chat/domain/chat.error'
-import type { MessageNotFoundError } from '#chat/domain/message.error'
+import { ChatNotFoundError } from '#chat/domain/chat.error'
+import type { ChatId } from '#chat/domain/chat.util'
 import type { MessageId } from '#chat/domain/message.util'
 import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
@@ -34,17 +34,12 @@ export class ReplyChatService extends Context.Service<
       MessageAssistant
     >
     /**
-     * Replies with a title to the chat its first message `messageId` opened, while the chat is
-     * untitled; a chat titled or gone fails `ChatNotFoundError`, a message gone
-     * `MessageNotFoundError`.
+     * Replies with a title from its first message to the chat `chatId` while it is untitled; a
+     * chat titled or gone fails `ChatNotFoundError`.
      */
     readonly replyTitle: (
-      messageId: MessageId,
-    ) => Effect.Effect<
-      void,
-      MessageNotFoundError | ChatNotFoundError | ChatAssistantError,
-      ChatAssistant
-    >
+      chatId: ChatId,
+    ) => Effect.Effect<void, ChatNotFoundError | ChatAssistantError, ChatAssistant>
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
@@ -82,14 +77,21 @@ export class ReplyChatService extends Context.Service<
         ),
     )
 
-    const replyTitle = Effect.fn('ReplyChatService.replyTitle')(function* (messageId: MessageId) {
+    const replyTitle = Effect.fn('ReplyChatService.replyTitle')(function* (chatId: ChatId) {
       const assistant = yield* ChatAssistant
 
-      const first = yield* messages.getOne({ id: messageId })
+      // The job follows its first message's commit, and a message leaves only with its chat, so
+      // a chat with none is gone.
+      const first = yield* messages
+        .getMany({ chatId })
+        .pipe(
+          Effect.map(Arr.head),
+          Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))),
+        )
       const title = yield* assistant.suggestTitle(first.text)
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
-      yield* chats.update({ title: Option.some(title) }, { id: first.chatId, title: Option.none() })
+      yield* chats.update({ title: Option.some(title) }, { id: chatId, title: Option.none() })
     })
 
     return { replyMessage, replyTitle }
