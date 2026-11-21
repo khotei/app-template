@@ -13,10 +13,10 @@ import {
   ensureRunRetryable,
   ensureRunUnstarted,
   failRun,
-  generateRun,
   isActiveRun,
   isStartedRun,
   Run,
+  startRun,
 } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { RunFailure, RunStatus } from '#chat/domain/run-fields.model'
@@ -76,7 +76,7 @@ const moves: ReadonlyArray<{
   readonly from: ReadonlyArray<RunStatus>
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { to: 'generating', from: ['queued'], move: (run) => generateRun(run) },
+  { to: 'generating', from: ['queued'], move: (run) => startRun(run) },
   {
     to: 'done',
     from: ['generating'],

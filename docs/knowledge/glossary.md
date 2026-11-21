@@ -28,8 +28,9 @@ once it is done, and the Run names it.
 _Avoid_: Prompt, completion, turn
 
 **Run**:
-The work of answering one user message: its status and its failure. A send starts
-one, queued; the worker moves it and, once it is done, writes the assistant's message. A retry is
+The work of answering one user message: its status and its failure. A send creates
+one, queued; the worker starts it (`generating`) and, once it is done, writes the assistant's
+message. A retry is
 a new Run of the same message.
 _Avoid_: Job (a queue message that names the user message whose active Run it runs), task, attempt
 

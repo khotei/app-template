@@ -568,11 +568,12 @@ built-in call is not written; the built-in is called.
 ### A Run's moves in their own service
 
 `MoveRunService`, layered over `RunService`, holds a Run's status moves: `start`, `complete`
-and `fail`, each the model's transition (`generateRun`, …) then `RunService.update` under the
-status the Run was read in, through one helper. `complete` takes the Run its caller read;
-`start` takes the user's message a reply's job names, `fail` the Run's id or its user
-message, and each reads the active Run it names as it stands now, `RunNotFoundError` when none
-is active. `start`, the job's first move, `queued` to
+and `fail`, each the model's transition (`startRun`, `completeRun`, `failRun`, each named for
+the move it makes, not the status it reaches, as the started Run's stored status stays
+`generating`) then `RunService.update` under the status the Run was read in, through one
+helper. `complete` takes the Run its caller read; `start` takes the user's message a reply's
+job names, `fail` the Run's id or its user message, and each reads the active Run it names as it
+stands now, `RunNotFoundError` when none is active. `start`, the job's first move, `queued` to
 `generating`, pipes that read through the model's `ensureRunUnstarted`, `RunStartedError` for a
 Run some worker started; `fail` keeps the full text of the `Cause` it is given. `RunService` stays the
 plain write under a caller's `where`, and the chat's two job services move a Run through
@@ -598,7 +599,7 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
   the rest. `fail` taking a Run: each caller reads it again first, and one that passes the Run
   it holds dies on the write's guard instead of failing it. The job's read and
   `ensureRunUnstarted` in the use case: a rule's call in a flow. The check folded into
-  `generateRun`: a transition of two conditions, against the model's pieces of one each. The
+  `startRun`: a transition of two conditions, against the model's pieces of one each. The
   refusal as a typed failure: it rode six signatures, no caller could raise it, and each one
   turned it into a defect. A started status for the history's read alone: a status, a move, a
   method and a write per reply for one query.

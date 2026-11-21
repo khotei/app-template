@@ -79,7 +79,7 @@ const move = Effect.fnUntraced(function* (
   return new Run({ ...run, ...fields, status: to })
 })
 
-export const generateRun = Effect.fn('generateRun')((run: Run) => move(run, 'generating'))
+export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
 
 export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
   move(run, 'done', {

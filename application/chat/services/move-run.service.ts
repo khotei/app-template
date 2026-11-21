@@ -8,8 +8,8 @@ import {
   completeRun,
   ensureRunUnstarted,
   failRun,
-  generateRun,
   type Run,
+  startRun,
 } from '#chat/domain/run.model'
 import { RunService } from '#chat/services/run.service'
 
@@ -48,7 +48,7 @@ export class MoveRunService extends Context.Service<
       const queued = yield* runs
         .getOne({ userMessageId: messageId, status: activeRunStatuses })
         .pipe(Effect.flatMap(ensureRunUnstarted))
-      return yield* move(queued, generateRun(queued))
+      return yield* move(queued, startRun(queued))
     })
 
     const complete = Effect.fn('MoveRunService.complete')((run: Run, reply: MessageFields) =>
