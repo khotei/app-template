@@ -43,10 +43,11 @@ Code reads top to bottom and extends by adding a row or a unit, not a branch
   result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
   data through `pipe(value, …)`, never both in one chain. A function whose every step feeds only
   the next is point-free (`flow(…)`, or an arrow whose body is one `.pipe`), never at the cost of
-  a cast, an annotation or a lost `E` or `R`. Go data-last when the function's name says the step
-  (`Effect.tap(Arr.match({ … }))`); a lambda only to add an argument or a name.
+  a cast, an annotation or a lost `E` or `R`.
 - A composable function takes its subject last and alone, options first and curried
-  (`pipe(message, encodeWith(codec))`); `dual` only when it is called both ways.
+  (`pipe(message, encodeWith(codec))`), when its partial call reads as a whole step
+  (`Effect.tap(Arr.match({ … }))`); a model's transition, whose name needs its record, stays plain
+  and takes a lambda; a lambda only adds an argument or a name. `dual` only when called both ways.
 - Helpers that differ only by a step inside one frame (a predicate, a mapper) are one function
   taking that step, each caller passing its own in place, never a named alias per variant.
 ```ts
@@ -64,8 +65,7 @@ pipe(orders, sumBy((order) => order.refunded))
 - A rule that varies by a key (a stage, a reason, a kind) indexes a table
   `as const satisfies Record<Key, …>`, never a predicate parameter or a chain of `if`s, so a new
   key fails typecheck until its row exists. A table of effects names its rows' `E` and `R`, never
-  `unknown`.
-- A varying value is passed as data (`Effect.logWithLevel(level)`), not a choice of two functions.
+  `unknown`. A varying value is data (`Effect.logWithLevel(level)`), not a choice of two functions.
 
 ## Errors and logs
 
