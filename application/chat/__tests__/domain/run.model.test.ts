@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, DateTime, Effect, Option, Schema } from 'effect'
+import { Array as Arr, DateTime, Effect, Option, Schema, Struct } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -109,11 +109,12 @@ it.effect.each(Arr.filter(cases, (move) => !move.allowed))(
     Effect.gen(function* () {
       const defect = yield* move(runAt(status)).pipe(Effect.catchDefect(Effect.succeed))
 
-      assertSchemaEquals(
-        RunStatusInvalidError,
-        defect,
-        new RunStatusInvalidError({ id: queued.id, from: status, to }),
-      )
+      assert.instanceOf(defect, RunStatusInvalidError)
+      assert.deepStrictEqual(Struct.pick(defect, ['id', 'from', 'to']), {
+        id: queued.id,
+        from: status,
+        to,
+      })
     }),
 )
 

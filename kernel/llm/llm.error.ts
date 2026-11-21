@@ -1,9 +1,7 @@
-import { Schema } from 'effect'
+import { Data } from 'effect'
 
 /**
  * No answer came, and no further request would bring one: `askModel` has spent its retries or
- * knows none would help. `cause` is operator detail and never reaches the wire.
+ * knows none would help. `cause` is operator detail.
  */
-export class LlmError extends Schema.TaggedError<LlmError>()('LlmError', {
-  cause: Schema.String,
-}) {}
+export class LlmError extends Data.TaggedError('LlmError')<{ readonly cause: string }> {}

@@ -1,9 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, Effect, Option } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Struct } from 'effect'
 
 import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import {
   type ActiveRunNotFoundError,
@@ -106,11 +105,12 @@ describe('MoveRunService', () => {
         .complete(queuedRun, assistantMessageAt(1, 'Sure.'))
         .pipe(Effect.catchDefect(Effect.succeed))
 
-      assertSchemaEquals(
-        RunStatusInvalidError,
-        defect,
-        new RunStatusInvalidError({ id: queuedRun.id, from: 'queued', to: 'done' }),
-      )
+      assert.instanceOf(defect, RunStatusInvalidError)
+      assert.deepStrictEqual(Struct.pick(defect, ['id', 'from', 'to']), {
+        id: queuedRun.id,
+        from: 'queued',
+        to: 'done',
+      })
       assert.deepStrictEqual(updates, [])
     }).pipe(Effect.provide(layer))
   })

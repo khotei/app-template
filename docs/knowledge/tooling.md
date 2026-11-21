@@ -128,7 +128,7 @@ Which suite runs where:
   reporter; `bun --bun vitest run --reporter=default` forces it.
 - **Errors are compared by their encoded form,** with `assertSchemaEquals` from
   `@app-template/packages/testing`: under Bun two errors with equal fields differ at random (why:
-  its TSDoc).
+  its TSDoc). A `Data.TaggedError` has no encoded form: its class and its fields are compared.
 
 ## Run and debug
 

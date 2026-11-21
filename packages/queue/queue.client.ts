@@ -1,9 +1,7 @@
 import { SQSService } from '@effect-aws/client-sqs'
-import { Cache, Context, Duration, Effect, Exit, Layer, Schema } from 'effect'
+import { Cache, Context, Data, Duration, Effect, Exit, Layer } from 'effect'
 
-export class QueueError extends Schema.TaggedError<QueueError>()('QueueError', {
-  cause: Schema.Defect(),
-}) {}
+export class QueueError extends Data.TaggedError('QueueError')<{ readonly cause: unknown }> {}
 
 export class QueueClient extends Context.Service<
   QueueClient,

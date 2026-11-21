@@ -66,8 +66,9 @@ Where each kind of test and its support live, and what a test may import:
 - Use `@effect/vitest`: `it.effect`, `Effect.flip` to inspect a failure, its `assert`.
 - Compare a failure whole with `assertSchemaEquals(<Model><Problem>Error, error, new
   <Model><Problem>Error({ … }))` from `@app-template/packages/testing` (`Schema.Array(<Class>)`
-  for a list). Never `Equal.equals` (`assertEquals`) on errors, which fails at random under Bun,
-  nor `assert.deepStrictEqual`, which judges an `Error` by its message alone.
+  for a list); a `Data.TaggedError`, which has no schema, by `assert.instanceOf` and its fields
+  (`Struct.pick`). Never `Equal.equals` (`assertEquals`) on errors, which fails at random under
+  Bun, nor `assert.deepStrictEqual`, which judges an `Error` by its message alone.
 - A model fixture builds the model with `DateTime` values and ids as `<Model>Id.make('<uuid>')`;
   a test that decodes a model passes its row's values (`null`, a `Date`), since a model's
   encoded side is its row.

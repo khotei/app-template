@@ -77,4 +77,4 @@ pipe(orders, sumBy((order) => order.refunded))
   is, beside the logic it ends; never mid-flow, where the main path must branch around it.
 - Inspect a `Cause` by its predicates, never by walking it (`repos/effect/migration/cause.md`).
 - A "nothing changed" check before a write or a snapshot compares models with `Equal.equals`,
-  and errors by their encoded form, as tests do ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).
+  and errors as tests do ([tooling.md › Tests](../../docs/knowledge/tooling.md#tests)).

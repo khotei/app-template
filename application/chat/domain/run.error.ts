@@ -2,12 +2,13 @@ import { Data, Schema } from 'effect'
 
 import type { MessageId } from '#chat/domain/message.util'
 import { RunId } from '#chat/domain/run.util'
-import { Status } from '#chat/domain/status.model'
+import type { Status } from '#chat/domain/status.model'
 
-export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidError>()(
-  'RunStatusInvalidError',
-  { id: RunId, from: Status, to: Status },
-) {}
+export class RunStatusInvalidError extends Data.TaggedError('RunStatusInvalidError')<{
+  readonly id: RunId
+  readonly from: Status
+  readonly to: Status
+}> {}
 
 export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('RunNotFoundError', {
   id: RunId,
