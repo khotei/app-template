@@ -183,14 +183,16 @@ the data layer's repository directly.
   of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
   shape widens the guard's pattern; one entry opens the
   module whole, so another unit's ban on a layer matches the names it imports. A layer's override
-  covers its tests, so what they need passes in its source too. What passes every guard:
-  [architecture.md › Known gaps](architecture.md#known-gaps).
+  covers its tests, save the services', so what they need passes in its source too. What passes
+  every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests, the domain's admitting of the kernel only `@app-template/kernel/data`, and of
-  it only a value's name (`<name>Pattern`, `<name>Statuses`), and the language model's errors
+  layer's tests, save the services', whose tests have one of their own, the domain's admitting
+  of the kernel only `@app-template/kernel/data`, and of it only a value's name
+  (`<name>Pattern`, `<name>Statuses`), and the language model's errors
   ([The language model in the kernel](#the-language-model-in-the-kernel)), the services' admitting neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue`, and of their infrastructure only
-  the queue file (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
+  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of
+  their infrastructure, and their tests' admitting test support and the queue file
+  (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds `Transaction` alone of
   `@app-template/packages/db` and of the infrastructure the queue file alone, and the chat's reply
   service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the module's
