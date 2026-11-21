@@ -56,7 +56,7 @@ graph LR
 | 25 | `toolkit-quality` | `chore` | 17 | done: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
 | 26 | `domain-from-data` | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 | 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
-| 30 | [`effect-4-1`](#30-effect-4-1) | `chore` | PR #39 | planned |
+| 30 | `effect-4-1` | `chore` | PR #39 | done, in the design audit's PR #39 |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -233,8 +233,9 @@ left.
 - **Out of scope.** Providers other than Anthropic.
 - **Open questions for its feature phase.** One container per chat or per reply; which files go
   to the model natively (images, PDF, text) and which through the container; how to send a
-  `container_upload` block that `@effect/ai-anthropic` 4.0.6 cannot express (a local patch with
-  an upstream PR, an own HTTP call, or converting on our side); the speech-to-text service
+  `container_upload` block that `@effect/ai-anthropic`'s prompt converter cannot express (a
+  local patch with an upstream PR, an own HTTP call, or converting on our side); the
+  speech-to-text service
   (AWS Transcribe or another provider); retention, since code execution and the Files API are not
   zero-data-retention eligible.
 - **Facts (2026-10-29).** Code execution, the Files API and Skills are GA, no beta header; Skills
@@ -243,10 +244,13 @@ left.
   `GET /v1/files/{id}/content`; containers live 30 days; code execution costs $0.05 per container
   hour past 1 550 free hours a month per organisation, five minutes minimum, billed whenever a
   request holds files. `.docx` and `.xlsx` are not accepted by any message block, and no Claude
-  model takes audio. `@effect/ai-anthropic` 4.0.6 passes `container` through its `Config` and
-  surfaces tool results with file ids, but its prompt converter rejects any media type but
-  images, PDF and text and has no `container_upload`; its generated Files API calls are awkward
-  for binary uploads.
+  model takes audio. `@effect/ai-anthropic` passes `container` through its `Config` and
+  surfaces tool results with file ids; its generated Files API calls are awkward for binary
+  uploads.
+- **Rechecked on `@effect/ai-anthropic` 4.1.5 (2026-11-21).** Its generated schema has the
+  request's `container_upload` block (`RequestContainerUploadBlock` in `Generated.ts`, as 4.0.6
+  had), but the prompt converter in `AnthropicLanguageModel.ts` never emits it and still rejects
+  any file media type but images, PDF and text.
 - **Inherits from `modular-monolith` (2026-11-02).** The prompts and the Anthropic calls live in
   chat's assistants `MessageAssistant` and `ChatAssistant` (`application/chat/infrastructure/`),
   the provider's settings in `kernel/llm`; a produced file is stored through `FileRepository` in
@@ -309,22 +313,6 @@ left.
   per-token prices were not readable from aws.amazon.com/bedrock/pricing and need the AWS
   calculator. MiniStack 1.5.31 emulates Bedrock Runtime with canned replies that fail a schema
   and does not emulate the Messages endpoint, so local runs call Anthropic.
-- **Status.** Planned.
-
-### 30. `effect-4-1`
-
-- **Goal.** `effect` and every `@effect/*` move from 4.0.6 to 4.1.5 together, so a Run failed by
-  a worker's interrupt stores the interrupt's reason once in its failure text, not three times.
-- **Scope.** The catalog's `effect` namespace in one bump, on its own branch once PR #39 merges;
-  `effect/Crypto` replaced by `SecureRandom` and `Digest`, provided explicitly, in
-  `application/identity/services/user.service.ts`, `packages/schema/id.ts` and the test files
-  that provide `BunCrypto.layer`; the callers that relied on `Exit.hasDies` narrowing; the driver
-  clients used as a `SqlClient`; `@effect/tsgo` 0.53.2 checked against 4.1.5.
-- **Out of scope.** Drizzle, which has nothing past 1.0.0-rc.5.
-- **Facts (2026-11-20).** Effect #9913, fixed in 4.0.7: under `Effect.fn` an interrupt's reason
-  appears three times. 4.1.0 removes `effect/Crypto` (#8829). `Exit.hasDies` no longer narrows
-  (#9799). A driver client is no longer a subtype of `SqlClient` (`@effect/sql-pg`, #10387).
-  Whether `@effect/tsgo` 0.53.2 works with 4.1.5 is unchecked.
 - **Status.** Planned.
 
 ## Later
@@ -481,10 +469,30 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its
   chat busy (the Cost in [decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages),
   and the first item of `reply-run` above). Way out: send the reply's job through
-  `SqlClient.afterCommit`, present in effect 4.0.6 (`effect/src/sql/SqlClient.ts:102-142`), whose
+  `SqlClient.afterCommit`, present in effect 4.1.5 (`effect/src/sql/SqlClient.ts:144-184`), whose
   callbacks run uninterruptibly once the `COMMIT` succeeds. Left: its callback is
   `Effect<void, never>`, so the `202`'s Run comes back another way; a callback that dies is only
   logged; and `Transaction` must offer it, as use cases do not see `SqlClient`.
+- (2026-11-21) vitest is held at 5.1.0 (the `tools` catalog in `package.json`): 5.1.1's forks
+  pool forks a watchdog and calls `child.channel?.unref()`, which Bun 1.4.4 and 1.4.5 lack, so
+  every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
+  Ways out to weigh: wait for a Bun with the call, or move every run to threads on the owner's
+  word.
+- (2026-11-21) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
+  `make vendor-drizzle`, so no commit carries the trailers their next `git subtree pull` looks
+  for. That pull needs a commit whose body starts lines with `git-subtree-dir: repos/effect` and
+  `git-subtree-split: e3aca1f1484e623cee09b7f3fa18d6ff5d66c0e8`, and one for
+  `git-subtree-dir: repos/drizzle` and
+  `git-subtree-split: f163324decffcc67b47c6f3dda43ca7bb5aaec49`. `git subtree` keeps only the
+  last split line of one commit (`find_latest_squash`), so one squash commit carrying both pairs
+  gives `repos/effect` drizzle's split. Ways out to weigh: the PR's squash body carries one pair
+  and a follow-up commit the other, or the next refresh is a plain commit again.
+- (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
+  `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
+  (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
+  `maxLength`, so the web's generated client accepts a blank text the api answers with
+  400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
+  (a pattern with a non-whitespace character), or accept the round trip.
 
 ## Ideas to weigh
 
@@ -577,7 +585,7 @@ For a future ticket on durable workflows.
 
 - **What it is.** The durable engine is `ClusterWorkflowEngine.layer` (needs `Sharding` and
   `MessageStorage`; `WorkflowEngine.layerMemory` is for tests). One process runs it on
-  `SingleRunner.layer({ runnerStorage: 'memory' })`, with `SqlClient` and `Crypto`, in the
+  `SingleRunner.layer({ runnerStorage: 'memory' })`, with `SqlClient` and `Digest`, in the
   tables `cluster_messages`, `cluster_replies` and `cluster_migrations` that its own migrations
   create. `Activity` stores and replays a step's result, `DurableClock` is a timer that survives
   restarts, `DurableDeferred` a wait an outside call completes, `DurableQueue` hands work to a
@@ -597,7 +605,7 @@ No ticket yet; `chat-core` decided that today's user later merges into an accoun
 - **Today.** `identity`'s `UserService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
   through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
-- **What Jose is.** `effect/jose`, from `effect@4.1.1` (2026-10-30; `4.1.2` current),
+- **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,
   `@stability unstable`, on Web Crypto through the new `effect/crypto`, no third-party
   dependency. `Jwt.sign` and `Jwt.verify` decode claims with a `Schema`; `Jwt.verifyWithKeySet`
   resolves keys through `Jwks`; `Jwks.layerRemote({ url })` fetches and caches a provider's key
@@ -606,9 +614,9 @@ No ticket yet; `chat-core` decided that today's user later merges into an accoun
   serialisation only. No `HttpApiSecurity` or middleware helper: a bearer check is ours.
 - **Where it would bring something.** Signing in through an external provider (Cognito, Auth0,
   any OIDC): `Jwks.layerRemote` is the part we would otherwise write.
-- **What it would cost.** Moving the catalog from `effect@4.0.6` to `4.1.x` (no changelog found).
-  Replacing today's session rows with signed tokens saves one query a request but loses
-  revocation (expiry or a deny-list instead): a change of behaviour, not a simplification.
+- **What it would cost.** Replacing today's session rows with signed tokens saves one query a
+  request but loses revocation (expiry or a deny-list instead): a change of behaviour, not a
+  simplification. The move to `4.1.x` it once needed is done.
 
 ### Telemetry readable by an agent and on AWS
 

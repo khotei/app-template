@@ -25,7 +25,7 @@ const storedUser = {
 
 const unknownSecret = Redacted.make('q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4')
 
-/** The hex SHA-256 of a secret by Web Crypto, apart from the service's `Crypto`. */
+/** The hex SHA-256 of a secret by Web Crypto, apart from the service's `Digest`. */
 const hashWithWebCrypto = (secret: UserSecret) =>
   Effect.promise(() =>
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(Redacted.value(secret))),

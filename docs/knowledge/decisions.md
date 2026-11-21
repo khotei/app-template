@@ -215,18 +215,18 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
   handler would make a cycle. No module raises them. The id format knows no app (a brand in, a
   schema out; a schema in, a fresh UUIDv7 of its brand out), every module's ids share it, and in
   one file a change of format moves the schema and the generation together. `idGenerator` is
-  a constant, an effect that reads `Crypto` once and answers the generator, not a
-  `Context.Service`: no test or second implementation stands in for it, since `Crypto` already
-  is that seam (tests provide `BunCrypto.layer`, or `TestCrypto` to assert an id). A service
-  yields it in its `make`, so its methods require no `Crypto`.
+  a constant, an effect that reads `SecureRandom` once and answers the generator, not a
+  `Context.Service`: no test or second implementation stands in for it, since `SecureRandom`
+  already is that seam (tests provide `BunCrypto.layer`, or a `Layer.mock` of `SecureRandom` to
+  assert an id). A service yields it in its `make`, so its methods require no `SecureRandom`.
 - **Sources:** departs from the guide's "Keep internal layering per module (API → domain →
   infrastructure)"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/deep-modules.md`'s id generator given the brand's `make`.
 - **Rejected:** the generation spelled out at each call, or copied per module: two copies of a
-  rule no module owns. A `generateId` that reads `Crypto` itself: `Crypto` is Effect's own service
-  with no default, so it would enter every service method's requirements. A `generateId` taking
-  `Crypto` as a parameter: each call passes the same service along. An `IdGenerator`
+  rule no module owns. A `generateId` that reads `SecureRandom` itself: `SecureRandom` is
+  Effect's own service with no default, so it would enter every service method's requirements. A
+  `generateId` taking `SecureRandom` as a parameter: each call passes the same service along. An `IdGenerator`
   `Context.Service` with a `layer`: a layer to provide for one implementation. The id format in
   `packages/db` beside the `id()` column, or in `kernel/data`: the domain and the contracts
   declare the schema, and neither may import those. A group in its module's `infrastructure/`,
