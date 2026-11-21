@@ -14,8 +14,11 @@ const encoder = new TextEncoder()
 export class UserService extends Context.Service<
   UserService,
   {
-    /** Returns the user a valid secret names; any other input creates a user with a new secret. */
-    readonly ensure: (
+    /**
+     * Recognises the user a valid secret names; any other secret registers a new user with a new
+     * secret.
+     */
+    readonly recognise: (
       secret: UserSecret,
     ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
     readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
@@ -53,14 +56,14 @@ export class UserService extends Context.Service<
       return { user, secret }
     })
 
-    const ensure = Effect.fn('UserService.ensure')((secret: UserSecret) =>
+    const recognise = Effect.fn('UserService.recognise')((secret: UserSecret) =>
       authenticate(secret).pipe(
         Effect.map((user) => ({ user, secret })),
         Effect.catchTag('UserUnknownError', registerUser),
       ),
     )
 
-    return { ensure, authenticate }
+    return { recognise, authenticate }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

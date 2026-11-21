@@ -23,7 +23,7 @@ describe('users', () => {
     Effect.gen(function* () {
       const api = yield* ApiClient
 
-      const [, response] = yield* api.users.ensure({ responseMode: 'decoded-and-response' })
+      const [, response] = yield* api.users.recognise({ responseMode: 'decoded-and-response' })
 
       const cookie = readUserSecretCookie(response).pipe(Option.getOrThrow)
       assert.strictEqual(response.status, 201)
@@ -38,7 +38,9 @@ describe('users', () => {
       Effect.gen(function* () {
         const api = yield* ApiClient
 
-        const [user, response] = yield* api.users.ensure({ responseMode: 'decoded-and-response' })
+        const [user, response] = yield* api.users.recognise({
+          responseMode: 'decoded-and-response',
+        })
 
         const cookie = readUserSecretCookie(response).pipe(Option.getOrThrow)
         assert.strictEqual(user.id, owner)
@@ -54,7 +56,7 @@ describe('users', () => {
     Effect.gen(function* () {
       const forger = yield* ApiClient
 
-      const [, response] = yield* forger.users.ensure({ responseMode: 'decoded-and-response' })
+      const [, response] = yield* forger.users.recognise({ responseMode: 'decoded-and-response' })
 
       assert.notStrictEqual(readUserSecretCookie(response).pipe(Option.getOrThrow).value, 'forged')
     }).pipe(

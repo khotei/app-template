@@ -760,7 +760,7 @@
         "tags": [
           "users"
         ],
-        "operationId": "users.ensure",
+        "operationId": "users.recognise",
         "parameters": [],
         "security": [],
         "responses": {

@@ -253,13 +253,13 @@ export type HealthGet400 = RequestInvalidErrorEncoded
 
 export const HealthGet400 = RequestInvalidErrorEncoded
 
-export type UsersEnsure201 = UserEncoded
+export type UsersRecognise201 = UserEncoded
 
-export const UsersEnsure201 = UserEncoded
+export const UsersRecognise201 = UserEncoded
 
-export type UsersEnsure400 = RequestInvalidErrorEncoded
+export type UsersRecognise400 = RequestInvalidErrorEncoded
 
-export const UsersEnsure400 = RequestInvalidErrorEncoded
+export const UsersRecognise400 = RequestInvalidErrorEncoded
 
 export const CookieSecurity = HttpApiSecurity.apiKey({ key: "user_secret", in: "cookie" })
 
@@ -302,8 +302,8 @@ class HealthGroup extends HttpApiGroup.make("health")
       .annotate(OpenApi.Identifier, "health.get")) {}
 
 class UsersGroup extends HttpApiGroup.make("users")
-  .add(HttpApiEndpoint.post("usersEnsure", "/users", { success: UsersEnsure201.pipe(HttpApiSchema.status(201)), error: UsersEnsure400.pipe(HttpApiSchema.status(400)) })
-      .annotate(OpenApi.Identifier, "users.ensure")) {}
+  .add(HttpApiEndpoint.post("usersRecognise", "/users", { success: UsersRecognise201.pipe(HttpApiSchema.status(201)), error: UsersRecognise400.pipe(HttpApiSchema.status(400)) })
+      .annotate(OpenApi.Identifier, "users.recognise")) {}
 
 export class Api extends HttpApi.make("Api")
   .annotate(OpenApi.Title, "Api")

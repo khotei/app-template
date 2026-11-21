@@ -54,11 +54,11 @@ describe('UserService', () => {
     )
   })
 
-  it.effect('ensure of a stored user returns it and the secret, inserting none', () =>
+  it.effect('recognise of a stored user returns it and the secret, inserting none', () =>
     Effect.gen(function* () {
       const service = yield* UserService
 
-      const { user, secret } = yield* service.ensure(unknownSecret)
+      const { user, secret } = yield* service.recognise(unknownSecret)
 
       assert.strictEqual(user.id, storedUser.id)
       assert.strictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
@@ -72,13 +72,13 @@ describe('UserService', () => {
   )
 
   it.effect(
-    'ensure of an unknown secret creates a user with a UUIDv7 id at the clock time and a new secret, storing only its hex SHA-256',
+    'recognise of an unknown secret creates a user with a UUIDv7 id at the clock time and a new secret, storing only its hex SHA-256',
     () => {
       const inserts: Array<Insert> = []
       return Effect.gen(function* () {
         const service = yield* UserService
 
-        const { user, secret } = yield* service.ensure(unknownSecret)
+        const { user, secret } = yield* service.recognise(unknownSecret)
 
         const hash = yield* hashWithWebCrypto(secret)
         assert.isTrue(isUuidV7(user.id))

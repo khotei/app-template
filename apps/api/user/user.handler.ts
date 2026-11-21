@@ -17,10 +17,10 @@ export const UserHandler = HttpApiBuilder.group(
     const env = yield* nodeEnv
 
     return handlers.handle(
-      'ensure',
-      Effect.fn('UserHandler.ensure')(function* () {
+      'recognise',
+      Effect.fn('UserHandler.recognise')(function* () {
         const { user, secret } = yield* HttpApiBuilder.securityDecode(Auth.security.cookie).pipe(
-          Effect.flatMap(users.ensure),
+          Effect.flatMap(users.recognise),
         )
 
         yield* HttpApiBuilder.securitySetCookie(Auth.security.cookie, secret, {

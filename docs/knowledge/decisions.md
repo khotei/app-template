@@ -397,7 +397,7 @@ called; no, two rules, each kept by its module.
 - **Rejected:** writes only through the owner's service: the repositories stay open to every
   module, as the data layer's are meant to be.
 - **Cost:** a module may write another module's records past that module's rules (a user inserted
-  without `ensure`), and no tool stops it.
+  without `recognise`), and no tool stops it.
 - **Guarded by:** `.claude/rules/modules.md` refuses a copied rule; nothing refuses a write.
 - **If reversed:** a Biome ban per entity subpath, or a review rule on writes, forces every write
   through its owner, and the flows that write two modules' records move into use cases.
