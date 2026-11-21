@@ -229,6 +229,24 @@ the rows are gone, so no row names bytes that are gone; a failure between the tw
 bytes no row names. SQS joins none either: the sends follow the
 commit ([The sends](#the-sends)).
 
+## A Run's life
+
+A Run has the statuses of `runStatuses` (`kernel/data/chat/run.table.ts`); `queued` and
+`generating` are active, `done` and `failed` end it. Each arrow is the service method that
+writes the move, and in brackets its caller; every move is written under the status read
+([Guards](#guards)).
+
+```mermaid
+stateDiagram-v2
+  [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
+  queued --> generating: MoveRunService.generate (AskRunService.reply)
+  queued --> failed: MoveRunService.fail (AskRunService.ask on a refused send, reply's tail)
+  generating --> done: MoveRunService.complete (AskRunService.reply)
+  generating --> failed: MoveRunService.fail (AskRunService.reply's tail)
+  done --> [*]
+  failed --> [*]
+```
+
 ## Stuck Runs
 
 A Run that no worker settles stays active and its chat `queued`, so every next send to the chat

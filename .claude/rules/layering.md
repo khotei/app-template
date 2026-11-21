@@ -25,12 +25,12 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store; its status
   moves, each a transition written under the status read → `Move<Model>Service`; the work's
-  record its job → `Ask<Model>Service`, which sends it through its module's `<model>.queue` file
-  after the commit of the writes the job reads, never inside a transaction, and runs it, settling
-  what ends it on the record; a request for a job → `Ask<Model>Service` of the model asked, given
-  it as read: its rules, then the writes the job reads. Only these two take `Transaction` and
-  another model's service of their module; the one that runs a job its `.llm` file too. Record:
-  [Layered services of one model](../../docs/knowledge/decisions.md#layered-services-of-one-model).
+  record its job → `Ask<Model>Service`, over `Move<Model>Service`, which sends it through its
+  module's `<model>.queue` file after the commit of the writes the job reads, never inside a
+  transaction, and runs it, settling what ends it on the record; a request for a job →
+  `Ask<Model>Service` of the model asked, given it as read: its rules, then the writes the job
+  reads. Only these two take `Transaction` and another model's service of their module; the one
+  that runs a job its `.llm` file too ([record](../../docs/knowledge/decisions.md#composition-wrap-or-compose)).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
   service, use case or repository only reads, calls it and writes
@@ -62,7 +62,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A job runs once, unretried: its run (the record's `Ask<Model>Service` method of a job with one,
   else the use case) ends its work on any outcome but success, an interrupt included, and work
   it finds started, left by a run that died; the use case ends the job in one tail
-  ([record](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
+  ([record](../../docs/knowledge/decisions.md#the-runs-job-in-its-service)).
 - Read or delete a set through one batch call, never one call per id.
 - Return a model as is.
 

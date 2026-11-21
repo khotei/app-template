@@ -230,13 +230,13 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's ask service (AskChatService) imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › Layered services of one model)"
+                    "message": "the chat's ask service (AskChatService) imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › Composition: wrap or compose)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
                     "importNamePattern": "Transaction",
                     "invertImportNamePattern": true,
-                    "message": "of @app-template/packages/db the chat's ask service takes only Transaction, to store the message and its Run in one transaction (decisions.md › Layered services of one model)"
+                    "message": "of @app-template/packages/db the chat's ask service takes only Transaction, to store the message and its Run in one transaction (decisions.md › Composition: wrap or compose)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -245,7 +245,7 @@
                   },
                   {
                     "group": ["#*/infrastructure/**"],
-                    "message": "the chat's ask service reaches no part of its module's infrastructure: the jobs it asks for are sent after the commit, by the caller (decisions.md › Layered services of one model; Jobs as queue messages)"
+                    "message": "the chat's ask service reaches no part of its module's infrastructure: the jobs it asks for are sent after the commit, by the caller (decisions.md › Composition: wrap or compose; Jobs as queue messages)"
                   }
                 ]
               }
@@ -273,13 +273,13 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the Run's ask service (AskRunService), which sends the Run's job and runs it, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "the Run's ask service (AskRunService), which sends the Run's job and runs it, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The Run's job in its service)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
                     "importNamePattern": "Transaction",
                     "invertImportNamePattern": true,
-                    "message": "of @app-template/packages/db the Run's ask service takes only Transaction, to write the job's outcome in one transaction (decisions.md › Jobs as queue messages)"
+                    "message": "of @app-template/packages/db the Run's ask service takes only Transaction, to write the job's outcome in one transaction (decisions.md › The Run's job in its service)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -292,7 +292,7 @@
                       "!#*/infrastructure/*.queue",
                       "!#*/infrastructure/*.llm"
                     ],
-                    "message": "the Run's ask service reaches its module's infrastructure only through a port, its queue file, which sends the job, and its .llm file, whose assistant runs it (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "the Run's ask service reaches its module's infrastructure only through a port, its queue file, which sends the job, and its .llm file, whose assistant runs it (decisions.md › A module's layers; Jobs as queue messages; The Run's job in its service)"
                   }
                 ]
               }

@@ -467,7 +467,8 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
 - (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its
-  chat busy (the Cost in [decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages),
+  chat busy (the Cost in
+  [decisions.md › A Run's job on interrupt and on two deliveries](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries),
   and the first item of `reply-run` above). Way out: send the reply's job through
   `SqlClient.afterCommit`, present in effect 4.1.5 (`effect/src/sql/SqlClient.ts:144-184`), whose
   callbacks run uninterruptibly once the `COMMIT` succeeds. Left: its callback is

@@ -59,8 +59,9 @@ const shipped = yield* shipOrder(order)               // the model moves it, nam
 return yield* orders.update(shipped, { id: order.id, status: [order.status] }) // or it dies
 ```
 
-- A model's status move meets its write in `Move<Model>Service`, layered over `<Model>Service`,
-  which knows no transition: its method calls the transition on the record read and writes it
+- A model's status move meets its write in `Move<Model>Service`
+  ([layering.md](layering.md#ports-and-domain-services)), so `<Model>Service` knows no
+  transition: its method calls the transition on the record read and writes it
   under the status it was read in; a use case calls that method, never a transition or a
   repository, and nothing else sits between a transition and its write. Two methods that differ
   by their `where`, `set` or step are one, taking them from the caller.
