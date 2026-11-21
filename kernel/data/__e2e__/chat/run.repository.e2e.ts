@@ -102,6 +102,25 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
+  it.effect('selects the Run of the user message its where names, none of another', () =>
+    Effect.gen(function* () {
+      const runs = yield* RunRepository
+      const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a5')
+      const otherMessageId = '0192d4e0-7b3a-7c00-8000-0000000000ae'
+      yield* insertUserMessage
+      yield* runs.insert(queued)
+
+      const own = yield* runs.selectOne({ userMessageId, status: ['queued', 'generating'] })
+      const other = yield* runs.selectOne({
+        userMessageId: otherMessageId,
+        status: ['queued', 'generating'],
+      })
+
+      assertSchemaEquals(SelectedRun, own, Option.some(read(queued)))
+      assert.deepStrictEqual(other, Option.none())
+    }).pipe(Effect.provide(RepositoryTest)),
+  )
+
   it.effect('update moves a Run under its old status, and dies once that no longer holds', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository

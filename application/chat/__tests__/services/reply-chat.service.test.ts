@@ -9,50 +9,47 @@ import {
   Fiber,
   Layer,
   Option,
+  Predicate,
   pipe,
   Schema,
   UndefinedOr,
 } from 'effect'
 import { TestClock } from 'effect/testing'
 
-import type { MessageColumns, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
+import type {
+  ChatEntitySet,
+  ChatEntityWhere,
+  MessageColumns,
+  RunColumns,
+  RunEntitySet,
+  RunEntityWhere,
+} from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
 import { RunFields } from '#chat/domain/run-fields.model'
-import { AskRunService } from '#chat/services/ask-run.service'
+import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
   assistantMessageAt,
+  chat,
   chatId,
   firstMessage,
+  messageId,
   queuedRun,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
+import { recordChatAssistant } from '#testing/chat/chat-assistant.test-fake'
 import {
   holdAssistantCall,
   recordMessageAssistant,
 } from '#testing/chat/message-assistant.test-fake'
-import { layerRefusingQueueTest } from '#testing/chat/queue-sender.test-fake'
-
-/** The services over `queue` and a store that reads `queuedRun`, whose updates land in `updates`. */
-function recordUpdates<Queue>(queue: Layer.Layer<Queue>) {
-  const updates: Array<RunEntitySet> = []
-  const layer = layerChatTest({
-    runs: {
-      selectOne: () => encodeWith(Run)(queuedRun).pipe(Effect.map(Option.some)),
-      update: (set) =>
-        Effect.sync(() => {
-          updates.push(set)
-        }),
-    },
-  }).pipe(Layer.provideMerge(queue))
-  return { updates, layer }
-}
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
@@ -84,9 +81,37 @@ const doneElsewhere = new Run({
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
 
+/** The Run a retry queues for `queuedRun`'s message once `queuedRun` failed. */
+const retried = new Run({ ...queuedRun, id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000032') })
+const retriedGenerating = new Run({ ...retried, status: 'generating' })
+const retriedFailed = new Run({
+  ...retried,
+  status: 'failed',
+  failure: Option.some({ cause: 'RunStartedError' }),
+})
+
+/** Whether `row` holds where `where` holds, as the store filters. */
+const holdsWhere = (where: RunEntityWhere): Predicate.Predicate<RunColumns> =>
+  Predicate.and(
+    Predicate.and(
+      (row) =>
+        UndefinedOr.match(where.id, { onUndefined: () => true, onDefined: (id) => id === row.id }),
+      (row) =>
+        UndefinedOr.match(where.userMessageId, {
+          onUndefined: () => true,
+          onDefined: (id) => id === row.userMessageId,
+        }),
+    ),
+    (row) =>
+      UndefinedOr.match(where.status, {
+        onUndefined: () => true,
+        onDefined: (statuses) => Arr.contains(statuses, row.status),
+      }),
+  )
+
 /**
  * A Run read that answers `reads` in turn, the last one from then on, and none of one outside
- * the `where`'s statuses, as the store filters them.
+ * the `where`, as the store filters them.
  */
 const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {
   let turn = 0
@@ -95,14 +120,7 @@ const readsInTurn = (...reads: Arr.NonEmptyReadonlyArray<Run>) => {
       Arr.get(reads, turn++).pipe(Option.getOrElse(() => Arr.lastNonEmpty(reads))),
     ).pipe(
       Effect.flatMap((run) => encodeWith(Run)(run)),
-      Effect.map(
-        Option.liftPredicate((row) =>
-          UndefinedOr.match(where.status, {
-            onUndefined: () => true,
-            onDefined: (statuses) => Arr.contains(statuses, row.status),
-          }),
-        ),
-      ),
+      Effect.map(Option.liftPredicate(holdsWhere(where))),
     )
 }
 
@@ -154,48 +172,11 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-const reply = AskRunService.use((askRun) => askRun.reply(queuedRun.id))
+const reply = ReplyChatService.use((replyChat) => replyChat.replyMessage(queuedRun.userMessageId))
 
-describe('AskRunService', () => {
-  it.effect("ask fails the Run with the text of SQS's refusal, and answers the failed Run", () => {
-    const { updates, layer } = recordUpdates(layerRefusingQueueTest())
-    return Effect.gen(function* () {
-      const askRun = yield* AskRunService
-
-      const sent = yield* askRun.ask(queuedRun)
-
-      assert.strictEqual(sent.status, 'failed')
-      assert.include(Option.getOrThrow(sent.failure).cause, 'SQS is unavailable')
-      assert.deepStrictEqual(
-        Arr.map(updates, ({ status }) => status),
-        ['failed'],
-      )
-    }).pipe(Effect.provide(layer))
-  })
-
-  it.effect('ask interrupted while SQS refuses the job still fails the Run', () => {
-    const held = holdAssistantCall()
-    const { updates, layer } = recordUpdates(layerRefusingQueueTest(held.hold))
-    return Effect.gen(function* () {
-      const askRun = yield* AskRunService
-
-      const running = yield* askRun.ask(queuedRun).pipe(Effect.forkChild)
-      yield* held.asked
-      const interrupting = yield* Fiber.interrupt(running).pipe(
-        Effect.forkChild({ startImmediately: true }),
-      )
-      yield* held.release
-      yield* Fiber.join(interrupting)
-
-      assert.deepStrictEqual(
-        Arr.map(updates, ({ status }) => status),
-        ['failed'],
-      )
-    }).pipe(Effect.provide(layer))
-  })
-
+describe('ReplyChatService', () => {
   it.effect(
-    "reply moves the Run to generating, then writes the assistant's message and done",
+    "replyMessage moves the Run to generating, then writes the assistant's message and done",
     () => {
       const held = holdAssistantCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
@@ -249,7 +230,7 @@ describe('AskRunService', () => {
     },
   )
 
-  it.effect('reply dies with the assistant and fails the Run it reads again first', () => {
+  it.effect('replyMessage dies with the assistant and fails the Run it reads again first', () => {
     const assistant = recordMessageAssistant(Effect.die('provider exploded'))
     const writes = noWrites()
     return Effect.gen(function* () {
@@ -267,26 +248,29 @@ describe('AskRunService', () => {
     )
   })
 
-  it.effect('reply interrupted while the assistant answers fails the Run it reads again', () => {
-    const held = holdAssistantCall()
-    const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
-    const writes = noWrites()
-    return Effect.gen(function* () {
-      const running = yield* Effect.forkChild(reply)
-      yield* held.asked
-      yield* Fiber.interrupt(running)
+  it.effect(
+    'replyMessage interrupted while the assistant answers fails the Run it reads again',
+    () => {
+      const held = holdAssistantCall()
+      const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
+      const writes = noWrites()
+      return Effect.gen(function* () {
+        const running = yield* Effect.forkChild(reply)
+        yield* held.asked
+        yield* Fiber.interrupt(running)
 
-      assert.strictEqual(lastWrite(writes).move, 'generating → failed')
-    }).pipe(
-      Effect.provide(
-        layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
-          Layer.provideMerge(assistant.layer),
+        assert.strictEqual(lastWrite(writes).move, 'generating → failed')
+      }).pipe(
+        Effect.provide(
+          layerChatTest(replyingTo(writes, { runs: readsInTurn(queuedRun, generating) })).pipe(
+            Layer.provideMerge(assistant.layer),
+          ),
         ),
-      ),
-    )
-  })
+      )
+    },
+  )
 
-  it.effect('reply interrupted while it reads its Run fails the Run it reads again', () => {
+  it.effect('replyMessage interrupted while it reads its Run fails the Run it reads again', () => {
     const reading = Deferred.makeUnsafe<void>()
     const readAgain = readsInTurn(queuedRun)
     let reads = 0
@@ -311,7 +295,7 @@ describe('AskRunService', () => {
   })
 
   it.effect(
-    'reply of a generating Run fails RunStartedError, failing the Run as its worker stopped, unasked',
+    'replyMessage of a generating Run fails RunStartedError, failing the Run as its worker stopped, unasked',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
@@ -335,10 +319,10 @@ describe('AskRunService', () => {
     },
   )
 
-  it.effect("reply prompts with the chat's messages in order", () => {
+  it.effect("replyMessage prompts with the chat's messages in order", () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     return Effect.gen(function* () {
-      yield* reply
+      yield* ReplyChatService.use((replyChat) => replyChat.replyMessage(lastRun.userMessageId))
 
       assertEquals(yield* assistant.histories, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(
@@ -354,7 +338,7 @@ describe('AskRunService', () => {
   })
 
   it.effect(
-    'reply dies on a done write the store refuses, leaving the Run it then reads settled unfailed',
+    'replyMessage dies on a done write the store refuses, leaving the Run it then reads settled unfailed',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const { logs, layer: logger } = recordLogs()
@@ -387,7 +371,7 @@ describe('AskRunService', () => {
   )
 
   it.effect(
-    'reply losing its generating write to a rival delivery dies, failing the Run the rival took',
+    'replyMessage losing its generating write to a rival delivery dies, failing the Run the rival took',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
@@ -417,20 +401,107 @@ describe('AskRunService', () => {
     },
   )
 
+  it.effect(
+    "a failed Run's job delivered again after its retry starts the retry's Run, whose own job then fails it as started",
+    () => {
+      const held = holdAssistantCall()
+      const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
+      const writes = noWrites()
+      const mocks = replyingTo(writes, {
+        runs: readsInTurn(retried, retriedGenerating, retriedGenerating, retriedFailed),
+      })
+      return Effect.gen(function* () {
+        const replyChat = yield* ReplyChatService
+
+        const again = yield* replyChat
+          .replyMessage(queuedRun.userMessageId)
+          .pipe(Effect.exit, Effect.forkChild)
+        yield* held.asked
+        const own = yield* replyChat.replyMessage(retried.userMessageId).pipe(Effect.flip)
+        yield* held.release
+        const againExit = yield* Fiber.join(again)
+
+        assert.strictEqual(own._tag, 'RunStartedError')
+        assert.isTrue(Exit.hasDies(againExit))
+        assert.deepStrictEqual(
+          Arr.map(writes.runs, ([set, where]) => [where.id, `${where.status} → ${set.status}`]),
+          [
+            [retried.id, 'queued → generating'],
+            [retried.id, 'generating → failed'],
+          ],
+        )
+      }).pipe(
+        Effect.provide(
+          layerChatTest({
+            ...mocks,
+            runs: {
+              ...mocks.runs,
+              update: (set, where) =>
+                set.status === 'done'
+                  ? Effect.die('no run was updated')
+                  : Effect.sync(() => {
+                      writes.runs.push([set, where])
+                    }),
+            },
+          }).pipe(Layer.provideMerge(assistant.layer)),
+        ),
+      )
+    },
+  )
+
   it.effect.each([
     { name: 'settled before it', selectOne: readsInTurn(doneElsewhere) },
     { name: 'the store finds none of', selectOne: () => Effect.succeedNone },
-  ])('reply of a Run $name fails RunNotFoundError, asking no assistant', ({ selectOne }) => {
+  ])('replyMessage of a Run $name fails RunNotFoundError, asking no assistant', ({ selectOne }) => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     return Effect.gen(function* () {
       const error = yield* reply.pipe(Effect.flip)
 
-      assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ id: queuedRun.id }))
+      assertSchemaEquals(
+        RunNotFoundError,
+        error,
+        new RunNotFoundError({ userMessageId: queuedRun.userMessageId }),
+      )
       assertEquals(yield* assistant.histories, [])
     }).pipe(
       Effect.provide(
         layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
       ),
+    )
+  })
+
+  it.effect('replyTitle titles the chat of its first message while the chat is untitled', () => {
+    const lisbonWeekend = ChatTitle.make('Lisbon weekend')
+    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
+    const { logs, layer: logger } = recordLogs()
+    const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
+    return Effect.gen(function* () {
+      yield* ReplyChatService.use((replyChat) => replyChat.replyTitle(messageId))
+
+      assert.deepStrictEqual(updates, [
+        [
+          { title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },
+          { id: chatId, title: null },
+        ],
+      ])
+      assertEquals(yield* assistant.texts, ['Plan a weekend in Lisbon'])
+      assert.deepStrictEqual(logs, [])
+    }).pipe(
+      Effect.provide([
+        layerChatTest({
+          messages: {
+            selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)),
+          },
+          chats: {
+            selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
+            update: (...update) =>
+              Effect.sync(() => {
+                updates.push(update)
+              }),
+          },
+        }).pipe(Layer.provideMerge(assistant.layer)),
+        logger,
+      ]),
     )
   })
 })

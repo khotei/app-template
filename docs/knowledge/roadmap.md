@@ -337,10 +337,10 @@ moves it into its own `Later` and deletes it here.
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`sendGenerateAssistantMessage`, called by
-  `application/chat/services/ask-run.service.ts`, the last step of the create and the
-  retry), or the client aborts after the commit but before the send starts: a send SQS refuses
-  fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a dead
-  process, and an interrupt during the commit or the title's send ends the flow first. Ways out
+  `application/chat/services/ask-chat.service.ts`, the last step of `askMessage` and
+  `askRetryMessage`), or the client aborts after the commit but before the send starts: a send SQS
+  refuses fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a
+  dead process, and an interrupt during the commit or the title's send ends the flow first. Ways out
   to weigh: one uninterruptible step from the Run's write through its send (the abort only), a
   ledger of jobs, a sweep of active Runs. The owner refused a rule by a Run's age, and keeps the
   abort's window as a cost (2026-11-20).
@@ -358,7 +358,7 @@ moves it into its own `Later` and deletes it here.
   a send of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that
   only the newest user message gets one (`application/use-cases/chat/retry-run.use-case.ts`, the
-  chat's read, and `AskChatService.retry`'s `runs.create`).
+  chat's read, and `AskChatService.askRetryMessage`'s `runs.create`).
   Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
@@ -369,7 +369,7 @@ moves it into its own `Later` and deletes it here.
   opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
   snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
-  (`application/chat/services/ask-run.service.ts`, `AskRunService.reply`): its
+  (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.replyMessage`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
@@ -396,7 +396,7 @@ moves it into its own `Later` and deletes it here.
 
 ### From the design audit of 2026-11-19
 
-- (2026-11-19, verified) The reply job's exit handler (`ask-run.service.ts`)
+- (2026-11-19, verified) The reply job's exit handler (`reply-chat.service.ts`)
   cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
   `Exit.filterCause` can, in 3 lines in place of 8.
 - (2026-11-19, verified) The replay duty is stated with three scopes (`claude-md.md › The toolkit`,

@@ -9,8 +9,8 @@ import {
   chatTitleQueue,
   GenerateAssistantMessage,
   GenerateChatTitle,
+  type MessageId,
   Run,
-  type RunId,
 } from '@app-template/application/chat'
 import {
   type ChatRepositoryMocks,
@@ -34,9 +34,9 @@ const sendingTo = (read: Chat) =>
     runs: { insert: () => Effect.void },
   }) satisfies ChatRepositoryMocks
 
-const replyJob = (runId: RunId) => ({
+const replyJob = (messageId: MessageId) => ({
   queue: 'assistant-message',
-  message: new GenerateAssistantMessage({ runId }),
+  message: new GenerateAssistantMessage({ messageId }),
 })
 
 const answeredChat = new Chat({
@@ -63,7 +63,10 @@ describe('createUserMessage', () => {
         queue: 'chat-title',
         message: new GenerateChatTitle({ messageId: run.userMessageId }),
       }
-      assertEquals(yield* jobs.sent, title ? [titleJob, replyJob(run.id)] : [replyJob(run.id)])
+      assertEquals(
+        yield* jobs.sent,
+        title ? [titleJob, replyJob(run.userMessageId)] : [replyJob(run.userMessageId)],
+      )
     }).pipe(Effect.provide(layerChatTest(sendingTo(read)).pipe(Layer.provideMerge(jobs.layer))))
   })
 

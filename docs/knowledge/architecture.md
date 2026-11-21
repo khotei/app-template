@@ -22,9 +22,9 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   share, errors and the ports that reach outside; its `services/` the domain services, each
   model's `<Model>Service` over the data layer's repositories and the services composed over it;
   its `infrastructure/` everything of it that connects to the environment, the adapters of its
-  ports, the services a use case or the Run's ask service calls over a client (the assistants) and its
-  queues' definitions ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once another
-  module needs one, what other modules may take of it.
+  ports, the services a use case or the chat's reply service calls over a client (the
+  assistants) and its queues' definitions ([A module's layers](decisions.md#a-modules-layers));
+  its `contract/`, once another module needs one, what other modules may take of it.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
@@ -71,7 +71,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | `/llm/error`'s errors only | `schema` only | `application/*/domain/**`, `kernel/data` and `/llm/error` by name |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only; the Run's and the chat's ask services `db`'s `Transaction` too | `application/*/services/**`; the Run's ask service, `application/chat/services/ask-run.service.ts`; the chat's, `application/chat/services/ask-chat.service.ts` |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only; the chat's ask and reply services `db`'s `Transaction` too | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
@@ -87,10 +87,11 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
-  `#<module>/infrastructure/*` but its `<model>.queue` file, the Run's ask service its `.llm` files
-  too, and `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
-  through a port its `domain/` declares, a job's send in that queue file, or, in a job's
-  service, the assistant that runs the job, and a module reaches its
+  `#<module>/infrastructure/*` but, in the chat's ask service, its `<model>.queue` file, whose
+  jobs the services' tests read too, and, in its reply service, its `.llm` files, and
+  `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
+  through a port its `domain/` declares, a job's send in that queue file, or, in the reply
+  service, the assistants that run the jobs, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. Of another module's
   entry a module takes only the names of its contract, which review holds
   ([modules.md](../../.claude/rules/modules.md)), not Biome.

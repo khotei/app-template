@@ -52,7 +52,7 @@ describe('retryRun', () => {
       assertEquals(yield* jobs.sent, [
         {
           queue: 'assistant-message',
-          message: new GenerateAssistantMessage({ runId: retried.id }),
+          message: new GenerateAssistantMessage({ messageId: retried.userMessageId }),
         },
       ])
     }).pipe(

@@ -23,10 +23,10 @@ Ask in order; the first yes decides:
 3. **A capability or rule only some callers need, over units of one model** → **compose**: a
    unit named for what it adds (`<Aspect><Model>Service`, `ensure<Combined>`), built from the old
    ones; a caller that needs only the old one keeps it.
-4. **An order of calls over services of several models, a request's transaction, or a write and
-   the send of the job that reads it** → a use case; the send itself and the job's run, its
-   transaction included, → the `Ask<Model>Service` of the work's record
-   ([layering.md](layering.md#ports-and-domain-services)).
+4. **An order of calls over services of several models, or a request's transaction** → a use
+   case; a request that starts jobs, its rules, writes and sends after their commit, → the
+   `Ask<Model>Service` of the model asked, and the jobs' runs, their transactions included, → its
+   `Reply<Model>Service` ([layering.md](layering.md#ports-and-domain-services)).
 
 ```ts
 // a wrap, a static beside `layer`: each holder from this layer gets the audit; `make` is unedited
@@ -53,7 +53,8 @@ static readonly layerAudited = Layer.effect(
   ([layering.md › Ports and domain services](layering.md#ports-and-domain-services)); a job past
   that wraps it (`layer<Variant>`) or is a service composed over it, built from services of its
   own model and a repository only for what it adds; which composed services a model may have,
-  over which, and what an `Ask<Model>Service` takes besides: the same section.
+  over which, and what its `Ask<Model>Service` and `Reply<Model>Service` take besides: the same
+  section.
 - **Util:** a variation inside its job is a value it takes; another job is a function over it.
 - **Use case:** the composer; it holds only its flow
   ([layering.md › Use cases](layering.md#use-cases)). A step two use cases share lives once, as a

@@ -168,8 +168,8 @@
       "includes": [
         "application/*/services/**",
         "application/*/__tests__/services/**",
-        "!application/chat/services/ask-run.service.ts",
-        "!application/chat/services/ask-chat.service.ts"
+        "!application/chat/services/ask-chat.service.ts",
+        "!application/chat/services/reply-chat.service.ts"
       ],
       "linter": {
         "rules": {
@@ -182,6 +182,7 @@
                     "group": [
                       "@app-template/**",
                       "!@app-template/packages/{schema,testing}",
+                      "!@app-template/packages/queue/testing",
                       "!@app-template/kernel/data",
                       "!@app-template/kernel/data/testing",
                       "!@app-template/application/*",
@@ -193,7 +194,7 @@
                       "!@effect/vitest/**",
                       "!@effect/platform-bun"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/schema for the codecs and the id generator, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/queue, which a module's infrastructure holds; its tests add test support, the /testing of those, @app-template/packages/testing, @effect/vitest and @effect/platform-bun (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
+                    "message": "a module's services import no workspace but @app-template/packages/schema for the codecs and the id generator, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/queue, which a module's infrastructure holds; its tests add test support, the /testing of those and of @app-template/packages/queue, @app-template/packages/testing, @effect/vitest and @effect/platform-bun (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -202,7 +203,7 @@
                   },
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
-                    "message": "a module's services reach its infrastructure only through a port, save its queue file, whose sends the Run's ask service (AskRunService) calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "a module's services reach its infrastructure only through a port, save its queue file, whose jobs the ask service's tests read; the chat's ask and reply services have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }
@@ -230,13 +231,13 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's ask service (AskChatService) imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › Composition: wrap or compose)"
+                    "message": "the chat's ask service (AskChatService), the api's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
                     "importNamePattern": "Transaction",
                     "invertImportNamePattern": true,
-                    "message": "of @app-template/packages/db the chat's ask service takes only Transaction, to store the message and its Run in one transaction (decisions.md › Composition: wrap or compose)"
+                    "message": "of @app-template/packages/db the chat's ask service takes only Transaction, to store the message and its Run in one transaction (decisions.md › Jobs as queue messages)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -244,8 +245,8 @@
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": ["#*/infrastructure/**"],
-                    "message": "the chat's ask service reaches no part of its module's infrastructure: the jobs it asks for are sent after the commit, by the caller (decisions.md › Composition: wrap or compose; Jobs as queue messages)"
+                    "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
+                    "message": "the chat's ask service reaches its module's infrastructure only through a port and its queue file, whose sends it calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }
@@ -255,7 +256,7 @@
       }
     },
     {
-      "includes": ["application/chat/services/ask-run.service.ts"],
+      "includes": ["application/chat/services/reply-chat.service.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -273,13 +274,13 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the Run's ask service (AskRunService), which sends the Run's job and runs it, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The Run's job in its service)"
+                    "message": "the chat's reply service (ReplyChatService), the worker's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
                     "importNamePattern": "Transaction",
                     "invertImportNamePattern": true,
-                    "message": "of @app-template/packages/db the Run's ask service takes only Transaction, to write the job's outcome in one transaction (decisions.md › The Run's job in its service)"
+                    "message": "of @app-template/packages/db the chat's reply service takes only Transaction, to write a reply with its Run's end in one transaction (decisions.md › The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -287,12 +288,8 @@
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": [
-                      "#*/infrastructure/**",
-                      "!#*/infrastructure/*.queue",
-                      "!#*/infrastructure/*.llm"
-                    ],
-                    "message": "the Run's ask service reaches its module's infrastructure only through a port, its queue file, which sends the job, and its .llm file, whose assistant runs it (decisions.md › A module's layers; Jobs as queue messages; The Run's job in its service)"
+                    "group": ["#*/infrastructure/**", "!#*/infrastructure/*.llm"],
+                    "message": "the chat's reply service reaches its module's infrastructure only through a port and its .llm files, whose assistants reply (decisions.md › A module's layers; The chat's jobs in their services)"
                   }
                 ]
               }

@@ -17,7 +17,9 @@ import { recordLogs } from '@app-template/packages/testing'
 
 import { generateAssistantMessage } from '#use-cases/chat/generate-assistant-message.use-case'
 
-const generate = generateAssistantMessage(new GenerateAssistantMessage({ runId: queuedRun.id }))
+const generate = generateAssistantMessage(
+  new GenerateAssistantMessage({ messageId: queuedRun.userMessageId }),
+)
 
 const readRun = (run: Run) => () => encodeWith(Run)(run).pipe(Effect.map(Option.some))
 
@@ -91,15 +93,15 @@ describe('generateAssistantMessage', () => {
     },
   )
 
-  it.effect("generate skips a Run settled or gone, logged under its Run's id", () => {
+  it.effect("generate skips a Run settled or gone, logged under its user message's id", () => {
     const assistant = recordMessageAssistant(Effect.never)
-    const { logs, layer: logger } = recordLogs('runId')
+    const { logs, layer: logger } = recordLogs('messageId')
     return Effect.gen(function* () {
       yield* generate
 
       assertEquals(yield* assistant.histories, [])
       assert.deepStrictEqual(logs, [
-        ['Info', 'assistant reply skipped: its Run is settled or gone', queuedRun.id],
+        ['Info', 'assistant reply skipped: its Run is settled or gone', queuedRun.userMessageId],
       ])
     }).pipe(
       Effect.provide([

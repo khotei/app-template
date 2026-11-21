@@ -4,12 +4,12 @@ import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
-  AskRunService,
   ChatAssistant,
   ChatService,
   MessageAssistant,
   MessageService,
   MoveRunService,
+  ReplyChatService,
   RunService,
 } from '@app-template/application/chat'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
@@ -21,7 +21,7 @@ import { Transaction } from '@app-template/packages/db'
 import { WorkerHandler } from '#worker/worker.handler'
 
 export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide(AskRunService.layer),
+  Layer.provide(ReplyChatService.layer),
   Layer.provide(MoveRunService.layer),
   Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
 )

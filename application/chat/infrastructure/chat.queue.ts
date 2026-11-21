@@ -6,15 +6,14 @@ import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
 import type { MessageFields } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import type { Run } from '#chat/domain/run.model'
-import { RunId } from '#chat/domain/run.util'
 
 const { assistantMessage, chatTitle } = resources.queues
 
-/** `runId` is the Run the worker drives; the Run holds what it answers. */
+/** `messageId` is the user's message the worker replies to, through its active Run. */
 export class GenerateAssistantMessage extends Schema.Class<GenerateAssistantMessage>(
   'GenerateAssistantMessage',
 )({
-  runId: RunId,
+  messageId: MessageId,
 }) {}
 
 export const assistantMessageQueue = {
@@ -32,13 +31,19 @@ export const chatTitleQueue = {
   schema: GenerateChatTitle,
 } satisfies QueueDefinition<typeof GenerateChatTitle>
 
-/** Sends the job that answers the Run; one SQS refuses is logged and fails with its `QueueError`. */
+/**
+ * Sends the job that replies to the Run's user message; one SQS refuses is logged and fails with
+ * its `QueueError`.
+ */
 export const sendGenerateAssistantMessage = Effect.fn('sendGenerateAssistantMessage')((run: Run) =>
   QueueSender.use((queue) =>
-    queue.send(assistantMessageQueue, new GenerateAssistantMessage({ runId: run.id })),
+    queue.send(
+      assistantMessageQueue,
+      new GenerateAssistantMessage({ messageId: run.userMessageId }),
+    ),
   ).pipe(
     Effect.tapError((error) => Effect.logError('assistant message not queued', Cause.fail(error))),
-    Effect.annotateLogs({ chatId: run.chatId, runId: run.id }),
+    Effect.annotateLogs({ chatId: run.chatId, runId: run.id, messageId: run.userMessageId }),
   ),
 )
 

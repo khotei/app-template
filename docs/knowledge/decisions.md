@@ -146,9 +146,9 @@ A module holds `domain/`, `services/` and, once it reaches the environment, `inf
 behind one entry, its `index.ts`, which re-exports every layer; its files reach each other
 through aliases that name the module (`#<module>/domain/*`). A module's `infrastructure/` holds
 everything of the module that connects to the environment (a language model, a queue, a
-bucket): the adapters of its ports, the services a use case or `AskRunService` calls over a
+bucket): the adapters of its ports, the services a use case or `ReplyChatService` calls over a
 client ([The language model in the kernel](#the-language-model-in-the-kernel)), its queues'
-definitions with the send of each job, which the Run's ask service (`AskRunService`) may call
+definitions with the send of each job, which the chat's ask service (`AskChatService`) may call
 ([Jobs as queue messages](#jobs-as-queue-messages)). A repository is no port: a service calls
 the data layer's repository directly.
 
@@ -190,11 +190,12 @@ the data layer's repository directly.
   it only a value's name (`<name>Pattern`, `<name>Statuses`), and the language model's errors
   ([The language model in the kernel](#the-language-model-in-the-kernel)), the services' admitting neither
   `@app-template/kernel/aws` nor `@app-template/packages/queue`, and of their infrastructure only
-  the queue file (`#*/infrastructure/*.queue`), `AskRunService` (`ask-run.service.ts`) its own,
-  which adds `Transaction` alone of `@app-template/packages/db` and the module's `.llm` files
-  ([The Run's job in its service](#the-runs-job-in-its-service)), and the chat's ask service
-  (`ask-chat.service.ts`) its own, which adds `Transaction` alone and none of the infrastructure
-  ([Composition: wrap or compose](#composition-wrap-or-compose)): the rows of a module's layers in
+  the queue file (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
+  chat's ask service (`ask-chat.service.ts`) its own, which adds `Transaction` alone of
+  `@app-template/packages/db` and of the infrastructure the queue file alone, and the chat's reply
+  service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the module's
+  `.llm` files alone ([The chat's jobs in their services](#the-chats-jobs-in-their-services)):
+  the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
@@ -408,22 +409,22 @@ Minimal means less code inside each unit and no dead code, never fewer units. Th
 `.claude/rules/composition.md`.
 
 A model's records are served by domain services composed over each other, each named for what it
-adds; which services a model may have and over which:
-[layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services).
-`<Model>Service` holds the plain records (a create, a read by key with its `*NotFoundError`, a
-read of many, the writes that change records alone, a delete of many under the full `where` its
-caller passes), coding every row through the model, and `File<Model>Service`, composed over it,
-stores, serves and removes the bytes with the record, checking the rule a delete needs and
-passing its guard into the plain delete's `where`, and removes the bytes alone once a cascade
-took their rows, dying while one remains. A service sees only the services of its own model below
-it and reaches the records only through the plain one; another model's service stays a use
-case's, save in `AskRunService`, whose run of the job writes another model's record of its module
-([The Run's job in its service](#the-runs-job-in-its-service)), and in `AskChatService`, which
-takes a chat as read, checks a request to it (a send to a busy chat; a retry of a newest Run that
-is not failed, one in work included) and stores what the reply's job reads, the user's message
-with its queued Run in one transaction, or a retry's new Run of the failed Run's message; the use
-cases that ask, a send and a retry, keep the chat's read scoped to the user and the sends after
-the commit.
+adds; which services a model may have and over which: [layering.md › Ports and domain
+services](../../.claude/rules/layering.md#ports-and-domain-services). `<Model>Service` holds the
+plain records (a create, a read by key with its `*NotFoundError`, a read of many, the writes that
+change records alone, a delete of many under the full `where` its caller passes), coding every row
+through the model, and `File<Model>Service`, composed over it, stores, serves and removes the bytes
+with the record, checking the rule a delete needs and passing its guard into the plain delete's
+`where`, and removes the bytes alone once a cascade took their rows, dying while one remains. A
+service sees only the services of its own model below it and reaches the records only through the
+plain one; another model's service stays a use case's, save in the chat's two services of its jobs
+([The chat's jobs in their services](#the-chats-jobs-in-their-services)): `AskChatService`, the
+api's, which takes a chat as read, checks a request to it (a send to a busy chat; a retry of a
+newest Run that is not failed, one in work included), stores what the jobs read, the user's message
+with its queued Run in one transaction, or a retry's new Run of the failed Run's message, and sends
+the jobs after the commit; and `ReplyChatService`, the worker's, whose runs of the jobs write other
+models' records of its module. The use cases that ask, a send and a retry, keep the chat's read
+scoped to the user.
 
 ```ts
 // the bytes' service reads through the plain one, pipes the model's guard, passes it on, then
@@ -445,9 +446,10 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   stored, and the bytes are stored and removed with their record in one service; a holder that
   needs the records alone (a list, a bind) holds no byte store. The row's coding and its guards
   have one owner, so a change of the model's row lands in the plain service alone. A request's
-  rules and its writes sit in one service of the chat, as the job's sit in `AskRunService`, so
-  the busy check is written once for the send and the retry, and neither flow holds a rule or a
-  transaction.
+  rules, its writes and its jobs' sends sit in the api's service of the chat, and the jobs' runs
+  in the worker's, so the busy check and the reply's send are written once for the send and the
+  retry, and neither flow holds a rule, a transaction or a send; each service holds what one
+  process provides.
 - **Sources:** the owner's principle (2026-11-19): wrap or compose, and change a unit only for a
   fix or an extension of its first intention, for models and utils as for services; Robert C.
   Martin, "each software module should have one and only one reason to change"
@@ -459,7 +461,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   the Decorator, also known as Wrapper; `repos/effect/LLMS.md`: "Build focused service layers,
   then compose them with `Layer.provide` and `Layer.provideMerge`";
   `.claude/rules/layering.md › Ports and domain services`; the owner's call in the design audit,
-  the request in `AskChatService`.
+  the request in `AskChatService`; the owner's split of the chat's jobs at the queue, the api's
+  half and the worker's (2026-11-21).
 - **Rejected:** folding a unit into another for its line count or its single caller: neither says
   anything of the job the unit holds, and the fold edits a tested unit for a job not its own. One
   service per model: one unit with several reasons to change; the bytes in `<Model>Service` are
@@ -467,9 +470,11 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   flag or an option added to a unit for one caller: the unit then answers two callers. The file
   service writing or reading the rows through the repository itself: a second owner of the row's
   coding. A request's rules called in the use cases' flow, its writes in a helper beside them: a
-  rule's call and a transaction in a flow, the busy check in two flows. `ask` and `retry` as
-  methods of `AskRunService`: one service holding the whole feature, the request and the job,
-  with two reasons to change.
+  rule's call and a transaction in a flow, the busy check in two flows. The request in
+  `AskChatService` and the Run's job, its send and its run, in a service of the Run: each use case
+  that asks composed the request, the title's send and the reply's, and the new chat's rule sat in
+  one of them. One service holding the request, the sends and the runs: the needs of two
+  processes (the queue's sender, the assistants) in one unit, which each process provides whole.
 - **Cost:** more units, files and layers, and longer provide lists; Gamma et al. name the price,
   "more objects (if fewer classes)". Whether a change extends a unit's job or adds another is
   judgement: review decides it, and the owner settles a dispute. For a model with bytes, two
@@ -481,15 +486,17 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule over the
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
-  so the rule the reader pipes names every absent id at once. `AskChatService` is one more
-  service and layer, and a second service that takes `Transaction` and other models' services,
-  admitted by its own Biome override, by its file's name.
+  so the rule the reader pipes names every absent id at once. The chat's jobs take two services
+  and two Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`
+  and the queue file, and `ReplyChatService`, the worker's, `Transaction` and the `.llm` files;
+  both take other models' services, by their files' names.
 - **Guarded by:** review, by `.claude/rules/composition.md`, which `make review-rules` prints for
   every TypeScript diff, and by `layering.md`; `noImportCycles` refuses a unit below that imports
   the one over it. Nothing refuses a fold, nor a service of another model, in a job's service or
-  any other. `AskChatService`'s Biome override admits of `@app-template/packages/db` only
-  `Transaction` and none of the module's infrastructure; its unit test pins each refusal before
-  any write, and the api's e2e of a send whose Run Postgres refuses keeps no message.
+  any other. The two services' Biome overrides admit of `@app-template/packages/db` only
+  `Transaction`, the ask service's of the infrastructure only the queue file and the reply
+  service's only the `.llm` files; the ask service's unit test pins each refusal before any write
+  or job, and the api's e2e of a send whose Run Postgres refuses keeps no message.
 - **If reversed:** a new job edits the unit nearest to it, and each unit's tests gain cases for
   jobs not its own; the file methods fold into one `<Model>Service`, and every holder of the
   records depends on the byte store.
@@ -556,14 +563,15 @@ built-in call is not written; the built-in is called.
 
 ### A Run's moves in their own service
 
-`MoveRunService`, layered over `RunService`, holds a Run's status moves: `generate`, `complete`
+`MoveRunService`, layered over `RunService`, holds a Run's status moves: `start`, `complete`
 and `fail`, each the model's transition (`generateRun`, …) then `RunService.update` under the
 status the Run was read in, through one helper. `complete` takes the Run its caller read;
-`generate` and `fail` take the Run's id and read it as it stands now among the active ones,
-`RunNotFoundError` once it is settled or gone. `generate`, the job's first move, `queued` to
+`start` takes the user's message a reply's job names, `fail` the Run's id or its user
+message, and each reads the active Run it names as it stands now, `RunNotFoundError` when none
+is active. `start`, the job's first move, `queued` to
 `generating`, pipes that read through the model's `ensureRunUnstarted`, `RunStartedError` for a
 Run some worker started; `fail` keeps the full text of the `Cause` it is given. `RunService` stays the
-plain write under a caller's `where`, and `AskRunService` and every use case move a Run through
+plain write under a caller's `where`, and the chat's two job services move a Run through
 `MoveRunService`, never through a transition and an update of their own. A move the model's
 table refuses dies with `RunStatusInvalidError`: every caller moves a Run it has just read or
 moved, so a refusal is a bug, and a race dies on the write's guard instead. A reply writes the
@@ -571,14 +579,13 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
 `generating` and the end.
 
 - **Why:** the six moves of the use cases composed the same two calls with the same guard; in one
-  service the guard on the status read is written once, and a move can no longer forget it.
-  `fail` reads its own Run, as its callers fail a Run that moved since they read it (the reply
-  moves it from `queued` to `generating`): no caller can hand it a stale Run. That a job takes
-  only an unstarted Run is a rule of the Run, so the service that moves it calls it, as `fail`
-  reads its own Run, and `AskRunService.reply`, which runs the job, calls `generate`
-  ([The Run's job in its service](#the-runs-job-in-its-service)). One started status: a status
-  of its own before `generating` lasted one read of the chat's history, and no code branched on
-  it.
+  service the guard on the status read is written once, and a move can no longer forget it. `fail`
+  reads its own Run, as its callers fail a Run that moved since they read it (the reply moves it
+  from `queued` to `generating`): no caller can hand it a stale Run. That a job takes only an
+  unstarted Run is a rule of the Run, so the service that moves it calls it, as `fail` reads its own
+  Run, and `ReplyChatService.replyMessage`, which runs the job, calls `start` ([The chat's jobs in
+  their services](#the-chats-jobs-in-their-services)). One started status: a status of its own
+  before `generating` lasted one read of the chat's history, and no code branched on it.
 - **Sources:** the owner's call in the design audit;
   [Composition: wrap or compose](#composition-wrap-or-compose).
 - **Rejected:** the moves on `RunService` itself: the plain service would know the transitions.
@@ -597,8 +604,9 @@ Run twice, `generating` then `done` (or `failed`), and a client polling it sees 
   back: one value of `runStatuses`, one row of the moves' table, one move, and a regenerated
   `init`.
 - **Guarded by:** `MoveRunService`'s unit test: each move writes under the status read, a
-  refused move dies and writes nothing, `generate` of a started Run fails `RunStartedError`, and
-  `generate` or `fail` of a Run settled or gone fails `RunNotFoundError`; the model's test of
+  refused move dies and writes nothing, `start` of a started Run fails `RunStartedError`,
+  `start` and `fail` read the active Run they name, and of a Run settled or gone fail
+  `RunNotFoundError`; the model's test of
   `ensureRunUnstarted`; review, by `deep-modules.md › Composition over pass-through`.
 - **If reversed:** each use case composes the transition and `RunService.update` again.
 - **Revisit when:** a move needs a guard other than the status read and the model's rule.
@@ -649,7 +657,7 @@ opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
 `askModel` and fails with its `LlmError`. The domain keeps only what they take and answer
 (`MessageFields`, `AssistantReply`), and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in
-front of the services. A use case, or `AskRunService`, yields the service it needs, a unit
+front of the services. A use case, or `ReplyChatService`, yields the service it needs, a unit
 test swaps that service's layer, and the suite builds both layers over a recording client.
 
 - **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a
@@ -692,7 +700,7 @@ test swaps that service's layer, and the suite builds both layers over a recordi
 - **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
   `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
   domain and the use cases take of `kernel/llm` only `/error`'s errors, by name; no service but
-  `AskRunService` imports an `.llm` file, so only it or a use case reaches the assistants);
+  `ReplyChatService` imports an `.llm` file, so only it or a use case reaches the assistants);
   the assistants' suite over a recording client.
 - **If reversed:** a port per job comes back in `domain/` with an adapter constant each that
   only builds the same shape, or one port of two methods with a fake branch per method; errors
@@ -924,19 +932,22 @@ without renaming provisioned resources. No app wires the files today.
 
 ### Jobs as queue messages
 
-A job is a message on its queue, and no table holds it: the work it asks for keeps its own
-record (the Run, the chat's title), which the worker reads to run it once, to settle a Run whose
-worker died and to record a failure. `QueueSender.send` encodes the job by its
-definition; a use case sends it after its commit, so every delivery finds its record. Each job
-goes through its `send<Job>` in its module's infrastructure, in the file of its queue's
-definition, which only sends it and logs a send SQS refuses. The reply's send answers its
-`QueueError`, and both use cases that send it end with `AskRunService.ask`, which sends the job
-and fails the Run through `MoveRunService.fail`, with the error's full text as its failure; the
-request answers `202` with that failed Run. The send and that failure run uninterruptibly, so a
-client that aborts mid-send still leaves the Run sent or failed. The title's send only logs it,
-as its work has no record to settle. Which services a Run has and over which:
-[layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
-who runs the reply's job: [The Run's job in its service](#the-runs-job-in-its-service).
+A job is a message on its queue, and no table holds it: the work it asks for keeps its own record
+(the Run, the chat's title), which the worker reads to run it once, to settle a Run whose worker
+died and to record a failure. `QueueSender.send` encodes the job by its definition; a use case sends
+it after its commit, so every delivery finds its record. Each job goes through its `send<Job>` in
+its module's infrastructure, in the file of its queue's definition, which only sends it and logs a
+send SQS refuses. Both of chat's jobs name the user's message: the title's reads it, and the reply's
+runs its active Run, which the unique index on a chat's active Run keeps to one; what a job that
+names no one Run costs: [A Run's job on interrupt and on two
+deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The reply's send returns its
+`QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
+commit and fails the Run through `MoveRunService.fail`, with the error's full text as its failure;
+the request answers `202` with that failed Run. The send and that failure run uninterruptibly, so a
+client that aborts mid-send still leaves the Run sent or failed. The title's send only logs it, as
+its work has no record to settle. Which services a Run has and over which: [layering.md › Ports and
+domain services](../../.claude/rules/layering.md#ports-and-domain-services); who runs each job: [The
+chat's jobs in their services](#the-chats-jobs-in-their-services).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -944,8 +955,8 @@ who runs the reply's job: [The Run's job in its service](#the-runs-job-in-its-se
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
   has no use apart from its queue. Each unit knows only its own: the send its queue,
-  `MoveRunService` the move to `failed` and its write, `AskRunService` the pair, a step the two
-  use cases that send the reply share, which lives once as a service of the Run
+  `MoveRunService` the move to `failed` and its write, `AskChatService` the pair, a step its two
+  methods share, which lives once there
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
   another. A port for the send would put an interface and a layer in front of one call.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
@@ -971,93 +982,124 @@ who runs the reply's job: [The Run's job in its service](#the-runs-job-in-its-se
   chat busy ([roadmap.md › Later](roadmap.md#later)); a client's abort before the send:
   [A Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries).
   A refused send answers `202`, so a client reads the failure from the Run's status, not
-  the response's. A domain service now reaches its module's queue file, so the services' guard
-  admits that one file of infrastructure; a call of `AskRunService.ask` inside a transaction
-  would send before the commit, which no check refuses: the rule in `.claude/rules/layering.md`
-  and review hold it.
-- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskRunService.ask` and
-  of the create flow; the services' Biome override, which admits of their infrastructure only
+  the response's. A domain service now reaches its module's queue file, so the ask service's
+  guard admits that one file of infrastructure; a send inside its transaction would send before
+  the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
+  it.
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of
+  the create flow; the ask service's Biome override, which admits of its infrastructure only
   `#*/infrastructure/*.queue`; the `infrastructure/` and `use-cases` rows of
   [architecture.md › Dependency rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 
-### The Run's job in its service
+### The chat's jobs in their services
 
-The reply's job runs in `AskRunService.reply`: `MoveRunService.generate` moves the Run to
+A chat's jobs are split at the queue: `AskChatService`, in the api, stores a request and sends
+its jobs after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and
+`ReplyChatService`, in the worker, runs them. Its `replyMessage` runs the reply's job, given the
+user's message the job names: `MoveRunService.start` moves that message's active Run to
 `generating` if unstarted, then the chat's history, the assistant's reply, and the assistant's
-message with the Run's `done` in one transaction; one tail on the whole function fails the Run
-as it stands now on whatever ends it, `generate`'s refusal included. A Run some worker started
-fails `RunStartedError`, whose text says its worker stopped, and is failed with it; a Run settled
-or gone fails `RunNotFoundError`, unwritten, as the tail finds nothing to fail. The job's use
-case ends the job in one tail: it skips a Run settled or gone, ends on a started Run and on the
-assistant's error, which the Run already holds, logging each end once with its cause, an
-interrupt included; a defect, a refused move's included, is the queue consumer's to log. For the
-reply the service takes `Transaction`, its module's `.llm` file and `MessageService`, the service
-of another model of its module; of the other services only `AskChatService` takes `Transaction`
-and other models' services, for the writes the job reads
-([Composition: wrap or compose](#composition-wrap-or-compose)).
+message with the Run's `done` in one transaction; one tail on the whole function fails the
+message's active Run as it stands now on whatever ends it, `start`'s refusal included. A Run some
+worker started fails `RunStartedError`, whose text says its worker stopped, and is failed with
+it; a message with no active Run fails `RunNotFoundError`, unwritten, as the tail finds nothing
+to fail. Its `replyTitle` runs the title's job: the chat's first message, the assistant's title,
+and the title written while the chat is untitled, so a rename by the user wins. Each job's use
+case ends the job in one tail: the reply's skips a Run settled or gone, ends on a started Run and
+on the assistant's error, which the Run already holds, logging each end once with its cause, an
+interrupt included; the title's skips a chat gone or titled and logs the assistant's error; a
+defect, a refused move's included, is the queue consumer's to log. `ReplyChatService` takes
+`Transaction`, its module's `.llm` files and the services of the module's other models, for the
+records the jobs write; `AskChatService` takes `Transaction`, its queue file and those services,
+for the request and its sends ([Composition: wrap or compose](#composition-wrap-or-compose)).
 
-- **Why:** the Run's job sits in one service: the rule a job keeps (an unstarted Run only), the
+- **Why:** each job's run sits in one service: the rule a job keeps (an unstarted Run only), the
   moves it makes and the handler that fails the Run on what ends the answer, the rule's refusal
   included, so a dead worker's Run is failed inside the service that holds the rule. The service
   reports each refusal as a typed error, so the job's end, a policy of the job (skip, end, die),
   and every log of it sit in the use case's one tail, and the service logs nothing. A Run the
   handler finds settled or gone has nothing to fail, so the answer's own failure stands; any
-  other refusal of the handler dies.
-- **Sources:** the owner's call in the design audit, the reply in `AskRunService`.
+  other refusal of the handler dies. The split follows the processes: what the api provides (the
+  queue's sender) is the ask service's alone, what the worker provides (the assistants) the reply
+  service's, so each process builds only its half, and each half's guard admits only its own
+  infrastructure.
+- **Sources:** the owner's call in the design audit, the reply in its job's service; the owner's
+  split at the queue, `AskChatService { askMessage, askRetryMessage }` and
+  `ReplyChatService { replyMessage, replyTitle }` (2026-11-21).
 - **Rejected:** the reply in its use case, the service only sending: the Run's rule and moves
   composed in a flow, and its job's statuses in two units. The skip logged in the service,
-  `reply` then failing only with the assistant's errors: the job's end split over two units, each
-  with its logs. The assistant's errors settled in the service: the use case would hold nothing,
-  and the job's end is the job's policy. A port in `domain/` for the assistant `AskRunService`
-  calls: an interface with one implementation for one caller, where its own override admits the
-  `.llm` file by name.
-- **Cost:** `AskRunService` comes near a use case in reach (a transaction, an assistant, another
-  model's service): its own Biome override admits it by its path (`ask-run.service.ts`), apart
-  from the narrower one of `AskChatService`, which shares its prefix, and review keeps it to its
-  job; it names the assistant's errors through the assistant's type, as a service imports no part
-  of the kernel. Its `ask` requires the queue's sender, and `reply` the assistant, which the
-  caller's process provides, so the module's test layer builds without either.
-- **Guarded by:** the unit tests of `AskRunService.reply` and of the job's end and its logs in its
-  use case; `AskRunService`'s Biome override, which adds to the services' its `.llm` files and of
-  `@app-template/packages/db` only `Transaction`.
+  `replyMessage` then failing only with the assistant's errors: the job's end split over two
+  units, each with its logs. The assistant's errors settled in the service: the use case would
+  hold nothing, and the job's end is the job's policy. A port in `domain/` for the assistants the
+  service calls: an interface with one implementation for one caller, where its own override
+  admits the `.llm` files by name. The title's run left in its use case: one of the chat's two
+  jobs read and wrote records in a flow. One service sending and running the jobs: each process
+  would provide the other's requirement, and one guard would admit both the queue file and the
+  `.llm` files.
+- **Cost:** two services and two Biome overrides, each of one process. `ReplyChatService` comes
+  near a use case in reach (a transaction, the assistants, other models' services): its own Biome
+  override admits it by its path (`reply-chat.service.ts`), and review keeps it to its jobs; it
+  names the assistants' errors through their types, as a service imports no part of the kernel.
+  Its `replyMessage` requires the message's assistant and `replyTitle` the chat's, which the
+  worker provides, so the module's test layer builds without either.
+- **Guarded by:** the unit tests of `ReplyChatService` and of each job's end and its logs in its
+  use case; its Biome override, which adds to the services' its `.llm` files and of
+  `@app-template/packages/db` only `Transaction`; the ask service's override, which adds the
+  queue file and `Transaction` alone.
 - **If reversed:** the Run's rule and moves go back into the job's use case, which then fails the
-  Run outside the service that holds the rule, and the service only sends.
-- **Revisit when:** the Run gains a second job, whose run would share this service with the reply.
+  Run outside the service that holds the rule, and the title's reads and write go back into
+  theirs.
+- **Revisit when:** a job of the chat runs in the api, or one the worker sends, so a half would
+  need the other process's requirement.
 
 ### A Run's job on interrupt and on two deliveries
 
 What a Run's job accepts when it is cut short or run twice. The tail on the whole of
-`AskRunService.reply` fails the Run on an interrupt as on any failure, so a worker interrupted
-while the job reads its Run or while the assistant answers leaves the Run `failed`, not started;
-the send in `AskRunService.ask` and a refused send's failure run uninterruptibly. A client that
+`ReplyChatService.replyMessage` fails the Run on an interrupt as on any failure, so a worker
+interrupted while the job reads its Run or while the assistant answers leaves the Run `failed`,
+not started; the reply's send in `AskChatService` and a refused send's failure run
+uninterruptibly. A client that
 aborts while the Run's write commits or the title's send runs ends the flow before the reply's
 send starts, and the Run stays queued. Two deliveries at the same instant both read the Run
 queued; the loser's guarded `generating` write dies and its handler fails the Run the winner works
 on, so the winner's next write dies, the reply is lost and the user retries. A Run settled or
-deleted under the reply is left as it is, so the job ends on the answer's own failure.
+deleted under the reply is left as it is, so the job ends on the answer's own failure. The job
+names the user's message, not a Run, so a delivery runs whichever Run of it is active then: a
+failed Run's job delivered again after the user's retry starts the retry's Run, whose own job
+then finds it started and fails it with `RunStartedError`, and the user retries once more. The
+tail reads the Run it fails by the message too, so a reply that dies after such a delivery
+failed its Run and the user retried fails the retry's Run.
 
 - **Why:** the handler sits on the whole function, so no failure or interrupt of the reply leaves
   the Run started for the next delivery, and the reply reads as if nothing failed. A race of two
   deliveries is decided by the guard in the write, with no lock in the process
   ([Guards in the write, no lock](#guards-in-the-write-no-lock)).
-- **Sources:** the owner's call in the design audit, the reply in `AskRunService`; the owner keeps
-  the abort's window as a cost (2026-11-20, [roadmap.md › Later](roadmap.md#later)).
+- **Sources:** the owner's call in the design audit, the reply in its job's service; the owner keeps
+  the abort's window as a cost (2026-11-20, [roadmap.md › Later](roadmap.md#later)); the owner's
+  call that the reply's job carries the user's message, as the title's does, and accepts what a
+  second delivery then costs (2026-11-21).
 - **Rejected:** the handler after the first move: an interrupt between its write and the handler
   left the Run started until the next delivery, up to the queue's visibility timeout later, and
-  the use case failed a started Run outside the service that holds the rule.
+  the use case failed a started Run outside the service that holds the rule. The job carrying the
+  Run's id: a second delivery found its own Run settled and was skipped, but the reply to a
+  message then takes a Run's id, and the method's name and its parameter disagree. The tail
+  failing by the Run's id once the body has read it: a second tail on the steps after the read,
+  and an uninterruptible hand-off between the two, for the same window of a second delivery.
 - **Cost:** a client that aborts while the Run's write commits or the title's send runs leaves the
   Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)). Two deliveries at the
-  same instant lose the reply, and the user retries. A model's error on a Run whose chat was
+  same instant lose the reply, and the user retries. A failed Run's job delivered again after a
+  retry fails the retry's Run, and the user retries again. A model's error on a Run whose chat was
   deleted meanwhile warns like any other, with no sign the Run was gone.
-- **Guarded by:** the unit tests of `AskRunService`, one interrupted mid-send, one while the
-  assistant answers, one while the job reads its Run, one losing the `generating` write to a
-  rival; the job's use case's test of an interrupt's end and its log.
+- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, and of
+  `ReplyChatService`, one while the assistant answers, one while the job reads its Run, one
+  losing the `generating` write to a rival, one of a failed Run's job delivered again after its
+  retry; the job's use case's test
+  of an interrupt's end and its log.
 - **If reversed:** the handler after the first move again: an interrupted reply leaves its Run
   started until the next delivery fails it.
-- **Revisit when:** the logs show replies lost to two deliveries at once, or Runs left queued by
-  an abort.
+- **Revisit when:** the logs show replies lost to two deliveries at once, retries failed as
+  started, or Runs left queued by an abort.
 
 ### One initial migration
 

@@ -1,5 +1,6 @@
 import { Data, Schema } from 'effect'
 
+import { MessageId } from '#chat/domain/message.util'
 import { RunId } from '#chat/domain/run.util'
 import { Status } from '#chat/domain/status.model'
 
@@ -8,8 +9,10 @@ export class RunStatusInvalidError extends Schema.TaggedError<RunStatusInvalidEr
   { id: RunId, from: Status, to: Status },
 ) {}
 
+/** Names the Run asked for: by its id, or as the active Run of its user message. */
 export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('RunNotFoundError', {
-  id: RunId,
+  id: Schema.optionalKey(RunId),
+  userMessageId: Schema.optionalKey(MessageId),
 }) {}
 
 export class RunStartedError extends Data.TaggedError('RunStartedError')<{

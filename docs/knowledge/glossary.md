@@ -31,7 +31,7 @@ _Avoid_: Prompt, completion, turn
 The work of answering one user message: its status and its failure. A send starts
 one, queued; the worker moves it and, once it is done, writes the assistant's message. A retry is
 a new Run of the same message.
-_Avoid_: Job (a queue message that names a Run), task, attempt
+_Avoid_: Job (a queue message that names the user message whose active Run it runs), task, attempt
 
 **Reply**:
 What the assistant answers to a user's message: the text a Run asks the assistant for and, once
@@ -115,10 +115,10 @@ generated. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:
-One scenario that composes domain services and model rules, of one module or several, with the
-jobs, the assistant or one transaction; what a handler calls when a flow is more than one service
-method. It holds only its flow, the order of the calls, the transaction and the job sends; each
-module's rules and records stay in its models and services.
+One scenario that composes domain services and model rules, of one module or several, or one
+transaction, or ends a job; what a handler calls when a flow is more than one service method. It
+holds only its flow, the order of the calls, the transaction, what it skips and logs; each
+module's rules, records and jobs stay in its models and services.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Boundary**:
@@ -160,7 +160,8 @@ _Avoid_: Implementation, provider, DAO, store
 **Domain service**:
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
 guards goes through it. A model starts with `<Model>Service` over its repository; a job past it
-is a service composed over it, named for what it adds.
+is a service composed over it, named for what it adds: a request that starts jobs its
+`Ask<Model>Service`, in the api, the jobs' runs its `Reply<Model>Service`, in the worker.
 _Avoid_: Manager, helper, application service, business logic, service layer
 
 **Composition**:
@@ -176,6 +177,7 @@ _Avoid_: Controller, consumer (the function that runs a queue's handler), proces
 
 **Job**:
 A message on a queue that asks the worker for one unit of work, shaped by its queue definition.
+Both of chat's name the user's message: the reply's runs its active Run, the title's reads it.
 _Avoid_: Task, event, command, message (the chat's word)
 
 **Kernel**:

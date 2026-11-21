@@ -16,17 +16,27 @@ const refused = new QueueError({ cause: new Error('SQS is unavailable') })
 const RefusingQueueTest = Layer.mock(QueueSender, { send: () => Effect.fail(refused) })
 
 describe('sendGenerateAssistantMessage', () => {
-  it.effect('a reply job SQS refuses is logged with its chat, Run and error, and fails it', () => {
-    const { logs, layer: logger } = recordLogs('chatId', 'runId')
-    return Effect.gen(function* () {
-      const error = yield* sendGenerateAssistantMessage(queuedRun).pipe(Effect.flip)
+  it.effect(
+    'a reply job SQS refuses is logged with its chat, Run, message and error, and fails it',
+    () => {
+      const { logs, layer: logger } = recordLogs('chatId', 'runId', 'messageId')
+      return Effect.gen(function* () {
+        const error = yield* sendGenerateAssistantMessage(queuedRun).pipe(Effect.flip)
 
-      assert.strictEqual(error, refused)
-      assert.deepStrictEqual(logs, [
-        ['Error', 'assistant message not queued', queuedRun.chatId, queuedRun.id, refused],
-      ])
-    }).pipe(Effect.provide([RefusingQueueTest, logger]))
-  })
+        assert.strictEqual(error, refused)
+        assert.deepStrictEqual(logs, [
+          [
+            'Error',
+            'assistant message not queued',
+            queuedRun.chatId,
+            queuedRun.id,
+            queuedRun.userMessageId,
+            refused,
+          ],
+        ])
+      }).pipe(Effect.provide([RefusingQueueTest, logger]))
+    },
+  )
 })
 
 describe('sendGenerateChatTitle', () => {

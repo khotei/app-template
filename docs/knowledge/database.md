@@ -177,18 +177,20 @@ a race: every repository's `insert`, `update` and `delete` dies when Postgres re
 touches no row:
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat read with
-  its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`, `ChatBusyError`, 409);
+  active Run in a chat fails on the index and dies. `AskChatService.askMessage` takes the chat
+  read with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
+  `ChatBusyError`, 409);
   of two sends that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window answers
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
   and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.update(run, where)` stamps the
   moved Run with the current time and passes it, encoded, as the set, and the caller's
-  `RunEntityWhere` as it is. The service requires only the id; `MoveRunService`, which writes
-  every status move, passes the status it read too, so a write whose expected status another
+  `RunEntityUpdateWhere` as it is, which requires the id where a read's `RunEntityWhere` takes
+  the id or the user's message; `MoveRunService`, which writes every status move, passes the
+  status it read too, so a write whose expected status another
   worker has left, or whose Run is gone, changes nothing and dies; the `fail` that follows reads
-  the Run again and fails it if still active, else leaves it, and the next delivery skips it. A
+  the message's active Run again and fails it, else leaves it, and the next delivery skips it. A
   Run's completion writes the assistant's message, then moves the Run to `done` naming it, in one
   transaction, so a lost race keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
@@ -219,8 +221,9 @@ cascade, and `ChatService.delete` is all the api's delete calls.
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
 (`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
-pipes `transaction.run` on the expression that holds them: `AskChatService.ask` the user's
-message and its queued Run, `AskRunService.reply` the reply and the Run's `done`. Every
+pipes `transaction.run` on the expression that holds them: `AskChatService.askMessage` the
+user's message and its queued Run, `ReplyChatService.replyMessage` the reply and the Run's
+`done`. Every
 repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every
 race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3
@@ -238,11 +241,11 @@ writes the move, and in brackets its caller; every move is written under the sta
 
 ```mermaid
 stateDiagram-v2
-  [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
-  queued --> generating: MoveRunService.generate (AskRunService.reply)
-  queued --> failed: MoveRunService.fail (AskRunService.ask on a refused send, reply's tail)
-  generating --> done: MoveRunService.complete (AskRunService.reply)
-  generating --> failed: MoveRunService.fail (AskRunService.reply's tail)
+  [*] --> queued: RunService.create (AskChatService.askMessage, AskChatService.askRetryMessage)
+  queued --> generating: MoveRunService.start (ReplyChatService.replyMessage)
+  queued --> failed: MoveRunService.fail (AskChatService on a refused send, replyMessage's tail)
+  generating --> done: MoveRunService.complete (ReplyChatService.replyMessage)
+  generating --> failed: MoveRunService.fail (ReplyChatService.replyMessage's tail)
   done --> [*]
   failed --> [*]
 ```
@@ -269,8 +272,9 @@ chat's title) is the one the worker reads
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and answers `500`.
-- **A send SQS refuses** is logged with the job's id and its chat's. For the reply's,
-  `AskRunService.ask` also fails its Run through `MoveRunService.fail`, as it stands now, with
+- **A send SQS refuses** is logged with the ids of its chat and its user message, and the
+  reply's with its Run's too. For the reply's,
+  `AskChatService` also fails its Run through `MoveRunService.fail`, as it stands now, with
   the queue's error's full text as its failure, and the request answers `202` with that failed
   Run; the message is stored and shown failed with its retry,
   `POST /chats/:chatId/runs`. The title's send only logs it. A send that never happens after the
