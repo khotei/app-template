@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option } from 'effect'
 
 import type { MessageColumns, MessageEntityWhere, RunColumns } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
@@ -14,17 +14,8 @@ import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunFields } from '#chat/domain/run-fields.model'
 import { AskChatService } from '#chat/services/ask-chat.service'
-import {
-  assistantMessageAt,
-  chat,
-  firstMessage,
-  owner,
-  queuedRun,
-} from '#testing/chat/chat.test-fixture'
+import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
-
-/** Every refusal a retry answers before its first write. */
-const RetryRefusal = Schema.Union([ChatBusyError, RunNotRetryableError, MessageNotFoundError])
 
 /** The rows each repository's `insert` is handed. */
 interface Inserts {
@@ -120,21 +111,13 @@ describe('AskChatService', () => {
   )
 
   it.effect.each([
-    {
-      name: 'while a Run is in work',
-      read: withNewest(queuedRun),
-      error: new ChatBusyError({ id: chat.id }),
-    },
-    {
-      name: "when the chat's newest Run is done",
-      read: withNewest(doneRun),
-      error: new RunNotRetryableError(),
-    },
-  ])('retry $name is refused before any write', ({ read, error }) =>
+    { name: 'while a Run is in work', read: withNewest(queuedRun) },
+    { name: "when the chat's newest Run is done", read: withNewest(doneRun) },
+  ])('retry $name is RunNotRetryableError before any write', ({ read }) =>
     Effect.gen(function* () {
       const refused = yield* retry(read).pipe(Effect.flip)
 
-      assertSchemaEquals(RetryRefusal, refused, error)
+      assertSchemaEquals(RunNotRetryableError, refused, new RunNotRetryableError())
     }).pipe(Effect.provide(layerChatTest({}))),
   )
 
@@ -161,7 +144,7 @@ describe('AskChatService', () => {
   })
 
   it.effect(
-    "retry asks the store for the failed Run's message in the user's chat and answers its none as MessageNotFoundError",
+    "retry asks the store for the failed Run's message by its id and answers its none as MessageNotFoundError",
     () => {
       const wheres: Array<MessageEntityWhere> = []
       return Effect.gen(function* () {
@@ -170,11 +153,9 @@ describe('AskChatService', () => {
         assertSchemaEquals(
           MessageNotFoundError,
           error,
-          new MessageNotFoundError({ id: firstMessage.id, author: Option.some('user') }),
+          new MessageNotFoundError({ id: firstMessage.id }),
         )
-        assert.deepStrictEqual(wheres, [
-          { id: firstMessage.id, chatId: chat.id, userId: owner, author: 'user' },
-        ])
+        assert.deepStrictEqual(wheres, [{ id: firstMessage.id }])
       }).pipe(
         Effect.provide(
           layerChatTest({

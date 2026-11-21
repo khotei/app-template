@@ -8,7 +8,7 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
-import { MessageService, type MessageWhere } from '#chat/services/message.service'
+import { MessageService } from '#chat/services/message.service'
 import { chat, firstMessage, owner } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
@@ -40,20 +40,13 @@ describe('MessageService', () => {
     )
   })
 
-  it.effect.each<{ readonly name: string; readonly where: MessageWhere }>([
-    { name: 'a message', where },
-    { name: "an assistant's message", where: { ...where, author: 'assistant' } },
-  ])('getOne of $name the store finds none of is MessageNotFoundError', ({ where }) =>
+  it.effect('getOne of a message the store finds none of is MessageNotFoundError', () =>
     Effect.gen(function* () {
       const service = yield* MessageService
 
       const error = yield* service.getOne(where).pipe(Effect.flip)
 
-      assertSchemaEquals(
-        MessageNotFoundError,
-        error,
-        new MessageNotFoundError({ id: where.id, author: Option.fromUndefinedOr(where.author) }),
-      )
+      assertSchemaEquals(MessageNotFoundError, error, new MessageNotFoundError({ id: where.id }))
     }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 

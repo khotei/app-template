@@ -79,7 +79,6 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     error: [
       MessageNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
-      ChatBusyError.pipe(HttpApiSchema.status(409)),
       RunNotRetryableError.pipe(HttpApiSchema.status(409)),
     ],
   }),

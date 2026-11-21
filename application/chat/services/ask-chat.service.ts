@@ -20,9 +20,7 @@ export class AskChatService extends Context.Service<
     /** Stores the user's `text` in `chat` and the queued Run that answers it, together. */
     readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError>
     /** Stores a new queued Run of the message the chat's failed newest Run answered. */
-    readonly retry: (
-      chat: Chat,
-    ) => Effect.Effect<Run, ChatBusyError | RunNotRetryableError | MessageNotFoundError>
+    readonly retry: (chat: Chat) => Effect.Effect<Run, RunNotRetryableError | MessageNotFoundError>
   }
 >()('@app-template/application/chat/services/AskChatService', {
   make: Effect.gen(function* () {
@@ -40,15 +38,8 @@ export class AskChatService extends Context.Service<
     })
 
     const retry = Effect.fn('AskChatService.retry')(function* (chat: Chat) {
-      yield* ensureChatNotBusy(chat.run)
       const failed = yield* ensureRunRetryable(chat.run)
-
-      const userMessage = yield* messages.getOne({
-        id: failed.userMessageId,
-        chatId: chat.id,
-        userId: chat.userId,
-        author: 'user',
-      })
+      const userMessage = yield* messages.getOne({ id: failed.userMessageId })
       return yield* runs.create(userMessage)
     })
 

@@ -357,10 +357,11 @@ moves it into its own `Later` and deletes it here.
   ledger of jobs, a sweep of active Runs. The owner refused a rule by a Run's age, and keeps the
   abort's window as a cost (2026-11-20).
 - (2026-11-13) Two sends or two retries of one chat that arrive within the few milliseconds between
-  the check and the insert (two tabs, a client that resends) both pass `ensureChatNotBusy`; the
-  active Run's index refuses the second insert, which dies, so the client gets a bare `500`, not
-  `409 ChatBusyError`; a double click, its second request arriving after the first Run is stored,
-  already gets the `409` (`RunRepository.insert`, `RunService.create`). Left: a lost race dies by
+  the check and the insert (two tabs, a client that resends) both pass their check
+  (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
+  which dies, so the client gets a bare `500`, not a `409`; a double click, its second request
+  arriving after the first Run is stored, already gets the `409` (`RunRepository.insert`,
+  `RunService.create`). Left: a lost race dies by
   [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
   weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
   `ChatBusyError` (an exception to `deep-modules.md`'s "a write dies where it misses"), or a
@@ -385,7 +386,7 @@ moves it into its own `Later` and deletes it here.
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`toFailedError` in `kernel/llm/llm.ask.ts`); `UserUnknownError`
+  (`toLlmError` in `kernel/llm/llm.ask.ts`); `UserUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
   First check, by a run, which of an error's fields reach the api's and the worker's logs and
   spans.

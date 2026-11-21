@@ -21,7 +21,6 @@ const encodeWhere = (table: typeof messages) =>
   buildWhere<MessageEntityWhere>({
     id: UndefinedOr.map((id) => eq(table.id, id)),
     chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
-    author: UndefinedOr.map((author) => eq(table.author, author)),
     userId: UndefinedOr.map((userId) =>
       inArray(
         table.chatId,

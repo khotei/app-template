@@ -545,18 +545,11 @@
             }
           },
           "409": {
-            "description": "ChatBusyError | RunNotRetryableError",
+            "description": "RunNotRetryableError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/ChatBusyErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/RunNotRetryableErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/RunNotRetryableErrorEncoded"
                 }
               }
             }
@@ -1052,26 +1045,11 @@
             "type": "string",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
             "format": "uuid"
-          },
-          "author": {
-            "anyOf": [
-              {
-                "type": "string",
-                "enum": [
-                  "user",
-                  "assistant"
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
           "_tag",
-          "id",
-          "author"
+          "id"
         ],
         "additionalProperties": false
       },
@@ -1196,13 +1174,13 @@
         ],
         "additionalProperties": false
       },
-      "ChatBusyErrorEncoded": {
+      "ChatNotFoundErrorEncoded": {
         "type": "object",
         "properties": {
           "_tag": {
             "type": "string",
             "enum": [
-              "ChatBusyError"
+              "ChatNotFoundError"
             ]
           },
           "id": {
@@ -1217,13 +1195,13 @@
         ],
         "additionalProperties": false
       },
-      "ChatNotFoundErrorEncoded": {
+      "ChatBusyErrorEncoded": {
         "type": "object",
         "properties": {
           "_tag": {
             "type": "string",
             "enum": [
-              "ChatNotFoundError"
+              "ChatBusyError"
             ]
           },
           "id": {

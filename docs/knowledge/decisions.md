@@ -509,11 +509,11 @@ cascade took their rows, dying while one remains. A service sees only the servic
 its own model below it and reaches the records only through the plain one; another model's
 service stays a use case's, save in `AskRunService`, whose run of the job writes another
 model's record of its module ([Jobs as queue messages](#jobs-as-queue-messages)), and in
-`AskChatService`, which takes a chat as read, checks a request to it (a busy chat, a Run not
-retryable) and stores what the reply's job reads, the user's message with its queued Run
-in one transaction, or a retry's new Run of the failed Run's message; the use cases that ask, a
-send and a retry, keep the chat's read scoped to the user and the sends after the commit. How a
-service grows:
+`AskChatService`, which takes a chat as read, checks a request to it (a send to a busy chat; a
+retry of a newest Run that is not failed, one in work included) and stores what the reply's job
+reads, the user's message with its queued Run in one transaction, or a retry's new Run of the
+failed Run's message; the use cases that ask, a send and a retry, keep the chat's read scoped to
+the user and the sends after the commit. How a service grows:
 [Composition: wrap or compose](#composition-wrap-or-compose).
 
 ```ts

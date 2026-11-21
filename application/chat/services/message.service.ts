@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Option, Schema, type Types } from 'effect'
+import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
@@ -10,7 +10,7 @@ import { MessageId } from '#chat/domain/message.util'
 
 /** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
 export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id'> & Partial<Pick<Message, 'chatId' | 'author'> & { readonly userId: UserId }>
+  Pick<Message, 'id'> & Partial<Pick<Message, 'chatId'> & { readonly userId: UserId }>
 >
 
 export class MessageService extends Context.Service<
@@ -41,18 +41,12 @@ export class MessageService extends Context.Service<
     })
 
     const getOne = Effect.fn('MessageService.getOne')((where: MessageWhere) =>
-      messages.selectOne(where).pipe(
-        Effect.flatMap(decodeWith(Schema.Option(Message))),
-        Effect.flatMap(
-          Effect.fromOption(
-            () =>
-              new MessageNotFoundError({
-                id: where.id,
-                author: Option.fromUndefinedOr(where.author),
-              }),
-          ),
+      messages
+        .selectOne(where)
+        .pipe(
+          Effect.flatMap(decodeWith(Schema.Option(Message))),
+          Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: where.id }))),
         ),
-      ),
     )
 
     const getMany = Effect.fn('MessageService.getMany')(

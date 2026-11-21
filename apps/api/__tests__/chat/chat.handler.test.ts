@@ -225,7 +225,7 @@ describe('chats', () => {
         assertSchemaEquals(
           MessageNotFoundError,
           message,
-          new MessageNotFoundError({ id: firstMessage.id, author: Option.none() }),
+          new MessageNotFoundError({ id: firstMessage.id }),
         )
         assertSchemaEquals(RunNotFoundError, run, new RunNotFoundError({ id: queuedRun.id }))
         assert.deepStrictEqual(wheres, [
