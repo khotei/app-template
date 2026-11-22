@@ -163,16 +163,14 @@ export class S3Bucket extends Context.Service<
       const ref = buildObjectRef(key)
       const headers = buildObjectHeaders(options)
 
-      function abortUnlessCompleted(uploadId: string, exit: Exit.Exit<unknown, unknown>) {
-        if (Exit.isSuccess(exit)) return Effect.void
-        return s3.abortMultipartUpload({ ...ref, UploadId: uploadId }).pipe(Effect.orDie)
-      }
-
       const openUpload = Effect.acquireRelease(
         s3
           .createMultipartUpload({ ...ref, ...headers })
           .pipe(Effect.flatMap(({ UploadId }) => Effect.fromNullishOr(UploadId))),
-        abortUnlessCompleted,
+        function abortUnlessCompleted(uploadId, exit) {
+          if (Exit.isSuccess(exit)) return Effect.void
+          return s3.abortMultipartUpload({ ...ref, UploadId: uploadId }).pipe(Effect.orDie)
+        },
       )
 
       /** Opens the multipart upload on the first part; the fold's scope aborts it on a failure. */
