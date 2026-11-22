@@ -25,32 +25,18 @@ copied and changed.
 ## ✨ What the example does
 
 A user, an anonymous browser, gets a secret in a cookie, creates chats, asks in them, and the assistant
-answers. A user's message starts a Run, the work of answering it: the api writes the message and its
-queued Run in one transaction, sends the jobs to SQS after it commits and responds with `202` and the
-Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run to
-`generating`, then writes the assistant's message and the Run's `done` in one
-transaction, or the Run's `failed` with the full text of what ended it, which stays in the row
-and no response carries, and titles the chat. The
-client polls the Run, reads the chat's messages with their Runs after a reload, and retries a
-failed Run as a new Run of the same message. The language model is Anthropic's. The browser UI
-still shows only the health panel.
+answers. A user's message starts a Run, the work of answering it, which the client polls, reads
+back with the chat's messages after a reload, and retries as a new Run once it failed. The worker
+also titles a new chat. The language model is Anthropic's. The browser UI still shows only the
+health panel.
 
-```mermaid
-sequenceDiagram
-  participant W as apps/web (ApiClient)
-  participant A as apps/api
-  participant S as Postgres
-  participant Q as SQS (MiniStack)
-  participant K as apps/worker
-  W->>A: POST /chats/:chatId/messages
-  A->>S: one transaction: the user's message, its queued Run
-  A->>Q: after the commit: the reply's job (+ the title's on the chat's first message)
-  A-->>W: 202 with the Run
-  Q->>K: a Lambda mapping posts the batch to POST /events
-  K->>S: Run generating → done with the assistant's message | failed
-  W->>A: GET /chats/:chatId/runs/:runId (poll), GET /chats/:chatId/messages (reload)
-  W->>A: POST /chats/:chatId/runs (retry the chat's failed newest Run)
-```
+<img src=".misc/readme/how-it-works.svg"
+  alt="One message: the api stores it with its queued Run in one transaction and sends the jobs
+  after the commit; the worker moves the Run to generating, then to done with the
+  assistant's message, or to failed; a retry is a new Run"
+  width="830">
+
+A failed Run keeps the full text of what ended it in its row, and no response carries it.
 
 How the transaction and the jobs work:
 [database.md › The sends](docs/knowledge/database.md#the-sends),
@@ -72,6 +58,16 @@ make dev     # runs make migrate, then api, worker and web together; needs make 
 `.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the language models
 in `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`. An empty or missing key stops the worker at start with a
 `ConfigError` naming it; the api and the web read none of them.
+
+<img src=".misc/readme/infrastructure.svg"
+  alt="The local stand: apps/web, apps/api and apps/worker on the host; MiniStack with the SQS
+  queues, the worker's Lambda mappings, the S3 bucket and the RDS database; the telemetry
+  container with Grafana; the Anthropic API, reached by the worker alone; Pulumi provisions
+  the containers and MiniStack's resources"
+  width="830">
+
+`make dev` runs the three processes on the host; `make up` has Pulumi start the two containers and
+create the resources inside MiniStack.
 
 | Process | URL | Try |
 |---|---|---|
@@ -118,21 +114,14 @@ changes it.
 
 The code is cut in three rings, and every dependency points inward:
 
-```mermaid
-graph LR
-  B["🌐 boundary<br/>apps · kernel clients · a module's infrastructure"] --> M["⚙️ behaviour<br/>application/chat · application/identity · application/use-cases"]
-  M --> D["🗄️ data<br/>kernel/data"]
-```
+<img src=".misc/readme/architecture.svg"
+  alt="Three nested rings: the boundary (apps, the kernel's clients, a module's infrastructure)
+  around the behaviour (use cases, a module's services, domain and contract) around the data
+  (kernel/data); beside them the five guards that refuse a wrong import"
+  width="830">
 
-- **The data** at the centre: `kernel/data` is the one source of truth over every store.
-- **The behaviour** around it: each module holds its models, rules and domain services; above the
-  modules, the use cases are what a handler calls.
-- **The boundary** outside: everything that touches the world, from the configured clients to the
-  apps.
-
-The guards are in the build, so a wrong import fails before a review: Biome refuses a cycle and an
-import across a ring, `tsc -b` an undeclared workspace, and `make bundle-check` a server module in
-the browser's bundle. The rules a change most often breaks:
+`kernel/data` is the one source of truth over every store, and the guards are in the build, so a
+wrong import fails before a review. The rules a change most often breaks:
 
 - no rule outside the modules
   ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));
@@ -142,21 +131,16 @@ the browser's bundle. The rules a change most often breaks:
 - no service in the browser
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
 
-From a model's rules up to a handler, each kind of code is built on the ones before it; `chat`
-shows each:
+From a model's rules up to a handler, each kind of code is built on the ones before it:
 
-- **Rules and moves** are plain functions in the model's `.model` file, over values passed in
-  (`ensureChatNotBusy`, `startRun`, `completeRun`, `failRun`).
-- **`<Model>Service`** owns one model's records, coding each row through the model: `RunService`
-  has `create`, `getOne(where)`, `update(to, where)` and `move(run, transition)`, which writes a
-  move under the status the Run was read in.
-- **`<Verb><Model>Service`** is the last grouping before a use case: it composes the module's
-  services, the transaction and the job's sends or assistant (`AskChatService`,
-  `ReplyChatService`, `TitleChatService`).
-- **A use case** is a plain `Effect.fn` that only a handler calls (`askChat`, `replyToMessage`),
-  and **a handler** calls one service method or one use case.
+<img src=".misc/readme/module-design.svg"
+  alt="The cut of chat: handler, use case, Verb-Model service, Model service over the data
+  layer's repositories, and the models' rules and moves; beside it, where a change goes:
+  edit, wrap, compose or a Verb-Model service"
+  width="830">
 
-A purpose a unit was not made for is a new unit that wraps or composes it, never an edit of it:
+Rules and moves are plain functions, `<Model>Service` owns one model's records, and a purpose a
+unit was not made for is a new unit that wraps or composes it, never an edit of it:
 [composition.md](.claude/rules/composition.md), [layering.md](.claude/rules/layering.md).
 
 One name crosses the rings: a model's files read from the data outward, table, entity and
@@ -184,7 +168,14 @@ What keeps the agents honest:
 - 📜 **The reasoning stays.** The lab's file and the commit messages keep each decision and its
   rejected alternatives; `main` holds one squash commit per change.
 
-Why it is cut so: [sdd.md](docs/knowledge/sdd.md).
+<img src=".misc/readme/principles.svg"
+  alt="Five principles, each with what it means here and the document that holds it: composition
+  over folding; guards in the build, not in review; one source of truth for data; minimal,
+  then right, then hard; the reasoning committed beside the code"
+  width="830">
+
+The code and the process follow the same five principles, each held in the document named beside
+it. Why the process is cut so: [sdd.md](docs/knowledge/sdd.md).
 
 ## 🛠️ Daily development
 
@@ -202,6 +193,15 @@ Why it is cut so: [sdd.md](docs/knowledge/sdd.md).
 | learn why a commit or a push was rejected | the hooks; never `--no-verify` | [tooling.md › Git hooks and CI](docs/knowledge/tooling.md#git-hooks-and-ci) |
 | write a test | the kinds, where each goes, and time in `it.effect` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
 
+<img src=".misc/readme/rules-and-style.svg"
+  alt="The fourteen files of .claude/rules grouped by what they bind, the six questions of name-
+  and-body.md, the two forms of a file name, and wire errors as Schema.TaggedError against
+  inner ones as Data.TaggedError"
+  width="830">
+
+A change is reviewed against the rules in `.claude/rules/`; the ones you meet first are the six
+questions every public name answers, the file names and the two kinds of error.
+
 ## 🧩 Extending it
 
 Each addition has a checklist, written from the data outward and test first:
@@ -212,6 +212,15 @@ Each addition has a checklist, written from the data outward and test first:
 - an AWS resource, local and deployed alike:
   [aws.md › Adding a resource](docs/knowledge/aws.md#adding-a-resource);
 - a dependency or a workspace: [tooling.md › Dependencies](docs/knowledge/tooling.md#dependencies).
+
+<img src=".misc/readme/patterns.svg"
+  alt="Six shapes from chat: a guarded move through RunService.move, a rule keyed by a table, the
+  writes in one transaction with the sends after it, errors handled once at a flow's end,
+  Effect.acquireUseRelease around the answer, and Layer.mock of the repositories in unit
+  suites"
+  width="830">
+
+New code repeats these six shapes from `chat`, each shortened from its file.
 
 ## 🌱 Starting a new project
 

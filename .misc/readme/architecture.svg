@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 610" role="img" aria-labelledby="title desc">
+<title id="title">Three rings, imports point inward</title>
+<desc id="desc">The boundary (apps, the kernel's clients, a module's infrastructure) imports the behaviour (the use cases, a module's services, domain and contract), which imports the data, kernel/data. Biome, its GritQL plugin, the isolated linker with tsc -b and make bundle-check refuse an import that points the wrong way.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="609" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">Three rings, every import points inward</text>
+<rect x="28" y="66" width="560" height="486" rx="8" class="box k-bnd"/>
+<text x="46" y="92" class="b a-bnd" xml:space="preserve">boundary</text>
+<text x="46" y="120" xml:space="preserve"><tspan class="code">apps/api</tspan></text>
+<text x="142.32" y="120" xml:space="preserve"><tspan class="code">apps/worker</tspan></text>
+<text x="264.26" y="120" xml:space="preserve"><tspan class="code">apps/web</tspan></text>
+<text x="46" y="144" xml:space="preserve">the kernel's clients: <tspan class="code">config</tspan> <tspan class="code">postgres</tspan> <tspan class="code">aws</tspan> <tspan class="code">llm</tspan></text>
+<text x="46" y="168" xml:space="preserve">a module's <tspan class="code">infrastructure/</tspan>: queues, assistants</text>
+<rect x="64" y="194" width="488" height="334" rx="8" class="box k-beh"/>
+<text x="82" y="220" class="b a-beh" xml:space="preserve">behaviour</text>
+<text x="82" y="248" xml:space="preserve"><tspan class="code">application/use-cases</tspan></text>
+<text x="82" y="272" xml:space="preserve">a module's <tspan class="code">services/</tspan></text>
+<text x="82" y="296" xml:space="preserve">a module's <tspan class="code">domain/</tspan> and <tspan class="code">contract/</tspan></text>
+<text x="82" y="320" class="m" xml:space="preserve">modules: <tspan class="code">chat</tspan>, <tspan class="code">identity</tspan></text>
+<rect x="100" y="346" width="416" height="158" rx="8" class="box k-dat"/>
+<text x="118" y="372" class="b a-dat" xml:space="preserve">data</text>
+<text x="118" y="400" xml:space="preserve"><tspan class="code">kernel/data</tspan></text>
+<text x="118" y="424" xml:space="preserve">tables, entities, repositories,</text>
+<text x="118" y="446" xml:space="preserve">the one <tspan class="code">init</tspan> migration</text>
+<text x="118" y="476" class="m" xml:space="preserve">the one source of truth</text>
+<polyline points="480,150 480,185" class="ln"/>
+<polygon points="480,194 475,184 485,184" class="hd"/>
+<rect x="419.437" y="166.1" width="55.5634" height="16.1" class="p-bnd"/>
+<text x="472" y="178" class="m" text-anchor="end" xml:space="preserve">imports</text>
+<polyline points="480,300 480,337" class="ln"/>
+<polygon points="480,346 475,336 485,336" class="hd"/>
+<rect x="419.437" y="318.1" width="55.5634" height="16.1" class="p-beh"/>
+<text x="472" y="330" class="m" text-anchor="end" xml:space="preserve">imports</text>
+<polyline points="400,346 400,309" class="ln-bad"/>
+<polygon points="400,300 405,310 395,310" class="hd-bad"/>
+<rect x="322.275" y="318.1" width="72.7246" height="16.1" class="p-beh"/>
+<text x="392" y="330" class="m" text-anchor="end" xml:space="preserve">✗ refused</text>
+<text x="612" y="92" class="b" xml:space="preserve">What refuses a wrong import</text>
+<rect x="612" y="110" width="320" height="81" rx="8" class="box k-neu"/>
+<text x="624" y="134" class="b" xml:space="preserve">Biome <tspan class="code">noRestrictedImports</tspan></text>
+<text x="624" y="154" xml:space="preserve">an import across a ring, or outward</text>
+<text x="624" y="174" xml:space="preserve">between a module's layers</text>
+<rect x="612" y="203" width="320" height="61" rx="8" class="box k-neu"/>
+<text x="624" y="227" class="b" xml:space="preserve"><tspan class="code">biome-imports.grit</tspan></text>
+<text x="624" y="247" xml:space="preserve">another part's file, a relative path</text>
+<rect x="612" y="276" width="320" height="61" rx="8" class="box k-neu"/>
+<text x="624" y="300" class="b" xml:space="preserve">Biome <tspan class="code">noImportCycles</tspan></text>
+<text x="624" y="320" xml:space="preserve">a cycle of imports</text>
+<rect x="612" y="349" width="320" height="81" rx="8" class="box k-neu"/>
+<text x="624" y="373" class="b" xml:space="preserve">isolated linker, <tspan class="code">tsc -b</tspan></text>
+<text x="624" y="393" xml:space="preserve">a workspace its <tspan class="code">package.json</tspan> does not</text>
+<text x="624" y="413" xml:space="preserve">declare</text>
+<rect x="612" y="442" width="320" height="61" rx="8" class="box k-neu"/>
+<text x="624" y="466" class="b" xml:space="preserve"><tspan class="code">make bundle-check</tspan></text>
+<text x="624" y="486" xml:space="preserve">a server package in the browser's bundle</text>
+<text x="612" y="529" class="m" xml:space="preserve">what no tool sees, review refuses</text>
+<text x="28" y="580" class="m" xml:space="preserve"><tspan class="code">packages/*</tspan> (generic tools) and <tspan class="code">deployment/</tspan> sit outside the rings.</text>
+</svg>

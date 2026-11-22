@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 720" role="img" aria-labelledby="title desc">
+<title id="title">Patterns the code repeats</title>
+<desc id="desc">Six shapes from chat: a guarded move, a rule keyed by a table, the writes in one transaction with the sends after it, errors handled once at a flow's end, acquireUseRelease around the answer, and real services over mocked repositories.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="719" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">Patterns the code repeats</text>
+<rect x="28" y="66" width="444" height="187" rx="8" class="box k-neu"/>
+<text x="40" y="90" class="b" xml:space="preserve">A guarded move</text>
+<text x="40" y="110" xml:space="preserve"><tspan class="code">yield* runs.move(queued, startRun)</tspan></text>
+<text x="40" y="130" xml:space="preserve"><tspan class="code">// RunService.move:</tspan></text>
+<text x="40" y="150" xml:space="preserve"><tspan class="code">transition(run).pipe(Effect.flatMap((to) =&gt;</tspan></text>
+<text x="40" y="170" xml:space="preserve"><tspan class="code">  update(to, { id: run.id,</tspan></text>
+<text x="40" y="190" xml:space="preserve"><tspan class="code">    status: [run.status] })))</tspan></text>
+<text x="40" y="217" class="m" xml:space="preserve">the write carries the status the Run was read in, so a Run</text>
+<text x="40" y="236" class="m" xml:space="preserve">moved since dies</text>
+<rect x="488" y="66" width="444" height="187" rx="8" class="box k-neu"/>
+<text x="500" y="90" class="b" xml:space="preserve">A rule keyed by a table</text>
+<text x="500" y="110" xml:space="preserve"><tspan class="code">const moveRunRules = {</tspan></text>
+<text x="500" y="130" xml:space="preserve"><tspan class="code">  queued: ['generating', 'failed'],</tspan></text>
+<text x="500" y="150" xml:space="preserve"><tspan class="code">  generating: ['done', 'failed'],</tspan></text>
+<text x="500" y="170" xml:space="preserve"><tspan class="code">  done: [], failed: [],</tspan></text>
+<text x="500" y="190" xml:space="preserve"><tspan class="code">} as const satisfies Record&lt;RunStatus, …&gt;</tspan></text>
+<text x="500" y="217" class="m" xml:space="preserve">a new status fails typecheck until its row exists</text>
+<rect x="28" y="267" width="444" height="188" rx="8" class="box k-neu"/>
+<text x="40" y="291" class="b" xml:space="preserve">The writes in one transaction, sends after it</text>
+<text x="40" y="311" xml:space="preserve"><tspan class="code">const run = yield* messages</tspan></text>
+<text x="40" y="331" xml:space="preserve"><tspan class="code">  .create({ chatId: chat.id, text, … })</tspan></text>
+<text x="40" y="351" xml:space="preserve"><tspan class="code">  .pipe(Effect.flatMap(runs.create),</tspan></text>
+<text x="40" y="371" xml:space="preserve"><tspan class="code">    transaction.run)</tspan></text>
+<text x="40" y="391" xml:space="preserve"><tspan class="code">if (isNewChat(chat)) yield* sendTitleChat(chat)</tspan></text>
+<text x="40" y="411" xml:space="preserve"><tspan class="code">return yield* askReply(run)</tspan></text>
+<text x="40" y="438" class="m" xml:space="preserve">a delivery always finds the Run it names</text>
+<rect x="488" y="267" width="444" height="188" rx="8" class="box k-neu"/>
+<text x="500" y="291" class="b" xml:space="preserve">Errors handled once, at the flow's end</text>
+<text x="500" y="311" xml:space="preserve"><tspan class="code">replies.reply(job.messageId).pipe(</tspan></text>
+<text x="500" y="331" xml:space="preserve"><tspan class="code">  Effect.catchTag('RunNotFoundError', skip),</tspan></text>
+<text x="500" y="351" xml:space="preserve"><tspan class="code">  Effect.catchTag(['RunStartedError',</tspan></text>
+<text x="500" y="371" xml:space="preserve"><tspan class="code">    'LlmError'], logFailed),</tspan></text>
+<text x="500" y="391" xml:space="preserve"><tspan class="code">  Effect.onErrorIf(Cause.hasInterrupts, log))</tspan></text>
+<text x="500" y="418" class="m" xml:space="preserve">the main path reads as if nothing fails</text>
+<rect x="28" y="469" width="444" height="227" rx="8" class="box k-neu"/>
+<text x="40" y="493" class="b" xml:space="preserve">Start whole, answer, fail what was started</text>
+<text x="40" y="513" xml:space="preserve"><tspan class="code">Effect.acquireUseRelease(</tspan></text>
+<text x="40" y="533" xml:space="preserve"><tspan class="code">  Effect.gen(function* start() { … }),</tspan></text>
+<text x="40" y="553" xml:space="preserve"><tspan class="code">  Effect.fnUntraced(function* answer(started) {</tspan></text>
+<text x="40" y="573" xml:space="preserve"><tspan class="code">    … }),</tspan></text>
+<text x="40" y="593" xml:space="preserve"><tspan class="code">  function failUnanswered(started, answered) {</tspan></text>
+<text x="40" y="613" xml:space="preserve"><tspan class="code">    … },</tspan></text>
+<text x="40" y="633" xml:space="preserve"><tspan class="code">)</tspan></text>
+<text x="40" y="660" class="m" xml:space="preserve"><tspan class="code">start</tspan> → <tspan class="code">generating</tspan>, <tspan class="code">answer</tspan> → <tspan class="code">done</tspan>, <tspan class="code">failUnanswered</tspan> →</text>
+<text x="40" y="679" class="m" xml:space="preserve"><tspan class="code">failed</tspan> on any other end; each step named where it runs</text>
+<rect x="488" y="469" width="444" height="227" rx="8" class="box k-neu"/>
+<text x="500" y="493" class="b" xml:space="preserve">Real services over mocked leaves</text>
+<text x="500" y="513" xml:space="preserve"><tspan class="code">Layer.mock(ChatRepository, chats),</tspan></text>
+<text x="500" y="533" xml:space="preserve"><tspan class="code">Layer.mock(MessageRepository, messages),</tspan></text>
+<text x="500" y="553" xml:space="preserve"><tspan class="code">Layer.mock(RunRepository, runs),</tspan></text>
+<text x="500" y="573" xml:space="preserve"><tspan class="code">transaction,</tspan></text>
+<text x="500" y="600" class="m" xml:space="preserve">unit suites run the real services over mocked repositories; a</text>
+<text x="500" y="619" class="m" xml:space="preserve">method a case leaves out dies</text>
+</svg>

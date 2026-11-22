@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 708" role="img" aria-labelledby="title desc">
+<title id="title">How a module is cut</title>
+<desc id="desc">From a handler down: use cases, the module's &lt;Verb&gt;&lt;Model&gt;Service, its &lt;Model&gt;Service over the data layer's repositories, and its models' rules and moves; a change that is no fix wraps or composes a unit instead of editing it.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="707" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">How a module is cut, in <tspan class="code">chat</tspan></text>
+<rect x="28" y="66" width="400" height="80" rx="8" class="box k-bnd"/>
+<text x="40" y="90" class="b a-bnd" xml:space="preserve">handler · <tspan class="code">apps/</tspan></text>
+<text x="40" y="110" xml:space="preserve"><tspan class="code">ChatHandler</tspan>, <tspan class="code">WorkerHandler</tspan></text>
+<text x="40" y="129" class="m" xml:space="preserve">calls one service method or one use case</text>
+<rect x="28" y="180" width="400" height="100" rx="8" class="box k-beh"/>
+<text x="40" y="204" class="b a-beh" xml:space="preserve">use case · <tspan class="code">application/use-cases</tspan></text>
+<text x="40" y="224" xml:space="preserve"><tspan class="code">askChat</tspan> <tspan class="code">retryRun</tspan> <tspan class="code">listMessages</tspan> <tspan class="code">replyToMessage</tspan></text>
+<text x="40" y="244" xml:space="preserve"><tspan class="code">titleChat</tspan></text>
+<text x="40" y="263" class="m" xml:space="preserve">a plain <tspan class="code">Effect.fn</tspan>; only a handler calls it</text>
+<rect x="28" y="314" width="400" height="101" rx="8" class="box k-beh"/>
+<text x="40" y="338" class="b a-beh" xml:space="preserve"><tspan class="code">&lt;Verb&gt;&lt;Model&gt;Service</tspan> · <tspan class="code">services/</tspan></text>
+<text x="40" y="358" xml:space="preserve"><tspan class="code">AskChatService.ask</tspan>, <tspan class="code">.retry</tspan></text>
+<text x="40" y="378" xml:space="preserve"><tspan class="code">ReplyChatService.reply</tspan></text>
+<text x="40" y="398" xml:space="preserve"><tspan class="code">TitleChatService.title</tspan></text>
+<rect x="28" y="449" width="400" height="101" rx="8" class="box k-beh"/>
+<text x="40" y="473" class="b a-beh" xml:space="preserve"><tspan class="code">&lt;Model&gt;Service</tspan> · <tspan class="code">services/</tspan></text>
+<text x="40" y="493" xml:space="preserve"><tspan class="code">ChatService</tspan> <tspan class="code">MessageService</tspan> <tspan class="code">RunService</tspan></text>
+<text x="40" y="513" xml:space="preserve"><tspan class="code">create</tspan> <tspan class="code">getOne(where)</tspan> <tspan class="code">update(to, where)</tspan></text>
+<text x="40" y="533" xml:space="preserve"><tspan class="code">move(run, transition)</tspan>: under the status read</text>
+<rect x="28" y="584" width="400" height="100" rx="8" class="box k-beh"/>
+<text x="40" y="608" class="b a-beh" xml:space="preserve">rules and moves · <tspan class="code">domain/</tspan></text>
+<text x="40" y="628" xml:space="preserve"><tspan class="code">ensureChatNotBusy</tspan> <tspan class="code">ensureRunRetryable</tspan></text>
+<text x="40" y="648" xml:space="preserve"><tspan class="code">startRun</tspan> <tspan class="code">completeRun</tspan> <tspan class="code">failRun</tspan></text>
+<text x="40" y="667" class="m" xml:space="preserve">plain functions in <tspan class="code">&lt;model&gt;.model.ts</tspan></text>
+<polyline points="88,146 88,171" class="ln"/>
+<polygon points="88,180 83,170 93,170" class="hd"/>
+<rect x="93" y="156.1" width="36.24" height="16.1" class="lbg"/>
+<text x="96" y="168" class="m" xml:space="preserve">calls</text>
+<polyline points="88,280 88,305" class="ln"/>
+<polygon points="88,314 83,304 93,304" class="hd"/>
+<rect x="93" y="290.1" width="36.24" height="16.1" class="lbg"/>
+<text x="96" y="302" class="m" xml:space="preserve">calls</text>
+<polyline points="88,415 88,440" class="ln"/>
+<polygon points="88,449 83,439 93,439" class="hd"/>
+<rect x="93" y="425.1" width="36.24" height="16.1" class="lbg"/>
+<text x="96" y="437" class="m" xml:space="preserve">calls</text>
+<polyline points="88,550 88,575" class="ln"/>
+<polygon points="88,584 83,574 93,574" class="hd"/>
+<rect x="93" y="560.1" width="53.9002" height="16.1" class="lbg"/>
+<text x="96" y="572" class="m" xml:space="preserve">applies</text>
+<rect x="478" y="306" width="172" height="101" rx="8" class="box k-bnd"/>
+<text x="490" y="330" class="b a-bnd" xml:space="preserve"><tspan class="code">infrastructure/</tspan></text>
+<text x="490" y="350" xml:space="preserve"><tspan class="code">chat.queue.ts</tspan></text>
+<text x="490" y="370" xml:space="preserve"><tspan class="code">MessageAssistant</tspan></text>
+<text x="490" y="390" xml:space="preserve"><tspan class="code">ChatAssistant</tspan></text>
+<polyline points="428,364.5 469,364.5" class="ln"/>
+<polygon points="478,364.5 468,369.5 468,359.5" class="hd"/>
+<rect x="434.88" y="344.6" width="36.24" height="16.1" class="lbg"/>
+<text x="453" y="356.5" class="m" text-anchor="middle" xml:space="preserve">calls</text>
+<rect x="478" y="445" width="172" height="101" rx="8" class="box k-dat"/>
+<text x="490" y="469" class="b a-dat" xml:space="preserve"><tspan class="code">kernel/data</tspan></text>
+<text x="490" y="489" xml:space="preserve"><tspan class="code">ChatRepository</tspan></text>
+<text x="490" y="509" xml:space="preserve"><tspan class="code">MessageRepository</tspan></text>
+<text x="490" y="529" xml:space="preserve"><tspan class="code">RunRepository</tspan></text>
+<polyline points="428,499.5 469,499.5" class="ln"/>
+<polygon points="478,499.5 468,504.5 468,494.5" class="hd"/>
+<rect x="434.88" y="479.6" width="36.24" height="16.1" class="lbg"/>
+<text x="453" y="491.5" class="m" text-anchor="middle" xml:space="preserve">calls</text>
+<rect x="478" y="558" width="172" height="96" rx="8" class="box k-neu"/>
+<text x="490" y="580" class="m" xml:space="preserve">and <tspan class="code">Transaction</tspan>,</text>
+<text x="490" y="599" class="m" xml:space="preserve">from <tspan class="code">packages/db</tspan>,</text>
+<text x="490" y="618" class="m" xml:space="preserve">for the writes that</text>
+<text x="490" y="637" class="m" xml:space="preserve">commit together</text>
+<text x="672" y="90" class="b" xml:space="preserve">Where a change goes</text>
+<text x="672" y="112" class="m" xml:space="preserve">ask in order; the first yes decides</text>
+<rect x="672" y="128" width="260" height="61" rx="8" class="box k-neu"/>
+<text x="684" y="152" class="b" xml:space="preserve">1 · A fix, or its own purpose</text>
+<text x="684" y="172" xml:space="preserve">edit the unit</text>
+<rect x="672" y="201" width="260" height="81" rx="8" class="box k-neu"/>
+<text x="684" y="225" class="b" xml:space="preserve">2 · Every holder needs it</text>
+<text x="684" y="245" xml:space="preserve">wrap: a <tspan class="code">layer&lt;Variant&gt;</tspan> of the</text>
+<text x="684" y="265" xml:space="preserve">same interface</text>
+<rect x="672" y="294" width="260" height="101" rx="8" class="box k-neu"/>
+<text x="684" y="318" class="b" xml:space="preserve">3 · Only some callers need it</text>
+<text x="684" y="338" xml:space="preserve">compose:</text>
+<text x="684" y="358" xml:space="preserve"><tspan class="code">&lt;Aspect&gt;&lt;Model&gt;Service</tspan>,</text>
+<text x="684" y="378" xml:space="preserve"><tspan class="code">ensure&lt;Combined&gt;</tspan></text>
+<rect x="672" y="407" width="260" height="101" rx="8" class="box k-neu"/>
+<text x="684" y="431" class="b" xml:space="preserve">4 · An order of calls</text>
+<text x="684" y="451" xml:space="preserve">over models of one module:</text>
+<text x="684" y="471" xml:space="preserve"><tspan class="code">&lt;Verb&gt;&lt;Model&gt;Service</tspan>; over</text>
+<text x="684" y="491" xml:space="preserve">modules: a use case</text>
+<rect x="672" y="524" width="260" height="80" rx="8" class="box k-bad"/>
+<text x="684" y="547" xml:space="preserve">Never fold a wrap or a</text>
+<text x="684" y="567" xml:space="preserve">composed unit into the one</text>
+<text x="684" y="587" xml:space="preserve">below to save lines.</text>
+</svg>
