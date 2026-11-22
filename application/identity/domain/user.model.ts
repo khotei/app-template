@@ -1,24 +1,13 @@
-import { Schema, type Types } from 'effect'
+import { type Redacted, Schema } from 'effect'
 
-import { credentialKinds, secretHashPattern } from '@app-template/kernel/data'
-
-import { UserId } from '#identity/contract/user.id'
+import { UserId } from '#identity/contract/user.util'
 
 export class User extends Schema.Class<User>('User')({
   id: UserId,
-  createdAt: Schema.DateTimeUtc,
+  createdAt: Schema.DateTimeUtcFromDate,
 }) {}
 
-/** The lower-case hex SHA-256 of a user secret; the secret itself is never stored. */
-export const SecretHash = Schema.String.check(Schema.isPattern(secretHashPattern)).pipe(
-  Schema.brand('SecretHash'),
-)
-export type SecretHash = typeof SecretHash.Type
+/** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
+export type UserSecret = Redacted.Redacted<string>
 
-export class Credential extends Schema.Class<Credential>('Credential')({
-  kind: Schema.Literals(credentialKinds),
-  hash: SecretHash,
-}) {}
-
-export const buildUser = (fields: Types.Simplify<Pick<User, 'id' | 'createdAt'>>): User =>
-  new User(fields)
+export const secretBytes = 32

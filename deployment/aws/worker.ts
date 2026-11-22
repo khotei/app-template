@@ -12,7 +12,7 @@ export interface WorkerOptions {
 
 /**
  * The worker's function and one mapping per queue that invokes it with the queue's batches; a
- * batch's answer names its failed records, so only they come back.
+ * batch's response names its failed records, so only they come back.
  */
 export function createWorker(
   provider: aws.Provider,

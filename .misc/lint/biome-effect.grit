@@ -21,8 +21,9 @@ pattern unary() {
     r"Arr\.(?:head|last|getSomes|flatten|isReadonlyArrayEmpty|isReadonlyArrayNonEmpty)",
     r"Str\.(?:isEmpty|isNonEmpty|trim|toLowerCase)",
     r"Stream\.(?:runCollect|runDrain|runLast)",
-    r"Layer\.(?:build|launch|orDie)",
-    r"Record\.(?:keys|values|toEntries)"
+    r"Layer\.(?:build|launch|orDie|unwrap)",
+    r"(?:Record|Rec)\.(?:keys|values|toEntries)",
+    r"Num\.(?:sumAll|multiplyAll)"
   }
 }
 
@@ -34,7 +35,7 @@ pattern one() {
     r"Str\.(?:split|startsWith|endsWith|includes)",
     r"Stream\.(?:map|tap|concat|merge|filter|take|runForEach|schedule|grouped|catch|provide)",
     r"Layer\.(?:provide|provideMerge|merge|tap|catch)",
-    r"Record\.(?:map|filter|get)"
+    r"(?:Record|Rec)\.(?:map|filter|get)"
   }
 }
 
@@ -54,7 +55,7 @@ predicate nested($call) {
 
 pattern module_call() {
   JsCallExpression() as $call where {
-    $call <: r"(?s)(?:Effect|Option|Arr|Str|Stream|Layer|Record|Ref)\.\w+\s*(?:<.*>)?\s*\(.*"
+    $call <: r"(?s)(?:Effect|Option|Arr|Str|Stream|Layer|Record|Rec|Num|Ref)\.\w+\s*(?:<.*>)?\s*\(.*"
   }
 }
 

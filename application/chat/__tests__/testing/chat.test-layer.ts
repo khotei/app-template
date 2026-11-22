@@ -1,51 +1,42 @@
-import { Effect, Layer } from 'effect'
+import { BunCrypto } from '@effect/platform-bun'
+import { Layer } from 'effect'
 
 import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
+import type { Transaction } from '@app-template/packages/db'
+import { TransactionTest } from '@app-template/packages/db/testing'
 
-import type { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import type { Chat } from '#chat/domain/chat.model'
-import type { Message } from '#chat/domain/message.model'
-import type { Run } from '#chat/domain/run.model'
-import { decodeChat, encodeChat } from '#chat/services/chat.mapper'
-import { decodeMessage, decodeMessages, encodeMessage } from '#chat/services/message.mapper'
-import { decodeRun, encodeRun } from '#chat/services/run.mapper'
+import { AskChatService } from '#chat/services/ask-chat.service'
+import { ChatService } from '#chat/services/chat.service'
+import { MessageService } from '#chat/services/message.service'
+import { ReplyChatService } from '#chat/services/reply-chat.service'
+import { RunService } from '#chat/services/run.service'
+import { TitleChatService } from '#chat/services/title-chat.service'
 
-/** Stores `chat` before the layers it feeds start. */
-export const insertChatLayer = (chat: Chat) =>
-  encodeChat(chat).pipe(
-    Effect.flatMap((row) => ChatRepository.use((chats) => chats.insert(row))),
-    Layer.effectDiscard,
+/** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
+export interface ChatRepositoryMocks {
+  readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
+  readonly messages?: Layer.PartialEffectful<MessageRepository['Service']>
+  readonly runs?: Layer.PartialEffectful<RunRepository['Service']>
+}
+
+/**
+ * Chat's services over `mocks` and `transaction`, the identity one by default,
+ * each in context for the case; the `QueueSender` and the assistants are the test's,
+ * `recordMessages()`, `recordMessageAssistant()` and `recordChatAssistant()`.
+ */
+export const layerChatTest = (
+  { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
+  transaction: Layer.Layer<Transaction> = TransactionTest,
+) =>
+  Layer.mergeAll(AskChatService.layer, ReplyChatService.layer, TitleChatService.layer).pipe(
+    Layer.provideMerge(Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer)),
+    Layer.provideMerge(
+      Layer.mergeAll(
+        Layer.mock(ChatRepository, chats),
+        Layer.mock(MessageRepository, messages),
+        Layer.mock(RunRepository, runs),
+        transaction,
+        BunCrypto.layer,
+      ),
+    ),
   )
-
-export const selectChat = (id: ChatId) =>
-  ChatRepository.use((chats) => chats.selectOne({ id })).pipe(Effect.flatMap(decodeChat))
-
-export const deleteChat = (id: ChatId) => ChatRepository.use((chats) => chats.delete({ id }))
-
-export const insertMessage = (message: Message) =>
-  encodeMessage(message).pipe(
-    Effect.flatMap((row) => MessageRepository.use((messages) => messages.insert(row))),
-  )
-
-export const selectMessage = (id: MessageId) =>
-  MessageRepository.use((messages) => messages.selectOne({ id })).pipe(
-    Effect.flatMap(decodeMessage),
-  )
-
-export const selectMessages = (chatId: ChatId) =>
-  MessageRepository.use((messages) => messages.selectMany({ chatId })).pipe(
-    Effect.flatMap(decodeMessages),
-  )
-
-/** Stores `run` beside the message it answers, which must be stored already. */
-export const insertRun = (run: Run) =>
-  encodeRun(run).pipe(Effect.flatMap((row) => RunRepository.use((runs) => runs.insert(row))))
-
-/** Writes `run` over the stored one, whatever its status, as another worker would. */
-export const updateRun = (run: Run) =>
-  encodeRun(run).pipe(
-    Effect.flatMap((row) => RunRepository.use((runs) => runs.update(row, { id: run.id }))),
-  )
-
-export const selectRun = (id: RunId) =>
-  RunRepository.use((runs) => runs.selectOne({ id })).pipe(Effect.flatMap(decodeRun))

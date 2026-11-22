@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 498" role="img" aria-labelledby="title desc">
+<title id="title">The rules and the code style</title>
+<desc id="desc">The fourteen files of .claude/rules grouped by what they bind, then the six questions of name-and-body.md, the file names and the two kinds of error.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="497" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">The rules in <tspan class="code">.claude/rules/</tspan>, and the ones met first</text>
+<rect x="28" y="66" width="330" height="101" rx="8" class="box k-beh"/>
+<text x="40" y="90" class="b a-beh" xml:space="preserve">every <tspan class="code">.ts</tspan> file</text>
+<text x="40" y="110" xml:space="preserve"><tspan class="code">name-and-body.md</tspan> <tspan class="code">naming.md</tspan></text>
+<text x="40" y="130" xml:space="preserve"><tspan class="code">composition.md</tspan> <tspan class="code">effect.md</tspan></text>
+<text x="40" y="150" xml:space="preserve"><tspan class="code">effect-style.md</tspan> <tspan class="code">effect-services.md</tspan></text>
+<rect x="28" y="179" width="330" height="81" rx="8" class="box k-beh"/>
+<text x="40" y="203" class="b a-beh" xml:space="preserve"><tspan class="code">application/</tspan>, <tspan class="code">apps/</tspan>, <tspan class="code">kernel/</tspan></text>
+<text x="40" y="223" xml:space="preserve"><tspan class="code">layering.md</tspan> <tspan class="code">modules.md</tspan></text>
+<text x="40" y="243" xml:space="preserve"><tspan class="code">repositories.md</tspan></text>
+<rect x="28" y="272" width="330" height="61" rx="8" class="box k-beh"/>
+<text x="40" y="296" class="b a-beh" xml:space="preserve">the tests</text>
+<text x="40" y="316" xml:space="preserve"><tspan class="code">effect-tests.md</tspan></text>
+<rect x="28" y="345" width="330" height="81" rx="8" class="box k-neu"/>
+<text x="40" y="369" class="b a-neu" xml:space="preserve">the repository and the toolkit</text>
+<text x="40" y="389" xml:space="preserve"><tspan class="code">tooling.md</tspan> <tspan class="code">claude-md.md</tspan></text>
+<text x="40" y="409" xml:space="preserve"><tspan class="code">commits.md</tspan> <tspan class="code">pull-requests.md</tspan></text>
+<text x="28" y="448" class="m" xml:space="preserve">a file loads where its <tspan class="code">paths:</tspan> filter matches;</text>
+<text x="28" y="468" class="m" xml:space="preserve"><tspan class="code">commits.md</tspan>, with none, loads always</text>
+<rect x="380" y="66" width="552" height="161" rx="8" class="box k-neu"/>
+<text x="392" y="90" class="b" xml:space="preserve"><tspan class="code">name-and-body.md</tspan>: six questions of every public name</text>
+<text x="392" y="110" xml:space="preserve">1  The name tells the intent: what is true after the call</text>
+<text x="392" y="130" xml:space="preserve">2  One word per concept, one concept per word</text>
+<text x="392" y="150" xml:space="preserve">3  The body does what the name and the types promise</text>
+<text x="392" y="170" xml:space="preserve">4  One level of abstraction in a body</text>
+<text x="392" y="190" xml:space="preserve">5  Know what holds a unit's methods together</text>
+<text x="392" y="210" xml:space="preserve">6  One sentence, no "and"</text>
+<rect x="380" y="239" width="552" height="81" rx="8" class="box k-neu"/>
+<text x="392" y="263" class="b" xml:space="preserve">File names: <tspan class="code">naming.md</tspan></text>
+<text x="392" y="283" xml:space="preserve"><tspan class="code">&lt;name&gt;.&lt;role&gt;.ts</tspan>: <tspan class="code">run.model.ts</tspan> <tspan class="code">ask-chat.service.ts</tspan> <tspan class="code">chat.http.ts</tspan></text>
+<text x="392" y="303" xml:space="preserve"><tspan class="code">&lt;owner&gt;-&lt;what&gt;.ts</tspan>: <tspan class="code">llm-call-policy.ts</tspan> <tspan class="code">schema-codec.ts</tspan></text>
+<rect x="380" y="332" width="268" height="120" rx="8" class="box k-bnd"/>
+<text x="392" y="356" class="b a-bnd" xml:space="preserve">on the wire: <tspan class="code">effect.md</tspan></text>
+<text x="392" y="376" xml:space="preserve"><tspan class="code">Schema.TaggedError</tspan></text>
+<text x="392" y="396" xml:space="preserve"><tspan class="code">ChatBusyError</tspan> → <tspan class="code">409</tspan></text>
+<text x="392" y="416" xml:space="preserve"><tspan class="code">RunNotFoundError</tspan> → <tspan class="code">404</tspan></text>
+<text x="392" y="435" class="m" xml:space="preserve">the api serves it as it is</text>
+<rect x="664" y="332" width="268" height="120" rx="8" class="box k-beh"/>
+<text x="676" y="356" class="b a-beh" xml:space="preserve">inside the process</text>
+<text x="676" y="376" xml:space="preserve"><tspan class="code">Data.TaggedError</tspan></text>
+<text x="676" y="396" xml:space="preserve"><tspan class="code">RunStatusInvalidError</tspan></text>
+<text x="676" y="416" xml:space="preserve"><tspan class="code">RunStartedError</tspan></text>
+<text x="676" y="435" class="m" xml:space="preserve">never reaches a response</text>
+</svg>

@@ -3,9 +3,9 @@
 .DEFAULT_GOAL := help
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
-  debug-worker debug-web check doc-lint sh-lint review-rules lint \
-  fmt typecheck test test-unit test-e2e bundle-check clean outdated vendor-effect vendor-drizzle \
-  migrate migration migration-check api-check api-snapshot
+  debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
+  fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
+  migrate migration migration-check api-snapshot api-client-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -23,13 +23,9 @@ FAST_PROVIDER = VCR_MODE=REPLAY_ONLY VCR_PATH=unused
 
 # Why the recipes export .env: docs/knowledge/tooling.md › Environment.
 EXPORT_ENV = set -a && . ./.env && set +a
-# The pair of the container name in deployment/local/ministack.ts; a stack output would not do,
-# since `make reset` deletes the state.
-NAME_MINISTACK = ministack=app-template-ministack-$$(echo "$$AWS_ENDPOINT_URL" | sed -E 's/.*:([0-9]+).*/\1/')
-# The pair of the container name in deployment/local/telemetry.ts, for the same reason.
-NAME_TELEMETRY = telemetry=app-template-telemetry-$$(echo "$$OTEL_EXPORTER_OTLP_ENDPOINT" | sed -E 's/.*:([0-9]+).*/\1/')
-# The pair of the identifier in deployment/aws/database.ts, for the same reason.
-NAME_DATABASE = database=app-template-$$STAGE-database
+# Every container and volume of the tree's stand holds the kernel's name prefix of its stage,
+# the database's container and volume, which MiniStack names, included.
+STAND = name=app-template-$$STAGE-
 DRIZZLE_CONFIG = kernel/data/drizzle.config.ts
 
 help: ## List all targets
@@ -38,7 +34,7 @@ help: ## List all targets
 		| awk 'BEGIN { FS = ":.*## " } { printf "  %-16s %s\n", $$1, $$2 }'
 
 # Claude Code fetches a plugin from an outside source only when user settings enable it, so setup
-# installs mattpocock-skills, which the /ticket-* skills wrap; a machine without claude skips it.
+# installs mattpocock-skills, whose skills /lab calls; a machine without claude skips it.
 setup: ## Install dependencies and the Claude Code plugins, create .env from .env.example if missing
 	bun install
 	@if command -v claude >/dev/null; then \
@@ -47,7 +43,7 @@ setup: ## Install dependencies and the Claude Code plugins, create .env from .en
 
 stack: ## Create the tree's Pulumi file backend and select or create the local stack
 	@mkdir -p .data/pulumi
-	@$(PULUMI) stack select local 2>/dev/null || $(PULUMI) stack init local
+	@$(PULUMI) stack select --create local
 
 # Refreshes the containers alone: docs/knowledge/aws.md. A wildcard target, unlike a full URN,
 # passes on a stack that holds none yet.
@@ -59,24 +55,21 @@ up: stack ## Start MiniStack and the telemetry backend, create the database, buc
 	@$(EXPORT_ENV) && echo "Grafana: http://localhost:$$GRAFANA_PORT (admin/admin)"
 
 down: ## Stop MiniStack, which stops the database's container, and the telemetry backend; every resource keeps its data
-	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_TELEMETRY) && \
-		docker ps -q --filter "name=^$$ministack$$" --filter "name=^$$telemetry$$" | xargs -r docker stop
+	$(EXPORT_ENV) && docker ps -q --filter "$(STAND)ministack" --filter "$(STAND)telemetry" | xargs -r docker stop
 
 # A killed MiniStack leaves the database's container running; why no destroy runs:
 # docs/knowledge/aws.md.
 reset: ## Remove MiniStack, the database's container and volume, the telemetry backend, the tree's MCP containers, .data/
-	$(EXPORT_ENV) && $(NAME_MINISTACK) && $(NAME_TELEMETRY) && $(NAME_DATABASE) && \
-		docker rm -f "$$ministack" "$$telemetry" $$(docker ps -aq --filter label=ministack=rds --filter "label=db_id=$$database") \
-			$$(docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)") && \
-		docker volume ls -q --filter "name=instance-$$database-data" | xargs -r docker volume rm
+	$(EXPORT_ENV) && { docker ps -aq --filter "$(STAND)"; docker ps -aq --filter "label=app-template.mcp-tree=$(CURDIR)"; } | \
+		xargs -r docker rm -fv && docker volume ls -q --filter "$(STAND)" | xargs -r docker volume rm
 	rm -rf .data .env.pulumi
 
-# Run inside the new worktree; the ports it moves: docs/knowledge/tooling.md › Worktrees.
+# Run inside the new worktree; the TCP ports it moves: docs/knowledge/tooling.md › Worktrees.
 worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEEP=1, the branch stays]
-	@sh .claude/skills/ticket-implement/worktree.sh "$$N" "$$NAME" "$$KEEP"
+	@sh .claude/skills/lab/worktree.sh "$$N" "$$NAME" "$$KEEP"
 
 migrate: ## Apply the pending migrations to the database in .env.pulumi
-	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/migrate.ts
+	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/postgres-migrate.ts
 
 # drizzle-kit is a root devDependency: the isolated linker links a workspace's binary only in that
 # workspace. The config's paths resolve against the working directory, the root.
@@ -84,108 +77,81 @@ migration: ## Generate a migration from the entities, with no database: NAME=<na
 	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
 	bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name $(NAME)
 
-# Compares folder listings, not git; soft here, strict in CI (docs/knowledge/database.md ›
-# Migrations). Closed stdin makes a rename prompt fail the target instead of hanging it.
+# drizzle-kit's dry run: the JSON status decides, the text run shows the SQL, its stdin closed so a
+# rename is reported, not asked. Soft here, strict in CI: docs/knowledge/database.md › Migrations.
 migration-check: ## Fail when an entity changed without a migration
-	@dir=kernel/data/migrations; before=$$(ls $$dir); \
-	out=$$(bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name unmigrated </dev/null 2>&1) || \
-		{ echo "$$out"; exit 1; }; \
-	new=$$(ls $$dir | grep -vxF "$$before"); \
-	if [ -n "$$new" ]; then \
-		cat $$dir/$$new/migration.sql; rm -rf $$dir/$$new; \
-		echo; echo "The entities differ from $$dir (above: the missing SQL)."; \
-		echo 'Run make migration NAME=<name> and commit the folder.'; \
-		exit 1; \
-	fi
-
-# The generator writes the file it is given, not stdout, so a log while the modules load stays out
-# of the document; the snapshot is replaced only once a generation succeeded.
-API_SNAPSHOT = http-api/openapi.json
-API_GENERATED = node_modules/.cache/openapi.json
-
-api-check: ## Fail when the OpenAPI document of the HTTP contract differs from its snapshot
-	@test -f $(API_SNAPSHOT) || { echo "$(API_SNAPSHOT) is missing: run make api-snapshot."; exit 1; }
-	@mkdir -p $(dir $(API_GENERATED))
-	@bun apps/api/openapi.ts $(API_GENERATED)
-	@diff -u $(API_SNAPSHOT) $(API_GENERATED) || { \
-		echo; echo "The HTTP contract differs from $(API_SNAPSHOT) (above: - snapshot, + code)."; \
-		echo 'A change on purpose: run make api-snapshot and commit the snapshot with it.'; \
+	@bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --explain --output json 2>/dev/null | grep -q '"status":"no_changes"' || { \
+		bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --explain </dev/null; \
+		echo; echo 'The entities differ from kernel/data/migrations (above). Regenerate the one init:'; \
+		echo 'delete that folder and run make migration NAME=init (docs/knowledge/database.md › Migrations).'; \
 		exit 1; \
 	}
 
-api-snapshot: ## Rewrite the HTTP contract's OpenAPI snapshot from the code
-	@mkdir -p $(dir $(API_GENERATED))
-	bun apps/api/openapi.ts $(API_GENERATED)
-	mv $(API_GENERATED) $(API_SNAPSHOT)
+# The web's client, as @effect/openapi-generator's installed command writes it from the api's
+# snapshot; --no-install stops bunx from fetching a registry package of that name instead.
+API_CLIENT = cd apps/web && bunx --no-install --bun openapigen -s ../api/openapi.json -n Api -f httpapi
+
+api-snapshot: ## Rewrite the api's OpenAPI snapshot from its code, then the web's client from it
+	bun --bun vitest run --project unit apps/api/__tests__/openapi.test.ts -u
+	$(API_CLIENT) > shared/api.generated.ts
+
+api-client-check: ## Fail when the web's client differs from what the api's snapshot generates
+	@$(API_CLIENT) | cmp -s - shared/api.generated.ts || \
+		{ echo 'The web client is stale: run make api-snapshot and commit it' >&2; exit 1; }
 
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
-dev-api: migrate ## Run the api with --hot
+dev-api: migrate ## Run the api
 	bun --filter @app-template/api dev
 
-dev-worker: migrate ## Run the worker with --watch
+dev-worker: migrate ## Run the worker
 	bun --filter @app-template/worker dev
 
-dev-web: ## Run the web dev server with HMR
+dev-web: ## Run the web dev server
 	bun --filter @app-template/web dev
 
-debug-api: ## Run the api with --inspect and --hot
+debug-api: ## Run the api with the inspector
 	bun --filter @app-template/api debug
 
-debug-worker: ## Run the worker with --inspect and --watch
+debug-worker: ## Run the worker with the inspector
 	bun --filter @app-template/worker debug
 
-debug-web: ## Run the web dev server with --inspect
+debug-web: ## Run the web dev server with the inspector
 	bun --filter @app-template/web debug
 
-check: doc-lint sh-lint lint typecheck api-check migration-check test bundle-check ## Run every gate: the docs, the shell scripts, lint and the Effect style, types, the HTTP contract, migrations, tests, the web bundle
+check: api-client-check typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
 	@bunx markdownlint-cli2 --config .misc/lint/markdownlint-cli2.mjs
 
-# The image by version and by the digest of its multi-arch index, so a moved tag changes nothing.
-# The files: tracked and untracked, not ignored, still on disk (a deleted script awaits its commit),
-# listed NUL-separated into a file, so a space or a glob in a path stays one name and a failed git
-# stops the target instead of linting nothing. No script left runs no ShellCheck, which would exit 3.
+# Each image by version and by the digest of its multi-arch index, so a moved tag changes nothing.
 SHELLCHECK_IMAGE = koalaman/shellcheck:v0.11.0@sha256:61862eba1fcf09a484ebcc6feea46f1782532571a34ed51fedf90dd25f925a8d
-SH_LINT_FILES = node_modules/.cache/sh-lint-files
+LYCHEE_IMAGE = lycheeverse/lychee:0.24.2@sha256:eaff3e0a13603c9a701accfcc84f44158bb77bf36ecfa4622b626056c3463892
 
-sh-lint: ## Lint the shell scripts outside repos/ with ShellCheck (Docker running)
-	@mkdir -p $(dir $(SH_LINT_FILES))
-	@git ls-files -z -co --exclude-standard -- '*.sh' ':!:repos/' > $(SH_LINT_FILES)
-	@xargs -0 sh -c 'for f do shift; [ ! -f "$$f" ] || set -- "$$@" "$$f"; done; \
-		[ $$# -gt 0 ] || exit 0; \
-		exec docker run --rm -v "$$PWD:/mnt" -w /mnt $(SHELLCHECK_IMAGE) \
-			--rcfile .misc/lint/shellcheckrc "$$@"' sh < $(SH_LINT_FILES)
+sh-lint: ## Lint the shell scripts outside repos/ and docs/tickets/ with ShellCheck (Docker running)
+	@git ls-files -z -co --exclude-standard -- '*.sh' ':!:repos/' ':!:docs/tickets/' | xargs -0 -r \
+		docker run --rm -v "$(CURDIR):/mnt" -w /mnt $(SHELLCHECK_IMAGE) --rcfile .misc/lint/shellcheckrc
 
-# The rules a review holds the diff from BASE to the working tree to: each rule without paths:, and
-# each whose filter matches a file the diff adds, changes or deletes (both sides of a rename),
-# untracked files included. /ticket-implement passes the parent of the step's first round as BASE
-# and hands this list to the Standards reviewer. The filters are read by
-# .misc/lint/rule-filters.mjs, the doc lint's reader.
+link-check: ## Check the relative links of README.md, docs/ and .claude/ with lychee (Docker running)
+	@docker run --rm -v "$(CURDIR):/input:ro" -w /input $(LYCHEE_IMAGE) --offline --no-progress \
+		--exclude-path '^\.claude/worktrees/' README.md 'docs/**/*.md' '.claude/**/*.md'
+
+# /lab passes the parent of the step's first round as BASE and hands the list to the Rules
+# reviewer.
 BASE = HEAD
 
 review-rules: ## List the rules that bind the diff from BASE (default HEAD): no paths: filter, or one it matches
-	@filters=$$(bun .misc/lint/rule-filters.mjs) || exit 2; \
-	bound=$$(printf '%s\n' "$$filters" | while read -r rule filter; do \
-		[ -n "$$filter" ] || continue; \
-		files=$$(git diff '$(BASE)' --no-renames --name-only -- ":(glob)$$filter" && \
-			git ls-files --others --exclude-standard -- ":(glob)$$filter") || exit 2; \
-		[ -z "$$files" ] || echo "$$rule"; \
-	done) || exit 2; \
-	{ for rule in $$(find .claude/rules -name '*.md'); do \
-		printf '%s\n' "$$filters" | cut -d' ' -f1 | grep -qxF "$$rule" || echo "$$rule"; \
-	done; printf '%s\n' "$$bound"; } | grep . | sort -u
+	@bun .misc/lint/rule-filters.mjs '$(BASE)'
 
 # A plugin that errors on a file is skipped there with a notice, `  i <plugin> errored: <reason>`,
-# and Biome still exits 0: that line stops the run with 2. The pattern is anchored, as the output
-# also quotes source lines. CI runs `make lint BIOME=ci`.
+# and Biome still exits 0: that line stops the lint with 2. The pattern is anchored, as the output
+# also quotes source lines. CI runs `make -k check BIOME=ci`.
 BIOME = check
 
 lint: ## Lint and format-check with Biome and its plugins, failing on a plugin that errored
-	@out=$$(bunx biome $(BIOME) --colors=off 2>&1); status=$$?; \
+	@out=$$(bunx biome $(BIOME) --colors=off --error-on-warnings 2>&1); status=$$?; \
 	printf '%s\n' "$$out"; \
 	if printf '%s\n' "$$out" | grep -qE '^  i [^ ]+ errored: '; then \
 		echo 'lint: a Biome plugin errored and checked nothing in that file: fix the plugin.' >&2; \
@@ -194,12 +160,12 @@ lint: ## Lint and format-check with Biome and its plugins, failing on a plugin t
 	exit $$status
 
 fmt: ## Apply Biome formatting and safe fixes
-	bun run format
+	bunx biome check --write
 
-# The patched tsc, not bun check: bun check ignores tsconfig plugins, so it misses every Effect
-# diagnostic.
+# The Effect compiler by its own path, so the gate holds on an install whose prepare did not patch
+# tsc; not bun check, which ignores tsconfig plugins and so misses every Effect diagnostic.
 typecheck: ## Typecheck every workspace with Effect diagnostics
-	bunx tsc -b
+	"$$(bunx effect-tsgo get-exe-path)" -b
 
 test: test-unit test-e2e ## Run the unit and the e2e tests
 
@@ -218,10 +184,6 @@ bundle-check: ## Fail when the web bundle holds a package outside browserPackage
 	bun build apps/web/app/main.ts --outdir $(WEB_BUNDLE) --target browser --metafile=$(WEB_BUNDLE)/meta.json
 	@bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json
 
-clean: ## Remove installed dependencies, build caches and coverage
-	find . -name node_modules -type d -prune -exec rm -rf {} +
-	rm -rf coverage
-
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive
 
@@ -230,7 +192,7 @@ vendor-effect: ## Pull Effect-TS/effect at the catalog pin into repos/effect (co
 	git subtree pull --squash --prefix repos/effect https://github.com/Effect-TS/effect.git \
 		$(EFFECT_TAG) -m ':wrench: chore(deps): Vendor effect at $(EFFECT_TAG)'
 
-# The first run adds the subtree, later runs pull it.
+# The first call adds the subtree, later calls pull it.
 vendor-drizzle: DRIZZLE_TAG = v$(shell bun pm pkg get catalogs.drizzle.drizzle-orm 2>/dev/null | tr -d '"')
 vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/drizzle (commits)
 	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \

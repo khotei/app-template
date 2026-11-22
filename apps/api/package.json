@@ -10,13 +10,11 @@
     "#testing/*": "./__tests__/testing/*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --hot main.ts",
-    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --hot main.ts",
-    "start": "bun --env-file=../../.env --env-file=../../.env.pulumi main.ts"
+    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",
+    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch main.ts"
   },
   "dependencies": {
     "@app-template/application": "workspace:*",
-    "@app-template/http-api": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
     "@effect/platform-bun": "catalog:effect",

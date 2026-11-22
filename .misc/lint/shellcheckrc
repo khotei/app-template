@@ -1,6 +1,5 @@
 # The shell lint (`make sh-lint`), handed to ShellCheck with --rcfile, so an editor's ShellCheck,
-# which looks for .shellcheckrc by name, does not apply it. What it guards:
-# docs/knowledge/tooling.md › Commands.
+# which looks for .shellcheckrc by name, does not apply it.
 
 # Every optional check, the masked return of a command substitution (SC2312) among them: a
 # `cd "$(git …)"` whose git fails still runs the cd.

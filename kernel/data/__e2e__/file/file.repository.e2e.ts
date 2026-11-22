@@ -4,7 +4,7 @@ import { Array as Arr, Effect, Layer, Option, Stream, Struct } from 'effect'
 
 import { buildResourceName, resources } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
-import { AwsConfig } from '@app-template/kernel/config'
+import { awsConfig } from '@app-template/kernel/config'
 import { png } from '@app-template/packages/testing'
 
 import { FileRepository } from '#kernel/data/file/file.repository'
@@ -29,7 +29,7 @@ describe('FileRepository on AwsTest', () => {
         Effect.gen(function* () {
           const files = yield* FileRepository
           const s3 = yield* S3Service
-          const { stage } = yield* AwsConfig
+          const { stage } = yield* awsConfig
           const id = fileId(1)
 
           const size = yield* files.insert(file(id))
@@ -47,47 +47,10 @@ describe('FileRepository on AwsTest', () => {
         }),
     )
 
-    it.effect('insert tags a small upload unbound', () =>
-      Effect.gen(function* () {
-        const files = yield* FileRepository
-        const s3 = yield* S3Service
-        const { stage } = yield* AwsConfig
-        const id = fileId(2)
-
-        yield* files.insert(file(id))
-        const { TagSet } = yield* s3.getObjectTagging({
-          Bucket: buildResourceName(stage, resources.buckets.attachments.name),
-          Key: `attachments/${id}`,
-        })
-
-        assert.deepStrictEqual(TagSet, [{ Key: 'unbound', Value: 'true' }])
-      }),
-    )
-
-    it.effect('update to bound removes the unbound tag from every file it names', () =>
-      Effect.gen(function* () {
-        const files = yield* FileRepository
-        const s3 = yield* S3Service
-        const { stage } = yield* AwsConfig
-        const ids = [fileId(3), fileId(10)]
-        yield* Effect.forEach(ids, (id) => files.insert(file(id)), { discard: true })
-
-        yield* files.update({ bound: true }, { id: ids })
-        const tagSets = yield* Effect.forEach(ids, (id) =>
-          s3.getObjectTagging({
-            Bucket: buildResourceName(stage, resources.buckets.attachments.name),
-            Key: `attachments/${id}`,
-          }),
-        )
-
-        assert.deepStrictEqual(Arr.map(tagSets, Struct.get('TagSet')), [[], []])
-      }),
-    )
-
     it.effect("selectOne signs a URL that serves attachments/<id> from the endpoint's host", () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
-        const { endpoint } = yield* AwsConfig
+        const { endpoint } = yield* awsConfig
         const id = fileId(4)
         yield* files.insert(file(id))
 
@@ -99,7 +62,7 @@ describe('FileRepository on AwsTest', () => {
     )
 
     it.effect(
-      'selectMany answers the stored files in the order asked with their media type and file name, leaving out a missing id',
+      'selectMany returns the stored files in the order asked with their media type and file name, leaving out a missing id',
       () =>
         Effect.gen(function* () {
           const files = yield* FileRepository
@@ -120,7 +83,7 @@ describe('FileRepository on AwsTest', () => {
         }),
     )
 
-    it.effect('download answers the file with its bytes, and none for a missing id', () =>
+    it.effect('download returns the file with its bytes, and none for a missing id', () =>
       Effect.gen(function* () {
         const files = yield* FileRepository
         const id = fileId(8)

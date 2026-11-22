@@ -1,14 +1,20 @@
-import { Array as Arr, Effect, Layer, Option, pipe, Record } from 'effect'
+import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-import { assistantMessageQueue, chatTitleQueue } from '@app-template/application/chat'
-import {
-  GenerateAssistantMessageUseCase,
-  GenerateChatTitleUseCase,
-} from '@app-template/application/use-cases'
-import { buildResourceName } from '@app-template/kernel/aws'
-import { AwsConfig } from '@app-template/kernel/config'
-import { buildQueueName, QueueConsumer, SqsEvent } from '@app-template/packages/queue'
+import { replyToMessageQueue, titleChatQueue } from '@app-template/application/chat'
+import { replyToMessage, titleChat } from '@app-template/application/use-cases'
+import { buildResourceName, type resources } from '@app-template/kernel/aws'
+import { awsConfig } from '@app-template/kernel/config'
+import { buildQueueName, consumeQueue, SqsEvent } from '@app-template/packages/queue'
+
+type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name']
+
+type JobServices = Effect.Services<ReturnType<typeof replyToMessage | typeof titleChat>>
+
+const routes = {
+  [replyToMessageQueue.name]: consumeQueue(replyToMessageQueue, replyToMessage),
+  [titleChatQueue.name]: consumeQueue(titleChatQueue, titleChat),
+} satisfies Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, JobServices>>
 
 /**
  * `POST /events`: the batch an SQS mapping invokes the worker with, run by the use case of the
@@ -16,21 +22,8 @@ import { buildQueueName, QueueConsumer, SqsEvent } from '@app-template/packages/
  */
 export const WorkerHandler = HttpRouter.use(
   Effect.fn(function* (router) {
-    const consumer = yield* QueueConsumer
-    const { stage } = yield* AwsConfig
-    const assistantMessage = yield* GenerateAssistantMessageUseCase
-    const chatTitle = yield* GenerateChatTitleUseCase
-
-    const consumers = {
-      [buildResourceName(stage, assistantMessageQueue.name)]: consumer.consume(
-        assistantMessageQueue,
-        assistantMessage.generate,
-      ),
-      [buildResourceName(stage, chatTitleQueue.name)]: consumer.consume(
-        chatTitleQueue,
-        chatTitle.generate,
-      ),
-    }
+    const { stage } = yield* awsConfig
+    const consumers = Record.mapKeys(routes, (name) => buildResourceName(stage, name))
 
     yield* router.add(
       'POST',
@@ -49,4 +42,4 @@ export const WorkerHandler = HttpRouter.use(
       }),
     )
   }),
-).pipe(Layer.provide([QueueConsumer.layer, AwsConfig.layer]))
+)

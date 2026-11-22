@@ -3,24 +3,25 @@ import { DateTime } from 'effect'
 import { UserId } from '@app-template/application/identity'
 import { epoch } from '@app-template/packages/testing'
 
-import { ChatId, MessageId, RunId } from '#chat/domain/chat.id'
-import { buildChat } from '#chat/domain/chat.model'
-import { buildAssistantMessage, buildUserMessage } from '#chat/domain/message.model'
-import { buildRun } from '#chat/domain/run.model'
-import { replyProvenance } from '#testing/chat/assistant.test-fake'
+import { Chat } from '#chat/domain/chat.model'
+import { ChatId } from '#chat/domain/chat.util'
+import { Message } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
+import { Run } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
 export const unknownChatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000038')
 
 export const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
-export const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
 
 /** An untitled chat of `owner`, created at `epoch`, so a later write shows as a moved `updatedAt`. */
-export const chat = buildChat({ id: chatId, userId: owner, createdAt: epoch })
+export const chat = new Chat({ id: chatId, userId: owner, createdAt: epoch, updatedAt: epoch })
 
 /** The first message of `chat`, the one its title job reads. */
-export const firstMessage = buildUserMessage({
+export const firstMessage = new Message({
+  author: 'user',
   id: messageId,
   chatId,
   text: 'Plan a weekend in Lisbon',
@@ -34,17 +35,18 @@ const historyAt = (n: number) => DateTime.makeUnsafe(n * 1000)
 
 /** The user's message at place `n` of `chat`'s history. */
 export const userMessageAt = (n: number, text: string) =>
-  buildUserMessage({ id: historyId(n), chatId, text, createdAt: historyAt(n) })
+  new Message({ author: 'user', id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
 /** The assistant's message at place `n` of `chat`'s history. */
 export const assistantMessageAt = (n: number, text: string) =>
-  buildAssistantMessage({ id: historyId(n), chatId, text, createdAt: historyAt(n) })
+  new Message({ author: 'assistant', id: historyId(n), chatId, text, createdAt: historyAt(n) })
 
-/** The Run a send of `firstMessage` queues. */
-export const queuedRun = buildRun({
+/** The Run an ask of `firstMessage` queues. */
+export const queuedRun = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
   chatId,
   userMessage: firstMessage,
-  provenance: replyProvenance,
+  userMessageId: firstMessage.id,
   createdAt: epoch,
+  updatedAt: epoch,
 })

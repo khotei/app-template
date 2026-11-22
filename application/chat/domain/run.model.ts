@@ -1,18 +1,15 @@
-import { type DateTime, Effect, Option, Predicate, Schema, type Types } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
-import type { AssistantError } from '#chat/domain/assistant.error'
-import type { MessageId } from '#chat/domain/chat.id'
 import { MessageFields } from '#chat/domain/message.model'
-import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
-  type RunFailure,
-  type RunFailureReason,
-  RunFields,
-  type RunStatus,
-} from '#chat/domain/run-fields.model'
-import { hasStatus, isPreparing } from '#chat/domain/status.model'
+  RunNotRetryableError,
+  RunStartedError,
+  RunStatusInvalidError,
+} from '#chat/domain/run.error'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import { hasStatus } from '#chat/domain/status.model'
 
 /**
  * The work of answering one user message; a retry is a new Run of the same message. Read with
@@ -22,109 +19,76 @@ export class Run extends Schema.Class<Run>('Run')({
   ...RunFields.fields,
   userMessage: MessageFields,
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.Option(MessageFields).pipe(
+  assistantMessage: Schema.OptionFromNullOr(MessageFields).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
 }) {}
 
-export const buildRun = (
-  fields: Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userMessage' | 'provenance' | 'createdAt'>>,
-): Run => new Run({ ...fields, userMessageId: fields.userMessage.id, updatedAt: fields.createdAt })
+// The statuses the data layer's active index holds, served through the module's entry.
+export { activeRunStatuses }
 
 export const isActiveRun = hasStatus(activeRunStatuses)
 
-/** A Run some worker already took: found at a worker's start, the worker that took it has died. */
-export const isStartedRun = hasStatus(['preparing', 'generating'])
+/** A Run past `queued` that has not ended. */
+export const isStartedRun = hasStatus(['generating'])
+
+/** A job refuses a Run some worker started (`RunStartedError`): that worker has died. */
+export const ensureRunUnstarted = Effect.fnUntraced(function* (run: Run) {
+  if (isStartedRun(run)) {
+    return yield* new RunStartedError({ id: run.id })
+  }
+  return run
+})
 
 const isFailedRun = hasStatus(['failed'])
 
 /**
- * A retry takes the chat's newest Run when it failed and answers `userMessageId`: only the newest
- * user message ever gets a Run, so the newest Run's message is the chat's last user message.
+ * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
+ * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = Effect.fn('ensureRunRetryable')(function* (
-  newest: Option.Option<RunFields>,
-  userMessageId: MessageId,
-): Effect.fn.Return<void, RunNotRetryableError> {
-  const answers = (run: RunFields) => run.userMessageId === userMessageId
-  if (!Option.exists(newest, Predicate.and(isFailedRun, answers))) {
-    return yield* new RunNotRetryableError({ userMessageId })
-  }
-})
+export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
+  newestRun.pipe(
+    Option.filter<RunFields>(isFailedRun),
+    Option.match({
+      onNone: () => Effect.fail(new RunNotRetryableError()),
+      onSome: Effect.succeed,
+    }),
+  )
 
-/** Which Runs may enter each status; `queued` is only ever built, never entered. */
-const transitions = {
-  preparing: isActiveRun,
-  generating: isPreparing,
-  done: isActiveRun,
-  failed: isActiveRun,
-} as const satisfies Record<Exclude<RunStatus, 'queued'>, Predicate.Predicate<Run>>
+/** Where a Run may move from each status; `done` and `failed` end it. */
+const moveRunRules = {
+  queued: ['generating', 'failed'],
+  generating: ['done', 'failed'],
+  done: [],
+  failed: [],
+} as const satisfies Record<RunStatus, ReadonlyArray<RunStatus>>
+
+/** A move the table refuses dies: every caller moves a Run it has just read or moved. */
+const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
+  if (!Arr.contains(moveRunRules[run.status], to)) {
+    return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
+  }
+}, Effect.orDie)
 
 const move = Effect.fnUntraced(function* (
   run: Run,
-  {
-    to,
-    at,
-    patch,
-  }: {
-    readonly to: keyof typeof transitions
-    readonly at: DateTime.Utc
-    readonly patch?: Types.Simplify<
-      Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>>
-    >
-  },
+  to: Exclude<RunStatus, 'queued'>,
+  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>> = {},
 ) {
-  if (!transitions[to](run)) {
-    return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
-  }
-  return new Run({ ...run, ...patch, status: to, updatedAt: at })
+  yield* ensureRunMove(run, to)
+  return new Run({ ...run, ...fields, status: to })
 })
 
-export const prepareRun = Effect.fn('prepareRun')((run: Run, at: DateTime.Utc) =>
-  move(run, { to: 'preparing', at }),
-)
+export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
 
-export const generateRun = Effect.fn('generateRun')((run: Run, at: DateTime.Utc) =>
-  move(run, { to: 'generating', at }),
-)
-
-/** The reply a Run settled with and when. */
-export type RunCompletion = { readonly reply: MessageFields; readonly at: DateTime.Utc }
-
-export const completeRun = Effect.fn('completeRun')((run: Run, { reply, at }: RunCompletion) =>
-  move(run, {
-    to: 'done',
-    at,
-    patch: { assistantMessageId: Option.some(reply.id), assistantMessage: Option.some(reply) },
+export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
+  move(run, 'done', {
+    assistantMessageId: Option.some(reply.id),
+    assistantMessage: Option.some(reply),
   }),
 )
 
-const failureMessages = {
-  ReplyFailed: 'The assistant could not reply. Please try again.',
-  ReplyRefused: 'The assistant declined to answer this message.',
-} as const satisfies Record<RunFailureReason, string>
-
-/** Why a Run failed and when; the user-facing text comes from `failureMessages`. */
-export type RunFailureInput = Types.Simplify<
-  Pick<RunFailure, 'reason' | 'cause'> & { readonly at: DateTime.Utc }
->
-
-export const failRun = Effect.fn('failRun')((run: Run, { reason, cause, at }: RunFailureInput) =>
-  move(run, {
-    to: 'failed',
-    at,
-    patch: { failure: Option.some({ reason, message: failureMessages[reason], cause }) },
-  }),
+/** Fails a Run with the full text of `cause`, its nested causes included. */
+export const failRun = Effect.fn('failRun')((run: Run, cause: Cause.Cause<unknown>) =>
+  move(run, 'failed', { failure: Option.some({ cause: Cause.pretty(cause) }) }),
 )
-
-const failureReasons = {
-  AssistantRefusedError: 'ReplyRefused',
-  AssistantFailedError: 'ReplyFailed',
-} as const satisfies Record<AssistantError['_tag'], RunFailureReason>
-
-export const buildRunFailure = (
-  error: AssistantError,
-): Types.Simplify<Pick<RunFailure, 'reason' | 'cause'>> => ({
-  reason: failureReasons[error._tag],
-  cause: error.cause,
-})

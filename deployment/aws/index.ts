@@ -1,8 +1,0 @@
-export { api } from '#deployment/aws/api'
-export { createDatabase } from '#deployment/aws/database'
-export { iam } from '#deployment/aws/iam'
-export { createProvider } from '#deployment/aws/provider'
-export { createQueues } from '#deployment/aws/queue'
-export { createStorage } from '#deployment/aws/storage'
-export { web } from '#deployment/aws/web'
-export { createWorker } from '#deployment/aws/worker'

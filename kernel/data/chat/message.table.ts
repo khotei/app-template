@@ -22,7 +22,7 @@ export const messages = snakeCase.table(
   },
   (table) => [
     index('messages_chat_id_created_at_index').on(table.chatId, table.createdAt),
-    // The target of `attachments_message_id_chat_id_fk` and `runs_user_message_id_chat_id_fk`.
+    // The target of `runs_user_message_id_chat_id_fk`.
     unique('messages_id_chat_id_unique').on(table.id, table.chatId),
   ],
 )

@@ -1,11 +1,9 @@
-import { Array as Arr, Effect, flow, Schema, String as Str, type Types } from 'effect'
+import { Effect, Predicate, Schema } from 'effect'
 
-import { messageAuthors } from '@app-template/kernel/data'
+import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
-import type { AttachmentId } from '#chat/domain/attachment.id'
-import { Attachment } from '#chat/domain/attachment.model'
-import { ChatId, MessageId } from '#chat/domain/chat.id'
-import { MessageInputInvalidError } from '#chat/domain/message.error'
+import { ChatId } from '#chat/domain/chat.util'
+import { isBlank, MessageId } from '#chat/domain/message.util'
 import { RunFields } from '#chat/domain/run-fields.model'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
@@ -16,42 +14,19 @@ export const MessageFields = Schema.Struct({
   id: MessageId,
   chatId: ChatId,
   author: MessageAuthor,
-  /** Finished text: a user's as sent, an assistant's as the Run that wrote it settled it. */
-  text: Schema.String,
-  createdAt: Schema.DateTimeUtc,
+  /** Finished text: a user's as asked, an assistant's as the Run that wrote it settled it. */
+  text: Schema.String.check(
+    Schema.isPattern(textPattern),
+    Schema.makeFilter(Predicate.not(isBlank), {
+      expected: 'a string with a non-whitespace character',
+    }),
+  ),
+  createdAt: Schema.DateTimeUtcFromDate,
 })
 export type MessageFields = typeof MessageFields.Type
 
 export class Message extends Schema.Class<Message>('Message')({
   ...MessageFields.fields,
-  /** Bound by the send, in upload order; the message's own writes never touch them. */
-  attachments: Schema.Array(Attachment),
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
-  run: Schema.Option(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}
-
-export interface MessageInput {
-  readonly text: string
-  readonly attachmentIds: ReadonlyArray<AttachmentId>
-}
-
-export const buildUserMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, author: 'user', attachments: [] })
-
-/** The reply a done Run writes. */
-export const buildAssistantMessage = (
-  fields: Types.Simplify<Pick<Message, 'id' | 'chatId' | 'text' | 'createdAt'>>,
-): Message => new Message({ ...fields, author: 'assistant', attachments: [] })
-
-export const isBlank: (text: string) => boolean = flow(Str.trim, Str.isEmpty)
-
-export const ensureMessageInput = Effect.fn('ensureMessageInput')(function* (input: MessageInput) {
-  if (isBlank(input.text) && Arr.isReadonlyArrayEmpty(input.attachmentIds)) {
-    return yield* new MessageInputInvalidError()
-  }
-  // A repeated id would pass the bindability check twice and bind one attachment once.
-  if (Arr.dedupe(input.attachmentIds).length < input.attachmentIds.length) {
-    return yield* new MessageInputInvalidError()
-  }
-})

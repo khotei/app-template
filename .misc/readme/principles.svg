@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 548" role="img" aria-labelledby="title desc">
+<title id="title">The principles behind it</title>
+<desc id="desc">Composition over folding; guards in the build, not in review; one source of truth for data; minimal, then right, then hard; the reasoning committed beside the code.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="547" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">The principles behind it</text>
+<rect x="28" y="66" width="904" height="82" rx="8" class="box k-neu"/>
+<text x="44" y="96" class="b" xml:space="preserve">Composition over folding</text>
+<text x="290" y="95" xml:space="preserve">A new purpose is a new unit that wraps or composes</text>
+<text x="290" y="115" xml:space="preserve">the old one; minimal means less code in each unit,</text>
+<text x="290" y="135" xml:space="preserve">never fewer units.</text>
+<text x="708" y="95" class="m" xml:space="preserve"><tspan class="code">composition.md</tspan>, decisions ›</text>
+<text x="708" y="114" class="m" xml:space="preserve">Composition: wrap or</text>
+<text x="708" y="133" class="m" xml:space="preserve">compose</text>
+<rect x="28" y="160" width="904" height="82" rx="8" class="box k-neu"/>
+<text x="44" y="190" class="b" xml:space="preserve">Guards in the build, not in</text>
+<text x="44" y="211" class="b" xml:space="preserve">review</text>
+<text x="290" y="189" xml:space="preserve">Biome, its GritQL plugin, <tspan class="code">tsc -b</tspan> and the bundle check</text>
+<text x="290" y="209" xml:space="preserve">refuse a wrong import before anyone reads it; review</text>
+<text x="290" y="229" xml:space="preserve">keeps what no tool sees.</text>
+<text x="708" y="189" class="m" xml:space="preserve">decisions › Guards are</text>
+<text x="708" y="208" class="m" xml:space="preserve">configuration</text>
+<rect x="28" y="254" width="904" height="82" rx="8" class="box k-neu"/>
+<text x="44" y="284" class="b" xml:space="preserve">One source of truth for data</text>
+<text x="290" y="283" xml:space="preserve"><tspan class="code">kernel/data</tspan> declares every store; a module's domain</text>
+<text x="290" y="303" xml:space="preserve">takes the tables' limits, patterns and enum values</text>
+<text x="290" y="323" xml:space="preserve">instead of declaring them again.</text>
+<text x="708" y="283" class="m" xml:space="preserve">decisions › The data at the</text>
+<text x="708" y="302" class="m" xml:space="preserve">centre, Checks kept in the</text>
+<text x="708" y="321" class="m" xml:space="preserve">tables</text>
+<rect x="28" y="348" width="904" height="82" rx="8" class="box k-neu"/>
+<text x="44" y="378" class="b" xml:space="preserve">Minimal, then right, then</text>
+<text x="44" y="399" class="b" xml:space="preserve">hard</text>
+<text x="290" y="377" xml:space="preserve">The whole feature in its smallest form, played end to</text>
+<text x="290" y="397" xml:space="preserve">end; then its design; then the <tspan class="code">Later</tspan> items the owner</text>
+<text x="290" y="417" xml:space="preserve">picks.</text>
+<text x="708" y="377" class="m" xml:space="preserve"><tspan class="code">sdd.md</tspan> › Minimal, right, hard</text>
+<rect x="28" y="442" width="904" height="82" rx="8" class="box k-neu"/>
+<text x="44" y="472" class="b" xml:space="preserve">Reasoning committed</text>
+<text x="44" y="493" class="b" xml:space="preserve">beside the code</text>
+<text x="290" y="471" xml:space="preserve">Each decision with its why, rejected alternatives and</text>
+<text x="290" y="491" xml:space="preserve">cost; a <tspan class="code">Decision:</tspan> paragraph in its commit; a <tspan class="code">lab.md</tspan></text>
+<text x="290" y="511" xml:space="preserve">per ticket.</text>
+<text x="708" y="471" class="m" xml:space="preserve"><tspan class="code">decisions.md</tspan>, <tspan class="code">commits.md</tspan>,</text>
+<text x="708" y="490" class="m" xml:space="preserve"><tspan class="code">docs/tickets/</tspan></text>
+</svg>

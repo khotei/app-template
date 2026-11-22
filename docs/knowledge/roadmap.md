@@ -1,299 +1,76 @@
 # Roadmap
 
 The tickets that turn this repository into **App Template**: a chat clone (user → message →
-assistant reply, with attachments) built as a worked example of an Effect v4 modular monolith on
+assistant reply) built as a worked example of an Effect v4 modular monolith on
 Bun, with Postgres, AWS and Pulumi, so that a new enterprise project starts from it in minutes.
 
-This file is the **only place a future ticket exists** before its `/ticket-feature` runs. SDD knows
-no "draft ticket": each entry below holds what a ticket is *for* (goal, scope, out of scope,
-dependencies, inherited requirements, open questions); the *how* is decided by
-`/ticket-architecture` inside the ticket. When a ticket starts, `/ticket-feature <slug>` reads its
-entry, grills from there, and the entry's `Status` becomes a link to the ticket folder.
+This file is the **only place a future ticket exists** before `/lab init <slug>` starts it: each
+entry below holds what a ticket is *for* (goal, scope, out of scope, dependencies, inherited
+requirements, open questions); the *how* is decided in its lab. `init` seeds the lab's Intent from
+the entry, and the entry's `Status` becomes a link to the ticket folder. At the lab's close, the
+row is marked done and the entry's section goes, so the PR's squash carries both.
 
 ## How a ticket flows
 
 ```mermaid
 graph LR
-  R["roadmap entry<br/>(status: planned)"] --> F["/ticket-feature &lt;slug&gt;<br/>docs/tickets/&lt;date&gt;_&lt;slug&gt;/"]
-  F --> A["/ticket-architecture"] --> P["/ticket-plan"] --> I["/ticket-implement ×N"] --> V["/ticket-verify"]
-  V --> PR["squash PR → main"]
+  R["roadmap entry<br/>(status: planned)"] --> F["/lab init &lt;slug&gt;<br/>docs/tickets/&lt;date&gt;_&lt;slug&gt;/lab.md"]
+  F --> S["/lab step, implement, review, close ×N"] --> C["/lab close"]
+  C --> PR["squash PR → main"]
   PR --> R2["roadmap entry<br/>(status: done, link)"]
 ```
 
-- **One ticket = one branch `<type>/<slug>` cut from `main` = one squash-merged PR.** Unchanged
-  from `.claude/rules/sdd.md`.
+- **One ticket = one branch `<type>/<slug>` cut from `main` = one squash-merged PR.**
 - **`main` is the only long-lived branch:** the steps of a merged ticket stay in its PR's commit
-  list and its `plan.md`; see [sdd.md › Roadmap and history](./sdd.md#roadmap-and-history).
+  list and its `lab.md`; see [sdd.md › Roadmap and history](./sdd.md#roadmap-and-history).
 - **Order below is the default, dependencies are the law.** A ticket may start when every entry in
   its `Depends on` is done. Two independent tickets may run in parallel on separate branches.
-- **Facts expire.** Every `Facts` line carries the date it was checked; `/ticket-feature`
-  re-verifies the ones it relies on and moves them into the ticket's `feature.md › Context`.
+- **Facts expire.** Every `Facts` line carries the date it was checked; `/lab init` has a
+  `researcher` re-check the ones it relies on.
 
 ## Tickets
 
 | # | Ticket | Type | Depends on | Status |
 |---|---|---|---|---|
-| 1 | [`template-bootstrap`](#1-template-bootstrap) | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
-| 2 | [`claude-toolkit`](#2-claude-toolkit) | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
-| 3 | [`chat-core`](#3-chat-core) | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
-| 4 | [`postgres-drizzle`](#4-postgres-drizzle) | `feat` | 3 | done: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
-| 5 | [`aws-local`](#5-aws-local) | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
-| 6 | [`llm-providers`](#6-llm-providers) | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
+| 1 | `template-bootstrap` | `chore` | — | done: [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md) |
+| 2 | `claude-toolkit` | `chore` | 1, 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
+| 3 | `chat-core` | `feat` | 1 | done: [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md) |
+| 4 | `postgres-drizzle` | `feat` | 3 | done: [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md) |
+| 5 | `aws-local` | `feat` | 3 | done: [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md) |
+| 6 | `llm-providers` | `feat` | 5 | done: [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md) |
 | 7 | [`web-app`](#7-web-app) | `feat` | 3 (18 for assistant attachments) | planned |
-| 8 | [`observability`](#8-observability) | `feat` | 3 | in progress: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
+| 8 | `observability` | `feat` | 3 | done, as `telemetry-minimal`: [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md) |
 | 9 | [`aws-deployment`](#9-aws-deployment) | `feat` | 4, 5 | planned |
-| 10 | [`client-publishing`](#10-client-publishing) | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
-| 11 | [`workflow-cluster`](#11-workflow-cluster) | `feat` | 4, 8 | planned, exploratory |
+| 10 | `client-publishing` | `chore` | 3 | done: [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md) |
 | 12 | [`template-handoff`](#12-template-handoff) | `chore` | all above | planned |
-| 13 | [`ticket-folder-order`](#13-ticket-folder-order) | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
-| 14 | [`toolkit-reading`](#14-toolkit-reading) | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
-| 15 | [`architecture-audit`](#15-architecture-audit) | `refactor` | 4 | done: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
-| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | planned |
-| 17 | [`docs-diet`](#17-docs-diet) | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
-| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | planned |
-| 19 | [`openai-provider`](#19-openai-provider) | `feat` | 6 | planned |
+| 13 | `ticket-folder-order` | `chore` | 3 | done: [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md) |
+| 14 | `toolkit-reading` | `chore` | 2 | done: [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md) |
+| 15 | `architecture-audit` | `refactor` | 4 | done: [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md) |
+| 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | paused: attachments removed, to be rethought ([docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md)) |
+| 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
+| 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | paused: attachments removed, to be rethought |
 | 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
-| 22 | [`jobs`](#22-jobs) | `feat` | 4, 23 | planned |
-| 23 | [`modular-monolith`](#23-modular-monolith) | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
-| 24 | [`attachment-storage-failures`](#24-attachment-storage-failures) | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
-| 25 | [`toolkit-quality`](#25-toolkit-quality) | `chore` | 17 | in progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
-| 26 | [`domain-from-data`](#26-domain-from-data) | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
-| 27 | [`rules-from-attachment-work`](#27-rules-from-attachment-work) | `docs` | 24 | planned |
-| 29 | [`sdd-stages`](#29-sdd-stages) | `chore` | 2 | in progress: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
+| 23 | `modular-monolith` | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
+| 24 | `attachment-storage-failures` | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
+| 25 | `toolkit-quality` | `chore` | 17 | done: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md) |
+| 26 | `domain-from-data` | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
+| 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
+| 30 | `effect-4-1` | `chore` | PR #39 | done, in the design audit's PR #39 |
 
-The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; its remaining work is re-homed
-in [Re-homing `effect-setup`](#re-homing-effect-setup).
-
-### 1. `template-bootstrap`
-
-- **Goal.** A public repository `khotei/app-template` with `main`, `chore/monorepo-setup` and
-  `chore/enterprise-template`, the scope renamed to `@app-template`, this roadmap and the glossary
-  committed, and the SDD rules extended with the roadmap and the branch model. Everything after
-  this ticket happens in the new repository.
-- **Scope.** Repository creation and settings; branch transfer; rename; `LICENSE`; `README.md`
-  and `CLAUDE.md` as a template's; `effect-setup` marked superseded; the first squash PR.
-- **Out of scope.** Any behaviour change; finishing `effect-setup`; the rename script and the
-  "new project" checklist (12).
-- **Status.** Done:
-  [docs/tickets/2026-10-17-1508_template-bootstrap/](../tickets/2026-10-17-1508_template-bootstrap/feature.md).
-
-### 2. `claude-toolkit`
-
-- **Goal.** The Claude Code configuration of a template: `CLAUDE.md` files, `.claude/rules/`,
-  `.claude/skills/ticket-*`, `.claude/agents/`, hooks and settings organised so that every later
-  ticket is built by agents with the right context at the right time, and so that a new project
-  inherits the toolkit unchanged.
-- **Scope.** The Effect rule `effect.md` and `docs/knowledge/effect.md` (inherited from
-  `effect-setup` R37–R39, written against `chat-core`'s code); naming and layer `CLAUDE.md` updates
-  the same requirements ask for; agent frontmatter (`memory`, `effort`, `background`), hooks beyond
-  the `Stop` gate (`SessionStart` context, `PostToolUse` format, `PrePermissionRequest` guards),
-  the committed `settings.json` versus `settings.local.json` split, plugin pinning, nested
-  `<workspace>/.claude/skills/` where a layer deserves one, `claude plugin eval` cases for the
-  `ticket-*` skills, `/skill-doctor` as a periodic check; a re-read of `docs/knowledge/sdd.md`.
-- **Out of scope.** Changing the SDD gates themselves; product code.
-- **Inherits.** `effect-setup` R37, R37a, R37b, R38, R39, R40; three lessons of
-  [`template-bootstrap`](../tickets/2026-10-17-1508_template-bootstrap/verification.md#lessons):
-  - `ticket-plan` step 3 checks every literal the plan fixes against the rules and the tree.
-  - `implementer` greps for a fact before a doc states it, and links the doc that owns it.
-  - A `.husky/commit-msg` hook fails on a body line over 72 columns.
-- **Open questions for its feature phase.** Which rules are conventions Biome or a hook can enforce
-  instead (the Lessons mechanism says: mechanical → a check); whether `argument-hint` is still a
-  supported skill field; whether an agent `memory` helps the `implementer` across steps or only
-  adds drift; whether ticket skills should `context: fork`.
-- **Facts (2026-10-17).** The configuration matches the official October 2026 guidance: sizes,
-  `paths:` on rules, `disable-model-invocation`, `disallowedTools`, one `Stop` hook. Unused and
-  available: agent `memory`/`effort`/`background`, `SessionStart`/`PostToolUse`/
-  `PrePermissionRequest` hooks, nested skills, plugin evals, `/skill-doctor`, output styles,
-  Workflow tool, cross-session messaging.
-- **Re-read (2026-10-20).** Most of the Scope landed during `chat-core`: the Effect rule split,
-  `naming.md`, `use-cases.md`, the layer `CLAUDE.md` rewrites, `/explain`, the rounds rule. The
-  ticket is now an audit of the toolkit by evidence (the two verifications, the plan findings, the
-  `Decision:` paragraphs): what stays, what becomes a check, what loads lazily. Evals,
-  `/skill-doctor`, plugin pinning, `skillOverrides`, agent `memory` and the extra hooks move to
-  `template-handoff` (12): nothing recorded would have been prevented by them.
-- **Status.** Done:
-  [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
-
-### 3. `chat-core`
-
-- **Goal.** The example domain end to end, in memory: a visitor opens the web app and gets a
-  secret, creates a chat, sends a message with optional attachments, receives the assistant's reply
-  as a stream, and lists and reopens their chats. Everything crosses the layers the architecture
-  prescribes: `domain` → `infrastructure` → `application` → `apps/api`, a contract-derived client,
-  a worker job. The `example` slice is deleted; `chat` is the new worked example.
-- **First Effect rule.** Its first slice ends with a short `.claude/rules/effect.md` drawn from that
-  code, so later steps follow it; `claude-toolkit` (2) polishes it.
-- **Scope.** the chat domain (Visitor, Chat, Message, Attachment, Placeholder as `Schema`, errors,
-  ports); in-memory adapters on `KeyValueStore`; `application/chat` services and the job;
-  `@app-template/http-api` as an `HttpApi` with the visitor secret as `HttpApiSecurity`, SSE for the
-  reply (`HttpApiSchema.StreamSse` over `LanguageModel.streamText` from the stub), multipart upload
-  for attachments (`asMultipartStream` with limits, stored in `KeyValueStore` for now), the spec
-  served at `/openapi.json`; its `ApiClient` over `HttpApiClient`, the web on Effect; `apps/api` on
-  `HttpApiBuilder` and `BunRuntime`; `apps/worker` running one real job (chat title generation
-  after the first reply, as ChatGPT does) on the `PersistedQueue` port; tests at the seams with
-  `@effect/vitest`, `TestClock`, `TestCrypto`, `BunHttpServer.layerTest` and the typed client.
-- **Out of scope.** Postgres (4), S3 and SQS (5), real providers and assistant-produced attachments
-  (6), the browser UI (7), tracing (8).
-- **Inherits.** `effect-setup` R23–R29a (jobs), R30–R33 (contract and client), R35–R36 (runtime and
-  dev modes); its `architecture.md` D2 (both sides of a job in one file), D16, D17, D20, D21.
-- **Decided in grilling (2026-10-17).** The visitor is identified by a server-issued secret kept in
-  an `HttpOnly` cookie, not by chat ids kept in `localStorage`: one secret per browser gives the
-  chat list for free, needs no per-chat owner token, and later merges into an account. Visitor ids
-  and chat ids are UUIDv7 from `Crypto`.
-- **Open questions for its feature phase.** Whether the reply streams from the api directly
-  (simplest, lowest latency) while the worker owns only asynchronous jobs, or whether the reply
-  itself is a job relayed over SSE (one path for every provider call, but a queue hop in the
-  critical path). Message roles: `visitor | assistant`. Attachment size and type limits. Whether
-  `HttpApiSecurity.apiKey` in a cookie or a custom middleware carries the visitor secret.
-- **Facts (2026-10-17).** `effect/http-api` covers typed SSE (`HttpApiSchema.StreamSse`, decoded
-  by `HttpApiClient`), multipart (`asMultipart`, `asMultipartStream` with `Multipart.withLimits`),
-  security, OpenAPI, Swagger and Scalar UIs, and in-memory handler tests (`HttpApiTest`).
-  `effect/ai` streams `Response` parts (`text-delta`, `file`, `tool-call`, …) and takes
-  `Prompt.FilePart` for images and PDFs. `@effect/sql-pglite@4.0.5` exists for later in-process
-  Postgres tests.
-- **Status.** Done:
-  [docs/tickets/2026-10-17-1748_chat-core/](../tickets/2026-10-17-1748_chat-core/feature.md), merged
-  as `d142143`. Its grilling departed from this entry: the assistant's message is a worker job
-  polled by the client (no SSE here), the title job starts from the first user message, and
-  `Visitor` became `User`.
-
-### 4. `postgres-drizzle`
-
-- **Goal.** Chats, messages and attachments persisted in Postgres through Drizzle's first-party
-  Effect integration, with migrations, a transactional outbox feeding the job queue, and tests that
-  run in parallel without touching each other.
-- **Scope.** `drizzle-orm@1.0.0-rc.*` with `drizzle-orm/effect-postgres` over `@effect/sql-pg`
-  and `drizzle-orm/effect-schema` for `Schema` derivation; `drizzle-kit` migrations; `timestamptz`
-  and `$onUpdate` columns, UUIDv7 ids, `as const` value lists shared by `Schema.Literals` and
-  `pgEnum`; repositories replacing the in-memory adapters; the outbox table and relay into
-  `PersistedQueue.layerStoreSql` (or proof that `offer` inside `withTransaction` is the outbox),
-  which also closes `chat-core`'s enqueue-after-insert risks (a `queued` message with no job, the
-  chat busy for good; or no title job, the chat untitled for good) by committing the jobs with the
-  messages; and the two guards that let a second api process drop the in-process `UserLock`:
-  a partial unique index allowing one active message per chat, and the bind as `UPDATE … WHERE
-  message_id IS NULL`;
-  `FOR UPDATE SKIP LOCKED` where the queue store does not already provide it; the test strategy
-  (per-suite `@effect/sql-pglite` versus Testcontainers with a schema or database per test, with
-  a replacement `ConfigProvider` built from the running instance); `docker-compose` Postgres for
-  dev; `make` targets for migrate and reset.
-- **Out of scope.** AWS resources (5), Aurora versus RDS (9). If `aws-local` (5) lands first, the
-  outbox relay publishes to the queue port's SQS layer instead.
-- **Leaning (2026-10-18).** Keys stay UUIDv7 generated by the application, so an id exists
-  before the write; columns are `id uuid PRIMARY KEY DEFAULT uuidv7()` (Postgres 18), the default
-  only a fallback for hand-written SQL and data scripts. A `bigint` identity was set aside: it
-  needs a round trip, invites id guessing and reveals volumes.
-- **Open questions for its feature phase.** Which `drizzle-orm` rc is pinned and whether it
-  compiles against `effect@4.0.5` (the donor pinned `rc.3` against `beta.78`); pglite versus
-  Testcontainers as the default test database, and whether both are kept (fast local, real CI);
-  how the job queue's SQL store and the domain tables share one `SqlClient` and one transaction.
-- **Facts (2026-10-17).** `drizzle-orm@1.0.0-rc.3` exports `./effect-postgres`,
-  `./effect-schema`, `./effect-postgres/migrator`, `./pg-core/effect/*`, with peers
-  `effect >=4.0.0` and `@effect/sql-pg >=4.0.0` (checked on the npm registry; `latest` is still
-  `0.45.4`, so `bun info` without a tag misses it). `@effect/sql-pg@4.0.5` is a dependency-free
-  wire-protocol driver that runs on Bun. `effect/sql` has `SqlClient.withTransaction`, `Migrator`,
-  `SqlModel`, `SqlResolver`, but no isolation helper for tests and no `SKIP LOCKED` helper;
-  `PersistedQueue.layerStoreSql` implements polling with `SKIP LOCKED`, lock refresh and lock
-  expiration. The donor isolates tests by one container per file plus `TRUNCATE` at the top of
-  each test, which forbids parallel tests inside a file.
-- **Inherits from `aws-local` (2026-10-22).** A sweep of unbound attachment records past
-  `unboundLifetime` (expired unbound records read as not found, and no sweep deletes them yet); a
-  consumer or sweep for replies left active in the dead-letter queue (a killed worker, a failed
-  `failed` write, a stopped worker's long poll); a `WHERE status IN (…)` guard on the reply's
-  terminal write.
-- **Status.** Done:
-  [docs/tickets/2026-10-22-1915_postgres-drizzle/](../tickets/2026-10-22-1915_postgres-drizzle/feature.md),
-  merged as `b7d6edf`. Its grilling departed from this entry: the outbox relays to SQS (there is
-  no SQL queue store any more); `$onUpdate` is dropped, timestamps and ids stay the domain's;
-  tests run on Testcontainers only, one Postgres per `vitest` run with a database per test, PGlite
-  rejected as a second driver; the local stand is one Pulumi program, MiniStack with the RDS
-  instance, the bucket and the queues inside it; the attachment record sweep was declined.
-
-### 5. `aws-local`
-
-- **Goal.** Attachments in S3 and jobs on SQS, with MiniStack as the local AWS and one resource
-  inventory shared by local provisioning, tests and the later Pulumi program.
-- **Scope.** A storage port with an S3 adapter (multipart upload streamed from the api, presigned
-  download URLs); the queue port's SQS layer replacing the SQLite layer in the composition roots;
-  the choice of queue type (standard, with idempotent handlers) and client (`@effect-aws/client-*`
-  on Effect v4 versus the AWS SDK behind a thin port); MiniStack in `docker-compose` next to
-  Postgres; a plain-data AWS resource inventory and a provisioner; tests against MiniStack through
-  Testcontainers with a replacement `ConfigProvider`; `.env.example` for endpoints and credentials.
-- **Out of scope.** Lambda packaging and Pulumi (9); emulated Lambdas (9); the outbox, so the api
-  sends a job right after its write as it does today, and the enqueue-after-insert risk stays with
-  `postgres-drizzle` (4).
-- **Decided (2026-10-19).** AWS work is two tickets, this one and `aws-deployment` (9), sharing one
-  resource inventory. This ticket depends on `chat-core` (3) only: S3 and SQS need no Postgres.
-  MiniStack emulates the services only; the api and worker keep running on `bun --hot` and
-  `--watch` against it.
-- **Queue-port caveat.** The port promises one delivery per `jobId` (SQLite and Postgres: a
-  unique `(id, queue_name)`). A standard SQS queue has no dedupe and FIFO dedupes only within
-  5 minutes, and `isLastAttempt` must come from `ApproximateReceiveCount` against the redrive
-  policy's `maxReceiveCount`. Handlers stay idempotent either way.
-- **Rechecked (2026-10-19).** MiniStack verifies SigV4 presigned GET and PUT and runs SQS event
-  source mappings (source and tests, not yet run live); it dedupes FIFO messages in a 300 s
-  window; Node.js and `provided.*` Lambdas run as local processes, Docker only for images.
-  `@effect-aws/client-s3` and `client-sqs` 2.0.0 peer `effect >=4.0.0-beta.66 <5.0.0`, install
-  under Bun 1.4.3, type-check under `tsc` 7 and presign on Bun (scratch run, no live endpoint).
-- **Status.** Done:
-  [docs/tickets/2026-10-19-1448_aws-local/](../tickets/2026-10-19-1448_aws-local/feature.md), merged
-  as `30fa816`. The settling attempt of the reply job and the startup `verify` went; an expired
-  attachment reads as not found, and no read deletes it.
-- **Facts (2026-10-17).** LocalStack's OSS repository was archived on 2026-03-23 and its image
-  requires an account; free only for non-commercial use. MiniStack: MIT, Python, images ~110–360 MB,
-  4.9k stars, releases every 1–3 days, SQS (DLQ redrive, FIFO attributes stored), S3 (multipart,
-  versioning, events to SQS/SNS/Lambda), Lambda (Python locally, other runtimes in Docker, no hot
-  reload), API Gateway, CloudWatch Logs, SSM, Secrets, RDS as a real Postgres container; Pulumi
-  and Terraform through endpoint overrides. Effect has no SQS or S3 module; `@effect-aws/client-sqs`
-  and `@effect-aws/client-s3` 2.0.0 (2026-10-02) peer `effect >=4.0.0-beta.66`. AWS recommends a
-  standard queue with idempotent workers for "many workers, task type picks the handler".
-
-### 6. `llm-providers`
-
-- **Goal.** Real assistants: Anthropic and OpenAI behind `LanguageModel`, chosen by configuration,
-  with visitor attachments passed to the model and assistant attachments rendered through
-  placeholders.
-- **Scope.** `@effect/ai-anthropic` and `@effect/ai-openai` layers; provider and model from
-  `Config`; `Prompt.FilePart` for images and PDFs from S3; assistant attachments (how they are
-  produced is this ticket's first decision: a tool the model calls, a worker job, or both) and
-  the placeholder syntax; retries and budgets as decorator layers with `Schedule`; retries that
-  read `AiError.isRetryable` and `retryAfter`, so a provider error no retry can fix (auth, an
-  invalid request, content policy) stops spending attempts and a rate limit is honoured, which
-  changes the chat's retry requirement and so goes through this ticket's `feature.md`; the
-  history trimmed to the model's context window with `Tokenizer.truncate` or an equivalent,
-  since today every completed message is sent and a long chat grows without bound; prompt
-  provenance (hash of templates stored with the message); tests on a fake `LanguageModel` and
-  one recorded provider round trip.
-- **Out of scope.** Google and Bedrock (v3-only providers); agents and tool-use beyond what
-  attachments need.
-- **Narrowed at its feature phase (2026-10-29).** Anthropic only, one structured reply per
-  request, no streaming; OpenAI, files, history trimming, token and cost
-  accounting, budgets and the recorded round trip moved to 18–20 or were dropped, and the SSE
-  tail moved to `web-app` (7). See the ticket's `feature.md › Out of scope`.
-- **Status.** Done:
-  [docs/tickets/2026-10-29-1435_llm-providers/](../tickets/2026-10-29-1435_llm-providers/feature.md).
-- **Open questions for its feature phase.** Placeholder syntax; which model produces files in the
-  template demo; token and cost accounting per chat; whether the reply streams through the worker
-  (see 3).
-- **Re-read against `chat-core` (2026-10-20).** The reply already runs in a worker job
-  (`AssistantMessageJob`), which writes the growing text into the message as throttled snapshots
-  that the client polls; the question above narrows to whether an SSE tail over the stored message
-  is added. Assistant attachments are therefore produced inside that job: the first decision is
-  whether the model's tool call or a second job writes them, not whether a job exists.
-- **Facts (2026-10-17).** `@effect/ai-anthropic@4.0.5` and `@effect/ai-openai@4.0.5` exist;
-  `@effect/ai-google` and `@effect/ai-amazon-bedrock` are Effect v3 only. The Anthropic Files API
-  is GA; `document` blocks take PDFs up to 32 MB, images by base64, URL or file id.
+The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
+left.
 
 ### 7. `web-app`
 
-- **Goal.** The chat UI a visitor uses: TanStack Start on React 19, `@effect/atom-react` for
-  state over the typed client, Chakra UI v3 for components, streaming replies, attachment upload
-  and inline placeholders, a chat list, all server-rendered and hydrated.
+- **Goal.** The chat UI a user uses: TanStack Start on React 19, `@effect/atom-react` for
+  state over the typed client, Chakra UI v3 for components, streaming replies, inline
+  placeholders, a chat list, all server-rendered and hydrated.
 - **Scope.** `apps/web` rebuilt on TanStack Start (Vite 8, Nitro `bun` preset in dev); TanStack
   Router, Query and DB where they fit (intent recorded; see the open question); `effect/reactivity`
-  atoms with `AtomHttpApi` over `@app-template/http-api` and `HydrationBoundary` for SSR; Chakra
+  atoms with `AtomHttpApi` over the web's generated client and `HydrationBoundary` for SSR; Chakra
   UI v3 theme in `packages/ui`; a nested `biome.json` (`"root": false, "extends": "//"`) with the
-  `react` domain; the visitor cookie flowing through the Start server; the web `Dockerfile` or
+  `react` domain; the user cookie flowing through the Start server; the web `Dockerfile` or
   Nitro output for 9.
 - **Out of scope.** Authentication; mobile; i18n.
 - **Open questions for its feature phase.** TanStack Query and TanStack DB overlap with
@@ -303,45 +80,24 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Re-read against `chat-core` (2026-10-20).** "Streaming replies" means, today, polling the
   assistant message until its status is terminal, since the api streams nothing and the worker
   writes snapshots; an SSE tail is `llm-providers`' (6) open question, so this ticket depends on
-  3 alone for the reply and the upload, and on 6 only for assistant attachments and placeholders.
+  3 alone for the reply, and on 6 only for assistant attachments and placeholders.
 - **Re-read against `llm-providers` (2026-10-29).** The reply now arrives whole: no snapshots, so
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The visitor cookie is the user cookie of `chat-core`'s `CurrentUser` security.
+  The web's cookie is the user cookie of `chat-core`'s `CurrentUser` security.
 - **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
   `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
   `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
   service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
   the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
-  Bun's today), clear the output dir before each build, and run it in CI's `static` job.
+  Bun's today), clear the output dir before each build, and keep it in `make check`, which CI runs.
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
   `ReactHydration.HydrationBoundary`; `@effect-atom/*` is the v3 line; no official TanStack bridge
   exists; nothing is called "Effect UI".
 - **To weigh.** [Ideas to weigh › Smaller fits](#smaller-fits): `Sse`, and why not `eventlog`.
-
-### 8. `observability`
-
-- **Goal.** Every request, job and model call traced, logged and measured, visible locally in one
-  UI and exportable to any OTLP backend, with Effect DevTools for debugging.
-- **Scope.** `effect/observability` (`Otlp.layer` for traces, logs and metrics without the OTel
-  SDK) in the three processes; spans across api → queue → worker → model; `effect/ai`
-  `Telemetry`; `effect/devtools` client layer in dev; a local collector and UI in
-  `docker-compose`; structured logging conventions; health and readiness endpoints; a
-  `docs/knowledge/observability.md`.
-- **Out of scope.** Dashboards and alerting in AWS (9).
-- **Status.** In progress, narrowed to the least code: the `api`'s and the `worker`'s export, one
-  trace per user message across the queue, and a Grafana per tree:
-  [docs/tickets/2026-11-07-0944_telemetry-minimal/](../tickets/2026-11-07-0944_telemetry-minimal/feature.md).
-  Later: `web` in the trace, Effect DevTools, health and readiness, log conventions, and
-  [Later › From `telemetry-minimal`](#from-telemetry-minimal).
-- **Open questions for its feature phase.** `Otlp.layer` versus `@effect/opentelemetry` with the
-  OTel SDK (needed only if a vendor SDK is required); which local UI (Jaeger, Grafana LGTM,
-  SigNoz).
-- **To weigh.** [Ideas to weigh › Telemetry readable by an agent and on
-  AWS](#telemetry-readable-by-an-agent-and-on-aws): agent access, AWS export, no DevTools in Vim.
 
 ### 9. `aws-deployment`
 
@@ -392,16 +148,16 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   migration command for a deployed stage. Locally `make up` sets `VCR_MODE=REPLAY_ONLY` to skip
   the provider's fixed waits; never on AWS.
 - **Inherits from `llm-providers` (2026-10-30).** `deployment/` sets no LLM variables, so a
-  deployed worker and api fail at start: both need `LLM_REPLY_MODEL`; the worker also
-  `LLM_TITLE_MODEL` and `ANTHROPIC_API_KEY` (in SSM). The api never reads the key.
+  deployed worker fails at start: it needs `LLM_REPLY_MODEL`, `LLM_TITLE_MODEL` and
+  `ANTHROPIC_API_KEY` (in SSM). The api reads none of them.
 - **Inherits from `lambda` (2026-11-08).** Dev runs the worker behind MiniStack's SQS mapping in
   proxy mode: the code stays on the host. The production build in dev, api and worker as real
   Lambda functions inside MiniStack (a Bun image with Lambda Web Adapter,
   `LAMBDA_EXECUTOR=docker`, a Function URL for the api), moved here unbuilt. Two researchers'
-  runs, stopped before their reports and not rechecked: an image function answered through a
+  runs, stopped before their reports and not rechecked: an image function responded through a
   Function URL with a cold start of 130–180 ms; a partial batch failure worked; the function
   reaches Postgres only at `host.docker.internal`, not at the `localhost` the RDS endpoint
-  reports; a rebuild to an answer took about 2 s. Pulumi creating these functions was not run.
+  reports; a rebuild to a response took about 2 s. Pulumi creating these functions was not run.
 - **Inherits from `telemetry-minimal` (2026-11-14).** Two things only AWS can show, researched
   there with sources (`docs/tickets/2026-11-07-0944_telemetry-minimal/lab.md`, L3 and L6 Notes):
   the OTLP receivers (X-Ray traces, CloudWatch Logs and CloudWatch metrics take OTLP/HTTP directly
@@ -414,131 +170,55 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   lines, a flush after it held by an `INVOKE`-registered process, or the Collector extension
   copied into the image, since no ADOT layer exists for `provided.al2023`; the shutdown window is
   2 s with LWA, below the exporter's 3 s default).
+- **Inherits from the design audit (2026-11-18).** A job's reader is released before its writer
+  stops sending a field: a body with a field its schema no longer has decodes with the field
+  dropped, while a reader of the old build refuses a body without it (`Missing key`), the case
+  [aws.md › Queues](aws.md#queues) logs and acknowledges unrun. The reply and title jobs lost `chatId`
+  this way; the title's later took `chatId` in place of `messageId`, on a new queue (2026-11-21).
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
-  decides whether the worker is a Lambda on SQS or a long-running poller, and where the relay
-  runs; [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws)
-  the CloudWatch and X-Ray path.
-
-### 10. `client-publishing`
-
-- **Goal.** The web reaches the server only through `http-api`, a contract of its own that
-  imports nothing of the app, with every type intact on the client and no rule on the backend
-  for the web's sake.
-- **Scope.** The contract's own schemas as the one codec of the round trip; a parity check with
-  the domain; the web bundle check keyed on package names.
-- **Out of scope.** Publishing to a registry and use from other repositories; a generated client.
-- **Status.** Done:
-  [docs/tickets/2026-11-04-1131_client-publishing/](../tickets/2026-11-04-1131_client-publishing/feature.md).
-
-### 11. `workflow-cluster`
-
-- **Goal.** Decide, with a running example, whether `effect/workflow` and `effect/cluster` belong
-  in the template: a durable multi-step flow (for instance: upload → extract text → summarise →
-  notify) that survives restarts, compared with the plain job queue.
-- **Scope.** A spike on `ClusterWorkflowEngine` with `SqlMessageStorage` and `SingleRunner`; the
-  comparison written to `docs/knowledge/`; adoption or removal, recorded as a decision.
-- **Out of scope.** Multi-node sharding in AWS.
-- **Facts (2026-10-17).** Both modules are in `effect@4.0.5` (`@stability unstable`); the cluster
-  runtime has HTTP and socket runners, SQL message storage and Kubernetes discovery, but no SQS
-  transport.
-- **To weigh.** [Ideas to weigh › Workflow on top of the queue](#workflow-on-top-of-the-queue).
+  decides whether the worker is a Lambda on SQS or a long-running poller;
+  [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws) the
+  CloudWatch and X-Ray path.
 
 ### 12. `template-handoff`
 
 - **Goal.** "Use this template" to a running, renamed project in ten minutes.
 - **Scope.** `make rename SCOPE=@acme NAME="Acme"`; a checklist of what to delete (`docs/tickets/`
   of the template, the example domain if unwanted) and what to keep (`docs/knowledge/`, rules,
-  skills); a fresh-clone rehearsal in CI; the README's "History and new projects" rewritten; the
-  GitHub template flag verified; the toolkit items that matter only when the
-  template changes hands, inherited from `claude-toolkit` (2): `claude plugin eval` cases for the
-  `ticket-*` skills (they must be wrapped as a plugin to load), `/skill-doctor` as a periodic
-  check, pinning `mattpocock-skills` by `sha`, `skillOverrides` for the plugin skills the wrappers
-  never use, agent `memory`, `SessionStart` and `PostToolUse` hooks.
+  skills); a fresh-clone rehearsal in CI; the README's "Starting a new project" rewritten; the
+  GitHub template flag verified; the toolkit items that matter only when the template changes
+  hands, inherited from `claude-toolkit` (2): `/skill-doctor` as a periodic check, pinning
+  `mattpocock-skills` by `sha`, agent `memory`, `SessionStart` and `PostToolUse` hooks.
 - **Out of scope.** A generator or CLI.
-
-### 13. `ticket-folder-order`
-
-- **Status.** Done: taken into `claude-toolkit` (2) as R6,
-  [docs/tickets/2026-10-20-2313_claude-toolkit/](../tickets/2026-10-20-2313_claude-toolkit/feature.md).
-
-### 14. `toolkit-reading`
-
-- **Goal.** The second wave of the `claude-toolkit` audit: agents read only what a step needs, and
-  the lessons of `chat-core` become checks.
-- **Scope.**
-  - Agents read their step, not the whole ticket. In `chat-core` the implementer and both
-    reviewers each read about 60k tokens of `feature.md`, `architecture.md` and `plan.md` per
-    step, where the step and the `R…` and `D…` it cites hold 1–2k: a reading rule in
-    `implementer` and `reviewer`, or one file per step.
-  - The import direction has five authors (`biome.json`, root `CLAUDE.md`, `naming.md`, seven
-    workspace `CLAUDE.md`, `docs/knowledge/architecture.md`): keep one for agents, or leave the
-    cheap on-directory lines.
-  - `ticket-plan`: a step names a file or an API only after `researcher` confirmed it, and every
-    literal the plan fixes is checked against the rules (49 *Amended in* notes in `chat-core`).
-  - `implementer`: a rule line added or sharpened comes with a `git grep` for what it forbids.
-  - `make lint-docs` on lines over 100 characters in the living docs; whether `docs/tickets/` is
-    in.
-  - Biome guards for `node:`/`bun:` imports and `Bun`/`process` globals in the browser-facing
-    layers other than `http-api` (its Biome import ban, and `"types": []` for the globals), and
-    `Date`/`crypto`/`fetch` in `domain`: no recorded agent mistake, but a hand grep in every
-    verification.
-- **Out of scope.** A cut made for tokens alone that saves under 20% of the load it targets.
-- **Facts (2026-10-21).** Rewording four rules without losing a constraint saved 11%; the
-  always-loaded project files measured 4.5k tokens by `/context` before `claude-toolkit`.
-- **Status.** Done:
-  [docs/tickets/2026-10-21-1347_toolkit-reading/](../tickets/2026-10-21-1347_toolkit-reading/feature.md).
-
-### 15. `architecture-audit`
-
-- **Goal.** One layering model: domain services and ports in `domain`, use cases only in
-  `application`, handlers in the apps (the worker like the api), tests in `tests/` over memory
-  ports and `e2e/` over the real infrastructure, the architecture language in the
-  glossary.
-- **Status.** Done:
-  [docs/tickets/2026-10-27-1433_architecture-audit/](../tickets/2026-10-27-1433_architecture-audit/feature.md),
-  merged as `8871613` and `e5838e1`.
 
 ### 16. `shared-files`
 
 - **Goal.** A user uploads files to a pool of their own and links them to a message or a chat
   later, instead of uploading for one message.
-- **Scope.** The pool and the link as domain concepts (the glossary bans "File" for an attachment
-  today, so the words come first); upload, list and delete of pool files; linking at send and to
-  a chat; what the reply reads when a chat has linked files; the `shared-files` migration of
-  today's `attachments` rows.
+- **Scope.** The pool and the link as domain concepts, the words first; upload, list and delete
+  of pool files; linking at an ask and to a chat; what the reply reads when a chat has linked
+  files.
 - **Out of scope.** Sharing between users; assistant-produced files (`assistant-files`, 18).
+- **Paused (2026-11-19).** The owner removed attachments from every ring, to be rethought
+  ([decisions.md › Attachments removed](decisions.md#attachments-removed)); the lab's L1 and L2
+  built on them. The redesign starts from the generic core that stayed: `FileRepository` and
+  `buildFileKey` in `kernel/data/file`, the kernel's S3 clients and the `attachments` bucket. Its
+  first questions: the words for a file and its link, the module that owns them, and the bucket's
+  name and key prefix, which still say `attachments`.
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
-  no expiry of unlinked files, so the 24-hour unbound lifetime and the `unbound` S3 tag go.
-- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** Files are split out of
-  `chat` into a module named `drive` (not `files`, the banned word for an attachment; not
-  `bucket`, a technology). Chat owns the link between a message and a file, with a copy of the
-  file's metadata taken at link time, so a chat's read stays one query; `drive` owns the pool and
-  the bytes and knows no chat. The bytes and the rows are already the data layer's
-  (`FileRepository` in `kernel/data/file`, the attachments' table in `kernel/data/attachment`),
-  so `drive` is a new module of services over them, added by
-  [architecture.md › Add a module](architecture.md#add-a-module); the pool's table is a new store
-  in `kernel/data`. Chat reaches `drive` only through `drive`'s contract, and a send that links
-  files is one use case over both modules, in one transaction. The split rewrites the records
+  no expiry of unlinked files, so no unbound lifetime or `unbound` S3 tag.
+- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** A module of its own for the
+  files, reached by chat only through its contract, with an ask that links files as one use
+  case over both modules, in one transaction; the split rewrites the decisions
   [Modules by capability](decisions.md#modules-by-capability) and
-  [Files in the data layer](decisions.md#files-in-the-data-layer), whose *Revisit when* name this
-  ticket.
+  [Files in the data layer](decisions.md#files-in-the-data-layer), whose *Revisit when* name
+  files outside a chat.
 - **Open questions for its feature phase.** Whether one file may be linked to several messages;
-  whether deleting a chat deletes its linked files or only the links; the quota per user.
-- **Status.** Planned.
-
-### 17. `docs-diet`
-
-- **Goal.** The living docs name concepts and point to one exemplar, as `claude-md.md` binds since
-  `architecture-audit`; the tables and lists written before that rule are trimmed to it.
-- **Scope.** Every `docs/knowledge/` page, rule and `CLAUDE.md`: the file tables of a slice, the
-  lists of a module's exports or class names, the layouts `ls` reproduces. Each becomes the
-  concept and one exemplar, or goes; a code name stays where a rule or a gotcha needs it.
-- **Out of scope.** The ticket folders and the roadmap's history.
-- **Inherits from `architecture-audit` (2026-10-29).** `make doc-lint` keeps the paths the docs
-  name true, but not whether a true name restates the code: that judgement is this ticket's. Most
-  review rounds of that ticket's last steps fixed copies of code names gone stale.
-- **Status.** Done, absorbed by `lean-instructions`:
-  [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md).
+  whether deleting a chat deletes its linked files or only the links; the quota per user; the
+  owner's draft idea (2026-11-19): a library file copied into a chat before the ask, so the
+  draft lives on the server.
+- **Status.** Paused: attachments removed, to be rethought. Its lab:
+  [docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md).
 
 ### 18. `assistant-files`
 
@@ -553,8 +233,9 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
 - **Out of scope.** Providers other than Anthropic.
 - **Open questions for its feature phase.** One container per chat or per reply; which files go
   to the model natively (images, PDF, text) and which through the container; how to send a
-  `container_upload` block that `@effect/ai-anthropic` 4.0.6 cannot express (a local patch with
-  an upstream PR, an own HTTP call, or converting on our side); the speech-to-text service
+  `container_upload` block that `@effect/ai-anthropic`'s prompt converter cannot express (a
+  local patch with an upstream PR, an own HTTP call, or converting on our side); the
+  speech-to-text service
   (AWS Transcribe or another provider); retention, since code execution and the Files API are not
   zero-data-retention eligible.
 - **Facts (2026-10-29).** Code execution, the Files API and Skills are GA, no beta header; Skills
@@ -563,15 +244,18 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   `GET /v1/files/{id}/content`; containers live 30 days; code execution costs $0.05 per container
   hour past 1 550 free hours a month per organisation, five minutes minimum, billed whenever a
   request holds files. `.docx` and `.xlsx` are not accepted by any message block, and no Claude
-  model takes audio. `@effect/ai-anthropic` 4.0.6 passes `container` through its `Config` and
-  surfaces tool results with file ids, but its prompt converter rejects any media type but
-  images, PDF and text and has no `container_upload`; its generated Files API calls are awkward
-  for binary uploads.
+  model takes audio. `@effect/ai-anthropic` passes `container` through its `Config` and
+  surfaces tool results with file ids; its generated Files API calls are awkward for binary
+  uploads.
+- **Rechecked on `@effect/ai-anthropic` 4.1.5 (2026-11-21).** Its generated schema has the
+  request's `container_upload` block (`RequestContainerUploadBlock` in `Generated.ts`, as 4.0.6
+  had), but the prompt converter in `AnthropicLanguageModel.ts` never emits it and still rejects
+  any file media type but images, PDF and text.
 - **Inherits from `modular-monolith` (2026-11-02).** The prompts and the Anthropic calls live in
-  chat's adapter `AssistantLlmFromConfig` (`application/chat/infrastructure/`), the provider's
-  settings in `kernel/llm`; a produced file is stored through `FileRepository` in the data layer,
-  its bytes kept before the row that binds them, since S3 joins no transaction. Files outside a chat
-  reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
+  chat's assistants `MessageAssistant` and `ChatAssistant` (`application/chat/infrastructure/`),
+  the provider's settings in `kernel/llm`; a produced file is stored through `FileRepository` in
+  the data layer, its bytes kept before the row that binds them, since S3 joins no transaction.
+  Files outside a chat reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
 - **Facts on AWS (2026-10-29).** Claude on Bedrock has no code execution, Files API, Skills, web
   search or Message Batches. Bedrock Converse `DocumentBlock` takes `docx`, `xlsx`, `csv`, `md`,
   `html` (how they are converted is undocumented). Bedrock Knowledge Bases answer with retrieved
@@ -588,24 +272,13 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   turn Office files into text on our side.
 - **Status.** Planned.
 
-### 19. `openai-provider`
-
-- **Goal.** OpenAI as a second value of the provider setting, behind the same structured reply.
-- **Scope.** `@effect/ai-openai` layers; the reply and title schemas through OpenAI's structured
-  output; its error mapping (a 429 for an exhausted quota is `QuotaExhaustedError`, not a rate
-  limit).
-- **Facts (2026-10-29).** `@effect/ai-openai@4.0.6` peers `effect ^4.0.6` and targets the Responses
-  API; it rejects `text/plain` files and silently drops a PDF given as a plain base64 string, and
-  OpenAI caps a request at 50 MB of files.
-- **Status.** Planned.
-
 ### 20. `context-window`
 
 - **Goal.** A long chat keeps answering: the history sent to the model is trimmed to the model's
   context window instead of failing every reply once it outgrows it.
 - **Scope.** Dropping the oldest messages whole, never splitting one, always keeping the system
-  prompt and the newest user message; failing with a user-facing reason when even that does not
-  fit; counting tokens of attachments.
+  prompt and the newest user message; failing when even that does not fit (a failed Run
+  carries no reason on the wire, so telling the user why is a contract change); counting tokens of attachments.
 - **Facts (2026-10-29).** `effect/ai` `Tokenizer.truncate` drops the oldest messages whole but
   does not protect the system message; no provider package implements `Tokenizer`, so counting
   is ours (a heuristic or Anthropic's token-counting endpoint). An overlong prompt is a 400
@@ -642,298 +315,206 @@ in [Re-homing `effect-setup`](#re-homing-effect-setup).
   and does not emulate the Messages endpoint, so local runs call Anthropic.
 - **Status.** Planned.
 
-### 22. `jobs`
-
-- **Goal.** Every job, whatever its queue, leaves one row that says where it stands and why it
-  failed, searchable by what it is about; and deleting a chat or a file never waits on S3,
-  however many files it holds: the request deletes rows only, and a job deletes the bytes.
-- **Scope.**
-  - The table `jobs` (renamed from `outbox` by `modular-monolith`) keeps one row per job with
-    `status`, `attempts`, the last `error`,
-    `updated_at`, and a GIN index (`jsonb_path_ops`) on `body`, so `body @> '{"chatId": …}'`
-    finds a chat's jobs.
-  - The statuses, the shared `Status` of `application/chat/domain/status.model.ts` whole:
-    `idle` (written by `QueueSenderJobs.send`, not yet in SQS) → `queued` (the
-    relay sent it; the job is in work) → `done` (the handler succeeded) or `failed` (its last
-    attempt or its dead letter, with the error). The relay takes `idle` rows under `FOR UPDATE
-    SKIP LOCKED` (a partial index on `status = 'idle'`) and marks them `queued` instead of
-    deleting them. A run needs no status of its own: the queue's lock covers it.
-  - The worker writes each outcome back by `queue` and `job_id`, which SQS carries in the
-    message's attributes: a wrapper of `QueueConsumer` in `kernel/queue`, since
-    `packages/queue` knows no database.
-  - Attachment deletions are jobs of this ledger: a statement-level trigger `AFTER DELETE ON
-    attachments` (`REFERENCING OLD TABLE`) writes one `attachment-deletion` job with the deleted
-    ids and their `chatId`, `messageId` and `userId`, whichever path deleted them (a chat's
-    cascade, a message's, a user's delete of an unbound file), in the deleting statement. Its
-    handler deletes the bytes by `FileRepository.delete`. `ChatService.delete` drops its
-    attachment read and its bucket call; the memory fake records the job as the trigger does,
-    with an e2e twin.
-  - The Run keeps its own status, its subset of the shared `Status`: it is the work's state,
-    which the client polls and the guards read, not the job's; a message has none since
-    `reply-run`.
-  - The relay gets attempts and a dead letter of its own: today a job SQS refuses forever blocks
-    its batch and re-sends the jobs before it on every poll.
-- **Why a trigger.** It catches every path in the same statement, including a file a concurrent
-  send binds between the attachments' read and the chat's delete, whose bytes today stay in S3,
-  bound and never expired.
-- **Open questions for its feature phase.** The retention of `done` rows; whether a `failed`
-  job returns to `idle` by hand; how a deletion job of a very large chat splits its ids; what the
-  worker does when Postgres refuses an outcome SQS has already settled.
-- **Related, not in scope.** A chat with millions of messages: a soft delete (`chats.deleted_at`
-  hiding the chat's reads) and a purge in batches, so the request deletes one row. Uploads into a
-  chat (`POST /chats/:chatId/attachments`) with keys `chats/<chatId>/…`, which a delete clears by
-  prefix listing.
-- **Inherits from `llm-providers` (2026-10-30).** The relay already keeps its rows: it sets
-  `sent_at` instead of deleting, over a partial index `WHERE sent_at IS NULL`, so a reply's job
-  keeps its provenance in `body`. The ledger's statuses replace `sent_at`; nothing removes sent
-  rows yet, which the retention question above now settles for every row.
-- **Inherits from `modular-monolith` (2026-10-31, done 2026-11-02).** The table is `jobs`, read
-  and written by `JobRepository` in `kernel/data/job`, so the statuses and the trigger are the
-  data layer's, in this ticket's migration, the second since the schema restarted as one;
-  `QueueSenderJobs`, the consumer and the relay live in `kernel/queue` over it, so the outcome
-  write-back lands there; the handler of a deletion job calls `FileRepository.delete`. A deletion
-  job carries work that outlives the request, which
-  [Use cases above the modules](decisions.md#use-cases-above-the-modules) allows, never a
-  module's reaction to another's write. `Status` belongs to `chat` (the chat's and the message's
-  states); the jobs' states are a vocabulary of their own, since `queued` means "sent to SQS" for
-  a job and "reply in work" for a message. The statuses rewrite
-  [Jobs as queue messages](decisions.md#jobs-as-queue-messages), whose
-  *Revisit when* names this ticket.
-- **Inherits from `lambda` (2026-11-09) and `reply-run` (2026-11-11).** The Runs no worker
-  settles: [Later › From `lambda-processes`](#from-lambda-processes) and
-  [› From `reply-run`](#from-reply-run).
-- **Facts (2026-10-30).** S3 lists by key prefix only and cannot list, delete or filter by
-  metadata or tag; lifecycle rules filter by prefix, tag and size, a few static rules per bucket;
-  `DeleteObjects` takes 1000 keys a request.
-- **To weigh first.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres):
-  Effect's `PersistedQueue` would give most of this ledger and delete our queue, at the cost of
-  SQS. Decide it before this ticket's design.
-- **Status.** Planned.
-
-### 23. `modular-monolith`
-
-- **Goal.** The code is cut in three rings: the data layer at the centre, every store in its own
-  types; the modules by business capability (`chat`, `identity`) and the use cases above them;
-  the boundary outside. A module is reached only through its contract, and the build rejects an
-  import that points outward or across, naming the decision it breaks.
-- **Status.** Done:
-  [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md).
-  How the code is cut and how to extend it: [architecture.md](architecture.md); why each boundary
-  holds and when to revisit it: [decisions.md](decisions.md).
-
-### 24. `attachment-storage-failures`
-
-- **Goal.** A failure in the attachments' object store is never silent: a lost file is logged or
-  refused where it is noticed, and no bytes are left in S3 that no rule or job will remove.
-- **Scope.**
-  - The reply's history: a bound attachment whose bytes `FileRepository.download` no longer
-    finds is dropped from the assistant's input without a word today; it logs a warning with the
-    attachment's and the chat's ids, or fails the reply while the chat still exists.
-  - The bind: `FileRepository.update({ bound: true })` succeeds on a missing object, since S3's
-    untag ignores `NoSuchKey`, so a row binds to no bytes and its download answers 404; the bind
-    refuses it with `AttachmentNotFoundError`, or the untag dies on a missing object.
-  - The send's rollback: the bind untags inside the send's transaction, which S3 does not join,
-    so a rollback leaves unbound rows over untagged bytes that the lifecycle rule never expires;
-    the transaction's failure restores the tag, or logs the ids.
-- **Related, not in scope.** The bytes of a deleted chat whose `FileRepository.delete` fails after
-  the rows are gone: 22 `jobs` moves that delete into an `attachment-deletion` job.
-- **Found by** `modular-monolith` S18's review (2026-11-01): every gap predates that ticket,
-  which moves the code as is.
-- **Status.** Done:
-  [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md).
-  Its follow-ups, `attachment-stored-model`, `attachment-model-rules` and `file-repository-verbs`,
-  moved the lost-bytes check and the attachment rules into the model and the file reads into the
-  repository.
-
-### 25. `toolkit-quality`
-
-- **Goal.** A step's review finds what makes the code hard to change, not only what breaks a
-  rule or the spec, and every check a plan names can fail before its step runs.
-- **Scope.**
-  - A **Design** axis replaces Depth in `/ticket-implement`'s review of a behaviour step. It
-    looks for a narrower interface; composition over a wrapper per case; pure functions taken
-    out of effects; the links between modules (horizontal) and between rings (vertical); a
-    shorter or plainer implementation, shown as a before → after sketch. It judges each by
-    cohesion (what changes together lives together) and coupling (a module knows of another
-    only its contract).
-  - The axis carries do and don't examples in code, written on a neutral entity
-    (`claude-md.md › The pattern`), and the experience of past tickets: the lessons of each
-    `verification.md` and the `decisions.md` records they produced. Where they live, a file
-    the reviewer reads by link or the brief, is decided in the feature phase.
-  - The hunt asks of each `catchAll`, `orElse`, `ignore`, `Option.getOrElse`, retry, and error
-    folded into a refusal what it hides; a hard finding is confirmed by a `researcher` before it
-    reaches the user.
-  - A missing test is reported with the failure it would catch.
-  - `/ticket-plan` checks that each step's checks can turn red before the plan is presented.
-  - A skill or rule edit passes the tests of `mattpocock-skills:writing-for-agents`.
-  - A bug ticket starts from phases 1–2 of `mattpocock-skills:diagnosing-bugs` as its red loop.
-  - Each lint rule's outcome since `lean-instructions`: its real catches in the session
-    transcripts, the planted probes and the cleanup of the step that introduced it left out. As
-    of 2026-11-03 the doc width and the missing paths catch agent mistakes often; the Effect
-    style rules caught 64, 101 and 5 sites at their introduction and nothing since, which the
-    rule text alone may explain; the bundle check caught nothing and went stale twice. Every
-    check of `make check` stays for now: after three or four tickets, re-count the catches of
-    each that caught nothing (the Effect style rules, the import bans, the web bundle check),
-    and keep or drop each on the user's word.
-- **Not adopted.** A plugin agent that runs unasked, edits code, writes outside
-  `docs/tickets/` or filters findings by a confidence score; a second artifact store.
-- **Found by** `lean-instructions`' review of the installed plugins (2026-11-03), which turns
-  the overlapping ones off and keeps here what they did better.
-- **Status.** In progress: [docs/tickets/2026-11-04-1009_toolkit-quality/](../tickets/2026-11-04-1009_toolkit-quality/feature.md).
-
-### 26. `domain-from-data`
-
-- **Goal.** A module's domain takes the limits, patterns and literal lists its tables declare
-  instead of declaring them again, now that the domain no longer ships to the browser; its
-  brands and models stay its own.
-- **Scope.** The domain's import bans; the records "A module's layers", "The data at the centre"
-  and "Checks kept in the tables"; the mapper tests that compared the copies; each such value
-  declared once for the data layer and the domain (a chat title's 120 lived in both). The API
-  contract keeps its own twins and imports only `effect`.
-- **Depends on** `client-publishing`, which takes the domain out of the browser.
-- **Status.** Done:
-  [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md).
-
-### 27. `rules-from-attachment-work`
-
-- **Goal.** The rules, skills and checks say what the attachment refactors taught (entries 24 and
-  26 and the PRs after them), so the next change puts each rule in its model and names each read
-  for what it answers the first time, without the user restating it.
-- **Sources.** The `Decision:` paragraphs of the commits `git log` holds for the work: the
-  attachment fixes (`78349910f9`, `2de1db4f5a`, the model-rules refactor), the domain taking its
-  values from the tables (`fb1b52383a`), the API contract (`e0bafb32ca`) and the file repository
-  (`file-repository-verbs`). A later commit's decision replaces an earlier one it rejects (the
-  bytes check moved from `getMany` to a model function and then to the send), so a rule is taken
-  from the last standing decision, not the first.
-- **Intent of the work.** Each change moved a decision to the place whose name states it, and made
-  what a call costs or drops visible in its name: the model decides, a repository answers data in
-  one entity shape, a service names what it guarantees, a use case reads and composes. A lesson is
-  worth a line only if it keeps the next change from being moved a second time.
-- **Scope.** One line, or one mechanical check, per lesson, each in a named rule or skill and
-  applied on the user's OK ([sdd.md › Gates](../knowledge/sdd.md)):
-  - **A rule is a pure function of its model, and no other layer builds its refusal.** It recurred
-    three times: the lost-bytes check inside `getMany`, `AttachmentService` building
-    `AttachmentNotFoundError` twice, an expiry filter inside a read. `layering.md` states the rule;
-    the proposal is a check: a value import of a domain error class (a type import stays) is
-    refused in `services/` and `use-cases/`, as a Biome `noRestrictedImports` pattern.
-  - **A read's name says what it answers.** `getMany` dropped expired attachments without a word
-    and a reader learned it from the source. A method applies no rule its name does not state; a
-    rule goes to the caller (`getOne(where).pipe(ensure<Rule>(at))`) or to a service named for it
-    (`Live<Model>Service`, over the plain one).
-  - **A service over another service of the same model.** `layering.md` forbids a domain service
-    that sees another one; the layered split (plain records, `Live…` reads, `File…` bytes) needs
-    the exception worded in the rule and recorded in `decisions.md`.
-  - **A use case reads, then pipes the model's rules.** The send reads the live attachments
-    (`getMany`), asks the repository which have bytes (`selectMany`), then runs
-    `pipe(live, ensureAllStored(ids, stored))`: each read a named value, each rule one pipe step,
-    no branch or refusal of its own. `layering.md › Use cases` and `modules.md › A rule in a use
-    case` get the example as a neutral pattern, not the live names.
-  - **A rule series reads as one family.** `is<State>At` predicates stay private, each exported
-    guard is `ensure<All><State>` with the same shape (`ensureLive` beside `ensureAllLive`), and a
-    one-element rule takes the element, not an `Option`.
-  - **Repository reads.** A value the store derives is a field, presence is `selectMany`, never a
-    probe through another verb (done in `file-repository-verbs`; this entry checks that the rule
-    and its record say it).
-  - **The workflow.** Check the code before stating a cause (the "expired draft" claim was wrong);
-    research a usage tree before a refactor; a small refactor skips the feature and architecture
-    phases ([sdd.md › When to run which cycle](../knowledge/sdd.md#when-to-run-which-cycle)); an
-    answer of "yes" to two questions is two answers.
-  - **A plain layer takes its filters from the caller.** The plain `delete` hardcoded the unbound
-    guard, the plain `getMany` hid the live check: each is a rule in a layer named for records.
-    The layer that checked the rule passes its guard in the `where`
-    (`records.delete({ id, userId, messageId: null })`); `layering.md` says so beside the
-    layered-services line.
-  - **A set goes through one call, though the rule exists.** `layering.md` already asks for one
-    batch call, and it recurred three times: `files.url` per attachment, a `forEach` of single
-    `update`s, a `forEach` of reads. The proposal is a review-rules line naming the symptom
-    (`Effect.forEach` whose callback is one repository call over an id) and, if it finds no false
-    positive on the tree, a GritQL pattern.
-  - **A verb that takes a list is tested with one id missing.** The fake and the e2e twin each
-    covered the whole list only: the order of `selectMany` (S1.2) and a partial `delete` (S3.4)
-    were found by review. `effect-tests.md` gets one line: a verb over a list has a case for a
-    list with one id that misses, in the e2e and in the fake it shares a matcher with.
-  - **A split moves tests with the methods.** After the service split the new service's tests
-    repeated the expiry and not-found cases of the services below (S3.2). `effect-tests.md` has
-    "a rule once, at the lowest seam"; the line adds that a wrapping service's test holds only
-    what it adds.
-  - **A step's Test first is checked against the interface it changes.** S2 planned a red case
-    for a list `update` already took, and S1's probe expected two red cases where four were red.
-    `ticket-plan` asks the plan to read the current signature before it promises a red case.
-- **Out of scope.** New domain behaviour; rewriting a rule the session did not touch.
-
-### 29. `sdd-stages`
-
-- **Goal.** The architecture holds the high level for the whole ticket and the plan a skeleton of
-  every step; the low level is written one stage of about three steps at a time, after its facts
-  are checked, and each stage ends with a review. The owner answers only on a change or a real
-  choice.
-- **Number.** 28 is `lambda-processes`, on its own branch; it is the first ticket to use stages.
-- **Status.** In progress:
-  [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md).
-
 ## Later
 
 What a ticket's `Later` leaves unresolved at its PR: edge cases, error paths, hardening, open
-questions. One section per ticket; each item says what goes wrong, with its `path:line`, why it
-was left, and the ways out to weigh. A ticket that takes an item moves it into its own `Later`
-and deletes it here.
+questions. One section per ticket; each item says what goes wrong, with its file and symbol, why
+it was left, and the ways out to weigh. A design audit has a section too, whose findings no
+verifier has checked stand by title alone, marked so, until one does. A ticket that takes an item
+moves it into its own `Later` and deletes it here.
 
 ### From `lambda-processes`
 
-- (2026-11-09) A reply that never settles leaves its chat `queued` for good, so every next send
+- (2026-11-09) A reply that never settles leaves its chat `queued` for good, so every next ask
   fails `ChatBusyError`: a job whose body no longer decodes is failed unrun, so the reply's use
   case never runs; every delivery of a job dies, 3 receives, and nothing reads the dead-letter
   queue; or the queue drops its messages (a purge, a replaced queue, SQS's retention, 4 days by
   default and unset in the inventory). Ways out to weigh: the handler gets the undecodable body
-  to fail its own work, a consumer of the dead-letter queues, or a sweep of active replies
+  to fail its own work, a consumer of the dead-letter queues, or a sweep of active Runs
   ([database.md › Stuck Runs](database.md#stuck-runs)).
 
 ### From `reply-run`
 
-- (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies or the client
-  aborts the request between the commit and the reply's send (the `queue.send` of
-  `application/use-cases/chat/create-user-message.use-case.ts` and
-  `application/use-cases/chat/retry-run.use-case.ts`): a send SQS refuses fails the Run, but no
-  handler runs in a dead process or past an interrupt. Ways out to weigh: a send that cannot be
-  interrupted (the abort only), the job ledger of entry 22, a sweep of active Runs. The owner
-  refused a rule by a Run's age.
-- (2026-11-13) Two sends or two retries of one chat that arrive within the few milliseconds between
-  the check and the insert (two tabs, a client that resends) both pass `ensureChatNotBusy`; the
-  active Run's index refuses the second insert, which dies, so the client gets a bare `500`, not
-  `409 ChatBusyError`; a double click, its second request arriving after the first Run is stored,
-  already gets the `409` (`kernel/data/chat/run.repository.ts:68`,
-  `application/chat/services/run.service.ts:40`). Left: a lost race dies by
+- (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
+  and the reply's send (`sendReplyToMessage`, called by
+  `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
+  `retry`), or the client aborts after the commit but before the send starts: a send SQS
+  refuses fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a
+  dead process, and an interrupt during the commit or the title's send ends the flow first. Ways out
+  to weigh: one uninterruptible step from the Run's write through its send (the abort only), a
+  ledger of jobs, a sweep of active Runs. The owner refused a rule by a Run's age, and keeps the
+  abort's window as a cost (2026-11-20).
+- (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
+  the check and the insert (two tabs, a client that asks again) both pass their check
+  (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
+  which dies, so the client gets a bare `500`, not a `409`; a double click, its second request
+  arriving after the first Run is stored, already gets the `409` (`RunRepository.insert`,
+  `RunService.create`). Left: a lost race dies by
   [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
   weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
-  `ChatBusyError` (an exception to `deep-modules.md`'s "a write dies where it misses"), or a
+  `ChatBusyError` (an exception to `repositories.md`'s "a write dies where it misses"), or a
   `SELECT … FOR UPDATE` on the chat before the check.
-- (2026-11-13) A retry reads the chat's newest Run, then inserts its own; a send of a newer
-  message whose Run commits and fails between the two lets the insert pass the active Run's index,
-  so an older message holds the chat's newest Run, against `ensureRunRetryable`'s premise
-  (`application/use-cases/chat/retry-run.use-case.ts`, the chat's read and `runService.create`).
-  Claimed by a review, not reproduced: it needs a send, a retry and a failure in one gap of
+- (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
+  an ask of a newer message whose Run commits and fails between the two lets the insert pass the
+  active Run's index, so an older message holds the chat's newest Run, against the premise that
+  only the newest user message gets one (`application/use-cases/chat/retry-run.use-case.ts`, the
+  chat's read, and `AskChatService.retry`'s `runs.create`).
+  Claimed by a review, not reproduced: it needs an ask, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
-- (2026-11-13) `MessageService.getMany` checks the chat, then reads its messages in a second
-  query, so a delete between the two answers `200 []`, not `404 ChatNotFoundError`; the next read
-  gives the `404` (`application/chat/services/message.service.ts:58`). Left: a domain service
-  opens no transaction ([layering.md](../../.claude/rules/layering.md)). Way out: one query that
-  reads the chat with its messages.
-- (2026-11-13) The memory fakes miss what Postgres refuses or takes back, so a unit test passes
-  where the database would not: they check no foreign key (a Run whose user message is missing,
-  an assistant message whose Run is), and `TransactionTest` is the identity, so a lost race's
-  writes stay (`kernel/data/__tests__/testing/chat.test-fake.ts`). No e2e runs a worker's lost
-  race of a completion (`application/use-cases/chat/generate-assistant-message.use-case.ts`,
-  `settleCompleted`). Ways out to weigh: the fakes copy the foreign keys, a `TransactionTest` that
-  restores the rows on a failure, an e2e of the completion's race.
-- (2026-11-13) Errors without context: `MessageInputInvalidError` covers two reasons alike
-  (`application/chat/domain/message.model.ts:51`, `:55`), `AttachmentTooLargeError` names neither
-  the limit nor the file (`apps/api/attachment/attachment.handler.ts:30`),
-  `AttachmentTypeUnsupportedError` not the type sent (`:50`), `RunNotRetryableError` not why,
+- (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
+  between the two leaves it responding with `200 []`, not `404 ChatNotFoundError`; the next read
+  gives the `404`
+  (`application/use-cases/chat/list-messages.use-case.ts`). Way out: one query that reads the
+  chat with its messages, or the two reads in one `REPEATABLE READ` transaction: `Transaction`
+  opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
+  snapshot.
+- (2026-11-13) No e2e runs a worker's lost race of a completion
+  (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.reply`): its
+  unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
+  e2e of the completion's race.
+- (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`application/chat/infrastructure/assistant.llm.ts:159`); `UserUnknownError` stays empty, so no
-  secret reaches a reply or a log. Left: the lab's step for it was skipped. First check, by a
-  run, which of an error's fields reach the api's and the worker's logs and spans.
+  (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `UserUnknownError`
+  stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
+  First check, by a live run, which of an error's fields reach the api's and the worker's logs and
+  spans.
+
+### From `telemetry-minimal`
+
+- (2026-11-15) Tempo's metrics per route and status lump every `POST` route into one line: its
+  span metrics count by span name and status, and the api's server span is named by the method
+  alone (`POST`), so `http.route` and `http.response.status_code` need dimensions in
+  `otel-lgtm`'s metrics-generator config. Left: the minimal feature reads traces, not metrics.
+  Ways out to weigh: those dimensions in the generator's config, or a server span named
+  `<method> <route>`.
+- (2026-11-15) The api's first `QueueSender.send` spends 281 ms of its 288 in
+  `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
+  looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
+  resolve the queue's URL once when the layer is built.
+- Entry 8's scope that the ticket narrowed away: `web` in the trace, Effect DevTools, health and
+  readiness endpoints, and log conventions.
+
+### From the design audit of 2026-11-19
+
+- (2026-11-19, verified) The reply job's exit handler (`reply-chat.service.ts`)
+  cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
+  `Exit.filterCause` can, in 3 lines in place of 8.
+- (2026-11-19, verified) The replays' anchors: tags for the four commits they start from that
+  `main` lacks.
+- (2026-11-19, verified) Biome admits `kernel/data` in use-case and handler sources, so only review
+  keeps a repository out; split the use cases' override from their suites and add one for the apps.
+- (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
+  with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
+- (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
+  `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
+  owner's decision.
+- (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
+  have no case at their own seam; a planted bug in each passes.
+- (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
+  the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
+  once.
+- (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
+  that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
+  composition fact.
+- (2026-11-19, verified) The `reviewer` and `researcher` agents' model defaults contradict the lab
+  skill and every spawn overrides them; delete the defaults. The implementer's `tdd` precedence
+  stays unproven.
+- (2026-11-19) The toolkit edit L2.22 of `one-flow` (agents, the lab skill, `stops.md`) landed
+  without replays; R4 and R5 are the ones it can move, should the owner ask for a run.
+- (2026-11-19) One `ChatServices` layer for chat's services, which both apps list (found by the
+  last audit, not verified).
+- (2026-11-19) The CI Claude review runs once per PR, is documented, and drops its boilerplate
+  (found by the audit, not verified).
+- (2026-11-19) Unused exports, a dead branch and small readability fixes in the source (found by the
+  audit, not verified).
+- (2026-11-19) The Design pass reads the rules `make review-rules` prints; `stops.md` question 5
+  goes (found by the audit, not verified).
+- (2026-11-19) Small doc fixes: duplicate pointers, dates in decisions, a lost verb, extension entries
+  (found by the audit, not verified).
+- (2026-11-19) The e2e provisioner drops its guard against reruns that never happen (found by the
+  audit, not verified).
+- (2026-11-19) A list write that names no row should pass, so the callers' guards against it can
+  go (found by the audit, not verified).
+- (2026-11-19) The imports plugin drops six loader forms no file uses (found by the audit, not
+  verified).
+- (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
+  (found by the audit, not verified).
+- (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
+  it (found by the audit, not verified).
+- (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
+- (2026-11-19) Lab skill rails: `/cd`, a new module's test folder, standing owner edits, stacked
+  labs (found by the audit, not verified).
+- (2026-11-19) Scope the pattern-only rule to instruction files (the owner's call) (found by the
+  audit, not verified).
+- (2026-11-19) Delete tests of the framework and cases a lower seam already owns (found by the last
+  audit, not verified).
+- (2026-11-19) Drop the 11 parameter annotations that restate a repository's Shape (found by the
+  audit, not verified).
+- (2026-11-19) `review-brief` stops citing the owner's private style file and Russian literals
+  (found by the audit, not verified).
+- (2026-11-19) `Status` takes the Run statuses from their table; Run predicates and types in the Run
+  model (found by the audit, not verified).
+- (2026-11-19) `"sideEffects": false` weighed against its decision's 27 KB clause (found by the last
+  audit, not verified).
+- (2026-11-19) Tables of effects drop the type scaffolding `effect-style.md` forces (found by the
+  audit, not verified).
+- (2026-11-19) Trim test leftovers: dead sleeps, duplicate cases, one-caller support, change
+  detectors (found by the audit, not verified).
+- (2026-11-19) Toolkit housekeeping: Makefile defaults, a stale template field, wording,
+  `worktree.sh` (found by the audit, not verified).
+- (2026-11-19) Drop the `RETURNING` read-back of a known id (found by the audit, not verified).
+- (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
+  audit, not verified).
+- (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its
+  chat busy (the Cost in
+  [decisions.md › A Run's job on interrupt and on two deliveries](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries),
+  and the first item of `reply-run` above). Way out: send the reply's job through
+  `SqlClient.afterCommit`, present in effect 4.1.5 (`effect/src/sql/SqlClient.ts:144-184`), whose
+  callbacks run uninterruptibly once the `COMMIT` succeeds. Left: its callback is
+  `Effect<void, never>`, so the `202`'s Run comes back another way; a callback that dies is only
+  logged; and `Transaction` must offer it, as use cases do not see `SqlClient`.
+- (2026-11-21) vitest is held at 5.1.0 (the `tools` catalog in `package.json`): 5.1.1's forks
+  pool forks a watchdog and calls `child.channel?.unref()`, which Bun 1.4.4 and 1.4.5 lack, so
+  every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
+- (2026-11-21) A service that holds its own transaction and sends its jobs after it
+  (`AskChatService.ask`) cannot join a caller's transaction: wrapped in an outer
+  `transaction.run`, its transaction becomes a savepoint (`makeWithTransaction` "uses savepoints
+  for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect
+  4.1.5), and its jobs are sent before the outer `COMMIT`, against the send after the commit. The
+  ask that binds files in one transaction over two modules (`shared-files`, 16) meets this. Ways
+  out to weigh: the service's sends through `SqlClient.afterCommit` (the item above names its
+  limits); the service's writes split from its sends, the use case ordering them, which walks back
+  "its writes in a helper beside them" of
+  [Composition: wrap or compose](decisions.md#composition-wrap-or-compose); the service taking the
+  attachments, refused today, as a module's services import no other module.
+  Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
+  word.
+- (2026-11-22) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
+  `make vendor-drizzle`, so no commit of the refresh holds the lines their next `git subtree pull`
+  reads. PR #39's squash body records `repos/effect`; one body holds one prefix's pair, as
+  `git subtree` keeps the last split line of a commit (`find_latest_squash`). `repos/drizzle`
+  needs its pair in the next PR's body, each line at its start:
+  `git-subtree-dir: repos/drizzle` and
+  `git-subtree-split: f163324decffcc67b47c6f3dda43ca7bb5aaec49`. Until then `make vendor-drizzle`
+  stops with `fatal: can't squash-merge: 'repos/drizzle' was never added.`, as no commit on
+  `main` names `repos/drizzle`.
+- (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
+  `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
+  (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
+  `maxLength`, so the web's generated client accepts a blank text the api responds to with
+  400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
+  (a pattern with a non-whitespace character), or accept the round trip.
+- (2026-11-21) The reply's start (`ReplyChatService.reply` in
+  `application/chat/services/reply-chat.service.ts`) cannot tell a Run left `generating` by a dead
+  worker from one a live worker still answers, so it fails every Run it finds started: a failed
+  Run's job delivered again after a retry fails the retry's Run, and a copy delivered while the
+  first is still handled fails a live Run. A Run's age would tell them apart: a started Run older
+  than the worker's timeout is abandoned and failed, a younger one is left to its worker, which
+  closes both cases. Its cost: a rule by time in the Run's model (the clock passed in), and a bound
+  that must stay above the worker's timeout as either changes. The owner refused a rule by age for
+  the api's abort window (`reply-run` above); this entry, for the worker's start, is the owner's
+  (2026-11-21).
 
 ## Ideas to weigh
 
@@ -951,30 +532,12 @@ What its third verification left open
   - **R4, a known limit:** the hunt names a discarded result and clears it. In 3 of 4 runs it
     did not name the foreign-key 500 that `Effect.asVoid` hid on `postgres-drizzle` S8.1. A line
     in `reviewer.md` would ask it to follow the hidden failure to what the caller returns.
-  - **A rate, not one run:** a requirement on what a model does passes when it holds in N of M
-    runs (say 3 of 5). Otherwise R4 passes and fails by chance.
-  - **The review loop closes:** at verification only a hard violation or an unmet requirement
-    starts a step; a judgement finding (the simplifications below) goes here. After two runs the
-    ticket closes, with its known limits in `verification.md`.
-  - **Its lessons L1–L3:**
-    - a step that reverses a decision lists the record in its Files;
-    - a lesson about an agent's tool habit proposes a check of the output, never a hook;
-    - plus L2, the R4 line above.
-  - **Its simplifications:**
-    - `researcher.md` gets one bullet on where it may write;
-    - `ticket-implement` defines a behaviour step once;
-    - the probe-worktree recipe moves into `ticket-plan/guard-probes.md`.
+  - **A rate, not one eval run:** a requirement on what a model does passes when it holds in N of
+    M eval runs (say 3 of 5). Otherwise R4 passes and fails by chance.
+  - **Its lesson L3:** a lesson about an agent's tool habit proposes a check of the output, never
+    a hook.
 - **Costs:** a step or two in a later toolkit ticket; the rate makes a no-op run five times longer.
 - **Check first:** the R4 line by a no-op run of five on S8.1, with the line and without it.
-
-### Drizzle's agent skill
-
-- **Brings:** Drizzle's own skill (`drizzle-kit skills`) on choosing a migration workflow, telling
-  a rename from a data loss, and resolving conflicts, which `database.md` does not cover.
-- **Costs:** its description in every session; the installer fetches from the network.
-- **Check first:** where it writes its files, and that it targets the pinned `drizzle-kit`.
-- Raised on 2026-11-03 by `lean-instructions`' research of plugins and MCP servers; the Drizzle
-  MCP was skipped, since `make migration` and `make migration-check` cover it.
 
 ### Post-edit type diagnostics
 
@@ -994,19 +557,19 @@ For Claude Code's LSP ([tooling.md › Claude Code's LSP](tooling.md#claude-code
 
 ### Queue on SQS or in Postgres
 
-For `jobs` (22) and `aws-deployment` (9), and the record
+For `aws-deployment` (9), and the decision
 [Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
-  the jobs in a Postgres table and replaces our queue: `packages/queue` (`QueueConsumer`,
-  `QueueSender`, `QueueTransport` over SQS), `kernel/queue` (`QueueSenderJobs`, `JobRelay`,
-  `QueueConsumerSqs`), `kernel/data/job`, the dead-letter handlers and definitions, the SQS queues
-  in `deployment/`, three queue variables: about 610 lines of code and 960 of tests.
+  the jobs in a Postgres table and replaces our queue: `packages/queue` (`consumeQueue`,
+  `QueueSender` over SQS), the jobs' sends beside the queues' definitions, and the SQS
+  queues, their dead letters and the worker's event source mapping in `deployment/`.
 - **What Postgres would bring.**
-  - No relay: `offer` writes through the current `SqlClient`, so inside the send's transaction
-    the job commits with the message (assumed from the code, to prove by one e2e). One system
-    holds a job's whole state, so 22's question "what the worker does when Postgres refuses an
-    outcome SQS has already settled" disappears.
+  - The job commits with its message: `offer` writes through the current `SqlClient`, so inside
+    the send's transaction (assumed from the code, to prove by one e2e), and a process that dies
+    after the commit no longer leaves its Run queued unsent. One system holds a job's whole
+    state, so 22's question "what the worker does when Postgres refuses an outcome SQS has
+    already settled" disappears.
   - Per row `state` (`pending` → `processing` → `completed` or `failed`), `attempts` and
     `last_failure`: most of 22's ledger without writing it. `layerCleanup` for retention.
   - Retries by `maxAttempts` and a `retrySchedule` replayed from the stored attempt count;
@@ -1022,8 +585,7 @@ For `jobs` (22) and `aws-deployment` (9), and the record
     backlog and to zero, billed per use. A Postgres queue needs a long-running poller (ECS), paid
     while idle.
   - A database that can sleep: Aurora Serverless v2 pauses at 0 ACU, which 9 weighs; a poller
-    every second never lets it. Today's `JobRelay` also polls Postgres, so this holds for the
-    current design too until 9 says where the relay runs.
+    every second never lets it.
   - Load kept off the database: a backlog's receives, retries and locks hit SQS, not the rows
     the api reads; a queue table updated on every attempt needs its vacuum watched.
   - Other AWS services can send or consume (EventBridge Pipes, SNS) without database access.
@@ -1031,21 +593,21 @@ For `jobs` (22) and `aws-deployment` (9), and the record
 - **What Postgres would cost besides.** `@stability unstable` (may change in a minor of
   `effect`); the library creates its own table (`CREATE TABLE IF NOT EXISTS`), outside the one
   Drizzle migration ([One initial migration](decisions.md#one-initial-migration)); the job body
-  is `TEXT`, not `jsonb`, so 22's search `body @> '{"chatId": …}'` needs an index of ours; 22's
-  trigger would write into the library's private table; it reverses `aws-local` D1.
+  is `TEXT`, not `jsonb`, so 22's search of a job by what it is about needs an index of ours; it
+  reverses `aws-local` D1.
 - **Rejected already.** Postgres locally and SQS on AWS: `aws-local` D1 refused two queue
   semantics under one interface.
-- **Check before deciding.** An e2e that a rolled-back send leaves no job; where the relay runs
-  if the worker becomes a Lambda; the cost of an always-on ECS worker against Lambda at this
-  template's load; whether CloudWatch's SQS metrics are something the team would really watch.
+- **Check before deciding.** An e2e that a rolled-back send leaves no job; the lines of code and
+  tests it would delete; the cost of an always-on ECS worker against Lambda at this template's
+  load; whether CloudWatch's SQS metrics are something the team would really watch.
 
 ### Workflow on top of the queue
 
-For `workflow-cluster` (11).
+For a future ticket on durable workflows.
 
 - **What it is.** The durable engine is `ClusterWorkflowEngine.layer` (needs `Sharding` and
   `MessageStorage`; `WorkflowEngine.layerMemory` is for tests). One process runs it on
-  `SingleRunner.layer({ runnerStorage: 'memory' })`, with `SqlClient` and `Crypto`, in the
+  `SingleRunner.layer({ runnerStorage: 'memory' })`, with `SqlClient` and `Digest`, in the
   tables `cluster_messages`, `cluster_replies` and `cluster_migrations` that its own migrations
   create. `Activity` stores and replays a step's result, `DurableClock` is a timer that survives
   restarts, `DurableDeferred` a wait an outside call completes, `DurableQueue` hands work to a
@@ -1065,7 +627,7 @@ No ticket yet; `chat-core` decided that today's user later merges into an accoun
 - **Today.** `identity`'s `UserService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
   through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
-- **What Jose is.** `effect/jose`, from `effect@4.1.1` (2026-10-30; `4.1.2` current),
+- **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,
   `@stability unstable`, on Web Crypto through the new `effect/crypto`, no third-party
   dependency. `Jwt.sign` and `Jwt.verify` decode claims with a `Schema`; `Jwt.verifyWithKeySet`
   resolves keys through `Jwks`; `Jwks.layerRemote({ url })` fetches and caches a provider's key
@@ -1074,9 +636,9 @@ No ticket yet; `chat-core` decided that today's user later merges into an accoun
   serialisation only. No `HttpApiSecurity` or middleware helper: a bearer check is ours.
 - **Where it would bring something.** Signing in through an external provider (Cognito, Auth0,
   any OIDC): `Jwks.layerRemote` is the part we would otherwise write.
-- **What it would cost.** Moving the catalog from `effect@4.0.6` to `4.1.x` (no changelog found).
-  Replacing today's session rows with signed tokens saves one query a request but loses
-  revocation (expiry or a deny-list instead): a change of behaviour, not a simplification.
+- **What it would cost.** Replacing today's session rows with signed tokens saves one query a
+  request but loses revocation (expiry or a deny-list instead): a change of behaviour, not a
+  simplification. The move to `4.1.x` it once needed is done.
 
 ### Telemetry readable by an agent and on AWS
 
@@ -1110,54 +672,3 @@ For `observability` (8) and `aws-deployment` (9).
   work, such as that conversion, on a worker thread.
 - `effect/eventlog`: not a fit; it syncs an event journal between offline-capable clients and a
   server, so it would replace the data layer of a chat whose source of truth is the server.
-
-## Re-homing `effect-setup`
-
-`2026-10-16-1607_effect-setup` reached S12 on `chore/effect-setup`, which `template-bootstrap`
-pushes as `chore/enterprise-template`. Its steps S13–S23 are not implemented as written; their
-requirements move to the tickets that will build them on the real domain:
-
-| `effect-setup` | Was | Goes to |
-|---|---|---|
-| R1–R3, S23 | branch, PR, step size | superseded by this roadmap's branch model; the step size rule stays in `sdd.md` |
-| R23–R29a, S13, S18 | `ExampleSummaryJob`, worker | 3 `chat-core`, as the chat title job |
-| R30–R33, S14–S17 | `ExampleService.create`, contract, client, api | 3 `chat-core`, on `Chat` and `Message` |
-| R34, S19 | web server entry | 7 `web-app` |
-| R35–R36 | logging, signals, `--watch` | 3 `chat-core` |
-| R37–R39, S20–S22 | `effect.md`, naming, layer `CLAUDE.md`, knowledge docs, README | 2 `claude-toolkit` |
-| R40 | English only | every ticket |
-
-## Facts
-
-Cross-ticket facts checked on 2026-10-17; re-verify before relying on one.
-
-- **Donor `khotei/kotodama-core`** (main @ `018b275f`, 2026-07-27): borrow the per-file
-  Testcontainers service with `acquireRelease`, the replacement `ConfigProvider.fromDotEnvContents`
-  built from the running container so production layers run verbatim in tests, the plain-data AWS
-  resource inventory with a drift guard, single-tag decorator layers for timeout and retry wired
-  only at the root, the worker's core/edge split (`processBatch` never acks; the Lambda edge returns
-  `batchItemFailures`), `Context.Reference` for tunables, `BunHttpServer.layerTest` with the typed
-  client in api tests. Avoid its two S3 clients, caret ranges in catalogs, missing root `tsc -b`,
-  hand-rolled queue port, write-then-enqueue without an outbox, `TRUNCATE`-per-test isolation.
-- **Effect 4.0.5** ships almost everything as sub-paths of `effect` (`sql`, `persistence`, `ai`,
-  `http-api`, `observability`, `devtools`, `rpc`, `cluster`, `workflow`, `reactivity`, `testing`);
-  `@effect/*` 4.0.5 adapters: `platform-bun`, `sql-pg`, `sql-pglite`, `ai-anthropic`, `ai-openai`,
-  `atom-react`, `opentelemetry`, `vitest`. Stable: `Config`, `ConfigProvider`, `Metric`, `Tracer`,
-  `TestClock`; the rest `@stability unstable`. Nothing in Effect covers SQS, S3, Lambda or Drizzle.
-- **Hand-written risk list**, the places where "derive from Effect" cannot hold and the design must
-  stay thin: outbox relay, SQS and S3 adapters, multipart-to-S3 sink, Lambda event adapter,
-  per-test database isolation. Covered by Effect with only glue: SSE chat stream, multipart
-  parsing, typed client, OTLP export, config from `.env` and the environment.
-
-### From `telemetry-minimal`
-
-- (2026-11-15) Tempo's metrics per route and status lump every `POST` route into one line: its
-  span metrics count by span name and status, and the api's server span is named by the method
-  alone (`POST`), so `http.route` and `http.response.status_code` need dimensions in
-  `otel-lgtm`'s metrics-generator config. Left: the minimal feature reads traces, not metrics.
-  Ways out to weigh: those dimensions in the generator's config, or a server span named
-  `<method> <route>`.
-- (2026-11-15) The api's first `QueueSender.send` spends 281 ms of its 288 in
-  `QueueClient.getUrl`, the second 3 ms (a trace on the local stand). Left: not looked into; it
-  looks like a cold request to MiniStack. Ways out to weigh: measure it on AWS before acting, or
-  resolve the queue's URL once when the layer is built.

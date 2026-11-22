@@ -21,21 +21,19 @@ pattern specifier($source) {
   }
 }
 
-// The last ring folder on the absolute $filename (apps/<app>, application, deployment, http-api,
-// kernel, packages) names the ring whose workspaces the ring rules below check.
-pattern ring($ring) {
-  r".*/(apps/[a-z0-9-]+|application|deployment|http-api|kernel|packages)/.*"($ring)
-}
+// The last ring folder on the absolute $filename (apps/<app>, application, deployment, kernel,
+// packages) names the ring whose workspaces the ring rules below check.
+pattern ring($ring) { r".*/(apps/[a-z0-9-]+|application|deployment|kernel|packages)/.*"($ring) }
 
 // $filename is absolute: the last application/, kernel/ or packages/ folder on the path names the
-// unit; a #<unit>/…, #kernel/<unit>/… or #testing/<unit>/… specifier names the unit it reaches.
+// part; a #<part>/…, #kernel/<part>/… or #testing/<part>/… specifier names the part it reaches.
 // Every capture group is required, as one left unmatched aborts the plugin on the whole file.
 or {
   specifier($source) where {
-    $filename <: r".*/(?:application|kernel|packages)/([a-z0-9-]+)/.*"($unit),
+    $filename <: r".*/(?:application|kernel|packages)/([a-z0-9-]+)/.*"($part),
     $source <: r"['\"`]#(?:kernel/|testing/)?([a-z0-9-]+)/.*['\"`]"($target),
-    not $target <: $unit,
-    register_diagnostic(span=$source, message="a unit reaches its own files through #<unit>/… and another unit only through its entry, @app-template/<folder>/<unit> or its /testing, never one of its files (decisions.md › Imports through subpaths)")
+    not $target <: $part,
+    register_diagnostic(span=$source, message="a part reaches its own files through #<part>/… and another part only through its entry, @app-template/<folder>/<part> or its /testing, never one of its files (decisions.md › Imports through subpaths)")
   },
   specifier($source) where {
     $filename <: ring($ring),
@@ -54,11 +52,10 @@ or {
     $source <: r"['\"`]@app-template/([a-z0-9-]+).*['\"`]"($workspace),
     not $workspace <: or {
       "application",
-      "http-api",
       "kernel",
       "packages"
     },
-    register_diagnostic(span=$source, message="an app imports no other app and no deployment, whatever its manifest declares: only @app-template/{application,http-api,kernel,packages}/… (decisions.md › Independent apps)")
+    register_diagnostic(span=$source, message="an app imports no other app and no deployment, whatever its manifest declares: only @app-template/{application,kernel,packages}/… (decisions.md › Independent apps)")
   },
   specifier($source) where {
     $filename <: ring($ring),

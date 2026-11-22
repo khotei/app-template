@@ -1,40 +1,36 @@
-import { Duration, Effect, Option, Redacted } from 'effect'
+import { Duration, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { UserService } from '@app-template/application/identity'
-import { Api, Auth } from '@app-template/http-api'
-import { RuntimeConfig } from '@app-template/kernel/config'
+import { nodeEnv } from '@app-template/kernel/config'
 
-import { buildApiUser } from '#api/user/user.mapper'
+import { Api } from '#api/api'
+import { Auth } from '#api/shared/api-security'
 
 const cookieMaxAge = Duration.days(365)
-
-// A request without the cookie decodes to an empty secret, not a failure.
-const isNonEmptySecret = (secret: Redacted.Redacted) => Redacted.value(secret) !== ''
 
 export const UserHandler = HttpApiBuilder.group(
   Api,
   'users',
   Effect.fnUntraced(function* (handlers) {
     const users = yield* UserService
-    const { nodeEnv } = yield* RuntimeConfig
+    const env = yield* nodeEnv
 
     return handlers.handle(
-      'ensure',
-      Effect.fn('UserHandler.ensure')(function* () {
+      'recognise',
+      Effect.fn('UserHandler.recognise')(function* () {
         const { user, secret } = yield* HttpApiBuilder.securityDecode(Auth.security.cookie).pipe(
-          Effect.map(Option.liftPredicate(isNonEmptySecret)),
-          Effect.flatMap(users.ensure),
+          Effect.flatMap(users.recognise),
         )
 
         yield* HttpApiBuilder.securitySetCookie(Auth.security.cookie, secret, {
           httpOnly: true,
           sameSite: 'lax',
           maxAge: cookieMaxAge,
-          secure: nodeEnv === 'production',
+          secure: env === 'production',
         })
         return user
-      }, Effect.map(buildApiUser)),
+      }),
     )
   }),
 )

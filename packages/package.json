@@ -5,9 +5,9 @@
   "exports": {
     "./aws": "./aws/index.ts",
     "./db": "./db/index.ts",
-    "./llm": "./llm/index.ts",
     "./queue": "./queue/index.ts",
     "./s3": "./s3/index.ts",
+    "./schema": "./schema/index.ts",
     "./testing": "./testing/index.ts",
     "./ui": "./ui/index.ts",
     "./db/testing": "./db/__tests__/testing/index.ts",
@@ -18,9 +18,9 @@
   "imports": {
     "#aws/*": "./aws/*.ts",
     "#db/*": "./db/*.ts",
-    "#llm/*": "./llm/*.ts",
     "#queue/*": "./queue/*.ts",
     "#s3/*": "./s3/*.ts",
+    "#schema/*": "./schema/*.ts",
     "#testing/*": "./testing/*.ts",
     "#ui/*": "./ui/*.ts",
     "#testing/db/*": "./db/__tests__/testing/*.ts",
@@ -29,10 +29,8 @@
     "#testing/db/e2e/*": "./db/__tests__/testing/e2e/*.ts"
   },
   "dependencies": {
-    "@effect-aws/client-lambda": "catalog:effect-aws",
     "@effect-aws/client-s3": "catalog:effect-aws",
     "@effect-aws/client-sqs": "catalog:effect-aws",
-    "@effect/ai-anthropic": "catalog:effect",
     "@effect/sql-pg": "catalog:effect",
     "@effect/vitest": "catalog:effect",
     "drizzle-orm": "catalog:drizzle",
@@ -40,6 +38,7 @@
     "vitest": "catalog:tools"
   },
   "devDependencies": {
+    "@effect-aws/client-lambda": "catalog:effect-aws",
     "@effect/platform-bun": "catalog:effect"
   }
 }

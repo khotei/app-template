@@ -1,113 +1,15 @@
 import { assert, describe, it } from '@effect/vitest'
-import { type Config, ConfigProvider, Effect, Layer, Option, References, UndefinedOr } from 'effect'
+import { Config, ConfigProvider, Effect } from 'effect'
 
-import {
-  ApiConfig,
-  AwsConfig,
-  DatabaseConfig,
-  LlmConfig,
-  MinimumLogLevelFromConfig,
-  MiniStackConfig,
-  ReplyModelConfig,
-  RuntimeConfig,
-  TelemetryConfig,
-  WorkerConfig,
-} from '#kernel/config/config'
+import { logLevel, nodeEnv } from '#kernel/config/config'
 
-const provideVariables = <A, E>(layer: Layer.Layer<A, E>, variables: Record<string, string>) =>
-  layer.pipe(Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(variables))))
-
-describe('config layers', () => {
-  it.effect.each<{
-    variable: string
-    layer: Layer.Layer<never, Config.ConfigError>
-    given?: Record<string, string>
-  }>([
-    { variable: 'API_PORT', layer: ApiConfig.layer },
-    { variable: 'WORKER_PORT', layer: WorkerConfig.layer },
-    { variable: 'DATABASE_URL', layer: DatabaseConfig.layer },
-    { variable: 'AWS_REGION', layer: AwsConfig.layer },
-    { variable: 'STAGE', layer: AwsConfig.layer, given: { AWS_REGION: 'eu-central-1' } },
-    { variable: 'RDS_BASE_PORT', layer: MiniStackConfig.layer },
-    {
-      variable: 'OTEL_EXPORTER_OTLP_ENDPOINT',
-      layer: TelemetryConfig.layer,
-      given: { GRAFANA_PORT: '3003' },
-    },
-    {
-      variable: 'GRAFANA_PORT',
-      layer: TelemetryConfig.layer,
-      given: { OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318' },
-    },
-    {
-      variable: 'ANTHROPIC_API_KEY',
-      layer: LlmConfig.layer,
-      given: { LLM_REPLY_MODEL: 'reply', LLM_TITLE_MODEL: 'title' },
-    },
-    {
-      variable: 'LLM_REPLY_MODEL',
-      layer: LlmConfig.layer,
-      given: { ANTHROPIC_API_KEY: 'key', LLM_TITLE_MODEL: 'title' },
-    },
-    {
-      variable: 'LLM_TITLE_MODEL',
-      layer: LlmConfig.layer,
-      given: { ANTHROPIC_API_KEY: 'key', LLM_REPLY_MODEL: 'reply' },
-    },
-    { variable: 'LLM_REPLY_MODEL', layer: ReplyModelConfig.layer },
-  ])(
-    'fails with a ConfigError naming a missing or invalid $variable',
-    ({ variable, layer, given }) =>
-      Effect.gen(function* () {
-        const error = yield* provideVariables(layer, given ?? {}).pipe(Layer.build, Effect.flip)
-
-        assert.strictEqual(error._tag, 'ConfigError')
-        assert.include(error.message, variable)
-      }),
-  )
-
+describe('config', () => {
   it.effect('applies the defaults', () =>
     Effect.gen(function* () {
-      const { nodeEnv, logLevel } = yield* RuntimeConfig
-
-      assert.deepStrictEqual({ nodeEnv, logLevel }, { nodeEnv: 'development', logLevel: 'Info' })
-    }).pipe(Effect.provide(provideVariables(RuntimeConfig.layer, {}))),
-  )
-
-  it.effect('reads the reply model with no key', () =>
-    Effect.gen(function* () {
-      assert.deepStrictEqual(yield* ReplyModelConfig, { replyModel: 'reply' })
-    }).pipe(Effect.provide(provideVariables(ReplyModelConfig.layer, { LLM_REPLY_MODEL: 'reply' }))),
-  )
-
-  it.effect.each([
-    { given: undefined, parsed: Option.none<string>() },
-    { given: 'http://localhost:4566', parsed: Option.some('http://localhost:4566/') },
-  ])('reads AWS settings with AWS_ENDPOINT_URL=$given', ({ given, parsed }) =>
-    Effect.gen(function* () {
-      const { region, endpoint, stage } = yield* AwsConfig
-
-      assert.deepStrictEqual(
-        { region, endpoint: endpoint.pipe(Option.map(String)), stage },
-        { region: 'eu-central-1', endpoint: parsed, stage: 'local' },
-      )
-    }).pipe(
-      Effect.provide(
-        provideVariables(AwsConfig.layer, {
-          AWS_REGION: 'eu-central-1',
-          STAGE: 'local',
-          ...UndefinedOr.match(given, {
-            onUndefined: () => ({}),
-            onDefined: (url) => ({ AWS_ENDPOINT_URL: url }),
-          }),
-        }),
-      ),
-    ),
-  )
-
-  it.effect('sets the minimum log level from LOG_LEVEL', () =>
-    References.MinimumLogLevel.useSync((minimum) => assert.strictEqual(minimum, 'Debug')).pipe(
-      Effect.provide(provideVariables(MinimumLogLevelFromConfig, { LOG_LEVEL: 'Debug' })),
-    ),
+      assert.deepStrictEqual(yield* Config.all({ nodeEnv, logLevel }), {
+        nodeEnv: 'development',
+        logLevel: 'Info',
+      })
+    }).pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromUnknown({})))),
   )
 })

@@ -14,23 +14,26 @@ entity or a store's client: [architecture.md](../docs/knowledge/architecture.md)
   `make check` passes before work is reported. Tests: `make test-unit` (no Docker),
   `make test-e2e` (Docker running). Debug: `make debug-<app>`.
 - Add a dependency with `bun add [-d] --catalog=<namespace> <pkg>@<exact>`, never a version in a
-  workspace ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
+  workspace nor the unnamed `catalog:`
+  ([tooling.md › Add a dependency](../docs/knowledge/tooling.md#add-a-dependency)).
 - **Before naming an Effect or Drizzle API, in a plan as in code, read
   `.claude/rules/effect.md`.**
-- Update `docs/knowledge/` in the commit that changes the behaviour it describes.
-- **A change of substance runs through the `/ticket-*` skills; their artifacts live only in
-  `docs/tickets/`.** Which change is one:
-  [sdd.md › When to run which cycle](../docs/knowledge/sdd.md#when-to-run-which-cycle). Ignore
-  artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`, an issue tracker). The
-  gates: `.claude/rules/sdd.md`; the guide: [sdd.md](../docs/knowledge/sdd.md).
-- **`main` changes only through a squash-merged PR.** A ticket is one branch `<type>/<slug>` cut
+- **Composition: a unit keeps its one purpose; new behaviour wraps or composes it.** Before shaping
+  a model, service, util or use case, in a plan as in code, read `.claude/rules/composition.md`.
+- Update `docs/knowledge/` and `.claude/` in the commit that changes what they describe.
+- **A change of substance runs through the lab, `.claude/skills/lab/SKILL.md`: micro on a branch
+  alone, macro with a `lab.md` in `docs/tickets/`.** The owner starts it with `/lab`; asked for
+  such a change without it, read that file and follow it as if `/lab <request>` had been typed.
+  A typo, a version bump, a doc fix and a task in an agent's brief are no change of substance.
+  Ignore artifact paths that plugins suggest (`.scratch/`, `docs/superpowers/`, an issue
+  tracker). Why it is cut so: [sdd.md](../docs/knowledge/sdd.md).
+- **`main` changes only through a squash-merged PR.** A change is one branch `<type>/<slug>` cut
   from `main`; commit on that branch, never on `main`
   ([sdd.md › Roadmap and history](../docs/knowledge/sdd.md#roadmap-and-history)).
-- Before opening or pushing to a PR, read `.claude/rules/pull-requests.md`: its body and the
-  inline explanations it posts.
+- Before opening or pushing to a PR, read `.claude/rules/pull-requests.md`: its title and body.
 - **The domain glossary is `docs/knowledge/glossary.md`.** Never create `GLOSSARY.md`,
   `CONTEXT.md` or `docs/adr/`, even when a skill asks for them.
 - **The architecture decisions are `docs/knowledge/decisions.md`.** Asked to change a module
-  boundary, the data layer, the kernel, a guard or a recorded decision, read its record first and
-  state what breaks and what it costs before changing anything; the change rewrites the record.
+  boundary, the data layer, the kernel, a guard or a recorded decision, read that decision first
+  and state what breaks and what it costs before changing anything; the change rewrites it.
 - Code, docs and rules are written in English.

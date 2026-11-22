@@ -2,12 +2,12 @@ import { assert, describe, it } from '@effect/vitest'
 import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Exit, Layer, Schema, UndefinedOr } from 'effect'
 
-import { AwsConfig } from '@app-template/kernel/config'
-import { type QueueDefinition, QueueSender } from '@app-template/packages/queue'
+import { awsConfig } from '@app-template/kernel/config'
+import { type QueueDefinition, QueueError, QueueSender } from '@app-template/packages/queue'
 
 import { QueueSenderOfStage } from '#kernel/aws/aws.client'
-import { buildResourceName } from '#kernel/aws/resources/naming'
 import { resources } from '#kernel/aws/resources/resources'
+import { buildResourceName } from '#kernel/aws/resources/resources-naming'
 import { AwsTest } from '#testing/aws/e2e/aws.test-layer'
 
 const QueueSenderTest = QueueSenderOfStage.pipe(Layer.provideMerge(AwsTest))
@@ -19,7 +19,7 @@ class SampleMessage extends Schema.Class<SampleMessage>('SampleMessage')({
 
 /** On a queue every stage provisions, so the sender sends to its real queue. */
 const sampleQueue = {
-  name: resources.queues.assistantMessage.name,
+  name: resources.queues.replyToMessage.name,
   schema: SampleMessage,
 } satisfies QueueDefinition<typeof SampleMessage>
 
@@ -28,7 +28,7 @@ const send = QueueSender.use((sender) =>
 )
 
 const queueUrl = Effect.gen(function* () {
-  const { stage } = yield* AwsConfig
+  const { stage } = yield* awsConfig
   const sqs = yield* SQSService
 
   return yield* sqs
@@ -58,35 +58,34 @@ const receive = (waitSeconds: number) =>
 
 // Live: SQS long-polls in real time.
 describe('QueueSender', { concurrent: false }, () => {
-  it.live(
-    "a sent message reaches the stage's queue with the trace it was sent in",
-    () =>
-      Effect.gen(function* () {
-        const { traceId } = yield* Effect.currentSpan.pipe(Effect.orDie)
-        yield* send
-        const received = yield* receive(10)
+  it.live("a sent queue message reaches the stage's queue with the trace it was sent in", () =>
+    Effect.gen(function* () {
+      const { traceId } = yield* Effect.currentSpan.pipe(Effect.orDie)
+      yield* send
+      const received = yield* receive(10)
 
-        assert.deepStrictEqual(
-          Arr.map(received, ({ body }) => body),
-          [{ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' }],
-        )
-        assert.match(
-          String(received[0]?.traceparent),
-          new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`),
-        )
-      }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
-    30_000,
+      assert.deepStrictEqual(
+        Arr.map(received, ({ body }) => body),
+        [{ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' }],
+      )
+      assert.match(String(received[0]?.traceparent), new RegExp(`^00-${traceId}-[0-9a-f]{16}-01$`))
+    }).pipe(Effect.withSpan('test'), Effect.provide(QueueSenderTest)),
   )
 
-  it.live('a send SQS refuses fails with QueueError', () =>
+  it.live('a send SQS refuses fails with one QueueError, and the next looks the URL up again', () =>
     Effect.gen(function* () {
+      const { stage } = yield* awsConfig
       const sqs = yield* SQSService
       const url = yield* queueUrl
       yield* sqs.deleteQueue({ QueueUrl: url })
 
-      const exit = yield* Effect.exit(send)
+      const refused = yield* Effect.flip(send)
+      yield* sqs.createQueue({ QueueName: buildResourceName(stage, sampleQueue.name) })
+      const resent = yield* Effect.exit(send)
 
-      assert.isTrue(Exit.hasFails(exit))
+      assert.instanceOf(refused, QueueError)
+      assert.notInstanceOf(refused.cause, QueueError)
+      assert.isTrue(Exit.isSuccess(resent))
     }).pipe(Effect.provide(QueueSenderTest)),
   )
 })

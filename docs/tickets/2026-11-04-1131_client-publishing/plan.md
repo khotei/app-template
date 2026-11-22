@@ -587,7 +587,7 @@
 - **Size:** ~30.
 - **Introduces:** none. Removes later: none.
 - **Test first:** `config only` — the probes below fail today.
-- **Verify:** as [guard-probes.md](../../../.claude/skills/ticket-plan/guard-probes.md) says, one
+- **Verify:** as `ticket-plan/guard-probes.md` (removed by the one-flow change) says, one
   probe per class; each fails `make lint` (or the check) naming the import, and is reverted after:
   - `export { describe } from 'vitest'` in `http-api/shared/limits.ts` — passes today;
   - `@app-template/application/chat`, `@effect/vitest`, `node:fs`, `bun:sqlite` — fail today, keep

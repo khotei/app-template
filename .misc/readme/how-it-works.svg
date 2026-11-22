@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 790" role="img" aria-labelledby="title desc">
+<title id="title">One message, from the ask to the reply</title>
+<desc id="desc">The api stores the user's message with its queued Run in one transaction and sends the jobs after the commit; the worker moves the Run to generating, then to done with the assistant's message, or to failed. A retry is a new Run.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="789" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">One message, from the ask to the reply</text>
+<text x="28" y="84" class="b a-bnd" xml:space="preserve">In the api, one request</text>
+<rect x="28" y="98" width="272" height="126" rx="8" class="box k-neu"/>
+<text x="40" y="122" class="b a-neu" xml:space="preserve">1 · The browser asks</text>
+<text x="40" y="142" xml:space="preserve"><tspan class="code">POST /chats/:chatId/messages</tspan></text>
+<text x="40" y="162" xml:space="preserve">with <tspan class="code">{ "text": "Hello" }</tspan></text>
+<text x="40" y="181" class="m" xml:space="preserve">the cookie names the user</text>
+<rect x="344" y="98" width="272" height="126" rx="8" class="box k-bnd"/>
+<text x="356" y="122" class="b a-bnd" xml:space="preserve">2 · One transaction</text>
+<text x="356" y="142" xml:space="preserve"><tspan class="code">AskChatService.ask</tspan> stores the</text>
+<text x="356" y="162" xml:space="preserve">user's message and its <tspan class="code">queued</tspan></text>
+<text x="356" y="182" xml:space="preserve">Run together</text>
+<rect x="660" y="98" width="272" height="126" rx="8" class="box k-bnd"/>
+<text x="672" y="122" class="b a-bnd" xml:space="preserve">3 · After the commit</text>
+<text x="672" y="142" xml:space="preserve">sends <tspan class="code">ReplyToMessage</tspan> to SQS,</text>
+<text x="672" y="162" xml:space="preserve">and <tspan class="code">TitleChat</tspan> on a chat's first</text>
+<text x="672" y="182" xml:space="preserve">message</text>
+<text x="672" y="202" xml:space="preserve">responds <tspan class="code">202</tspan> with the Run</text>
+<polyline points="300,161 335,161" class="ln"/>
+<polygon points="344,161 334,166 334,156" class="hd"/>
+<polyline points="616,161 651,161" class="ln"/>
+<polygon points="660,161 650,166 650,156" class="hd"/>
+<text x="28" y="258" class="b a-bnd" xml:space="preserve">In the worker, one handling per job</text>
+<rect x="28" y="296" width="272" height="140" rx="8" class="box k-neu"/>
+<text x="40" y="320" class="b a-neu" xml:space="preserve">4 · SQS invokes the worker</text>
+<text x="40" y="340" xml:space="preserve">a Lambda mapping posts each</text>
+<text x="40" y="360" xml:space="preserve">batch to <tspan class="code">POST /events</tspan></text>
+<text x="40" y="379" class="m" xml:space="preserve"><tspan class="code">TitleChat</tspan> goes to</text>
+<text x="40" y="398" class="m" xml:space="preserve"><tspan class="code">TitleChatService</tspan></text>
+<rect x="344" y="296" width="272" height="140" rx="8" class="box k-bnd"/>
+<text x="356" y="320" class="b a-bnd" xml:space="preserve">5 · Start, then ask</text>
+<text x="356" y="340" xml:space="preserve"><tspan class="code">ReplyChatService.reply</tspan> moves</text>
+<text x="356" y="360" xml:space="preserve">the Run to <tspan class="code">generating</tspan>, then asks</text>
+<text x="356" y="380" xml:space="preserve">the language model with the</text>
+<text x="356" y="400" xml:space="preserve">chat's history</text>
+<rect x="660" y="296" width="272" height="140" rx="8" class="box k-bnd"/>
+<text x="672" y="320" class="b a-bnd" xml:space="preserve">6 · One transaction, or failed</text>
+<text x="672" y="340" xml:space="preserve">the assistant's message and the</text>
+<text x="672" y="360" xml:space="preserve">Run <tspan class="code">done</tspan>;</text>
+<text x="672" y="380" xml:space="preserve">on any other end, the Run <tspan class="code">failed</tspan></text>
+<text x="672" y="399" class="m" xml:space="preserve">its text stays in the row, off the wire</text>
+<polyline points="300,366 335,366" class="ln"/>
+<polygon points="344,366 334,371 334,361" class="hd"/>
+<polyline points="616,366 651,366" class="ln"/>
+<polygon points="660,366 650,371 650,361" class="hd"/>
+<polyline points="796,224 796,276 164,276 164,287" class="ln"/>
+<polygon points="164,296 159,286 169,286" class="hd"/>
+<rect x="514.397" y="269.1" width="147.206" height="16.1" class="lbg"/>
+<text x="588" y="281" class="m" text-anchor="middle" xml:space="preserve">the job, through SQS</text>
+<text x="28" y="486" class="b a-beh" xml:space="preserve">A Run's statuses</text>
+<rect x="60" y="520" width="132" height="40" rx="20" class="box k-neu"/>
+<text x="126" y="546" text-anchor="middle" xml:space="preserve"><tspan class="code">queued</tspan></text>
+<rect x="300" y="520" width="132" height="40" rx="20" class="box k-neu"/>
+<text x="366" y="546" text-anchor="middle" xml:space="preserve"><tspan class="code">generating</tspan></text>
+<rect x="560" y="520" width="132" height="40" rx="20" class="box k-beh"/>
+<text x="626" y="546" text-anchor="middle" xml:space="preserve"><tspan class="code">done</tspan></text>
+<rect x="560" y="612" width="132" height="40" rx="20" class="box k-bad"/>
+<text x="626" y="638" text-anchor="middle" xml:space="preserve"><tspan class="code">failed</tspan></text>
+<polyline points="192,540 291,540" class="ln"/>
+<polygon points="300,540 290,545 290,535" class="hd"/>
+<rect x="208.84" y="520.1" width="74.32" height="16.1" class="lbg"/>
+<text x="246" y="532" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">startRun</tspan></text>
+<polyline points="432,540 551,540" class="ln"/>
+<polygon points="560,540 550,545 550,535" class="hd"/>
+<rect x="446.03" y="520.1" width="99.94" height="16.1" class="lbg"/>
+<text x="496" y="532" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">completeRun</tspan></text>
+<polyline points="366,560 366,632 551,632" class="ln"/>
+<polygon points="560,632 550,637 550,627" class="hd"/>
+<rect x="375" y="612.1" width="166.646" height="16.1" class="lbg"/>
+<text x="378" y="624" class="m" xml:space="preserve"><tspan class="code">failRun</tspan>: any other end</text>
+<polyline points="126,560 126,676 626,676 626,661" class="ln"/>
+<polygon points="626,652 631,662 621,662" class="hd"/>
+<rect x="135" y="669.1" width="222.952" height="16.1" class="lbg"/>
+<text x="138" y="681" class="m" xml:space="preserve"><tspan class="code">failRun</tspan>: SQS refused the send</text>
+<polyline points="692,632 732,632 732,716 30,716 30,540 51,540" class="ln dash"/>
+<polygon points="60,540 50,545 50,535" class="hd"/>
+<rect x="136.481" y="709.1" width="479.038" height="16.1" class="lbg"/>
+<text x="376" y="721" class="m" text-anchor="middle" xml:space="preserve">retry: <tspan class="code">POST /chats/:chatId/runs</tspan>, a new Run of the same message</text>
+<text x="28" y="760" class="m" xml:space="preserve">Meanwhile the browser polls <tspan class="code">GET /chats/:chatId/runs/:runId</tspan>, and sees <tspan class="code">queued</tspan>, <tspan class="code">generating</tspan>, then <tspan class="code">done</tspan> or <tspan class="code">failed</tspan>.</text>
+</svg>

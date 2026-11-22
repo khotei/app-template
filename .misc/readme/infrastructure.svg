@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 701" role="img" aria-labelledby="title desc">
+<title id="title">The local stand</title>
+<desc id="desc">make dev runs apps/web, apps/api and apps/worker on the host; make up runs MiniStack, with the queues, the worker's Lambda mappings, the bucket and the database inside it, and the telemetry backend. The worker alone reaches the language model.</desc>
+<style>
+svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
+  --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
+  --dat: #9a6700; --dat-f: #fff8c5; --bad: #cf222e; --bad-f: #ffebe9;
+  --neu: #8c959f; --neu-f: #f6f8fa; }
+@media (prefers-color-scheme: dark) {
+  svg { --bg: #0d1117; --frame: #3d444d; --ink: #f0f6fc; --muted: #9198a1; --line: #9198a1;
+    --bnd: #4493f8; --bnd-f: #0c2448; --beh: #ab7df8; --beh-f: #221a3a;
+    --dat: #d29922; --dat-f: #2b2111; --bad: #f85149; --bad-f: #3a1618;
+    --neu: #656c76; --neu-f: #151b23; }
+}
+text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica,
+  Arial, sans-serif; font-size: 15px; fill: var(--ink); }
+.code { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  "Liberation Mono", monospace; font-size: 14px; }
+.h { font-size: 20px; font-weight: 600; }
+.b { font-size: 16px; font-weight: 600; }
+.m { font-size: 14px; fill: var(--muted); }
+.panel { fill: var(--bg); stroke: var(--frame); stroke-width: 1; }
+.box { stroke-width: 1.5; }
+.dash { stroke-dasharray: 6 4; }
+.k-bnd { fill: var(--bnd-f); stroke: var(--bnd); } .a-bnd { fill: var(--bnd); }
+.k-beh { fill: var(--beh-f); stroke: var(--beh); } .a-beh { fill: var(--beh); }
+.k-dat { fill: var(--dat-f); stroke: var(--dat); } .a-dat { fill: var(--dat); }
+.k-bad { fill: var(--bad-f); stroke: var(--bad); } .a-bad { fill: var(--bad); }
+.k-neu { fill: var(--neu-f); stroke: var(--neu); } .a-neu { fill: var(--ink); }
+.k-bg { fill: var(--bg); stroke: var(--neu); }
+.ln { fill: none; stroke: var(--line); stroke-width: 1.5; }
+.ln-bad { fill: none; stroke: var(--bad); stroke-width: 1.5; }
+.hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
+.lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
+</style>
+<rect x="0.5" y="0.5" width="959" height="700" rx="12" class="panel"/>
+<text x="28" y="42" class="h" xml:space="preserve">The local stand: three processes, MiniStack and Grafana</text>
+<text x="932" y="42" class="m" text-anchor="end" xml:space="preserve">ports of the main tree; a worktree adds 10·N</text>
+<rect x="28" y="76" width="150" height="64" rx="8" class="box k-neu"/>
+<text x="40" y="100" class="b a-neu" xml:space="preserve">browser</text>
+<text x="40" y="119" class="m" xml:space="preserve">or <tspan class="code">curl</tspan></text>
+<rect x="240" y="76" width="260" height="64" rx="8" class="box k-neu"/>
+<text x="252" y="100" class="b a-neu" xml:space="preserve">telemetry container</text>
+<text x="252" y="119" class="m" xml:space="preserve">Grafana :3003 · OTLP :4318</text>
+<rect x="620" y="76" width="210" height="64" rx="8" class="box k-neu"/>
+<text x="632" y="100" class="b a-neu" xml:space="preserve">Anthropic API</text>
+<text x="632" y="119" class="m" xml:space="preserve">the language model</text>
+<rect x="28" y="214" width="150" height="96" rx="8" class="box k-bnd"/>
+<text x="40" y="238" class="b a-bnd" xml:space="preserve"><tspan class="code">apps/web</tspan> :3001</text>
+<text x="40" y="258" xml:space="preserve">health panel</text>
+<text x="40" y="278" xml:space="preserve">proxies <tspan class="code">/api/*</tspan></text>
+<rect x="240" y="214" width="230" height="96" rx="8" class="box k-bnd"/>
+<text x="252" y="238" class="b a-bnd" xml:space="preserve"><tspan class="code">apps/api</tspan> :3000</text>
+<text x="252" y="258" xml:space="preserve">routes, use cases</text>
+<text x="252" y="278" xml:space="preserve">and the ask's sends</text>
+<rect x="600" y="214" width="230" height="96" rx="8" class="box k-bnd"/>
+<text x="612" y="238" class="b a-bnd" xml:space="preserve"><tspan class="code">apps/worker</tspan> :3002</text>
+<text x="612" y="258" xml:space="preserve"><tspan class="code">POST /events</tspan></text>
+<text x="612" y="278" xml:space="preserve">runs each job's use case</text>
+<polyline points="103,140 103,205" class="ln"/>
+<polygon points="103,214 98,204 108,204" class="hd"/>
+<rect x="108" y="170.1" width="45.4783" height="16.1" class="lbg"/>
+<text x="111" y="182" class="m" xml:space="preserve">HTTP</text>
+<polyline points="178,262 231,262" class="ln"/>
+<polygon points="240,262 230,267 230,257" class="hd"/>
+<rect x="180.38" y="242.1" width="57.24" height="16.1" class="lbg"/>
+<text x="209" y="254" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">/api/*</tspan></text>
+<polyline points="355,214 355,149" class="ln"/>
+<polygon points="355,140 360,150 350,150" class="hd"/>
+<rect x="360" y="170.1" width="83.3086" height="16.1" class="lbg"/>
+<text x="363" y="182" class="m" xml:space="preserve">traces, logs</text>
+<polyline points="612,214 612,108 509,108" class="ln"/>
+<polygon points="500,108 510,103 510,113" class="hd"/>
+<rect x="514.346" y="90.1" width="83.3086" height="16.1" class="lbg"/>
+<text x="556" y="102" class="m" text-anchor="middle" xml:space="preserve">traces, logs</text>
+<polyline points="725,214 725,149" class="ln"/>
+<polygon points="725,140 730,150 720,150" class="hd"/>
+<rect x="730" y="170.1" width="70.6985" height="16.1" class="lbg"/>
+<text x="733" y="182" class="m" xml:space="preserve">reply, title</text>
+<rect x="28" y="396" width="904" height="172" rx="8" class="box k-bg dash"/>
+<text x="44" y="420" class="b" xml:space="preserve">MiniStack container :4566</text>
+<rect x="44" y="436" width="150" height="92" rx="8" class="box k-dat dash"/>
+<text x="56" y="460" class="b a-dat" xml:space="preserve">S3 bucket</text>
+<text x="56" y="480" xml:space="preserve"><tspan class="code">attachments</tspan></text>
+<text x="56" y="499" class="m" xml:space="preserve">no app wires it</text>
+<rect x="210" y="436" width="210" height="92" rx="8" class="box k-dat"/>
+<text x="222" y="460" class="b a-dat" xml:space="preserve">SQS queues</text>
+<text x="222" y="480" xml:space="preserve"><tspan class="code">reply-to-message</tspan></text>
+<text x="222" y="500" xml:space="preserve"><tspan class="code">title-chat</tspan></text>
+<rect x="440" y="436" width="200" height="92" rx="8" class="box k-dat"/>
+<text x="452" y="460" class="b a-dat" xml:space="preserve">RDS <tspan class="code">database</tspan></text>
+<text x="452" y="480" xml:space="preserve">a Postgres container</text>
+<text x="452" y="499" class="m" xml:space="preserve">host port 15432</text>
+<rect x="660" y="436" width="230" height="92" rx="8" class="box k-neu"/>
+<text x="672" y="460" class="b a-neu" xml:space="preserve">Lambda <tspan class="code">worker</tspan></text>
+<text x="672" y="480" xml:space="preserve">a mapping per queue</text>
+<text x="672" y="499" class="m" xml:space="preserve">invokes go to the host</text>
+<polyline points="330,310 330,427" class="ln"/>
+<polygon points="330,436 325,426 335,426" class="hd"/>
+<rect x="220.857" y="340.1" width="104.143" height="16.1" class="lbg"/>
+<text x="322" y="352" class="m" text-anchor="end" xml:space="preserve"><tspan class="code">SendMessage</tspan>,</text>
+<rect x="210.605" y="359.1" width="114.395" height="16.1" class="lbg"/>
+<text x="322" y="371" class="m" text-anchor="end" xml:space="preserve">after the commit</text>
+<polyline points="455,310 455,427" class="ln"/>
+<polygon points="455,436 450,426 460,426" class="hd"/>
+<rect x="413.745" y="350.1" width="36.2551" height="16.1" class="lbg"/>
+<text x="447" y="362" class="m" text-anchor="end" xml:space="preserve">SQL</text>
+<polyline points="625,310 625,427" class="ln"/>
+<polygon points="625,436 620,426 630,426" class="hd"/>
+<rect x="583.745" y="350.1" width="36.2551" height="16.1" class="lbg"/>
+<text x="617" y="362" class="m" text-anchor="end" xml:space="preserve">SQL</text>
+<polyline points="760,436 760,319" class="ln"/>
+<polygon points="760,310 765,320 755,320" class="hd"/>
+<rect x="765" y="340.1" width="96.7805" height="16.1" class="lbg"/>
+<text x="768" y="352" class="m" xml:space="preserve">each batch to</text>
+<rect x="765" y="359.1" width="108.48" height="16.1" class="lbg"/>
+<text x="768" y="371" class="m" xml:space="preserve"><tspan class="code">POST /events</tspan></text>
+<polyline points="315,528 315,552 775,552 775,537" class="ln"/>
+<polygon points="775,528 780,538 770,538" class="hd"/>
+<rect x="438.201" y="545.1" width="213.598" height="16.1" class="lbg"/>
+<text x="545" y="557" class="m" text-anchor="middle" xml:space="preserve">batches, through the mappings</text>
+<rect x="28" y="596" width="904" height="81" rx="8" class="box k-neu"/>
+<text x="40" y="620" class="b a-neu" xml:space="preserve">Pulumi: <tspan class="code">make up</tspan> runs <tspan class="code">deployment/local</tspan></text>
+<text x="40" y="640" xml:space="preserve">creates the MiniStack and telemetry containers, then inside MiniStack the queues with their dead-letter queues, the</text>
+<text x="40" y="660" xml:space="preserve">function and its mappings, the bucket and the database</text>
+<polyline points="480,596 480,577" class="ln dash"/>
+<polygon points="480,568 485,578 475,578" class="hd"/>
+<rect x="485" y="575.1" width="74.0551" height="16.1" class="lbg"/>
+<text x="488" y="587" class="m" xml:space="preserve">provisions</text>
+</svg>
