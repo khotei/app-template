@@ -490,15 +490,15 @@ moves it into its own `Later` and deletes it here.
   attachments, refused today, as a module's services import no other module.
   Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
   word.
-- (2026-11-21) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
-  `make vendor-drizzle`, so no commit carries the trailers their next `git subtree pull` looks
-  for. That pull needs a commit whose body starts lines with `git-subtree-dir: repos/effect` and
-  `git-subtree-split: e3aca1f1484e623cee09b7f3fa18d6ff5d66c0e8`, and one for
+- (2026-11-22) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
+  `make vendor-drizzle`, so no commit of the refresh holds the lines their next `git subtree pull`
+  reads. PR #39's squash body records `repos/effect`; one body holds one prefix's pair, as
+  `git subtree` keeps the last split line of a commit (`find_latest_squash`). `repos/drizzle`
+  needs its pair in the next PR's body, each line at its start:
   `git-subtree-dir: repos/drizzle` and
-  `git-subtree-split: f163324decffcc67b47c6f3dda43ca7bb5aaec49`. `git subtree` keeps only the
-  last split line of one commit (`find_latest_squash`), so one squash commit carrying both pairs
-  gives `repos/effect` drizzle's split. Ways out to weigh: the PR's squash body carries one pair
-  and a follow-up commit the other, or the next refresh is a plain commit again.
+  `git-subtree-split: f163324decffcc67b47c6f3dda43ca7bb5aaec49`. Until then `make vendor-drizzle`
+  stops with `fatal: can't squash-merge: 'repos/drizzle' was never added.`, as no commit on
+  `main` names `repos/drizzle`.
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
   (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and

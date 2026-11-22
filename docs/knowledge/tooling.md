@@ -304,8 +304,10 @@ package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `i
 4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
    on the now clean tree. `git subtree` refuses any uncommitted change, so the bump and the
    vendoring are two commits of the same PR.
-   Copy the squash commit's `git-subtree-dir:` and `git-subtree-split:` trailers into the PR body,
-   outside its HTML comment: the squash merge drops them, and the next pull needs them.
+   The squash merge drops the pull's `git-subtree-dir:` and `git-subtree-split:` lines, and the
+   next pull reads the newest commit on `main` that names the prefix, the last split line in it
+   winning. So the PR body carries one prefix's pair, each line at its start, outside the HTML
+   comment; a PR that vendors both libraries leaves the other pair to the next PR's body.
 
 Another repository vendored under `repos/` gets one more target of the same shape.
 
