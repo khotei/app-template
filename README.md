@@ -9,9 +9,11 @@ the worked example; what a new project inherits is around it:
 - 🏛️ **An architecture that holds.** A Bun, TypeScript and Effect modular monolith: three
   processes (`api`, `worker`, `web`) over one domain, the code cut in three rings, and the build,
   not a reviewer, refusing an import that points the wrong way.
-- 🧱 **A stack wired end to end.** Postgres through Drizzle, files in S3 and jobs in SQS (MiniStack
-  locally), Pulumi to provision the stores, a language model behind a service of the module that
-  uses it.
+- 🧱 **A stack wired end to end.** Postgres through Drizzle and jobs in SQS (MiniStack locally),
+  Pulumi to provision them, a language model behind a service of the module that uses it. An S3
+  bucket and the data layer's `FileRepository` over it are provisioned and tested, but no app
+  wires them since attachments were removed
+  ([Attachments removed](docs/knowledge/decisions.md#attachments-removed)).
 - 🤖 **A development process run with AI agents.** Every change of substance runs through one
   skill, `/lab`: you set the intent and the shape, agents find the facts, write test first and
   review in a fresh context, and every round is a green commit you read alone. The reasoning is
@@ -27,7 +29,8 @@ answers. A user's message starts a Run, the work of answering it: the api writes
 queued Run in one transaction, sends the jobs to SQS after it commits and responds with `202` and the
 Run. SQS invokes the worker through a Lambda function's mapping; the worker moves the Run to
 `generating`, then writes the assistant's message and the Run's `done` in one
-transaction, or the Run's `failed` with the text of what ended it, and titles the chat. The
+transaction, or the Run's `failed` with the full text of what ended it, which stays in the row
+and no response carries, and titles the chat. The
 client polls the Run, reads the chat's messages with their Runs after a reload, and retries a
 failed Run as a new Run of the same message. The language model is Anthropic's. The browser UI
 still shows only the health panel.
@@ -103,8 +106,8 @@ changes it.
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
 | `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
-| `packages/` | generic tools that know no app: database, S3 and queue clients, the AWS inventory's types, UI, test helpers |
-| `deployment/` | the Pulumi program that provisions the stores in MiniStack, from resource code an AWS stack can call |
+| `packages/` | generic tools that know no app: database, S3 and queue clients, the AWS inventory's types, the codecs and the id schema (`schema`), UI, test helpers |
+| `deployment/` | the Pulumi program of the local stand: MiniStack with the database, the bucket, the queues and the worker's Lambda mappings inside it, and the telemetry backend, from resource code an AWS stack can call |
 | `docs/knowledge/` | how the system works today: architecture, data, AWS, AI, telemetry, tooling, process, decisions, glossary, roadmap |
 | `docs/tickets/` | one folder per ticket: its `lab.md` (intent, steps, shapes, decisions); older ones keep their requirements, design, plan and verification |
 | `.claude/` | the agent toolkit: the project's `CLAUDE.md`, skills, agents, hooks, rules and settings |
@@ -117,13 +120,13 @@ The code is cut in three rings, and every dependency points inward:
 
 ```mermaid
 graph LR
-  B["🌐 boundary<br/>apps · kernel clients · adapters"] --> M["⚙️ behaviour<br/>application/chat · application/identity · application/use-cases"]
+  B["🌐 boundary<br/>apps · kernel clients · a module's infrastructure"] --> M["⚙️ behaviour<br/>application/chat · application/identity · application/use-cases"]
   M --> D["🗄️ data<br/>kernel/data"]
 ```
 
 - **The data** at the centre: `kernel/data` is the one source of truth over every store.
-- **The behaviour** around it: each module holds its models, rules and services; a use case above
-  the modules composes their services in one transaction.
+- **The behaviour** around it: each module holds its models, rules and domain services; above the
+  modules, the use cases are what a handler calls.
 - **The boundary** outside: everything that touches the world, from the configured clients to the
   apps.
 
@@ -133,13 +136,31 @@ the browser's bundle. The rules a change most often breaks:
 
 - no rule outside the modules
   ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));
-- no lock but a guard in the write ([database.md › Guards](docs/knowledge/database.md#guards));
-- no message without its job ([database.md › The sends](docs/knowledge/database.md#the-sends));
+- no lock but a write guard ([database.md › Guards](docs/knowledge/database.md#guards));
+- no job sent before the commit of what it reads
+  ([database.md › The sends](docs/knowledge/database.md#the-sends));
 - no service in the browser
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).
 
-One name crosses every ring: a module's files read from the data outward, table and repository,
-then model, service, use case, adapter and handler. Every file of `chat`:
+From a model's rules up to a handler, each kind of code is built on the ones before it; `chat`
+shows each:
+
+- **Rules and moves** are plain functions in the model's `.model` file, over values passed in
+  (`ensureChatNotBusy`, `startRun`, `completeRun`, `failRun`).
+- **`<Model>Service`** owns one model's records, coding each row through the model: `RunService`
+  has `create`, `getOne(where)`, `update(to, where)` and `move(run, transition)`, which writes a
+  move under the status the Run was read in.
+- **`<Verb><Model>Service`** is the last grouping before a use case: it composes the module's
+  services, the transaction and the job's sends or assistant (`AskChatService`,
+  `ReplyChatService`, `TitleChatService`).
+- **A use case** is a plain `Effect.fn` that only a handler calls (`askChat`, `replyToMessage`),
+  and **a handler** calls one service method or one use case.
+
+A purpose a unit was not made for is a new unit that wraps or composes it, never an edit of it:
+[composition.md](.claude/rules/composition.md), [layering.md](.claude/rules/layering.md).
+
+One name crosses the rings: a model's files read from the data outward, table, entity and
+repository, then model and service, then the api's HTTP group and handler. Every file of `chat`:
 [architecture.md › Where things live](docs/knowledge/architecture.md#where-things-live). Why each
 boundary holds, what it costs and what breaks if it is reversed:
 [decisions.md](docs/knowledge/decisions.md), one entry per decision.
@@ -206,7 +227,7 @@ which order: [roadmap.md](docs/knowledge/roadmap.md).
 | How do I run, debug, test, add a dependency or a workspace? Why did a check fail? | [docs/knowledge/tooling.md](docs/knowledge/tooling.md) |
 | Which ring and layer does my code belong to, and what may it import? | [docs/knowledge/architecture.md](docs/knowledge/architecture.md) |
 | How are records stored, guarded, migrated and tested? | [docs/knowledge/database.md](docs/knowledge/database.md) |
-| How do the apps reach S3 and SQS, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
+| How are S3 and SQS reached, locally and on AWS? | [docs/knowledge/aws.md](docs/knowledge/aws.md) |
 | How does the assistant ask the language model for a reply or a title? | [docs/knowledge/ai.md](docs/knowledge/ai.md) |
 | How do I follow one message through the api and the worker? | [docs/knowledge/observability.md](docs/knowledge/observability.md) |
 | What do the domain words mean? | [docs/knowledge/glossary.md](docs/knowledge/glossary.md) |
