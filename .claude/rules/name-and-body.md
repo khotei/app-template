@@ -31,9 +31,8 @@ defect of that line, fixed or reported with the change ([naming.md](naming.md) h
    `getOrders()` returning one. *The opposite:* `disable(): Enabled`; "never fails" over an error
    type. Errors and tests are named later and closer to the fact: `OrderShippedError` beside
    `dispatch` says the method's word is wrong.
-4. **One level of abstraction in a body.** Its lines are steps of one size, one step below the
-   name. A step is cut out under a name that passes 1 when its level is below its caller's, two
-   callers share it, or it is a piece of its model's rule; else it stays in place, piped.
+4. **One level of abstraction in a body.** Its lines are steps of one size, one step below the name;
+   a step is cut out under a name that passes 1 when two places use it or its model's rule holds it.
    ```diff
    - if (Arr.isReadonlyArrayEmpty(order.lines)) return yield* new OrderEmptyError() // a field test
    + yield* ensureOrderNotEmpty(order)                              // a piece of the model's rule
@@ -72,7 +71,8 @@ Before settling a choice, list each rule line that applies. When two ask for dif
 never pick silently: say what each protects and what goes wrong here if it loses; apply the one
 whose loss does concrete harm, and when neither does, leave the code. Write the trade-off as one
 `Decision:` paragraph; when both losses are concrete, give both options with their cost and ask.
-The owner's word is no rule line: it stands, and the line it changes is named with its cost.
+The owner's word is no rule line: it stands, and the line it changes is named with its cost. A flow
+read whole comes before 4: a step leaves it for a declaration only when two places use it.
 
 ## In a review
 
