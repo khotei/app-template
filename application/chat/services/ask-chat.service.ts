@@ -44,12 +44,6 @@ export class AskChatService extends Context.Service<
     const runs = yield* RunService
     const transaction = yield* Transaction
 
-    // A chat no ask has reached yet is titled once, from its first message.
-    const askTitle = Effect.fnUntraced(function* (chat: Chat) {
-      if (!isNewChat(chat)) return
-      yield* sendTitleChat(chat)
-    })
-
     // After the commit of `run`, so every delivery finds it; SQS's refusal fails that Run alone,
     // by its id: one a worker settled meanwhile, as SQS took the job after all, dies on the
     // write's guard.
@@ -69,8 +63,9 @@ export class AskChatService extends Context.Service<
         .create({ chatId: chat.id, text, author: 'user' })
         .pipe(Effect.flatMap(runs.create), transaction.run)
 
-      // The title's send never fails, so the jobs go in either order.
-      yield* askTitle(chat)
+      // A chat no ask has reached yet is titled once, from its first message; the title's send
+      // never fails, so the jobs go in either order.
+      if (isNewChat(chat)) yield* sendTitleChat(chat)
       return yield* askReply(run)
     })
 

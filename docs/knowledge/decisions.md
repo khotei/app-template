@@ -1081,12 +1081,12 @@ A chat's jobs are split at the queue: `AskChatService`, in the api, stores a req
 jobs after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and the worker does each
 one's work in a service of its own. Each is the last grouping of the module's logic before a use
 case: its class is named for its verb and its main method repeats that verb, any other method named
-for its own act in the model's words. The two sides meet by one grammar: the api's private step
-`ask<Verb>` sends the job `<Verb><Object>`, and the worker's `<Verb><Model>Service.<verb>` does that
-work.
+for its own act in the model's words. The two sides meet by one grammar: the api sends the job
+`<Verb><Object>`, through a private step `ask<Verb>` when two flows send it, and the worker's
+`<Verb><Model>Service.<verb>` does that work.
 
 ```text
-api:    AskChatService.ask ──askTitle──▶ TitleChat ──────▶ titleChat ──────▶ TitleChatService.title
+api:    AskChatService.ask ──new chat──▶ TitleChat ──────▶ titleChat ──────▶ TitleChatService.title
                            └─askReply──▶ ReplyToMessage ─▶ replyToMessage ─▶ ReplyChatService.reply
         AskChatService.retry ─askReply─▶ (the same)
 ```
