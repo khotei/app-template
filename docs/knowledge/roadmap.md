@@ -178,7 +178,8 @@ left.
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller;
   [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws) the
-  CloudWatch and X-Ray path.
+  CloudWatch and X-Ray path; [Alchemy in place of Pulumi](#alchemy-in-place-of-pulumi) whether
+  `deployment/` stays on Pulumi, weighed by its probe before the AWS stack is written.
 
 ### 12. `template-handoff`
 
@@ -697,6 +698,40 @@ For `observability` (8) and `aws-deployment` (9).
   `bedrock-provider` (21) needs) against an ADOT collector sidecar.
 - **Not a fit.** `effect/devtools`: its tracer streams only to the VS Code extension "Effect Dev
   Tools", and its debugger panels need VS Code too.
+
+### Alchemy in place of Pulumi
+
+For `aws-deployment` (9). [Alchemy](https://alchemy.run/) describes infrastructure as Effect
+programs in an `alchemy.run.ts`, run by `bun alchemy deploy | plan | destroy | drift`. Read on
+2026-11-22 from its site and README; nothing was run.
+
+- **Brings:**
+  - **One language for the program:** the stack is an `Effect.gen` that reads `Config` and
+    layers as the apps do, with no Pulumi CLI to install and no `runtime: bun` limits.
+  - **IAM from the code:** a binding such as `AWS.S3.GetObject(bucket)` creates the policy, the
+    environment variable and the typed call. `deployment/` has no IAM yet: the worker's role is
+    a constant ARN in `deployment/local/index.ts`.
+  - **Lambda packaging:** `AWS.Lambda.Function` bundles its handler; this repo bundles nothing
+    for Lambda.
+  - **The rest it covers:** `Docker.Container` (ports, volumes, healthcheck) for MiniStack and
+    the telemetry container; typed `AWS.S3`, `AWS.SQS`, `AWS.RDS` and `AWS.Lambda` resources; a
+    state per stage in `.alchemy/`, or in DynamoDB or Postgres.
+- **Costs:**
+  - **A beta:** `alchemy@2.0.0-beta.87` (`npm view alchemy`, 2026-11-22), and its README says
+    "alchemy v2 is in beta. Expect breaking changes". It asks for `effect ^4.1.4`.
+  - **MiniStack is not documented:** its local mode runs its own emulator, a fork of floci in an
+    `alchemy-floci` container, and no page names an endpoint override for the AWS provider's own
+    calls. This repo relies on MiniStack starting a real Postgres for the RDS instance and on
+    `MINISTACK_LAMBDA_PROXY_URL` forwarding SQS batches to the worker on the host.
+  - **A rewrite of `deployment/`,** about 330 lines, and of the `make` targets around it.
+  - **Nothing for the tests:** they provision a stage per test through the SDK; Alchemy's
+    `Test.make` deploys once per suite.
+- **Check first:** a probe in a worktree: one bucket and one queue declared in Alchemy and
+  deployed to MiniStack through `AWS_ENDPOINT_URL`. If it deploys, compare its time with
+  `make up` (8 s) and move `deployment/` whole. If it does not, Pulumi stays for both: Alchemy
+  for AWS beside Pulumi for MiniStack would declare each resource twice.
+- **Not read:** state locking outside the Postgres store, whether secrets are encrypted in
+  `.alchemy/`, and the `drift`, `--adopt` and v1-migration pages.
 
 ### Smaller fits
 
