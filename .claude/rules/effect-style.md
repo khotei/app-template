@@ -5,13 +5,13 @@ paths:
 
 # Effect: style
 
-Code reads top to bottom and extends by adding a row or a unit, not a branch
-([composition.md](composition.md)).
+Code reads top to bottom, grows by a row or a unit, not a branch ([composition.md](composition.md)).
 
 ## Signatures
 
-- A named function with a statement body is a declaration (`function cancel(order: Order) { … }`);
-  a one-expression one is an arrow constant.
+- A step used once stays in its flow, so the flow reads whole: statements in a generator, or a named
+  function expression in the combinator that orders the steps (`Effect.gen(function* open() …)`).
+  One used from two places is a declaration, or an arrow constant for one expression.
 - Up to two parameters stay positional (`shipOrder(order, carrier)`); a third, or a boolean, moves
   into one trailing object after the subject: `cancelOrder(order, { reason, cause, refund })`.
   More stay positional only where branded types tell them apart (`placeOrder(userId, cartId, input)`).
