@@ -711,15 +711,15 @@ no app.
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
 `askModel` (the retries, the failure mapping and the finish-reason check), with its one final
 error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/error`, that loads no
-client. Over it `chat`'s `infrastructure/`
-holds one service per job, each a `Context.Service` with its `static layer`: `MessageAssistant`
-answers the chat's next message from its history, `ChatAssistant` the chat's title from its
-opening text. Each builds its one model with `AnthropicLanguageModel.make`, of
-`LLM_REPLY_MODEL` or `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes
-`askModel` and fails with its `LlmError`. The domain keeps only what they take and return
-(`MessageFields`, `AssistantReply`), and a failed Run keeps the error's full text
-([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in
-front of the services. A use case, or the chat's worker service of a job, yields the assistant it
+client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
+model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
+next message from its history, `ChatAssistant` the chat's title from its opening text. Each
+builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
+`LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
+`LlmError`. The domain keeps only what they take and return (`MessageFields`, `AssistantReply`),
+and a failed Run keeps the error's full text
+([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in front of the
+services. A use case, or the chat's worker service of a job, yields the assistant it
 needs, a unit test swaps that service's layer, and the suite builds both layers over a recording
 client.
 
@@ -765,7 +765,7 @@ client.
   `ReplyChatService` and `TitleChatService` import an `.llm` file, each its own, so only they or a
   use case reach the assistants);
   the assistants' suite over a recording client.
-- **If reversed:** a port per job comes back in `domain/` with an adapter constant each that
+- **If reversed:** a port per assistant comes back in `domain/` with an adapter constant each that
   only builds the same shape, or one port of two methods with a fake branch per method; errors
   back in a module mean the module's own pair and a mapping for `askModel` to take.
 - **Revisit when:** a second provider lands, or a domain service other than a job's, which may

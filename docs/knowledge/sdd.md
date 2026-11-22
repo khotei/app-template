@@ -115,7 +115,7 @@ plugin by name, so its updates arrive on their own: `grilling` when an intent is
 `diagnosing-bugs` phases 1 and 2 for a bug's red command, `writing-for-agents` for the Rules pass
 on an instruction file, and `tdd`, preloaded by the `implementer`. The plugins whose skills
 overlap these are off in `.claude/settings.json`. Two overrides hold: the glossary is
-`docs/knowledge/glossary.md` and a decision is a record of `docs/knowledge/decisions.md`, never
+`docs/knowledge/glossary.md` and the decisions live in `docs/knowledge/decisions.md`, never
 `GLOSSARY.md` or `docs/adr/`; a `research` notes file is never written into the repo, the
 `researcher` answers in its report.
 

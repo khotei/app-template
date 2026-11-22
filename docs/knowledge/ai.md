@@ -2,10 +2,10 @@
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or the title's schema.
-The code: the chat module's two services in its `infrastructure/`, one per job, `MessageAssistant`
-(the reply: the system prompt and the reply's language model of `LLM_REPLY_MODEL`) and
-`ChatAssistant` (the title: its instruction, its schema and the title's language model of
-`LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
+The code: the chat module's two services in its `infrastructure/`, one per answer asked of the
+language model, `MessageAssistant` (the reply: the system prompt and the reply's language model
+of `LLM_REPLY_MODEL`) and `ChatAssistant` (the title: its instruction, its schema and the title's
+language model of `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
 `@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the finish-reason
 check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's client with the key of
 `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its one error, `LlmError`; and those
