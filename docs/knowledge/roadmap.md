@@ -492,13 +492,12 @@ moves it into its own `Later` and deletes it here.
   word.
 - (2026-11-22) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
   `make vendor-drizzle`, so no commit of the refresh holds the lines their next `git subtree pull`
-  reads. PR #39's squash body records `repos/effect`; one body holds one prefix's pair, as
-  `git subtree` keeps the last split line of a commit (`find_latest_squash`). `repos/drizzle`
-  needs its pair in the next PR's body, each line at its start:
-  `git-subtree-dir: repos/drizzle` and
-  `git-subtree-split: f163324decffcc67b47c6f3dda43ca7bb5aaec49`. Until then `make vendor-drizzle`
-  stops with `fatal: can't squash-merge: 'repos/drizzle' was never added.`, as no commit on
-  `main` names `repos/drizzle`.
+  reads. PR #39's squash body records `repos/effect` and the squash body of the PR that adds
+  this sentence records `repos/drizzle` (`git-subtree-split:
+  f163324decffcc67b47c6f3dda43ca7bb5aaec49`, tag `v1.0.0-rc.6`); one body holds one prefix's
+  pair, as `git subtree` keeps the last split line of a commit (`find_latest_squash`). Before
+  that merge `make vendor-drizzle` stops with `fatal: can't squash-merge: 'repos/drizzle' was
+  never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
   (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
@@ -515,6 +514,44 @@ moves it into its own `Later` and deletes it here.
   that must stay above the worker's timeout as either changes. The owner refused a rule by age for
   the api's abort window (`reply-run` above); this entry, for the worker's start, is the owner's
   (2026-11-21).
+- (2026-11-22) `completeRun` and `failRun` (`application/chat/domain/run.model.ts`) take their
+  record first, so each `RunService.move` through them wraps them in a lambda,
+  `runs.move(run, (run) => failRun(run, cause))` (three calls in `reply-chat.service.ts`, one in
+  `ask-chat.service.ts`). Effect's `dual` (`repos/effect/packages/effect/src/Function.ts`) would
+  let them be called data-last too, `runs.move(run, failRun(cause))`, at the cost of an
+  overloaded signature per transition and a change of `effect-style.md`'s line that a model's
+  transition stays plain and takes a lambda, which
+  [A Run's guarded moves](decisions.md#a-runs-guarded-moves) also records. Undecided by the owner.
+- (2026-11-22) `make link-check` passes a relative link whose `#anchor` names no heading: lychee
+  runs without `--include-fragments`, so it checks the file alone. An agent's wrong anchor stayed
+  green on 2026-11-22, and a probe link to `decisions.md#no-such-heading` passed. The pinned
+  lychee 0.24.2 has `--include-fragments`, which catches the probe and today fails 22 anchors, all
+  in `docs/tickets/` (roadmap entries since removed, headings since renamed). Ways out to weigh:
+  the flag, with those links fixed or `docs/tickets/` left out of it; or an anchor rule in
+  `.misc/lint/markdownlint-cli2.mjs`, whose built-in `MD051` checks only a link within its file.
+- (2026-11-22) `ReplyChatService` and `TitleChatService` (`application/chat/services/`) each have
+  one method, one implementation, no state across calls and one caller, its job's use case; no
+  test replaces them, as the unit suites mock the leaves (the repositories, the queue sender, the
+  assistants). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
+  services, while its `Effect.fn` guidance and examples support a plain function that yields its
+  services, and each method carries a requirement (`MessageAssistant`, `ChatAssistant`), against
+  "service operations should have the `Requirements` parameter set to `never`"
+  ([Avoiding Requirement Leakage](https://effect.website/docs/requirements-management/layers/)).
+  As functions they would cost the two files, their tests and the worker's two `.layer` entries,
+  lose the `layer<Variant>` wrap point, and leave each use case wrapping one function. The owner
+  chose services by verb on 2026-11-20
+  ([The chat's jobs in their services](decisions.md#the-chats-jobs-in-their-services)); this
+  entry records the open question, not a plan.
+- (2026-11-22) Docker held 178 anonymous dangling volumes (about 0.8 GB) and a testcontainers
+  Postgres up 17 hours, removed by hand. The e2e run is not shown to leave them: its `globalSetup`
+  (`kernel/data/__tests__/testing/e2e/e2e.test-setup.ts`) ends with `stop()`, which removes the
+  volumes by default in testcontainers 12.2.2, and Ryuk reaps a killed run's; a finished run and
+  one killed by `SIGKILL` each left none (2026-11-22). A likelier source: `make reset` before #39
+  removed MiniStack and the database's container by `docker rm -f`, no `-v`, leaving their images'
+  anonymous volumes (MiniStack declares two, Postgres `/var/lib/postgresql`); it now runs
+  `docker rm -fv`. Unexplained: the orphan Ryuk did not reap. Ways out to weigh: count the dangling
+  volumes again after a week of resets and e2e runs before acting; a tmpfs for the test
+  database's data (`withTmpFs`), so even an unreaped run leaves no Postgres volume.
 
 ## Ideas to weigh
 
