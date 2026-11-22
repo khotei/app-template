@@ -67,3 +67,4 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
   tags to a second list or a schema alias; a field nobody reads (no branch, no operator) is not
   written. A failed record keeps the full text of what ended it, for operators, and every wire
   shape omits it ([decision](../../docs/knowledge/decisions.md#a-failed-run-keeps-its-text)).
+- Inspect a `Cause` by its predicates, never by walking it (`repos/effect/migration/cause.md`).
