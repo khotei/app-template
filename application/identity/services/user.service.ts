@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
+import { Context, DateTime, Effect, Layer, Option, Redacted, Schema } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
@@ -43,25 +43,24 @@ export class UserService extends Context.Service<
       ),
     )
 
-    const registerUser = Effect.fnUntraced(function* () {
+    const recognise = Effect.fn('UserService.recognise')(function* (secret: UserSecret) {
+      const known = yield* authenticate(secret).pipe(
+        Effect.asSome,
+        Effect.catchTag('UserUnknownError', () => Effect.succeedNone),
+      )
+      if (Option.isSome(known)) return { user: known.value, secret }
+
       const id = yield* generateId(UserId)
       const createdAt = yield* DateTime.now
       const bytes = yield* random.randomBytes(secretBytes)
-      const secret = Redacted.make(Base64Url.encode(bytes))
+      const fresh = Redacted.make(Base64Url.encode(bytes))
 
       const user = new User({ id, createdAt })
-      const credential = yield* hashSecret(secret)
+      const credential = yield* hashSecret(fresh)
       const row = yield* encodeWith(User)(user)
       yield* users.insert(row, credential)
-      return { user, secret }
+      return { user, secret: fresh }
     })
-
-    const recognise = Effect.fn('UserService.recognise')((secret: UserSecret) =>
-      authenticate(secret).pipe(
-        Effect.map((user) => ({ user, secret })),
-        Effect.catchTag('UserUnknownError', registerUser),
-      ),
-    )
 
     return { recognise, authenticate }
   }),
