@@ -1565,8 +1565,34 @@ the session, or by an `implementer` once its Shape is settled.
   branch's, so the owner alone reads its fixes. A code range gets three reviewers, one more than
   the lab's review before: replay R2 cost $3.72 a replay run against $2.21.
 - **Guarded by:** review against the skill; the replays of
-  `docs/knowledge/sdd.md › Evaluating the toolkit`, run before and after each toolkit change.
+  `docs/knowledge/sdd.md › Evaluating the toolkit`, run on the owner's word
+  ([Toolkit changes gated by `make check`](#toolkit-changes-gated-by-make-check)).
 - **If reversed:** the `/ticket-*` skills, the `verifier` and the templates come back from the
   commit before this decision; the tickets written under them keep their files.
 - **Revisit when:** a macro lab's owner rework or stops exceed those of the SDD tickets before it,
   or a defect merges that a replay shows a verifier would have caught.
+
+### Toolkit changes gated by `make check`
+
+A change to a skill, an agent, a rule or a `CLAUDE.md` lands when `make check` passes; the agent
+then asks the owner whether to run the replays of
+[sdd.md › Evaluating the toolkit](sdd.md#evaluating-the-toolkit), naming their cost, and runs
+them only on the owner's word (`.claude/rules/claude-md.md › The toolkit`). The no-op experiment
+for one disputed line stays the agent's own.
+
+- **Why:** the replays cost more than they told. Twelve replay sessions for one day's rule
+  changes, R1 and R3 three times on each of two toolkits, took hours and tens of millions of
+  tokens and answered "R1 unchanged, R3 two of three against three of three", which three runs
+  cannot tell from variance.
+- **Sources:** that run, in the design audit of 2026-11-19 and its follow-up; the owner's decision
+  of 2026-11-22.
+- **Rejected:** the replays before and after every toolkit change, landing only when none gets
+  worse: the cost above for a verdict within noise.
+- **Cost:** `make check` sees only a rule file's form (its length, links and paths), so a wording
+  that makes agents work worse goes unseen until it shows in their work, or until the owner asks
+  for a run.
+- **Guarded by:** `make check`; the ask, by review against `.claude/rules/claude-md.md`.
+- **If reversed:** the replays run before and after every toolkit change again, and a change lands
+  only when no replay gets worse.
+- **Revisit when:** a toolkit change that passed `make check` is found to have made agents' work
+  worse, or a replay set gives a verdict outside variance at a cost the owner accepts per change.

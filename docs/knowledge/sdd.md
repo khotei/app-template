@@ -121,9 +121,14 @@ overlap these are off in `.claude/settings.json`. Two overrides hold: the glossa
 
 ## Evaluating the toolkit
 
-A change to the skill, an agent or a process rule is judged by a replay run, not by argument: a
-one-line instruction added once lowered coding quality in a way the vendor's own evals missed
-([Anthropic, 2026-04-23](https://www.anthropic.com/engineering/april-23-postmortem)).
+A change to a skill, an agent, a rule or a `CLAUDE.md` is gated by `make check`; the replays
+below run on the owner's word, which the agent asks for after such a change, naming their cost
+([decisions.md › Toolkit changes gated by `make check`](decisions.md#toolkit-changes-gated-by-make-check)).
+They are worth offering: a one-line instruction added once lowered coding quality in a way the
+vendor's own evals missed
+([Anthropic, 2026-04-23](https://www.anthropic.com/engineering/april-23-postmortem)). The no-op
+experiment for one disputed line is cheap and stays the agent's own way to settle it. This
+section is the reference for running each.
 
 - **The replays:** past steps with a known result, each run from the commit named, in a
   `git clone --local` under a temp directory, in fresh `claude -p --output-format json` sessions
@@ -146,7 +151,7 @@ one-line instruction added once lowered coding quality in a way the vendor's own
   folders of the system temp directory, one without the line, run the task the line governs in
   each with `claude -p --model haiku --setting-sources project "<task>"`, and keep the line only
   when the two answers differ in what it asks.
-- **The ablation:** when a model lands, remove one part at a time and replay; a part whose
+- **The ablation**, offered when a model lands: remove one part at a time and replay; a part whose
   removal changes no grade goes. In this order: the hunt folded into Intent (R2), the Rules pass,
   the stops file (R4), the hunt replaced by `/code-review high <base>..HEAD` (R2).
 

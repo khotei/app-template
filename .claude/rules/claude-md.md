@@ -22,7 +22,7 @@ back) · invariants types cannot express · cross-workspace coupling · non-obvi
 (ordering, version quirks) · boundaries (import direction, ownership) · one pointer to the file
 where a surface lives. What fails: behaviour narration (per-function descriptions, signatures,
 test walkthroughs). When in doubt, cut. A dispute over whether a line changes what an agent does
-is settled by a replay run, never argued
+is settled by the no-op experiment, a cheap run of that one line, never argued
 ([how](../../docs/knowledge/sdd.md#evaluating-the-toolkit)).
 
 ## The owner
@@ -69,7 +69,8 @@ its API is checked like code. None where a check prints the fix.
   `.claude/commands/`. Why the toolkit is cut so: `docs/knowledge/sdd.md`.
 - Tool limits live on the agent (`disallowedTools`); an agent that cannot edit has its skill
   persist its output.
-- A change to the skill (a pair a close adds to `stops.md` aside), an agent or this rule runs
-  the replays of
-  [sdd.md › Evaluating the toolkit](../../docs/knowledge/sdd.md#evaluating-the-toolkit) before
-  and after it, and lands only when no replay gets worse.
+- A change to a skill, an agent, a rule or a `CLAUDE.md` lands when `make check` passes. Then
+  ask the owner whether to run the replays of
+  [sdd.md › Evaluating the toolkit](../../docs/knowledge/sdd.md#evaluating-the-toolkit), naming
+  their cost (hours and millions of tokens), and run them only on the owner's word
+  ([why](../../docs/knowledge/decisions.md#toolkit-changes-gated-by-make-check)).

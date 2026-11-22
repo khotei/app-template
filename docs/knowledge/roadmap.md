@@ -400,9 +400,8 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19, verified) The reply job's exit handler (`reply-chat.service.ts`)
   cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
   `Exit.filterCause` can, in 3 lines in place of 8.
-- (2026-11-19, verified) The replay duty is stated with three scopes (`claude-md.md › The toolkit`,
-  `sdd.md`, `decisions.md`); one author in `claude-md.md`, and tags for the four anchors `main`
-  lacks.
+- (2026-11-19, verified) The replays' anchors: tags for the four commits they start from that
+  `main` lacks.
 - (2026-11-19, verified) Biome admits `kernel/data` in use-case and handler sources, so only review
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
 - (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
@@ -422,7 +421,7 @@ moves it into its own `Later` and deletes it here.
   skill and every spawn overrides them; delete the defaults. The implementer's `tdd` precedence
   stays unproven.
 - (2026-11-19) The toolkit edit L2.22 of `one-flow` (agents, the lab skill, `stops.md`) landed
-  without the replays `claude-md.md › The toolkit` asks for; R4 and R5 are the ones it can move.
+  without replays; R4 and R5 are the ones it can move, should the owner ask for a run.
 - (2026-11-19) One `ChatServices` layer for chat's services, which both apps list (found by the
   last audit, not verified).
 - (2026-11-19) The CI Claude review runs once per PR, is documented, and drops its boilerplate
