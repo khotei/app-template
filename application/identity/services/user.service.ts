@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Option, Redacted, Schema } from 'effect'
+import { Context, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
@@ -42,13 +42,7 @@ export class UserService extends Context.Service<
       Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
     )
 
-    const recognise = Effect.fn('UserService.recognise')(function* (secret: UserSecret) {
-      const known = yield* authenticate(secret).pipe(
-        Effect.asSome,
-        Effect.catchTag('UserUnknownError', () => Effect.succeedNone),
-      )
-      if (Option.isSome(known)) return { user: known.value, secret }
-
+    const register = Effect.gen(function* () {
       const id = yield* generateId(UserId)
       const createdAt = yield* DateTime.now
       const bytes = yield* random.randomBytes(secretBytes)
@@ -60,6 +54,14 @@ export class UserService extends Context.Service<
       yield* users.insert(row, credential)
       return { user, secret: fresh }
     })
+
+    const recognise = Effect.fn('UserService.recognise')(
+      function* (secret: UserSecret) {
+        const user = yield* authenticate(secret)
+        return { user, secret }
+      },
+      Effect.catchTag('UserUnknownError', () => register),
+    )
 
     return { recognise, authenticate }
   }),
