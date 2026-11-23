@@ -17,12 +17,12 @@ const urlLifetime = Duration.minutes(5)
 const buildFileEntity = (
   { contentType, fileName }: ObjectHead,
   { id, url }: { readonly id: string; readonly url: URL },
-): Effect.Effect<FileEntity> =>
-  fileName.pipe(
-    Effect.fromOption(() => new Error(`file ${id} has no name`)),
-    Effect.map((name) => ({ id, mediaType: contentType, fileName: name, url })),
-    Effect.orDie,
-  )
+): FileEntity => ({
+  id,
+  mediaType: contentType,
+  fileName: Option.getOrThrowWith(fileName, () => new Error(`file ${id} has no name`)),
+  url,
+})
 
 /** What `read` returns for each id of `where`, concurrently, a missing one left out. */
 const readEach =
@@ -63,21 +63,16 @@ export class FileRepository extends Context.Service<
     const headFile = Effect.fnUntraced(function* (id: string) {
       const head = yield* bucket.head(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* head.pipe(
-        Option.map((found) => buildFileEntity(found, { id, url })),
-        Effect.transposeOption,
-      )
+      return Option.map(head, (found) => buildFileEntity(found, { id, url }))
     })
 
     const downloadFile = Effect.fnUntraced(function* (id: string) {
       const object = yield* bucket.download(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* object.pipe(
-        Option.map(({ head, blob }) =>
-          buildFileEntity(head, { id, url }).pipe(Effect.map((file) => ({ ...file, blob }))),
-        ),
-        Effect.transposeOption,
-      )
+      return Option.map(object, ({ head, blob }) => ({
+        ...buildFileEntity(head, { id, url }),
+        blob,
+      }))
     })
 
     const selectMany = readEach(headFile)
