@@ -62,12 +62,13 @@ export class ChatService extends Context.Service<
       Effect.flatMap(decodeWith(Schema.Array(Chat))),
     )
 
-    const getOne = Effect.fn('ChatService.getOne')((where: ChatWhere) =>
-      chats
-        .selectOne(encodeChatWhere(where))
-        .pipe(
-          Effect.flatMap(decodeWith(Schema.Option(Chat))),
-          Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: where.id }))),
+    const getOne = Effect.fn('ChatService.getOne')(
+      (where: ChatWhere) => chats.selectOne(encodeChatWhere(where)),
+      Effect.flatMap(decodeWith(Schema.Option(Chat))),
+      (found, where) =>
+        Effect.flatMap(
+          found,
+          Effect.fromOption(() => new ChatNotFoundError({ id: where.id })),
         ),
     )
 

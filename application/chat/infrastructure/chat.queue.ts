@@ -34,19 +34,20 @@ export const titleChatQueue = {
  * Sends the job that replies to the Run's user message; one SQS refuses is logged and fails with
  * its `QueueError`.
  */
-export const sendReplyToMessage = Effect.fn('sendReplyToMessage')((run: Run) =>
-  QueueSender.use((queue) =>
-    queue.send(replyToMessageQueue, new ReplyToMessage({ messageId: run.userMessageId })),
-  ).pipe(
-    Effect.tapError((error) => Effect.logError('reply job not queued', Cause.fail(error))),
-    Effect.annotateLogs({ chatId: run.chatId, runId: run.id, messageId: run.userMessageId }),
-  ),
+export const sendReplyToMessage = Effect.fn('sendReplyToMessage')(
+  (run: Run) =>
+    QueueSender.use((queue) =>
+      queue.send(replyToMessageQueue, new ReplyToMessage({ messageId: run.userMessageId })),
+    ),
+  Effect.tapError((error) => Effect.logError('reply job not queued', Cause.fail(error))),
+  (sent, run) =>
+    Effect.annotateLogs(sent, { chatId: run.chatId, runId: run.id, messageId: run.userMessageId }),
 )
 
 /** Sends the job that titles the chat; one SQS refuses is logged, and the ask goes on. */
-export const sendTitleChat = Effect.fn('sendTitleChat')((chat: Chat) =>
-  QueueSender.use((queue) => queue.send(titleChatQueue, new TitleChat({ chatId: chat.id }))).pipe(
-    Effect.ignore({ log: 'Error', message: 'title job not queued' }),
-    Effect.annotateLogs({ chatId: chat.id }),
-  ),
+export const sendTitleChat = Effect.fn('sendTitleChat')(
+  (chat: Chat) =>
+    QueueSender.use((queue) => queue.send(titleChatQueue, new TitleChat({ chatId: chat.id }))),
+  Effect.ignore({ log: 'Error', message: 'title job not queued' }),
+  (sent, chat) => Effect.annotateLogs(sent, { chatId: chat.id }),
 )
