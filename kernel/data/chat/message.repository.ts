@@ -56,15 +56,13 @@ export class MessageRepository extends Context.Service<
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('MessageRepository.selectOne')(
-          (where) =>
-            db.query.messages
-              .findFirst(select(where))
-              .pipe(Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity)))),
+          (where) => db.query.messages.findFirst(select(where)),
+          Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity))),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('MessageRepository.selectMany')(
-          (where) =>
-            db.query.messages.findMany(select(where)).pipe(Effect.map(Arr.map(buildMessageEntity))),
+          (where) => db.query.messages.findMany(select(where)),
+          Effect.map(Arr.map(buildMessageEntity)),
           orDieWithSqlError,
         ),
       }),

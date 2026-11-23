@@ -85,9 +85,7 @@ export class FileRepository extends Context.Service<
         <E>({ id, content, mediaType, fileName }: FileEntityInsert<E>) =>
           bucket.put(buildFileKey(id), content, { contentType: mediaType, fileName }),
       ),
-      selectOne: Effect.fn('FileRepository.selectOne')((where: FileEntityWhere) =>
-        selectMany(where).pipe(Effect.map(Arr.head)),
-      ),
+      selectOne: Effect.fn('FileRepository.selectOne')(selectMany, Effect.map(Arr.head)),
       selectMany: Effect.fn('FileRepository.selectMany')(selectMany),
       download: Effect.fn('FileRepository.download')(({ id }: FileEntityDownloadWhere) =>
         downloadFile(id),

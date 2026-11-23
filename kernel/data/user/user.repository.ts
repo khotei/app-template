@@ -41,10 +41,8 @@ export class UserRepository extends Context.Service<
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('UserRepository.selectOne')(
-        (where: UserEntityWhere) =>
-          db.query.users
-            .findFirst({ where: filterOf(where) })
-            .pipe(Effect.map(Option.fromUndefinedOr)),
+        (where: UserEntityWhere) => db.query.users.findFirst({ where: filterOf(where) }),
+        Effect.map(Option.fromUndefinedOr),
         orDieWithSqlError,
       ),
     }
