@@ -1,31 +1,16 @@
-import {
-  Context,
-  DateTime,
-  Effect,
-  Layer,
-  Option,
-  Schema,
-  Struct,
-  type Types,
-  UndefinedOr,
-} from 'effect'
+import { Context, Effect, Layer, SchemaIssue, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatFields } from '#chat/domain/chat.model'
-import { ChatId } from '#chat/domain/chat.util'
+import { ChatRepository } from '#chat/services/chat.repository'
 
 /**
  * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
  * untitled one.
  */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
-
-const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
-  Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -45,26 +30,18 @@ export class ChatService extends Context.Service<
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = yield* generateId(ChatId)
-      const createdAt = yield* DateTime.now
-      const chat = new Chat({ id, userId, createdAt, updatedAt: createdAt })
-      const row = yield* encodeWith(ChatFields)(chat)
+      const row = yield* ChatFields.insert.makeEffect({ userId })
 
       yield* chats.insert(row)
-      return chat
-    })
+      return new Chat(row)
+    }, Effect.orDie)
 
-    const list = Effect.fn('ChatService.list')(
-      (userId: UserId) => chats.selectMany({ userId }),
-      Effect.flatMap(decodeWith(Schema.Array(Chat))),
-    )
+    const list = Effect.fn('ChatService.list')((userId: UserId) => chats.selectMany({ userId }))
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatWhere) => chats.selectOne(encodeChatWhere(where)),
-      Effect.flatMap(decodeWith(Schema.Option(Chat))),
+      (where: ChatWhere) => chats.selectOne(where),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -72,19 +49,18 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('ChatService.update')(function* (
-      fields: Types.Simplify<Pick<Chat, 'title'>>,
-      where: ChatWhere,
-    ) {
-      const chat = yield* getOne(where)
-      const updatedAt = yield* DateTime.now
-      const updated = new Chat({ ...chat, ...fields, updatedAt })
-      const row = yield* encodeWith(ChatFields)(updated)
+    const update = Effect.fn('ChatService.update')(
+      function* (fields: Types.Simplify<Pick<Chat, 'title'>>, where: ChatWhere) {
+        const chat = yield* getOne(where)
+        const set = yield* ChatFields.update.makeEffect({ id: chat.id, ...fields })
 
-      // Only the set fields, under the `where` again: a change landing after the read is kept.
-      yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
-      return updated
-    })
+        // Only the update variant's fields, under the `where` again: a change landing after the
+        // read is kept.
+        yield* chats.update(set, where)
+        return new Chat({ ...chat, ...set })
+      },
+      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
+    )
 
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
       const chat = yield* getOne(where)

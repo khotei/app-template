@@ -1,30 +1,32 @@
 import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
-import { activeRunStatuses } from '@app-template/kernel/data'
-
-import { MessageFields } from '#chat/domain/message.model'
+import { type MessageFields, NestedMessage } from '#chat/domain/message.model'
 import {
   RunNotRetryableError,
   RunStartedError,
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import {
+  activeRunStatuses,
+  type NestedRun,
+  RunFields,
+  type RunStatus,
+} from '#chat/domain/run-fields.model'
 import { hasStatus } from '#chat/domain/status.model'
 
 /**
  * The work of answering one user message; a retry is a new Run of the same message. Read with
- * its messages, flat; its writes never touch them.
+ * its messages, which its writes never touch.
  */
-export class Run extends Schema.Class<Run>('Run')({
-  ...RunFields.fields,
-  userMessage: MessageFields,
+export class Run extends RunFields.extend<Run>('Run')({
+  userMessage: Model.FieldOnly(['select', 'json'])(NestedMessage),
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.OptionFromNullOr(MessageFields).pipe(
-    Schema.withConstructorDefault(Effect.succeedNone),
+  assistantMessage: Model.FieldOnly(['select', 'json'])(
+    Schema.OptionFromNullOr(NestedMessage).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   ),
 }) {}
 
-// The statuses the data layer's active index holds, served through the module's entry.
 export { activeRunStatuses }
 
 export const isActiveRun = hasStatus(activeRunStatuses)
@@ -46,9 +48,9 @@ const isFailedRun = hasStatus(['failed'])
  * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
  * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
+export const ensureRunRetryable = (newestRun: Option.Option<NestedRun>) =>
   newestRun.pipe(
-    Option.filter<RunFields>(isFailedRun),
+    Option.filter<NestedRun>(isFailedRun),
     Effect.fromOption(() => new RunNotRetryableError()),
   )
 

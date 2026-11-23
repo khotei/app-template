@@ -2,13 +2,7 @@ import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Option } from 'effect'
 
-import {
-  Chat,
-  Message,
-  ReplyToMessage,
-  Run,
-  RunNotRetryableError,
-} from '@app-template/application/chat'
+import { Chat, ReplyToMessage, Run, RunNotRetryableError } from '@app-template/application/chat'
 import {
   type ChatRepositoryMocks,
   chat,
@@ -18,20 +12,14 @@ import {
   queuedRun,
 } from '@app-template/application/chat/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
 /** The reads of a chat whose newest Run is `newest`, with the message that Run answers. */
 const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
-  messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
-  chats: {
-    selectOne: () =>
-      encodeWith(Chat)(new Chat({ ...chat, run: Option.some(newest) })).pipe(
-        Effect.map(Option.some),
-      ),
-  },
+  messages: { selectOne: () => Effect.succeedSome(firstMessage) },
+  chats: { selectOne: () => Effect.succeedSome(new Chat({ ...chat, run: Option.some(newest) })) },
   runs: { insert: () => Effect.void },
 })
 

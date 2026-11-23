@@ -1,17 +1,18 @@
 import { Effect, Predicate, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
-import { messageAuthors, textPattern } from '@app-template/kernel/data'
-
-import { ChatId } from '#chat/domain/chat.util'
+import { ChatId, textPattern } from '#chat/domain/chat.util'
 import { isBlank, MessageId } from '#chat/domain/message.util'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { NestedRun } from '#chat/domain/run-fields.model'
+
+export const messageAuthors = ['user', 'assistant'] as const
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-/** A message's own fields: what a Run nests of it. */
-export const MessageFields = Schema.Struct({
-  id: MessageId,
+/** A message as `messages` holds it; a message is never changed. */
+export class MessageFields extends Model.Class<MessageFields>('MessageFields')({
+  id: Model.UuidV7Insert(MessageId),
   chatId: ChatId,
   author: MessageAuthor,
   /** Finished text: a user's as asked, an assistant's as the Run that wrote it settled it. */
@@ -21,12 +22,16 @@ export const MessageFields = Schema.Struct({
       expected: 'a string with a non-whitespace character',
     }),
   ),
-  createdAt: Schema.DateTimeUtcFromDate,
-})
-export type MessageFields = typeof MessageFields.Type
+  createdAt: Model.DateTimeInsertFromDate,
+}) {}
 
-export class Message extends Schema.Class<Message>('Message')({
-  ...MessageFields.fields,
-  /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
-  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+/** A message as a Run nests it: read with the Run as JSON, served as is. */
+export const NestedMessage = MessageFields.json
+export type NestedMessage = typeof NestedMessage.Type
+
+/** A message with its Run: a user's the newest that answers it, an assistant's the one that wrote it. */
+export class Message extends MessageFields.extend<Message>('Message')({
+  run: Model.FieldOnly(['select', 'json'])(
+    Schema.OptionFromNullOr(NestedRun).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  ),
 }) {}

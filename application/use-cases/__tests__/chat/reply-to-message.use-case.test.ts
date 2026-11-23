@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Exit, Fiber, Option } from 'effect'
+import { Array as Arr, Effect, Exit, Fiber, Option, pipe } from 'effect'
 
-import { Message, ReplyToMessage, Run } from '@app-template/application/chat'
+import { ReplyToMessage, Run, type RunFields } from '@app-template/application/chat'
 import {
   firstMessage,
   holdCall,
@@ -10,16 +10,23 @@ import {
   queuedRun,
   recordMessageAssistant,
 } from '@app-template/application/chat/testing'
-import type { RunEntitySet } from '@app-template/kernel/data'
 import { LlmError } from '@app-template/kernel/llm/error'
-import { encodeWith } from '@app-template/packages/schema'
 import { recordLogs } from '@app-template/packages/testing'
 
 import { replyToMessage } from '#use-cases/chat/reply-to-message.use-case'
 
 const reply = replyToMessage(new ReplyToMessage({ messageId: queuedRun.userMessageId }))
 
-const readRun = (run: Run) => () => encodeWith(Run)(run).pipe(Effect.map(Option.some))
+const readRun = (run: Run) => () => Effect.succeedSome(run)
+
+/** The cause the last write fails its Run with. */
+const lastFailure = (updates: ReadonlyArray<typeof RunFields.update.Type>) =>
+  pipe(
+    Arr.last(updates),
+    Option.flatMap(({ failure }) => failure),
+    Option.map(({ cause }) => cause),
+    Option.getOrUndefined,
+  )
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
 
@@ -34,7 +41,7 @@ describe('replyToMessage', () => {
       const error = new LlmError({ cause: '401 invalid x-api-key' })
       const assistant = recordMessageAssistant(Effect.fail(error))
       const { logs, layer: logger } = recordLogs()
-      const updates: Array<RunEntitySet> = []
+      const updates: Array<typeof RunFields.update.Type> = []
       return Effect.gen(function* () {
         yield* reply
 
@@ -42,7 +49,7 @@ describe('replyToMessage', () => {
           Arr.map(updates, ({ status }) => status),
           ['generating', 'failed'],
         )
-        assert.include(updates.at(-1)?.failure?.cause, error.cause)
+        assert.include(lastFailure(updates), error.cause)
         assert.strictEqual((yield* assistant.histories).length, 1)
         assert.deepStrictEqual(levels(logs), [['Warn', 'reply failed']])
         assert.strictEqual(logs[0]?.[2], error)
@@ -58,7 +65,7 @@ describe('replyToMessage', () => {
                   }),
               },
               // No `insert`: a reply written would die on it.
-              messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+              messages: { selectMany: () => Effect.succeed([firstMessage]) },
             },
             { messageAssistant: assistant.layer },
           ),
@@ -88,7 +95,7 @@ describe('replyToMessage', () => {
                 update: (set) =>
                   set.status === 'failed' ? Effect.die('no run was updated') : Effect.void,
               },
-              messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+              messages: { selectMany: () => Effect.succeed([firstMessage]) },
             },
             { messageAssistant: recordMessageAssistant(Effect.fail(refused)).layer },
           ),
@@ -122,7 +129,7 @@ describe('replyToMessage', () => {
   it.effect('reply fails a Run a dead worker left started, with a warning, unasked', () => {
     const assistant = recordMessageAssistant(Effect.never)
     const { logs, layer: logger } = recordLogs()
-    const updates: Array<RunEntitySet> = []
+    const updates: Array<typeof RunFields.update.Type> = []
     return Effect.gen(function* () {
       yield* reply
 
@@ -131,7 +138,7 @@ describe('replyToMessage', () => {
         ['failed'],
       )
       assert.include(
-        updates.at(-1)?.failure?.cause,
+        lastFailure(updates),
         'the worker that started the Run stopped before it ended',
       )
       assertEquals(yield* assistant.histories, [])
@@ -194,7 +201,7 @@ describe('replyToMessage', () => {
         layerChatTest(
           {
             runs: { selectOne: readRun(queuedRun), update: () => Effect.void },
-            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+            messages: { selectMany: () => Effect.succeed([firstMessage]) },
           },
           { messageAssistant: assistant.layer },
         ),

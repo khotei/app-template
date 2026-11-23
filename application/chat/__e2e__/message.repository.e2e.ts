@@ -1,83 +1,82 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Layer, Option, Schema } from 'effect'
+import { DateTime, Effect, Layer, Option, Schema } from 'effect'
+import { Model } from 'effect/schema'
+import { SqlClient } from 'effect/sql'
 
+import { UserId } from '@app-template/application/identity'
+import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatRepository } from '#kernel/data/chat/chat.repository'
-import { MessageEntity } from '#kernel/data/chat/message.entity'
-import { MessageRepository } from '#kernel/data/chat/message.repository'
-import { RunRepository } from '#kernel/data/chat/run.repository'
-import type { RunColumns } from '#kernel/data/chat/run.table'
-import { Db } from '#kernel/data/db.client'
-import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing/data/e2e/db.test-layer'
+import { ChatFields } from '#chat/domain/chat.model'
+import { ChatId } from '#chat/domain/chat.util'
+import { Message, MessageFields } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
+import { RunId } from '#chat/domain/run.util'
+import { RunFields } from '#chat/domain/run-fields.model'
+import { ChatRepository } from '#chat/services/chat.repository'
+import { MessageRepository } from '#chat/services/message.repository'
+import { RunRepository } from '#chat/services/run.repository'
 
 const RepositoriesTest = Layer.mergeAll(
   ChatRepository.layer,
   MessageRepository.layer,
   RunRepository.layer,
-).pipe(Layer.provideMerge(DbTest))
+).pipe(Layer.provideMerge(PgClientTest))
 
-const createdAt = new Date('2026-10-18T00:00:00.123Z')
+const createdAt = DateTime.makeUnsafe('2026-10-18T00:00:00.123Z')
 
-const at = (seconds: number) => new Date(createdAt.getTime() + seconds * 1000)
+const at = (seconds: number) => Model.Override(DateTime.add(createdAt, { seconds }))
 
-const userId = '0192d4e0-7b3a-7c00-8000-000000000010'
+const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 
 const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seconds?: number }) =>
-  ({
-    id,
-    chatId,
+  MessageFields.insert.make({
+    id: MessageId.make(id),
+    chatId: ChatId.make(chatId),
     author: 'user',
     text: 'Hi',
     createdAt: at(seconds),
-    run: null,
-  }) satisfies MessageEntity
+  })
 
 const run = (
   id: string,
-  answered: MessageEntity,
+  answered: typeof MessageFields.insert.Type,
   {
     status = 'queued',
     seconds = 0,
   }: Partial<{ status: 'queued' | 'failed'; seconds: number }> = {},
 ) =>
-  ({
-    id,
+  RunFields.insert.make({
+    id: RunId.make(id),
     chatId: answered.chatId,
     userMessageId: answered.id,
     status,
-    failure: (
-      {
-        queued: null,
-        failed: { cause: '529 overloaded' },
-      } as const
-    )[status],
-    assistantMessageId: null,
+    failure: status === 'failed' ? Option.some({ cause: '529 overloaded' }) : Option.none(),
     createdAt: at(seconds),
     updatedAt: at(seconds),
-  }) satisfies RunColumns
+  })
 
-const Messages = Schema.Array(MessageEntity)
+const Messages = Schema.Array(Message)
 
-const SelectedMessage = Schema.Option(MessageEntity)
+const SelectedMessage = Schema.Option(Message)
 
 const insertOwnedChats = (chatIds: ReadonlyArray<string>) =>
   Effect.gen(function* () {
-    const db = yield* Db
+    const sql = yield* SqlClient.SqlClient
     const chats = yield* ChatRepository
 
-    yield* db.insert(users).values({ id: userId, createdAt: new Date(0) })
+    yield* sql`insert into users ${sql.insert({ id: userId, createdAt: DateTime.toDateUtc(DateTime.makeUnsafe(0)) })}`
     yield* Effect.forEach(
       chatIds,
       (id) =>
-        chats.insert({
-          id,
-          userId,
-          title: null,
-          createdAt: new Date(0),
-          updatedAt: new Date(0),
-        }),
+        chats.insert(
+          ChatFields.insert.make({
+            id: ChatId.make(id),
+            userId,
+            createdAt: Model.Override(DateTime.makeUnsafe(0)),
+            updatedAt: Model.Override(DateTime.makeUnsafe(0)),
+          }),
+        ),
       { discard: true },
     )
   })
@@ -100,7 +99,10 @@ describe('MessageRepository', () => {
         (each) => messages.insert(each),
       )
 
-      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [question, followUp])
+      assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: question.chatId }), [
+        new Message(question),
+        new Message(followUp),
+      ])
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
@@ -109,16 +111,16 @@ describe('MessageRepository', () => {
       const messages = yield* MessageRepository
       const chatId = '0192d4e0-7b3a-7c00-8000-00000000004c'
       const other = '0192d4e0-7b3a-7c00-8000-00000000004d'
-      const strangerId = '0192d4e0-7b3a-7c00-8000-000000000011'
+      const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
       const question = userMessage('0192d4e0-7b3a-7c00-8000-00000000005e', { chatId })
       yield* insertOwnedChats([chatId, other])
       yield* messages.insert(question)
 
-      const owned = yield* messages.selectOne({ id: question.id, chatId, userId })
-      const elsewhere = yield* messages.selectOne({ id: question.id, chatId: other })
+      const owned = yield* messages.selectOne({ id: question.id, chatId: question.chatId, userId })
+      const elsewhere = yield* messages.selectOne({ id: question.id, chatId: ChatId.make(other) })
       const foreign = yield* messages.selectOne({ id: question.id, userId: strangerId })
 
-      assertSchemaEquals(SelectedMessage, owned, Option.some(question))
+      assertSchemaEquals(SelectedMessage, owned, Option.some(new Message(question)))
       assert.deepStrictEqual([elsewhere, foreign], [Option.none(), Option.none()])
     }).pipe(Effect.provide(RepositoriesTest)),
   )
@@ -135,8 +137,15 @@ describe('MessageRepository', () => {
       )
       yield* messages.insert(first)
 
-      assertSchemaEquals(SelectedMessage, yield* messages.selectOne({ chatId }), Option.some(first))
-      assert.deepStrictEqual(yield* messages.selectOne({ chatId: empty }), Option.none())
+      assertSchemaEquals(
+        SelectedMessage,
+        yield* messages.selectOne({ chatId: first.chatId }),
+        Option.some(new Message(first)),
+      )
+      assert.deepStrictEqual(
+        yield* messages.selectOne({ chatId: ChatId.make(empty) }),
+        Option.none(),
+      )
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
@@ -152,19 +161,26 @@ describe('MessageRepository', () => {
           ...userMessage('0192d4e0-7b3a-7c00-8000-000000000061', { chatId, seconds: 2 }),
           author: 'assistant',
           text: 'Hello',
-        } satisfies MessageEntity
+        } as const
         const failed = run('0192d4e0-7b3a-7c00-8000-000000000070', question, { status: 'failed' })
         const retry = run('0192d4e0-7b3a-7c00-8000-000000000071', question, { seconds: 1 })
-        const done = { ...retry, status: 'done', assistantMessageId: reply.id } as const
+        const done = RunFields.update.make({
+          id: retry.id,
+          status: 'done',
+          failure: Option.none(),
+          assistantMessageId: Option.some(reply.id),
+          updatedAt: retry.updatedAt,
+        })
         yield* insertOwnedChats([chatId])
         yield* messages.insert(question)
         yield* Effect.forEach([failed, retry], runs.insert)
         yield* messages.insert(reply)
-        yield* runs.update(done, { id: retry.id, status: ['queued'] })
+        yield* runs.update(done, 'queued')
 
-        assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [
-          { ...question, run: done },
-          { ...reply, run: done },
+        const answered = Option.some(new RunFields({ ...retry, ...done }))
+        assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: question.chatId }), [
+          new Message({ ...question, run: answered }),
+          new Message({ ...reply, run: answered }),
         ])
       }).pipe(Effect.provide(RepositoriesTest)),
   )

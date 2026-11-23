@@ -21,7 +21,6 @@ import {
 } from '@app-template/application/chat/testing'
 import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { askChat } from '#use-cases/chat/ask-chat.use-case'
@@ -29,7 +28,7 @@ import { askChat } from '#use-cases/chat/ask-chat.use-case'
 /** The read of `read`, the chat the ask names, and inserts that keep nothing. */
 const sendingTo = (read: Chat) =>
   ({
-    chats: { selectOne: () => encodeWith(Chat)(read).pipe(Effect.map(Option.some)) },
+    chats: { selectOne: () => Effect.succeedSome(read) },
     messages: { insert: () => Effect.void },
     runs: { insert: () => Effect.void },
   }) satisfies ChatRepositoryMocks

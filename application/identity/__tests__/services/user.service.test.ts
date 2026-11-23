@@ -1,15 +1,15 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option, Redacted, Result } from 'effect'
+import { DateTime, Effect, Layer, Option, Redacted, Result, Schema } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { type UserEntityWhere, UserRepository } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
-import type { UserSecret } from '#identity/domain/user.model'
+import { User, type UserSecret } from '#identity/domain/user.model'
+import { type UserCredential, UserRepository } from '#identity/services/user.repository'
 import { UserService } from '#identity/services/user.service'
 
 type Insert = Parameters<UserRepository['Service']['insert']>
@@ -18,10 +18,10 @@ type Insert = Parameters<UserRepository['Service']['insert']>
 const userServiceOver = (repository: Layer.Layer<UserRepository>) =>
   UserService.layer.pipe(Layer.provide([repository, BunCrypto.layer]))
 
-const storedUser = {
+const storedUser = new User({
   id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000010'),
-  createdAt: DateTime.toDateUtc(epoch),
-}
+  createdAt: epoch,
+})
 
 const unknownSecret = Redacted.make('q3Jx0V8m2bZ9yT_4kW-1sN7uP5oA6dLcE0fG8hI2jK4')
 
@@ -33,14 +33,14 @@ const hashWithWebCrypto = (secret: UserSecret) =>
 
 describe('UserService', () => {
   it.effect('authenticate reads the user by the hex SHA-256 of the secret', () => {
-    const wheres: Array<UserEntityWhere> = []
+    const wheres: Array<UserCredential> = []
     return Effect.gen(function* () {
       const service = yield* UserService
 
       const user = yield* service.authenticate(unknownSecret)
 
       const hash = yield* hashWithWebCrypto(unknownSecret)
-      assert.deepStrictEqual(wheres, [{ credential: { kind: 'secret', hash } }])
+      assert.deepStrictEqual(wheres, [{ kind: 'secret', hash }])
       assert.strictEqual(user.id, storedUser.id)
     }).pipe(
       Effect.provide(
@@ -88,12 +88,18 @@ describe('UserService', () => {
           Result.map(Base64Url.decode(Redacted.value(secret)), (bytes) => bytes.length),
           Result.succeed(32),
         )
-        assert.deepStrictEqual(inserts, [
+        assert.deepStrictEqual(
+          inserts.map(([row, credential]) => [
+            Schema.encodeUnknownSync(User.insert)(row),
+            credential,
+          ]),
           [
-            { id: user.id, createdAt: DateTime.toDateUtc(epoch) },
-            { kind: 'secret', hash },
+            [
+              { id: user.id, createdAt: DateTime.toDateUtc(epoch) },
+              { kind: 'secret', hash },
+            ],
           ],
-        ])
+        )
       }).pipe(
         Effect.provide(
           userServiceOver(

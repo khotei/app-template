@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect } from 'effect'
 
-import { ChatTitle, Message, TitleChat } from '@app-template/application/chat'
+import { ChatTitle, TitleChat } from '@app-template/application/chat'
 import {
   chatId,
   firstMessage,
@@ -10,14 +10,12 @@ import {
   recordChatAssistant,
 } from '@app-template/application/chat/testing'
 import { LlmError } from '@app-template/kernel/llm/error'
-import { encodeWith } from '@app-template/packages/schema'
 import { recordLogs } from '@app-template/packages/testing'
 
 import { titleChat } from '#use-cases/chat/title-chat.use-case'
 
 /** A message read that returns the chat's messages as `firstMessage` alone. */
-const selectsFirstMessage = () =>
-  Effect.forEach([firstMessage], (message) => encodeWith(Message)(message))
+const selectsFirstMessage = () => Effect.succeed([firstMessage])
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 

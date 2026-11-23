@@ -6,14 +6,16 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
   AskChatService,
+  ChatRepository,
   ChatService,
+  MessageRepository,
   MessageService,
+  RunRepository,
   RunService,
 } from '@app-template/application/chat'
-import { UserService } from '@app-template/application/identity'
+import { UserRepository, UserService } from '@app-template/application/identity'
 import { QueueSenderFromConfig } from '@app-template/kernel/aws'
 import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
-import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
@@ -44,8 +46,12 @@ const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logIn
 
 export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
   Layer.provide([QueueSenderFromConfig, Transaction.layer]),
-  Layer.provide(PostgresRepositories),
-  Layer.provide(Db.layer),
+  Layer.provide([
+    UserRepository.layer,
+    ChatRepository.layer,
+    MessageRepository.layer,
+    RunRepository.layer,
+  ]),
   Layer.provide(PgClientFromConfig),
   Layer.provide([BunHttpServerFromConfig, BunCrypto.layer]),
   Layer.provide(MinimumLogLevelFromConfig),

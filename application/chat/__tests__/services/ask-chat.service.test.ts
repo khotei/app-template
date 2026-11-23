@@ -1,16 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Exit, Fiber, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Option, Schema } from 'effect'
 
-import type {
-  MessageColumns,
-  MessageEntityWhere,
-  RunColumns,
-  RunEntitySet,
-  RunEntityWhere,
-} from '@app-template/kernel/data'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
@@ -19,9 +11,10 @@ import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
+import type { MessageFilter } from '#chat/services/message.repository'
 import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
 import {
   type ChatLeaves,
@@ -33,9 +26,13 @@ import { layerRefusingQueueTest } from '#testing/chat/queue-sender.test-fake'
 
 /** The rows each repository's `insert` is handed. */
 interface Inserts {
-  readonly messages: Array<MessageColumns>
-  readonly runs: Array<RunColumns>
+  readonly messages: Array<typeof MessageFields.insert.Type>
+  readonly runs: Array<typeof RunFields.insert.Type>
 }
+
+/** The columns `rows` write, so a row and the model built from it compare alike. */
+const encodeMessageRows = Schema.encodeUnknownSync(Schema.Array(MessageFields.insert))
+const encodeRunRows = Schema.encodeUnknownSync(Schema.Array(RunFields.insert))
 
 const noInserts = (): Inserts => ({ messages: [], runs: [] })
 
@@ -59,20 +56,20 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
 
 /** The read of the message the failed Run answers. */
 const readsFirstMessage = {
-  messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
+  messages: { selectOne: () => Effect.succeedSome(firstMessage) },
 } satisfies ChatRepositoryMocks
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
 function recordUpdates(queue: ChatLeaves['queue']) {
-  const updates: Array<RunEntitySet> = []
+  const updates: Array<typeof RunFields.update.Type> = []
   const layer = layerChatTest(
     {
       messages: { insert: () => Effect.void },
       runs: {
         insert: () => Effect.void,
-        update: (set) =>
+        update: (to) =>
           Effect.sync(() => {
-            updates.push(set)
+            updates.push(to)
           }),
       },
     },
@@ -141,8 +138,11 @@ describe('AskChatService', () => {
             updatedAt: run.createdAt,
           }),
         )
-        assert.deepStrictEqual(inserts.messages, [yield* encodeWith(MessageFields)(userMessage)])
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
+        assert.deepStrictEqual(
+          encodeMessageRows(inserts.messages),
+          encodeMessageRows([userMessage]),
+        )
+        assert.deepStrictEqual(encodeRunRows(inserts.runs), encodeRunRows([run]))
         assertEquals(yield* jobs.sent, [
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
           replyJob(run),
@@ -175,14 +175,14 @@ describe('AskChatService', () => {
   })
 
   it.effect("retry's refused send fails the Run it stored, by its id, reading no Run", () => {
-    const stored: Array<RunColumns> = []
-    const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
+    const stored: Array<typeof RunFields.insert.Type> = []
+    const updates: Array<readonly [typeof RunFields.update.Type, RunStatus]> = []
     return Effect.gen(function* () {
       const sent = yield* retry(withNewest(failedRun))
 
       assert.deepStrictEqual(
-        Arr.map(updates, ([set, where]) => [set.status, where]),
-        [['failed', { id: sent.id, status: ['queued'] }]],
+        Arr.map(updates, ([to, from]) => [to.status, to.id, from]),
+        [['failed', sent.id, 'queued']],
       )
       assert.deepStrictEqual([Arr.map(stored, ({ id }) => id), sent.status], [[sent.id], 'failed'])
     }).pipe(
@@ -211,15 +211,12 @@ describe('AskChatService', () => {
   it.effect(
     "a refused send whose Run a worker settled meanwhile dies on the write's guard, failing no later Run",
     () => {
-      const updates: Array<RunEntityWhere> = []
+      const updates: Array<RunStatus> = []
       return Effect.gen(function* () {
         const exit = yield* retry(withNewest(failedRun)).pipe(Effect.exit)
 
         assert.isTrue(Exit.hasDies(exit))
-        assert.deepStrictEqual(
-          Arr.map(updates, ({ status }) => status),
-          [['queued']],
-        )
+        assert.deepStrictEqual(updates, ['queued'])
       }).pipe(
         Effect.provide(
           layerChatTest(
@@ -228,9 +225,9 @@ describe('AskChatService', () => {
               runs: {
                 insert: () => Effect.void,
                 // The Run stored is no longer queued, so the guarded write touches no row.
-                update: (_, where) =>
+                update: (_, from) =>
                   Effect.sync(() => {
-                    updates.push(where)
+                    updates.push(from)
                   }).pipe(Effect.andThen(Effect.die('no run was updated'))),
               },
             },
@@ -358,7 +355,7 @@ describe('AskChatService', () => {
             updatedAt: retried.createdAt,
           }),
         )
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(retried)])
+        assert.deepStrictEqual(encodeRunRows(inserts.runs), encodeRunRows([retried]))
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* jobs.sent, [replyJob(retried)])
       }).pipe(
@@ -372,7 +369,7 @@ describe('AskChatService', () => {
   it.effect(
     "retry asks the store for the failed Run's message by its id and returns its none as MessageNotFoundError, sending no job",
     () => {
-      const wheres: Array<MessageEntityWhere> = []
+      const wheres: Array<MessageFilter> = []
       const jobs = recordMessages()
       return Effect.gen(function* () {
         const error = yield* retry(withNewest(failedRun)).pipe(Effect.flip)

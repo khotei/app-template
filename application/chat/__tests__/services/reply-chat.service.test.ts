@@ -10,19 +10,10 @@ import {
   Predicate,
   pipe,
   Schema,
-  type Types,
   UndefinedOr,
 } from 'effect'
 import { TestClock } from 'effect/testing'
 
-import type {
-  MessageColumns,
-  RunColumns,
-  RunEntitySelectWhere,
-  RunEntitySet,
-  RunEntityWhere,
-} from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
@@ -30,8 +21,9 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
+import type { RunFilter } from '#chat/services/run.repository'
 import {
   assistantMessageAt,
   chatId,
@@ -85,8 +77,8 @@ const retried = new Run({ ...queuedRun, id: RunId.make('0192d4e0-7b3a-7c00-8000-
 
 /** Whether `run` holds where `where` holds, as the store filters. */
 const holdsWhere = (
-  where: Types.Simplify<Partial<RunEntityWhere & Pick<RunColumns, 'userMessageId'>>>,
-): Predicate.Predicate<Pick<RunColumns, 'id' | 'userMessageId' | 'status'>> =>
+  where: RunFilter,
+): Predicate.Predicate<Pick<RunFields, 'id' | 'userMessageId' | 'status'>> =>
   Predicate.and(
     Predicate.and(
       (run) =>
@@ -106,9 +98,13 @@ const holdsWhere = (
 
 /** The writes a reply makes, each as it was handed to its repository. */
 interface Writes {
-  readonly runs: Array<readonly [RunEntitySet, RunEntityWhere]>
-  readonly messages: Array<MessageColumns>
+  readonly runs: Array<readonly [typeof RunFields.update.Type, RunStatus]>
+  readonly messages: Array<typeof MessageFields.insert.Type>
 }
+
+/** The columns `rows` write, so a row and the model built from it compare alike. */
+const encodeMessageRows = Schema.encodeUnknownSync(Schema.Array(MessageFields.insert))
+const encodeRunSet = Schema.encodeUnknownSync(RunFields.update)
 
 const noWrites = (): Writes => ({ runs: [], messages: [] })
 
@@ -119,21 +115,20 @@ const noWrites = (): Writes => ({ runs: [], messages: [] })
  */
 function storeRuns(writes: Writes, ...runs: ReadonlyArray<Run>) {
   let stored = runs
-  const find = (where: Parameters<typeof holdsWhere>[0]) => Arr.findFirst(stored, holdsWhere(where))
+  const find = (where: RunFilter) => Arr.findFirst(stored, holdsWhere(where))
   return {
     settle: (...settled: ReadonlyArray<Run>) =>
       Effect.sync(() => {
         stored = settled
       }),
-    selectOne: (where: RunEntitySelectWhere) =>
-      find(where).pipe(Option.map(encodeWith(Run)), Effect.transposeOption),
-    update: (set: RunEntitySet, where: RunEntityWhere) =>
-      find(where).pipe(
+    selectOne: (where: RunFilter) => Effect.succeed(find(where)),
+    update: (set: typeof RunFields.update.Type, from: RunStatus) =>
+      find({ id: set.id, status: [from] }).pipe(
         Option.match({
           onNone: () => Effect.die('no run was updated'),
           onSome: (moved) =>
             Effect.sync(() => {
-              writes.runs.push([set, where])
+              writes.runs.push([set, from])
               stored = Arr.map(stored, (run) =>
                 run.id === moved.id ? new Run({ ...run, status: set.status }) : run,
               )
@@ -156,7 +151,7 @@ const replyingTo = (
 ): ChatRepositoryMocks => ({
   runs: { selectOne: runs.selectOne, update: runs.update },
   messages: {
-    selectMany: () => Effect.forEach(history, (message) => encodeWith(Message)(message)),
+    selectMany: () => Effect.succeed(history),
     insert: (row) =>
       Effect.sync(() => {
         writes.messages.push(row)
@@ -165,17 +160,16 @@ const replyingTo = (
 })
 
 /** Each Run write as the status its guard read, then the status it writes. */
-const moves = (writes: Writes) =>
-  Arr.map(writes.runs, ([set, where]) => `${where.status} → ${set.status}`)
+const moves = (writes: Writes) => Arr.map(writes.runs, ([set, from]) => `${from} → ${set.status}`)
 
 /** The last Run write: its move, and its failure when it fails the Run. */
 const lastWrite = (writes: Writes) =>
   pipe(
     writes.runs,
     Arr.last,
-    Option.map(([set, where]) => ({
-      move: `${where.status} → ${set.status}`,
-      cause: set.failure?.cause,
+    Option.map(([set, from]) => ({
+      move: `${from} → ${set.status}`,
+      cause: Option.getOrUndefined(set.failure)?.cause,
     })),
     Option.getOrThrow,
   )
@@ -204,9 +198,7 @@ describe('ReplyChatService', () => {
         const generatingMoves = ['queued → generating']
         assert.deepStrictEqual(asked, generatingMoves)
         assert.deepStrictEqual(halfway, generatingMoves)
-        const stored = yield* decodeWith(Schema.Array(MessageFields))(writes.messages).pipe(
-          Effect.head,
-        )
+        const stored = pipe(writes.messages, Arr.head, Option.getOrThrow)
         const message = new Message({
           author: 'assistant',
           id: stored.id,
@@ -214,7 +206,7 @@ describe('ReplyChatService', () => {
           text: 'Sure.',
           createdAt: at(1000),
         })
-        assert.deepStrictEqual(writes.messages, [yield* encodeWith(MessageFields)(message)])
+        assert.deepStrictEqual(encodeMessageRows(writes.messages), encodeMessageRows([message]))
         const done = new Run({
           ...queuedRun,
           status: 'done',
@@ -222,10 +214,10 @@ describe('ReplyChatService', () => {
           assistantMessageId: Option.some(message.id),
           assistantMessage: Option.some(message),
         })
-        assert.deepStrictEqual(writes.runs.at(-1), [
-          yield* encodeWith(RunFields)(done),
-          { id: queuedRun.id, status: ['generating'] },
-        ])
+        assert.deepStrictEqual(
+          Arr.map(writes.runs, ([set, from]) => [encodeRunSet(set), from]).at(-1),
+          [encodeRunSet(done), 'generating'],
+        )
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
@@ -279,8 +271,7 @@ describe('ReplyChatService', () => {
     const held = holdCall()
     const writes = noWrites()
     const runs = storeRuns(writes, queuedRun)
-    const heldRead = (where: RunEntitySelectWhere) =>
-      held.hold.pipe(Effect.andThen(runs.selectOne(where)))
+    const heldRead = (where: RunFilter) => held.hold.pipe(Effect.andThen(runs.selectOne(where)))
     return Effect.gen(function* () {
       const running = yield* Effect.forkChild(reply)
       yield* held.reached
@@ -379,7 +370,7 @@ describe('ReplyChatService', () => {
       const writes = noWrites()
       const runs = storeRuns(writes, queuedRun)
       // The rival starts the Run right after this reply reads it queued.
-      const rivalStarts = (where: RunEntitySelectWhere) =>
+      const rivalStarts = (where: RunFilter) =>
         runs.selectOne(where).pipe(Effect.tap(() => runs.settle(generating)))
       return Effect.gen(function* () {
         const exit = yield* reply.pipe(Effect.exit)
@@ -417,7 +408,7 @@ describe('ReplyChatService', () => {
         assert.strictEqual(own._tag, 'RunStartedError')
         assert.isTrue(Exit.hasDies(againExit))
         assert.deepStrictEqual(
-          Arr.map(writes.runs, ([set, where]) => [where.id, `${where.status} → ${set.status}`]),
+          Arr.map(writes.runs, ([set, from]) => [set.id, `${from} → ${set.status}`]),
           [
             [retried.id, 'queued → generating'],
             [retried.id, 'generating → failed'],
@@ -451,7 +442,7 @@ describe('ReplyChatService', () => {
 
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(
-          Arr.map(writes.runs, ([set, where]) => [where.id, `${where.status} → ${set.status}`]),
+          Arr.map(writes.runs, ([set, from]) => [set.id, `${from} → ${set.status}`]),
           [[queuedRun.id, 'queued → generating']],
         )
       }).pipe(

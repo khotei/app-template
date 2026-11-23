@@ -1,14 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Option } from 'effect'
+import { DateTime, Effect, Option, Schema } from 'effect'
 
-import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle } from '#chat/domain/chat.model'
-import { Message } from '#chat/domain/message.model'
+import { ChatFields, ChatTitle } from '#chat/domain/chat.model'
+import type { ChatFilter } from '#chat/services/chat.repository'
 import { TitleChatService } from '#chat/services/title-chat.service'
 import { assistantMessageAt, chat, chatId, firstMessage } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
@@ -21,16 +19,19 @@ describe('TitleChatService', () => {
     const lisbonWeekend = ChatTitle.make('Lisbon weekend')
     const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
-    const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
+    const updates: Array<readonly [typeof ChatFields.update.Type, ChatFilter]> = []
     return Effect.gen(function* () {
       yield* TitleChatService.use((titleChat) => titleChat.title(chatId))
 
-      assert.deepStrictEqual(updates, [
+      assert.deepStrictEqual(
+        updates.map(([set, where]) => [Schema.encodeUnknownSync(ChatFields.update)(set), where]),
         [
-          { title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },
-          { id: chatId, title: null },
+          [
+            { id: chatId, title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },
+            { id: chatId, title: Option.none() },
+          ],
         ],
-      ])
+      )
       assertEquals(yield* assistant.texts, ['Plan a weekend in Lisbon'])
       assert.deepStrictEqual(logs, [])
     }).pipe(
@@ -38,11 +39,10 @@ describe('TitleChatService', () => {
         layerChatTest(
           {
             messages: {
-              selectMany: () =>
-                Effect.forEach([firstMessage, aPhoto], (message) => encodeWith(Message)(message)),
+              selectMany: () => Effect.succeed([firstMessage, aPhoto]),
             },
             chats: {
-              selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
+              selectOne: () => Effect.succeedSome(chat),
               update: (...update) =>
                 Effect.sync(() => {
                   updates.push(update)

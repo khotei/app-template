@@ -1,81 +1,90 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Exit, Layer, Option, Schema, type Types } from 'effect'
+import { DateTime, Effect, Exit, Layer, Option, Schema } from 'effect'
+import { Model } from 'effect/schema'
+import { SqlClient } from 'effect/sql'
 
+import { UserId } from '@app-template/application/identity'
+import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { chats } from '#kernel/data/chat/chat.table'
-import { MessageRepository } from '#kernel/data/chat/message.repository'
-import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
-import { RunEntity } from '#kernel/data/chat/run.entity'
-import { RunRepository } from '#kernel/data/chat/run.repository'
-import type { RunColumns } from '#kernel/data/chat/run.table'
-import { Db } from '#kernel/data/db.client'
-import { users } from '#kernel/data/user/user.table'
-import { DbTest } from '#testing/data/e2e/db.test-layer'
+import { ChatId } from '#chat/domain/chat.util'
+import { MessageFields } from '#chat/domain/message.model'
+import { MessageId } from '#chat/domain/message.util'
+import { Run } from '#chat/domain/run.model'
+import { RunId } from '#chat/domain/run.util'
+import { RunFields } from '#chat/domain/run-fields.model'
+import { MessageRepository } from '#chat/services/message.repository'
+import { RunRepository } from '#chat/services/run.repository'
 
 const RepositoryTest = Layer.mergeAll(RunRepository.layer, MessageRepository.layer).pipe(
-  Layer.provideMerge(DbTest),
+  Layer.provideMerge(PgClientTest),
 )
 
-const createdAt = new Date('2026-11-09T00:00:00.123Z')
+const createdAt = Model.Override(DateTime.makeUnsafe('2026-11-09T00:00:00.123Z'))
 const updatedAt = createdAt
 
-const userId = '0192d4e0-7b3a-7c00-8000-0000000000a0'
-const chatId = '0192d4e0-7b3a-7c00-8000-0000000000a1'
-const userMessageId = '0192d4e0-7b3a-7c00-8000-0000000000a2'
+const userId = UserId.make('0192d4e0-7b3a-7c00-8000-0000000000a0')
+const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-0000000000a1')
+const userMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-0000000000a2')
 
-const userMessage = {
+const userMessage = MessageFields.insert.make({
   id: userMessageId,
   chatId,
   author: 'user',
   text: 'Hi',
   createdAt,
-} satisfies MessageColumns
-
-type RunRow = RunColumns
+})
 
 const run = (
   id: string,
-  fields: Types.Simplify<Partial<Pick<RunRow, 'status' | 'failure' | 'assistantMessageId'>>> = {},
-): RunRow => ({
-  id,
-  chatId,
-  userMessageId,
-  status: 'queued',
-  failure: null,
-  assistantMessageId: null,
-  createdAt,
-  updatedAt,
-  ...fields,
-})
+  fields: Partial<
+    Pick<typeof RunFields.insert.Type, 'status' | 'failure' | 'assistantMessageId'>
+  > = {},
+) =>
+  RunFields.insert.make({
+    id: RunId.make(id),
+    chatId,
+    userMessageId,
+    createdAt,
+    updatedAt,
+    ...fields,
+  })
+
+/** The write that moves `row` to `fields`, its `updatedAt` kept. */
+const move = (
+  row: typeof RunFields.insert.Type,
+  fields: Partial<Pick<typeof RunFields.update.Type, 'status' | 'failure' | 'assistantMessageId'>>,
+) => RunFields.update.make({ ...row, ...fields, updatedAt })
 
 /** `row` as a read nests its messages, the reply none unless given. */
-const read = (row: RunRow, assistantMessage: MessageColumns | null = null): RunEntity => ({
-  ...row,
-  userMessage,
-  assistantMessage,
+const read = (
+  row: typeof RunFields.insert.Type,
+  assistantMessage: Option.Option<typeof MessageFields.insert.Type> = Option.none(),
+) => new Run({ ...row, userMessage, assistantMessage })
+
+const SelectedRun = Schema.Option(Run)
+
+const insertUserMessage = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+  const messages = yield* MessageRepository
+
+  yield* sql`insert into users ${sql.insert({ id: userId, createdAt: DateTime.toDateUtc(DateTime.makeUnsafe(0)) })}`
+  yield* sql`insert into chats ${sql.insert({
+    id: chatId,
+    userId,
+    title: null,
+    createdAt: DateTime.toDateUtc(DateTime.makeUnsafe(0)),
+    updatedAt: DateTime.toDateUtc(DateTime.makeUnsafe(0)),
+  })}`
+  yield* messages.insert(userMessage)
 })
-
-const SelectedRun = Schema.Option(RunEntity)
-
-const insertUserMessage = Db.use((db) =>
-  db
-    .insert(users)
-    .values({ id: userId, createdAt: new Date(0) })
-    .pipe(
-      Effect.andThen(
-        db.insert(chats).values({ id: chatId, userId, title: null, createdAt, updatedAt }),
-      ),
-      Effect.andThen(db.insert(messages).values(userMessage)),
-    ),
-)
 
 describe('RunRepository', () => {
   it.effect('selects a Run by id for its owner, none for a stranger', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a3')
-      const strangerId = '0192d4e0-7b3a-7c00-8000-0000000000af'
+      const strangerId = UserId.make('0192d4e0-7b3a-7c00-8000-0000000000af')
       yield* insertUserMessage
       yield* runs.insert(queued)
 
@@ -87,7 +96,7 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('selects a Run in one of the statuses its where names, none in another', () =>
+  it.effect('selects a Run in one of the statuses its filter names, none in another', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a4')
@@ -102,11 +111,11 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('selects the Run of the user message its where names, none of another', () =>
+  it.effect('selects the Run of the user message its filter names, none of another', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a5')
-      const otherMessageId = '0192d4e0-7b3a-7c00-8000-0000000000ae'
+      const otherMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-0000000000ae')
       yield* insertUserMessage
       yield* runs.insert(queued)
 
@@ -121,17 +130,17 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('update moves a Run under its old status, and dies once that no longer holds', () =>
+  it.effect('update moves a Run from the status it was read in, and dies once it moved since', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a7')
-      const failure = { cause: '529 overloaded' } as const
+      const failure = Option.some({ cause: '529 overloaded' })
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: ['queued'] })
+      yield* runs.update(move(queued, { status: 'failed', failure }), 'queued')
       const exit = yield* runs
-        .update({ status: 'generating' }, { id: queued.id, status: ['queued'] })
+        .update(move(queued, { status: 'generating' }), 'queued')
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
@@ -150,21 +159,21 @@ describe('RunRepository', () => {
       const queued = run('0192d4e0-7b3a-7c00-8000-0000000000a8')
       const reply = {
         ...userMessage,
-        id: '0192d4e0-7b3a-7c00-8000-0000000000a9',
+        id: MessageId.make('0192d4e0-7b3a-7c00-8000-0000000000a9'),
         author: 'assistant',
         text: 'Hello',
-      } satisfies MessageColumns
+      } as const
       yield* insertUserMessage
       yield* runs.insert(queued)
 
       yield* messages.insert(reply)
-      const done = { status: 'done', assistantMessageId: reply.id } as const
-      yield* runs.update(done, { id: queued.id, status: ['queued'] })
+      const done = { status: 'done', assistantMessageId: Option.some(reply.id) } as const
+      yield* runs.update(move(queued, done), 'queued')
 
       assertSchemaEquals(
         SelectedRun,
         yield* runs.selectOne({ id: queued.id }),
-        Option.some(read(run(queued.id, done), reply)),
+        Option.some(read(run(queued.id, done), Option.some(reply))),
       )
     }).pipe(Effect.provide(RepositoryTest)),
   )

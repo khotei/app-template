@@ -1,12 +1,10 @@
-import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { MessageRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
-import { MessageId } from '#chat/domain/message.util'
+import { MessageRepository } from '#chat/services/message.repository'
 
 /** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
 export type MessageWhere = Types.Simplify<
@@ -26,23 +24,18 @@ export class MessageService extends Context.Service<
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('MessageService.create')(function* (
       fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
-      const id = yield* generateId(MessageId)
-      const createdAt = yield* DateTime.now
-      const message = new Message({ ...fields, id, createdAt })
-      const row = yield* encodeWith(MessageFields)(message)
+      const row = yield* MessageFields.insert.makeEffect(fields)
 
       yield* messages.insert(row)
-      return message
-    })
+      return new Message(row)
+    }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
       (where: MessageWhere) => messages.selectOne(where),
-      Effect.flatMap(decodeWith(Schema.Option(Message))),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -50,10 +43,7 @@ export class MessageService extends Context.Service<
         ),
     )
 
-    const getMany = Effect.fn('MessageService.getMany')(
-      messages.selectMany,
-      Effect.flatMap(decodeWith(Schema.Array(Message))),
-    )
+    const getMany = Effect.fn('MessageService.getMany')(messages.selectMany)
 
     return { create, getOne, getMany }
   }),

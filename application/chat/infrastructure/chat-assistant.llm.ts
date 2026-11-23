@@ -2,11 +2,11 @@ import { AnthropicLanguageModel } from '@effect/ai-anthropic'
 import { Context, Effect, Layer, Schema, SchemaTransformation } from 'effect'
 
 import { llmModels } from '@app-template/kernel/config'
-import { maxTitleLength } from '@app-template/kernel/data'
 import { askModel } from '@app-template/kernel/llm'
 import type { LlmError } from '@app-template/kernel/llm/error'
 
 import { ChatTitle } from '#chat/domain/chat.model'
+import { maxTitleLength } from '#chat/domain/chat.util'
 
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 

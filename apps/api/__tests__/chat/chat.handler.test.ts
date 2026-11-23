@@ -6,14 +6,14 @@ import {
   Chat,
   ChatNotFoundError,
   Message,
+  type MessageFilter,
   MessageNotFoundError,
   Run,
+  type RunFilter,
   RunNotFoundError,
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { UserUnknownError } from '@app-template/application/identity'
-import type { MessageEntityWhere, RunEntitySelectWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { RequestInvalidError } from '#api/shared/api-security'
@@ -31,9 +31,9 @@ const asOwner = (mocks: ApiRepositoryMocks = {}) =>
 
 /** Reads that return the value given as their one row. */
 const reads = {
-  chat: (value: Chat) => () => encodeWith(Chat)(value).pipe(Effect.map(Option.some)),
-  message: (value: Message) => () => encodeWith(Message)(value).pipe(Effect.map(Option.some)),
-  run: (value: Run) => () => encodeWith(Run)(value).pipe(Effect.map(Option.some)),
+  chat: (value: Chat) => () => Effect.succeedSome(value),
+  message: (value: Message) => () => Effect.succeedSome(value),
+  run: (value: Run) => () => Effect.succeedSome(value),
 }
 
 const hello = { text: 'Hello' }
@@ -154,9 +154,7 @@ describe('chats', () => {
           chats: { selectOne: reads.chat(chat) },
           messages: {
             selectMany: () =>
-              encodeWith(Message)(
-                new Message({ ...firstMessage, run: Option.some(refusedRun) }),
-              ).pipe(Effect.map(Arr.of)),
+              Effect.succeed([new Message({ ...firstMessage, run: Option.some(refusedRun) })]),
           },
         }),
       ),
@@ -207,8 +205,8 @@ describe('chats', () => {
   it.effect(
     'a message or Run the store finds none of for the user is 404 MessageNotFoundError or RunNotFoundError',
     () => {
-      const wheres: Array<MessageEntityWhere | RunEntitySelectWhere> = []
-      const findsNone = (where: MessageEntityWhere | RunEntitySelectWhere) =>
+      const wheres: Array<MessageFilter | RunFilter> = []
+      const findsNone = (where: MessageFilter | RunFilter) =>
         Effect.sync(() => {
           wheres.push(where)
         }).pipe(Effect.as(Option.none()))

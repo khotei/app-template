@@ -25,7 +25,6 @@
     "@effect/ai-anthropic": "catalog:effect",
     "@effect/platform-bun": "catalog:effect",
     "@effect/sql-pg": "catalog:effect",
-    "drizzle-orm": "catalog:drizzle",
     "effect": "catalog:effect",
     "type-fest": "catalog:runtime"
   },

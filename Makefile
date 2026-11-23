@@ -4,8 +4,8 @@
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
-  fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
-  migrate migration migration-check api-snapshot api-client-check
+  fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect \
+  migrate api-snapshot api-client-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
 # login is stored; the home (the provider plugins) is the main tree's .pulumi/, shared by every
@@ -26,7 +26,6 @@ EXPORT_ENV = set -a && . ./.env && set +a
 # Every container and volume of the tree's stand holds the kernel's name prefix of its stage,
 # the database's container and volume, which MiniStack names, included.
 STAND = name=app-template-$$STAGE-
-DRIZZLE_CONFIG = kernel/data/drizzle.config.ts
 
 help: ## List all targets
 	@echo 'App Template: make <target>'
@@ -71,22 +70,6 @@ worktree: ## Name a worktree, install it, write its .env: N=<n> NAME=<name> [KEE
 migrate: ## Apply the pending migrations to the database in .env.pulumi
 	bun --env-file=.env --env-file=.env.pulumi kernel/postgres/postgres-migrate.ts
 
-# drizzle-kit is a root devDependency: the isolated linker links a workspace's binary only in that
-# workspace. The config's paths resolve against the working directory, the root.
-migration: ## Generate a migration from the entities, with no database: NAME=<name>
-	@test -n "$(NAME)" || { echo 'usage: make migration NAME=<name>'; exit 1; }
-	bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --name $(NAME)
-
-# drizzle-kit's dry run: the JSON status decides, the text run shows the SQL, its stdin closed so a
-# rename is reported, not asked. Soft here, strict in CI: docs/knowledge/database.md › Migrations.
-migration-check: ## Fail when an entity changed without a migration
-	@bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --explain --output json 2>/dev/null | grep -q '"status":"no_changes"' || { \
-		bunx drizzle-kit generate --config $(DRIZZLE_CONFIG) --explain </dev/null; \
-		echo; echo 'The entities differ from kernel/data/migrations (above). Regenerate the one init:'; \
-		echo 'delete that folder and run make migration NAME=init (docs/knowledge/database.md › Migrations).'; \
-		exit 1; \
-	}
-
 # The web's client, as @effect/openapi-generator's installed command writes it from the api's
 # snapshot; --no-install stops bunx from fetching a registry package of that name instead.
 API_CLIENT = cd apps/web && bunx --no-install --bun openapigen -s ../api/openapi.json -n Api -f httpapi
@@ -120,7 +103,7 @@ debug-worker: ## Run the worker with the inspector
 debug-web: ## Run the web dev server with the inspector
 	bun --filter @app-template/web debug
 
-check: api-client-check typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
+check: api-client-check typecheck bundle-check link-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
@@ -191,10 +174,3 @@ vendor-effect: EFFECT_TAG = effect@$(shell bun pm pkg get catalogs.effect.effect
 vendor-effect: ## Pull Effect-TS/effect at the catalog pin into repos/effect (commits)
 	git subtree pull --squash --prefix repos/effect https://github.com/Effect-TS/effect.git \
 		$(EFFECT_TAG) -m ':wrench: chore(deps): Vendor effect at $(EFFECT_TAG)'
-
-# The first call adds the subtree, later calls pull it.
-vendor-drizzle: DRIZZLE_TAG = v$(shell bun pm pkg get catalogs.drizzle.drizzle-orm 2>/dev/null | tr -d '"')
-vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/drizzle (commits)
-	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \
-		https://github.com/drizzle-team/drizzle-orm.git $(DRIZZLE_TAG) \
-		-m ':wrench: chore(deps): Vendor drizzle-orm at $(DRIZZLE_TAG)'

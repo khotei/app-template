@@ -1,15 +1,11 @@
 import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
-import { Clock, ConfigProvider, Context, DateTime, Effect, Layer, Option, Ref } from 'effect'
+import { Clock, ConfigProvider, Context, Effect, Layer, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 import { HttpApiClient } from 'effect/http-api'
 
+import { ChatRepository, MessageRepository, RunRepository } from '@app-template/application/chat'
 import { owner } from '@app-template/application/chat/testing'
-import {
-  ChatRepository,
-  MessageRepository,
-  RunRepository,
-  UserRepository,
-} from '@app-template/kernel/data'
+import { User, UserRepository } from '@app-template/application/identity'
 import { TransactionTest } from '@app-template/packages/db/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
@@ -91,7 +87,7 @@ export const ownerCookie = Cookies.fromSetCookie(
 
 /** A `UserRepository` that finds `owner` by any credential. */
 export const signedIn = {
-  selectOne: () => Effect.succeed(Option.some({ id: owner, createdAt: DateTime.toDateUtc(epoch) })),
+  selectOne: () => Effect.succeedSome(new User({ id: owner, createdAt: epoch })),
 } satisfies ApiRepositoryMocks['users']
 
 /** One browser, starting from `cookies`, on an api of the test's own over `mocks`. */

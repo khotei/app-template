@@ -1,14 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Cause, DateTime, Effect, Option, Schema, Struct } from 'effect'
 
-import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId } from '#chat/domain/chat.util'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message, NestedMessage } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
+  activeRunStatuses,
   completeRun,
   ensureRunRetryable,
   ensureRunUnstarted,
@@ -131,7 +131,7 @@ describe('completeRun', () => {
     Effect.gen(function* () {
       const done = yield* completeRun(runAt('generating'), reply)
 
-      assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
+      assertSchemaEquals(Schema.Option(NestedMessage), done.assistantMessage, Option.some(reply))
     }),
   )
 })

@@ -51,17 +51,12 @@
       "@pulumi/aws": "7.55.0",
       "@pulumi/docker": "5.3.0",
       "@pulumi/pulumi": "3.277.0"
-    },
-    "drizzle": {
-      "drizzle-kit": "1.0.0-rc.6",
-      "drizzle-orm": "1.0.0-rc.6"
     }
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:tools",
     "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
-    "drizzle-kit": "catalog:drizzle",
     "husky": "catalog:tools",
     "markdownlint-cli2": "catalog:tools",
     "typescript": "catalog:typescript",

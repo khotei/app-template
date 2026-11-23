@@ -1,9 +1,9 @@
-import { flow, Schema, Struct } from 'effect'
+import { Schema, Struct } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import {
-  Chat,
   ChatBusyError,
+  ChatFields,
   ChatId,
   ChatNotFoundError,
   ChatStatus,
@@ -13,29 +13,22 @@ import {
   MessageId,
   MessageNotFoundError,
   Run,
-  RunFields,
   RunId,
   RunNotFoundError,
   RunNotRetryableError,
 } from '@app-template/application/chat'
 
 /** A chat with the status its newest Run gives it, in place of that Run. */
-export const ApiChat = Chat.mapFields(
-  flow(Struct.omit(['run']), Struct.assign({ status: ChatStatus })),
-).annotate({ identifier: 'ApiChat' })
+export const ApiChat = ChatFields.json
+  .mapFields(Struct.assign({ status: ChatStatus }))
+  .annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 
-// A failure is the provider's or SQS's text, which can hold request ids, key hints or the
-// prompt: it stays in the row, and every wire shape of a Run omits it.
-const ApiRun = Run.mapFields(Struct.omit(['failure'])).annotate({ identifier: 'ApiRun' })
+// The json variants leave a Run's `failure` off: the provider's or SQS's text, which can hold
+// request ids, key hints or the prompt, stays in the row.
+const ApiRun = Run.json.annotate({ identifier: 'ApiRun' })
 
-const ApiRunFields = RunFields.mapFields(Struct.omit(['failure'])).annotate({
-  identifier: 'ApiRunFields',
-})
-
-const ApiMessage = Message.mapFields(
-  Struct.assign({ run: Schema.OptionFromNullOr(ApiRunFields) }),
-).annotate({ identifier: 'ApiMessage' })
+const ApiMessage = Message.json.annotate({ identifier: 'ApiMessage' })
 
 const chatPath = { chatId: ChatId }
 

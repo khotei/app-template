@@ -3,14 +3,15 @@ import { assert, describe, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
-import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
-import { chatId } from '@app-template/application/chat/testing'
 import {
+  ChatAssistant,
   ChatRepository,
-  type MessageEntityWhere,
+  MessageAssistant,
+  type MessageFilter,
   MessageRepository,
   RunRepository,
-} from '@app-template/kernel/data'
+} from '@app-template/application/chat'
+import { chatId } from '@app-template/application/chat/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
 import { WorkerHttp } from '#worker/layer'
@@ -24,7 +25,7 @@ const buildRecord = (queue: string, body: unknown) => ({
 
 describe('POST /events', () => {
   it.effect('runs a batch on the use case of the queue it came from', () => {
-    const reads: Array<MessageEntityWhere> = []
+    const reads: Array<MessageFilter> = []
     // Only the title job's first read returns: any other store call dies, and fails the batch.
     const events = WorkerHttp.pipe(
       Layer.provideMerge(BunHttpServer.layerTest),

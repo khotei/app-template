@@ -2,23 +2,19 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Option } from 'effect'
 
-import type { MessageEntityWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { Message } from '#chat/domain/message.model'
+import type { MessageFilter } from '#chat/services/message.repository'
 import { MessageService } from '#chat/services/message.service'
 import { chat, firstMessage, owner } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
-
-const firstMessageRow = encodeWith(Message)(firstMessage)
 
 const where = { id: firstMessage.id, chatId: chat.id, userId: owner }
 
 describe('MessageService', () => {
   it.effect('getOne reads the message by the where it was given', () => {
-    const wheres: Array<MessageEntityWhere> = []
+    const wheres: Array<MessageFilter> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
 
@@ -33,7 +29,7 @@ describe('MessageService', () => {
             selectOne: (read) =>
               Effect.sync(() => {
                 wheres.push(read)
-              }).pipe(Effect.andThen(firstMessageRow), Effect.map(Option.some)),
+              }).pipe(Effect.as(Option.some(firstMessage))),
           },
         }),
       ),
@@ -51,7 +47,7 @@ describe('MessageService', () => {
   )
 
   it.effect("getMany reads the chat's messages by the where it was given", () => {
-    const wheres: Array<MessageEntityWhere> = []
+    const wheres: Array<MessageFilter> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
 
@@ -66,10 +62,7 @@ describe('MessageService', () => {
             selectMany: (read) =>
               Effect.sync(() => {
                 wheres.push(read)
-              }).pipe(
-                Effect.andThen(firstMessageRow),
-                Effect.map((row) => [row]),
-              ),
+              }).pipe(Effect.as([firstMessage])),
           },
         }),
       ),

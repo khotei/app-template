@@ -5,15 +5,17 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
   ChatAssistant,
+  ChatRepository,
   ChatService,
   MessageAssistant,
+  MessageRepository,
   MessageService,
   ReplyChatService,
+  RunRepository,
   RunService,
   TitleChatService,
 } from '@app-template/application/chat'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
-import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
@@ -37,8 +39,12 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
 
 /** The worker process but its assistants, which the e2e stand scripts. */
 export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
-  Layer.provide([PostgresRepositories, Transaction.layer]),
-  Layer.provide(Db.layer),
+  Layer.provide([
+    ChatRepository.layer,
+    MessageRepository.layer,
+    RunRepository.layer,
+    Transaction.layer,
+  ]),
   Layer.provide(PgClientFromConfig),
   Layer.provide([BunHttpServerFromConfig, BunCrypto.layer]),
   Layer.provide(MinimumLogLevelFromConfig),

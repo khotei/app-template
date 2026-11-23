@@ -1,16 +1,15 @@
 import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { DateTime, Effect, Layer, Option, Schema } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatFields, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
+import { type ChatFilter, ChatRepository } from '#chat/services/chat.repository'
 import { ChatService } from '#chat/services/chat.service'
 import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 
@@ -21,8 +20,11 @@ const chatServiceOver = ({
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
 }) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
 
-/** A `selectOne` that returns `found` as its row. */
-const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
+/** A `selectOne` that returns `found`. */
+const selectsOne = (found: Chat) => () => Effect.succeedSome(found)
+
+/** The columns an update writes. */
+const encodeChatSet = Schema.encodeUnknownSync(ChatFields.update)
 
 const trip = ChatTitle.make('Trip')
 
@@ -48,7 +50,7 @@ describe('ChatService', () => {
   it.live(
     "update writes the title and a moved updatedAt under the owner's where, and returns the chat",
     () => {
-      const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
+      const updates: Array<readonly [typeof ChatFields.update.Type, ChatFilter]> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
@@ -62,12 +64,15 @@ describe('ChatService', () => {
           updated,
           new Chat({ ...chat, title: Option.some(trip), updatedAt: updated.updatedAt }),
         )
-        assert.deepStrictEqual(updates, [
+        assert.deepStrictEqual(
+          updates.map(([set, where]) => [encodeChatSet(set), where]),
           [
-            { title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
-            { id: chat.id, userId: owner },
+            [
+              { id: chat.id, title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
+              { id: chat.id, userId: owner },
+            ],
           ],
-        ])
+        )
       }).pipe(
         Effect.provide(
           chatServiceOver({
@@ -87,7 +92,7 @@ describe('ChatService', () => {
   it.effect(
     'update where the title is none reads and writes only while the chat is untitled',
     () => {
-      const wheres: Array<ChatEntityWhere> = []
+      const wheres: Array<ChatFilter> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
@@ -98,8 +103,8 @@ describe('ChatService', () => {
 
         assertEquals(updated.title, Option.some(lisbonWeekend))
         assert.deepStrictEqual(wheres, [
-          { id: chat.id, title: null },
-          { id: chat.id, title: null },
+          { id: chat.id, title: Option.none() },
+          { id: chat.id, title: Option.none() },
         ])
       }).pipe(
         Effect.provide(
@@ -121,7 +126,7 @@ describe('ChatService', () => {
   )
 
   it.effect("list reads the user's chats", () => {
-    const wheres: Array<ChatEntityWhere> = []
+    const wheres: Array<ChatFilter> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
@@ -134,10 +139,7 @@ describe('ChatService', () => {
             selectMany: (where) =>
               Effect.sync(() => {
                 wheres.push(where)
-              }).pipe(
-                Effect.andThen(encodeWith(Chat)(chat)),
-                Effect.map((row) => [row]),
-              ),
+              }).pipe(Effect.as([chat])),
           },
         }),
       ),
@@ -145,7 +147,7 @@ describe('ChatService', () => {
   })
 
   it.effect("delete removes the owner's chat by its id", () => {
-    const deleted: Array<ChatEntityWhere> = []
+    const deleted: Array<ChatFilter> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 

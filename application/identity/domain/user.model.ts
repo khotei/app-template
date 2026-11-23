@@ -1,10 +1,12 @@
-import { type Redacted, Schema } from 'effect'
+import type { Redacted } from 'effect'
+import { Model } from 'effect/schema'
 
 import { UserId } from '#identity/contract/user.util'
 
-export class User extends Schema.Class<User>('User')({
-  id: UserId,
-  createdAt: Schema.DateTimeUtcFromDate,
+/** A user as `users` holds it; its credentials are rows of their own, never read back. */
+export class User extends Model.Class<User>('User')({
+  id: Model.UuidV7Insert(UserId),
+  createdAt: Model.DateTimeInsertFromDate,
 }) {}
 
 /** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
