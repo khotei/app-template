@@ -238,7 +238,7 @@ export class S3Bucket extends Context.Service<
       Effect.flatMap((object) =>
         Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
       ),
-      Effect.map(Option.some),
+      Effect.asSome,
       Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
       Effect.orDie,
     )
