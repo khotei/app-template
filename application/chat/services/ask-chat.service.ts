@@ -47,13 +47,16 @@ export class AskChatService extends Context.Service<
     // After the commit of `run`, so every delivery finds it; SQS's refusal fails that Run alone,
     // by its id: one a worker settled meanwhile, as SQS took the job after all, dies on the
     // write's guard.
-    const askReply = (run: Run) =>
-      sendReplyToMessage(run).pipe(
-        Effect.as(run),
-        Effect.catch((error) => runs.move(run, (run) => failRun(run, Cause.fail(error)))),
-        // A client's abort mid-send still leaves the Run sent or failed.
-        Effect.uninterruptible,
-      )
+    const askReply = Effect.fnUntraced(
+      function* (run: Run) {
+        yield* sendReplyToMessage(run)
+        return run
+      },
+      (sent, run) =>
+        Effect.catch(sent, (error) => runs.move(run, (run) => failRun(run, Cause.fail(error)))),
+      // A client's abort mid-send still leaves the Run sent or failed.
+      Effect.uninterruptible,
+    )
 
     const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
       yield* ensureChatNotBusy(chat.run)
