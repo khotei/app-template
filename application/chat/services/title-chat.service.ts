@@ -1,4 +1,4 @@
-import { Array as Arr, Context, Effect, Layer, Option } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, pipe } from 'effect'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import type { ChatId } from '#chat/domain/chat.util'
@@ -31,12 +31,12 @@ export class TitleChatService extends Context.Service<
 
       // The job follows its first message's commit, and a message leaves only with its chat, so
       // a chat with none is gone.
-      const first = yield* messages
-        .getMany({ chatId })
-        .pipe(
-          Effect.map(Arr.head),
-          Effect.flatMap(Effect.fromOption(() => new ChatNotFoundError({ id: chatId }))),
-        )
+      const history = yield* messages.getMany({ chatId })
+      const first = yield* pipe(
+        history,
+        Arr.head,
+        Effect.fromOption(() => new ChatNotFoundError({ id: chatId })),
+      )
       const proposed = yield* assistant.proposeTitle(first.text)
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
