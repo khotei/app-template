@@ -9,8 +9,24 @@ paths:
 
 - An effectful function follows `repos/effect/LLMS.md › Using Effect.fn and Effect.fnUntraced`. A
   service method's span is `'<Service>.<method>'`; its pipeables are `Effect.fn`'s extra
-  arguments, save `Transaction`'s `run` ([layering.md › Use cases](layering.md#use-cases)); a body
-  that only delegates is passed as is (`Effect.fn('<Service>.<method>')(port.<method>)`).
+  arguments, never a `.pipe` in its body, save `Transaction`'s `run`
+  ([layering.md › Use cases](layering.md#use-cases)); one that reads the method's arguments takes
+  them after the effect; a body that only delegates is passed as is
+  (`Effect.fn('<Service>.<method>')(port.<method>)`). `Effect.fnUntraced` takes a generator alone.
+```diff
+- const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
+-   orders.selectOne(where).pipe(                          // a pipe nested in the body
+-     Effect.flatMap(decodeWith(Schema.Option(Order))),
+-     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
+-   ),
+- )
++ const getOne = Effect.fn('OrderService.getOne')(
++   (where: OrderWhere) => orders.selectOne(where),
++   Effect.flatMap(decodeWith(Schema.Option(Order))),
++   (found, where) =>
++     Effect.flatMap(found, Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
++ )
+```
 - The variable holding it is named after the span's last segment, a reserved word its plain
   synonym (`remove` for `'<Model>Service.delete'`), never with a model suffix. A method that needs
   the model in its name is often doing a neighbouring service's work.

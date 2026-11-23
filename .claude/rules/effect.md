@@ -60,6 +60,10 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
   never reaches the wire is a `Data.TaggedError`. Not-found from a repository or a port is a
   value (`Option`, an id left out); its reader turns it into the `*NotFoundError` that carries
   the key of its read alone, one error whichever key the read takes.
+- A failure and an `Option` cross once: an absent value that fails is
+  `Effect.fromOption(() => new <Model>NotFoundError(…))`, never an `Option.match` whose arms are
+  `Effect.fail` and `Effect.succeed` alone; a failure is recovered in its flow's tail
+  (`effect-style.md › Errors and logs`), never turned into an `Option` its own flow then branches on.
 - A client's failure, or a stored value that no longer decodes, is a defect where it is read.
   Failures a caller settles differently get a class each, raised after the client call's
   retries; failures it does not tell apart, one.
