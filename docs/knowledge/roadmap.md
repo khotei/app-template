@@ -724,6 +724,66 @@ programs in an `alchemy.run.ts`, run by `bun alchemy deploy | plan | destroy | d
 - **Not read:** state locking outside the Postgres store, whether secrets are encrypted in
   `.alchemy/`, and the `drift`, `--adopt` and v1-migration pages.
 
+### Effect SQL and `Model.Class` in place of Drizzle
+
+For the data layer, and the decisions [The data at the centre](decisions.md#the-data-at-the-centre)
+and [A module's layers](decisions.md#a-modules-layers). Researched and tried on 2026-11-23
+against `effect@4.1.5` and `drizzle-orm@1.0.0-rc.6`; the owner kept Drizzle as it is, and wants
+two versions built side by side to review before deciding again.
+
+- **What the trial found.** A table's row is declared three times: the Drizzle table
+  (`kernel/data/chat/run.table.ts`), the entity beside it (`run.entity.ts`: the nested read, the
+  `where` types, the columns an update may write) and the domain model
+  (`application/chat/domain/run-fields.model.ts`), with `encodeWith` and `decodeWith` between
+  them in every service. Most of what a version on Effect alone removed sat on those seams, not
+  in Drizzle's queries.
+- **The two versions to build and compare,** each on Message and Run first, each proved by the
+  journeys in `apps/e2e/` passing unchanged:
+  - **Effect alone.** One `Model.Class` per table in its module's domain; the row a read decodes,
+    the insert row with its id and stamps, the update set and the wire shape (`<Model>.json`) are
+    derived from it; filtered and nested reads, the status-guarded update and the migrations are
+    hand-written SQL. Drizzle, drizzle-kit, the kernel's tables, entities and relations go. A
+    trial of it exists on the local branch `spike-effect-sql-message-run`, cut from this
+    branch's head: its journeys pass, its `make check` stops at `doc-lint` on the docs it did not
+    rewrite.
+  - **Drizzle kept, two declarations.** The table and the domain model stay; the entity between
+    them goes, its shapes taken from Drizzle's own types, and the repositories speak models if
+    they move into their modules. Not tried: the domain's brands, `DateTime` and `Option` differ
+    from the row's strings, `Date` and `null`, so a field is still named twice, and the kernel
+    may not import a module's domain.
+- **Facts, checked 2026-11-23.**
+  - Drizzle here already runs on `@effect/sql-pg`'s `PgClient` and its transactions, and Effect's
+    own v3-to-v4 guide sends query building to Drizzle's Effect integration
+    (`repos/effect/migration/v3-to-v4.md`, `@effect/sql-drizzle/Pg`). `effect/sql` has no query
+    builder beyond fragments (`sql.and`, `sql.or`, `sql.in`, `sql.insert`, `sql.update`) and
+    generates no migration from a schema.
+  - `SqlModel.makeRepository` derives insert, update, find and delete of one row by its id: 3 of
+    the 13 repository methods. Its update matches by id alone, so a guarded move is hand-written,
+    as Effect's own cluster storage writes it (`UPDATE … WHERE <state> RETURNING`).
+  - Effect's `Migrator` skips, without an error, a migration whose id is at or below the highest
+    applied one, so a branch's migration merged late is lost on a database that moved on; an id
+    must fit an `integer`; `@effect/sql-pg` takes one statement per call.
+  - With Drizzle kept, `Model.Class` derives next to nothing the table does not already give
+    (`createSelectSchema`); the insert defaults alone come from `Schema.withConstructorDefault`
+    with no unstable API, at the cost of `SecureRandom` leaving the methods' types.
+  - `Model.UuidV7Insert` reads random bytes past the `SecureRandom` service, so a test cannot
+    fix an id; an insert stamps `createdAt` and `updatedAt` by two reads of the clock; a
+    constructor default applies in the `update` variant too, so an omitted field is written.
+  - A span's annotations never reach a log line: `Effect.annotateLogs` cannot give way to them.
+- **Effect alone would bring.** One declaration per table; no codec step in a service; the wire
+  shapes and the list of updatable columns derived; the query that runs readable in the
+  repository; one library fewer.
+- **Effect alone would cost.** Column names checked by Postgres at a test's run, not by the
+  compiler; hand-written migrations with `make migration` and `make migration-check` gone, and
+  enum values, limits and the active index's predicate written twice with nothing tying them;
+  every module used (`effect/sql`, `effect/schema` `Model`, `PgMigrator`) `@stability unstable`;
+  the statements' `Debug` log gone; four decisions and three rules rewritten.
+- **Check before deciding.** The two versions' diffs side by side on the same slice; a guard
+  against the migrator's silent skip (ids checked in CI, or a drift check by
+  `drizzle-kit push --explain` against a migrated database, which the trial saw work); one task
+  ("add a column and a filter on it") given to an agent on each version, counting its errors and
+  the time to green.
+
 ### Smaller fits
 
 - `effect/encoding` `Sse` (unstable): the codec for an SSE tail in `web-app` (7), if one earns
