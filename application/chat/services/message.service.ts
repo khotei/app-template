@@ -50,8 +50,8 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      (where: Types.Simplify<Pick<Message, 'chatId'>>) =>
-        messages.selectMany(where).pipe(Effect.flatMap(decodeWith(Schema.Array(Message)))),
+      messages.selectMany,
+      Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 
     return { create, getOne, getMany }
