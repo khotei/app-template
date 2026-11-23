@@ -1,3 +1,4 @@
+import { BunFileSystem, BunPath } from '@effect/platform-bun'
 import { PgClient } from '@effect/sql-pg'
 import { PostgreSqlContainer } from '@testcontainers/postgresql'
 import { Effect, Redacted } from 'effect'
@@ -28,7 +29,9 @@ async function startPostgresWithTemplate() {
     yield* admin.unsafe(`CREATE DATABASE ${templateDatabase}`)
     // The provide closes the migration's pool here: `CREATE DATABASE … TEMPLATE` refuses a
     // template that still has a session.
-    yield* migrateDatabase(migrationsFolder).pipe(Effect.provide(onDatabase(templateDatabase)))
+    yield* migrateDatabase(migrationsFolder).pipe(
+      Effect.provide([onDatabase(templateDatabase), BunFileSystem.layer, BunPath.layer]),
+    )
     yield* admin.unsafe(`ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
   }).pipe(Effect.provide(onDatabase(container.getDatabase())))
 

@@ -1,27 +1,20 @@
-import type { PgClient } from '@effect/sql-pg'
-import type { EffectDrizzleQueryError, MigratorInitError } from 'drizzle-orm/effect-core/errors'
-import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { migrate } from 'drizzle-orm/effect-postgres/migrator'
+import { PgMigrator } from '@effect/sql-pg'
 import { Effect, Predicate, Schedule } from 'effect'
-import { SqlError } from 'effect/sql'
+import { Migrator, SqlError } from 'effect/sql'
 
-import { unwrapQueryError } from '#db/db.client'
+/**
+ * Effect's migrator with no schema dump: `PgMigrator.run` adds one through `pg_dump`, and needs a
+ * child process spawner for it even when no dump is asked.
+ */
+const runMigrations = Migrator.make({})
 
-/** Applies the pending migrations of `folder`. */
+/**
+ * Applies the pending migrations of `folder`: its `<id>_<name>.ts` modules, each an `Effect` as
+ * its default export, recorded by id in `effect_sql_migrations`.
+ */
 export const migrateDatabase = Effect.fn('migrateDatabase')(
-  function* (
-    folder: string,
-  ): Effect.fn.Return<
-    void,
-    EffectDrizzleQueryError | MigratorInitError | SqlError.SqlError,
-    PgClient.PgClient
-  > {
-    const db = yield* PgDrizzle.makeWithDefaults()
-
-    // `migrate` reads the folder before it returns its effect, so a missing folder would throw here.
-    yield* Effect.suspend(() => migrate(db, { migrationsFolder: folder }))
-  },
-  Effect.catchTag('EffectDrizzleQueryError', unwrapQueryError),
+  (folder: string) => runMigrations({ loader: PgMigrator.fromFileSystem(folder) }),
+  Effect.asVoid,
 )
 
 /** Postgres's `cannot_connect_now`: it takes the connection, but is still starting up. */

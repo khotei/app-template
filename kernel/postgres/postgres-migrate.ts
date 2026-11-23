@@ -1,4 +1,4 @@
-import { BunRuntime } from '@effect/platform-bun'
+import { BunFileSystem, BunPath, BunRuntime } from '@effect/platform-bun'
 import { Effect } from 'effect'
 
 import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
@@ -9,6 +9,7 @@ import { PgClientFromConfig } from '#kernel/postgres/postgres.client'
 
 export const applyMigrations = migrateDatabase(migrationsFolder).pipe(
   Effect.andThen(Effect.logInfo('database migrated')),
+  Effect.provide([BunFileSystem.layer, BunPath.layer]),
 )
 
 if (import.meta.main) {
