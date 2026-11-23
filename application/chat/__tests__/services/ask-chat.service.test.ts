@@ -253,6 +253,57 @@ describe('AskChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
+  it.effect('ask of a new chat interrupted while its Run is stored still sends both jobs', () => {
+    const held = holdCall()
+    const jobs = recordMessages()
+    return Effect.gen(function* () {
+      const running = yield* ask(chat, 'Plan a weekend in Lisbon').pipe(Effect.forkChild)
+      yield* held.reached
+      const interrupting = yield* Fiber.interrupt(running).pipe(
+        Effect.forkChild({ startImmediately: true }),
+      )
+      yield* held.release
+      yield* Fiber.join(interrupting)
+
+      assert.deepStrictEqual(
+        Arr.map(yield* jobs.sent, ({ queue }) => queue),
+        ['title-chat', 'reply-to-message'],
+      )
+    }).pipe(
+      Effect.provide(
+        layerChatTest({
+          messages: { insert: () => Effect.void },
+          runs: { insert: () => held.hold },
+        }).pipe(Layer.provideMerge(jobs.layer)),
+      ),
+    )
+  })
+
+  it.effect('retry interrupted while its Run is stored still sends its job', () => {
+    const held = holdCall()
+    const jobs = recordMessages()
+    return Effect.gen(function* () {
+      const running = yield* retry(withNewest(failedRun)).pipe(Effect.forkChild)
+      yield* held.reached
+      const interrupting = yield* Fiber.interrupt(running).pipe(
+        Effect.forkChild({ startImmediately: true }),
+      )
+      yield* held.release
+      yield* Fiber.join(interrupting)
+
+      assert.deepStrictEqual(
+        Arr.map(yield* jobs.sent, ({ queue }) => queue),
+        ['reply-to-message'],
+      )
+    }).pipe(
+      Effect.provide(
+        layerChatTest({ ...readsFirstMessage, runs: { insert: () => held.hold } }).pipe(
+          Layer.provideMerge(jobs.layer),
+        ),
+      ),
+    )
+  })
+
   it.effect('ask while a Run is in work is ChatBusyError before any write or job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {

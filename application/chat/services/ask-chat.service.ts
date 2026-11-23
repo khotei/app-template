@@ -54,8 +54,6 @@ export class AskChatService extends Context.Service<
       },
       (sent, run) =>
         Effect.catch(sent, (error) => runs.move(run, (run) => failRun(run, Cause.fail(error)))),
-      // A client's abort mid-send still leaves the Run sent or failed.
-      Effect.uninterruptible,
     )
 
     // The message and its Run commit together: a Run that loses the race keeps no message.
@@ -64,6 +62,8 @@ export class AskChatService extends Context.Service<
       return yield* runs.create(message)
     }, transaction.run)
 
+    // `ask` and `retry` are uninterruptible: a client's abort after the Run commits would leave it
+    // queued with no job, its chat busy and its retry refused, so one that began runs to its send.
     const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
       yield* ensureChatNotBusy(chat.run)
       const run = yield* createMessageRun(chat, text)
@@ -72,7 +72,7 @@ export class AskChatService extends Context.Service<
       // never fails, so the jobs go in either order.
       if (isNewChat(chat)) yield* sendTitleChat(chat)
       return yield* askReply(run)
-    })
+    }, Effect.uninterruptible)
 
     const retry = Effect.fn('AskChatService.retry')(function* (chat: Chat) {
       const failed = yield* ensureRunRetryable(chat.run)
@@ -80,7 +80,7 @@ export class AskChatService extends Context.Service<
 
       const run = yield* runs.create(userMessage)
       return yield* askReply(run)
-    })
+    }, Effect.uninterruptible)
 
     return { ask, retry }
   }),

@@ -257,8 +257,8 @@ A Run that no worker settles stays active and its chat `queued`, so every next a
 fails `ChatBusyError`. A worker that dies (a killed process, the function's timeout) is settled
 by the next delivery, up to the queue's visibility timeout later, which finds the Run started,
 and fails it; a store failing
-the `failed` write, a process that dies between the commit and the send or a client that aborts
-before the send starts, or a job whose every delivery dies, leaves it so, and nothing consumes
+the `failed` write, a process that dies between the commit and the send, or a job whose every
+delivery dies, leaves it so, and nothing consumes
 the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active Runs exists: by
 age alone it could not tell a dead Run from one waiting in a backlog.
 

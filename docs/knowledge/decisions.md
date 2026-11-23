@@ -1011,8 +1011,8 @@ two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's nam
 first message the worker reads. The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `RunService.move` and the model's `failRun`, with the error's
-full text as its failure; the request responds with `202` and that failed Run. The send and that
-failure run uninterruptibly, so a client that aborts mid-send still leaves the Run sent or
+full text as its failure; the request responds with `202` and that failed Run. Both methods run
+uninterruptibly, so a client that aborts after the Run's write still leaves the Run sent or
 failed. The title's send only logs it, as its work has no record to settle. Which services a Run
 has and over which: [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
 who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
@@ -1060,14 +1060,13 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   (`UserMessageCreated`): the new chat's rule would move to the worker or ride as a flag, one event
   for two consumers needs a fan-out, and a retry is not that fact.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its
-  chat busy ([roadmap.md › Later](roadmap.md#later)); a client's abort before the send:
-  [A Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries).
-  A refused send responds with `202`, so a client reads the failure from the Run's status, not
-  the response's. A domain service now reaches its module's queue file, so the ask service's
-  guard admits that one file of infrastructure; a send inside its transaction would send before
-  the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
-  it. A queue's name changes only as a new queue, as SQS renames none: each stack's next
-  `make up` replaces it, and what the old one held is lost.
+  chat busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a
+  client reads the failure from the Run's status, not the response's. A domain service now
+  reaches its module's queue file, so the ask service's guard admits that one file of
+  infrastructure; a send inside its transaction would send before the commit, which no check
+  refuses: the rule in `.claude/rules/layering.md` and review hold it. A queue's name changes only
+  as a new queue, as SQS renames none: each stack's next `make up` replaces it, and what the old
+  one held is lost.
 - **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of
   the create flow; the ask service's Biome override, which admits of its infrastructure only
   `#*/infrastructure/*.queue`; the `infrastructure/` and `use-cases` rows of
@@ -1169,30 +1168,30 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
 What a Run's job accepts when it is cut short or handled twice. `ReplyChatService.reply` starts the
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
 interrupt included: a worker interrupted while the job reads its Run starts it, then fails it, and
-one interrupted while the assistant answers leaves the Run `failed`, not started; the reply's send
-in `AskChatService` and a refused send's failure run uninterruptibly. A client that aborts while
-the Run's write commits or the title's send runs ends the flow before the reply's send starts, and
-the Run stays queued. Two deliveries at the same instant both read the Run queued; the loser's
-guarded `generating` write dies before its tail exists, so it fails nothing and the winner's reply
-stands. A Run settled or deleted under the reply makes the tail's write die, and the Run stays as
-the other writer left it. The job names the user's message, not a Run, so a delivery starts
-whichever Run of it is active then: a failed Run's job delivered again after the user's retry
-starts the retry's Run, whose own job then finds it started and fails it with `RunStartedError`,
-and the user retries once more. The tail fails only the Run its start wrote, so a reply that dies
-after its Run was failed and retried fails no later Run; the api fails a refused send's Run by that
-Run too, so a refusal that arrives after SQS took the job anyway and a worker settled the Run dies
-on the write's guard and fails no later Run ([A Run's guarded moves](#a-runs-guarded-moves)).
+one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
+`ask` and `retry` run uninterruptibly whole, so a client that aborts once the request is handled
+still leaves the Run stored with its jobs sent, or failed by a refused send. Two deliveries at the
+same instant both read the Run queued; the loser's guarded `generating` write dies before its tail
+exists, so it fails nothing and the winner's reply stands. A Run settled or deleted under the reply
+makes the tail's write die, and the Run stays as the other writer left it. The job names the user's
+message, not a Run, so a delivery starts whichever Run of it is active then: a failed Run's job
+delivered again after the user's retry starts the retry's Run, whose own job then finds it started
+and fails it with `RunStartedError`, and the user retries once more. The tail fails only the Run its
+start wrote, so a reply that dies after its Run was failed and retried fails no later Run; the api
+fails a refused send's Run by that Run too, so a refusal that arrives after SQS took the job anyway
+and a worker settled the Run dies on the write's guard and fails no later Run
+([A Run's guarded moves](#a-runs-guarded-moves)).
 
 - **Why:** the start runs whole and the handler sits on all that follows it, so no failure or
   interrupt of the reply leaves the Run started for the next delivery, and the reply reads as if
   nothing failed. A race of two deliveries is decided by the guard in the write, with no lock in
   the process ([Guards in the write, no lock](#guards-in-the-write-no-lock)).
-- **Sources:** the owner's call in the design audit, the reply in its job's service; the owner keeps
-  the abort's window as a cost (2026-11-20, [roadmap.md › Later](roadmap.md#later)); the owner's
-  call that the reply's job carries the user's message, as the title's then did, and accepts what
-  a second delivery then costs (2026-11-21); the owner's refusal of that cost for the api's
-  refused send, which fails its Run by its id, and the owner's call that the worker's tail fails
-  the Run the body holds (2026-11-21).
+- **Sources:** the owner's call in the design audit, the reply in its job's service; the owner's
+  call that an ask and a retry run whole, so a client's abort leaves no Run queued without its job;
+  the owner's call that the reply's job carries the user's message, as the title's then did, and
+  accepts what a second delivery then costs (2026-11-21); the owner's refusal of that cost for the
+  api's refused send, which fails its Run by its id, and the owner's call that the worker's tail
+  fails the Run the body holds (2026-11-21).
 - **Rejected:** the handler after a plain first move: an interrupt between its write and the
   handler left the Run started until the next delivery, up to the queue's visibility timeout
   later. The handler on the whole function, failing the message's active Run read again by the
@@ -1200,20 +1199,21 @@ on the write's guard and fails no later Run ([A Run's guarded moves](#a-runs-gua
   loser of two deliveries at once failed the winner's Run, so the reply was lost. The job carrying
   the Run's id: a second delivery found its own Run settled and was skipped, but the reply to a
   message then takes a Run's id, and the method's name and its parameter disagree.
-- **Cost:** a client that aborts while the Run's write commits or the title's send runs leaves the
-  Run queued and its chat busy ([roadmap.md › Later](roadmap.md#later)). A failed Run's job
-  delivered again after a retry fails the retry's Run, and the user retries again. A model's error
-  on a Run whose chat was deleted meanwhile ends the job as a defect, not as a warning. An
-  interrupt waits for the start's read and write to end.
-- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, and of
-  `ReplyChatService`, one while the assistant answers, one while the job reads its Run, one
-  losing the `generating` write to a rival, one of a failed Run's job delivered again after its
-  retry, one that dies after its Run was failed elsewhere and retried, and `AskChatService`'s of a
-  refused send whose Run a worker settled, which fails no later Run; the job's use case's test of
-  an interrupt's end and its log.
+- **Cost:** a process that dies between the Run's commit and its send leaves the Run queued and its
+  chat busy ([roadmap.md › Later](roadmap.md#later)), and an aborted request still runs to its
+  sends, bounded by the SQS client's timeouts. A failed Run's job delivered again after a retry
+  fails the retry's Run, and the user retries again. A model's error on a Run whose chat was deleted
+  meanwhile ends the job as a defect, not as a warning. An interrupt waits for the start's read and
+  write to end.
+- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send and an ask and a
+  retry interrupted while their Run is stored, and of `ReplyChatService`, one while the assistant
+  answers, one while the job reads its Run, one losing the `generating` write to a rival, one of a
+  failed Run's job delivered again after its retry, one that dies after its Run was failed elsewhere
+  and retried, and `AskChatService`'s of a refused send whose Run a worker settled, which fails no
+  later Run; the job's use case's test of an interrupt's end and its log.
 - **If reversed:** the handler on the whole function again, failing the message's active Run as
   it stands: a reply that dies late fails a retry's Run, and two deliveries at once lose the reply.
-- **Revisit when:** the logs show retries failed as started, or Runs left queued by an abort.
+- **Revisit when:** the logs show retries failed as started, or Runs left queued.
 
 ### One initial migration
 

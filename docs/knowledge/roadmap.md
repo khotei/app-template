@@ -339,12 +339,9 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
-  `retry`), or the client aborts after the commit but before the send starts: a send SQS
-  refuses fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a
-  dead process, and an interrupt during the commit or the title's send ends the flow first. Ways out
-  to weigh: one uninterruptible step from the Run's write through its send (the abort only), a
-  ledger of jobs, a sweep of active Runs. The owner refused a rule by a Run's age, and keeps the
-  abort's window as a cost (2026-11-20).
+  `retry`): a send SQS refuses fails the Run, and both methods run uninterruptibly, but no handler
+  runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active Runs. The owner
+  refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
   (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
@@ -467,14 +464,6 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19) Drop the `RETURNING` read-back of a known id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
-- (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its
-  chat busy (the Cost in
-  [decisions.md › A Run's job on interrupt and on two deliveries](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries),
-  and the first item of `reply-run` above). Way out: send the reply's job through
-  `SqlClient.afterCommit`, present in effect 4.1.5 (`effect/src/sql/SqlClient.ts:144-184`), whose
-  callbacks run uninterruptibly once the `COMMIT` succeeds. Left: its callback is
-  `Effect<void, never>`, so the `202`'s Run comes back another way; a callback that dies is only
-  logged; and `Transaction` must offer it, as use cases do not see `SqlClient`.
 - (2026-11-21) vitest is held at 5.1.0 (the `tools` catalog in `package.json`): 5.1.1's forks
   pool forks a watchdog and calls `child.channel?.unref()`, which Bun 1.4.4 and 1.4.5 lack, so
   every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
@@ -484,8 +473,10 @@ moves it into its own `Later` and deletes it here.
   for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect
   4.1.5), and its jobs are sent before the outer `COMMIT`, against the send after the commit. The
   ask that binds files in one transaction over two modules (`shared-files`, 16) meets this. Ways
-  out to weigh: the service's sends through `SqlClient.afterCommit` (the item above names its
-  limits); the service's writes split from its sends, the use case ordering them, which walks back
+  out to weigh: the service's sends through `SqlClient.afterCommit` (effect 4.1.5,
+  `effect/src/sql/SqlClient.ts:144-184`), whose callback is `Effect<void, never>`, so the `202`'s
+  Run comes back another way, a callback that dies is only logged, and `Transaction` must offer
+  it; the service's writes split from its sends, the use case ordering them, which walks back
   "its writes in a helper beside them" of
   [Composition: wrap or compose](decisions.md#composition-wrap-or-compose); the service taking the
   attachments, refused today, as a module's services import no other module.
@@ -513,8 +504,8 @@ moves it into its own `Later` and deletes it here.
   than the worker's timeout is abandoned and failed, a younger one is left to its worker, which
   closes both cases. Its cost: a rule by time in the Run's model (the clock passed in), and a bound
   that must stay above the worker's timeout as either changes. The owner refused a rule by age for
-  the api's abort window (`reply-run` above); this entry, for the worker's start, is the owner's
-  (2026-11-21).
+  a Run the api leaves queued (`reply-run` above); this entry, for the worker's start, is the
+  owner's (2026-11-21).
 - (2026-11-22) `completeRun` and `failRun` (`application/chat/domain/run.model.ts`) take their
   record first, so each `RunService.move` through them wraps them in a lambda,
   `runs.move(run, (run) => failRun(run, cause))` (three calls in `reply-chat.service.ts`, one in
