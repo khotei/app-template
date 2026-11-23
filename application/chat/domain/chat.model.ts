@@ -53,11 +53,7 @@ export const buildChatStatus = (newestRun: Option.Option<RunFields>): ChatStatus
 export const isNewChat = (chat: Chat): boolean => Option.isNone(chat.run)
 
 /** An ask takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
-export const ensureChatNotBusy = (newestRun: Option.Option<RunFields>) =>
-  newestRun.pipe(
-    Option.filter<RunFields>(isActiveRun),
-    Option.match({
-      onNone: () => Effect.void,
-      onSome: (run) => Effect.fail(new ChatBusyError({ id: run.chatId })),
-    }),
-  )
+export const ensureChatNotBusy = Effect.fnUntraced(function* (newestRun: Option.Option<RunFields>) {
+  const active = Option.filter<RunFields>(newestRun, isActiveRun)
+  if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
+})
