@@ -88,8 +88,9 @@ describe('chats', () => {
     }).pipe(Effect.provide(asOwner())),
   )
 
-  it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () =>
-    Effect.gen(function* () {
+  it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () => {
+    const asked: Array<typeof Message.insert.Type> = []
+    return Effect.gen(function* () {
       const api = yield* ApiClient
 
       const [queued, response] = yield* api.chats.ask({
@@ -100,18 +101,26 @@ describe('chats', () => {
 
       assert.strictEqual(response.status, 202)
       assert.deepInclude(queued, { chatId: chat.id, status: 'queued' })
-      assert.deepInclude(queued.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
-      assert.deepStrictEqual(queued.assistantMessage, Option.none())
+      assert.deepStrictEqual(
+        Arr.map(asked, ({ id, chatId, author, text }) => ({ id, chatId, author, text })),
+        [{ id: queued.userMessageId, chatId: chat.id, author: 'user', text: 'Hello' }],
+      )
+      assert.deepStrictEqual(queued.assistantMessageId, Option.none())
     }).pipe(
       Effect.provide(
         asOwner({
           chats: { selectOne: reads.chat(chat) },
-          messages: { insert: () => Effect.void },
+          messages: {
+            insert: (row) =>
+              Effect.sync(() => {
+                asked.push(row)
+              }),
+          },
           runs: { insert: () => Effect.void },
         }),
       ),
-    ),
-  )
+    )
+  })
 
   it.effect('POST /chats/:chatId/runs after a failed Run is 202 with a queued Run', () =>
     Effect.gen(function* () {
@@ -124,7 +133,7 @@ describe('chats', () => {
 
       assert.strictEqual(response.status, 202)
       assert.strictEqual(retried.status, 'queued')
-      assert.deepInclude(retried.userMessage, { id: firstMessage.id, text: firstMessage.text })
+      assert.strictEqual(retried.userMessageId, firstMessage.id)
     }).pipe(
       Effect.provide(
         asOwner({
@@ -249,8 +258,14 @@ describe('chats', () => {
         getJson,
       )
 
-      assert.deepInclude(wire, { status: 'failed', assistantMessage: null })
+      assert.deepInclude(wire, {
+        status: 'failed',
+        userMessageId: refusedRun.userMessageId,
+        assistantMessageId: null,
+      })
       assert.notProperty(wire, 'failure')
+      assert.notProperty(wire, 'userMessage')
+      assert.notProperty(wire, 'assistantMessage')
       assert.deepInclude(chatWire, { status: 'failed' })
       assert.notProperty(chatWire, 'run')
     }).pipe(

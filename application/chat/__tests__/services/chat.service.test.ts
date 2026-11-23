@@ -7,7 +7,7 @@ import type { UserId } from '@app-template/application/identity'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatFields, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
 import { type ChatFilter, ChatRepository } from '#chat/services/chat.repository'
 import { ChatService } from '#chat/services/chat.service'
@@ -24,7 +24,7 @@ const chatServiceOver = ({
 const selectsOne = (found: Chat) => () => Effect.succeedSome(found)
 
 /** The columns an update writes. */
-const encodeChatSet = Schema.encodeUnknownSync(ChatFields.update)
+const encodeChatSet = Schema.encodeUnknownSync(Chat.update)
 
 const trip = ChatTitle.make('Trip')
 
@@ -50,7 +50,7 @@ describe('ChatService', () => {
   it.live(
     "update writes the title and a moved updatedAt under the owner's where, and returns the chat",
     () => {
-      const updates: Array<readonly [typeof ChatFields.update.Type, ChatFilter]> = []
+      const updates: Array<readonly [typeof Chat.update.Type, ChatFilter]> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 

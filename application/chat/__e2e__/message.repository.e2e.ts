@@ -7,12 +7,12 @@ import { UserId } from '@app-template/application/identity'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatFields } from '#chat/domain/chat.model'
+import { Chat } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
+import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { ChatRepository } from '#chat/services/chat.repository'
 import { MessageRepository } from '#chat/services/message.repository'
 import { RunRepository } from '#chat/services/run.repository'
@@ -30,7 +30,7 @@ const at = (seconds: number) => Model.Override(DateTime.add(createdAt, { seconds
 const userId = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 
 const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seconds?: number }) =>
-  MessageFields.insert.make({
+  Message.insert.make({
     id: MessageId.make(id),
     chatId: ChatId.make(chatId),
     author: 'user',
@@ -40,13 +40,13 @@ const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seco
 
 const run = (
   id: string,
-  answered: typeof MessageFields.insert.Type,
+  answered: typeof Message.insert.Type,
   {
     status = 'queued',
     seconds = 0,
   }: Partial<{ status: 'queued' | 'failed'; seconds: number }> = {},
 ) =>
-  RunFields.insert.make({
+  Run.insert.make({
     id: RunId.make(id),
     chatId: answered.chatId,
     userMessageId: answered.id,
@@ -70,7 +70,7 @@ const insertOwnedChats = (chatIds: ReadonlyArray<string>) =>
       chatIds,
       (id) =>
         chats.insert(
-          ChatFields.insert.make({
+          Chat.insert.make({
             id: ChatId.make(id),
             userId,
             createdAt: Model.Override(DateTime.makeUnsafe(0)),
@@ -164,7 +164,7 @@ describe('MessageRepository', () => {
         } as const
         const failed = run('0192d4e0-7b3a-7c00-8000-000000000070', question, { status: 'failed' })
         const retry = run('0192d4e0-7b3a-7c00-8000-000000000071', question, { seconds: 1 })
-        const done = RunFields.update.make({
+        const done = Run.update.make({
           id: retry.id,
           status: 'done',
           failure: Option.none(),
@@ -177,7 +177,7 @@ describe('MessageRepository', () => {
         yield* messages.insert(reply)
         yield* runs.update(done, 'queued')
 
-        const answered = Option.some(new RunFields({ ...retry, ...done }))
+        const answered = Option.some(new Run({ ...retry, ...done }))
         assertSchemaEquals(Messages, yield* messages.selectMany({ chatId: question.chatId }), [
           new Message({ ...question, run: answered }),
           new Message({ ...reply, run: answered }),

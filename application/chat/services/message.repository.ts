@@ -5,7 +5,7 @@ import { UserId } from '@app-template/application/identity'
 import { buildWhereFragment } from '@app-template/packages/db'
 
 import { ChatId } from '#chat/domain/chat.util'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 
 /** `userId` is the owner of the message's chat, so a message of another user's chat reads as absent. */
@@ -20,7 +20,7 @@ export class MessageRepository extends Context.Service<
   MessageRepository,
   {
     /** A message is never changed. */
-    readonly insert: (message: typeof MessageFields.insert.Type) => Effect.Effect<void>
+    readonly insert: (message: typeof Message.insert.Type) => Effect.Effect<void>
     /** Returns the first message in creation order where `where` holds. */
     readonly selectOne: (where: MessageFilter) => Effect.Effect<Option.Option<Message>>
     /** Returns the messages where `where` holds, in creation order, a tie broken by id. */
@@ -29,7 +29,7 @@ export class MessageRepository extends Context.Service<
 >()('@app-template/application/chat/services/MessageRepository', {
   make: Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
-    const table = yield* SqlModel.makeRepository(MessageFields, {
+    const table = yield* SqlModel.makeRepository(Message, {
       tableName: 'messages',
       spanPrefix: 'MessageRepository',
       idColumn: 'id',

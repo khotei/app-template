@@ -8,11 +8,10 @@ import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId } from '#chat/domain/chat.util'
-import { MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { MessageRepository } from '#chat/services/message.repository'
 import { RunRepository } from '#chat/services/run.repository'
 
@@ -27,7 +26,7 @@ const userId = UserId.make('0192d4e0-7b3a-7c00-8000-0000000000a0')
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-0000000000a1')
 const userMessageId = MessageId.make('0192d4e0-7b3a-7c00-8000-0000000000a2')
 
-const userMessage = MessageFields.insert.make({
+const userMessage = Message.insert.make({
   id: userMessageId,
   chatId,
   author: 'user',
@@ -37,11 +36,9 @@ const userMessage = MessageFields.insert.make({
 
 const run = (
   id: string,
-  fields: Partial<
-    Pick<typeof RunFields.insert.Type, 'status' | 'failure' | 'assistantMessageId'>
-  > = {},
+  fields: Partial<Pick<typeof Run.insert.Type, 'status' | 'failure' | 'assistantMessageId'>> = {},
 ) =>
-  RunFields.insert.make({
+  Run.insert.make({
     id: RunId.make(id),
     chatId,
     userMessageId,
@@ -52,15 +49,12 @@ const run = (
 
 /** The write that moves `row` to `fields`, its `updatedAt` kept. */
 const move = (
-  row: typeof RunFields.insert.Type,
-  fields: Partial<Pick<typeof RunFields.update.Type, 'status' | 'failure' | 'assistantMessageId'>>,
-) => RunFields.update.make({ ...row, ...fields, updatedAt })
+  row: typeof Run.insert.Type,
+  fields: Partial<Pick<typeof Run.update.Type, 'status' | 'failure' | 'assistantMessageId'>>,
+) => Run.update.make({ ...row, ...fields, updatedAt })
 
-/** `row` as a read nests its messages, the reply none unless given. */
-const read = (
-  row: typeof RunFields.insert.Type,
-  assistantMessage: Option.Option<typeof MessageFields.insert.Type> = Option.none(),
-) => new Run({ ...row, userMessage, assistantMessage })
+/** `row` as a read returns it. */
+const read = (row: typeof Run.insert.Type) => new Run(row)
 
 const SelectedRun = Schema.Option(Run)
 
@@ -152,7 +146,7 @@ describe('RunRepository', () => {
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('selectOne nests the message the Run answers and, once written, its reply', () =>
+  it.effect("selectOne reads the reply's id once it is written", () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const messages = yield* MessageRepository
@@ -173,7 +167,7 @@ describe('RunRepository', () => {
       assertSchemaEquals(
         SelectedRun,
         yield* runs.selectOne({ id: queued.id }),
-        Option.some(read(run(queued.id, done), Option.some(reply))),
+        Option.some(read(run(queued.id, done))),
       )
     }).pipe(Effect.provide(RepositoryTest)),
   )

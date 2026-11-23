@@ -5,7 +5,7 @@ import { DateTime, Effect, Option, Schema } from 'effect'
 import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { ChatFields, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatFilter } from '#chat/services/chat.repository'
 import { TitleChatService } from '#chat/services/title-chat.service'
 import { assistantMessageAt, chat, chatId, firstMessage } from '#testing/chat/chat.test-fixture'
@@ -19,12 +19,12 @@ describe('TitleChatService', () => {
     const lisbonWeekend = ChatTitle.make('Lisbon weekend')
     const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
-    const updates: Array<readonly [typeof ChatFields.update.Type, ChatFilter]> = []
+    const updates: Array<readonly [typeof Chat.update.Type, ChatFilter]> = []
     return Effect.gen(function* () {
       yield* TitleChatService.use((titleChat) => titleChat.title(chatId))
 
       assert.deepStrictEqual(
-        updates.map(([set, where]) => [Schema.encodeUnknownSync(ChatFields.update)(set), where]),
+        updates.map(([set, where]) => [Schema.encodeUnknownSync(Chat.update)(set), where]),
         [
           [
             { id: chatId, title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },

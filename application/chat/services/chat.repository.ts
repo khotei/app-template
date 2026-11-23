@@ -4,7 +4,7 @@ import { SqlClient, SqlModel, SqlSchema } from 'effect/sql'
 import { UserId } from '@app-template/application/identity'
 import { buildWhereFragment, orDieUnless } from '@app-template/packages/db'
 
-import { Chat, ChatFields, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 
 /** A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an untitled one. */
@@ -15,16 +15,16 @@ export const ChatFilter = Schema.Struct({
 })
 export type ChatFilter = typeof ChatFilter.Type
 
-const ChatUpdate = Schema.Struct({ to: ChatFields.update, where: ChatFilter })
+const ChatUpdate = Schema.Struct({ to: Chat.update, where: ChatFilter })
 
 const ChatIds = Schema.Struct({ id: ChatId })
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
   {
-    readonly insert: (chat: typeof ChatFields.insert.Type) => Effect.Effect<void>
+    readonly insert: (chat: typeof Chat.insert.Type) => Effect.Effect<void>
     /** Writes `to` on the chat `where` finds; dies when it writes nothing. */
-    readonly update: (to: typeof ChatFields.update.Type, where: ChatFilter) => Effect.Effect<void>
+    readonly update: (to: typeof Chat.update.Type, where: ChatFilter) => Effect.Effect<void>
     /** Returns a chat where `where` holds, with its newest Run. */
     readonly selectOne: (where: ChatFilter) => Effect.Effect<Option.Option<Chat>>
     /** Returns the chats where `where` holds, the newest created first, then the greater id. */
@@ -35,7 +35,7 @@ export class ChatRepository extends Context.Service<
 >()('@app-template/application/chat/services/ChatRepository', {
   make: Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
-    const table = yield* SqlModel.makeRepository(ChatFields, {
+    const table = yield* SqlModel.makeRepository(Chat, {
       tableName: 'chats',
       spanPrefix: 'ChatRepository',
       idColumn: 'id',
@@ -91,7 +91,7 @@ export class ChatRepository extends Context.Service<
     return {
       insert: Effect.fn('ChatRepository.insert')(table.insertVoid, Effect.orDie),
       update: Effect.fn('ChatRepository.update')(
-        (to: typeof ChatFields.update.Type, where: ChatFilter) => updateWhere({ to, where }),
+        (to: typeof Chat.update.Type, where: ChatFilter) => updateWhere({ to, where }),
         orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated'),
         Effect.orDie,
       ),

@@ -962,89 +962,6 @@
           },
           "updatedAt": {
             "type": "string"
-          },
-          "userMessage": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                "format": "uuid"
-              },
-              "chatId": {
-                "type": "string",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                "format": "uuid"
-              },
-              "author": {
-                "type": "string",
-                "enum": [
-                  "user",
-                  "assistant"
-                ]
-              },
-              "text": {
-                "type": "string",
-                "pattern": "^[^\\0]*$"
-              },
-              "createdAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "chatId",
-              "author",
-              "text",
-              "createdAt"
-            ],
-            "additionalProperties": false,
-            "title": "MessageFields.json"
-          },
-          "assistantMessage": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "chatId": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "author": {
-                    "type": "string",
-                    "enum": [
-                      "user",
-                      "assistant"
-                    ]
-                  },
-                  "text": {
-                    "type": "string",
-                    "pattern": "^[^\\0]*$"
-                  },
-                  "createdAt": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "chatId",
-                  "author",
-                  "text",
-                  "createdAt"
-                ],
-                "additionalProperties": false,
-                "title": "MessageFields.json"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -1054,9 +971,7 @@
           "status",
           "assistantMessageId",
           "createdAt",
-          "updatedAt",
-          "userMessage",
-          "assistantMessage"
+          "updatedAt"
         ],
         "additionalProperties": false,
         "title": "Run.json"
@@ -1167,7 +1082,7 @@
                   "updatedAt"
                 ],
                 "additionalProperties": false,
-                "title": "RunFields.json"
+                "title": "Run.json"
               },
               {
                 "type": "null"

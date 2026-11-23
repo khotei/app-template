@@ -7,12 +7,12 @@ import { UserId } from '@app-template/application/identity'
 import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { Chat, ChatFields, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
+import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { ChatRepository } from '#chat/services/chat.repository'
 import { MessageRepository } from '#chat/services/message.repository'
 import { RunRepository } from '#chat/services/run.repository'
@@ -30,7 +30,7 @@ const at = (seconds: number) => Model.Override(DateTime.add(createdAt, { seconds
 const trip = ChatTitle.make('Trip')
 
 const chat = (id: string, userId: string) =>
-  ChatFields.insert.make({
+  Chat.insert.make({
     id: ChatId.make(id),
     userId: UserId.make(userId),
     createdAt: at(0),
@@ -38,11 +38,11 @@ const chat = (id: string, userId: string) =>
   })
 
 /** `row` as a read returns it, with `run` its newest Run. */
-const read = (row: typeof ChatFields.insert.Type, run: Option.Option<RunFields> = Option.none()) =>
+const read = (row: typeof Chat.insert.Type, run: Option.Option<Run> = Option.none()) =>
   new Chat({ ...row, run })
 
 const question = (id: string, chatId: string) =>
-  MessageFields.insert.make({
+  Message.insert.make({
     id: MessageId.make(id),
     chatId: ChatId.make(chatId),
     author: 'user',
@@ -52,13 +52,13 @@ const question = (id: string, chatId: string) =>
 
 const run = (
   id: string,
-  answered: typeof MessageFields.insert.Type,
+  answered: typeof Message.insert.Type,
   {
     status = 'queued',
     seconds = 0,
   }: Partial<{ status: 'queued' | 'failed'; seconds: number }> = {},
 ) =>
-  RunFields.insert.make({
+  Run.insert.make({
     id: RunId.make(id),
     chatId: answered.chatId,
     userMessageId: answered.id,
@@ -202,7 +202,7 @@ describe('ChatRepository', () => {
       assertSchemaEquals(
         SelectedChat,
         yield* chats.selectOne({ id: asked.id }),
-        Option.some(read(asked, Option.some(new RunFields(newer)))),
+        Option.some(read(asked, Option.some(new Run(newer)))),
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )

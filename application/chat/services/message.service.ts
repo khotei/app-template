@@ -3,7 +3,7 @@ import { Context, Effect, Layer, type Types } from 'effect'
 import type { UserId } from '@app-template/application/identity'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { MessageRepository } from '#chat/services/message.repository'
 
 /** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
@@ -28,7 +28,7 @@ export class MessageService extends Context.Service<
     const create = Effect.fn('MessageService.create')(function* (
       fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
-      const row = yield* MessageFields.insert.makeEffect(fields)
+      const row = yield* Message.insert.makeEffect(fields)
 
       yield* messages.insert(row)
       return new Message(row)

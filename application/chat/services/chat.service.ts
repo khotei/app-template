@@ -3,7 +3,7 @@ import { Context, Effect, Layer, SchemaIssue, type Types } from 'effect'
 import type { UserId } from '@app-template/application/identity'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatFields } from '#chat/domain/chat.model'
+import { Chat } from '#chat/domain/chat.model'
 import { ChatRepository } from '#chat/services/chat.repository'
 
 /**
@@ -32,7 +32,7 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const row = yield* ChatFields.insert.makeEffect({ userId })
+      const row = yield* Chat.insert.makeEffect({ userId })
 
       yield* chats.insert(row)
       return new Chat(row)
@@ -52,7 +52,7 @@ export class ChatService extends Context.Service<
     const update = Effect.fn('ChatService.update')(
       function* (fields: Types.Simplify<Pick<Chat, 'title'>>, where: ChatWhere) {
         const chat = yield* getOne(where)
-        const set = yield* ChatFields.update.makeEffect({ id: chat.id, ...fields })
+        const set = yield* Chat.update.makeEffect({ id: chat.id, ...fields })
 
         // Only the update variant's fields, under the `where` again: a change landing after the
         // read is kept.

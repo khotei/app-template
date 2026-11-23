@@ -3,15 +3,15 @@ import { Model } from 'effect/schema'
 
 import { ChatId, textPattern } from '#chat/domain/chat.util'
 import { isBlank, MessageId } from '#chat/domain/message.util'
-import { NestedRun } from '#chat/domain/run-fields.model'
+import { Run } from '#chat/domain/run.model'
 
 export const messageAuthors = ['user', 'assistant'] as const
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-/** A message as `messages` holds it; a message is never changed. */
-export class MessageFields extends Model.Class<MessageFields>('MessageFields')({
+/** A message as `messages` holds it, read with its Run; a message is never changed. */
+export class Message extends Model.Class<Message>('Message')({
   id: Model.UuidV7Insert(MessageId),
   chatId: ChatId,
   author: MessageAuthor,
@@ -23,15 +23,11 @@ export class MessageFields extends Model.Class<MessageFields>('MessageFields')({
     }),
   ),
   createdAt: Model.DateTimeInsertFromDate,
-}) {}
-
-/** A message as a Run nests it: read with the Run as JSON, served as is. */
-export const NestedMessage = MessageFields.json
-export type NestedMessage = typeof NestedMessage.Type
-
-/** A message with its Run: a user's the newest that answers it, an assistant's the one that wrote it. */
-export class Message extends MessageFields.extend<Message>('Message')({
+  /**
+   * A user's the newest Run that answers it, an assistant's the one that wrote it, read with the
+   * message as its json variant, which leaves `failure` off, and never written.
+   */
   run: Model.FieldOnly(['select', 'json'])(
-    Schema.OptionFromNullOr(NestedRun).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+    Schema.OptionFromNullOr(Run.json).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   ),
 }) {}

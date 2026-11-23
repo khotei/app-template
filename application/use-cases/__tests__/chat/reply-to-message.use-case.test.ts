@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Exit, Fiber, Option, pipe } from 'effect'
 
-import { ReplyToMessage, Run, type RunFields } from '@app-template/application/chat'
+import { ReplyToMessage, Run } from '@app-template/application/chat'
 import {
   firstMessage,
   holdCall,
@@ -20,7 +20,7 @@ const reply = replyToMessage(new ReplyToMessage({ messageId: queuedRun.userMessa
 const readRun = (run: Run) => () => Effect.succeedSome(run)
 
 /** The cause the last write fails its Run with. */
-const lastFailure = (updates: ReadonlyArray<typeof RunFields.update.Type>) =>
+const lastFailure = (updates: ReadonlyArray<typeof Run.update.Type>) =>
   pipe(
     Arr.last(updates),
     Option.flatMap(({ failure }) => failure),
@@ -41,7 +41,7 @@ describe('replyToMessage', () => {
       const error = new LlmError({ cause: '401 invalid x-api-key' })
       const assistant = recordMessageAssistant(Effect.fail(error))
       const { logs, layer: logger } = recordLogs()
-      const updates: Array<typeof RunFields.update.Type> = []
+      const updates: Array<typeof Run.update.Type> = []
       return Effect.gen(function* () {
         yield* reply
 
@@ -129,7 +129,7 @@ describe('replyToMessage', () => {
   it.effect('reply fails a Run a dead worker left started, with a warning, unasked', () => {
     const assistant = recordMessageAssistant(Effect.never)
     const { logs, layer: logger } = recordLogs()
-    const updates: Array<typeof RunFields.update.Type> = []
+    const updates: Array<typeof Run.update.Type> = []
     return Effect.gen(function* () {
       yield* reply
 

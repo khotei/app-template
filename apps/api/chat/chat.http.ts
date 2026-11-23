@@ -1,15 +1,14 @@
-import { Schema, Struct } from 'effect'
+import { flow, Schema, Struct } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import {
+  Chat,
   ChatBusyError,
-  ChatFields,
   ChatId,
   ChatNotFoundError,
   ChatStatus,
   ChatTitle,
   Message,
-  MessageFields,
   MessageId,
   MessageNotFoundError,
   Run,
@@ -19,8 +18,8 @@ import {
 } from '@app-template/application/chat'
 
 /** A chat with the status its newest Run gives it, in place of that Run. */
-export const ApiChat = ChatFields.json
-  .mapFields(Struct.assign({ status: ChatStatus }))
+export const ApiChat = Chat.json
+  .mapFields(flow(Struct.omit(['run']), Struct.assign({ status: ChatStatus })))
   .annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 
@@ -58,7 +57,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
   HttpApiEndpoint.post('ask', '/chats/:chatId/messages', {
     params: chatPath,
     payload: Schema.Struct({
-      text: MessageFields.fields.text.check(Schema.isMaxLength(20_000)),
+      text: Message.fields.text.check(Schema.isMaxLength(20_000)),
     }),
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [

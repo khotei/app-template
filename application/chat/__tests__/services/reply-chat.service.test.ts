@@ -17,11 +17,10 @@ import { TestClock } from 'effect/testing'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import type { RunFilter } from '#chat/services/run.repository'
 import {
@@ -48,7 +47,6 @@ const andNow = userMessageAt(4, 'And now?')
 const lastRun = new Run({
   id: queuedRun.id,
   chatId,
-  userMessage: andNow,
   userMessageId: andNow.id,
   createdAt: andNow.createdAt,
   updatedAt: andNow.createdAt,
@@ -60,7 +58,6 @@ const doneElsewhere = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(elsewhereReply.id),
-  assistantMessage: Option.some(elsewhereReply),
 })
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
@@ -78,7 +75,7 @@ const retried = new Run({ ...queuedRun, id: RunId.make('0192d4e0-7b3a-7c00-8000-
 /** Whether `run` holds where `where` holds, as the store filters. */
 const holdsWhere = (
   where: RunFilter,
-): Predicate.Predicate<Pick<RunFields, 'id' | 'userMessageId' | 'status'>> =>
+): Predicate.Predicate<Pick<Run, 'id' | 'userMessageId' | 'status'>> =>
   Predicate.and(
     Predicate.and(
       (run) =>
@@ -98,13 +95,13 @@ const holdsWhere = (
 
 /** The writes a reply makes, each as it was handed to its repository. */
 interface Writes {
-  readonly runs: Array<readonly [typeof RunFields.update.Type, RunStatus]>
-  readonly messages: Array<typeof MessageFields.insert.Type>
+  readonly runs: Array<readonly [typeof Run.update.Type, RunStatus]>
+  readonly messages: Array<typeof Message.insert.Type>
 }
 
 /** The columns `rows` write, so a row and the model built from it compare alike. */
-const encodeMessageRows = Schema.encodeUnknownSync(Schema.Array(MessageFields.insert))
-const encodeRunSet = Schema.encodeUnknownSync(RunFields.update)
+const encodeMessageRows = Schema.encodeUnknownSync(Schema.Array(Message.insert))
+const encodeRunSet = Schema.encodeUnknownSync(Run.update)
 
 const noWrites = (): Writes => ({ runs: [], messages: [] })
 
@@ -122,7 +119,7 @@ function storeRuns(writes: Writes, ...runs: ReadonlyArray<Run>) {
         stored = settled
       }),
     selectOne: (where: RunFilter) => Effect.succeed(find(where)),
-    update: (set: typeof RunFields.update.Type, from: RunStatus) =>
+    update: (set: typeof Run.update.Type, from: RunStatus) =>
       find({ id: set.id, status: [from] }).pipe(
         Option.match({
           onNone: () => Effect.die('no run was updated'),
@@ -212,7 +209,6 @@ describe('ReplyChatService', () => {
           status: 'done',
           updatedAt: at(1000),
           assistantMessageId: Option.some(message.id),
-          assistantMessage: Option.some(message),
         })
         assert.deepStrictEqual(
           Arr.map(writes.runs, ([set, from]) => [encodeRunSet(set), from]).at(-1),

@@ -8,10 +8,9 @@ import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/test
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import type { MessageFilter } from '#chat/services/message.repository'
@@ -26,13 +25,13 @@ import { layerRefusingQueueTest } from '#testing/chat/queue-sender.test-fake'
 
 /** The rows each repository's `insert` is handed. */
 interface Inserts {
-  readonly messages: Array<typeof MessageFields.insert.Type>
-  readonly runs: Array<typeof RunFields.insert.Type>
+  readonly messages: Array<typeof Message.insert.Type>
+  readonly runs: Array<typeof Run.insert.Type>
 }
 
 /** The columns `rows` write, so a row and the model built from it compare alike. */
-const encodeMessageRows = Schema.encodeUnknownSync(Schema.Array(MessageFields.insert))
-const encodeRunRows = Schema.encodeUnknownSync(Schema.Array(RunFields.insert))
+const encodeMessageRows = Schema.encodeUnknownSync(Schema.Array(Message.insert))
+const encodeRunRows = Schema.encodeUnknownSync(Schema.Array(Run.insert))
 
 const noInserts = (): Inserts => ({ messages: [], runs: [] })
 
@@ -61,7 +60,7 @@ const readsFirstMessage = {
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
 function recordUpdates(queue: ChatLeaves['queue']) {
-  const updates: Array<typeof RunFields.update.Type> = []
+  const updates: Array<typeof Run.update.Type> = []
   const layer = layerChatTest(
     {
       messages: { insert: () => Effect.void },
@@ -92,7 +91,6 @@ const doneRun = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(reply.id),
-  assistantMessage: Option.some(reply),
 })
 
 /** A chat an ask has reached before, so an ask sends the reply's job alone. */
@@ -116,7 +114,7 @@ describe('AskChatService', () => {
       return Effect.gen(function* () {
         const run = yield* ask(chat, 'Plan a weekend in Lisbon')
 
-        const { userMessage } = run
+        const userMessage = Arr.getUnsafe(inserts.messages, 0)
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
         assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
@@ -126,13 +124,6 @@ describe('AskChatService', () => {
           new Run({
             id: run.id,
             chatId: chat.id,
-            userMessage: new Message({
-              author: 'user',
-              id: userMessage.id,
-              chatId: chat.id,
-              text: 'Plan a weekend in Lisbon',
-              createdAt: sentAt,
-            }),
             userMessageId: userMessage.id,
             createdAt: run.createdAt,
             updatedAt: run.createdAt,
@@ -140,7 +131,15 @@ describe('AskChatService', () => {
         )
         assert.deepStrictEqual(
           encodeMessageRows(inserts.messages),
-          encodeMessageRows([userMessage]),
+          encodeMessageRows([
+            new Message({
+              author: 'user',
+              id: userMessage.id,
+              chatId: chat.id,
+              text: 'Plan a weekend in Lisbon',
+              createdAt: sentAt,
+            }),
+          ]),
         )
         assert.deepStrictEqual(encodeRunRows(inserts.runs), encodeRunRows([run]))
         assertEquals(yield* jobs.sent, [
@@ -175,8 +174,8 @@ describe('AskChatService', () => {
   })
 
   it.effect("retry's refused send fails the Run it stored, by its id, reading no Run", () => {
-    const stored: Array<typeof RunFields.insert.Type> = []
-    const updates: Array<readonly [typeof RunFields.update.Type, RunStatus]> = []
+    const stored: Array<typeof Run.insert.Type> = []
+    const updates: Array<readonly [typeof Run.update.Type, RunStatus]> = []
     return Effect.gen(function* () {
       const sent = yield* retry(withNewest(failedRun))
 
@@ -349,7 +348,6 @@ describe('AskChatService', () => {
           new Run({
             id: retried.id,
             chatId: chat.id,
-            userMessage: firstMessage,
             userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
             updatedAt: retried.createdAt,
