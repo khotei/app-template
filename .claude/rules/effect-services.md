@@ -12,7 +12,7 @@ paths:
   arguments, never a `.pipe` in its body, save `Transaction`'s `run`
   ([layering.md › Use cases](layering.md#use-cases)); one that reads the method's arguments takes
   them after the effect; a body that only delegates is passed as is
-  (`Effect.fn('<Service>.<method>')(port.<method>)`). `Effect.fnUntraced` takes a generator alone.
+  (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff
 - const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
 -   orders.selectOne(where).pipe(                          // a pipe nested in the body
