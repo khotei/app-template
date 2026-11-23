@@ -42,10 +42,9 @@ export class MessageAssistant extends Context.Service<
       (history: ReadonlyArray<MessageFields>) =>
         model.generateText({ prompt: Arr.map(history, buildPromptMessage) }),
       askModel,
-      Effect.flatMap(({ text }) =>
-        Schema.decodeEffect(AssistantReply)({ text }).pipe(
-          Effect.mapError(({ message }) => new LlmError({ cause: message })),
-        ),
+      Effect.flatMap(({ text }) => Schema.decodeEffect(AssistantReply)({ text })),
+      Effect.catchTag('SchemaError', ({ message }) =>
+        Effect.fail(new LlmError({ cause: message })),
       ),
     )
 
