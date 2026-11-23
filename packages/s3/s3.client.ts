@@ -83,10 +83,14 @@ const decodeObjectHead = ({
     ),
   )
 
-const readBody = ({ Body }: { readonly Body?: { transformToByteArray(): Promise<Uint8Array> } }) =>
-  Effect.fromNullishOr(Body).pipe(
-    Effect.flatMap((body) => Effect.promise(() => body.transformToByteArray())),
-  )
+const readBody = Effect.fnUntraced(function* ({
+  Body,
+}: {
+  readonly Body?: { transformToByteArray(): Promise<Uint8Array> }
+}) {
+  const body = yield* Effect.fromNullishOr(Body)
+  return yield* Effect.promise(() => body.transformToByteArray())
+})
 
 const buildObjectHeaders = ({ contentType, fileName }: PutOptions) => ({
   ContentType: contentType,
