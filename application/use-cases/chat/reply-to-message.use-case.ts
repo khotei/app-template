@@ -9,15 +9,13 @@ const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply fail
  * but a defect, which the queue's consumer logs.
  */
 export const replyToMessage = Effect.fn('replyToMessage')(
-  (job: ReplyToMessage) =>
-    ReplyChatService.use((replies) => replies.reply(job.messageId)).pipe(
-      Effect.catchTag('RunNotFoundError', () =>
-        Effect.logInfo('reply skipped: its Run is done, failed or gone'),
-      ),
-      // The Run holds these failures now, so the job ends.
-      Effect.catchTag(['RunStartedError', 'LlmError'], (error) => logFailed(Cause.fail(error))),
-      // An interrupt skips every catch and tap, the consumer's log too; this handler still runs.
-      Effect.onErrorIf(Cause.hasInterrupts, (cause) => logFailed(cause)),
-    ),
+  (job: ReplyToMessage) => ReplyChatService.use((replies) => replies.reply(job.messageId)),
+  Effect.catchTag('RunNotFoundError', () =>
+    Effect.logInfo('reply skipped: its Run is done, failed or gone'),
+  ),
+  // The Run holds these failures now, so the job ends.
+  Effect.catchTag(['RunStartedError', 'LlmError'], (error) => logFailed(Cause.fail(error))),
+  // An interrupt skips every catch and tap, the consumer's log too; this handler still runs.
+  Effect.onErrorIf(Cause.hasInterrupts, (cause) => logFailed(cause)),
   (reply, job) => Effect.annotateLogs(reply, { messageId: job.messageId }),
 )

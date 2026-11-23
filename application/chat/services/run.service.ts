@@ -61,12 +61,15 @@ export class RunService extends Context.Service<
       return run
     })
 
-    const getOne = Effect.fn('RunService.getOne')((where: RunWhere) =>
-      runs.selectOne(where).pipe(
-        Effect.flatMap(decodeWith(Schema.Option(Run))),
-        // The error's schema keeps the key of `where` alone, dropping what narrowed it.
-        Effect.flatMap(Effect.fromOption(() => new RunNotFoundError({ where }))),
-      ),
+    const getOne = Effect.fn('RunService.getOne')(
+      (where: RunWhere) => runs.selectOne(where),
+      Effect.flatMap(decodeWith(Schema.Option(Run))),
+      // The error's schema keeps the key of `where` alone, dropping what narrowed it.
+      (found, where) =>
+        Effect.flatMap(
+          found,
+          Effect.fromOption(() => new RunNotFoundError({ where })),
+        ),
     )
 
     const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
@@ -78,12 +81,13 @@ export class RunService extends Context.Service<
       return updated
     })
 
-    const move = Effect.fn('RunService.move')(
-      (run: Run, transition: (run: Run) => Effect.Effect<Run>) =>
-        transition(run).pipe(
-          Effect.flatMap((to) => update(to, { id: run.id, status: [run.status] })),
-        ),
-    )
+    const move = Effect.fn('RunService.move')(function* (
+      run: Run,
+      transition: (run: Run) => Effect.Effect<Run>,
+    ) {
+      const to = yield* transition(run)
+      return yield* update(to, { id: run.id, status: [run.status] })
+    })
 
     return { create, getOne, update, move }
   }),

@@ -49,10 +49,7 @@ const isFailedRun = hasStatus(['failed'])
 export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
   newestRun.pipe(
     Option.filter<RunFields>(isFailedRun),
-    Option.match({
-      onNone: () => Effect.fail(new RunNotRetryableError()),
-      onSome: Effect.succeed,
-    }),
+    Effect.fromOption(() => new RunNotRetryableError()),
   )
 
 /** Where a Run may move from each status; `done` and `failed` end it. */

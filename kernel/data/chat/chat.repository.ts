@@ -64,13 +64,13 @@ export class ChatRepository extends Context.Service<
               .update(chats)
               .set(Struct.pick(set, chatSetColumns))
               .where(encodeWhere(chats)(where))
-              .returning({ id: chats.id })
-              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated')),
+              .returning({ id: chats.id }),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated'),
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
-          (where) =>
-            db.query.chats.findFirst(select(where)).pipe(Effect.map(Option.fromUndefinedOr)),
+          (where) => db.query.chats.findFirst(select(where)),
+          Effect.map(Option.fromUndefinedOr),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('ChatRepository.selectMany')(
@@ -78,12 +78,8 @@ export class ChatRepository extends Context.Service<
           orDieWithSqlError,
         ),
         delete: Effect.fn('ChatRepository.delete')(
-          (where) =>
-            db
-              .delete(chats)
-              .where(encodeWhere(chats)(where))
-              .returning({ id: chats.id })
-              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was deleted')),
+          (where) => db.delete(chats).where(encodeWhere(chats)(where)).returning({ id: chats.id }),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was deleted'),
           orDieWithSqlError,
         ),
       }),

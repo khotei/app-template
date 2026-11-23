@@ -70,18 +70,17 @@ export class RunRepository extends Context.Service<
               .update(runs)
               .set(Struct.pick(set, runSetColumns))
               .where(encodeWhere(runs)(where))
-              .returning({ id: runs.id })
-              .pipe(orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated')),
+              .returning({ id: runs.id }),
+          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('RunRepository.selectOne')(
           (where) =>
-            db.query.runs
-              .findFirst({
-                where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
-                with: { userMessage: true, assistantMessage: true },
-              })
-              .pipe(Effect.map(Option.fromUndefinedOr)),
+            db.query.runs.findFirst({
+              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
+              with: { userMessage: true, assistantMessage: true },
+            }),
+          Effect.map(Option.fromUndefinedOr),
           orDieWithSqlError,
         ),
       }),

@@ -40,18 +40,19 @@ export class MessageService extends Context.Service<
       return message
     })
 
-    const getOne = Effect.fn('MessageService.getOne')((where: MessageWhere) =>
-      messages
-        .selectOne(where)
-        .pipe(
-          Effect.flatMap(decodeWith(Schema.Option(Message))),
-          Effect.flatMap(Effect.fromOption(() => new MessageNotFoundError({ id: where.id }))),
+    const getOne = Effect.fn('MessageService.getOne')(
+      (where: MessageWhere) => messages.selectOne(where),
+      Effect.flatMap(decodeWith(Schema.Option(Message))),
+      (found, where) =>
+        Effect.flatMap(
+          found,
+          Effect.fromOption(() => new MessageNotFoundError({ id: where.id })),
         ),
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      (where: Types.Simplify<Pick<Message, 'chatId'>>) =>
-        messages.selectMany(where).pipe(Effect.flatMap(decodeWith(Schema.Array(Message)))),
+      messages.selectMany,
+      Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 
     return { create, getOne, getMany }

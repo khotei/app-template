@@ -19,9 +19,9 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
 
 ## Control flow
 
-- A generator stays flat: guard clauses, no nested ternary, one `yield*` per statement with its
-  value named. One blank line separates its paragraphs (the services it reads, the reads, the
-  checks, the writes, the result); a body of three statements or fewer stays unbroken.
+- A generator stays flat: guard clauses, no nested ternary, one `yield*` per step, its value named,
+  never a lone `flatMap` piped on one. A blank line separates its paragraphs (the services it reads,
+  the reads, the checks, the writes, the result); a body of at most three statements stays unbroken.
 - An `Option` is read by its combinators; a generator may return early on `Option.isSome`/`isNone`.
 - An effect per element is `Effect.forEach` (`{ discard: true }` when nothing is returned);
   `for … of` around `yield*` only for an early exit.
@@ -38,7 +38,7 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
 - A step used once stays in its flow, so the flow reads whole: statements in a generator, or a named
   function expression in the `pipe` or combinator that orders the steps, when its name says what a
   lambda would not (`pipe(rows, function dropStale(rows) { … })`). One used from two places is a
-  declaration, or an arrow constant for one expression.
+  declaration, or an arrow constant for one expression; so is a tail's recovery of several steps.
 - A generator reads a service with `yield*`; outside one it is `Service.use((s) => s.m(…))`, or
   `useSync` for a plain value, never `Effect.flatMap` over it. A call never takes another call's
   result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
