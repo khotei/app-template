@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Exit, Layer } from 'effect'
+import { type Cause, Context, Effect, Layer } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -9,6 +9,7 @@ import {
   completeRun,
   ensureRunUnstarted,
   failRun,
+  type Run,
   startRun,
 } from '#chat/domain/run.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
@@ -42,40 +43,37 @@ export class ReplyChatService extends Context.Service<
     const runs = yield* RunService
     const transaction = yield* Transaction
 
-    // The start runs whole, so whatever ends the answer, an interrupt included, finds the Run it
-    // started and fails that one; a Run settled meanwhile makes that write die.
-    const reply = Effect.fn('ReplyChatService.reply')((userMessageId: MessageId) =>
-      Effect.acquireUseRelease(
-        Effect.gen(function* start() {
-          const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
-          // A Run some worker started was left by a worker that died, so it fails as it is read.
-          const queued = yield* ensureRunUnstarted(active).pipe(
-            Effect.tapError((error) => runs.move(active, (run) => failRun(run, Cause.fail(error)))),
-          )
-          return yield* runs.move(queued, startRun)
-        }),
-        Effect.fnUntraced(function* answer(started) {
-          const assistant = yield* MessageAssistant
-          const history = yield* messages.getMany({ chatId: started.chatId })
-          const generated = yield* assistant.reply(history)
-          // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
-          // its update, and the transaction takes the reply back.
-          yield* messages
-            .create({ chatId: started.chatId, text: generated.text, author: 'assistant' })
-            .pipe(
-              Effect.flatMap((message) => runs.move(started, (run) => completeRun(run, message))),
-              transaction.run,
-            )
-        }),
-        function failUnanswered(started, answered) {
-          return Exit.match(answered, {
-            onSuccess: () => Effect.void,
-            onFailure: (cause) =>
-              runs.move(started, (run) => failRun(run, cause)).pipe(Effect.asVoid),
-          })
-        },
-      ),
-    )
+    // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
+    const failUnanswered =
+      (run: Run) =>
+      <E>(cause: Cause.Cause<E>) =>
+        runs.move(run, (run) => failRun(run, cause))
+
+    const answer = Effect.fnUntraced(function* (started: Run) {
+      const assistant = yield* MessageAssistant
+      const history = yield* messages.getMany({ chatId: started.chatId })
+      const generated = yield* assistant.reply(history)
+      // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
+      // its update, and the transaction takes the reply back.
+      yield* messages
+        .create({ chatId: started.chatId, text: generated.text, author: 'assistant' })
+        .pipe(
+          Effect.flatMap((message) => runs.move(started, (run) => completeRun(run, message))),
+          transaction.run,
+        )
+    })
+
+    // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
+    // the answer, so the Run it started is always there to fail and never stays `generating`; the
+    // answer alone is interruptible, so the worker can still stop during the model's call.
+    const reply = Effect.fn('ReplyChatService.reply')(function* (userMessageId: MessageId) {
+      const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
+      // A Run some worker started was left by a worker that died, so it fails as it is read.
+      const queued = yield* ensureRunUnstarted(active).pipe(Effect.onError(failUnanswered(active)))
+      const started = yield* runs.move(queued, startRun)
+
+      yield* Effect.interruptible(answer(started)).pipe(Effect.onError(failUnanswered(started)))
+    }, Effect.uninterruptible)
 
     return { reply }
   }),
