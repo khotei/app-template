@@ -14,4 +14,4 @@ export {
   updatedAt,
 } from '#db/db-columns'
 export { migrateDatabase, retryWhileUnreachable } from '#db/db-migrate'
-export { buildColumns, buildFields, buildWhereFragment } from '#db/db-statement'
+export { buildWhereFragment, snakeCaseNames } from '#db/db-statement'

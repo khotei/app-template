@@ -1,4 +1,3 @@
-import { PgTypes } from '@effect/sql-pg'
 import {
   Array as Arr,
   Context,
@@ -6,46 +5,47 @@ import {
   flow,
   Layer,
   type Option,
+  Predicate,
   pipe,
   Schema,
   Struct,
-  type Types,
   UndefinedOr,
 } from 'effect'
-import { SqlClient } from 'effect/sql'
+import { SqlClient, SqlModel, SqlSchema } from 'effect/sql'
 
-import {
-  buildColumns,
-  buildFields,
-  buildWhereFragment,
-  orDieUnless,
-} from '@app-template/packages/db'
+import { buildWhereFragment, orDieUnless } from '@app-template/packages/db'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import {
-  RunEntity,
+  type RunEntity,
   type RunEntitySelectWhere,
   type RunEntitySet,
   type RunEntityWhere,
-  runSetColumns,
+  RunRow,
 } from '#kernel/data/chat/run.entity'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
-const runColumns = Struct.keys(RunColumns.fields)
+/** The request of a read or a write's `where`: `RunEntitySelectWhere` or `RunEntityWhere`. */
+const RunWhere = Schema.Struct({
+  id: Schema.optional(Schema.String),
+  chatId: Schema.optional(Schema.String),
+  userMessageId: Schema.optional(Schema.String),
+  userId: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.Array(RunColumns.fields.status)),
+})
+
+/** What an update writes: `RunRow.update` but its key, each field optional. */
+const RunSet = RunRow.update.mapFields(flow(Struct.omit(['id']), Struct.map(Schema.optional)))
 
 /** A message as `to_jsonb` nests it, its timestamp as text. */
 const NestedMessage = Schema.toCodecJson(MessageColumns)
 
 /** A Run as its read selects it. */
 const RunRead = Schema.Struct({
-  ...RunEntity.fields,
+  ...RunRow.fields,
   userMessage: NestedMessage,
   assistantMessage: Schema.NullOr(NestedMessage),
 })
-
-/** `@effect/sql-pg` infers a type for no object, so `failure` binds as a `jsonb` parameter. */
-const encodeFailure = (run: Partial<RunColumns>) =>
-  Struct.evolve(run, { failure: UndefinedOr.map(PgTypes.jsonb) })
 
 export class RunRepository extends Context.Service<
   RunRepository,
@@ -60,11 +60,14 @@ export class RunRepository extends Context.Service<
 >()('@app-template/kernel/data/chat/RunRepository', {
   make: Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
+    const table = yield* SqlModel.makeRepository(RunRow, {
+      tableName: 'runs',
+      spanPrefix: 'RunRepository',
+      idColumn: 'id',
+    })
 
     // `userId` is the owner of the Run's chat, so a Run of another user's chat reads as absent.
-    const encodeWhere = buildWhereFragment<
-      Types.Simplify<Partial<RunEntityWhere & Pick<RunEntity, 'userMessageId'>>>
-    >({
+    const encodeWhere = buildWhereFragment<typeof RunWhere.Encoded>({
       id: UndefinedOr.map((id) => sql`runs.id = ${id}`),
       chatId: UndefinedOr.map((chatId) => sql`runs.chat_id = ${chatId}`),
       userMessageId: UndefinedOr.map(
@@ -76,34 +79,46 @@ export class RunRepository extends Context.Service<
       status: UndefinedOr.map((statuses) => sql`runs.status in ${sql.in(statuses)}`),
     })
 
+    // The guard sits in the `where`, so a Run another writer moved is missed; `makeRepository`'s
+    // update matches by id alone. An `undefined` field is omitted, as `sql.update` would bind it
+    // as `NULL` where Drizzle's `set` skipped it.
+    const updateWhere = SqlSchema.findAll({
+      Request: Schema.Struct({ set: RunSet, where: RunWhere }),
+      Result: Schema.Struct({ id: Schema.String }),
+      execute: ({ set, where }) => sql`
+        update runs set ${sql.update(
+          set,
+          pipe(
+            Struct.keys(set),
+            Arr.filter((key) => Predicate.isUndefined(set[key])),
+          ),
+        )}
+        where ${encodeWhere(where)}
+        returning runs.id`,
+    })
+
+    const findFirst = SqlSchema.findOneOption({
+      Request: RunWhere,
+      Result: RunRead,
+      execute: (where) => sql`
+        select runs.*,
+          to_jsonb(user_message) as user_message,
+          to_jsonb(assistant_message) as assistant_message
+        from runs
+        join messages user_message on user_message.id = runs.user_message_id
+        left join messages assistant_message on assistant_message.id = runs.assistant_message_id
+        where ${encodeWhere(where)}
+        limit 1`,
+    })
+
     return {
-      insert: Effect.fn('RunRepository.insert')(
-        (run: RunColumns) =>
-          sql`insert into runs ${sql.insert(pipe(run, encodeFailure, buildColumns(runColumns)))}`,
-        Effect.orDie,
-      ),
+      insert: Effect.fn('RunRepository.insert')(table.insertVoid, Effect.orDie),
       update: Effect.fn('RunRepository.update')(
-        (set: RunEntitySet, where: RunEntityWhere) => sql`
-          update runs set ${sql.update(pipe(set, encodeFailure, buildColumns(runSetColumns)))}
-          where ${encodeWhere(where)}
-          returning runs.id`,
+        (set: RunEntitySet, where: RunEntityWhere) => updateWhere({ set, where }),
         orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),
         Effect.orDie,
       ),
-      selectOne: Effect.fn('RunRepository.selectOne')(
-        (where: RunEntitySelectWhere) => sql`
-          select runs.*,
-            to_jsonb(user_message) as user_message,
-            to_jsonb(assistant_message) as assistant_message
-          from runs
-          join messages user_message on user_message.id = runs.user_message_id
-          left join messages assistant_message on assistant_message.id = runs.assistant_message_id
-          where ${encodeWhere(where)}
-          limit 1`,
-        Effect.map(flow(buildFields, Arr.head)),
-        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Option(RunRead))),
-        Effect.orDie,
-      ),
+      selectOne: Effect.fn('RunRepository.selectOne')(findFirst, Effect.orDie),
     }
   }),
 }) {

@@ -1,8 +1,12 @@
 import { Schema, type Types } from 'effect'
+import { Model } from 'effect/schema'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
+
+/** A message's row; it is never changed, so its variants are its columns. */
+export class MessageRow extends Model.Class<MessageRow>('MessageRow')(MessageColumns.fields) {}
 
 /**
  * A message with its Run, flat: a user's the newest that answers it, an assistant's the one that

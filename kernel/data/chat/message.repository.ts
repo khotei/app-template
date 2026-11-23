@@ -1,35 +1,30 @@
-import {
-  Array as Arr,
-  Context,
-  Effect,
-  flow,
-  Layer,
-  Option,
-  pipe,
-  Schema,
-  Struct,
-  UndefinedOr,
-} from 'effect'
-import { SqlClient } from 'effect/sql'
+import { Array as Arr, Context, Effect, Layer, Option, Schema, UndefinedOr } from 'effect'
+import { SqlClient, SqlModel, SqlSchema } from 'effect/sql'
 
-import { buildColumns, buildFields, buildWhereFragment } from '@app-template/packages/db'
+import { buildWhereFragment } from '@app-template/packages/db'
 
 import {
   buildMessageEntity,
   type MessageEntity,
   type MessageEntityWhere,
+  MessageRow,
 } from '#kernel/data/chat/message.entity'
-import { MessageColumns } from '#kernel/data/chat/message.table'
+import type { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
-const messageColumns = Struct.keys(MessageColumns.fields)
+/** The request of a read: `MessageEntityWhere`, whose ids need no encoding. */
+const MessageWhere = Schema.Struct({
+  id: Schema.optional(Schema.String),
+  chatId: Schema.optional(Schema.String),
+  userId: Schema.optional(Schema.String),
+})
 
 /** A Run as `to_jsonb` nests it, its timestamps as text. */
 const NestedRun = Schema.NullOr(Schema.toCodecJson(RunColumns))
 
 /** A message as its read selects it, with both Runs `buildMessageEntity` picks from. */
 const MessageRead = Schema.Struct({
-  ...MessageColumns.fields,
+  ...MessageRow.fields,
   newestRun: NestedRun,
   replyOf: NestedRun,
 })
@@ -47,9 +42,14 @@ export class MessageRepository extends Context.Service<
 >()('@app-template/kernel/data/chat/MessageRepository', {
   make: Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
+    const table = yield* SqlModel.makeRepository(MessageRow, {
+      tableName: 'messages',
+      spanPrefix: 'MessageRepository',
+      idColumn: 'id',
+    })
 
     // `userId` is the owner of the row's chat, so a message of another user's chat reads as absent.
-    const encodeWhere = buildWhereFragment<MessageEntityWhere>({
+    const encodeWhere = buildWhereFragment<typeof MessageWhere.Encoded>({
       id: UndefinedOr.map((id) => sql`messages.id = ${id}`),
       chatId: UndefinedOr.map((chatId) => sql`messages.chat_id = ${chatId}`),
       userId: UndefinedOr.map(
@@ -58,7 +58,7 @@ export class MessageRepository extends Context.Service<
     })
 
     // A user's message: the newest of the Runs that answer it; an assistant's: the Run that wrote it.
-    const select = (where: MessageEntityWhere) => sql`
+    const select = (where: typeof MessageWhere.Encoded) => sql`
       select messages.*, to_jsonb(newest_run) as newest_run, to_jsonb(reply_of) as reply_of
       from messages
       left join lateral (
@@ -71,23 +71,27 @@ export class MessageRepository extends Context.Service<
       where ${encodeWhere(where)}
       order by messages.created_at, messages.id`
 
+    const findFirst = SqlSchema.findOneOption({
+      Request: MessageWhere,
+      Result: MessageRead,
+      execute: (where) => sql`${select(where)} limit 1`,
+    })
+
+    const findAll = SqlSchema.findAll({
+      Request: MessageWhere,
+      Result: MessageRead,
+      execute: select,
+    })
+
     return {
-      insert: Effect.fn('MessageRepository.insert')(
-        (message: MessageColumns) =>
-          sql`insert into messages ${sql.insert(pipe(message, buildColumns(messageColumns)))}`,
-        Effect.orDie,
-      ),
+      insert: Effect.fn('MessageRepository.insert')(table.insertVoid, Effect.orDie),
       selectOne: Effect.fn('MessageRepository.selectOne')(
-        (where: MessageEntityWhere) => sql`${select(where)} limit 1`,
-        Effect.map(flow(buildFields, Arr.head)),
-        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Option(MessageRead))),
+        findFirst,
         Effect.map(Option.map(buildMessageEntity)),
         Effect.orDie,
       ),
       selectMany: Effect.fn('MessageRepository.selectMany')(
-        select,
-        Effect.map(buildFields),
-        Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(MessageRead))),
+        findAll,
         Effect.map(Arr.map(buildMessageEntity)),
         Effect.orDie,
       ),

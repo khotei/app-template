@@ -1,5 +1,17 @@
-import { Array as Arr, Predicate, pipe, Record, String as Str, Struct } from 'effect'
+import { Array as Arr, pipe, String as Str, Struct } from 'effect'
 import { Statement } from 'effect/sql'
+
+/**
+ * The `PgClient` options that map camelCase fields to snake_case columns, in the names a
+ * statement writes and the rows it returns, a `to_jsonb` row nested in them included.
+ *
+ * Drizzle's statements on the same client stay as they are: it sends its SQL as text through
+ * `unsafe` and reads its rows `withoutTransform`, as `values` or `raw`.
+ */
+export const snakeCaseNames = {
+  transformQueryNames: Str.camelToSnake,
+  transformResultNames: Str.snakeToCamel,
+} as const
 
 export type WhereFragments<Fields> = {
   readonly [K in keyof Required<Fields>]: (value: Fields[K]) => Statement.Fragment | undefined
@@ -17,21 +29,3 @@ export const buildWhereFragment =
       Arr.flatMapNullishOr((key) => fragments[key](where[key])),
       Statement.and,
     )
-
-/**
- * Renames the columns of rows to the fields an entity names, a `to_jsonb` row nested in them
- * included: the client transforms no names, so Drizzle's statements on it stay as they are.
- */
-export const { array: buildFields } = Statement.defaultTransforms(Str.snakeToCamel)
-
-/**
- * Takes the fields `columns` names, renamed to the columns that hold them: a field no column
- * holds is dropped and an `undefined` one skipped, as Drizzle's `values` and `set` do, since
- * `sql.insert` and `sql.update` would write every key and bind `undefined` as `NULL`.
- */
-export const buildColumns = (columns: ReadonlyArray<string>) => (fields: Record<string, unknown>) =>
-  pipe(
-    Struct.pick(fields, columns),
-    Record.filter(Predicate.isNotUndefined),
-    Record.mapKeys(Str.camelToSnake),
-  )

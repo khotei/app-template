@@ -2,6 +2,8 @@ import { PgClient } from '@effect/sql-pg'
 import { Clock, Effect, Layer, Redacted } from 'effect'
 import { inject } from 'vitest'
 
+import { snakeCaseNames } from '#db/db-statement'
+
 declare module 'vitest' {
   export interface ProvidedContext {
     readonly databaseUrl: string
@@ -43,7 +45,7 @@ export const PgClientTest = Layer.unwrap(
       () => runAdmin(adminUrl, `DROP DATABASE ${database} WITH (FORCE)`).pipe(Effect.orDie),
     )
 
-    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, database) }).pipe(
+    return PgClient.layer({ url: buildDatabaseUrl(adminUrl, database), ...snakeCaseNames }).pipe(
       Layer.provide(LiveClock),
     )
   }),

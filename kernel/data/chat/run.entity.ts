@@ -1,8 +1,32 @@
 import { Schema, type Types } from 'effect'
+import { Model } from 'effect/schema'
 import type { RequireAtLeastOne } from 'type-fest'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
-import { RunColumns } from '#kernel/data/chat/run.table'
+import { RunColumns, RunFailure } from '#kernel/data/chat/run.table'
+
+const { chatId, userMessageId, createdAt } = RunColumns.fields
+
+/** Written once, by the insert. */
+const insertOnly = Model.FieldExcept(['update', 'jsonUpdate'])
+
+/**
+ * A Run's row: an update, found by `id`, writes its status, failure, reply and `updatedAt` alone. `failure` is
+ * written as JSON text, which Postgres reads into its `jsonb`, since `@effect/sql-pg` infers a type
+ * for no object; it is read back parsed.
+ */
+export class RunRow extends Model.Class<RunRow>('RunRow')({
+  ...RunColumns.fields,
+  chatId: insertOnly(chatId),
+  userMessageId: insertOnly(userMessageId),
+  createdAt: insertOnly(createdAt),
+  failure: Model.Field({
+    select: Schema.NullOr(RunFailure),
+    insert: Schema.NullOr(Schema.fromJsonString(RunFailure)),
+    update: Schema.NullOr(Schema.fromJsonString(RunFailure)),
+    json: Schema.NullOr(RunFailure),
+  }),
+}) {}
 
 /**
  * A Run with the message it answers and its reply, none until it is done: every read nests them,
@@ -33,16 +57,9 @@ export type RunEntitySelectWhere =
         Partial<Omit<RunEntityWhere, 'id'>> & { readonly id?: never }
     >
 
-/** The columns an update may write. */
-export const runSetColumns = [
-  'status',
-  'failure',
-  'assistantMessageId',
-  'updatedAt',
-] as const satisfies ReadonlyArray<keyof RunColumns>
-
+/** The fields of `RunRow.update` but its key, which finds the row. */
 export type RunEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<RunColumns, (typeof runSetColumns)[number]>>
+  RequireAtLeastOne<Pick<RunColumns, Exclude<keyof typeof RunRow.update.fields, 'id'>>>
 >
 
 export const newestFirst = { createdAt: 'desc', id: 'desc' } as const
