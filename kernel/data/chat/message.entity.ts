@@ -19,8 +19,6 @@ export type MessageEntityWhere = Types.Simplify<
   RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> & { readonly userId?: string }
 >
 
-export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
-
 interface MessageRead extends Omit<MessageEntity, 'run'> {
   readonly newestRun: RunColumns | null
   readonly replyOf: RunColumns | null
