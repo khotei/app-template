@@ -54,8 +54,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   once, as a service's method; a use case holds no rule of its own and never calls another
   ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
 - All checks precede every write; a step's own guard may repeat a check the use case made.
-- The writes commit in one transaction, `Transaction`'s `run` on their effect alone, piped or as the
-  last argument of their function, never around a send or a language-model call. An object store
+- The writes commit in one transaction, `Transaction`'s `run` piped on them or their function's last
+  argument, spanning a language-model call only to store its answer, never a send. An object store
   joins none: keep the bytes before the row that binds them, delete them once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
   through its `send<Job>`, which logs a refusal and returns it only where its caller settles it

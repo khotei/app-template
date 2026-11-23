@@ -222,9 +222,10 @@ cascade, and `ChatService.delete` is all the api's delete calls.
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
 (`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
-pipes `transaction.run` on the expression that holds them: `AskChatService.ask` the
-user's message and its queued Run, `ReplyChatService.reply` the reply and the Run's
-`done`. Every
+passes `transaction.run` as the last argument of the function that holds them:
+`AskChatService.ask`'s the user's message and its queued Run, `ReplyChatService.reply`'s answer
+the chat's history, the assistant's call and the reply with the Run's `done`, so that transaction,
+and the pooled connection it holds, stays open for the language model's call. Every
 repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every
 race inside Postgres, with no lock in the process, and two api processes behave as two fibers. S3

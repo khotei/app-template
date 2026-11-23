@@ -1091,12 +1091,13 @@ api:    AskChatService.ask ──new chat──▶ TitleChat ──────�
         AskChatService.retry ─askReply─▶ (the same)
 ```
 
-`ReplyChatService.reply` does the reply's job's work, given the user's message the job names:
-its start moves that message's active Run to `generating` if unstarted, in one uninterruptible
-step, then the chat's history, the assistant's reply, and the assistant's message with the Run's
-`done` in one transaction; one tail fails the Run the start wrote on whatever ends the answer. A
-Run some worker started fails `RunStartedError`, whose text says its worker stopped, and the start
-fails it with it; a message with no active Run fails `RunNotFoundError`, unwritten.
+`ReplyChatService.reply` does the reply's job's work, given the user's message the job names: its
+start moves that message's active Run to `generating` if unstarted, in one uninterruptible step,
+then the chat's history, the assistant's reply, and the assistant's message with the Run's `done` in
+one transaction that stays open across the assistant's call; one tail fails the Run the start wrote
+on whatever ends the answer. A Run some worker started fails `RunStartedError`, whose text says its
+worker stopped, and the start fails it with it; a message with no active Run fails
+`RunNotFoundError`, unwritten.
 `TitleChatService.title` does the title's job's work, given the chat the job names: the chat's
 first message, the assistant's
 title, and the title written while the chat is untitled, so a rename by the user wins; a chat with
@@ -1126,7 +1127,8 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   The repeated verb shows the tier in every call (`asks.ask`, `replies.reply`) with no word,
   suffix or folder of its own.
 - **Sources:** the owner's call in the design audit, the reply in its job's service; the owner's
-  split at the queue (2026-11-21); the owner's names, `AskChatService { ask, retry }`,
+  split at the queue (2026-11-21); the owner's call that the reply's answer, the model's call
+  included, runs whole in one transaction; the owner's names, `AskChatService { ask, retry }`,
   `ReplyChatService { reply }` and `TitleChatService { title }` (2026-11-21), on the design
   audit's research into naming this tier (Graça's application service under a command handler,
   UML's included use case, the interactor gem's interactors, Phoenix's context functions).
@@ -1145,14 +1147,19 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   exists. `askAgain` for the retry: the model's word is retry (`ensureRunRetryable`,
   `RunNotRetryableError`, `retryRun`). A word or a file suffix for the tier (application service,
   act, orchestrator): the glossary avoids or holds each, and a suffix's glob would widen each
-  service's override to the others' infrastructure.
+  service's override to the others' infrastructure. A `storeReply` beside the answer holding the
+  reply and the Run's `done` alone, the model's call outside the transaction: it frees the
+  connection during the call, but splits the answer into a second function the owner did not want.
 - **Cost:** three services and three Biome overrides, each of one process. `ReplyChatService` comes
   near a use case in reach (a transaction, an assistant, other models' services): its own Biome
   override admits it by its path (`reply-chat.service.ts`), and review keeps it to the reply's job;
   each worker service names its assistant's errors through its type, as a service imports no part of
   the kernel. `reply` requires the message's assistant and `title` the chat's, which the worker
   provides, so the module's test layer builds without either. A service holding its own transaction
-  cannot join a caller's ([roadmap.md › Later](roadmap.md#later)).
+  cannot join a caller's ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays
+  open for the model's call, so each reply in flight holds one pooled Postgres connection for that
+  call's length: `PgPool` opens at most 10 unless told otherwise
+  (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
   end and its logs in its use case; the reply service's Biome override, which adds to the
   services' the message's assistant's `.llm` file and of `@app-template/packages/db` only
@@ -1162,7 +1169,7 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
 - **Revisit when:** a job of the chat is handled in the api, or one the worker sends, so a side would
-  need the other process's requirement.
+  need the other process's requirement; or the pool runs short under concurrent replies.
 
 ### A Run's job on interrupt and on two deliveries
 

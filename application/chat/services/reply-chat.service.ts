@@ -49,19 +49,19 @@ export class ReplyChatService extends Context.Service<
       <E>(cause: Cause.Cause<E>) =>
         runs.move(run, (run) => failRun(run, cause))
 
+    // One transaction, open across the model's call: the reply is written first, as the Run names
+    // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
       const assistant = yield* MessageAssistant
       const history = yield* messages.getMany({ chatId: started.chatId })
       const generated = yield* assistant.reply(history)
-      // The reply first, as the Run names it; a Run another worker settled meanwhile dies on
-      // its update, and the transaction takes the reply back.
-      yield* messages
-        .create({ chatId: started.chatId, text: generated.text, author: 'assistant' })
-        .pipe(
-          Effect.flatMap((message) => runs.move(started, (run) => completeRun(run, message))),
-          transaction.run,
-        )
-    })
+      const message = yield* messages.create({
+        chatId: started.chatId,
+        text: generated.text,
+        author: 'assistant',
+      })
+      yield* runs.move(started, (run) => completeRun(run, message))
+    }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
     // the answer, so the Run it started is always there to fail and never stays `generating`; the
