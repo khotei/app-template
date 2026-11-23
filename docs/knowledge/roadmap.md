@@ -526,8 +526,8 @@ moves it into its own `Later` and deletes it here.
   test replaces them, as the unit suites mock the leaves (the repositories, the queue sender, the
   assistants). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
   services, while its `Effect.fn` guidance and examples support a plain function that yields its
-  services, and each method carries a requirement (`MessageAssistant`, `ChatAssistant`), against
-  "service operations should have the `Requirements` parameter set to `never`"
+  services; each takes its assistant in its `make`, so its method requires nothing, as "service
+  operations should have the `Requirements` parameter set to `never`"
   ([Avoiding Requirement Leakage](https://effect.website/docs/requirements-management/layers/)).
   As functions they would cost the two files, their tests and the worker's two `.layer` entries,
   lose the `layer<Variant>` wrap point, and leave each use case wrapping one function. The owner

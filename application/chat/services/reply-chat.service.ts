@@ -31,17 +31,14 @@ export class ReplyChatService extends Context.Service<
      */
     readonly reply: (
       userMessageId: MessageId,
-    ) => Effect.Effect<
-      void,
-      RunNotFoundError | RunStartedError | MessageAssistantError,
-      MessageAssistant
-    >
+    ) => Effect.Effect<void, RunNotFoundError | RunStartedError | MessageAssistantError>
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
+    const assistant = yield* MessageAssistant
 
     // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
     const failUnanswered =
@@ -52,7 +49,6 @@ export class ReplyChatService extends Context.Service<
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
-      const assistant = yield* MessageAssistant
       const history = yield* messages.getMany({ chatId: started.chatId })
       const generated = yield* assistant.reply(history)
       const message = yield* messages.create({

@@ -17,18 +17,15 @@ export class TitleChatService extends Context.Service<
      * Titles the chat `chatId` from its first message while it is untitled; a chat titled or
      * gone fails `ChatNotFoundError`.
      */
-    readonly title: (
-      chatId: ChatId,
-    ) => Effect.Effect<void, ChatNotFoundError | ChatAssistantError, ChatAssistant>
+    readonly title: (chatId: ChatId) => Effect.Effect<void, ChatNotFoundError | ChatAssistantError>
   }
 >()('@app-template/application/chat/services/TitleChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatService
     const messages = yield* MessageService
+    const assistant = yield* ChatAssistant
 
     const title = Effect.fn('TitleChatService.title')(function* (chatId: ChatId) {
-      const assistant = yield* ChatAssistant
-
       // The job follows its first message's commit, and a message leaves only with its chat, so
       // a chat with none is gone.
       const history = yield* messages.getMany({ chatId })

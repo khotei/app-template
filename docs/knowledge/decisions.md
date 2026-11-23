@@ -1128,38 +1128,43 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   suffix or folder of its own.
 - **Sources:** the owner's call in the design audit, the reply in its job's service; the owner's
   split at the queue (2026-11-21); the owner's call that the reply's answer, the model's call
-  included, runs whole in one transaction; the owner's names, `AskChatService { ask, retry }`,
-  `ReplyChatService { reply }` and `TitleChatService { title }` (2026-11-21), on the design
-  audit's research into naming this tier (Graça's application service under a command handler,
-  UML's included use case, the interactor gem's interactors, Phoenix's context functions).
+  included, runs whole in one transaction; the owner's call that a service takes what its process
+  provides in its `make`, so its methods require nothing; the owner's names, `AskChatService { ask,
+  retry }`, `ReplyChatService { reply }` and `TitleChatService { title }` (2026-11-21), on the
+  design audit's research into naming this tier (Graça's application service under a command
+  handler, UML's included use case, the interactor gem's interactors, Phoenix's context functions).
 - **Rejected:** the reply in its use case, the service only sending: the Run's rule and moves
-  composed in a flow, and its job's statuses in two units. The skip logged in the service,
-  `reply` then failing only with the assistant's errors: the job's end split over two units,
-  each with its logs. The assistant's errors settled in the service: the use case would hold
-  nothing, and the job's end is the job's policy. A port in `domain/` for the assistants the
-  service calls: an interface with one implementation for one caller, where its own override
-  admits the `.llm` file by name. The title's run left in its use case: one of the chat's two
-  jobs read and wrote records in a flow. One service sending the jobs and doing their work: each process
-  would provide the other's requirement, and one guard would admit both the queue file and the
-  `.llm` files. One worker service for both jobs, `ReplyChatService { replyMessage, replyTitle }`:
-  temporal cohesion, two units under one name, and a Reply that titles, which the glossary's
-  Reply excludes. `askMessage` and `askRetryMessage`: "ask a message", and no retry message
-  exists. `askAgain` for the retry: the model's word is retry (`ensureRunRetryable`,
-  `RunNotRetryableError`, `retryRun`). A word or a file suffix for the tier (application service,
-  act, orchestrator): the glossary avoids or holds each, and a suffix's glob would widen each
-  service's override to the others' infrastructure. A `storeReply` beside the answer holding the
-  reply and the Run's `done` alone, the model's call outside the transaction: it frees the
-  connection during the call, but splits the answer into a second function the owner did not want.
+  composed in a flow, and its job's statuses in two units. The skip logged in the service, `reply`
+  then failing only with the assistant's errors: the job's end split over two units, each with its
+  logs. The assistant's errors settled in the service: the use case would hold nothing, and the
+  job's end is the job's policy. A port in `domain/` for the assistants the service calls: an
+  interface with one implementation for one caller, where its own override admits the `.llm` file by
+  name. The title's run left in its use case: one of the chat's two jobs read and wrote records in a
+  flow. One service sending the jobs and doing their work: each process would provide the other's
+  requirement, and one guard would admit both the queue file and the `.llm` files. One worker
+  service for both jobs, `ReplyChatService { replyMessage, replyTitle }`: temporal cohesion, two
+  units under one name, and a Reply that titles, which the glossary's Reply excludes. `askMessage`
+  and `askRetryMessage`: "ask a message", and no retry message exists. `askAgain` for the retry: the
+  model's word is retry (`ensureRunRetryable`, `RunNotRetryableError`, `retryRun`). A word or a file
+  suffix for the tier (application service, act, orchestrator): the glossary avoids or holds each,
+  and a suffix's glob would widen each service's override to the others' infrastructure. Each method
+  requiring its assistant, so the module's test layer built without one and a case provided its own
+  per call: a method's type carried its process's dependency, against Effect's guidance that a
+  service's operations require nothing. A `storeReply` beside the answer holding the reply and the
+  Run's `done` alone, the model's call outside the transaction: it frees the connection during the
+  call, but splits the answer into a second function the owner did not want.
 - **Cost:** three services and three Biome overrides, each of one process. `ReplyChatService` comes
   near a use case in reach (a transaction, an assistant, other models' services): its own Biome
   override admits it by its path (`reply-chat.service.ts`), and review keeps it to the reply's job;
   each worker service names its assistant's errors through its type, as a service imports no part of
-  the kernel. `reply` requires the message's assistant and `title` the chat's, which the worker
-  provides, so the module's test layer builds without either. A service holding its own transaction
-  cannot join a caller's ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays
-  open for the model's call, so each reply in flight holds one pooled Postgres connection for that
-  call's length: `PgPool` opens at most 10 unless told otherwise
-  (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the kernel's client passes only its url.
+  the kernel. `reply` and `title` take their assistant once, in their service's `make`, so each
+  method's type says only its result and errors, and the module's test layer builds a double of each
+  assistant, a mock whose calls die, which a case replaces through the layer's argument, never per
+  call. A service holding its own transaction cannot join a caller's ([roadmap.md ›
+  Later](roadmap.md#later)). The reply's transaction stays open for the model's call, so each reply
+  in flight holds one pooled Postgres connection for that call's length: `PgPool` opens at most 10
+  unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the kernel's client
+  passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
   end and its logs in its use case; the reply service's Biome override, which adds to the
   services' the message's assistant's `.llm` file and of `@app-template/packages/db` only

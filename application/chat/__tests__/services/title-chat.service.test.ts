@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { DateTime, Effect, Option } from 'effect'
 
 import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
@@ -35,19 +35,22 @@ describe('TitleChatService', () => {
       assert.deepStrictEqual(logs, [])
     }).pipe(
       Effect.provide([
-        layerChatTest({
-          messages: {
-            selectMany: () =>
-              Effect.forEach([firstMessage, aPhoto], (message) => encodeWith(Message)(message)),
+        layerChatTest(
+          {
+            messages: {
+              selectMany: () =>
+                Effect.forEach([firstMessage, aPhoto], (message) => encodeWith(Message)(message)),
+            },
+            chats: {
+              selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
+              update: (...update) =>
+                Effect.sync(() => {
+                  updates.push(update)
+                }),
+            },
           },
-          chats: {
-            selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
-            update: (...update) =>
-              Effect.sync(() => {
-                updates.push(update)
-              }),
-          },
-        }).pipe(Layer.provideMerge(assistant.layer)),
+          { chatAssistant: assistant.layer },
+        ),
         logger,
       ]),
     )
@@ -64,8 +67,9 @@ describe('TitleChatService', () => {
       assertEquals(yield* assistant.texts, [])
     }).pipe(
       Effect.provide(
-        layerChatTest({ messages: { selectMany: () => Effect.succeed([]) } }).pipe(
-          Layer.provideMerge(assistant.layer),
+        layerChatTest(
+          { messages: { selectMany: () => Effect.succeed([]) } },
+          { chatAssistant: assistant.layer },
         ),
       ),
     )

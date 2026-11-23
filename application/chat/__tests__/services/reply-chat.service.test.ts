@@ -6,7 +6,6 @@ import {
   Effect,
   Exit,
   Fiber,
-  Layer,
   Option,
   Predicate,
   pipe,
@@ -230,9 +229,9 @@ describe('ReplyChatService', () => {
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
-          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) })).pipe(
-            Layer.provideMerge(assistant.layer),
-          ),
+          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) }), {
+            messageAssistant: assistant.layer,
+          }),
           logger,
         ]),
       )
@@ -250,9 +249,9 @@ describe('ReplyChatService', () => {
       assert.include(lastWrite(writes).cause, 'provider exploded')
     }).pipe(
       Effect.provide(
-        layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) })).pipe(
-          Layer.provideMerge(assistant.layer),
-        ),
+        layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) }), {
+          messageAssistant: assistant.layer,
+        }),
       ),
     )
   })
@@ -269,9 +268,9 @@ describe('ReplyChatService', () => {
       assert.strictEqual(lastWrite(writes).move, 'generating → failed')
     }).pipe(
       Effect.provide(
-        layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) })).pipe(
-          Layer.provideMerge(assistant.layer),
-        ),
+        layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) }), {
+          messageAssistant: assistant.layer,
+        }),
       ),
     )
   })
@@ -294,9 +293,9 @@ describe('ReplyChatService', () => {
       assert.deepStrictEqual(moves(writes), ['queued → generating', 'generating → failed'])
     }).pipe(
       Effect.provide(
-        layerChatTest(replyingTo(writes, { runs: { ...runs, selectOne: heldRead } })).pipe(
-          Layer.provideMerge(recordMessageAssistant(Effect.succeed(sure)).layer),
-        ),
+        layerChatTest(replyingTo(writes, { runs: { ...runs, selectOne: heldRead } }), {
+          messageAssistant: recordMessageAssistant(Effect.succeed(sure)).layer,
+        }),
       ),
     )
   })
@@ -318,9 +317,9 @@ describe('ReplyChatService', () => {
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
-          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, generating) })).pipe(
-            Layer.provideMerge(assistant.layer),
-          ),
+          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, generating) }), {
+            messageAssistant: assistant.layer,
+          }),
         ),
       )
     },
@@ -340,7 +339,8 @@ describe('ReplyChatService', () => {
             runs: storeRuns(writes, lastRun),
             history: [whatIsThis, aPhoto, andAgain, andNow],
           }),
-        ).pipe(Layer.provideMerge(assistant.layer)),
+          { messageAssistant: assistant.layer },
+        ),
       ),
     )
   })
@@ -365,7 +365,7 @@ describe('ReplyChatService', () => {
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
-          layerChatTest(replyingTo(writes, { runs })).pipe(Layer.provideMerge(assistant.layer)),
+          layerChatTest(replyingTo(writes, { runs }), { messageAssistant: assistant.layer }),
           logger,
         ]),
       )
@@ -389,9 +389,9 @@ describe('ReplyChatService', () => {
         assertEquals(yield* assistant.histories, [])
       }).pipe(
         Effect.provide(
-          layerChatTest(replyingTo(writes, { runs: { ...runs, selectOne: rivalStarts } })).pipe(
-            Layer.provideMerge(assistant.layer),
-          ),
+          layerChatTest(replyingTo(writes, { runs: { ...runs, selectOne: rivalStarts } }), {
+            messageAssistant: assistant.layer,
+          }),
         ),
       )
     },
@@ -425,9 +425,9 @@ describe('ReplyChatService', () => {
         )
       }).pipe(
         Effect.provide(
-          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, retried) })).pipe(
-            Layer.provideMerge(assistant.layer),
-          ),
+          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, retried) }), {
+            messageAssistant: assistant.layer,
+          }),
         ),
       )
     },
@@ -456,7 +456,7 @@ describe('ReplyChatService', () => {
         )
       }).pipe(
         Effect.provide(
-          layerChatTest(replyingTo(writes, { runs })).pipe(Layer.provideMerge(assistant.layer)),
+          layerChatTest(replyingTo(writes, { runs }), { messageAssistant: assistant.layer }),
         ),
       )
     },
@@ -481,7 +481,7 @@ describe('ReplyChatService', () => {
       }).pipe(
         // No `update`: a write would die on it.
         Effect.provide(
-          layerChatTest({ runs: { selectOne } }).pipe(Layer.provideMerge(assistant.layer)),
+          layerChatTest({ runs: { selectOne } }, { messageAssistant: assistant.layer }),
         ),
       )
     },

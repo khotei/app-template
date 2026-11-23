@@ -5,6 +5,8 @@ import { ChatRepository, MessageRepository, RunRepository } from '@app-template/
 import type { Transaction } from '@app-template/packages/db'
 import { TransactionTest } from '@app-template/packages/db/testing'
 
+import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
+import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
@@ -20,13 +22,26 @@ export interface ChatRepositoryMocks {
 }
 
 /**
- * Chat's services over `mocks` and `transaction`, the identity one by default,
- * each in context for the case; the `QueueSender` and the assistants are the test's,
- * `recordMessages()`, `recordMessageAssistant()` and `recordChatAssistant()`.
+ * The leaves the services take in their `make`, each a case's double: `recordMessageAssistant()`,
+ * `recordChatAssistant()`; one a case leaves out dies on its first call.
+ */
+export interface ChatLeaves {
+  readonly messageAssistant?: Layer.Layer<MessageAssistant>
+  readonly chatAssistant?: Layer.Layer<ChatAssistant>
+  readonly transaction?: Layer.Layer<Transaction>
+}
+
+/**
+ * Chat's services over `mocks` and `leaves`, the transaction the identity one by default, each in
+ * context for the case; the `QueueSender` is the test's, `recordMessages()`.
  */
 export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
-  transaction: Layer.Layer<Transaction> = TransactionTest,
+  {
+    messageAssistant = Layer.mock(MessageAssistant, {}),
+    chatAssistant = Layer.mock(ChatAssistant, {}),
+    transaction = TransactionTest,
+  }: ChatLeaves = {},
 ) =>
   Layer.mergeAll(AskChatService.layer, ReplyChatService.layer, TitleChatService.layer).pipe(
     Layer.provideMerge(Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer)),
@@ -35,6 +50,8 @@ export const layerChatTest = (
         Layer.mock(ChatRepository, chats),
         Layer.mock(MessageRepository, messages),
         Layer.mock(RunRepository, runs),
+        messageAssistant,
+        chatAssistant,
         transaction,
         BunCrypto.layer,
       ),
