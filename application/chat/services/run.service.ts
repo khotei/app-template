@@ -78,12 +78,13 @@ export class RunService extends Context.Service<
       return updated
     })
 
-    const move = Effect.fn('RunService.move')(
-      (run: Run, transition: (run: Run) => Effect.Effect<Run>) =>
-        transition(run).pipe(
-          Effect.flatMap((to) => update(to, { id: run.id, status: [run.status] })),
-        ),
-    )
+    const move = Effect.fn('RunService.move')(function* (
+      run: Run,
+      transition: (run: Run) => Effect.Effect<Run>,
+    ) {
+      const to = yield* transition(run)
+      return yield* update(to, { id: run.id, status: [run.status] })
+    })
 
     return { create, getOne, update, move }
   }),

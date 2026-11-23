@@ -19,9 +19,8 @@ export const UserHandler = HttpApiBuilder.group(
     return handlers.handle(
       'recognise',
       Effect.fn('UserHandler.recognise')(function* () {
-        const { user, secret } = yield* HttpApiBuilder.securityDecode(Auth.security.cookie).pipe(
-          Effect.flatMap(users.recognise),
-        )
+        const presented = yield* HttpApiBuilder.securityDecode(Auth.security.cookie)
+        const { user, secret } = yield* users.recognise(presented)
 
         yield* HttpApiBuilder.securitySetCookie(Auth.security.cookie, secret, {
           httpOnly: true,
