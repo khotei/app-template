@@ -58,13 +58,15 @@ export class AskChatService extends Context.Service<
       Effect.uninterruptible,
     )
 
+    // The message and its Run commit together: a Run that loses the race keeps no message.
+    const createMessageRun = Effect.fnUntraced(function* (chat: Chat, text: string) {
+      const message = yield* messages.create({ chatId: chat.id, text, author: 'user' })
+      return yield* runs.create(message)
+    }, transaction.run)
+
     const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
       yield* ensureChatNotBusy(chat.run)
-
-      // The message and its Run commit together: a Run that loses the race keeps no message.
-      const run = yield* messages
-        .create({ chatId: chat.id, text, author: 'user' })
-        .pipe(Effect.flatMap(runs.create), transaction.run)
+      const run = yield* createMessageRun(chat, text)
 
       // A chat no ask has reached yet is titled once, from its first message; the title's send
       // never fails, so the jobs go in either order.
