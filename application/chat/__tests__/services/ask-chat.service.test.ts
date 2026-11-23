@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Exit, Fiber, Layer, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Option } from 'effect'
 
 import type {
   MessageColumns,
@@ -23,7 +23,11 @@ import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
-import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
+import {
+  type ChatLeaves,
+  type ChatRepositoryMocks,
+  layerChatTest,
+} from '#testing/chat/chat.test-layer'
 import { holdCall } from '#testing/chat/chat.test-util'
 import { layerRefusingQueueTest } from '#testing/chat/queue-sender.test-fake'
 
@@ -59,18 +63,21 @@ const readsFirstMessage = {
 } satisfies ChatRepositoryMocks
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
-function recordUpdates<Queue>(queue: Layer.Layer<Queue>) {
+function recordUpdates(queue: ChatLeaves['queue']) {
   const updates: Array<RunEntitySet> = []
-  const layer = layerChatTest({
-    messages: { insert: () => Effect.void },
-    runs: {
-      insert: () => Effect.void,
-      update: (set) =>
-        Effect.sync(() => {
-          updates.push(set)
-        }),
+  const layer = layerChatTest(
+    {
+      messages: { insert: () => Effect.void },
+      runs: {
+        insert: () => Effect.void,
+        update: (set) =>
+          Effect.sync(() => {
+            updates.push(set)
+          }),
+      },
     },
-  }).pipe(Layer.provideMerge(queue))
+    { queue },
+  )
   return { updates, layer }
 }
 
@@ -140,9 +147,7 @@ describe('AskChatService', () => {
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
           replyJob(run),
         ])
-      }).pipe(
-        Effect.provide(layerChatTest(insertingInto(inserts)).pipe(Layer.provideMerge(jobs.layer))),
-      )
+      }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))
     },
   )
 
@@ -152,11 +157,7 @@ describe('AskChatService', () => {
       const run = yield* ask(answeredChat, 'And in Porto?')
 
       assertEquals(yield* jobs.sent, [replyJob(run)])
-    }).pipe(
-      Effect.provide(
-        layerChatTest(insertingInto(noInserts())).pipe(Layer.provideMerge(jobs.layer)),
-      ),
-    )
+    }).pipe(Effect.provide(layerChatTest(insertingInto(noInserts()), { queue: jobs.layer })))
   })
 
   it.effect("ask fails the Run with the text of SQS's refusal, and returns the failed Run", () => {
@@ -187,19 +188,22 @@ describe('AskChatService', () => {
     }).pipe(
       Effect.provide(
         // No `selectOne`: a read of the message's active Run, a later retry's, would die on it.
-        layerChatTest({
-          ...readsFirstMessage,
-          runs: {
-            insert: (row) =>
-              Effect.sync(() => {
-                stored.push(row)
-              }),
-            update: (...update) =>
-              Effect.sync(() => {
-                updates.push(update)
-              }),
+        layerChatTest(
+          {
+            ...readsFirstMessage,
+            runs: {
+              insert: (row) =>
+                Effect.sync(() => {
+                  stored.push(row)
+                }),
+              update: (...update) =>
+                Effect.sync(() => {
+                  updates.push(update)
+                }),
+            },
           },
-        }).pipe(Layer.provideMerge(layerRefusingQueueTest())),
+          { queue: layerRefusingQueueTest() },
+        ),
       ),
     )
   })
@@ -218,17 +222,20 @@ describe('AskChatService', () => {
         )
       }).pipe(
         Effect.provide(
-          layerChatTest({
-            ...readsFirstMessage,
-            runs: {
-              insert: () => Effect.void,
-              // The Run stored is no longer queued, so the guarded write touches no row.
-              update: (_, where) =>
-                Effect.sync(() => {
-                  updates.push(where)
-                }).pipe(Effect.andThen(Effect.die('no run was updated'))),
+          layerChatTest(
+            {
+              ...readsFirstMessage,
+              runs: {
+                insert: () => Effect.void,
+                // The Run stored is no longer queued, so the guarded write touches no row.
+                update: (_, where) =>
+                  Effect.sync(() => {
+                    updates.push(where)
+                  }).pipe(Effect.andThen(Effect.die('no run was updated'))),
+              },
             },
-          }).pipe(Layer.provideMerge(layerRefusingQueueTest())),
+            { queue: layerRefusingQueueTest() },
+          ),
         ),
       )
     },
@@ -271,10 +278,13 @@ describe('AskChatService', () => {
       )
     }).pipe(
       Effect.provide(
-        layerChatTest({
-          messages: { insert: () => Effect.void },
-          runs: { insert: () => held.hold },
-        }).pipe(Layer.provideMerge(jobs.layer)),
+        layerChatTest(
+          {
+            messages: { insert: () => Effect.void },
+            runs: { insert: () => held.hold },
+          },
+          { queue: jobs.layer },
+        ),
       ),
     )
   })
@@ -297,8 +307,9 @@ describe('AskChatService', () => {
       )
     }).pipe(
       Effect.provide(
-        layerChatTest({ ...readsFirstMessage, runs: { insert: () => held.hold } }).pipe(
-          Layer.provideMerge(jobs.layer),
+        layerChatTest(
+          { ...readsFirstMessage, runs: { insert: () => held.hold } },
+          { queue: jobs.layer },
         ),
       ),
     )
@@ -311,7 +322,7 @@ describe('AskChatService', () => {
 
       assertSchemaEquals(ChatBusyError, refused, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest({}).pipe(Layer.provideMerge(jobs.layer))))
+    }).pipe(Effect.provide(layerChatTest({}, { queue: jobs.layer })))
   })
 
   it.effect.each([
@@ -324,7 +335,7 @@ describe('AskChatService', () => {
 
       assertSchemaEquals(RunNotRetryableError, refused, new RunNotRetryableError())
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest({}).pipe(Layer.provideMerge(jobs.layer))))
+    }).pipe(Effect.provide(layerChatTest({}, { queue: jobs.layer })))
   })
 
   it.effect(
@@ -352,9 +363,7 @@ describe('AskChatService', () => {
         assertEquals(yield* jobs.sent, [replyJob(retried)])
       }).pipe(
         Effect.provide(
-          layerChatTest(insertingInto(inserts, readsFirstMessage)).pipe(
-            Layer.provideMerge(jobs.layer),
-          ),
+          layerChatTest(insertingInto(inserts, readsFirstMessage), { queue: jobs.layer }),
         ),
       )
     },
@@ -377,14 +386,17 @@ describe('AskChatService', () => {
         assertEquals(yield* jobs.sent, [])
       }).pipe(
         Effect.provide(
-          layerChatTest({
-            messages: {
-              selectOne: (where) =>
-                Effect.sync(() => {
-                  wheres.push(where)
-                }).pipe(Effect.as(Option.none())),
+          layerChatTest(
+            {
+              messages: {
+                selectOne: (where) =>
+                  Effect.sync(() => {
+                    wheres.push(where)
+                  }).pipe(Effect.as(Option.none())),
+              },
             },
-          }).pipe(Layer.provideMerge(jobs.layer)),
+            { queue: jobs.layer },
+          ),
         ),
       )
     },

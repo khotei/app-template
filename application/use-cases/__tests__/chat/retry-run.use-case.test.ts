@@ -1,6 +1,6 @@
 import { describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer, Option } from 'effect'
+import { Effect, Option } from 'effect'
 
 import {
   Chat,
@@ -55,9 +55,7 @@ describe('retryRun', () => {
           message: new ReplyToMessage({ messageId: retried.userMessageId }),
         },
       ])
-    }).pipe(
-      Effect.provide(layerChatTest(chatWithRun(failedRun)).pipe(Layer.provideMerge(jobs.layer))),
-    )
+    }).pipe(Effect.provide(layerChatTest(chatWithRun(failedRun), { queue: jobs.layer })))
   })
 
   it.effect('a retry refused for a done Run queues no job', () => {
@@ -69,9 +67,9 @@ describe('retryRun', () => {
       assertEquals(yield* jobs.sent, [])
     }).pipe(
       Effect.provide(
-        layerChatTest(chatWithRun(new Run({ ...queuedRun, status: 'done' }))).pipe(
-          Layer.provideMerge(jobs.layer),
-        ),
+        layerChatTest(chatWithRun(new Run({ ...queuedRun, status: 'done' })), {
+          queue: jobs.layer,
+        }),
       ),
     )
   })

@@ -1,6 +1,7 @@
 import { Cause, Context, Effect, Layer } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
+import { QueueSender } from '@app-template/packages/queue'
 
 import type { ChatBusyError } from '#chat/domain/chat.error'
 import { type Chat, ensureChatNotBusy, isNewChat } from '#chat/domain/chat.model'
@@ -10,12 +11,6 @@ import { ensureRunRetryable, failRun, type Run } from '#chat/domain/run.model'
 import { sendReplyToMessage, sendTitleChat } from '#chat/infrastructure/chat.queue'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
-
-/**
- * The queue's sender, which a service never names: the process provides it to the caller, so
- * every test layer of the module builds without one.
- */
-type Sending = Effect.Services<ReturnType<typeof sendReplyToMessage>>
 
 /**
  * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
@@ -29,20 +24,20 @@ export class AskChatService extends Context.Service<
      * sends a new chat's title job and the reply's; returns the Run sent, or failed with the full
      * text of SQS's refusal.
      */
-    readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError, Sending>
+    readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError>
     /**
      * Retries `chat`'s failed newest Run: stores a new queued Run of its user message, then
      * sends the reply's job as `ask` does.
      */
-    readonly retry: (
-      chat: Chat,
-    ) => Effect.Effect<Run, RunNotRetryableError | MessageNotFoundError, Sending>
+    readonly retry: (chat: Chat) => Effect.Effect<Run, RunNotRetryableError | MessageNotFoundError>
   }
 >()('@app-template/application/chat/services/AskChatService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
+    const queue = yield* QueueSender
+    const provideQueue = Effect.provideService(QueueSender, queue)
 
     // After the commit of `run`, so every delivery finds it; SQS's refusal fails that Run alone,
     // by its id: one a worker settled meanwhile, as SQS took the job after all, dies on the
@@ -64,23 +59,31 @@ export class AskChatService extends Context.Service<
 
     // `ask` and `retry` are uninterruptible: a client's abort after the Run commits would leave it
     // queued with no job, its chat busy and its retry refused, so one that began runs to its send.
-    const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
-      yield* ensureChatNotBusy(chat.run)
-      const run = yield* createMessageRun(chat, text)
+    const ask = Effect.fn('AskChatService.ask')(
+      function* (chat: Chat, text: string) {
+        yield* ensureChatNotBusy(chat.run)
+        const run = yield* createMessageRun(chat, text)
 
-      // A chat no ask has reached yet is titled once, from its first message; the title's send
-      // never fails, so the jobs go in either order.
-      if (isNewChat(chat)) yield* sendTitleChat(chat)
-      return yield* askReply(run)
-    }, Effect.uninterruptible)
+        // A chat no ask has reached yet is titled once, from its first message; the title's send
+        // never fails, so the jobs go in either order.
+        if (isNewChat(chat)) yield* sendTitleChat(chat)
+        return yield* askReply(run)
+      },
+      Effect.uninterruptible,
+      provideQueue,
+    )
 
-    const retry = Effect.fn('AskChatService.retry')(function* (chat: Chat) {
-      const failed = yield* ensureRunRetryable(chat.run)
-      const userMessage = yield* messages.getOne({ id: failed.userMessageId })
+    const retry = Effect.fn('AskChatService.retry')(
+      function* (chat: Chat) {
+        const failed = yield* ensureRunRetryable(chat.run)
+        const userMessage = yield* messages.getOne({ id: failed.userMessageId })
 
-      const run = yield* runs.create(userMessage)
-      return yield* askReply(run)
-    }, Effect.uninterruptible)
+        const run = yield* runs.create(userMessage)
+        return yield* askReply(run)
+      },
+      Effect.uninterruptible,
+      provideQueue,
+    )
 
     return { ask, retry }
   }),

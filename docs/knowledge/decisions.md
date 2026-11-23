@@ -193,7 +193,8 @@ the data layer's repository directly.
   their infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds `Transaction` alone of
-  `@app-template/packages/db` and of the infrastructure the queue file alone, the chat's reply
+  `@app-template/packages/db`, `QueueSender` alone of `@app-template/packages/queue` and of the
+  infrastructure the queue file alone, the chat's reply
   service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the message's
   assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its own, which
   adds the chat's assistant's `.llm` file alone
@@ -495,15 +496,17 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
   so the rule the reader pipes names every absent id at once. The chat's jobs take three services
-  and three Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`
-  and the queue file, `ReplyChatService`, the worker's, `Transaction` and the message's assistant,
+  and three Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`,
+  `QueueSender` and the queue file, `ReplyChatService`, the worker's, `Transaction` and the
+  message's assistant,
   and `TitleChatService`, the worker's too, the chat's assistant alone; each takes other models'
   services, by its file's name.
 - **Guarded by:** review, by `.claude/rules/composition.md`, which `make review-rules` prints for
   every TypeScript diff, and by `layering.md`; `noImportCycles` refuses a unit below that imports
   the one over it. Nothing refuses a fold, nor a service of another model, in a job's service or
   any other. The ask and reply services' Biome overrides admit of `@app-template/packages/db`
-  only `Transaction`, the title service's none of it; of the infrastructure the ask service's
+  only `Transaction`, the title service's none of it, and the ask service's of
+  `@app-template/packages/queue` only `QueueSender`; of the infrastructure the ask service's
   admits only the queue file, the reply and title services' only their assistant's `.llm` file;
   the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
   ask whose Run Postgres refuses keeps no message.
@@ -1060,18 +1063,19 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   that runs it, and a name for one step of the work, the model's call. An event
   (`UserMessageCreated`): the new chat's rule would move to the worker or ride as a flag, one event
   for two consumers needs a fan-out, and a retry is not that fact.
-- **Cost:** a process that dies between the commit and the send leaves the Run queued and its
-  chat busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a
-  client reads the failure from the Run's status, not the response's. A domain service now
-  reaches its module's queue file, so the ask service's guard admits that one file of
-  infrastructure; a send inside its transaction would send before the commit, which no check
-  refuses: the rule in `.claude/rules/layering.md` and review hold it. A queue's name changes only
-  as a new queue, as SQS renames none: each stack's next `make up` replaces it, and what the old
-  one held is lost.
-- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of
-  the create flow; the ask service's Biome override, which admits of its infrastructure only
-  `#*/infrastructure/*.queue`; the `infrastructure/` and `use-cases` rows of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules).
+- **Cost:** a process that dies between the commit and the send leaves the Run queued and its chat
+  busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a client
+  reads the failure from the Run's status, not the response's. A domain service now reaches its
+  module's queue file, so the ask service's guard admits that one file of infrastructure, and the
+  sender, which it takes in its `make` and gives its sends; a send inside its transaction would send
+  before the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
+  it. A queue's name changes only as a new queue, as SQS renames none: each stack's next `make up`
+  replaces it, and what the old one held is lost.
+- **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of the
+  create flow; the ask service's Biome override, which admits of its infrastructure only
+  `#*/infrastructure/*.queue` and of `@app-template/packages/queue` only `QueueSender`; the
+  `infrastructure/` and `use-cases` rows of [architecture.md › Dependency
+  rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
 - **Revisit when:** the logs show replies stuck by a process that died before its send.
 
@@ -1108,8 +1112,8 @@ included; the title's skips a chat gone or titled and logs the assistant's error
 refused move's included, is the queue consumer's to log. `ReplyChatService` takes `Transaction`,
 the message's assistant and the services of the module's other models, for the records the reply
 writes; `TitleChatService` the chat's assistant and those services, as its one write needs no
-transaction; `AskChatService` takes `Transaction`, its queue file and those services, for the
-request and its sends ([Composition: wrap or compose](#composition-wrap-or-compose)).
+transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
+services, for the request and its sends ([Composition: wrap or compose](#composition-wrap-or-compose)).
 
 - **Why:** each job's run sits in one service: the rule a job keeps (an unstarted Run only), the
   moves it makes and the handler that fails the Run on what ends the answer, the rule's refusal
@@ -1148,28 +1152,31 @@ request and its sends ([Composition: wrap or compose](#composition-wrap-or-compo
   model's word is retry (`ensureRunRetryable`, `RunNotRetryableError`, `retryRun`). A word or a file
   suffix for the tier (application service, act, orchestrator): the glossary avoids or holds each,
   and a suffix's glob would widen each service's override to the others' infrastructure. Each method
-  requiring its assistant, so the module's test layer built without one and a case provided its own
-  per call: a method's type carried its process's dependency, against Effect's guidance that a
-  service's operations require nothing. A `storeReply` beside the answer holding the reply and the
-  Run's `done` alone, the model's call outside the transaction: it frees the connection during the
-  call, but splits the answer into a second function the owner did not want.
+  requiring its assistant or the sender, so the module's test layer built without one and a case
+  provided its own per call: a method's type carried its process's dependency, against Effect's
+  guidance that a service's operations require nothing. For the sender, a provider exported by the
+  queue file, an effect returning a function, harder to read than the task; or the sends' context
+  read by their type (`Effect.context`), which keeps that type. A `storeReply` beside the answer
+  holding the reply and the Run's `done` alone, the model's call outside the transaction: it frees
+  the connection during the call, but splits the answer into a second function the owner did not
+  want.
 - **Cost:** three services and three Biome overrides, each of one process. `ReplyChatService` comes
   near a use case in reach (a transaction, an assistant, other models' services): its own Biome
   override admits it by its path (`reply-chat.service.ts`), and review keeps it to the reply's job;
   each worker service names its assistant's errors through its type, as a service imports no part of
-  the kernel. `reply` and `title` take their assistant once, in their service's `make`, so each
-  method's type says only its result and errors, and the module's test layer builds a double of each
-  assistant, a mock whose calls die, which a case replaces through the layer's argument, never per
-  call. A service holding its own transaction cannot join a caller's ([roadmap.md ›
-  Later](roadmap.md#later)). The reply's transaction stays open for the model's call, so each reply
-  in flight holds one pooled Postgres connection for that call's length: `PgPool` opens at most 10
-  unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the kernel's client
-  passes only its url.
+  the kernel. Each service takes what its process provides, its assistant or the queue's sender,
+  once, in its `make`, so each method's type says only its result and errors, and the module's test
+  layer builds a double of each, a mock whose calls die, which a case replaces through the layer's
+  argument, never per call. A service holding its own transaction cannot join a caller's
+  ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's call,
+  so each reply in flight holds one pooled Postgres connection for that call's length: `PgPool`
+  opens at most 10 unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the
+  kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
   end and its logs in its use case; the reply service's Biome override, which adds to the
   services' the message's assistant's `.llm` file and of `@app-template/packages/db` only
   `Transaction`; the title service's, which adds the chat's assistant's `.llm` file alone; the
-  ask service's, which adds the queue file and `Transaction` alone.
+  ask service's, which adds the queue file, `Transaction` and `QueueSender` alone.
 - **If reversed:** the Run's rule and moves go back into the job's use case, which then fails the
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
