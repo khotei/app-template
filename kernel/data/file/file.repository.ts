@@ -14,13 +14,15 @@ import {
 const urlLifetime = Duration.minutes(5)
 
 /** `insert` always writes the name, so an object without one is a defect. */
-const buildFileEntity =
-  (id: string, url: URL) =>
-  ({ contentType, fileName }: ObjectHead): Effect.Effect<FileEntity> =>
-    Option.match(fileName, {
-      onNone: () => Effect.die(new Error(`file ${id} has no name`)),
-      onSome: (name) => Effect.succeed({ id, mediaType: contentType, fileName: name, url }),
-    })
+const buildFileEntity = (
+  { contentType, fileName }: ObjectHead,
+  { id, url }: { readonly id: string; readonly url: URL },
+): Effect.Effect<FileEntity> =>
+  fileName.pipe(
+    Effect.fromOption(() => new Error(`file ${id} has no name`)),
+    Effect.map((name) => ({ id, mediaType: contentType, fileName: name, url })),
+    Effect.orDie,
+  )
 
 /** What `read` returns for each id of `where`, concurrently, a missing one left out. */
 const readEach =
@@ -61,17 +63,21 @@ export class FileRepository extends Context.Service<
     const headFile = Effect.fnUntraced(function* (id: string) {
       const head = yield* bucket.head(buildFileKey(id))
       const url = yield* signUrl(id)
-      return yield* head.pipe(Option.map(buildFileEntity(id, url)), Effect.transposeOption)
+      return yield* head.pipe(
+        Option.map((found) => buildFileEntity(found, { id, url })),
+        Effect.transposeOption,
+      )
     })
 
     const downloadFile = Effect.fnUntraced(function* (id: string) {
       const object = yield* bucket.download(buildFileKey(id))
       const url = yield* signUrl(id)
-
-      if (Option.isNone(object)) return Option.none()
-
-      const file = yield* buildFileEntity(id, url)(object.value.head)
-      return Option.some({ ...file, blob: object.value.blob })
+      return yield* object.pipe(
+        Option.map(({ head, blob }) =>
+          buildFileEntity(head, { id, url }).pipe(Effect.map((file) => ({ ...file, blob }))),
+        ),
+        Effect.transposeOption,
+      )
     })
 
     const selectMany = readEach(headFile)
