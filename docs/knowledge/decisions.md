@@ -591,8 +591,9 @@ worker's `ReplyChatService.reply` starts the Run in one uninterruptible step: it
 active Run through `RunService.getOne({ userMessageId, status: activeRunStatuses })`,
 `RunNotFoundError` by the message when it has none, refuses one some worker started through the
 model's `ensureRunUnstarted`, `RunStartedError`, failing that Run as it was read, and writes
-`startRun`. Its tail fails exactly the Run that step wrote, under `generating`, on whatever ends the
-answer, an interrupt included (`Effect.acquireUseRelease`). A move the model's table refuses dies
+`startRun`. The method is uninterruptible but for the answer, and the answer's tail
+(`Effect.onError`) fails exactly the Run the start wrote, under `generating`, on whatever ends the
+answer, an interrupt included. A move the model's table refuses dies
 with `RunStatusInvalidError`: every caller moves a Run it has just read or moved, so a refusal is a
 bug, and a race dies on the write's guard instead. A reply writes the Run twice, `generating` then
 `done` (or `failed`), and a client polling it sees only `queued`, `generating` and the end.
@@ -1192,9 +1193,10 @@ and a worker settled the Run dies on the write's guard and fails no later Run
   accepts what a second delivery then costs (2026-11-21); the owner's refusal of that cost for the
   api's refused send, which fails its Run by its id, and the owner's call that the worker's tail
   fails the Run the body holds (2026-11-21).
-- **Rejected:** the handler after a plain first move: an interrupt between its write and the
-  handler left the Run started until the next delivery, up to the queue's visibility timeout
-  later. The handler on the whole function, failing the message's active Run read again by the
+- **Rejected:** the handler after a plain first move in an interruptible flow: an interrupt
+  between its write and the handler left the Run started until the next delivery, up to the
+  queue's visibility timeout later; the reply now holds every interrupt until its answer, so none
+  lands there. The handler on the whole function, failing the message's active Run read again by the
   message: a reply that died after its Run was failed and retried failed the retry's Run, and the
   loser of two deliveries at once failed the winner's Run, so the reply was lost. The job carrying
   the Run's id: a second delivery found its own Run settled and was skipped, but the reply to a
