@@ -233,24 +233,22 @@ export class S3Bucket extends Context.Service<
       },
     )
 
-    const download = Effect.fn('S3Bucket.download')((key: string) =>
-      s3.getObject(buildObjectRef(key)).pipe(
-        Effect.flatMap((object) =>
-          Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
-        ),
-        Effect.map(Option.some),
-        Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
-        Effect.orDie,
+    const download = Effect.fn('S3Bucket.download')(
+      (key: string) => s3.getObject(buildObjectRef(key)),
+      Effect.flatMap((object) =>
+        Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
       ),
+      Effect.map(Option.some),
+      Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
+      Effect.orDie,
     )
 
-    const head = Effect.fn('S3Bucket.head')((key: string) =>
-      s3.headObject(buildObjectRef(key)).pipe(
-        Effect.flatMap(decodeObjectHead),
-        Effect.map(Option.some),
-        Effect.catchTag('NotFound', () => Effect.succeedNone),
-        Effect.orDie,
-      ),
+    const head = Effect.fn('S3Bucket.head')(
+      (key: string) => s3.headObject(buildObjectRef(key)),
+      Effect.flatMap(decodeObjectHead),
+      Effect.asSome,
+      Effect.catchTag('NotFound', () => Effect.succeedNone),
+      Effect.orDie,
     )
 
     const url = Effect.fn('S3Bucket.url')(function* (key: string, lifetime: Duration.Duration) {
