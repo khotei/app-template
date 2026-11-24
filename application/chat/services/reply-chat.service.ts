@@ -53,10 +53,11 @@ export class ReplyChatService extends Context.Service<
       const generated = yield* assistant.reply(history)
       const message = yield* messages.create({
         chatId: started.chatId,
+        userId: started.userId,
         text: generated.text,
         author: 'assistant',
       })
-      yield* runs.move(started, (run) => completeRun(run, message))
+      yield* runs.move(started, (run) => completeRun(run, message.id))
     }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for

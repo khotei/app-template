@@ -33,9 +33,9 @@ export const runs = snakeCase.table(
   'runs',
   {
     id: id(),
-    chatId: uuid()
-      .notNull()
-      .references(() => chats.id, { onDelete: 'cascade' }),
+    chatId: uuid().notNull(),
+    /** The owner of the Run's chat, held by `runs_chat_id_user_id_fk`. */
+    userId: uuid().notNull(),
     userMessageId: uuid().notNull(),
     status: runStatus().notNull(),
     failure: jsonb().$type<RunFailure>(),
@@ -52,6 +52,12 @@ export const runs = snakeCase.table(
     ),
     // A reply belongs to one Run.
     unique('runs_assistant_message_id_unique').on(table.assistantMessageId),
+    // One key over both columns, so `user_id` can only name the owner of `chat_id`.
+    foreignKey({
+      name: 'runs_chat_id_user_id_fk',
+      columns: [table.chatId, table.userId],
+      foreignColumns: [chats.id, chats.userId],
+    }).onDelete('cascade'),
     // One key over both columns, so `chat_id` can only name the chat of `user_message_id`.
     foreignKey({
       name: 'runs_user_message_id_chat_id_fk',
@@ -73,6 +79,6 @@ const runJsonColumns = {
   failure: () => RunFailure,
 }
 
-/** The columns of a Run, as the entities of its neighbours nest them. */
+/** The columns of a Run: what its reads return and the entities of its neighbours nest. */
 export const RunColumns = createSelectSchema(runs, runJsonColumns)
 export type RunColumns = typeof RunColumns.Type

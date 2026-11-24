@@ -1,7 +1,9 @@
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import type { Types } from 'effect'
-import type { RequireAtLeastOne } from 'type-fest'
 
+import type { Keyed } from '@app-template/packages/db'
+
+import type { FilterOf } from '#kernel/data/relations'
 import { type credentials, users } from '#kernel/data/user/user.table'
 
 export const UserEntity = createSelectSchema(users)
@@ -12,7 +14,9 @@ export type UserEntityCredential = Types.Simplify<
   Pick<typeof credentials.$inferSelect, 'kind' | 'hash'>
 >
 
-/** `credential` matches any credential the user holds. */
-export type UserEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<UserEntity, 'id'> & { readonly credential: UserEntityCredential }>
+/** A user by the key or by `credentials`, which matches any credential the user holds. */
+export type UserEntityWhere = Keyed<
+  FilterOf<'users'>,
+  UserEntity & { readonly credentials: UserEntityCredential },
+  'id' | 'credentials'
 >

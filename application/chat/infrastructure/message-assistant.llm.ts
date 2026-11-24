@@ -7,7 +7,7 @@ import { askModel } from '@app-template/kernel/llm'
 import { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import type { MessageFields } from '#chat/domain/message.model'
+import type { Message } from '#chat/domain/message.model'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
@@ -16,7 +16,7 @@ const systemPrompt = [
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-const buildPromptMessage = ({ author, text }: MessageFields): Prompt.MessageEncoded => ({
+const buildPromptMessage = ({ author, text }: Message): Prompt.MessageEncoded => ({
   role: author,
   content: [{ type: 'text', text }],
 })
@@ -25,9 +25,7 @@ export class MessageAssistant extends Context.Service<
   MessageAssistant,
   {
     /** The next message of the chat whose finished messages are `history`, oldest first. */
-    readonly reply: (
-      history: ReadonlyArray<MessageFields>,
-    ) => Effect.Effect<AssistantReply, LlmError>
+    readonly reply: (history: ReadonlyArray<Message>) => Effect.Effect<AssistantReply, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
@@ -39,7 +37,7 @@ export class MessageAssistant extends Context.Service<
 
     // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
-      (history: ReadonlyArray<MessageFields>) =>
+      (history: ReadonlyArray<Message>) =>
         model.generateText({ prompt: Arr.map(history, buildPromptMessage) }),
       askModel,
       Effect.flatMap(({ text }) => Schema.decodeEffect(AssistantReply)({ text })),

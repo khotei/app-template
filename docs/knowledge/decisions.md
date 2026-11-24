@@ -212,33 +212,25 @@ the data layer's repository directly.
 ### HTTP outside the modules
 
 The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError`) live in
-`apps/api`, outside the modules; the id format, its schema (`buildIdSchema`) and its generation
-(`idGenerator`), lives in `packages/schema`.
+`apps/api`, outside the modules; the id format's schema (`buildIdSchema`) lives in
+`packages/schema`, and a model's insert variant generates an id of it
+([Models with variants](#models-with-variants)).
 
 - **Why:** a handler needs the assembled `Api`, which imports the groups, so a module owning its
   handler would make a cycle. No module raises them. The id format knows no app (a brand in, a
-  schema out; a schema in, a fresh UUIDv7 of its brand out), every module's ids share it, and in
-  one file a change of format moves the schema and the generation together. `idGenerator` is
-  a constant, an effect that reads `SecureRandom` once and returns the generator, not a
-  `Context.Service`: no test or second implementation stands in for it, since `SecureRandom`
-  already is that seam (tests provide `BunCrypto.layer`, or a `Layer.mock` of `SecureRandom` to
-  assert an id). A service yields it in its `make`, so its methods require no `SecureRandom`.
+  schema out), and every module's ids share it.
 - **Sources:** departs from the guide's "Keep internal layering per module (API → domain →
   infrastructure)"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/composition.md › Minimal means inside each unit` (a copy per variant becomes one
   unit over the varying value).
-- **Rejected:** the generation spelled out at each call, or copied per module: two copies of a
-  rule no module owns. A `generateId` that reads `SecureRandom` itself: `SecureRandom` is
-  Effect's own service with no default, so it would enter every service method's requirements. A
-  `generateId` taking `SecureRandom` as a parameter: each call passes the same service along. An `IdGenerator`
-  `Context.Service` with a `layer`: a layer to provide for one implementation. The id format in
-  `packages/db` beside the `id()` column, or in `kernel/data`: the domain and the contracts
-  declare the schema, and neither may import those. A group in its module's `infrastructure/`,
-  which no cycle forbids, as a group imports only `effect`,
-  the domain and a sibling group: it would sit apart from its handler, and every process that
-  imports the module, the worker too, would load the groups and `effect/http-api` (10 modules,
-  27 KB more in the worker's bundle).
+- **Rejected:** the id's schema spelled out per module: two copies of a format no module owns.
+  The id format in `packages/db` beside the `id()` column, or in `kernel/data`: the domain and
+  the contracts declare the schema, and neither may import those. A group in its module's
+  `infrastructure/`, which no cycle forbids, as a group imports only `effect`, the domain and a
+  sibling group: it would sit apart from its handler, and every process that imports the module,
+  the worker too, would load the groups and `effect/http-api` (10 modules, 27 KB more in the
+  worker's bundle).
 - **Cost:** a module's HTTP shape lives outside the module.
 - **Guarded by:** the `apps/api` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules); no module's manifest
@@ -253,11 +245,13 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
 The api declares its HTTP surface in its own files, one group per entity beside its handler,
 assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
 the domain's own; every error gets its status where an endpoint or a middleware lists it
-(`HttpApiSchema.status`); a wire shape that differs from its model is `<Model>.mapFields(…)`,
-which omits fields by name or swaps them, named by an `identifier` so the snapshot holds it once,
-and a mapper adds only what the model lacks (`buildApiChat` adds `status`). A field no client may
-see is omitted by each wire shape that carries it: a failed Run's failure stays in its row, off
-the wire of `ApiRun` and `ApiMessage`. Its unit test writes
+(`HttpApiSchema.status`); a wire shape is its model's json variant (`<Model>.json`), which
+leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
+field, named by an `identifier` so the snapshot holds it once, and a mapper adds only what the
+model lacks (`buildApiChat` adds `status`); a model with nothing to leave out goes whole (`User`).
+A field no client may see is declared so once, in its model
+([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
+so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. Its unit test writes
 `apps/api/openapi.json`; the web reads that file by path and keeps the client
 `@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
 reaches the browser, and the web declares no workspace of the app but `packages`.
@@ -266,8 +260,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   second time (23 twins of the domain's, 5 ids among them, with the tables' limits, patterns
   and enums' values copied into them), held in step by a test that compared only exports of one
   name, over a module list no check saw; the browser needs none of it, since its generated
-  client imports only `effect`. A struct writes only its own fields, so `mapFields` keeps a
-  field off the wire with no code, and the domain's error classes encode themselves, so no
+  client imports only `effect`. A json variant holds only the fields its model gives it, and a
+  struct writes only its own fields, so a field stays off the wire with no code in a handler,
+  and the domain's error classes encode themselves, so no
   handler translates one and no class marker internal to Effect is relied on. A failure's cause
   is the real error (the provider's text, SQS's error, a defect's trace): kept in the row, it
   stays with the Run as long as the Run does, where a log keeps it only for its retention and
@@ -291,10 +286,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   fact in a `domain/` the worker loads too. A status on the class only for an error HTTP alone
   raises: two forms for one fact. A constant per error with its status: a second name for one
   class, the alias `.claude/rules/effect-style.md › Composition` refuses. A `pick`
-  of the wire's fields: every field listed again. `Model.Class` variants: every domain class
-  rewritten as a `Model`, whose select, insert and update variants restate the row the Drizzle
-  table and the model as its row's codec already state ([Entity names](#entity-names)), and
-  whose json variants are a second field list per model. A client generated at build time:
+  of the wire's fields: every field listed again. Each wire shape omitting by name what stays
+  off (`<Model>.mapFields(Struct.omit([…]))`): every shape that nests the record repeats the
+  omission, where the model's field now says it once. A client generated at build time:
   typecheck, the bundle check and the editor would need a step first. The client held by a
   vitest file snapshot of the generator's output: 27 lines of test and `@effect/vitest` in the
   web, where the generator's command and `cmp` check the same. Track B had rejected that command,
@@ -313,10 +307,11 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
   code points where the api counts UTF-16 units, a rename's title the snapshot gives as a bare
   string; a media type's pattern, whose `i` flag JSON Schema lacks, is left out. A model's
-  encoded side is its row's ([Entity names](#entity-names)), and the wire is that side under
-  Effect's JSON codec: a row form changed for the store changes the wire too, unless the wire
-  shape swaps the field. A field added to a model, a secret included, reaches the wire unless its
-  wire shape omits it; the snapshot test stops it until `make api-snapshot` writes it into the
+  encoded side is its row's ([Entity names](#entity-names)), and the wire is its json variant's
+  under Effect's JSON codec: but for the times, which that variant encodes as strings, a row form
+  changed for the store changes the wire too, unless the wire shape swaps the field. A field
+  added to a model, a secret included, reaches the wire unless the model declares it
+  `Model.Sensitive`; the snapshot test stops it until `make api-snapshot` writes it into the
   diff, and only review of that diff refuses it. An error's status is spelled at each listing
   (13 for 7 errors), and a listing without `HttpApiSchema.status` responds with `500`, which likewise
   only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
@@ -327,10 +322,11 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
   for the Run's three). Two checked-in files move with every
   wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned. Keeping the cause off the wire takes five wire shapes (the failure, the Run, the Run a
-  message nests, the message, the `503` error), each in the snapshot, and two assertions that it
-  stays off (`listMessages`, `getRun`); a new shape that nests a Run, or a new listing of an
-  error with a cause, must omit it too, which only review of the snapshot diff holds.
+  pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive` field, a message's
+  wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
+  stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
+  variant, or a new listing of an error with a cause, would carry it, which only review of the
+  snapshot diff holds.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
@@ -439,7 +435,7 @@ read scoped to the user.
 // removes the bytes once the row is gone
 const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
   yield* orders.getOne(where).pipe(ensureUnpaid)
-  yield* orders.delete({ ...where, paidAt: null })
+  yield* orders.delete({ ...where, paidAt: Option.none() })
   yield* files.delete({ id: [where.id] })
 })
 ```
@@ -574,17 +570,74 @@ built-in call is not written; the built-in is called.
 - **Revisit when:** a util is needed outside one module, or a util starts to import a model, so
   it was a rule.
 
+### Models with variants
+
+A domain model is a `Model.Class` of `effect/schema` over one field list: the class is the row a
+read decodes, its `insert` and `update` variants what a write encodes, its `json` variant what
+the api serves. The Drizzle tables, the entities and the kernel's repositories stay, and a
+service still codes its rows itself (`encodeWith`, `decodeWith`). The insert variant makes a new
+record's id (`Model.UuidV7Insert`) and both its times, the update variant moves `updatedAt`, a
+field written once by the insert is left out of the update variants, a field no client may see
+out of the json ones (`Model.Sensitive`), and a record another table holds, read with the model,
+is a field of the select variant alone. A service builds a write with
+`<Model>.insert.makeEffect` or `<Model>.update.makeEffect`. A Run carries no messages: it names
+them by id, and a chat and a message hold their Run as that select-only field.
+
+- **Why:** as a `Schema.Class` a model said only what a read returns, so what a write and the
+  wire needed sat beside it: a struct of the model's own fields for a write to encode, an id
+  generator each service yielded in its `make`, a `DateTime.now` in each service that wrote a
+  record, and a wire shape per model that omitted by name what no client may see. A variant
+  states each of those once, in the field's declaration: a new field says in one place whether
+  an update may set it and whether it reaches the wire, and a service's create reads as build,
+  encode, insert.
+- **Sources:** the owner's choice among three versions built on the same models, this one and
+  the two of Rejected; `repos/effect/packages/effect/src/schema/Model.ts`; the trial recorded in
+  [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle".
+- **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
+  `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
+  field written once and one only read: the same unstable module underneath, the fields `Model`
+  ships written again and kept by us in `packages/schema`, and no json variant, so each wire
+  shape still omitted by name. A plain `Schema.Class` with constructor defaults for the id and
+  the times: one shape for every use, so an update's set was the whole record encoded, the
+  fields written once included, and nothing in a field's declaration kept it out of an update or
+  off the wire. The ids kept on a generator over `SecureRandom` that a service yields in its
+  `make`, beside the variants: a test could fix an id, for a generator in every service and an
+  id passed to each insert by hand.
+- **Cost:** an id no longer comes through the `SecureRandom` service: `Model.UuidV7Insert` reads
+  `globalThis.crypto`, so no test layer fixes one, and a test asserts an id's form (`isUuidV7`)
+  and builds its expected record with it. Each time is its own read of the clock, so on a live
+  clock a new record's `createdAt` and `updatedAt` can fall on either side of a millisecond (61
+  of 200000 Runs built under `it.live`), and nothing may rely on their being equal. `Model` and
+  `VariantSchema` are `@stability unstable`, so an Effect release may change them
+  (`repos/effect/MIGRATION.md › Unstable Module System`). A constructor default applies in the
+  update variant too: an update that leaves a defaulted field out writes the default over the
+  column, so an update passes every field it must keep. A model carries six variants and the app
+  reads four of them (the class, `insert`, `update`, `json`). A service still names its variant
+  at each write and builds the record it returns from what the variant made.
+- **Guarded by:** `tsc` at each service's insert, where the repository takes the table's full
+  row ([Entity names](#entity-names)); the services' unit tests, which assert a new id's form
+  and each write's row or set; the api's snapshot test and its two assertions that a failure
+  stays off the wire; review, by `.claude/rules/models.md`. Nothing mechanical refuses a
+  `new <Model>(…)` with an id or a time made by hand, nor an update that leaves a defaulted field
+  out.
+- **If reversed:** the models are `Schema.Class` again: a struct of each model's own fields
+  returns for its writes, an id generator over `SecureRandom` for its ids and a `DateTime.now` in
+  each service for its times, and each wire shape omits by name what no client may see.
+- **Revisit when:** an Effect release changes or drops `Model` or `VariantSchema`; a test or a
+  flow must fix a record's id before its insert; a rule needs a new record's two times equal; or
+  a model gains a second stored form its variants cannot state.
+
 ### A Run's guarded moves
 
 A Run's status moves are the model's plain transitions (`startRun(run)`, `completeRun(run,
-reply)`, `failRun(run, cause)`, each named for the move it makes, not the status it reaches, as the
+replyId)`, `failRun(run, cause)`, each named for the move it makes, not the status it reaches, as the
 started Run's stored status stays `generating`), each written through `RunService.move(run,
 transition)`: it moves the Run it is given and writes the result under the status that Run was
 read in, so a caller of a move hands over the Run it holds and the transition, never a `where`; a
 transition that takes an argument gets it from a lambda at the call (`(run) => completeRun(run,
-message)`). `move` is a method of `RunService` over its `update(to, where)`, the service's
-flexible write as `ChatService`'s, which stamps `updatedAt` and writes under any `where` of the
-Run's id and its narrowings, the repository's `RunEntityWhere`; a write whose `where` matches no
+message.id)`). `move` is a method of `RunService` over its `update(to, where)`, the service's
+plain write as `ChatService`'s, which stamps `updatedAt` and writes under a `where` of the Run's
+id and the status it must still hold, both required; a write whose `where` matches no
 Run dies in `RunRepository.update`, which both reach. `failRun` takes the `Cause` that ended the
 work and keeps its full text (`Cause.pretty`). The api fails the Run it stored and sent: a refused
 send's `runs.move(run, (run) => failRun(run, Cause.fail(error)))`, written under `queued`, so a
@@ -603,7 +656,7 @@ bug, and a race dies on the write's guard instead. A reply writes the Run twice,
 
 - **Why:** the guard on the status read is part of a move's write, so the service that owns the
   Run's records holds it once, in `move`: a caller of a move can neither forget it nor pair a
-  transition with another Run's guard, while `update` stays as flexible as every service's write.
+  transition with another Run's guard, while `update` stays the plain write every service has.
   `move` is a method, not a free function over `RunService`, which would put the service into its
   callers' requirements. The worker's tail holds the Run its start wrote, so it fails that Run
   alone: a reply that dies after its Run was failed elsewhere and retried fails no later Run, and a
@@ -615,7 +668,8 @@ bug, and a race dies on the write's guard instead. A reply writes the Run twice,
 - **Sources:** the owner's call in the design audit (2026-11-21): the moves without a service of
   their own, written by the caller through `RunService`, and the tail failing the Run the body
   holds; the owner's call of a flexible `update(to, where)` with a helper that moves by a
-  function (2026-11-21); [Composition: wrap or compose](#composition-wrap-or-compose), a guarded
+  function (2026-11-21), and of a service's `where` in model values alone (2026-11-24);
+  [Composition: wrap or compose](#composition-wrap-or-compose), a guarded
   write of its records being the unit's own purpose; the owner's call of the message as the worker's
   one key; the owner's call of one read, `getOne(where)`, and one `RunNotFoundError` carrying the
   read's key (2026-11-21); the owner's refusal, for the api, of a refused send that fails a later
@@ -654,18 +708,21 @@ bug, and a race dies on the write's guard instead. A reply writes the Run twice,
   settled or deleted under the reply makes the tail's write die, so an assistant's error on a Run
   whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not
   as the use case's warning; a dead worker's Run settled between its read and its failure dies
-  the same way. A transition that takes an argument is a lambda at each call. `update(to, { id })`
-  without `status` compiles, so a status move written through `update` loses its guard: only
-  `move`, the line of `.claude/rules/layering.md` and review hold it. The api's `404` for a Run
-  carries `where: { id }`, and its schema lists the `userMessageId` key the api never sends. A
+  the same way. A transition that takes an argument is a lambda at each call. `update` takes the
+  status of its guard from its caller, so a status move written through it can name another status
+  than the one read: only `move`, the line of `.claude/rules/layering.md` and review hold it. A
+  where that fits both of `RunWhere`'s members compiles, and is read as the user's. The api's `404`
+  for a Run carries `where: { id }`, and its schema lists the `userMessageId` key the api never
+  sends. A
   refused send whose job SQS took after all, once a worker settled the Run, responds with `500`. A
   later stage the user should see before `generating` (reading a chat's files) adds its status back:
   one value of `runStatuses`, one row of the moves' table, one move, and a regenerated `init`.
 - **Guarded by:** `RunService`'s unit test: `update` writes under the `where` it is given, each
   move writes under the status read, a move of a Run moved since dies on the write's guard, a
   refused move dies and writes nothing, `getOne` that finds no Run fails `RunNotFoundError` with
-  the read's key alone, by `id` or by `userMessageId`; `RunWhere`'s type, which takes exactly one of
-  the two; the model's tests of the moves, `failRun`'s full text and `ensureRunUnstarted`;
+  the read's key alone, by `id` or by `userMessageId`, and reads under the filter its `where`
+  names, a user's by `id` or a message's by its statuses; the model's tests of the moves,
+  `failRun`'s full text and `ensureRunUnstarted`;
   `ReplyChatService`'s: an interrupt while the start reads still starts the Run and then fails it, a
   reply that dies after its Run was failed elsewhere and retried fails no Run, a delivery losing the
   start to a rival fails none; `AskChatService`'s, a refused send that fails the Run it stored by
@@ -720,7 +777,7 @@ model, each a `Context.Service` with its `static layer`: `MessageAssistant` answ
 next message from its history, `ChatAssistant` the chat's title from its opening text. Each
 builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
 `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
-`LlmError`. The domain keeps only what they take and return (`MessageFields`, `AssistantReply`),
+`LlmError`. The domain keeps only what they take and return (`Message`, `AssistantReply`),
 and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in front of the
 services. A use case, or the chat's worker service of a job, yields the assistant it
@@ -810,9 +867,10 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
-only, and its callers code its row with the generic `encodeWith` and `decodeWith`, with
-no mapper per model. A second stored form of a model brings back a mapper that lays the model's
-schemas over that store's columns.
+only, and its callers code its row with the generic `encodeWith` and `decodeWith`, a read through
+the model and a write through its insert or update variant
+([Models with variants](#models-with-variants)), with no mapper per model. A second stored form
+of a model brings back a mapper that lays the model's schemas over that store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
@@ -827,9 +885,8 @@ schemas over that store's columns.
   which the deletion test removes.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
   a value (`null`, a `Date`), and a column the model lacks is dropped by a read. Each call names
-  its codec and the read's shape (`decodeWith(Schema.Option(<Model>))`), and a write encoded
-  with the whole model instead of its `<Model>Fields` compiles and runs, encoding the nested
-  records for nothing, since the insert takes only the table's columns.
+  its codec: the read's shape at a read (`decodeWith(Schema.Option(<Model>))`), the variant at a
+  write (`encodeWith(<Model>.insert)`, `encodeWith(<Model>.update)`).
 - **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the
   repository's `insert`, which takes the table's full row, so a column the model lacks or a model
   field its row cannot take fails typecheck at the service's insert.

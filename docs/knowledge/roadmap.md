@@ -409,9 +409,6 @@ moves it into its own `Later` and deletes it here.
   owner's decision.
 - (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
   have no case at their own seam; a planted bug in each passes.
-- (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
-  the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
-  once.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
   that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
   composition fact.
@@ -436,8 +433,9 @@ moves it into its own `Later` and deletes it here.
   go (found by the audit, not verified).
 - (2026-11-19) The imports plugin drops six loader forms no file uses (found by the audit, not
   verified).
-- (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
-  (found by the audit, not verified).
+- (2026-11-19) The kernel's AWS and language-model clients use the libraries' `layerConfig`, as
+  `PgClientFromConfig` does; one rule bullet says who closes what (found by the audit, not
+  verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
   it (found by the audit, not verified).
 - (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
@@ -491,7 +489,7 @@ moves it into its own `Later` and deletes it here.
   that merge `make vendor-drizzle` stops with `fatal: can't squash-merge: 'repos/drizzle' was
   never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
-  `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
+  a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
   (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
@@ -729,12 +727,15 @@ programs in an `alchemy.run.ts`, run by `bun alchemy deploy | plan | destroy | d
 For the data layer, and the decisions [The data at the centre](decisions.md#the-data-at-the-centre)
 and [A module's layers](decisions.md#a-modules-layers). Researched and tried on 2026-11-23
 against `effect@4.1.5` and `drizzle-orm@1.0.0-rc.6`; the owner kept Drizzle as it is, and wants
-two versions built side by side to review before deciding again.
+two versions built side by side to review before deciding again. Since then the domain models
+became `Model.Class` over the kept tables
+([Models with variants](decisions.md#models-with-variants)); Effect SQL in place of Drizzle
+stays the idea here.
 
 - **What the trial found.** A table's row is declared three times: the Drizzle table
   (`kernel/data/chat/run.table.ts`), the entity beside it (`run.entity.ts`: the nested read, the
   `where` types, the columns an update may write) and the domain model
-  (`application/chat/domain/run-fields.model.ts`), with `encodeWith` and `decodeWith` between
+  (`application/chat/domain/run.model.ts`), with `encodeWith` and `decodeWith` between
   them in every service. Most of what a version on Effect alone removed sat on those seams, not
   in Drizzle's queries.
 - **The two versions to build and compare,** each on Message and Run first, each proved by the
@@ -763,9 +764,8 @@ two versions built side by side to review before deciding again.
   - Effect's `Migrator` skips, without an error, a migration whose id is at or below the highest
     applied one, so a branch's migration merged late is lost on a database that moved on; an id
     must fit an `integer`; `@effect/sql-pg` takes one statement per call.
-  - With Drizzle kept, `Model.Class` derives next to nothing the table does not already give
-    (`createSelectSchema`); the insert defaults alone come from `Schema.withConstructorDefault`
-    with no unstable API, at the cost of `SecureRandom` leaving the methods' types.
+  - With Drizzle kept, `Model.Class` gives a model its insert defaults, its update set and its
+    json variants; the row's shape the table already gives (`createSelectSchema`).
   - `Model.UuidV7Insert` reads random bytes past the `SecureRandom` service, so a test cannot
     fix an id; an insert stamps `createdAt` and `updatedAt` by two reads of the clock; a
     constructor default applies in the `update` variant too, so an omitted field is written.

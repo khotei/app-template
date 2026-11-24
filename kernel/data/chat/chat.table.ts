@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
-import { check, index, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
+import { check, index, snakeCase, text, unique, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
@@ -28,6 +28,8 @@ export const chats = snakeCase.table(
       sql`${table.title} = btrim(${table.title}) and char_length(${table.title}) between 1 and ${maxTitleLength}`,
     ),
     index('chats_user_id_created_at_index').on(table.userId, table.createdAt.desc().nullsFirst()),
+    // The target of `messages_chat_id_user_id_fk` and `runs_chat_id_user_id_fk`.
+    unique('chats_id_user_id_unique').on(table.id, table.userId),
   ],
 )
 

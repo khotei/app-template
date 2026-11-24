@@ -12,7 +12,11 @@ import {
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { UserUnknownError } from '@app-template/application/identity'
-import type { MessageEntityWhere, RunEntitySelectWhere } from '@app-template/kernel/data'
+import type {
+  MessageColumns,
+  MessageEntityWhere,
+  RunEntitySelectWhere,
+} from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -88,8 +92,9 @@ describe('chats', () => {
     }).pipe(Effect.provide(asOwner())),
   )
 
-  it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () =>
-    Effect.gen(function* () {
+  it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () => {
+    const asked: Array<MessageColumns> = []
+    return Effect.gen(function* () {
       const api = yield* ApiClient
 
       const [queued, response] = yield* api.chats.ask({
@@ -99,19 +104,30 @@ describe('chats', () => {
       })
 
       assert.strictEqual(response.status, 202)
-      assert.deepInclude(queued, { chatId: chat.id, status: 'queued' })
-      assert.deepInclude(queued.userMessage, { chatId: chat.id, author: 'user', text: 'Hello' })
-      assert.deepStrictEqual(queued.assistantMessage, Option.none())
+      assert.deepInclude(queued, {
+        chatId: chat.id,
+        status: 'queued',
+        assistantMessageId: Option.none(),
+      })
+      assert.deepStrictEqual(
+        Arr.map(asked, ({ id, author, text }) => ({ id, author, text })),
+        [{ id: queued.userMessageId, author: 'user', text: 'Hello' }],
+      )
     }).pipe(
       Effect.provide(
         asOwner({
           chats: { selectOne: reads.chat(chat) },
-          messages: { insert: () => Effect.void },
+          messages: {
+            insert: (message) =>
+              Effect.sync(() => {
+                asked.push(message)
+              }),
+          },
           runs: { insert: () => Effect.void },
         }),
       ),
-    ),
-  )
+    )
+  })
 
   it.effect('POST /chats/:chatId/runs after a failed Run is 202 with a queued Run', () =>
     Effect.gen(function* () {
@@ -123,13 +139,11 @@ describe('chats', () => {
       })
 
       assert.strictEqual(response.status, 202)
-      assert.strictEqual(retried.status, 'queued')
-      assert.deepInclude(retried.userMessage, { id: firstMessage.id, text: firstMessage.text })
+      assert.deepInclude(retried, { status: 'queued', userMessageId: firstMessage.id })
     }).pipe(
       Effect.provide(
         asOwner({
           chats: { selectOne: reads.chat(failedChat) },
-          messages: { selectOne: reads.message(firstMessage) },
           runs: { insert: () => Effect.void },
         }),
       ),
@@ -251,7 +265,7 @@ describe('chats', () => {
         getJson,
       )
 
-      assert.deepInclude(wire, { status: 'failed', assistantMessage: null })
+      assert.deepInclude(wire, { status: 'failed', assistantMessageId: null })
       assert.notProperty(wire, 'failure')
       assert.deepInclude(chatWire, { status: 'failed' })
       assert.notProperty(chatWire, 'run')

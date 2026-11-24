@@ -10,9 +10,9 @@ import {
   Predicate,
   pipe,
   Schema,
-  type Types,
   UndefinedOr,
 } from 'effect'
+import { Model } from 'effect/schema'
 import { TestClock } from 'effect/testing'
 
 import type {
@@ -26,16 +26,16 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
+import { Run, RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
   assistantMessageAt,
   chatId,
   firstMessage,
+  owner,
   queuedRun,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
@@ -56,7 +56,7 @@ const andNow = userMessageAt(4, 'And now?')
 const lastRun = new Run({
   id: queuedRun.id,
   chatId,
-  userMessage: andNow,
+  userId: owner,
   userMessageId: andNow.id,
   createdAt: andNow.createdAt,
   updatedAt: andNow.createdAt,
@@ -68,7 +68,6 @@ const doneElsewhere = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(elsewhereReply.id),
-  assistantMessage: Option.some(elsewhereReply),
 })
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
@@ -83,30 +82,41 @@ const failedElsewhere = new Run({
 /** The Run a retry queues for `queuedRun`'s message once `queuedRun` failed. */
 const retried = new Run({ ...queuedRun, id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000032') })
 
+/**
+ * The filters the services send, the only ones this store understands: a key, and a status or
+ * those of `in`. The repository's `where` takes every filter Drizzle has, so the store decodes
+ * the one it is handed and dies on any other.
+ */
+const RunFilter = Schema.Struct({
+  id: Schema.optionalKey(Schema.String),
+  userMessageId: Schema.optionalKey(Schema.String),
+  status: Schema.optionalKey(
+    Schema.Union([RunStatus, Schema.Struct({ in: Schema.Array(RunStatus) })]),
+  ),
+})
+type RunFilter = typeof RunFilter.Type
+
+const decodeRunFilter = Schema.decodeUnknownSync(RunFilter)
+
+/** Whether `value` is what `condition` names: anything, or the value itself. */
+const holds = <A>(condition: A | undefined, value: A) =>
+  UndefinedOr.match(condition, { onUndefined: () => true, onDefined: (named) => named === value })
+
 /** Whether `run` holds where `where` holds, as the store filters. */
-const holdsWhere = (
-  where: Types.Simplify<Partial<RunEntityWhere & Pick<RunColumns, 'userMessageId'>>>,
-): Predicate.Predicate<Pick<RunColumns, 'id' | 'userMessageId' | 'status'>> =>
-  Predicate.and(
-    Predicate.and(
-      (run) =>
-        UndefinedOr.match(where.id, { onUndefined: () => true, onDefined: (id) => id === run.id }),
-      (run) =>
-        UndefinedOr.match(where.userMessageId, {
-          onUndefined: () => true,
-          onDefined: (id) => id === run.userMessageId,
-        }),
-    ),
-    (run) =>
-      UndefinedOr.match(where.status, {
-        onUndefined: () => true,
-        onDefined: (statuses) => Arr.contains(statuses, run.status),
-      }),
-  )
+const holdsWhere =
+  (where: RunFilter): Predicate.Predicate<Pick<RunColumns, 'id' | 'userMessageId' | 'status'>> =>
+  (run) =>
+    holds(where.id, run.id) &&
+    holds(where.userMessageId, run.userMessageId) &&
+    UndefinedOr.match(where.status, {
+      onUndefined: () => true,
+      onDefined: (status) =>
+        Predicate.isString(status) ? status === run.status : Arr.contains(status.in, run.status),
+    })
 
 /** The writes a reply makes, each as it was handed to its repository. */
 interface Writes {
-  readonly runs: Array<readonly [RunEntitySet, RunEntityWhere]>
+  readonly runs: Array<readonly [RunEntitySet, RunFilter]>
   readonly messages: Array<MessageColumns>
 }
 
@@ -119,23 +129,23 @@ const noWrites = (): Writes => ({ runs: [], messages: [] })
  */
 function storeRuns(writes: Writes, ...runs: ReadonlyArray<Run>) {
   let stored = runs
-  const find = (where: Parameters<typeof holdsWhere>[0]) => Arr.findFirst(stored, holdsWhere(where))
+  const find = (where: RunFilter) => Arr.findFirst(stored, holdsWhere(where))
   return {
     settle: (...settled: ReadonlyArray<Run>) =>
       Effect.sync(() => {
         stored = settled
       }),
     selectOne: (where: RunEntitySelectWhere) =>
-      find(where).pipe(Option.map(encodeWith(Run)), Effect.transposeOption),
+      find(decodeRunFilter(where)).pipe(Option.map(encodeWith(Run)), Effect.transposeOption),
     update: (set: RunEntitySet, where: RunEntityWhere) =>
-      find(where).pipe(
+      find(decodeRunFilter(where)).pipe(
         Option.match({
           onNone: () => Effect.die('no run was updated'),
           onSome: (moved) =>
             Effect.sync(() => {
-              writes.runs.push([set, where])
+              writes.runs.push([set, decodeRunFilter(where)])
               stored = Arr.map(stored, (run) =>
-                run.id === moved.id ? new Run({ ...run, status: set.status }) : run,
+                run.id === moved.id ? new Run({ ...run, status: set.status ?? run.status }) : run,
               )
             }),
         }),
@@ -204,27 +214,34 @@ describe('ReplyChatService', () => {
         const generatingMoves = ['queued → generating']
         assert.deepStrictEqual(asked, generatingMoves)
         assert.deepStrictEqual(halfway, generatingMoves)
-        const stored = yield* decodeWith(Schema.Array(MessageFields))(writes.messages).pipe(
+        const stored = yield* decodeWith(Schema.Array(Message.insert))(writes.messages).pipe(
           Effect.head,
         )
         const message = new Message({
           author: 'assistant',
           id: stored.id,
           chatId,
+          userId: owner,
           text: 'Sure.',
           createdAt: at(1000),
         })
-        assert.deepStrictEqual(writes.messages, [yield* encodeWith(MessageFields)(message)])
+        assert.deepStrictEqual(writes.messages, [
+          // An explicit time enters the insert variant marked as an override of its default.
+          yield* encodeWith(Message.insert)({
+            ...message,
+            createdAt: Model.Override(message.createdAt),
+          }),
+        ])
         const done = new Run({
           ...queuedRun,
           status: 'done',
           updatedAt: at(1000),
           assistantMessageId: Option.some(message.id),
-          assistantMessage: Option.some(message),
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
-          yield* encodeWith(RunFields)(done),
-          { id: queuedRun.id, status: ['generating'] },
+          // An explicit time enters the update variant marked as an override of its default.
+          yield* encodeWith(Run.update)({ ...done, updatedAt: Model.Override(done.updatedAt) }),
+          { id: queuedRun.id, status: 'generating' },
         ])
         assert.deepStrictEqual(logs, [])
       }).pipe(

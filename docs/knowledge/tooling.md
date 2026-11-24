@@ -219,7 +219,8 @@ TCP ports, and the database's volume stays.
   CI runs.
 - **Reading settings.** Only `@app-template/kernel/config` reads the environment: a setting is a
   `Config` value of `effect/Config` (`API_PORT` a `Config.Port`), settings read together one
-  `Config.all`, and a reader yields it where it builds its layer. The one exception is the web
+  `Config.all`, and a reader yields it where it builds its layer, or hands it to a library's
+  `layerConfig` (`PgClientFromConfig`). The one exception is the web
   server, `apps/web/main.ts`, which declares its three settings itself, since the web declares no
   kernel. Tests provide a
   `ConfigProvider.fromUnknown` object, so they never need `.env`; a test process reads no `.env`
@@ -330,6 +331,11 @@ version.
   modules marked `@stability unstable` by choice, pinned exactly; at the rule's default
   `warning`, each import of one fails `tsc -b`. `includeSuggestionsInTsc: false` keeps
   suggestion-level hints out of the gate's output.
+- **`exactOptionalPropertyTypes` is on,** as in Effect's own repository
+  (`repos/effect/tsconfig.base.json`): `key?: T` means the key is absent, so an `undefined` handed
+  to it fails `make typecheck` (TS2375, TS2379). A library's option that takes none is fixed at
+  our call, by building the object without the key. Which absence is spelled how:
+  [effect.md › Schemas](../../.claude/rules/effect.md#schemas).
 - **`bun check` is not a gate.** Bun's native typechecker is faster and emits nothing, but it
   ignores tsconfig `plugins`, so it passes an Effect value that is neither yielded nor assigned.
 - **`tsc -b` writes only into `node_modules/.cache/tsc/<workspace>`.** `composite` cannot be

@@ -5,7 +5,6 @@ import { QueueSender } from '@app-template/packages/queue'
 
 import type { ChatBusyError } from '#chat/domain/chat.error'
 import { type Chat, ensureChatNotBusy, isNewChat } from '#chat/domain/chat.model'
-import type { MessageNotFoundError } from '#chat/domain/message.error'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
 import { ensureRunRetryable, failRun, type Run } from '#chat/domain/run.model'
 import { sendReplyToMessage, sendTitleChat } from '#chat/infrastructure/chat.queue'
@@ -29,7 +28,7 @@ export class AskChatService extends Context.Service<
      * Retries `chat`'s failed newest Run: stores a new queued Run of its user message, then
      * sends the reply's job as `ask` does.
      */
-    readonly retry: (chat: Chat) => Effect.Effect<Run, RunNotRetryableError | MessageNotFoundError>
+    readonly retry: (chat: Chat) => Effect.Effect<Run, RunNotRetryableError>
   }
 >()('@app-template/application/chat/services/AskChatService', {
   make: Effect.gen(function* () {
@@ -53,8 +52,17 @@ export class AskChatService extends Context.Service<
 
     // The message and its Run commit together: a Run that loses the race keeps no message.
     const createMessageRun = Effect.fnUntraced(function* (chat: Chat, text: string) {
-      const message = yield* messages.create({ chatId: chat.id, text, author: 'user' })
-      return yield* runs.create(message)
+      const message = yield* messages.create({
+        chatId: chat.id,
+        userId: chat.userId,
+        text,
+        author: 'user',
+      })
+      return yield* runs.create({
+        chatId: message.chatId,
+        userId: message.userId,
+        userMessageId: message.id,
+      })
     }, transaction.run)
 
     // `ask` and `retry` are uninterruptible: a client's abort after the Run commits would leave it
@@ -76,9 +84,11 @@ export class AskChatService extends Context.Service<
     const retry = Effect.fn('AskChatService.retry')(
       function* (chat: Chat) {
         const failed = yield* ensureRunRetryable(chat.run)
-        const userMessage = yield* messages.getOne({ id: failed.userMessageId })
-
-        const run = yield* runs.create(userMessage)
+        const run = yield* runs.create({
+          chatId: failed.chatId,
+          userId: failed.userId,
+          userMessageId: failed.userMessageId,
+        })
         return yield* askReply(run)
       },
       Effect.uninterruptible,
