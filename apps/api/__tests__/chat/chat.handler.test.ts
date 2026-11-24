@@ -247,8 +247,8 @@ describe('chats', () => {
           new RunNotFoundError({ where: { id: queuedRun.id } }),
         )
         assert.deepStrictEqual(wheres, [
-          { id: firstMessage.id, chatId: chat.id, userId: owner },
-          { id: queuedRun.id, chatId: chat.id, userId: owner },
+          { id: firstMessage.id, chatId: chat.id, chat: { userId: owner } },
+          { id: queuedRun.id, chatId: chat.id, chat: { userId: owner } },
         ])
       }).pipe(
         Effect.provide(

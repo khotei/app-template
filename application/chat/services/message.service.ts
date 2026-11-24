@@ -7,9 +7,11 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 
-/** A message by id in a chat of the user `userId` names, so none reads another's. */
+/** A message by id in a chat of the user `chat.userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id'> & { readonly userId: UserId } & Partial<Pick<Message, 'chatId'>>
+  Pick<Message, 'id'> & { readonly chat: { readonly userId: UserId } } & Partial<
+      Pick<Message, 'chatId'>
+    >
 >
 
 export class MessageService extends Context.Service<

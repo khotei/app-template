@@ -174,7 +174,7 @@ describe('AskChatService', () => {
 
       assert.deepStrictEqual(
         Arr.map(updates, ([set, where]) => [set.status, where]),
-        [['failed', { id: sent.id, status: ['queued'] }]],
+        [['failed', { id: sent.id, status: 'queued' }]],
       )
       assert.deepStrictEqual([Arr.map(stored, ({ id }) => id), sent.status], [[sent.id], 'failed'])
     }).pipe(
@@ -209,7 +209,7 @@ describe('AskChatService', () => {
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(
           Arr.map(updates, ({ status }) => status),
-          [['queued']],
+          ['queued'],
         )
       }).pipe(
         Effect.provide(

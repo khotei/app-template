@@ -124,7 +124,10 @@ describe('ChatRepository', () => {
       yield* insertUser(hal)
       yield* chats.insert(titled)
 
-      assert.deepStrictEqual(yield* chats.selectOne({ id: titled.id, title: null }), Option.none())
+      assert.deepStrictEqual(
+        yield* chats.selectOne({ id: titled.id, title: { isNull: true } }),
+        Option.none(),
+      )
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
@@ -277,7 +280,7 @@ describe('ChatRepository', () => {
       yield* chats.insert(titled)
 
       const exit = yield* chats
-        .update({ title: 'Lisbon' }, { id: titled.id, title: null })
+        .update({ title: 'Lisbon' }, { id: titled.id, title: { isNull: true } })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))

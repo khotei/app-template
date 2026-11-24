@@ -1,4 +1,4 @@
-import { type Cause, Context, Effect, Layer } from 'effect'
+import { Array as Arr, type Cause, Context, Effect, Layer } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -63,7 +63,10 @@ export class ReplyChatService extends Context.Service<
     // the answer, so the Run it started is always there to fail and never stays `generating`; the
     // answer alone is interruptible, so the worker can still stop during the model's call.
     const reply = Effect.fn('ReplyChatService.reply')(function* (userMessageId: MessageId) {
-      const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
+      const active = yield* runs.getOne({
+        userMessageId,
+        status: { in: Arr.copy(activeRunStatuses) },
+      })
       // A Run some worker started was left by a worker that died, so it fails as it is read.
       const queued = yield* ensureRunUnstarted(active).pipe(Effect.onError(failUnanswered(active)))
       const started = yield* runs.move(queued, startRun)

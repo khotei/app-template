@@ -7,11 +7,14 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run, type RunStatus } from '#chat/domain/run.model'
 
-/** `userId` limits a read to the user's chats, which every api caller passes. */
+/**
+ * What narrows a read, as the repository's filter takes each: `chat.userId` limits it to the
+ * user's chats, which every api caller passes, `status.in` to the statuses it names.
+ */
 type RunNarrowing = Partial<
   Pick<Run, 'chatId'> & {
-    readonly userId: UserId
-    readonly status: ReadonlyArray<RunStatus>
+    readonly chat: { readonly userId: UserId }
+    readonly status: RunStatus | { readonly in: Array<RunStatus> }
   }
 >
 
@@ -20,8 +23,8 @@ export type RunWhere =
   | Types.Simplify<Pick<Run, 'id'> & { readonly userMessageId?: never } & RunNarrowing>
   | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly id?: never } & RunNarrowing>
 
-/** A Run by its `id`, narrowed by the rest, as a write finds it. */
-type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & RunNarrowing>
+/** A Run by its `id`, narrowed by its chat and the status it must still hold, as a write finds it. */
+type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & Partial<Pick<Run, 'chatId' | 'status'>>>
 
 export class RunService extends Context.Service<
   RunService,
@@ -77,7 +80,7 @@ export class RunService extends Context.Service<
       transition: (run: Run) => Effect.Effect<Run>,
     ) {
       const to = yield* transition(run)
-      return yield* update(to, { id: run.id, status: [run.status] })
+      return yield* update(to, { id: run.id, status: run.status })
     })
 
     return { create, getOne, update, move }

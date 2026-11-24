@@ -114,9 +114,9 @@ describe('MessageRepository', () => {
       yield* insertOwnedChats([chatId, other])
       yield* messages.insert(question)
 
-      const owned = yield* messages.selectOne({ id: question.id, chatId, userId })
+      const owned = yield* messages.selectOne({ id: question.id, chatId, chat: { userId } })
       const elsewhere = yield* messages.selectOne({ id: question.id, chatId: other })
-      const foreign = yield* messages.selectOne({ id: question.id, userId: strangerId })
+      const foreign = yield* messages.selectOne({ id: question.id, chat: { userId: strangerId } })
 
       assertSchemaEquals(SelectedMessage, owned, Option.some(question))
       assert.deepStrictEqual([elsewhere, foreign], [Option.none(), Option.none()])
@@ -160,7 +160,7 @@ describe('MessageRepository', () => {
         yield* messages.insert(question)
         yield* Effect.forEach([failed, retry], runs.insert)
         yield* messages.insert(reply)
-        yield* runs.update(done, { id: retry.id, status: ['queued'] })
+        yield* runs.update(done, { id: retry.id, status: 'queued' })
 
         assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [
           { ...question, run: done },

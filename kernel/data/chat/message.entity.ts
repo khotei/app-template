@@ -1,8 +1,10 @@
-import { Schema, type Types } from 'effect'
-import type { RequireAtLeastOne } from 'type-fest'
+import { Schema } from 'effect'
+
+import type { Keyed } from '@app-template/packages/db'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
+import type { FilterOf } from '#kernel/data/relations'
 
 /**
  * A message with its Run, flat: a user's the newest that answers it, an assistant's the one that
@@ -14,10 +16,8 @@ export const MessageEntity = Schema.Struct({
 })
 export type MessageEntity = typeof MessageEntity.Type
 
-/** `userId` is the owner of the row's chat, not a column of `messages`. */
-export type MessageEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> & { readonly userId?: string }
->
+/** The owner is the row's chat's: `chat: { userId }`, so one of another user's chat reads as absent. */
+export type MessageEntityWhere = Keyed<FilterOf<'messages'>, MessageColumns, 'id' | 'chatId'>
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
 

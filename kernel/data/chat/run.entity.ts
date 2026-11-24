@@ -1,28 +1,20 @@
+import type { TableFilter } from 'drizzle-orm'
 import type { Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
-import type { RunColumns } from '#kernel/data/chat/run.table'
+import type { Keyed } from '@app-template/packages/db'
+
+import type { RunColumns, runs } from '#kernel/data/chat/run.table'
+import type { FilterOf } from '#kernel/data/relations'
+
+/** A Run nests nothing, so every read returns its `RunColumns`. A write finds its Run by the key. */
+export type RunEntityWhere = Keyed<TableFilter<typeof runs>, RunColumns, 'id'>
 
 /**
- * A Run nests nothing, so every read returns its `RunColumns`. `userId` is the owner of the Run's
- * chat, not a column of `runs`.
+ * A read finds its Run by the key or by its user message, narrowed by the rest. The owner is the
+ * Run's chat's: `chat: { userId }`.
  */
-export type RunEntityWhere = Types.Simplify<
-  Pick<RunColumns, 'id'> &
-    Partial<{
-      readonly chatId: RunColumns['chatId']
-      readonly userId: string
-      readonly status: ReadonlyArray<RunColumns['status']>
-    }>
->
-
-/** A read finds its Run by the key or by its user message, exactly one, narrowed by the rest. */
-export type RunEntitySelectWhere =
-  | Types.Simplify<RunEntityWhere & { readonly userMessageId?: never }>
-  | Types.Simplify<
-      Pick<RunColumns, 'userMessageId'> &
-        Partial<Omit<RunEntityWhere, 'id'>> & { readonly id?: never }
-    >
+export type RunEntitySelectWhere = Keyed<FilterOf<'runs'>, RunColumns, 'id' | 'userMessageId'>
 
 /** The columns an update may write. */
 export const runSetColumns = [

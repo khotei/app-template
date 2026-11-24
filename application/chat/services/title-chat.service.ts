@@ -37,7 +37,7 @@ export class TitleChatService extends Context.Service<
       const proposed = yield* assistant.proposeTitle(first.text)
 
       // Only an untitled chat takes the title, so a rename by the user always wins.
-      yield* chats.update({ title: Option.some(proposed) }, { id: chatId, title: Option.none() })
+      yield* chats.update({ title: Option.some(proposed) }, { id: chatId, title: { isNull: true } })
     })
 
     return { title }

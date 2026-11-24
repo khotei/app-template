@@ -138,13 +138,13 @@ describe('ChatService', () => {
 
         const updated = yield* service.update(
           { title: Option.some(lisbonWeekend) },
-          { id: chat.id, title: Option.none() },
+          { id: chat.id, title: { isNull: true } },
         )
 
         assertEquals(updated.title, Option.some(lisbonWeekend))
         assert.deepStrictEqual(wheres, [
-          { id: chat.id, title: null },
-          { id: chat.id, title: null },
+          { id: chat.id, title: { isNull: true } },
+          { id: chat.id, title: { isNull: true } },
         ])
       }).pipe(
         Effect.provide(

@@ -35,7 +35,7 @@ export class UserService extends Context.Service<
 
     const authenticate = Effect.fn('UserService.authenticate')(
       hashSecret,
-      Effect.flatMap((credential) => users.selectOne({ credential })),
+      Effect.flatMap((credentials) => users.selectOne({ credentials })),
       Effect.flatMap(decodeWith(Schema.Option(User))),
       Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
     )

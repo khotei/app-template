@@ -85,7 +85,7 @@ describe('RunService', () => {
         assert.strictEqual(moved.status, to)
         assert.deepStrictEqual(
           Arr.map(updates, ([set, where]) => [set.status, where]),
-          [[to, { id: run.id, status: [from] }]],
+          [[to, { id: run.id, status: from }]],
         )
       }).pipe(Effect.provide(layer))
     },
@@ -109,7 +109,7 @@ describe('RunService', () => {
         .pipe(Effect.catchDefect(Effect.succeed))
 
       assert.strictEqual(defect, 'no run was updated')
-      assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: ['queued'] }])
+      assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: 'queued' }])
     }).pipe(Effect.provide(layer))
   })
 
@@ -143,7 +143,10 @@ describe('RunService', () => {
     },
     {
       name: 'user message',
-      where: { userMessageId: queuedRun.userMessageId, status: activeRunStatuses },
+      where: {
+        userMessageId: queuedRun.userMessageId,
+        status: { in: Arr.copy(activeRunStatuses) },
+      },
       key: { userMessageId: queuedRun.userMessageId },
     },
   ])(

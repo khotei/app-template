@@ -71,8 +71,8 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const owned = yield* runs.selectOne({ id: queued.id, userId })
-      const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
+      const owned = yield* runs.selectOne({ id: queued.id, chat: { userId } })
+      const foreign = yield* runs.selectOne({ id: queued.id, chat: { userId: strangerId } })
 
       assertSchemaEquals(SelectedRun, owned, Option.some(queued))
       assert.deepStrictEqual(foreign, Option.none())
@@ -86,8 +86,11 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const active = yield* runs.selectOne({ id: queued.id, status: ['queued', 'generating'] })
-      const settled = yield* runs.selectOne({ id: queued.id, status: ['done', 'failed'] })
+      const active = yield* runs.selectOne({
+        id: queued.id,
+        status: { in: ['queued', 'generating'] },
+      })
+      const settled = yield* runs.selectOne({ id: queued.id, status: { in: ['done', 'failed'] } })
 
       assertSchemaEquals(SelectedRun, active, Option.some(queued))
       assert.deepStrictEqual(settled, Option.none())
@@ -102,10 +105,10 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const own = yield* runs.selectOne({ userMessageId, status: ['queued', 'generating'] })
+      const own = yield* runs.selectOne({ userMessageId, status: { in: ['queued', 'generating'] } })
       const other = yield* runs.selectOne({
         userMessageId: otherMessageId,
-        status: ['queued', 'generating'],
+        status: { in: ['queued', 'generating'] },
       })
 
       assertSchemaEquals(SelectedRun, own, Option.some(queued))
@@ -121,9 +124,9 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: ['queued'] })
+      yield* runs.update({ status: 'failed', failure }, { id: queued.id, status: 'queued' })
       const exit = yield* runs
-        .update({ status: 'generating' }, { id: queued.id, status: ['queued'] })
+        .update({ status: 'generating' }, { id: queued.id, status: 'queued' })
         .pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
@@ -151,7 +154,7 @@ describe('RunRepository', () => {
 
       yield* messages.insert(reply)
       const done = { status: 'done', assistantMessageId: reply.id } as const
-      yield* runs.update(done, { id: queued.id, status: ['queued'] })
+      yield* runs.update(done, { id: queued.id, status: 'queued' })
 
       assertSchemaEquals(
         SelectedRun,
