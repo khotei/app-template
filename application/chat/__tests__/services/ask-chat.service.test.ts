@@ -17,7 +17,6 @@ import { Chat } from '#chat/domain/chat.model'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
@@ -139,7 +138,7 @@ describe('AskChatService', () => {
             }),
           ),
         ])
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
+        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(run)])
         assertEquals(yield* jobs.sent, [
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
           replyJob(run),
@@ -347,7 +346,7 @@ describe('AskChatService', () => {
             updatedAt: retried.createdAt,
           }),
         )
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(retried)])
+        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(retried)])
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* jobs.sent, [replyJob(retried)])
       }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))

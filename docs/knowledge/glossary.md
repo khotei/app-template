@@ -215,9 +215,9 @@ _Avoid_: Entity group, root, aggregate root
 The `Schema.Class` of a domain concept as its module sees it, with its pure operations (`Chat`,
 `Message`). Its encoded side is the row of its one store (`null`, a `Date`); the rules read its
 type side only. Its `<Model>Fields` is the `Schema.Struct` of its own fields, the model's
-supertype, which a write encodes and another model may nest (`Chat.run: Option<RunFields>`). Not
-the language model, which keeps both words in prose and is `LanguageModel` or `llm…` in code
-(`LlmError`, `llmModels`).
+supertype, which a write encodes and another model may nest; a model that nests no record has
+none, and a neighbour nests it whole (`Chat.run: Option<Run>`). Not the language model, which
+keeps both words in prose and is `LanguageModel` or `llm…` in code (`LlmError`, `llmModels`).
 _Avoid_: Entity, DTO, row
 
 **Rule**:

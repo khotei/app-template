@@ -5,9 +5,8 @@ import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 
 /** `userId` limits a read to the user's chats, which every api caller passes. */
 type RunNarrowing = Partial<
@@ -50,7 +49,7 @@ export class RunService extends Context.Service<
     ) {
       const id = yield* generateId(RunId)
       const run = yield* Run.makeEffect({ ...fields, id })
-      const row = yield* encodeWith(RunFields)(run)
+      const row = yield* encodeWith(Run)(run)
 
       yield* runs.insert(row)
       return run
@@ -70,7 +69,7 @@ export class RunService extends Context.Service<
     const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
       // Without `to`'s `updatedAt`, so the constructor's default moves it to now.
       const updated = yield* Run.makeEffect(Struct.omit(to, ['updatedAt']))
-      const row = yield* encodeWith(RunFields)(updated)
+      const row = yield* encodeWith(Run)(updated)
 
       yield* runs.update(row, where)
       return updated

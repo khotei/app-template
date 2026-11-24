@@ -1,21 +1,43 @@
-import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Option, Schema } from 'effect'
 
-import { activeRunStatuses } from '@app-template/kernel/data'
+import { activeRunStatuses, RunFailure, runStatuses } from '@app-template/kernel/data'
 
-import type { MessageId } from '#chat/domain/message.util'
+import { ChatId } from '#chat/domain/chat.util'
+import { MessageId } from '#chat/domain/message.util'
 import {
   RunNotRetryableError,
   RunStartedError,
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
-import { hasStatus } from '#chat/domain/status.model'
+import { RunId } from '#chat/domain/run.util'
+import { hasStatus, Status } from '#chat/domain/status.model'
+
+export const RunStatus = Status.pick(runStatuses)
+export type RunStatus = typeof RunStatus.Type
+
+// The column's shape is the model's own: one definition, served through the module's entry.
+export { RunFailure }
 
 /**
  * The work of answering one user message, as its row holds it: `userMessageId` names the message
- * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message.
+ * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message. A chat
+ * and a message nest it whole. `makeEffect` stamps a timestamp left out with the clock's now.
  */
-export class Run extends Schema.Class<Run>('Run')(RunFields.fields) {}
+export class Run extends Schema.Class<Run>('Run')({
+  id: RunId,
+  chatId: ChatId,
+  userMessageId: MessageId,
+  status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
+  failure: Schema.OptionFromNullOr(RunFailure).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
+  /** The reply's id, none until the Run is done. */
+  assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
+  createdAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
+  updatedAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
+}) {}
 
 // The statuses the data layer's active index holds, served through the module's entry.
 export { activeRunStatuses }
@@ -39,9 +61,9 @@ const isFailedRun = hasStatus(['failed'])
  * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
  * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
+export const ensureRunRetryable = (newestRun: Option.Option<Run>) =>
   newestRun.pipe(
-    Option.filter<RunFields>(isFailedRun),
+    Option.filter<Run>(isFailedRun),
     Effect.fromOption(() => new RunNotRetryableError()),
   )
 

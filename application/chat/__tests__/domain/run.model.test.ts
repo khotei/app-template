@@ -15,10 +15,10 @@ import {
   isActiveRun,
   isStartedRun,
   Run,
+  RunStatus,
   startRun,
 } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
 

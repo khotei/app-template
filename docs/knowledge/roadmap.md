@@ -735,8 +735,8 @@ two versions built side by side to review before deciding again.
 - **What the trial found.** A table's row is declared three times: the Drizzle table
   (`kernel/data/chat/run.table.ts`), the entity beside it (`run.entity.ts`: the nested read, the
   `where` types, the columns an update may write) and the domain model
-  (`application/chat/domain/run-fields.model.ts`), with `encodeWith` and `decodeWith` between
-  them in every service. Most of what a version on Effect alone removed sat on those seams, not
+  (`application/chat/domain/run.model.ts`), with `encodeWith` and `decodeWith` between them in
+  every service. Most of what a version on Effect alone removed sat on those seams, not
   in Drizzle's queries.
 - **The two versions to build and compare,** each on Message and Run first, each proved by the
   journeys in `apps/e2e/` passing unchanged:

@@ -4,7 +4,7 @@ import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { isBlank, MessageId } from '#chat/domain/message.util'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { Run } from '#chat/domain/run.model'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -31,5 +31,5 @@ export type MessageFields = typeof MessageFields.Type
 export class Message extends Schema.Class<Message>('Message')({
   ...MessageFields.fields,
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
-  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
 }) {}

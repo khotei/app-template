@@ -6,8 +6,14 @@ import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
-import { activeRunStatuses, completeRun, failRun, Run, startRun } from '#chat/domain/run.model'
-import type { RunStatus } from '#chat/domain/run-fields.model'
+import {
+  activeRunStatuses,
+  completeRun,
+  failRun,
+  Run,
+  type RunStatus,
+  startRun,
+} from '#chat/domain/run.model'
 import { RunService } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
