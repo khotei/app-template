@@ -1,6 +1,6 @@
 import { Array as Arr, Context, Effect, Layer, Option, Struct } from 'effect'
 
-import { encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
+import { buildFilter, encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
 
 import {
   type ChatEntity,
@@ -52,12 +52,17 @@ export class ChatRepository extends Context.Service<
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
-          (where) => db.query.chats.findFirst({ where, with: withNewestRun }),
+          (where) => db.query.chats.findFirst({ where: buildFilter(where), with: withNewestRun }),
           Effect.map(Option.fromUndefinedOr),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('ChatRepository.selectMany')(
-          (where) => db.query.chats.findMany({ where, with: withNewestRun, orderBy: newestFirst }),
+          (where) =>
+            db.query.chats.findMany({
+              where: buildFilter(where),
+              with: withNewestRun,
+              orderBy: newestFirst,
+            }),
           orDieWithSqlError,
         ),
         delete: Effect.fn('ChatRepository.delete')(

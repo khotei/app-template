@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { orDieWithSqlError } from '@app-template/packages/db'
+import { buildFilter, orDieWithSqlError } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import type {
@@ -32,7 +32,7 @@ export class UserRepository extends Context.Service<
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('UserRepository.selectOne')(
-        (where: UserEntityWhere) => db.query.users.findFirst({ where }),
+        (where: UserEntityWhere) => db.query.users.findFirst({ where: buildFilter(where) }),
         Effect.map(Option.fromUndefinedOr),
         orDieWithSqlError,
       ),
