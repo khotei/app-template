@@ -24,7 +24,7 @@ import { ChatId } from '#chat/domain/chat.util'
  */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
 
-/** A chat by id and its owner: what a write on a user's behalf names, so none reaches another's. */
+/** A chat by id and its owner: what a call on a user's behalf names, so none reaches another's. */
 export type ChatOwnerWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
 const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
@@ -36,7 +36,8 @@ export class ChatService extends Context.Service<
     readonly create: (userId: UserId) => Effect.Effect<Chat>
     /** The user's chats, the newest created first. */
     readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
-    readonly getOne: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
+    /** The chat of the user `where` names; another's is not found. */
+    readonly getOne: (where: ChatOwnerWhere) => Effect.Effect<Chat, ChatNotFoundError>
     /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
     readonly update: (
       fields: Types.Simplify<Pick<Chat, 'title'>>,

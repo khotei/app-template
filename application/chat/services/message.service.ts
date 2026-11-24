@@ -8,9 +8,9 @@ import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 
-/** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
+/** A message by id in a chat of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id'> & Partial<Pick<Message, 'chatId'> & { readonly userId: UserId }>
+  Pick<Message, 'id'> & { readonly userId: UserId } & Partial<Pick<Message, 'chatId'>>
 >
 
 export class MessageService extends Context.Service<
