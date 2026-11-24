@@ -145,7 +145,7 @@ function storeRuns(writes: Writes, ...runs: ReadonlyArray<Run>) {
             Effect.sync(() => {
               writes.runs.push([set, decodeRunFilter(where)])
               stored = Arr.map(stored, (run) =>
-                run.id === moved.id ? new Run({ ...run, status: set.status }) : run,
+                run.id === moved.id ? new Run({ ...run, status: set.status ?? run.status }) : run,
               )
             }),
         }),

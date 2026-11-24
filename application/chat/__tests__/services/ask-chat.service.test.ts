@@ -55,7 +55,7 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
 })
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
-function recordUpdates(queue: ChatLeaves['queue']) {
+function recordUpdates(queue: Required<ChatLeaves>['queue']) {
   const updates: Array<RunEntitySet> = []
   const layer = layerChatTest(
     {
