@@ -30,8 +30,9 @@ export class Chat extends Model.Class<Chat>('Chat')({
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,
   /** The newest Run, read with the chat and never written; none before its first ask. */
-  run: Model.FieldOnly(['select'])(
-    Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Schema.OptionFromNullOr(Run).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+    Model.FieldOnly(['select']),
   ),
 }) {}
 

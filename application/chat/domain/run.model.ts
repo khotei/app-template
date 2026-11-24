@@ -19,9 +19,6 @@ export type RunStatus = typeof RunStatus.Type
 // The column's shape is the model's own: one definition, served through the module's entry.
 export { RunFailure }
 
-/** Written once, by the insert. */
-const insertOnly = Model.FieldExcept(['update', 'jsonUpdate'])
-
 /**
  * The work of answering one user message, as `runs` holds it: `userMessageId` names the message
  * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message. An update
@@ -30,11 +27,12 @@ const insertOnly = Model.FieldExcept(['update', 'jsonUpdate'])
  */
 export class Run extends Model.Class<Run>('Run')({
   id: Model.UuidV7Insert(RunId),
-  chatId: insertOnly(ChatId),
-  userMessageId: insertOnly(MessageId),
+  chatId: ChatId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
+  userMessageId: MessageId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
-  failure: Model.Sensitive(
-    Schema.OptionFromNullOr(RunFailure).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  failure: Schema.OptionFromNullOr(RunFailure).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+    Model.Sensitive,
   ),
   /** The reply's id, none until the Run is done. */
   assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(

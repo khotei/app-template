@@ -24,7 +24,8 @@ export class Message extends Model.Class<Message>('Message')({
   ),
   createdAt: Model.DateTimeInsertFromDate,
   /** A user's newest Run, an assistant's own; read with the message, never written. */
-  run: Model.FieldOnly(['select'])(
-    Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Schema.OptionFromNullOr(Run).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+    Model.FieldOnly(['select']),
   ),
 }) {}

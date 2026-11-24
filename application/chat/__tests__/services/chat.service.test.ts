@@ -1,4 +1,3 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
@@ -25,7 +24,7 @@ const chatServiceOver = ({
   chats = {},
 }: {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
-}) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
+}) => ChatService.layer.pipe(Layer.provide(Layer.mock(ChatRepository, chats)))
 
 /** A `selectOne` that returns `found` as its row. */
 const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
