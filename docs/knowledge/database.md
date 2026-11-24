@@ -134,8 +134,8 @@ in one relational query, and never a nested `with`: `Chat.run` and `Message.run`
 fields another table holds, read and never written by their own writes. A `one` relation over
 many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: newestFirst } }`, since a
 relation holds no order and renders `limit 1`. A relational query
-aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never on
-the `chats` constant.
+aliases its table, so its `where` is the filter object, which the query renders on that alias,
+never a condition built on the `chats` constant.
 
 ## Repositories
 
@@ -153,9 +153,21 @@ in the e2e), so the transaction runs on the connection `Db` uses. Every method e
 `orDieWithSqlError` from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
-their codecs: a write encodes the model into the row, the set takes its fields from that row, the
-service maps each `Option` of a `where` to `null`, and a read decodes the entities into models; a
-mapping failure dies.
+their codecs: a write encodes the model into the row, the set takes its fields from that row,
+and a read decodes the entities into models; a mapping failure dies.
+
+A `where` has two forms, one on each side of a service. What a caller hands a service is model
+values alone, each field required: a branded id, an `Option` for a field that may be null
+(`{ id, title: Option.none() }` is a chat still untitled), a list for one of several
+(`status: activeRunStatuses`). A call on a user's behalf names the owner in its type
+(`ChatOwnerWhere`, `RunOwnerWhere`, `MessageWhere`), and a method two callers reach with different
+fields takes a union of two named wheres: `ChatService.update` the user's rename or the title
+job's, `RunService.getOne` the api's read or the worker's. What a service hands a repository is
+Drizzle's relational filter object, built in the method that calls the repository, field by
+field from its where: a value as it is, an `Option` of none as `{ isNull: true }`, a list as
+`{ in: […] }`. So Drizzle's operators appear only at a service's repository call, never in a
+handler, a use case or a `<Verb><Model>Service`, and no filter holds an `undefined` field, which
+Drizzle throws on.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder
@@ -176,12 +188,16 @@ table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that
 fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
 repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
 only those columns, and an `undefined` field is skipped by Drizzle's `set`.
-`buildWhere<Fields>(columns)` from `@app-template/packages/db` takes a `WhereColumns<Fields>`,
-one mapper per field returning `SQL | undefined`, and joins them with `and`, which skips an
-absent field (`UndefinedOr.map`); a mapper returning the wrong shape and a field the type gains
-without a mapper fail typecheck.
-A nullable field's mapper is `eqOrIsNull(column)`, which renders `null` as `IS NULL`, since
-SQL's `=` never matches it.
+A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
+<Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
+`FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
+keys names both, and its `where` must hold one. A relational query takes it as
+`buildFilter(where)`, and a core-builder statement as `encodeFilter(<table>, where)`, which
+renders the same object as that statement's condition. A filter that names nothing matches no
+row in both (``{ RAW: sql`false` }``, `` sql`false` ``), so no statement goes without its
+`WHERE`.
+A column that is null is matched by `{ isNull: true }`: Drizzle throws on a `null` in a filter,
+as on an `undefined`.
 
 ## Guards
 
@@ -199,7 +215,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.move(run, transition)` moves the
+  and `updatedAt` `WHERE id = … AND status = …`: `RunService.move(run, transition)` moves the
   Run it is given through the model's transition and writes it through `RunService.update(to,
   where)`, which stamps it with the current time and passes it, encoded, as the set, with the
   Run's id under the status it was read in as the `where`, where a read's `RunEntitySelectWhere`
@@ -224,7 +240,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   refusal, then writes only the changed fields under the same `where`, so a row another writer
   changed in between is missed and the write dies. A repository's `update(set, where)` takes a
   set that is `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck, and a
-  `where` of a key and optionally a field the row must still hold, mapped through `buildWhere`
+  `where` of a key and any field the row must still hold, rendered by `encodeFilter`
   (above). The worked case is a chat's rename: the title job renames `where` `title` is still
   `none`, so a rename landing between its read and its write wins, and the title job dies and
   fails.

@@ -435,7 +435,7 @@ read scoped to the user.
 // removes the bytes once the row is gone
 const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
   yield* orders.getOne(where).pipe(ensureUnpaid)
-  yield* orders.delete({ ...where, paidAt: null })
+  yield* orders.delete({ ...where, paidAt: Option.none() })
   yield* files.delete({ id: [where.id] })
 })
 ```

@@ -32,8 +32,26 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's insert and
   update variants, which a write encodes ([models.md](models.md)), are no second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
-  after the read. The field mappers and a relational query's alias:
+  after the read.
+
+## A where's two forms
+
+- A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). No
+  statement takes it bare: a relational query takes `buildFilter(where)`, a core-builder one
+  `encodeFilter(<table>, where)`, so a filter that names nothing matches no row.
+- A service's `where` is model values alone, each field required: a branded id, an `Option`, a
+  list; one a user's call names holds the owner. The method builds the repository's filter where
+  it calls the repository, never passing its `where` through, so Drizzle's operators stay there.
+  A method two callers reach with different fields takes a union of two named wheres, never
+  optional fields. The types and the alias of a relational query:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
+
+```diff
+- orders.getOne({ id, note: { isNull: true } })             // the caller speaks Drizzle
++ orders.getOne({ id, note: Option.none() })
++ // OrderService.getOne, at its repository call:
++ repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
+```
 
 ## What is stored
 
