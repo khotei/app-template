@@ -962,87 +962,6 @@
           },
           "updatedAt": {
             "type": "string"
-          },
-          "userMessage": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                "format": "uuid"
-              },
-              "chatId": {
-                "type": "string",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                "format": "uuid"
-              },
-              "author": {
-                "type": "string",
-                "enum": [
-                  "user",
-                  "assistant"
-                ]
-              },
-              "text": {
-                "type": "string",
-                "pattern": "^[^\\0]*$"
-              },
-              "createdAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "chatId",
-              "author",
-              "text",
-              "createdAt"
-            ],
-            "additionalProperties": false
-          },
-          "assistantMessage": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "chatId": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "author": {
-                    "type": "string",
-                    "enum": [
-                      "user",
-                      "assistant"
-                    ]
-                  },
-                  "text": {
-                    "type": "string",
-                    "pattern": "^[^\\0]*$"
-                  },
-                  "createdAt": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "chatId",
-                  "author",
-                  "text",
-                  "createdAt"
-                ],
-                "additionalProperties": false
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
@@ -1052,9 +971,7 @@
           "status",
           "assistantMessageId",
           "createdAt",
-          "updatedAt",
-          "userMessage",
-          "assistantMessage"
+          "updatedAt"
         ],
         "additionalProperties": false
       },
@@ -1109,7 +1026,7 @@
           "run": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/ApiRunFields"
+                "$ref": "#/components/schemas/ApiRun"
               },
               {
                 "type": "null"
@@ -1124,63 +1041,6 @@
           "text",
           "createdAt",
           "run"
-        ],
-        "additionalProperties": false
-      },
-      "ApiRunFields": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-            "format": "uuid"
-          },
-          "chatId": {
-            "type": "string",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-            "format": "uuid"
-          },
-          "userMessageId": {
-            "type": "string",
-            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-            "format": "uuid"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "queued",
-              "generating",
-              "done",
-              "failed"
-            ]
-          },
-          "assistantMessageId": {
-            "anyOf": [
-              {
-                "type": "string",
-                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "createdAt": {
-            "type": "string"
-          },
-          "updatedAt": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "chatId",
-          "userMessageId",
-          "status",
-          "assistantMessageId",
-          "createdAt",
-          "updatedAt"
         ],
         "additionalProperties": false
       },

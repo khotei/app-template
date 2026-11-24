@@ -2,7 +2,7 @@ import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
-import { MessageFields } from '#chat/domain/message.model'
+import type { MessageId } from '#chat/domain/message.util'
 import {
   RunNotRetryableError,
   RunStartedError,
@@ -12,17 +12,10 @@ import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
 import { hasStatus } from '#chat/domain/status.model'
 
 /**
- * The work of answering one user message; a retry is a new Run of the same message. Read with
- * its messages, flat; its writes never touch them.
+ * The work of answering one user message, as its row holds it: `userMessageId` names the message
+ * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message.
  */
-export class Run extends Schema.Class<Run>('Run')({
-  ...RunFields.fields,
-  userMessage: MessageFields,
-  /** The reply, none until the Run is done. */
-  assistantMessage: Schema.OptionFromNullOr(MessageFields).pipe(
-    Schema.withConstructorDefault(Effect.succeedNone),
-  ),
-}) {}
+export class Run extends Schema.Class<Run>('Run')(RunFields.fields) {}
 
 // The statuses the data layer's active index holds, served through the module's entry.
 export { activeRunStatuses }
@@ -70,7 +63,7 @@ const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
 const move = Effect.fnUntraced(function* (
   run: Run,
   to: Exclude<RunStatus, 'queued'>,
-  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>> = {},
+  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId'>> = {},
 ) {
   yield* ensureRunMove(run, to)
   return new Run({ ...run, ...fields, status: to })
@@ -78,11 +71,9 @@ const move = Effect.fnUntraced(function* (
 
 export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
 
-export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
-  move(run, 'done', {
-    assistantMessageId: Option.some(reply.id),
-    assistantMessage: Option.some(reply),
-  }),
+/** Ends a Run with the reply `replyId` names. */
+export const completeRun = Effect.fn('completeRun')((run: Run, replyId: MessageId) =>
+  move(run, 'done', { assistantMessageId: Option.some(replyId) }),
 )
 
 /** Fails a Run with the full text of `cause`, its nested causes included. */

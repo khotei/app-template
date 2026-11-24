@@ -10,7 +10,7 @@ import type {
   RunEntityWhere,
 } from '@app-template/kernel/data'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { encodeWith } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
@@ -95,7 +95,6 @@ const doneRun = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(reply.id),
-  assistantMessage: Option.some(reply),
 })
 
 /** A chat an ask has reached before, so an ask sends the reply's job alone. */
@@ -119,7 +118,7 @@ describe('AskChatService', () => {
       return Effect.gen(function* () {
         const run = yield* ask(chat, 'Plan a weekend in Lisbon')
 
-        const { userMessage } = run
+        const userMessage = yield* decodeWith(MessageFields)(Arr.getUnsafe(inserts.messages, 0))
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
         assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
@@ -129,19 +128,22 @@ describe('AskChatService', () => {
           new Run({
             id: run.id,
             chatId: chat.id,
-            userMessage: new Message({
+            userMessageId: userMessage.id,
+            createdAt: run.createdAt,
+            updatedAt: run.createdAt,
+          }),
+        )
+        assert.deepStrictEqual(inserts.messages, [
+          yield* encodeWith(MessageFields)(
+            new Message({
               author: 'user',
               id: userMessage.id,
               chatId: chat.id,
               text: 'Plan a weekend in Lisbon',
               createdAt: sentAt,
             }),
-            userMessageId: userMessage.id,
-            createdAt: run.createdAt,
-            updatedAt: run.createdAt,
-          }),
-        )
-        assert.deepStrictEqual(inserts.messages, [yield* encodeWith(MessageFields)(userMessage)])
+          ),
+        ])
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
         assertEquals(yield* jobs.sent, [
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
@@ -352,7 +354,6 @@ describe('AskChatService', () => {
           new Run({
             id: retried.id,
             chatId: chat.id,
-            userMessage: firstMessage,
             userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
             updatedAt: retried.createdAt,

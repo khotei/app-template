@@ -4,7 +4,6 @@ import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
-import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
@@ -29,7 +28,9 @@ type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & RunNarrowing>
 export class RunService extends Context.Service<
   RunService,
   {
-    readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
+    readonly create: (
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+    ) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
     readonly update: (to: Run, where: RunUpdateWhere) => Effect.Effect<Run>
@@ -44,17 +45,12 @@ export class RunService extends Context.Service<
     const runs = yield* RunRepository
     const generateId = yield* idGenerator
 
-    const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
+    const create = Effect.fn('RunService.create')(function* (
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+    ) {
       const id = yield* generateId(RunId)
       const createdAt = yield* DateTime.now
-      const run = new Run({
-        id,
-        chatId: userMessage.chatId,
-        userMessage,
-        userMessageId: userMessage.id,
-        createdAt,
-        updatedAt: createdAt,
-      })
+      const run = new Run({ ...fields, id, createdAt, updatedAt: createdAt })
       const row = yield* encodeWith(RunFields)(run)
 
       yield* runs.insert(row)

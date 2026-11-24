@@ -83,8 +83,9 @@ curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello"}'
-# repeat while the Run is queued or generating: its assistantMessage arrives whole
+# repeat while the Run is queued or generating: once done, its assistantMessageId names the reply
 curl -s -b jar localhost:3000/chats/<chatId>/runs/<runId>
+curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 # the reload: the chat's messages, each with its Run
 curl -s -b jar localhost:3000/chats/<chatId>/messages
 ```

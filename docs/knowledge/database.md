@@ -17,8 +17,8 @@ columns' schema `<Name>Columns` (`createSelectSchema(<table>)`) where a neighbou
 it, and its entities, the schemas read from it, in `<name>.entity.ts`; what each may import:
 [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
 The tables form a DAG and import no entity, so an entity nests a neighbour's `<Name>Columns`
-from the table file without a cycle: `RunEntity` nests `MessageColumns`, and
-`ChatEntity` and `MessageEntity` nest `RunColumns`, where the entities would import each other.
+from the table file without a cycle: `ChatEntity` and `MessageEntity` nest `RunColumns`. A Run
+nests nothing, so its reads return `RunColumns` itself and its messages are the ids it holds.
 The tables are the one declaration of the schema: the migrations are generated from them and
 the entities derived from them.
 
@@ -67,8 +67,7 @@ An entity file lays its entity over the table's columns, in the data layer's own
 reads and writes filter and change by. A repository's `insert` takes the table's full row, its
 `<Name>Columns` (the entity itself where it nests nothing), so a row that leaves a column out
 fails typecheck. An entity is the shape every read returns, one level deep: a chat's and a
-message's nest their Run's columns, a Run's its messages' columns, and the nested columns nest
-nothing:
+message's nest their Run's columns, and the nested columns nest nothing:
 
 ```ts
 export const ChatEntity = Schema.Struct({
@@ -114,15 +113,15 @@ states it with `orderBy`. A relational query returns nested rows typed as the en
 repository returns them as they are:
 
 ```ts
-const rows = yield* db.query.runs.findMany({ with: { userMessage: true } })
-// rows: [{ id, chatId, …, userMessage: { id, chatId, author, … } }]
+const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: newestFirst } } })
+// rows: [{ id, userId, …, run: { id, chatId, status, … } | null }]
 ```
 
 A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
-in one relational query, and never a nested `with`: `Chat.run`,
-`Run.userMessage` and `Message.run` are model fields another table holds, read and never written by
-their own writes. A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: {
-orderBy: newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
+in one relational query, and never a nested `with`: `Chat.run` and `Message.run` are model
+fields another table holds, read and never written by their own writes. A `one` relation over
+many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: newestFirst } }`, since a
+relation holds no order and renders `limit 1`. A relational query
 aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never on
 the `chats` constant.
 

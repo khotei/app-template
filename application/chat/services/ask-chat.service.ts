@@ -54,7 +54,7 @@ export class AskChatService extends Context.Service<
     // The message and its Run commit together: a Run that loses the race keeps no message.
     const createMessageRun = Effect.fnUntraced(function* (chat: Chat, text: string) {
       const message = yield* messages.create({ chatId: chat.id, text, author: 'user' })
-      return yield* runs.create(message)
+      return yield* runs.create({ chatId: message.chatId, userMessageId: message.id })
     }, transaction.run)
 
     // `ask` and `retry` are uninterruptible: a client's abort after the Run commits would leave it
@@ -78,7 +78,10 @@ export class AskChatService extends Context.Service<
         const failed = yield* ensureRunRetryable(chat.run)
         const userMessage = yield* messages.getOne({ id: failed.userMessageId })
 
-        const run = yield* runs.create(userMessage)
+        const run = yield* runs.create({
+          chatId: userMessage.chatId,
+          userMessageId: userMessage.id,
+        })
         return yield* askReply(run)
       },
       Effect.uninterruptible,
