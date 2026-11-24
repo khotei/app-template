@@ -4,11 +4,9 @@ import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
 
-import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import type { RunStatus } from '#chat/domain/run-fields.model'
 
 /** `userId` limits a read to the user's chats, which every api caller passes. */
 type RunNarrowing = Partial<
@@ -29,7 +27,9 @@ type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & RunNarrowing>
 export class RunService extends Context.Service<
   RunService,
   {
-    readonly create: (userMessage: MessageFields) => Effect.Effect<Run>
+    readonly create: (
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+    ) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
     readonly update: (to: Run, where: RunUpdateWhere) => Effect.Effect<Run>
@@ -44,17 +44,15 @@ export class RunService extends Context.Service<
     const runs = yield* RunRepository
     const generateId = yield* idGenerator
 
-    const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
+    const create = Effect.fn('RunService.create')(function* (
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+    ) {
       const id = yield* generateId(RunId)
-      const fields = yield* Run.insert.makeEffect({
-        id,
-        chatId: userMessage.chatId,
-        userMessageId: userMessage.id,
-      })
-      const row = yield* encodeWith(Run.insert)(fields)
+      const inserted = yield* Run.insert.makeEffect({ ...fields, id })
+      const row = yield* encodeWith(Run.insert)(inserted)
 
       yield* runs.insert(row)
-      return new Run({ ...fields, userMessage })
+      return new Run(inserted)
     }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(

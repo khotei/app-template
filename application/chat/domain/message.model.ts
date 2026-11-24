@@ -1,11 +1,11 @@
-import { Effect, Predicate, Schema, Struct } from 'effect'
+import { Effect, Predicate, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 import { Stored } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { isBlank, MessageId } from '#chat/domain/message.util'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { Run } from '#chat/domain/run.model'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -25,12 +25,6 @@ export class Message extends Stored.Class<Message>('Message')({
   createdAt: Stored.CreatedAt,
   /** A user's newest Run, an assistant's own, flat; read with the message, never written. */
   run: Stored.readOnly(
-    Schema.OptionFromNullOr(RunFields.select).pipe(
-      Schema.withConstructorDefault(Effect.succeedNone),
-    ),
+    Schema.OptionFromNullOr(Run.select).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   ),
 }) {}
-
-/** A message's own fields: what a Run nests of it. */
-export const MessageFields = Message.mapFields(Struct.omit(['run']))
-export type MessageFields = typeof MessageFields.Type

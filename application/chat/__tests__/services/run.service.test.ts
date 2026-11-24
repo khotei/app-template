@@ -6,8 +6,14 @@ import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
-import { activeRunStatuses, completeRun, failRun, Run, startRun } from '#chat/domain/run.model'
-import type { RunStatus } from '#chat/domain/run-fields.model'
+import {
+  activeRunStatuses,
+  completeRun,
+  failRun,
+  Run,
+  type RunStatus,
+  startRun,
+} from '#chat/domain/run.model'
 import { RunService } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
@@ -24,7 +30,7 @@ const moves: ReadonlyArray<{
     name: 'completeRun',
     from: 'generating',
     to: 'done',
-    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.')),
+    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id),
   },
   {
     name: 'failRun',
@@ -115,7 +121,7 @@ describe('RunService', () => {
         const service = yield* RunService
 
         const defect = yield* service
-          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.')))
+          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id))
           .pipe(Effect.catchDefect(Effect.succeed))
 
         assert.instanceOf(defect, RunStatusInvalidError)

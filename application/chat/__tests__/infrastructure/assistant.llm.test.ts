@@ -10,7 +10,7 @@ import type { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatTitle } from '#chat/domain/chat.model'
-import type { MessageFields } from '#chat/domain/message.model'
+import type { Message } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { assistantMessageAt, userMessageAt } from '#testing/chat/chat.test-fixture'
@@ -83,7 +83,7 @@ const apiError = (
     { status, headers },
   )
 
-const reply = (history: ReadonlyArray<MessageFields>) =>
+const reply = (history: ReadonlyArray<Message>) =>
   MessageAssistant.use((assistant) => assistant.reply(history))
 
 const proposeTitle = (text: string) =>

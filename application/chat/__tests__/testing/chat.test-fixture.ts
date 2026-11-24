@@ -45,7 +45,6 @@ export const assistantMessageAt = (n: number, text: string) =>
 export const queuedRun = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
   chatId,
-  userMessage: firstMessage,
   userMessageId: firstMessage.id,
   createdAt: epoch,
   updatedAt: epoch,

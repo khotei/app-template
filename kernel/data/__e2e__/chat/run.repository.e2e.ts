@@ -6,9 +6,8 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 import { chats } from '#kernel/data/chat/chat.table'
 import { MessageRepository } from '#kernel/data/chat/message.repository'
 import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
-import { RunEntity } from '#kernel/data/chat/run.entity'
 import { RunRepository } from '#kernel/data/chat/run.repository'
-import type { RunColumns } from '#kernel/data/chat/run.table'
+import { RunColumns } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -49,14 +48,7 @@ const run = (
   ...fields,
 })
 
-/** `row` as a read nests its messages, the reply none unless given. */
-const read = (row: RunRow, assistantMessage: MessageColumns | null = null): RunEntity => ({
-  ...row,
-  userMessage,
-  assistantMessage,
-})
-
-const SelectedRun = Schema.Option(RunEntity)
+const SelectedRun = Schema.Option(RunColumns)
 
 const insertUserMessage = Db.use((db) =>
   db
@@ -82,7 +74,7 @@ describe('RunRepository', () => {
       const owned = yield* runs.selectOne({ id: queued.id, userId })
       const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
 
-      assertSchemaEquals(SelectedRun, owned, Option.some(read(queued)))
+      assertSchemaEquals(SelectedRun, owned, Option.some(queued))
       assert.deepStrictEqual(foreign, Option.none())
     }).pipe(Effect.provide(RepositoryTest)),
   )
@@ -97,7 +89,7 @@ describe('RunRepository', () => {
       const active = yield* runs.selectOne({ id: queued.id, status: ['queued', 'generating'] })
       const settled = yield* runs.selectOne({ id: queued.id, status: ['done', 'failed'] })
 
-      assertSchemaEquals(SelectedRun, active, Option.some(read(queued)))
+      assertSchemaEquals(SelectedRun, active, Option.some(queued))
       assert.deepStrictEqual(settled, Option.none())
     }).pipe(Effect.provide(RepositoryTest)),
   )
@@ -116,7 +108,7 @@ describe('RunRepository', () => {
         status: ['queued', 'generating'],
       })
 
-      assertSchemaEquals(SelectedRun, own, Option.some(read(queued)))
+      assertSchemaEquals(SelectedRun, own, Option.some(queued))
       assert.deepStrictEqual(other, Option.none())
     }).pipe(Effect.provide(RepositoryTest)),
   )
@@ -138,12 +130,12 @@ describe('RunRepository', () => {
       assertSchemaEquals(
         SelectedRun,
         yield* runs.selectOne({ id: queued.id }),
-        Option.some(read(run(queued.id, { status: 'failed', failure }))),
+        Option.some(run(queued.id, { status: 'failed', failure })),
       )
     }).pipe(Effect.provide(RepositoryTest)),
   )
 
-  it.effect('selectOne nests the message the Run answers and, once written, its reply', () =>
+  it.effect('selectOne returns a done Run naming its reply', () =>
     Effect.gen(function* () {
       const runs = yield* RunRepository
       const messages = yield* MessageRepository
@@ -164,7 +156,7 @@ describe('RunRepository', () => {
       assertSchemaEquals(
         SelectedRun,
         yield* runs.selectOne({ id: queued.id }),
-        Option.some(read(run(queued.id, done), reply)),
+        Option.some(run(queued.id, done)),
       )
     }).pipe(Effect.provide(RepositoryTest)),
   )

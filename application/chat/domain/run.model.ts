@@ -1,27 +1,43 @@
 import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 
-import { activeRunStatuses } from '@app-template/kernel/data'
+import { activeRunStatuses, RunFailure, runStatuses } from '@app-template/kernel/data'
 import { Stored } from '@app-template/packages/schema'
 
-import { MessageFields } from '#chat/domain/message.model'
+import { ChatId } from '#chat/domain/chat.util'
+import { MessageId } from '#chat/domain/message.util'
 import {
   RunNotRetryableError,
   RunStartedError,
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
-import { hasStatus } from '#chat/domain/status.model'
+import { RunId } from '#chat/domain/run.util'
+import { hasStatus, Status } from '#chat/domain/status.model'
+
+export const RunStatus = Status.pick(runStatuses)
+export type RunStatus = typeof RunStatus.Type
+
+// The column's shape is the model's own: one definition, served through the module's entry.
+export { RunFailure }
 
 /**
- * The work of answering one user message; a retry is a new Run of the same message. Read with
- * its messages, flat; its writes never touch them.
+ * The work of answering one user message, as `runs` holds it: `userMessageId` names the message
+ * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message; an update
+ * writes its status, failure, reply and `updatedAt`.
  */
-export class Run extends RunFields.extend<Run>('Run')({
-  userMessage: Stored.readOnly(MessageFields),
-  /** The reply, none until the Run is done. */
-  assistantMessage: Stored.readOnly(
-    Schema.OptionFromNullOr(MessageFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+export class Run extends Stored.Class<Run>('Run')({
+  id: Stored.insertOnly(RunId),
+  chatId: Stored.insertOnly(ChatId),
+  userMessageId: Stored.insertOnly(MessageId),
+  status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
+  failure: Schema.OptionFromNullOr(RunFailure).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
   ),
+  /** The reply's id, none until the Run is done. */
+  assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+  ),
+  createdAt: Stored.CreatedAt,
+  updatedAt: Stored.UpdatedAt,
 }) {}
 
 // The statuses the data layer's active index holds, served through the module's entry.
@@ -46,9 +62,9 @@ const isFailedRun = hasStatus(['failed'])
  * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
  * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = (newestRun: Option.Option<RunFields>) =>
+export const ensureRunRetryable = (newestRun: Option.Option<Run>) =>
   newestRun.pipe(
-    Option.filter<RunFields>(isFailedRun),
+    Option.filter<Run>(isFailedRun),
     Effect.fromOption(() => new RunNotRetryableError()),
   )
 
@@ -70,7 +86,7 @@ const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
 const move = Effect.fnUntraced(function* (
   run: Run,
   to: Exclude<RunStatus, 'queued'>,
-  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'assistantMessage'>> = {},
+  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId'>> = {},
 ) {
   yield* ensureRunMove(run, to)
   return new Run({ ...run, ...fields, status: to })
@@ -78,11 +94,9 @@ const move = Effect.fnUntraced(function* (
 
 export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
 
-export const completeRun = Effect.fn('completeRun')((run: Run, reply: MessageFields) =>
-  move(run, 'done', {
-    assistantMessageId: Option.some(reply.id),
-    assistantMessage: Option.some(reply),
-  }),
+/** Ends a Run with the reply `replyId` names. */
+export const completeRun = Effect.fn('completeRun')((run: Run, replyId: MessageId) =>
+  move(run, 'done', { assistantMessageId: Option.some(replyId) }),
 )
 
 /** Fails a Run with the full text of `cause`, its nested causes included. */

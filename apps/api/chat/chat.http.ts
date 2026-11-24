@@ -12,7 +12,6 @@ import {
   MessageId,
   MessageNotFoundError,
   Run,
-  RunFields,
   RunId,
   RunNotFoundError,
   RunNotRetryableError,
@@ -28,12 +27,8 @@ export type ApiChat = typeof ApiChat.Type
 // prompt: it stays in the row, and every wire shape of a Run omits it.
 const ApiRun = Run.mapFields(Struct.omit(['failure'])).annotate({ identifier: 'ApiRun' })
 
-const ApiRunFields = RunFields.mapFields(Struct.omit(['failure'])).annotate({
-  identifier: 'ApiRunFields',
-})
-
 const ApiMessage = Message.mapFields(
-  Struct.assign({ run: Schema.OptionFromNullOr(ApiRunFields) }),
+  Struct.assign({ run: Schema.OptionFromNullOr(ApiRun) }),
 ).annotate({ identifier: 'ApiMessage' })
 
 const chatPath = { chatId: ChatId }
@@ -76,7 +71,6 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     params: chatPath,
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [
-      MessageNotFoundError.pipe(HttpApiSchema.status(404)),
       ChatNotFoundError.pipe(HttpApiSchema.status(404)),
       RunNotRetryableError.pipe(HttpApiSchema.status(409)),
     ],

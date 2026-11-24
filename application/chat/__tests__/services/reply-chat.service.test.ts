@@ -26,7 +26,7 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
@@ -55,7 +55,6 @@ const andNow = userMessageAt(4, 'And now?')
 const lastRun = new Run({
   id: queuedRun.id,
   chatId,
-  userMessage: andNow,
   userMessageId: andNow.id,
   createdAt: andNow.createdAt,
   updatedAt: andNow.createdAt,
@@ -67,7 +66,6 @@ const doneElsewhere = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(elsewhereReply.id),
-  assistantMessage: Option.some(elsewhereReply),
 })
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
@@ -203,7 +201,7 @@ describe('ReplyChatService', () => {
         const generatingMoves = ['queued → generating']
         assert.deepStrictEqual(asked, generatingMoves)
         assert.deepStrictEqual(halfway, generatingMoves)
-        const stored = yield* decodeWith(Schema.Array(MessageFields))(writes.messages).pipe(
+        const stored = yield* decodeWith(Schema.Array(Message.insert))(writes.messages).pipe(
           Effect.head,
         )
         const message = new Message({
@@ -213,13 +211,12 @@ describe('ReplyChatService', () => {
           text: 'Sure.',
           createdAt: at(1000),
         })
-        assert.deepStrictEqual(writes.messages, [yield* encodeWith(MessageFields)(message)])
+        assert.deepStrictEqual(writes.messages, [yield* encodeWith(Message.insert)(message)])
         const done = new Run({
           ...queuedRun,
           status: 'done',
           updatedAt: at(1000),
           assistantMessageId: Option.some(message.id),
-          assistantMessage: Option.some(message),
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
           yield* encodeWith(Run.update)(done),
