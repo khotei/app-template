@@ -47,8 +47,8 @@ export class UserRepository extends Context.Service<
     return {
       insert: Effect.fn('UserRepository.insert')(
         function* (user: typeof User.insert.Type, credential: UserCredential) {
-          const inserted = yield* table.insert(user)
-          yield* sql`insert into credentials ${sql.insert({ ...credential, userId: inserted.id })}`
+          yield* table.insertVoid(user)
+          yield* sql`insert into credentials ${sql.insert({ ...credential, userId: user.id })}`
         },
         sql.withTransaction,
         Effect.orDie,
