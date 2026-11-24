@@ -157,17 +157,20 @@ their codecs: a write encodes the model into the row, the set takes its fields f
 and a read decodes the entities into models; a mapping failure dies.
 
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
-values alone, each field required: a branded id, an `Option` for a field that may be null
+values alone: a branded id, an `Option` for a field that may be null
 (`{ id, title: Option.none() }` is a chat still untitled), a list for one of several
-(`status: activeRunStatuses`). A call on a user's behalf names the owner in its type
-(`ChatOwnerWhere`, `RunOwnerWhere`, `MessageWhere`), and a method two callers reach with different
-fields takes a union of two named wheres: `ChatService.update` the user's rename or the title
-job's, `RunService.getOne` the api's read or the worker's. What a service hands a repository is
-Drizzle's relational filter object, built in the method that calls the repository, field by
-field from its where: a value as it is, an `Option` of none as `{ isNull: true }`, a list as
-`{ in: […] }`. So Drizzle's operators appear only at a service's repository call, never in a
-handler, a use case or a `<Verb><Model>Service`, and no filter holds an `undefined` field, which
-Drizzle throws on.
+(`status: activeRunStatuses`). Its key is a required field, and so is the owner a call on a
+user's behalf names in its type (`ChatOwnerWhere`, `RunOwnerWhere`, `MessageWhere`); a narrowing
+a caller may leave out, a query-string parameter, is `T | undefined`, never an `Option`
+([effect.md › Schemas](../../.claude/rules/effect.md#schemas)). A method two callers reach with
+different fields takes a union of two named wheres: `ChatService.update` the user's rename or the
+title job's, `RunService.getOne` the api's read or the worker's. What a service hands a
+repository is Drizzle's relational filter object, built in the method that calls the repository,
+field by field from its where: a value as it is, an `Option` of none as `{ isNull: true }`, a
+list as `{ in: […] }`, a narrowing left out as no key. So Drizzle's operators appear only at a
+service's repository call, never in a handler, a use case or a `<Verb><Model>Service`, and no
+filter holds an `undefined` field, which Drizzle throws on and `exactOptionalPropertyTypes`
+([tooling.md › TypeScript](tooling.md#typescript)) refuses at `make typecheck`.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder
@@ -187,7 +190,8 @@ The entity file lists the columns an update may write once, as `<name>SetColumns
 table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
 fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
 repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
-only those columns, and an `undefined` field is skipped by Drizzle's `set`.
+only those columns; a column the set leaves out is not written, and a set that holds an
+`undefined` does not compile.
 A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
 <Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
 `FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
