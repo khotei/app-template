@@ -1,4 +1,4 @@
-import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
+import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { ConfigProvider, Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
@@ -40,7 +40,6 @@ describe('POST /events', () => {
         Layer.mock(MessageAssistant, {}),
         Layer.mock(ChatAssistant, {}),
         TransactionTest,
-        BunCrypto.layer,
       ]),
       Layer.provide(
         ConfigProvider.layer(

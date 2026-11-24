@@ -1,12 +1,17 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
+import {
+  type ChatColumns,
+  type ChatEntitySelectWhere,
+  type ChatEntitySet,
+  type ChatEntityWhere,
+  ChatRepository,
+} from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
@@ -19,7 +24,7 @@ const chatServiceOver = ({
   chats = {},
 }: {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
-}) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
+}) => ChatService.layer.pipe(Layer.provide(Layer.mock(ChatRepository, chats)))
 
 /** A `selectOne` that returns `found` as its row. */
 const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
@@ -44,7 +49,57 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
   { name: 'delete', call: (service, userId, chatId) => service.delete({ id: chatId, userId }) },
 ]
 
+/** A title a where names, and what the repository's filter holds for it. */
+const titleWheres: ReadonlyArray<{
+  readonly name: string
+  readonly title: Chat['title']
+  readonly stored: Required<ChatEntityWhere>['title']
+}> = [
+  { name: 'none', title: Option.none(), stored: { isNull: true } },
+  { name: 'some', title: Option.some(trip), stored: 'Trip' },
+]
+
 describe('ChatService', () => {
+  // The id's random bits come from `globalThis.crypto`, past any `SecureRandom` a test provides,
+  // so the case asserts its form, not its value.
+  it.effect(
+    'create inserts an untitled chat with a UUIDv7 id at the clock time, and returns it',
+    () => {
+      const inserts: Array<ChatColumns> = []
+      return Effect.gen(function* () {
+        const service = yield* ChatService
+
+        const created = yield* service.create(owner)
+
+        assert.isTrue(isUuidV7(created.id))
+        assertEquals(
+          created,
+          new Chat({ id: created.id, userId: owner, createdAt: epoch, updatedAt: epoch }),
+        )
+        assert.deepStrictEqual(inserts, [
+          {
+            id: created.id,
+            userId: owner,
+            title: null,
+            createdAt: DateTime.toDateUtc(epoch),
+            updatedAt: DateTime.toDateUtc(epoch),
+          },
+        ])
+      }).pipe(
+        Effect.provide(
+          chatServiceOver({
+            chats: {
+              insert: (row) =>
+                Effect.sync(() => {
+                  inserts.push(row)
+                }),
+            },
+          }),
+        ),
+      )
+    },
+  )
+
   it.live(
     "update writes the title and a moved updatedAt under the owner's where, and returns the chat",
     () => {
@@ -64,7 +119,7 @@ describe('ChatService', () => {
         )
         assert.deepStrictEqual(updates, [
           [
-            { title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
+            { id: chat.id, title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
             { id: chat.id, userId: owner },
           ],
         ])
@@ -84,22 +139,22 @@ describe('ChatService', () => {
     },
   )
 
-  it.effect(
-    'update where the title is none reads and writes only while the chat is untitled',
-    () => {
-      const wheres: Array<ChatEntityWhere> = []
+  it.effect.each(titleWheres)(
+    'update where the title is $name reads and writes only while the chat holds it',
+    ({ title, stored }) => {
+      const wheres: Array<ChatEntitySelectWhere> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
         const updated = yield* service.update(
           { title: Option.some(lisbonWeekend) },
-          { id: chat.id, title: Option.none() },
+          { id: chat.id, title },
         )
 
         assertEquals(updated.title, Option.some(lisbonWeekend))
         assert.deepStrictEqual(wheres, [
-          { id: chat.id, title: null },
-          { id: chat.id, title: null },
+          { id: chat.id, title: stored },
+          { id: chat.id, title: stored },
         ])
       }).pipe(
         Effect.provide(
@@ -121,7 +176,7 @@ describe('ChatService', () => {
   )
 
   it.effect("list reads the user's chats", () => {
-    const wheres: Array<ChatEntityWhere> = []
+    const wheres: Array<ChatEntitySelectWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
@@ -144,19 +199,24 @@ describe('ChatService', () => {
     )
   })
 
-  it.effect("delete removes the owner's chat by its id", () => {
+  it.effect('delete reads the chat, then removes it, both under its owner', () => {
+    const reads: Array<ChatEntitySelectWhere> = []
     const deleted: Array<ChatEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
       yield* service.delete({ id: chat.id, userId: owner })
 
-      assert.deepStrictEqual(deleted, [{ id: chat.id }])
+      assert.deepStrictEqual(reads, [{ id: chat.id, userId: owner }])
+      assert.deepStrictEqual(deleted, [{ id: chat.id, userId: owner }])
     }).pipe(
       Effect.provide(
         chatServiceOver({
           chats: {
-            selectOne: selectsOne(chat),
+            selectOne: (where) =>
+              Effect.sync(() => {
+                reads.push(where)
+              }).pipe(Effect.andThen(selectsOne(chat))),
             delete: (where) =>
               Effect.sync(() => {
                 deleted.push(where)

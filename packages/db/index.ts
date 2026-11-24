@@ -1,16 +1,14 @@
 export {
   createDb,
-  orDieUnless,
   orDieWithSqlError,
   Transaction,
   unwrapQueryError,
 } from '#db/db.client'
 export {
-  buildWhere,
   createdAt,
-  eqOrIsNull,
+  encodeFilter,
   id,
-  skipUndefined,
+  type Keyed,
   updatedAt,
 } from '#db/db-columns'
 export { migrateDatabase, retryWhileUnreachable } from '#db/db-migrate'

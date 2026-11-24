@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 
 import { ChatTitle, Message, TitleChat } from '@app-template/application/chat'
 import {
@@ -33,10 +33,13 @@ describe('titleChat', () => {
       assert.deepStrictEqual(logs, [['Info', 'title skipped: chat deleted or titled']])
     }).pipe(
       Effect.provide([
-        layerChatTest({
-          messages: { selectMany: selectsFirstMessage },
-          chats: { selectOne: () => Effect.succeedNone },
-        }).pipe(Layer.provideMerge(assistant.layer)),
+        layerChatTest(
+          {
+            messages: { selectMany: selectsFirstMessage },
+            chats: { selectOne: () => Effect.succeedNone },
+          },
+          { chatAssistant: assistant.layer },
+        ),
         logger,
       ]),
     )
@@ -52,8 +55,9 @@ describe('titleChat', () => {
       assert.deepStrictEqual(logs, [['Info', 'title skipped: chat deleted or titled']])
     }).pipe(
       Effect.provide([
-        layerChatTest({ messages: { selectMany: () => Effect.succeed([]) } }).pipe(
-          Layer.provideMerge(assistant.layer),
+        layerChatTest(
+          { messages: { selectMany: () => Effect.succeed([]) } },
+          { chatAssistant: assistant.layer },
         ),
         logger,
       ]),
@@ -70,8 +74,9 @@ describe('titleChat', () => {
       assert.deepStrictEqual(logs, [['Warn', 'title skipped: the assistant failed', chatId, error]])
     }).pipe(
       Effect.provide([
-        layerChatTest({ messages: { selectMany: selectsFirstMessage } }).pipe(
-          Layer.provideMerge(assistant.layer),
+        layerChatTest(
+          { messages: { selectMany: selectsFirstMessage } },
+          { chatAssistant: assistant.layer },
         ),
         logger,
       ]),

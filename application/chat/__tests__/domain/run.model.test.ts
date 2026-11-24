@@ -1,11 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, DateTime, Effect, Option, Schema, Struct } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Option, Struct } from 'effect'
 
+import { UserId } from '@app-template/application/identity'
 import { activeRunStatuses } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId } from '#chat/domain/chat.util'
-import { Message, MessageFields } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
@@ -16,44 +16,28 @@ import {
   isActiveRun,
   isStartedRun,
   Run,
+  RunStatus,
   startRun,
 } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunStatus } from '#chat/domain/run-fields.model'
 
 const createdAt = DateTime.makeUnsafe('2026-11-09T00:00:00.000Z')
-const later = DateTime.makeUnsafe('2026-11-09T00:00:01.000Z')
 
 const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000002')
-
-const userMessage = new Message({
-  author: 'user',
-  id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
-  chatId,
-  text: 'Hi',
-  createdAt,
-})
 
 const queued = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000001'),
   chatId,
-  userMessageId: userMessage.id,
+  userId: UserId.make('0192d4e0-7b3a-7c00-8000-000000000005'),
+  userMessageId: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000003'),
   status: 'queued',
   failure: Option.none(),
   assistantMessageId: Option.none(),
   createdAt,
   updatedAt: createdAt,
-  userMessage,
-  assistantMessage: Option.none(),
 })
 
-const reply = new Message({
-  author: 'assistant',
-  id: MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004'),
-  chatId,
-  text: 'Hello',
-  createdAt: later,
-})
+const replyId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004')
 
 const runAt = (status: RunStatus) => new Run({ ...queued, status })
 
@@ -77,7 +61,7 @@ const moves: ReadonlyArray<{
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
   { to: 'generating', from: ['queued'], move: startRun },
-  { to: 'done', from: ['generating'], move: (run) => completeRun(run, reply) },
+  { to: 'done', from: ['generating'], move: (run) => completeRun(run, replyId) },
   {
     to: 'failed',
     from: activeRunStatuses,
@@ -127,11 +111,11 @@ it.effect('failRun keeps the full text of the cause, its nested causes included'
 )
 
 describe('completeRun', () => {
-  it.effect('keeps the reply it settled with', () =>
+  it.effect('names the reply it settled with', () =>
     Effect.gen(function* () {
-      const done = yield* completeRun(runAt('generating'), reply)
+      const done = yield* completeRun(runAt('generating'), replyId)
 
-      assertSchemaEquals(Schema.Option(MessageFields), done.assistantMessage, Option.some(reply))
+      assert.deepStrictEqual(done.assistantMessageId, Option.some(replyId))
     }),
   )
 })

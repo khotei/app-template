@@ -2,7 +2,7 @@ import type { PgClient } from '@effect/sql-pg'
 import type { AnyRelations } from 'drizzle-orm'
 import { EffectDrizzleQueryError } from 'drizzle-orm/effect-core/errors'
 import * as PgDrizzle from 'drizzle-orm/effect-postgres'
-import { Cause, Context, Effect, Layer, type Predicate, Schema } from 'effect'
+import { Cause, Context, Effect, Layer, Schema } from 'effect'
 import { SqlClient, SqlError } from 'effect/sql'
 
 /**
@@ -54,19 +54,6 @@ export function unwrapQueryError(error: EffectDrizzleQueryError) {
 }
 
 const isQueryError = Schema.is(EffectDrizzleQueryError)
-
-/**
- * Dies with `message` unless the rows a write's `RETURNING` returns satisfy `holds`.
- *
- * The caller checked the rule before writing, so a write the guard refuses only lost a race.
- */
-export const orDieUnless =
-  (holds: Predicate.Predicate<ReadonlyArray<unknown>>, message: string) =>
-  <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
-    self.pipe(
-      Effect.filterOrElse(holds, () => Effect.die(new Error(message))),
-      Effect.asVoid,
-    )
 
 /** Turns every failure into a defect, a Drizzle query error as the `SqlError` it wraps. */
 export const orDieWithSqlError = <A, E, R>(

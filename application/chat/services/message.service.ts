@@ -1,47 +1,40 @@
-import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, type Types } from 'effect'
 
-import type { UserId } from '@app-template/application/identity'
-import { MessageRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
-import { Message, MessageFields } from '#chat/domain/message.model'
-import { MessageId } from '#chat/domain/message.util'
+import { Message } from '#chat/domain/message.model'
 
-/** A message by id; `userId` limits it to the user's chats, which every api caller passes. */
-export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id'> & Partial<Pick<Message, 'chatId'> & { readonly userId: UserId }>
->
+/** A message by id in its chat, of the user `userId` names, so none reads another's. */
+export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
 export class MessageService extends Context.Service<
   MessageService,
   {
-    readonly create: (fields: Pick<Message, 'chatId' | 'text' | 'author'>) => Effect.Effect<Message>
+    readonly create: (fields: typeof Message.jsonCreate.Type) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     /** The chat's messages in creation order. */
     readonly getMany: (
-      where: Types.Simplify<Pick<Message, 'chatId'>>,
+      where: Types.Simplify<Pick<MessageWhere, 'chatId'>>,
     ) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('MessageService.create')(function* (
-      fields: Pick<Message, 'chatId' | 'text' | 'author'>,
+      fields: typeof Message.jsonCreate.Type,
     ) {
-      const id = yield* generateId(MessageId)
-      const createdAt = yield* DateTime.now
-      const message = new Message({ ...fields, id, createdAt })
-      const row = yield* encodeWith(MessageFields)(message)
+      const inserted = yield* Message.insert.makeEffect(fields)
+      const row = yield* encodeWith(Message.insert)(inserted)
 
       yield* messages.insert(row)
-      return message
-    })
+      return new Message(inserted)
+    }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
-      (where: MessageWhere) => messages.selectOne(where),
+      (where: MessageWhere) => messages.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Message))),
       (found, where) =>
         Effect.flatMap(
@@ -51,7 +44,8 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      messages.selectMany,
+      (where: Types.Simplify<Pick<MessageWhere, 'chatId'>>) =>
+        messages.selectMany(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 

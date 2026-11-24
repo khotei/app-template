@@ -55,11 +55,12 @@ Where each kind of test and its support live, and what a test may import:
   `AwsTest`), provided in the test, never cleaned up by hand. Tests in a file run concurrently; a
   suite sharing one resource opts out with `describe(name, { concurrent: false }, …)`.
 - `it.effect`'s `TestClock` stands at 0, the fixtures' `epoch`. A test whose point is that time
-  moves runs `it.live` and asserts relations (`child.createdAt == parent.updatedAt > epoch`), not
+  moves runs `it.live` and asserts relations (`child.createdAt >= parent.createdAt > epoch`), not
   instants. Move a `TestClock` only in a test about a delay or an expiry, never inside a shared
   `layer(…)` block.
-- Generate ids with `BunCrypto.layer`; `Layer.mock` `SecureRandom` only for a test that asserts
-  an id.
+- A model's new id cannot be pinned, as it is read past any `SecureRandom` layer: assert its form
+  (`isUuidV7`) and build the expected record with it. `BunCrypto.layer` only under a service that
+  yields a crypto service.
 
 ## Writing a test
 

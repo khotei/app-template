@@ -15,6 +15,7 @@ const createdAt = new Date('2026-11-09T00:00:00.123Z')
 const updatedAt = new Date('2026-11-09T00:00:01.456Z')
 
 const userId = '0192d4e0-7b3a-7c00-8000-000000000090'
+const strangerId = '0192d4e0-7b3a-7c00-8000-00000000008f'
 const chatId = '0192d4e0-7b3a-7c00-8000-000000000091'
 const userMessageId = '0192d4e0-7b3a-7c00-8000-000000000092'
 const otherChatId = '0192d4e0-7b3a-7c00-8000-00000000009a'
@@ -25,11 +26,12 @@ type RunRow = RunColumns
 const run = (
   id: string,
   fields: Types.Simplify<
-    Partial<Pick<RunRow, 'chatId' | 'status' | 'failure' | 'assistantMessageId'>>
+    Partial<Pick<RunRow, 'chatId' | 'userId' | 'status' | 'failure' | 'assistantMessageId'>>
   > = {},
 ): RunRow => ({
   id,
   chatId,
+  userId,
   userMessageId,
   status: 'queued',
   failure: null,
@@ -39,11 +41,17 @@ const run = (
   ...fields,
 })
 
-/** Two chats of one user, the first with the user's message and an assistant's reply. */
+/**
+ * Two chats of one user, the first with the user's message and an assistant's reply, beside a
+ * stranger with no chat.
+ */
 const insertMessages = Db.use((db) =>
   db
     .insert(users)
-    .values({ id: userId, createdAt: new Date(0) })
+    .values([
+      { id: userId, createdAt: new Date(0) },
+      { id: strangerId, createdAt: new Date(0) },
+    ])
     .pipe(
       Effect.andThen(
         db.insert(chats).values([
@@ -53,8 +61,8 @@ const insertMessages = Db.use((db) =>
       ),
       Effect.andThen(
         db.insert(messages).values([
-          { id: userMessageId, chatId, author: 'user', text: 'Hi', createdAt },
-          { id: replyId, chatId, author: 'assistant', text: 'Hello', createdAt },
+          { id: userMessageId, chatId, userId, author: 'user', text: 'Hi', createdAt },
+          { id: replyId, chatId, userId, author: 'assistant', text: 'Hello', createdAt },
         ]),
       ),
     ),
@@ -161,7 +169,19 @@ describe('runs', () => {
       )
 
       assert.strictEqual(error.reason._tag, 'ConstraintError')
-      assert.include(String(error.reason.cause), 'runs_chat_id_chats_id_fkey')
+      assert.include(String(error.reason.cause), 'runs_chat_id_user_id_fk')
+    }).pipe(Effect.provide(DbTest)),
+  )
+
+  it.effect("refuses a Run of another user than its chat's through the key over both", () =>
+    Effect.gen(function* () {
+      yield* insertMessages
+      const error = yield* flipSqlError(
+        insertRun(run('0192d4e0-7b3a-7c00-8000-00000000008e', { userId: strangerId })),
+      )
+
+      assert.strictEqual(error.reason._tag, 'ConstraintError')
+      assert.include(String(error.reason.cause), 'runs_chat_id_user_id_fk')
     }).pipe(Effect.provide(DbTest)),
   )
 

@@ -38,7 +38,7 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
 - A step used once stays in its flow, so the flow reads whole: statements in a generator, or a named
   function expression in the `pipe` or combinator that orders the steps, when its name says what a
   lambda would not (`pipe(rows, function dropStale(rows) { … })`). One used from two places is a
-  declaration, or an arrow constant for one expression; so is a tail's recovery of several steps.
+  declaration or an arrow constant, as are a tail's recovery and one transaction's writes.
 - A generator reads a service with `yield*`; outside one it is `Service.use((s) => s.m(…))`, or
   `useSync` for a plain value, never `Effect.flatMap` over it. A call never takes another call's
   result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain

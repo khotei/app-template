@@ -1,31 +1,20 @@
-import {
-  Context,
-  DateTime,
-  Effect,
-  Layer,
-  Option,
-  Schema,
-  Struct,
-  type Types,
-  UndefinedOr,
-} from 'effect'
+import { Context, Effect, Layer, Schema, SchemaIssue, type Types } from 'effect'
+import type { SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatFields } from '#chat/domain/chat.model'
-import { ChatId } from '#chat/domain/chat.util'
+import { Chat } from '#chat/domain/chat.model'
 
 /**
- * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
- * untitled one.
+ * A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. A
+ * call on a user's behalf requires the owner, so none reaches another's.
  */
-export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
-
-const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
-  Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
+export type ChatWhere = Types.Simplify<
+  SetOptional<Pick<Chat, 'id' | 'userId' | 'title'>, 'userId' | 'title'>
+>
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -33,29 +22,31 @@ export class ChatService extends Context.Service<
     readonly create: (userId: UserId) => Effect.Effect<Chat>
     /** The user's chats, the newest created first. */
     readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
-    readonly getOne: (where: ChatWhere) => Effect.Effect<Chat, ChatNotFoundError>
+    /** The chat of the user `where` names; another's is not found. */
+    readonly getOne: (
+      where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
+    ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
     readonly update: (
-      fields: Types.Simplify<Pick<Chat, 'title'>>,
+      fields: typeof Chat.jsonUpdate.Type,
       where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Removes the user's chat with its messages and Runs. */
-    readonly delete: (where: ChatWhere) => Effect.Effect<void, ChatNotFoundError>
+    /** Removes the chat of the user `where` names, with its messages and Runs; another's is not found. */
+    readonly delete: (
+      where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
+    ) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = yield* generateId(ChatId)
-      const createdAt = yield* DateTime.now
-      const chat = new Chat({ id, userId, createdAt, updatedAt: createdAt })
-      const row = yield* encodeWith(ChatFields)(chat)
+      const fields = yield* Chat.insert.makeEffect({ userId })
+      const row = yield* encodeWith(Chat.insert)(fields)
 
       yield* chats.insert(row)
-      return chat
-    })
+      return new Chat(fields)
+    }, Effect.orDie)
 
     const list = Effect.fn('ChatService.list')(
       (userId: UserId) => chats.selectMany({ userId }),
@@ -63,7 +54,7 @@ export class ChatService extends Context.Service<
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatWhere) => chats.selectOne(encodeChatWhere(where)),
+      (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Chat))),
       (found, where) =>
         Effect.flatMap(
@@ -72,25 +63,27 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('ChatService.update')(function* (
-      fields: Types.Simplify<Pick<Chat, 'title'>>,
-      where: ChatWhere,
+    const update = Effect.fn('ChatService.update')(
+      function* (fields: typeof Chat.jsonUpdate.Type, where: ChatWhere) {
+        const chat = yield* getOne(where)
+        const set = yield* Chat.update.makeEffect({ id: chat.id, ...fields })
+        const row = yield* encodeWith(Chat.update)(set)
+
+        // Only the update variant's fields, under the `where` again: a change landing after the
+        // read is kept.
+        yield* chats.update(row, encodeWhere(where))
+        return new Chat({ ...chat, ...set })
+      },
+      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
+    )
+
+    const remove = Effect.fn('ChatService.delete')(function* (
+      where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
     ) {
-      const chat = yield* getOne(where)
-      const updatedAt = yield* DateTime.now
-      const updated = new Chat({ ...chat, ...fields, updatedAt })
-      const row = yield* encodeWith(ChatFields)(updated)
+      yield* getOne(where)
 
-      // Only the set fields, under the `where` again: a change landing after the read is kept.
-      yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
-      return updated
-    })
-
-    const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
-      const chat = yield* getOne(where)
-
-      // The cascade takes the messages and the Runs, by their `chat_id`.
-      yield* chats.delete({ id: chat.id })
+      // Under the owner again; the cascade takes the messages and the Runs, by their key to the chat.
+      yield* chats.delete(encodeWhere(where))
     })
 
     return { create, list, getOne, update, delete: remove }

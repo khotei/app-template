@@ -16,10 +16,10 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   [effect.md › Failures](effect.md#failures).
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
-  key with its `*NotFoundError`), coding the rows through the model (`encodeWith`, `decodeWith`;
-  no port between, [why](effect-services.md#services)). It sees the repositories, its ports, the
-  clock, `SecureRandom` and `Digest`; never another model's service, the transaction or its
-  infrastructure but as below ([composition.md](composition.md)).
+  key with its `*NotFoundError`), coding the rows through the model's variants (`encodeWith`,
+  `decodeWith`, [models.md](models.md); no port between, [why](effect-services.md#services)). It
+  sees the repositories, its ports, the clock, `SecureRandom` and `Digest`; never another model's
+  service, the transaction or its infrastructure but as below ([composition.md](composition.md)).
 - A service composed over `<Model>Service` holds the purpose it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store.
@@ -54,9 +54,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   once, as a service's method; a use case holds no rule of its own and never calls another
   ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
 - All checks precede every write; a step's own guard may repeat a check the use case made.
-- The writes commit in one transaction, `Transaction`'s `run` piped on the effect of the writes
-  it commits, never around a send or a language-model call. An object store joins none: keep the
-  bytes before the row that binds them, delete them once the rows are gone.
+- The writes commit in one transaction, `Transaction`'s `run` piped on them or their function's last
+  argument, spanning a language-model call only to store its answer, never a send. An object store
+  joins none: keep the bytes before the row that binds them, delete them once the rows are gone.
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
   through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
   on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).

@@ -64,7 +64,7 @@ describe('askChat', () => {
         yield* jobs.sent,
         title ? [titleJob, replyJob(run.userMessageId)] : [replyJob(run.userMessageId)],
       )
-    }).pipe(Effect.provide(layerChatTest(sendingTo(read)).pipe(Layer.provideMerge(jobs.layer))))
+    }).pipe(Effect.provide(layerChatTest(sendingTo(read), { queue: jobs.layer })))
   })
 
   it.effect(
@@ -87,13 +87,16 @@ describe('askChat', () => {
         assert.deepStrictEqual(queued, [titleChatQueue.name])
       }).pipe(
         Effect.provide(
-          layerChatTest({
-            ...mocks,
-            runs: {
-              ...mocks.runs,
-              update: () => Effect.void,
+          layerChatTest(
+            {
+              ...mocks,
+              runs: {
+                ...mocks.runs,
+                update: () => Effect.void,
+              },
             },
-          }).pipe(Layer.provideMerge(RefusingReplyQueueTest)),
+            { queue: RefusingReplyQueueTest },
+          ),
         ),
       )
     },
@@ -106,6 +109,6 @@ describe('askChat', () => {
 
       assertSchemaEquals(ChatBusyError, refused, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest(sendingTo(busyChat)).pipe(Layer.provideMerge(jobs.layer))))
+    }).pipe(Effect.provide(layerChatTest(sendingTo(busyChat), { queue: jobs.layer })))
   })
 })

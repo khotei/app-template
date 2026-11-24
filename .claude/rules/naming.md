@@ -19,7 +19,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 
 | Suffix | Holds | Where |
 |---|---|---|
-| `.model` | a concept's schemas with their pure rules, a file per value they act on; `<name>-fields.model.ts` the fields two models nest | `domain/` |
+| `.model` | a concept's schemas with their pure rules, a file per value they act on | `domain/` |
 | `.util` | `<model>.util.ts`: the model's branded id and the utils its module shares, importing only `effect`, `packages/schema` and other utils | `domain/`; the id alone in `contract/` |
 | `.error` | the errors a module fails with | `domain/` or `contract/`; a kernel part's, behind an entry of its own |
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
@@ -40,6 +40,11 @@ keep theirs. What each role holds and may import, with this app's files of each:
   `<Model>Service` (`<Aspect><Model>Service` composed over it) or, for one operation of no model,
   that operation; the last grouping before a use case is `<Verb><Model>Service`, its main method
   `<verb>`, the verb it names, any other named for its own act in the model's words.
+- A domain service's method types an object it takes from its model: new or changed fields are a
+  variant (`typeof Order.jsonCreate.Type`, `typeof Order.jsonUpdate.Type`), a where the model's one
+  `<Model>Where`, which a method narrows in place (`SetRequired<OrderWhere, 'customerId'>`, a
+  `Pick`). Only what neither gives is a type of its own, `<Model><Method>` with the argument's
+  role when the method takes two (`OrderCreate`, `OrderUpdateWhere`).
 - Functions are verb-first, and the verb marks the kind of work (whether a name passes:
   [name-and-body.md](name-and-body.md)):
   - `create<Thing>`: a factory that takes dependencies and assembles them, or a write that takes

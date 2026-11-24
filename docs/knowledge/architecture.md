@@ -71,7 +71,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
 | a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | `schema` only | `application/*/domain/**`, `kernel/data` by name |
-| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only; the chat's ask and reply services `db`'s `Transaction` too | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
+| a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema` only; the chat's ask and reply services `db`'s `Transaction` too, its ask service `queue`'s `QueueSender` | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
@@ -159,7 +159,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 
 | What | File | Named |
 |---|---|---|
-| model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Schema.Class`) |
+| model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
@@ -172,8 +172,8 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
-| codecs that turn a failure into a defect; the id format, its schema and its generation | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema`, `idGenerator` |
-| HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.mapFields(…)`) |
+| codecs that turn a failure into a defect; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema` |
+| HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat` |
@@ -256,14 +256,16 @@ imports need.
    the database adds included; the unit tests above it mock it
    ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.util.ts` (its id),
-   `<entity>.model.ts` (a `Schema.Class` with its pure operations, which read no clock;
+   `<entity>.model.ts` (a `Model.Class`, its fields by `.claude/rules/models.md`, with its pure
+   operations, which read no clock;
    a limit, a pattern or an enum's values imported from its table, never declared again,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
    [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`,
    each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
-   repository, coding its rows through the model with `encodeWith` and `decodeWith`, the
+   repository, coding its rows through the model and its variants with `encodeWith` and
+   `decodeWith`, the
    one owner every handler goes through, tested over mocks of the repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A purpose the service was not made for comes later as a service composed over it,

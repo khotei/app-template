@@ -50,6 +50,20 @@ export const layerApiClient = (baseUrl = '', cookies = Cookies.empty) =>
     ),
   )
 
+/** Another user's browser on the same api: an `ApiClient` with a cookie jar of its own. */
+export class StrangerApiClient extends Context.Service<
+  StrangerApiClient,
+  HttpApiClient.ForApi<typeof Api>
+>()('@app-template/apps/api/__tests__/testing/StrangerApiClient') {
+  static readonly layer = (
+    baseUrl: string,
+  ): Layer.Layer<StrangerApiClient, never, HttpClient.HttpClient> =>
+    Layer.effect(
+      this,
+      ApiClient.useSync((api) => api),
+    ).pipe(Layer.provide(layerApiClient(baseUrl)))
+}
+
 /** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ApiRepositoryMocks {
   readonly users?: Layer.PartialEffectful<UserRepository['Service']>

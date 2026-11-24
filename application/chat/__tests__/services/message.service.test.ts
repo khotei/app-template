@@ -17,7 +17,7 @@ const firstMessageRow = encodeWith(Message)(firstMessage)
 const where = { id: firstMessage.id, chatId: chat.id, userId: owner }
 
 describe('MessageService', () => {
-  it.effect('getOne reads the message by the where it was given', () => {
+  it.effect('getOne reads the message by the id, chat and user of its where', () => {
     const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
@@ -50,7 +50,7 @@ describe('MessageService', () => {
     }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 
-  it.effect("getMany reads the chat's messages by the where it was given", () => {
+  it.effect("getMany reads the chat's messages by the chat of its where", () => {
     const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* MessageService

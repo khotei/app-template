@@ -339,12 +339,9 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
-  `retry`), or the client aborts after the commit but before the send starts: a send SQS
-  refuses fails the Run, and the send and that failure run uninterruptibly, but no handler runs in a
-  dead process, and an interrupt during the commit or the title's send ends the flow first. Ways out
-  to weigh: one uninterruptible step from the Run's write through its send (the abort only), a
-  ledger of jobs, a sweep of active Runs. The owner refused a rule by a Run's age, and keeps the
-  abort's window as a cost (2026-11-20).
+  `retry`): a send SQS refuses fails the Run, and both methods run uninterruptibly, but no handler
+  runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active Runs. The owner
+  refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
   (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
@@ -412,9 +409,6 @@ moves it into its own `Later` and deletes it here.
   owner's decision.
 - (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
   have no case at their own seam; a planted bug in each passes.
-- (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
-  the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
-  once.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
   that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
   composition fact.
@@ -439,8 +433,9 @@ moves it into its own `Later` and deletes it here.
   go (found by the audit, not verified).
 - (2026-11-19) The imports plugin drops six loader forms no file uses (found by the audit, not
   verified).
-- (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
-  (found by the audit, not verified).
+- (2026-11-19) The kernel's AWS and language-model clients use the libraries' `layerConfig`, as
+  `PgClientFromConfig` does; one rule bullet says who closes what (found by the audit, not
+  verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
   it (found by the audit, not verified).
 - (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
@@ -467,14 +462,6 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-19) Drop the `RETURNING` read-back of a known id (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
-- (2026-11-20) A client that aborts while the Run's write commits leaves the Run queued and its
-  chat busy (the Cost in
-  [decisions.md › A Run's job on interrupt and on two deliveries](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries),
-  and the first item of `reply-run` above). Way out: send the reply's job through
-  `SqlClient.afterCommit`, present in effect 4.1.5 (`effect/src/sql/SqlClient.ts:144-184`), whose
-  callbacks run uninterruptibly once the `COMMIT` succeeds. Left: its callback is
-  `Effect<void, never>`, so the `202`'s Run comes back another way; a callback that dies is only
-  logged; and `Transaction` must offer it, as use cases do not see `SqlClient`.
 - (2026-11-21) vitest is held at 5.1.0 (the `tools` catalog in `package.json`): 5.1.1's forks
   pool forks a watchdog and calls `child.channel?.unref()`, which Bun 1.4.4 and 1.4.5 lack, so
   every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
@@ -484,8 +471,10 @@ moves it into its own `Later` and deletes it here.
   for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect
   4.1.5), and its jobs are sent before the outer `COMMIT`, against the send after the commit. The
   ask that binds files in one transaction over two modules (`shared-files`, 16) meets this. Ways
-  out to weigh: the service's sends through `SqlClient.afterCommit` (the item above names its
-  limits); the service's writes split from its sends, the use case ordering them, which walks back
+  out to weigh: the service's sends through `SqlClient.afterCommit` (effect 4.1.5,
+  `effect/src/sql/SqlClient.ts:144-184`), whose callback is `Effect<void, never>`, so the `202`'s
+  Run comes back another way, a callback that dies is only logged, and `Transaction` must offer
+  it; the service's writes split from its sends, the use case ordering them, which walks back
   "its writes in a helper beside them" of
   [Composition: wrap or compose](decisions.md#composition-wrap-or-compose); the service taking the
   attachments, refused today, as a module's services import no other module.
@@ -500,7 +489,7 @@ moves it into its own `Later` and deletes it here.
   that merge `make vendor-drizzle` stops with `fatal: can't squash-merge: 'repos/drizzle' was
   never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
-  `MessageFields.text`, which the OpenAPI document of `POST /chats/:chatId/messages`
+  a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
   (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
@@ -513,8 +502,8 @@ moves it into its own `Later` and deletes it here.
   than the worker's timeout is abandoned and failed, a younger one is left to its worker, which
   closes both cases. Its cost: a rule by time in the Run's model (the clock passed in), and a bound
   that must stay above the worker's timeout as either changes. The owner refused a rule by age for
-  the api's abort window (`reply-run` above); this entry, for the worker's start, is the owner's
-  (2026-11-21).
+  a Run the api leaves queued (`reply-run` above); this entry, for the worker's start, is the
+  owner's (2026-11-21).
 - (2026-11-22) `completeRun` and `failRun` (`application/chat/domain/run.model.ts`) take their
   record first, so each `RunService.move` through them wraps them in a lambda,
   `runs.move(run, (run) => failRun(run, cause))` (three calls in `reply-chat.service.ts`, one in
@@ -535,8 +524,8 @@ moves it into its own `Later` and deletes it here.
   test replaces them, as the unit suites mock the leaves (the repositories, the queue sender, the
   assistants). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
   services, while its `Effect.fn` guidance and examples support a plain function that yields its
-  services, and each method carries a requirement (`MessageAssistant`, `ChatAssistant`), against
-  "service operations should have the `Requirements` parameter set to `never`"
+  services; each takes its assistant in its `make`, so its method requires nothing, as "service
+  operations should have the `Requirements` parameter set to `never`"
   ([Avoiding Requirement Leakage](https://effect.website/docs/requirements-management/layers/)).
   As functions they would cost the two files, their tests and the worker's two `.layer` entries,
   lose the `layer<Variant>` wrap point, and leave each use case wrapping one function. The owner
@@ -732,6 +721,68 @@ programs in an `alchemy.run.ts`, run by `bun alchemy deploy | plan | destroy | d
   for AWS beside Pulumi for MiniStack would declare each resource twice.
 - **Not read:** state locking outside the Postgres store, whether secrets are encrypted in
   `.alchemy/`, and the `drift`, `--adopt` and v1-migration pages.
+
+### Effect SQL and `Model.Class` in place of Drizzle
+
+For the data layer, and the decisions [The data at the centre](decisions.md#the-data-at-the-centre)
+and [A module's layers](decisions.md#a-modules-layers). Researched and tried on 2026-11-23
+against `effect@4.1.5` and `drizzle-orm@1.0.0-rc.6`; the owner kept Drizzle as it is, and wants
+two versions built side by side to review before deciding again. Since then the domain models
+became `Model.Class` over the kept tables
+([Models with variants](decisions.md#models-with-variants)); Effect SQL in place of Drizzle
+stays the idea here.
+
+- **What the trial found.** A table's row is declared three times: the Drizzle table
+  (`kernel/data/chat/run.table.ts`), the entity beside it (`run.entity.ts`: the nested read, the
+  `where` types, the columns an update may write) and the domain model
+  (`application/chat/domain/run.model.ts`), with `encodeWith` and `decodeWith` between
+  them in every service. Most of what a version on Effect alone removed sat on those seams, not
+  in Drizzle's queries.
+- **The two versions to build and compare,** each on Message and Run first, each proved by the
+  journeys in `apps/e2e/` passing unchanged:
+  - **Effect alone.** One `Model.Class` per table in its module's domain; the row a read decodes,
+    the insert row with its id and stamps, the update set and the wire shape (`<Model>.json`) are
+    derived from it; filtered and nested reads, the status-guarded update and the migrations are
+    hand-written SQL. Drizzle, drizzle-kit, the kernel's tables, entities and relations go. A
+    trial of it exists on the local branch `spike-effect-sql-message-run`, cut from this
+    branch's head: its journeys pass, its `make check` stops at `doc-lint` on the docs it did not
+    rewrite.
+  - **Drizzle kept, two declarations.** The table and the domain model stay; the entity between
+    them goes, its shapes taken from Drizzle's own types, and the repositories speak models if
+    they move into their modules. Not tried: the domain's brands, `DateTime` and `Option` differ
+    from the row's strings, `Date` and `null`, so a field is still named twice, and the kernel
+    may not import a module's domain.
+- **Facts, checked 2026-11-23.**
+  - Drizzle here already runs on `@effect/sql-pg`'s `PgClient` and its transactions, and Effect's
+    own v3-to-v4 guide sends query building to Drizzle's Effect integration
+    (`repos/effect/migration/v3-to-v4.md`, `@effect/sql-drizzle/Pg`). `effect/sql` has no query
+    builder beyond fragments (`sql.and`, `sql.or`, `sql.in`, `sql.insert`, `sql.update`) and
+    generates no migration from a schema.
+  - `SqlModel.makeRepository` derives insert, update, find and delete of one row by its id: 3 of
+    the 13 repository methods. Its update matches by id alone, so a guarded move is hand-written,
+    as Effect's own cluster storage writes it (`UPDATE … WHERE <state> RETURNING`).
+  - Effect's `Migrator` skips, without an error, a migration whose id is at or below the highest
+    applied one, so a branch's migration merged late is lost on a database that moved on; an id
+    must fit an `integer`; `@effect/sql-pg` takes one statement per call.
+  - With Drizzle kept, `Model.Class` gives a model its insert defaults, its update set and its
+    json variants; the row's shape the table already gives (`createSelectSchema`).
+  - `Model.UuidV7Insert` reads random bytes past the `SecureRandom` service, so a test cannot
+    fix an id; an insert stamps `createdAt` and `updatedAt` by two reads of the clock; a
+    constructor default applies in the `update` variant too, so an omitted field is written.
+  - A span's annotations never reach a log line: `Effect.annotateLogs` cannot give way to them.
+- **Effect alone would bring.** One declaration per table; no codec step in a service; the wire
+  shapes and the list of updatable columns derived; the query that runs readable in the
+  repository; one library fewer.
+- **Effect alone would cost.** Column names checked by Postgres at a test's run, not by the
+  compiler; hand-written migrations with `make migration` and `make migration-check` gone, and
+  enum values, limits and the active index's predicate written twice with nothing tying them;
+  every module used (`effect/sql`, `effect/schema` `Model`, `PgMigrator`) `@stability unstable`;
+  the statements' `Debug` log gone; four decisions and three rules rewritten.
+- **Check before deciding.** The two versions' diffs side by side on the same slice; a guard
+  against the migrator's silent skip (ids checked in CI, or a drift check by
+  `drizzle-kit push --explain` against a migrated database, which the trial saw work); one task
+  ("add a column and a filter on it") given to an agent on each version, counting its errors and
+  the time to green.
 
 ### Smaller fits
 

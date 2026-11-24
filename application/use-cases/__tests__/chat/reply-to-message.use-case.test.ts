@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Effect, Exit, Fiber, Layer, Option } from 'effect'
+import { Array as Arr, Effect, Exit, Fiber, Option } from 'effect'
 
 import { Message, ReplyToMessage, Run } from '@app-template/application/chat'
 import {
@@ -48,17 +48,20 @@ describe('replyToMessage', () => {
         assert.strictEqual(logs[0]?.[2], error)
       }).pipe(
         Effect.provide([
-          layerChatTest({
-            runs: {
-              selectOne: readRun(queuedRun),
-              update: (set) =>
-                Effect.sync(() => {
-                  updates.push(set)
-                }),
+          layerChatTest(
+            {
+              runs: {
+                selectOne: readRun(queuedRun),
+                update: (set) =>
+                  Effect.sync(() => {
+                    updates.push(set)
+                  }),
+              },
+              // No `insert`: a reply written would die on it.
+              messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
             },
-            // No `insert`: a reply written would die on it.
-            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
-          }).pipe(Layer.provideMerge(assistant.layer)),
+            { messageAssistant: assistant.layer },
+          ),
           logger,
         ]),
       )
@@ -77,15 +80,18 @@ describe('replyToMessage', () => {
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
-          layerChatTest({
-            runs: {
-              selectOne: readRun(queuedRun),
-              // The Run is gone once started, so the guarded failed write touches no row.
-              update: (set) =>
-                set.status === 'failed' ? Effect.die('no run was updated') : Effect.void,
+          layerChatTest(
+            {
+              runs: {
+                selectOne: readRun(queuedRun),
+                // The Run is gone once started, so the guarded failed write touches no row.
+                update: (set) =>
+                  set.status === 'failed' ? Effect.die('no run was updated') : Effect.void,
+              },
+              messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
             },
-            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
-          }).pipe(Layer.provideMerge(recordMessageAssistant(Effect.fail(refused)).layer)),
+            { messageAssistant: recordMessageAssistant(Effect.fail(refused)).layer },
+          ),
           logger,
         ]),
       )
@@ -104,8 +110,9 @@ describe('replyToMessage', () => {
       ])
     }).pipe(
       Effect.provide([
-        layerChatTest({ runs: { selectOne: () => Effect.succeedNone } }).pipe(
-          Layer.provideMerge(assistant.layer),
+        layerChatTest(
+          { runs: { selectOne: () => Effect.succeedNone } },
+          { messageAssistant: assistant.layer },
         ),
         logger,
       ]),
@@ -132,15 +139,18 @@ describe('replyToMessage', () => {
       assert.propertyVal(logs[0]?.[2], '_tag', 'RunStartedError')
     }).pipe(
       Effect.provide([
-        layerChatTest({
-          runs: {
-            selectOne: readRun(generating),
-            update: (set) =>
-              Effect.sync(() => {
-                updates.push(set)
-              }),
+        layerChatTest(
+          {
+            runs: {
+              selectOne: readRun(generating),
+              update: (set) =>
+                Effect.sync(() => {
+                  updates.push(set)
+                }),
+            },
           },
-        }).pipe(Layer.provideMerge(assistant.layer)),
+          { messageAssistant: assistant.layer },
+        ),
         logger,
       ]),
     )
@@ -155,12 +165,15 @@ describe('replyToMessage', () => {
       assert.deepStrictEqual(logs, [])
     }).pipe(
       Effect.provide([
-        layerChatTest({
-          runs: {
-            selectOne: readRun(generating),
-            update: () => Effect.die('no run was updated'),
+        layerChatTest(
+          {
+            runs: {
+              selectOne: readRun(generating),
+              update: () => Effect.die('no run was updated'),
+            },
           },
-        }).pipe(Layer.provideMerge(recordMessageAssistant(Effect.never).layer)),
+          { messageAssistant: recordMessageAssistant(Effect.never).layer },
+        ),
         logger,
       ]),
     )
@@ -178,10 +191,13 @@ describe('replyToMessage', () => {
       assert.deepStrictEqual(logs, [['Warn', 'reply failed']])
     }).pipe(
       Effect.provide([
-        layerChatTest({
-          runs: { selectOne: readRun(queuedRun), update: () => Effect.void },
-          messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
-        }).pipe(Layer.provideMerge(assistant.layer)),
+        layerChatTest(
+          {
+            runs: { selectOne: readRun(queuedRun), update: () => Effect.void },
+            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+          },
+          { messageAssistant: assistant.layer },
+        ),
         logger,
       ]),
     )

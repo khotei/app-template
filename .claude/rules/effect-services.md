@@ -15,13 +15,13 @@ paths:
   (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff
 - const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
--   orders.selectOne(where).pipe(                          // a pipe nested in the body
+-   orders.selectOne(encodeWhere(where)).pipe(               // a pipe nested in the body
 -     Effect.flatMap(decodeWith(Schema.Option(Order))),
 -     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 -   ),
 - )
 + const getOne = Effect.fn('OrderService.getOne')(
-+   (where: OrderWhere) => orders.selectOne(where),
++   (where: OrderWhere) => orders.selectOne(encodeWhere(where)),
 +   Effect.flatMap(decodeWith(Schema.Option(Order))),
 +   (found, where) =>
 +     Effect.flatMap(found, Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
@@ -69,5 +69,6 @@ paths:
   siblings that cannot feed each other. `Layer.provideMerge` publishes internals: only for the
   client a caller opens transactions on (`DbTest`) and a test layer that merges what its cases
   read.
-- A client takes its settings as options and never reads `Config` (`PgClient.layerConfig` is
-  rejected): [tooling.md › Environment](../../docs/knowledge/tooling.md#environment).
+- A client of ours takes its settings as options and never reads `Config`; the kernel hands a
+  library's client its settings, through the library's own `layerConfig` where it has one:
+  [tooling.md › Environment](../../docs/knowledge/tooling.md#environment).

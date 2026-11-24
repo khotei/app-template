@@ -83,8 +83,9 @@ curl -s -c jar -X POST localhost:3000/users
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello"}'
-# repeat while the Run is queued or generating: its assistantMessage arrives whole
+# repeat while the Run is queued or generating: once done, its assistantMessageId names the reply
 curl -s -b jar localhost:3000/chats/<chatId>/runs/<runId>
+curl -s -b jar localhost:3000/chats/<chatId>/messages/<assistantMessageId>
 # the reload: the chat's messages, each with its Run
 curl -s -b jar localhost:3000/chats/<chatId>/messages
 ```
@@ -194,7 +195,7 @@ it. Why the process is cut so: [sdd.md](docs/knowledge/sdd.md).
 | write a test | the kinds, where each goes, and time in `it.effect` | [tooling.md › Tests](docs/knowledge/tooling.md#tests) |
 
 <img src=".misc/readme/rules-and-style.svg"
-  alt="The fourteen files of .claude/rules grouped by what they bind, the six questions of name-
+  alt="The fifteen files of .claude/rules grouped by what they bind, the six questions of name-
   and-body.md, the two forms of a file name, and wire errors as Schema.TaggedError against
   inner ones as Data.TaggedError"
   width="830">
