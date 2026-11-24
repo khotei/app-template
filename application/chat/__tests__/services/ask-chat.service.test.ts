@@ -122,7 +122,7 @@ describe('AskChatService', () => {
             chatId: chat.id,
             userMessageId: userMessage.id,
             createdAt: run.createdAt,
-            updatedAt: run.createdAt,
+            updatedAt: run.updatedAt,
           }),
         )
         assert.deepStrictEqual(inserts.messages, [
