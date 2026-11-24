@@ -12,9 +12,9 @@ Where each kind of test and its support live, and what a test may import:
 
 ## What to test
 
-- Our code: a rule, a query, a race, a rollback, a retry. Never the framework or a library
-  (Effect, Drizzle, vitest, the HTTP builder), AWS or MiniStack, what a type guarantees, or test
-  support itself (a fake, a test layer).
+- Our code: a rule, a query, a race, a rollback, a retry, an interrupt. Never the framework or a
+  library (Effect, Drizzle, vitest, the HTTP builder), AWS or MiniStack, what a type guarantees, or
+  test support itself (a fake, a test layer).
 - A rule once, at the lowest seam that owns it: a pure domain function before a domain service,
   a domain service before a use case, a use case before a handler. A handler test checks only what
   its app adds: a status, a cookie, the shape on the wire.
@@ -24,7 +24,8 @@ Where each kind of test and its support live, and what a test may import:
 
 - A unit test runs the real services and use cases over a `Layer.mock(<Name>Repository, { … })` of
   each repository, giving only the methods its flow may call (any other dies with
-  `UnimplementedError`), and the fakes of the leaves; it starts no container. It asserts the
+  `UnimplementedError`), and over the leaf services its module's test layer takes as an argument,
+  each `Layer.mock(<Leaf>, {})` until a case passes its fake. It starts no container and asserts the
   row or the `set` and `where` a write was handed, never a read back. A use case's unit test checks
   the order of its steps and the jobs it sends, not the rules.
 - Mock a leaf only, a repository or a leaf service (an assistant, the queue's sender): a layer
@@ -32,11 +33,10 @@ Where each kind of test and its support live, and what a test may import:
   accepts, refuses, races or rolls back has its case on the repository's e2e or through the api,
   never a unit test: `TransactionTest` takes nothing back
   ([database.md › Tests](../../docs/knowledge/database.md#tests)).
-- An e2e test proves an adapter on the e2e run's containers, or a flow through the api, never a
-  call of the use case. Atomicity: the database refuses one write (a constraint the test adds) and
-  no row and no job is kept. A race sends the rival requests with `Effect.all(…, { concurrency:
-  'unbounded' })` and asserts an outcome that holds whichever wins; a probe that removes the guard
-  turns it red.
+- An e2e test proves an adapter on the e2e run's containers, or a flow through the api, never a call
+  of the use case. Atomicity: the database refuses one write (a constraint the test adds) and no row
+  and no job is kept. A race sends the rival requests with `Effect.all(…, { concurrency: 'unbounded'
+  })` and asserts an outcome that holds whichever wins; a probe that removes the guard turns it red.
 - An app's layer in a test's runtime ends in `Layer.fresh`
   (`repos/effect/migration/layer-memoization.md`): it then shares no layer with the test's own,
   builds its clients from its config, and keeps its writes in its own transaction.

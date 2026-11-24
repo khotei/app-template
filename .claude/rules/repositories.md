@@ -27,6 +27,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A write returns `void` and dies where it misses a row it names: the caller checked the rule, so
   a miss is a lost race. An object store's writes are idempotent and never die on a missing
   object; a write that measures what it stores returns the measure.
+- An update writes `Struct.pick(set, <name>SetColumns)`, the columns its entity file lists once,
+  so a model's update variant passes whole and its key is never written.
 - One shape per entity: a related entity is a field the same relational query fills, one level
   deep as the neighbour's `<Name>Columns`, and never becomes a second type
   (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's insert and
@@ -36,7 +38,9 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 
 ## A where's two forms
 
-- A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). A
+- A repository's `where` is Drizzle's filter object over its table, a relational read's over its
+  relations too, its key required (`Keyed`): a write's `<Name>EntityWhere` by the primary key
+  alone, a read that also finds by another field its own `<Name>EntitySelectWhere`. A
   relational query (`db.query.<table>`) takes it as it is; a core-builder statement (`update`,
   `delete`, a plain `select`) takes `encodeFilter(<table>, where)`, the one function over it.
 - A service's `where` is model values alone, one plain type: a branded id, an `Option`, a list.
@@ -66,3 +70,7 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 A value another table implies is a column the transactions that change it move, not derived on
 each read; one a model function derives from the one row its read already nests stays derived
 ([decision](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
+
+A parent's column a child repeats, so a read filters the child's own row, is held by one foreign
+key over `(<parent>_id, <column>)` onto a unique `(id, <column>)` of the parent, never by a key on
+`<parent>_id` alone ([decision](../../docs/knowledge/decisions.md#the-owner-on-a-chats-records)).

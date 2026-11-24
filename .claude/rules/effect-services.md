@@ -34,6 +34,10 @@ paths:
   generator; a helper used once, a composed function whose every caller dies on its errors
   (`Effect.orDie`), or a use case, whose endpoint's error list or `consumeQueue`'s `never` checks
   it, stays inferred.
+- A method that commits a record and then sends its job, or starts work it must end, runs whole:
+  `Effect.uninterruptible` as its pipeable, only a step a stop must still reach (a model's call)
+  `Effect.interruptible(<step>)` with its own `onError`
+  ([decision](../../docs/knowledge/decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries)).
 - A pure builder that cannot fail returns the model, not an `Effect`.
 
 ## Services
@@ -47,6 +51,8 @@ paths:
 - No port in front of one implementation: a service over a client (a language model, a store)
   is its own class with its layer, and a test provides a layer of that class; a port comes with
   the second implementation ([decision](../../docs/knowledge/decisions.md#a-modules-layers)).
+- Its `make` yields each dependency once, a leaf its process provides included, so no method
+  requires anything ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - Its key is `'@app-template/<folder>/<Name>'`, `<folder>` its file's folder from the repository
   root, so the key says where to look.
 - One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:

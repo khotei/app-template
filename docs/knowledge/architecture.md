@@ -170,7 +170,8 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
-| database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
+| database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns, `Keyed`, `encodeFilter` |
+| a service's where as its repository's filter | `kernel/data/data-where.ts` | `encodeWhere` |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
 | codecs that turn a failure into a defect; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
@@ -266,7 +267,8 @@ imports need.
    each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, coding its rows through the model and its variants with `encodeWith` and
-   `decodeWith`, the
+   `decodeWith` and its where through `encodeWhere`
+   ([database.md › Repositories](database.md#repositories)), the
    one owner every handler goes through, tested over mocks of the repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A purpose the service was not made for comes later as a service composed over it,

@@ -937,6 +937,50 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
   error waits on the winner's commit.
 - **Revisit when:** a race's `500` reaches users often enough to need its own refusal.
 
+### A where's two forms
+
+A repository's `where` is Drizzle's relational filter object with its key required: a relational
+query takes it as it is, a core-builder statement through `encodeFilter` (`packages/db`). A
+service's `where` is model values alone (a branded id, an `Option`, a list), which `encodeWhere`
+(`kernel/data/data-where.ts`) turns into that object, so no service writes a Drizzle operator.
+
+- **Why:** the least code of ours: Drizzle types and renders the filter, and a service's caller
+  speaks the model's values.
+- **Sources:** [database.md › Repositories](database.md#repositories);
+  `.claude/rules/repositories.md › A where's two forms`.
+- **Rejected:** one generic encoder of our own (PR #58, closed). A pick of a where's fields in
+  every method: a where is written as a literal of its type's fields, which the compiler checks.
+- **Cost:** `encodeFilter` holds one type assertion over `relationsFilterToSQL`, a function of
+  Drizzle's rc line; a record handed whole from a variable compiles and makes every field a
+  condition.
+- **Guarded by:** `Keyed`, which refuses a where that names no key, and
+  `exactOptionalPropertyTypes`, which refuses an `undefined` field, both at typecheck; the
+  repositories' e2e.
+- **If reversed:** each service writes Drizzle's operators, or one encoder of ours maps every
+  where.
+- **Revisit when:** Drizzle's filter object changes shape, or a service needs a condition model
+  values cannot say (a range, a pattern).
+
+### The owner on a chat's records
+
+`messages.user_id` and `runs.user_id` repeat `chats.user_id`, held equal by one foreign key over
+`(chat_id, user_id)` onto `chats (id, user_id)` on each table, so a read on a user's behalf
+filters the row itself and a service's where requires the owner in its type.
+
+- **Why:** ownership is a column of the row read: a record of another owner reads as absent, with
+  no relation to its chat and no check after the read.
+- **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files).
+- **Rejected:** the owner read through the relation to the chat in every read of a message or a
+  Run.
+- **Cost:** a column and a wider key on two tables; each insert writes the owner, taken from the
+  record it follows (the chat, the failed Run, the Run it started).
+- **Guarded by:** the keys `messages_chat_id_user_id_fk` and `runs_chat_id_user_id_fk`, each with
+  its entity's e2e ("refuses a message of another user than its chat's"); the repositories' e2e
+  read another user's record as none.
+- **If reversed:** the two columns go, and a user's read of a message or a Run filters through
+  its chat.
+- **Revisit when:** a chat is shared between users, so one column no longer names who may read it.
+
 ### Reads in creation order
 
 A read of a chat's messages returns them in creation order, `createdAt` then `id`. The chat list
