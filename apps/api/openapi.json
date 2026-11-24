@@ -528,18 +528,11 @@
             }
           },
           "404": {
-            "description": "MessageNotFoundError | ChatNotFoundError",
+            "description": "ChatNotFoundError",
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/MessageNotFoundErrorEncoded"
-                    },
-                    {
-                      "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
-                    }
-                  ]
+                  "$ref": "#/components/schemas/ChatNotFoundErrorEncoded"
                 }
               }
             }

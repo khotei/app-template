@@ -29,13 +29,13 @@ export type ChatBusyErrorEncoded = { readonly "_tag": "ChatBusyError", readonly 
 
 export const ChatBusyErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("ChatBusyError"), "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) }).annotate({ "identifier": "ChatBusyErrorEncoded" })
 
-export type MessageNotFoundErrorEncoded = { readonly "_tag": "MessageNotFoundError", readonly "id": string }
-
-export const MessageNotFoundErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("MessageNotFoundError"), "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) }).annotate({ "identifier": "MessageNotFoundErrorEncoded" })
-
 export type RunNotRetryableErrorEncoded = { readonly "_tag": "RunNotRetryableError" }
 
 export const RunNotRetryableErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("RunNotRetryableError") }).annotate({ "identifier": "RunNotRetryableErrorEncoded" })
+
+export type MessageNotFoundErrorEncoded = { readonly "_tag": "MessageNotFoundError", readonly "id": string }
+
+export const MessageNotFoundErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("MessageNotFoundError"), "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) }).annotate({ "identifier": "MessageNotFoundErrorEncoded" })
 
 export type RunNotFoundErrorEncoded = { readonly "_tag": "RunNotFoundError", readonly "where": { readonly "id": string } | { readonly "userMessageId": string } }
 
@@ -193,9 +193,9 @@ export type ChatsRetryRun401 = UserUnknownErrorEncoded
 
 export const ChatsRetryRun401 = UserUnknownErrorEncoded
 
-export type ChatsRetryRun404 = MessageNotFoundErrorEncoded | ChatNotFoundErrorEncoded
+export type ChatsRetryRun404 = ChatNotFoundErrorEncoded
 
-export const ChatsRetryRun404 = Schema.Union([MessageNotFoundErrorEncoded, ChatNotFoundErrorEncoded])
+export const ChatsRetryRun404 = ChatNotFoundErrorEncoded
 
 export type ChatsRetryRun409 = RunNotRetryableErrorEncoded
 

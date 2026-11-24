@@ -138,7 +138,6 @@ describe('chats', () => {
       Effect.provide(
         asOwner({
           chats: { selectOne: reads.chat(failedChat) },
-          messages: { selectOne: reads.message(firstMessage) },
           runs: { insert: () => Effect.void },
         }),
       ),

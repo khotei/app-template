@@ -6,7 +6,6 @@ import { Chat, ReplyToMessage, Run, RunNotRetryableError } from '@app-template/a
 import {
   type ChatRepositoryMocks,
   chat,
-  firstMessage,
   layerChatTest,
   owner,
   queuedRun,
@@ -16,9 +15,8 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { retryRun } from '#use-cases/chat/retry-run.use-case'
 
-/** The reads of a chat whose newest Run is `newest`, with the message that Run answers. */
+/** The read of a chat whose newest Run is `newest`. */
 const chatWithRun = (newest: Run): ChatRepositoryMocks => ({
-  messages: { selectOne: () => Effect.succeedSome(firstMessage) },
   chats: { selectOne: () => Effect.succeedSome(new Chat({ ...chat, run: Option.some(newest) })) },
   runs: { insert: () => Effect.void },
 })
