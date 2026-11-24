@@ -36,9 +36,9 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 
 ## A where's two forms
 
-- A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). No
-  statement takes it bare: a relational query takes `buildFilter(where)`, a core-builder one
-  `encodeFilter(<table>, where)`, so a filter that names nothing matches no row.
+- A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). A
+  relational query (`db.query.<table>`) takes it as it is; a core-builder statement (`update`,
+  `delete`, a plain `select`) takes `encodeFilter(<table>, where)`, the one function over it.
 - A service's `where` is model values alone: a branded id, an `Option`, a list. Its key, and the
   owner on a user's call, are required fields; a narrowing the caller may leave out is
   `T | undefined` ([effect.md › Schemas](effect.md#schemas)). The method builds the repository's

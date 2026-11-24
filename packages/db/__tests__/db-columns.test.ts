@@ -1,22 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
-import { sql } from 'drizzle-orm'
 import { pgTable, QueryBuilder, text } from 'drizzle-orm/pg-core'
 
-import { buildFilter, encodeFilter, id } from '#db/db-columns'
+import { encodeFilter, id } from '#db/db-columns'
 
 const orders = pgTable('orders', { id: id(), note: text() })
-
-describe('buildFilter', () => {
-  it('returns a filter that names a field as it is', () => {
-    const filter = { id: 'a', status: { in: ['placed', 'shipped'] } }
-
-    assert.strictEqual(buildFilter(filter), filter)
-  })
-
-  it('a filter of no field matches no row', () => {
-    assert.deepStrictEqual(buildFilter({}), { RAW: sql`false` })
-  })
-})
 
 describe('encodeFilter', () => {
   const render = (filter: Parameters<typeof encodeFilter<typeof orders>>[1]) =>

@@ -5,7 +5,6 @@ export {
   unwrapQueryError,
 } from '#db/db.client'
 export {
-  buildFilter,
   createdAt,
   encodeFilter,
   id,

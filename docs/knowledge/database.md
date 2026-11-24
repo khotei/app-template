@@ -195,11 +195,11 @@ only those columns; a column the set leaves out is not written, and a set that h
 A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
 <Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
 `FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
-keys names both, and its `where` must hold one. A relational query takes it as
-`buildFilter(where)`, and a core-builder statement as `encodeFilter(<table>, where)`, which
-renders the same object as that statement's condition. A filter that names nothing matches no
-row in both (``{ RAW: sql`false` }``, `` sql`false` ``), so no statement goes without its
-`WHERE`.
+keys names both, and its `where` must hold one. A relational query takes it as it
+is, and a core-builder statement as `encodeFilter(<table>, where)`, which renders the same
+object as that statement's condition. There a filter that names nothing matches no row
+(`` sql`false` ``), so no write goes without its `WHERE`; the key each `where` type requires
+keeps a read from one.
 A column that is null is matched by `{ isNull: true }`: Drizzle throws on a `null` in a filter,
 as on an `undefined`.
 

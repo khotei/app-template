@@ -7,7 +7,7 @@ import {
   type TableFilter,
 } from 'drizzle-orm'
 import { timestamp, uuid } from 'drizzle-orm/pg-core'
-import { Record, type Types, UndefinedOr } from 'effect'
+import { type Types, UndefinedOr } from 'effect'
 
 // Functions, not shared constants: each call returns a fresh builder, because a table names a
 // builder's column the first time it sees it, so a constant reused under another key would keep
@@ -28,20 +28,10 @@ export type Keyed<Filter, Row, Key extends keyof Row & keyof Filter> = Key exten
   ? Types.Simplify<Pick<Row, Key> & Omit<Filter, Key>>
   : never
 
-const matchesNone = { RAW: sql`false` } as const
-
 /**
- * `filter` as a relational query takes its `where`: one that names no field matches no row, so
- * no statement goes without its `WHERE`.
- */
-export const buildFilter = <Filter extends Readonly<Record<string, unknown>>>(
-  filter: Filter,
-): Filter | typeof matchesNone => (Record.isEmptyReadonlyRecord(filter) ? matchesNone : filter)
-
-/**
- * The condition of `filter`, the object a relational query takes as its `where`, for a statement
- * of the core builder. It always returns one, so no write goes without its `WHERE`: a filter
- * with no condition matches no row.
+ * The condition of `filter`, the object a relational query takes as its `where` bare, for a
+ * statement of the core builder (`update`, `delete`, a plain `select`). It always returns one,
+ * so no such statement goes without its `WHERE`: a filter with no condition matches no row.
  */
 export const encodeFilter = <TTable extends Table>(
   table: TTable,
