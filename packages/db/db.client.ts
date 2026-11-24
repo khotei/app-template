@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, type Predicate } from 'effect'
+import { Context, Effect, Layer } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 export class Transaction extends Context.Service<
@@ -17,16 +17,3 @@ export class Transaction extends Context.Service<
     ),
   )
 }
-
-/**
- * Dies with `message` unless the rows a write's `RETURNING` returns satisfy `holds`.
- *
- * The caller checked the rule before writing, so a write the guard refuses only lost a race.
- */
-export const orDieUnless =
-  (holds: Predicate.Predicate<ReadonlyArray<unknown>>, message: string) =>
-  <A, E, R>(self: Effect.Effect<ReadonlyArray<A>, E, R>): Effect.Effect<void, E, R> =>
-    self.pipe(
-      Effect.filterOrElse(holds, () => Effect.die(new Error(message))),
-      Effect.asVoid,
-    )

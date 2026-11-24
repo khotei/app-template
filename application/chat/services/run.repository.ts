@@ -1,8 +1,8 @@
-import { Array as Arr, Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
+import { Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
 import { SqlClient, SqlModel, SqlSchema } from 'effect/sql'
 
 import { UserId } from '@app-template/application/identity'
-import { buildWhereFragment, orDieUnless } from '@app-template/packages/db'
+import { buildWhereFragment } from '@app-template/packages/db'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
@@ -54,7 +54,7 @@ export class RunRepository extends Context.Service<
     })
 
     // `makeRepository`'s update matches by id alone; this one also by the status it moves from.
-    const updateFrom = SqlSchema.findAll({
+    const updateFrom = SqlSchema.findNonEmpty({
       Request: RunMove,
       Result: Schema.Struct({ id: RunId }),
       execute: ({ to, from }) => sql`
@@ -74,7 +74,7 @@ export class RunRepository extends Context.Service<
       insert: Effect.fn('RunRepository.insert')(table.insertVoid, Effect.orDie),
       update: Effect.fn('RunRepository.update')(
         (to: typeof Run.update.Type, from: RunStatus) => updateFrom({ to, from }),
-        orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),
+        Effect.asVoid,
         Effect.orDie,
       ),
       selectOne: Effect.fn('RunRepository.selectOne')(findFirst, Effect.orDie),

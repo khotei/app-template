@@ -1,8 +1,8 @@
-import { Array as Arr, Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
+import { Context, Effect, Layer, type Option, Schema, UndefinedOr } from 'effect'
 import { SqlClient, SqlModel, SqlSchema } from 'effect/sql'
 
 import { UserId } from '@app-template/application/identity'
-import { buildWhereFragment, orDieUnless } from '@app-template/packages/db'
+import { buildWhereFragment } from '@app-template/packages/db'
 
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
@@ -73,7 +73,7 @@ export class ChatRepository extends Context.Service<
       execute: (where) => sql`${select(where)} order by chats.created_at desc, chats.id desc`,
     })
 
-    const updateWhere = SqlSchema.findAll({
+    const updateWhere = SqlSchema.findNonEmpty({
       Request: ChatUpdate,
       Result: ChatIds,
       execute: ({ to, where }) => sql`
@@ -82,7 +82,7 @@ export class ChatRepository extends Context.Service<
         returning chats.id`,
     })
 
-    const deleteWhere = SqlSchema.findAll({
+    const deleteWhere = SqlSchema.findNonEmpty({
       Request: ChatFilter,
       Result: ChatIds,
       execute: (where) => sql`delete from chats where ${encodeWhere(where)} returning chats.id`,
@@ -92,16 +92,12 @@ export class ChatRepository extends Context.Service<
       insert: Effect.fn('ChatRepository.insert')(table.insertVoid, Effect.orDie),
       update: Effect.fn('ChatRepository.update')(
         (to: typeof Chat.update.Type, where: ChatFilter) => updateWhere({ to, where }),
-        orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated'),
+        Effect.asVoid,
         Effect.orDie,
       ),
       selectOne: Effect.fn('ChatRepository.selectOne')(findFirst, Effect.orDie),
       selectMany: Effect.fn('ChatRepository.selectMany')(findAll, Effect.orDie),
-      delete: Effect.fn('ChatRepository.delete')(
-        deleteWhere,
-        orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was deleted'),
-        Effect.orDie,
-      ),
+      delete: Effect.fn('ChatRepository.delete')(deleteWhere, Effect.asVoid, Effect.orDie),
     }
   }),
 }) {
