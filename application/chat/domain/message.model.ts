@@ -13,8 +13,8 @@ export type MessageAuthor = typeof MessageAuthor.Type
 /** A message as `messages` holds it, read with its Run; a message is never changed. */
 export class Message extends Model.Class<Message>('Message')({
   id: Model.UuidV7Insert(MessageId),
-  chatId: ChatId,
-  author: MessageAuthor,
+  chatId: ChatId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
+  author: MessageAuthor.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   /** Finished text: a user's as asked, an assistant's as the Run that wrote it settled it. */
   text: Schema.String.check(
     Schema.isPattern(textPattern),
