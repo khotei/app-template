@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer } from 'effect'
+import { Cause, Context, Effect, Layer, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 import { QueueSender } from '@app-template/packages/queue'
@@ -59,8 +59,7 @@ export class AskChatService extends Context.Service<
         author: 'user',
       })
       return yield* runs.create({
-        chatId: message.chatId,
-        userId: message.userId,
+        ...Struct.pick(message, ['chatId', 'userId']),
         userMessageId: message.id,
       })
     }, transaction.run)
@@ -84,11 +83,7 @@ export class AskChatService extends Context.Service<
     const retry = Effect.fn('AskChatService.retry')(
       function* (chat: Chat) {
         const failed = yield* ensureRunRetryable(chat.run)
-        const run = yield* runs.create({
-          chatId: failed.chatId,
-          userId: failed.userId,
-          userMessageId: failed.userMessageId,
-        })
+        const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
         return yield* askReply(run)
       },
       Effect.uninterruptible,
