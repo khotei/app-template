@@ -17,20 +17,18 @@ export type ChatFilter = typeof ChatFilter.Type
 
 const ChatUpdate = Schema.Struct({ to: Chat.update, where: ChatFilter })
 
-const ChatIds = Schema.Struct({ id: ChatId })
-
 export class ChatRepository extends Context.Service<
   ChatRepository,
   {
     readonly insert: (chat: typeof Chat.insert.Type) => Effect.Effect<void>
-    /** Writes `to` on the chat `where` finds; dies when it writes nothing. */
+    /** Writes `to` on its chat while `where` holds of it; dies when it writes nothing. */
     readonly update: (to: typeof Chat.update.Type, where: ChatFilter) => Effect.Effect<void>
     /** Returns a chat where `where` holds, with its newest Run. */
     readonly selectOne: (where: ChatFilter) => Effect.Effect<Option.Option<Chat>>
     /** Returns the chats where `where` holds, the newest created first, then the greater id. */
     readonly selectMany: (where: ChatFilter) => Effect.Effect<ReadonlyArray<Chat>>
-    /** Removes the chats `where` finds, their messages and Runs by the cascade; dies when it removes none. */
-    readonly delete: (where: ChatFilter) => Effect.Effect<void>
+    /** Removes the chat, its messages and Runs by the cascade; a chat already gone is no error. */
+    readonly delete: (id: ChatId) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/services/ChatRepository', {
   make: Effect.gen(function* () {
@@ -75,17 +73,12 @@ export class ChatRepository extends Context.Service<
 
     const updateWhere = SqlSchema.findNonEmpty({
       Request: ChatUpdate,
-      Result: ChatIds,
+      Result: Schema.Struct({ id: ChatId }),
+      // By the id `to` carries, so a `where` of no field still writes one chat.
       execute: ({ to, where }) => sql`
         update chats set ${sql.update(to, ['id'])}
-        where ${encodeWhere(where)}
+        where chats.id = ${to.id} and ${encodeWhere(where)}
         returning chats.id`,
-    })
-
-    const deleteWhere = SqlSchema.findNonEmpty({
-      Request: ChatFilter,
-      Result: ChatIds,
-      execute: (where) => sql`delete from chats where ${encodeWhere(where)} returning chats.id`,
     })
 
     return {
@@ -97,7 +90,7 @@ export class ChatRepository extends Context.Service<
       ),
       selectOne: Effect.fn('ChatRepository.selectOne')(findFirst, Effect.orDie),
       selectMany: Effect.fn('ChatRepository.selectMany')(findAll, Effect.orDie),
-      delete: Effect.fn('ChatRepository.delete')(deleteWhere, Effect.asVoid, Effect.orDie),
+      delete: Effect.fn('ChatRepository.delete')(table.delete, Effect.orDie),
     }
   }),
 }) {

@@ -223,7 +223,7 @@ describe('ChatRepository', () => {
       yield* Effect.forEach([keptQuestion, deletedQuestion], messages.insert)
       yield* runs.insert(deletedRun)
 
-      yield* chats.delete({ id: deleted.id, userId: UserId.make(cy) })
+      yield* chats.delete(deleted.id)
 
       assert.deepStrictEqual(yield* chats.selectOne({ id: deleted.id }), Option.none())
       assert.deepStrictEqual(yield* messages.selectOne({ id: deletedQuestion.id }), Option.none())
@@ -239,23 +239,16 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect("delete of an unknown chat or of another user's dies and removes nothing", () =>
+  it.effect('delete of an unknown chat removes nothing', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const dan = '0192d4e0-7b3a-7c00-8000-000000000015'
-      const stranger = '0192d4e0-7b3a-7c00-8000-000000000016'
       const stored = chat('0192d4e0-7b3a-7c00-8000-00000000003e', dan)
-      yield* Effect.forEach([dan, stranger], insertUser)
+      yield* insertUser(dan)
       yield* chats.insert(stored)
 
-      const unknown = yield* chats
-        .delete({ id: ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003d') })
-        .pipe(Effect.exit)
-      const foreign = yield* chats
-        .delete({ id: stored.id, userId: UserId.make(stranger) })
-        .pipe(Effect.exit)
+      yield* chats.delete(ChatId.make('0192d4e0-7b3a-7c00-8000-00000000003d'))
 
-      assert.isTrue(Exit.hasDies(unknown) && Exit.hasDies(foreign))
       assertSchemaEquals(
         SelectedChat,
         yield* chats.selectOne({ id: stored.id }),

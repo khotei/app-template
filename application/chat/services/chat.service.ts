@@ -66,7 +66,7 @@ export class ChatService extends Context.Service<
       const chat = yield* getOne(where)
 
       // The cascade takes the messages and the Runs, by their `chat_id`.
-      yield* chats.delete({ id: chat.id })
+      yield* chats.delete(chat.id)
     })
 
     return { create, list, getOne, update, delete: remove }
