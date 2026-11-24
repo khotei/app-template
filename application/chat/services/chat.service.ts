@@ -1,33 +1,22 @@
-import {
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Schema,
-  SchemaIssue,
-  Struct,
-  type Types,
-  UndefinedOr,
-} from 'effect'
+import { Context, Effect, Layer, Schema, SchemaIssue, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
+import { ChatRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
 
 /**
- * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
- * untitled one.
+ * A chat by id, as its row holds each field, so it reaches the repository as it is; a `userId`
+ * limits it to that user's, a `title` of `null` to an untitled one.
  */
-export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
+export type ChatWhere = Types.Simplify<
+  Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId'>> & { readonly title?: null }
+>
 
 /** A chat by id and its owner: what a call on a user's behalf names, so none reaches another's. */
 export type ChatOwnerWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
-
-const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
-  Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -63,7 +52,7 @@ export class ChatService extends Context.Service<
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatWhere) => chats.selectOne(encodeChatWhere(where)),
+      (where: ChatWhere) => chats.selectOne(where),
       Effect.flatMap(decodeWith(Schema.Option(Chat))),
       (found, where) =>
         Effect.flatMap(
@@ -80,7 +69,7 @@ export class ChatService extends Context.Service<
 
         // Only the update variant's fields, under the `where` again: a change landing after the
         // read is kept.
-        yield* chats.update(row, encodeChatWhere(where))
+        yield* chats.update(row, where)
         return new Chat({ ...chat, ...set })
       },
       Effect.catchIf(SchemaIssue.isIssue, Effect.die),

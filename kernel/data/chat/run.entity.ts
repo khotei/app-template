@@ -1,28 +1,20 @@
 import type { Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
+import type { Where } from '@app-template/packages/db'
+
 import type { RunColumns } from '#kernel/data/chat/run.table'
 
 /**
  * A Run nests nothing, so every read returns its `RunColumns`. `userId` is the owner of the Run's
  * chat, not a column of `runs`.
  */
-export type RunEntityWhere = Types.Simplify<
-  Pick<RunColumns, 'id'> &
-    Partial<{
-      readonly chatId: RunColumns['chatId']
-      readonly userId: string
-      readonly status: ReadonlyArray<RunColumns['status']>
-    }>
->
+export type RunEntityWhere = Types.Simplify<Where<RunColumns, 'id'> & { readonly userId?: string }>
 
-/** A read finds its Run by the key or by its user message, exactly one, narrowed by the rest. */
-export type RunEntitySelectWhere =
-  | Types.Simplify<RunEntityWhere & { readonly userMessageId?: never }>
-  | Types.Simplify<
-      Pick<RunColumns, 'userMessageId'> &
-        Partial<Omit<RunEntityWhere, 'id'>> & { readonly id?: never }
-    >
+/** A read finds its Run by the key or by its user message, narrowed by the rest. */
+export type RunEntitySelectWhere = Types.Simplify<
+  Where<RunColumns, 'id' | 'userMessageId'> & { readonly userId?: string }
+>
 
 /** The columns an update may write. */
 export const runSetColumns = [

@@ -1,6 +1,6 @@
-import { sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
-import { check, index, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
+import { check, index, QueryBuilder, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
@@ -30,6 +30,13 @@ export const chats = snakeCase.table(
     index('chats_user_id_created_at_index').on(table.userId, table.createdAt.desc().nullsFirst()),
   ],
 )
+
+/**
+ * The ids of the chats `userId` owns. A row that names its chat is the user's while its
+ * `chatId` is among them, so one of another user's chat reads as absent.
+ */
+export const chatIdsOf = (userId: string) =>
+  new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId))
 
 /** The columns of a chat, which its entity extends. */
 export const ChatColumns = createSelectSchema(chats)

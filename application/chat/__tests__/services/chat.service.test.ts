@@ -138,7 +138,7 @@ describe('ChatService', () => {
 
         const updated = yield* service.update(
           { title: Option.some(lisbonWeekend) },
-          { id: chat.id, title: Option.none() },
+          { id: chat.id, title: null },
         )
 
         assertEquals(updated.title, Option.some(lisbonWeekend))

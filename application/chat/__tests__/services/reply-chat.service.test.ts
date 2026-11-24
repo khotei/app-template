@@ -7,16 +7,16 @@ import {
   Exit,
   Fiber,
   Option,
-  Predicate,
+  type Predicate,
   pipe,
   Schema,
-  type Types,
   UndefinedOr,
 } from 'effect'
 import { Model } from 'effect/schema'
 import { TestClock } from 'effect/testing'
 
 import type {
+  Conditions,
   MessageColumns,
   RunColumns,
   RunEntitySelectWhere,
@@ -81,26 +81,22 @@ const failedElsewhere = new Run({
 /** The Run a retry queues for `queuedRun`'s message once `queuedRun` failed. */
 const retried = new Run({ ...queuedRun, id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000032') })
 
+/** Whether `value` is what `condition` names: anything, the value itself or one among its values. */
+const holds = <A>(condition: A | ReadonlyArray<A> | undefined, value: A) =>
+  UndefinedOr.match(condition, {
+    onUndefined: () => true,
+    onDefined: (named) => Arr.contains(Arr.ensure(named), value),
+  })
+
+type RunFound = Pick<RunColumns, 'id' | 'userMessageId' | 'status'>
+
 /** Whether `run` holds where `where` holds, as the store filters. */
-const holdsWhere = (
-  where: Types.Simplify<Partial<RunEntityWhere & Pick<RunColumns, 'userMessageId'>>>,
-): Predicate.Predicate<Pick<RunColumns, 'id' | 'userMessageId' | 'status'>> =>
-  Predicate.and(
-    Predicate.and(
-      (run) =>
-        UndefinedOr.match(where.id, { onUndefined: () => true, onDefined: (id) => id === run.id }),
-      (run) =>
-        UndefinedOr.match(where.userMessageId, {
-          onUndefined: () => true,
-          onDefined: (id) => id === run.userMessageId,
-        }),
-    ),
-    (run) =>
-      UndefinedOr.match(where.status, {
-        onUndefined: () => true,
-        onDefined: (statuses) => Arr.contains(statuses, run.status),
-      }),
-  )
+const holdsWhere =
+  (where: Conditions<RunFound>): Predicate.Predicate<RunFound> =>
+  (run) =>
+    holds(where.id, run.id) &&
+    holds(where.userMessageId, run.userMessageId) &&
+    holds(where.status, run.status)
 
 /** The writes a reply makes, each as it was handed to its repository. */
 interface Writes {

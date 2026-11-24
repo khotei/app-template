@@ -1,5 +1,6 @@
 import { Schema, type Types } from 'effect'
-import type { RequireAtLeastOne } from 'type-fest'
+
+import type { Where } from '@app-template/packages/db'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
@@ -16,7 +17,7 @@ export type MessageEntity = typeof MessageEntity.Type
 
 /** `userId` is the owner of the row's chat, not a column of `messages`. */
 export type MessageEntityWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<MessageEntity, 'id' | 'chatId'>> & { readonly userId?: string }
+  Where<MessageColumns, 'id' | 'chatId'> & { readonly userId?: string }
 >
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const

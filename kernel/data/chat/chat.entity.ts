@@ -1,6 +1,8 @@
 import { Schema, type Types } from 'effect'
 import type { RequireAtLeastOne } from 'type-fest'
 
+import type { Where } from '@app-template/packages/db'
+
 import { ChatColumns } from '#kernel/data/chat/chat.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
 
@@ -12,14 +14,10 @@ export const ChatEntity = Schema.Struct({
 export type ChatEntity = typeof ChatEntity.Type
 
 /** A write finds its chat by the key, narrowed by the rest. */
-export type ChatEntityWhere = Types.Simplify<
-  Pick<ChatEntity, 'id'> & Partial<Pick<ChatEntity, 'userId' | 'title'>>
->
+export type ChatEntityWhere = Where<ChatColumns, 'id'>
 
 /** A read finds a chat by the key or a user's chats by their owner, narrowed by the rest. */
-export type ChatEntitySelectWhere = Types.Simplify<
-  RequireAtLeastOne<Pick<ChatEntity, 'id' | 'userId'>> & Partial<Pick<ChatEntity, 'title'>>
->
+export type ChatEntitySelectWhere = Where<ChatColumns, 'id' | 'userId'>
 
 /** The columns an update may write. */
 export const chatSetColumns = ['title', 'updatedAt'] as const satisfies ReadonlyArray<

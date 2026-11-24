@@ -1,7 +1,6 @@
-import { eq } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, Struct } from 'effect'
 
-import { buildWhere, eqOrIsNull, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
+import { encodeWhere, orDieWithSqlError } from '@app-template/packages/db'
 
 import {
   type ChatEntity,
@@ -16,16 +15,9 @@ import { Db } from '#kernel/data/db.client'
 
 // Built on the table a query names: a relational query aliases `chats`, so a condition on the
 // `chats` constant would reference a table the query does not have.
-const encodeWhere = (table: typeof chats) =>
-  buildWhere<ChatEntitySelectWhere>({
-    id: UndefinedOr.map((id) => eq(table.id, id)),
-    userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
-    title: UndefinedOr.map(eqOrIsNull(table.title)),
-  })
-
 const select = (where: ChatEntitySelectWhere) =>
   ({
-    where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
+    where: { RAW: (table: typeof chats) => encodeWhere(table)(where) },
     with: { run: { orderBy: newestFirst } },
   }) as const
 

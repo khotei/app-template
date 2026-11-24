@@ -1,27 +1,25 @@
 import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { RunRepository } from '@app-template/kernel/data'
+import { RunRepository, type Where } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run, type RunStatus } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
+
+/** The fields a `where` names as the Run's row holds them, so it reaches the repository as it is. */
+type RunFields = Pick<Run, 'id' | 'userMessageId' | 'chatId' | 'status'>
 
 /** `userId` limits a read to the user's chats, which every api caller passes. */
-type RunNarrowing = Partial<
-  Pick<Run, 'chatId'> & {
-    readonly userId: UserId
-    readonly status: ReadonlyArray<RunStatus>
-  }
->
+interface RunOwner {
+  readonly userId?: UserId
+}
 
-/** A Run by its `id` or by its `userMessageId`, exactly one, narrowed by the rest. */
-export type RunWhere =
-  | Types.Simplify<Pick<Run, 'id'> & { readonly userMessageId?: never } & RunNarrowing>
-  | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly id?: never } & RunNarrowing>
+/** A Run by its `id` or by its `userMessageId`, narrowed by the rest. */
+export type RunWhere = Types.Simplify<Where<RunFields, 'id' | 'userMessageId'> & RunOwner>
 
 /** A Run by its `id`, narrowed by the rest, as a write finds it. */
-type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & RunNarrowing>
+type RunUpdateWhere = Types.Simplify<Where<RunFields, 'id'> & RunOwner>
 
 export class RunService extends Context.Service<
   RunService,

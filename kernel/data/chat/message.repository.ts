@@ -1,10 +1,9 @@
-import { eq, inArray } from 'drizzle-orm'
-import { QueryBuilder } from 'drizzle-orm/pg-core'
+import { inArray } from 'drizzle-orm'
 import { Array as Arr, Context, Effect, flow, Layer, Option, UndefinedOr } from 'effect'
 
-import { buildWhere, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
+import { encodeWhere, orDieWithSqlError } from '@app-template/packages/db'
 
-import { chats } from '#kernel/data/chat/chat.table'
+import { chatIdsOf } from '#kernel/data/chat/chat.table'
 import {
   buildMessageEntity,
   inCreationOrder,
@@ -16,22 +15,16 @@ import { newestFirst } from '#kernel/data/chat/run.entity'
 import { Db } from '#kernel/data/db.client'
 
 // Built on the table a query names, as a relational query aliases `messages`; `userId` is the
-// owner of the row's chat, so a message of another user's chat reads as absent.
-const encodeWhere = (table: typeof messages) =>
-  buildWhere<MessageEntityWhere>({
-    id: UndefinedOr.map((id) => eq(table.id, id)),
-    chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
-    userId: UndefinedOr.map((userId) =>
-      inArray(
-        table.chatId,
-        new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
-      ),
-    ),
-  })
-
-const select = (where: MessageEntityWhere) =>
+// owner of the row's chat, no column of `messages`, so it is a condition of its own.
+const select = ({ userId, ...where }: MessageEntityWhere) =>
   ({
-    where: { RAW: (table: typeof messages) => skipUndefined(encodeWhere(table)(where)) },
+    where: {
+      RAW: (table: typeof messages) =>
+        encodeWhere(table)(
+          where,
+          UndefinedOr.map(userId, (userId) => inArray(table.chatId, chatIdsOf(userId))),
+        ),
+    },
     orderBy: inCreationOrder,
     with: { newestRun: { orderBy: newestFirst }, replyOf: true },
   }) as const

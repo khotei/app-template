@@ -5,11 +5,12 @@ export {
   unwrapQueryError,
 } from '#db/db.client'
 export {
-  buildWhere,
+  type Conditions,
   createdAt,
-  eqOrIsNull,
+  encodeWhere,
   id,
   skipUndefined,
   updatedAt,
+  type Where,
 } from '#db/db-columns'
 export { migrateDatabase, retryWhileUnreachable } from '#db/db-migrate'
