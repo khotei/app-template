@@ -15,7 +15,9 @@ export class MessageService extends Context.Service<
     readonly create: (fields: typeof Message.jsonCreate.Type) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     /** The chat's messages in creation order. */
-    readonly getMany: (where: Pick<MessageWhere, 'chatId'>) => Effect.Effect<ReadonlyArray<Message>>
+    readonly getMany: (
+      where: Types.Simplify<Pick<MessageWhere, 'chatId'>>,
+    ) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
@@ -42,7 +44,8 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      (where: Pick<MessageWhere, 'chatId'>) => messages.selectMany(encodeWhere(where)),
+      (where: Types.Simplify<Pick<MessageWhere, 'chatId'>>) =>
+        messages.selectMany(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 
