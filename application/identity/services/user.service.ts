@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
+import { Context, Effect, Layer, Redacted, Schema, SchemaIssue } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
@@ -44,16 +44,15 @@ export class UserService extends Context.Service<
 
     const register = Effect.gen(function* () {
       const id = yield* generateId(UserId)
-      const createdAt = yield* DateTime.now
       const bytes = yield* random.randomBytes(secretBytes)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
-      const user = new User({ id, createdAt })
+      const user = yield* User.makeEffect({ id })
       const credential = yield* hashSecret(fresh)
       const row = yield* encodeWith(User)(user)
       yield* users.insert(row, credential)
       return { user, secret: fresh }
-    })
+    }).pipe(Effect.catchIf(SchemaIssue.isIssue, Effect.die))
 
     const recognise = Effect.fn('UserService.recognise')(
       function* (secret: UserSecret) {

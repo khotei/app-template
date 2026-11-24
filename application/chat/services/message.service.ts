@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
@@ -32,13 +32,12 @@ export class MessageService extends Context.Service<
       fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
       const id = yield* generateId(MessageId)
-      const createdAt = yield* DateTime.now
-      const message = new Message({ ...fields, id, createdAt })
+      const message = yield* Message.makeEffect({ ...fields, id })
       const row = yield* encodeWith(MessageFields)(message)
 
       yield* messages.insert(row)
       return message
-    })
+    }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
       (where: MessageWhere) => messages.selectOne(where),

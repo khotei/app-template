@@ -1,4 +1,4 @@
-import { Effect, Schema } from 'effect'
+import { DateTime, Effect, Schema } from 'effect'
 
 import { RunFailure, runStatuses } from '@app-template/kernel/data'
 
@@ -13,7 +13,10 @@ export type RunStatus = typeof RunStatus.Type
 // The column's shape is the model's own: one definition, served through the module's entry.
 export { RunFailure }
 
-/** A Run's own fields: what a chat and a message nest of it. */
+/**
+ * A Run's own fields: what a chat and a message nest of it. `makeEffect` stamps a timestamp left
+ * out with the clock's now.
+ */
 export const RunFields = Schema.Struct({
   id: RunId,
   chatId: ChatId,
@@ -26,7 +29,7 @@ export const RunFields = Schema.Struct({
   assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
+  createdAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
+  updatedAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
 })
 export type RunFields = typeof RunFields.Type

@@ -2,24 +2,42 @@ import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
+import { SecureRandom } from 'effect/crypto'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
+import {
+  type ChatColumns,
+  type ChatEntitySet,
+  type ChatEntityWhere,
+  ChatRepository,
+} from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
-import type { ChatId } from '#chat/domain/chat.util'
+import { ChatId } from '#chat/domain/chat.util'
 import { ChatService } from '#chat/services/chat.service'
 import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 
-/** The service over a repository that implements only the methods the case gives; any other dies. */
+/**
+ * The service over a repository that implements only the methods the case gives; any other dies.
+ * A case that asserts an id gives its own `random`.
+ */
 const chatServiceOver = ({
   chats = {},
+  random = BunCrypto.layer,
 }: {
   readonly chats?: Layer.PartialEffectful<ChatRepository['Service']>
-}) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), BunCrypto.layer]))
+  readonly random?: Layer.Layer<SecureRandom.SecureRandom>
+}) => ChatService.layer.pipe(Layer.provide([Layer.mock(ChatRepository, chats), random]))
+
+const generatedId = ChatId.make('0192d4e0-7b3a-7c00-8000-0000000000aa')
+
+/** A `SecureRandom` whose every UUIDv7 is `generatedId`. */
+const RandomFixed = Layer.mock(SecureRandom.SecureRandom, {
+  uuidV7: () => Effect.succeed(generatedId),
+})
 
 /** A `selectOne` that returns `found` as its row. */
 const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
@@ -45,6 +63,44 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 ]
 
 describe('ChatService', () => {
+  it.effect(
+    'create inserts an untitled chat with the generated id at the clock time, and returns it',
+    () => {
+      const inserts: Array<ChatColumns> = []
+      return Effect.gen(function* () {
+        const service = yield* ChatService
+
+        const created = yield* service.create(owner)
+
+        assertEquals(
+          created,
+          new Chat({ id: generatedId, userId: owner, createdAt: epoch, updatedAt: epoch }),
+        )
+        assert.deepStrictEqual(inserts, [
+          {
+            id: generatedId,
+            userId: owner,
+            title: null,
+            createdAt: DateTime.toDateUtc(epoch),
+            updatedAt: DateTime.toDateUtc(epoch),
+          },
+        ])
+      }).pipe(
+        Effect.provide(
+          chatServiceOver({
+            chats: {
+              insert: (row) =>
+                Effect.sync(() => {
+                  inserts.push(row)
+                }),
+            },
+            random: RandomFixed,
+          }),
+        ),
+      )
+    },
+  )
+
   it.live(
     "update writes the title and a moved updatedAt under the owner's where, and returns the chat",
     () => {

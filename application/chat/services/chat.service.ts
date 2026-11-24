@@ -1,10 +1,10 @@
 import {
   Context,
-  DateTime,
   Effect,
   Layer,
   Option,
   Schema,
+  SchemaIssue,
   Struct,
   type Types,
   UndefinedOr,
@@ -49,13 +49,12 @@ export class ChatService extends Context.Service<
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
       const id = yield* generateId(ChatId)
-      const createdAt = yield* DateTime.now
-      const chat = new Chat({ id, userId, createdAt, updatedAt: createdAt })
+      const chat = yield* Chat.makeEffect({ id, userId })
       const row = yield* encodeWith(ChatFields)(chat)
 
       yield* chats.insert(row)
       return chat
-    })
+    }, Effect.orDie)
 
     const list = Effect.fn('ChatService.list')(
       (userId: UserId) => chats.selectMany({ userId }),
@@ -72,19 +71,19 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('ChatService.update')(function* (
-      fields: Types.Simplify<Pick<Chat, 'title'>>,
-      where: ChatWhere,
-    ) {
-      const chat = yield* getOne(where)
-      const updatedAt = yield* DateTime.now
-      const updated = new Chat({ ...chat, ...fields, updatedAt })
-      const row = yield* encodeWith(ChatFields)(updated)
+    const update = Effect.fn('ChatService.update')(
+      function* (fields: Types.Simplify<Pick<Chat, 'title'>>, where: ChatWhere) {
+        const chat = yield* getOne(where)
+        // Without the read's `updatedAt`, so the constructor's default moves it to now.
+        const updated = yield* Chat.makeEffect({ ...Struct.omit(chat, ['updatedAt']), ...fields })
+        const row = yield* encodeWith(ChatFields)(updated)
 
-      // Only the set fields, under the `where` again: a change landing after the read is kept.
-      yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
-      return updated
-    })
+        // Only the set fields, under the `where` again: a change landing after the read is kept.
+        yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
+        return updated
+      },
+      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
+    )
 
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
       const chat = yield* getOne(where)

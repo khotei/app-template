@@ -1,4 +1,4 @@
-import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
@@ -46,20 +46,17 @@ export class RunService extends Context.Service<
 
     const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
       const id = yield* generateId(RunId)
-      const createdAt = yield* DateTime.now
-      const run = new Run({
+      const run = yield* Run.makeEffect({
         id,
         chatId: userMessage.chatId,
         userMessage,
         userMessageId: userMessage.id,
-        createdAt,
-        updatedAt: createdAt,
       })
       const row = yield* encodeWith(RunFields)(run)
 
       yield* runs.insert(row)
       return run
-    })
+    }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
       (where: RunWhere) => runs.selectOne(where),
@@ -73,13 +70,13 @@ export class RunService extends Context.Service<
     )
 
     const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
-      const updatedAt = yield* DateTime.now
-      const updated = new Run({ ...to, updatedAt })
+      // Without `to`'s `updatedAt`, so the constructor's default moves it to now.
+      const updated = yield* Run.makeEffect(Struct.omit(to, ['updatedAt']))
       const row = yield* encodeWith(RunFields)(updated)
 
       yield* runs.update(row, where)
       return updated
-    })
+    }, Effect.orDie)
 
     const move = Effect.fn('RunService.move')(function* (
       run: Run,

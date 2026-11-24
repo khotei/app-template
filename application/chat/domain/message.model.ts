@@ -1,4 +1,4 @@
-import { Effect, Predicate, Schema } from 'effect'
+import { DateTime, Effect, Predicate, Schema } from 'effect'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
@@ -9,7 +9,10 @@ import { RunFields } from '#chat/domain/run-fields.model'
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
 
-/** A message's own fields: what a Run nests of it. */
+/**
+ * A message's own fields: what a Run nests of it. `makeEffect` stamps a `createdAt` left out with
+ * the clock's now.
+ */
 export const MessageFields = Schema.Struct({
   id: MessageId,
   chatId: ChatId,
@@ -21,7 +24,7 @@ export const MessageFields = Schema.Struct({
       expected: 'a string with a non-whitespace character',
     }),
   ),
-  createdAt: Schema.DateTimeUtcFromDate,
+  createdAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
 })
 export type MessageFields = typeof MessageFields.Type
 

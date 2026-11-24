@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from 'effect'
+import { DateTime, Effect, Option, Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { maxTitleLength, textPattern } from '@app-template/kernel/data'
@@ -22,13 +22,16 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-/** A chat's own fields: the row its writes encode. */
+/**
+ * A chat's own fields: the row its writes encode. `makeEffect` stamps a timestamp left out with
+ * the clock's now.
+ */
 export const ChatFields = Schema.Struct({
   id: ChatId,
   userId: UserId,
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
+  createdAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
+  updatedAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
 })
 export type ChatFields = typeof ChatFields.Type
 
