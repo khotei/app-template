@@ -436,8 +436,9 @@ moves it into its own `Later` and deletes it here.
   go (found by the audit, not verified).
 - (2026-11-19) The imports plugin drops six loader forms no file uses (found by the audit, not
   verified).
-- (2026-11-19) Kernel clients use the libraries' `layerConfig`; one rule bullet says who closes what
-  (found by the audit, not verified).
+- (2026-11-19) The kernel's AWS and language-model clients use the libraries' `layerConfig`, as
+  `PgClientFromConfig` does; one rule bullet says who closes what (found by the audit, not
+  verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
   it (found by the audit, not verified).
 - (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
