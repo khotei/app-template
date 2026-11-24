@@ -6,26 +6,24 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 
-export type MessageCreate = Types.Simplify<Pick<Message, 'chatId' | 'userId' | 'text' | 'author'>>
-
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
-export type MessageGetOne = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
-
-export type MessageGetMany = Types.Simplify<Pick<Message, 'chatId'>>
+export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
 export class MessageService extends Context.Service<
   MessageService,
   {
-    readonly create: (fields: MessageCreate) => Effect.Effect<Message>
-    readonly getOne: (where: MessageGetOne) => Effect.Effect<Message, MessageNotFoundError>
+    readonly create: (fields: typeof Message.jsonCreate.Type) => Effect.Effect<Message>
+    readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     /** The chat's messages in creation order. */
-    readonly getMany: (where: MessageGetMany) => Effect.Effect<ReadonlyArray<Message>>
+    readonly getMany: (where: Pick<MessageWhere, 'chatId'>) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
 
-    const create = Effect.fn('MessageService.create')(function* (fields: MessageCreate) {
+    const create = Effect.fn('MessageService.create')(function* (
+      fields: typeof Message.jsonCreate.Type,
+    ) {
       const inserted = yield* Message.insert.makeEffect(fields)
       const row = yield* encodeWith(Message.insert)(inserted)
 
@@ -34,7 +32,7 @@ export class MessageService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
-      (where: MessageGetOne) => messages.selectOne(encodeWhere(where)),
+      (where: MessageWhere) => messages.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Message))),
       (found, where) =>
         Effect.flatMap(
@@ -44,7 +42,7 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      (where: MessageGetMany) => messages.selectMany(encodeWhere(where)),
+      (where: Pick<MessageWhere, 'chatId'>) => messages.selectMany(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 

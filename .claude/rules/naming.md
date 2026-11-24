@@ -40,10 +40,11 @@ keep theirs. What each role holds and may import, with this app's files of each:
   `<Model>Service` (`<Aspect><Model>Service` composed over it) or, for one operation of no model,
   that operation; the last grouping before a use case is `<Verb><Model>Service`, its main method
   `<verb>`, the verb it names, any other named for its own act in the model's words.
-- The type of an object a domain service's method takes is `<Model><Method>` (`OrderGetOne`,
-  `OrderCreate`), with the argument's role when the method takes two (`OrderUpdateFields`,
-  `OrderUpdateWhere`), declared above its service and used in its shape and its body alike. A
-  method that takes what another does takes that type; a scalar and a whole model take none.
+- A domain service's method types an object it takes from its model: new or changed fields are a
+  variant (`typeof Order.jsonCreate.Type`, `typeof Order.jsonUpdate.Type`), a where the model's one
+  `<Model>Where`, which a method narrows in place (`SetRequired<OrderWhere, 'customerId'>`, a
+  `Pick`). Only what neither gives is a type of its own, `<Model><Method>` with the argument's
+  role when the method takes two (`OrderCreate`, `OrderUpdateWhere`).
 - Functions are verb-first, and the verb marks the kind of work (whether a name passes:
   [name-and-body.md](name-and-body.md)):
   - `create<Thing>`: a factory that takes dependencies and assembles them, or a write that takes

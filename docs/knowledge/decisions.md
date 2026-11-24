@@ -433,7 +433,7 @@ read scoped to the user.
 ```ts
 // the bytes' service reads through the plain one, pipes the model's guard, passes it on, then
 // removes the bytes once the row is gone
-const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderGetOne) {
+const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
   yield* orders.getOne(where).pipe(ensureUnpaid)
   yield* orders.delete({ ...where, paidAt: Option.none() })
   yield* files.delete({ id: [where.id] })
@@ -711,7 +711,7 @@ bug, and a race dies on the write's guard instead. A reply writes the Run twice,
   the same way. A transition that takes an argument is a lambda at each call. `update` takes the
   status of its guard from its caller, so a status move written through it can name another status
   than the one read: only `move`, the line of `.claude/rules/layering.md` and review hold it. A
-  where that fits both of `RunGetOne`'s members compiles, and is read under every field it holds.
+  where that fits both of `RunWhere`'s members compiles, and is read under every field it holds.
   The api's `404` for a Run carries `where: { id }`, and its schema lists the `userMessageId` key
   the api never sends. A
   refused send whose job SQS took after all, once a worker settled the Run, responds with `500`. A

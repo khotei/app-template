@@ -12,7 +12,7 @@ export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMess
  * A Run as a read finds it: a user's by its id in its chat, which a call on a user's behalf
  * reads, or a message's in one of the statuses `status` lists, which its job reads.
  */
-export type RunGetOne =
+export type RunWhere =
   | Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userId'>>
   | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly status: ReadonlyArray<RunStatus> }>
 
@@ -23,7 +23,7 @@ export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (fields: RunCreate) => Effect.Effect<Run>
-    readonly getOne: (where: RunGetOne) => Effect.Effect<Run, RunNotFoundError>
+    readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
     readonly update: (to: Run, where: RunUpdateWhere) => Effect.Effect<Run>
     /**
@@ -45,7 +45,7 @@ export class RunService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
-      (where: RunGetOne) => runs.selectOne(encodeWhere(where)),
+      (where: RunWhere) => runs.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Run))),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>

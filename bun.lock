@@ -22,6 +22,7 @@
         "@app-template/packages": "workspace:*",
         "@effect/ai-anthropic": "catalog:effect",
         "effect": "catalog:effect",
+        "type-fest": "catalog:runtime",
       },
       "devDependencies": {
         "@effect/platform-bun": "catalog:effect",

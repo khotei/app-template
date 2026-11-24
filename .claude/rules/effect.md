@@ -58,7 +58,7 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
   infrastructure failure) nor an `Option.none` (no detail for the caller or the log).
   ```diff
   - readonly find: (id: OrderId) => Effect.Effect<Order | null>  // absent as null, no reason
-  + readonly getOne: (where: OrderGetOne) => Effect.Effect<Order, OrderNotFoundError>
+  + readonly getOne: (where: OrderWhere) => Effect.Effect<Order, OrderNotFoundError>
   ```
 - An error that reaches the wire is a `Schema.TaggedError` tagged with its class name, so the
   api serves it as it is, with the status its endpoint gives it (`apps/CLAUDE.md`); one that

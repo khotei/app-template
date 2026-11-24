@@ -1,4 +1,5 @@
-import { Context, Effect, Layer, Schema, SchemaIssue, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, SchemaIssue } from 'effect'
+import type { SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
@@ -7,15 +8,11 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
 
-/** A chat by id and its owner: what a call on a user's behalf names, so none reaches another's. */
-export type ChatGetOne = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
-
-export type ChatUpdateFields = Types.Simplify<Pick<Chat, 'title'>>
-
-/** A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. */
-export type ChatUpdateWhere = Types.Simplify<
-  Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>
->
+/**
+ * A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. A
+ * call on a user's behalf requires the owner, so none reaches another's.
+ */
+export type ChatWhere = SetOptional<Pick<Chat, 'id' | 'userId' | 'title'>, 'userId' | 'title'>
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -24,14 +21,18 @@ export class ChatService extends Context.Service<
     /** The user's chats, the newest created first. */
     readonly list: (userId: UserId) => Effect.Effect<ReadonlyArray<Chat>>
     /** The chat of the user `where` names; another's is not found. */
-    readonly getOne: (where: ChatGetOne) => Effect.Effect<Chat, ChatNotFoundError>
+    readonly getOne: (
+      where: SetRequired<ChatWhere, 'userId'>,
+    ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
     readonly update: (
-      fields: ChatUpdateFields,
-      where: ChatUpdateWhere,
+      fields: typeof Chat.jsonUpdate.Type,
+      where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the chat of the user `where` names, with its messages and Runs; another's is not found. */
-    readonly delete: (where: ChatGetOne) => Effect.Effect<void, ChatNotFoundError>
+    readonly delete: (
+      where: SetRequired<ChatWhere, 'userId'>,
+    ) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
@@ -51,7 +52,7 @@ export class ChatService extends Context.Service<
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatUpdateWhere) => chats.selectOne(encodeWhere(where)),
+      (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Chat))),
       (found, where) =>
         Effect.flatMap(
@@ -61,7 +62,7 @@ export class ChatService extends Context.Service<
     )
 
     const update = Effect.fn('ChatService.update')(
-      function* (fields: ChatUpdateFields, where: ChatUpdateWhere) {
+      function* (fields: typeof Chat.jsonUpdate.Type, where: ChatWhere) {
         const chat = yield* getOne(where)
         const set = yield* Chat.update.makeEffect({ id: chat.id, ...fields })
         const row = yield* encodeWith(Chat.update)(set)
@@ -74,7 +75,9 @@ export class ChatService extends Context.Service<
       Effect.catchIf(SchemaIssue.isIssue, Effect.die),
     )
 
-    const remove = Effect.fn('ChatService.delete')(function* (where: ChatGetOne) {
+    const remove = Effect.fn('ChatService.delete')(function* (
+      where: SetRequired<ChatWhere, 'userId'>,
+    ) {
       yield* getOne(where)
 
       // Under the owner again; the cascade takes the messages and the Runs, by their key to the chat.
