@@ -1,4 +1,5 @@
 import { Array as Arr, Cause, DateTime, Effect, Option, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
 import { activeRunStatuses, RunFailure, runStatuses } from '@app-template/kernel/data'
 
@@ -21,10 +22,11 @@ export { RunFailure }
 /**
  * The work of answering one user message, as its row holds it: `userMessageId` names the message
  * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message. A chat
- * and a message nest it whole. `makeEffect` stamps a timestamp left out with the clock's now.
+ * and a message nest it whole. `makeEffect` makes an `id` left out, a UUIDv7, and stamps a
+ * timestamp left out with the clock's now.
  */
 export class Run extends Schema.Class<Run>('Run')({
-  id: RunId,
+  id: Model.UuidV7WithGenerate(RunId),
   chatId: ChatId,
   userMessageId: MessageId,
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),

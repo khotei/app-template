@@ -12,11 +12,10 @@ import {
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatFields } from '#chat/domain/chat.model'
-import { ChatId } from '#chat/domain/chat.util'
 
 /**
  * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
@@ -49,11 +48,9 @@ export class ChatService extends Context.Service<
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = yield* generateId(ChatId)
-      const chat = yield* Chat.makeEffect({ id, userId })
+      const chat = yield* Chat.makeEffect({ userId })
       const row = yield* encodeWith(ChatFields)(chat)
 
       yield* chats.insert(row)

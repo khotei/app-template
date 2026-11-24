@@ -1,10 +1,14 @@
 import { DateTime, type Redacted, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
 import { UserId } from '#identity/contract/user.util'
 
-/** `makeEffect` stamps a `createdAt` left out with the clock's now. */
+/**
+ * `makeEffect` makes an `id` left out, a UUIDv7, and stamps a `createdAt` left out with the
+ * clock's now.
+ */
 export class User extends Schema.Class<User>('User')({
-  id: UserId,
+  id: Model.UuidV7WithGenerate(UserId),
   createdAt: Schema.DateTimeUtcFromDate.pipe(Schema.withConstructorDefault(DateTime.now)),
 }) {}
 

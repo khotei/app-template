@@ -2,11 +2,10 @@ import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run, type RunStatus } from '#chat/domain/run.model'
-import { RunId } from '#chat/domain/run.util'
 
 /** `userId` limits a read to the user's chats, which every api caller passes. */
 type RunNarrowing = Partial<
@@ -42,13 +41,11 @@ export class RunService extends Context.Service<
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('RunService.create')(function* (
       fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
     ) {
-      const id = yield* generateId(RunId)
-      const run = yield* Run.makeEffect({ ...fields, id })
+      const run = yield* Run.makeEffect(fields)
       const row = yield* encodeWith(Run)(run)
 
       yield* runs.insert(row)
