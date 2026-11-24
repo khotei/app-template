@@ -2,7 +2,7 @@ import { PgClient } from '@effect/sql-pg'
 import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
-import { ApiLayer, layerApiClient } from '@app-template/api/testing'
+import { ApiLayer, layerApiClient, StrangerApiClient } from '@app-template/api/testing'
 import {
   AssistantReply,
   ChatAssistant,
@@ -57,7 +57,7 @@ const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(Layer.provide(AssistantsT
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the assistant scripted,
- * with an `ApiClient` on the api; `SqlClient` stays in context for what the test reads behind the
+ * with an `ApiClient` and a stranger's on the api; `SqlClient` stays in context for what the test reads behind the
  * apps.
  */
 export const StandTest = Layer.unwrap(
@@ -71,9 +71,10 @@ export const StandTest = Layer.unwrap(
     })
     const provider = yield* buildConfigProvider(apiPort, workerPort)
 
-    const browser = layerApiClient(`http://localhost:${apiPort}`).pipe(
-      Layer.provide(FetchHttpClient.layer),
+    const apiUrl = `http://localhost:${apiPort}`
+    const browsers = Layer.mergeAll(layerApiClient(apiUrl), StrangerApiClient.layer(apiUrl))
+    return Layer.merge(Apps, browsers.pipe(Layer.provide(FetchHttpClient.layer))).pipe(
+      Layer.provide(ConfigProvider.layerAdd(provider)),
     )
-    return Layer.merge(Apps, browser).pipe(Layer.provide(ConfigProvider.layerAdd(provider)))
   }).pipe(Effect.orDie),
 ).pipe(Layer.provideMerge([PgClientTest, AwsTest, LambdaClientTest]))

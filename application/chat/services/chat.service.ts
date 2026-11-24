@@ -12,6 +12,9 @@ import { ChatRepository } from '#chat/services/chat.repository'
  */
 export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
 
+/** A chat by id and its owner: what a write on a user's behalf names, so none reaches another's. */
+export type ChatOwnerWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
+
 export class ChatService extends Context.Service<
   ChatService,
   {
@@ -24,8 +27,8 @@ export class ChatService extends Context.Service<
       fields: Types.Simplify<Pick<Chat, 'title'>>,
       where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Removes the user's chat with its messages and Runs. */
-    readonly delete: (where: ChatWhere) => Effect.Effect<void, ChatNotFoundError>
+    /** Removes the chat of the user `where` names, with its messages and Runs; another's is not found. */
+    readonly delete: (where: ChatOwnerWhere) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
@@ -62,7 +65,7 @@ export class ChatService extends Context.Service<
       Effect.catchIf(SchemaIssue.isIssue, Effect.die),
     )
 
-    const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
+    const remove = Effect.fn('ChatService.delete')(function* (where: ChatOwnerWhere) {
       const chat = yield* getOne(where)
 
       // The cascade takes the messages and the Runs, by their `chat_id`.
