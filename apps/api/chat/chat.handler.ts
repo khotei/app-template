@@ -60,7 +60,7 @@ export const ChatHandler = HttpApiBuilder.group(
         return yield* messageService.getOne({
           id: params.messageId,
           chatId: params.chatId,
-          chat: { userId: user.id },
+          userId: user.id,
         })
       }),
       getRun: Effect.fn('ChatHandler.getRun')(function* ({ params }) {
@@ -68,7 +68,7 @@ export const ChatHandler = HttpApiBuilder.group(
         return yield* runService.getOne({
           id: params.runId,
           chatId: params.chatId,
-          chat: { userId: user.id },
+          userId: user.id,
         })
       }),
     })

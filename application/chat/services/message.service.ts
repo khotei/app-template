@@ -1,23 +1,22 @@
 import { Context, Effect, Layer, Schema, type Types } from 'effect'
 
-import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 
-/** A message by id in a chat of the user `chat.userId` names, so none reads another's. */
+/** A message by id of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id'> & { readonly chat: { readonly userId: UserId } } & Partial<
-      Pick<Message, 'chatId'>
-    >
+  Pick<Message, 'id' | 'userId'> & Partial<Pick<Message, 'chatId'>>
 >
 
 export class MessageService extends Context.Service<
   MessageService,
   {
-    readonly create: (fields: Pick<Message, 'chatId' | 'text' | 'author'>) => Effect.Effect<Message>
+    readonly create: (
+      fields: Pick<Message, 'chatId' | 'userId' | 'text' | 'author'>,
+    ) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     /** The chat's messages in creation order. */
     readonly getMany: (
@@ -29,7 +28,7 @@ export class MessageService extends Context.Service<
     const messages = yield* MessageRepository
 
     const create = Effect.fn('MessageService.create')(function* (
-      fields: Pick<Message, 'chatId' | 'text' | 'author'>,
+      fields: Pick<Message, 'chatId' | 'userId' | 'text' | 'author'>,
     ) {
       const inserted = yield* Message.insert.makeEffect(fields)
       const row = yield* encodeWith(Message.insert)(inserted)

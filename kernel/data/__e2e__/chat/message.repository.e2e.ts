@@ -28,6 +28,7 @@ const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seco
   ({
     id,
     chatId,
+    userId,
     author: 'user',
     text: 'Hi',
     createdAt: at(seconds),
@@ -45,6 +46,7 @@ const run = (
   ({
     id,
     chatId: answered.chatId,
+    userId: answered.userId,
     userMessageId: answered.id,
     status,
     failure: (
@@ -104,7 +106,7 @@ describe('MessageRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect("selectOne reads another chat's message or a stranger's chat's as none", () =>
+  it.effect("selectOne reads another chat's message or another user's as none", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = '0192d4e0-7b3a-7c00-8000-00000000004c'
@@ -114,9 +116,9 @@ describe('MessageRepository', () => {
       yield* insertOwnedChats([chatId, other])
       yield* messages.insert(question)
 
-      const owned = yield* messages.selectOne({ id: question.id, chatId, chat: { userId } })
+      const owned = yield* messages.selectOne({ id: question.id, chatId, userId })
       const elsewhere = yield* messages.selectOne({ id: question.id, chatId: other })
-      const foreign = yield* messages.selectOne({ id: question.id, chat: { userId: strangerId } })
+      const foreign = yield* messages.selectOne({ id: question.id, userId: strangerId })
 
       assertSchemaEquals(SelectedMessage, owned, Option.some(question))
       assert.deepStrictEqual([elsewhere, foreign], [Option.none(), Option.none()])

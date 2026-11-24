@@ -2,7 +2,7 @@
   "type": "base",
   "version": "10",
   "dialect": "postgres",
-  "id": "be10ab53-90ac-4caa-93b9-1b4d4c57f122",
+  "id": "f6e518e1-460e-40a6-a319-85e940f345f2",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -71,7 +71,8 @@
         "e|tbl|public.chats",
         "n|rel|public.chats",
         "n|type|public.chats",
-        "n|rel|public.chats_pkey"
+        "n|rel|public.chats_pkey",
+        "n|rel|public.chats_id_user_id_unique"
       ],
       "reads": [
         "n|sch|public"
@@ -272,10 +273,10 @@
         "messages"
       ],
       "writes": [
-        "s|fk|public.messages.messages_chat_id_chats_id_fkey",
-        "n|fk|public.messages.messages_chat_id_chats_id_fkey",
-        "e|fk|public.messages.messages_chat_id_chats_id_fkey",
-        "n|con|public.messages.messages_chat_id_chats_id_fkey"
+        "s|fk|public.messages.messages_chat_id_user_id_fk",
+        "n|fk|public.messages.messages_chat_id_user_id_fk",
+        "e|fk|public.messages.messages_chat_id_user_id_fk",
+        "n|con|public.messages.messages_chat_id_user_id_fk"
       ],
       "reads": [
         "n|tbl|public.messages",
@@ -283,31 +284,10 @@
         "n|tbl|public.chats",
         "n|sch|public",
         "n|col|public.messages.chat_id",
+        "n|col|public.messages.user_id",
         "n|col|public.chats.id",
-        "e|uniqueness|public.chats.id"
-      ]
-    },
-    {
-      "statementType": "create_fk",
-      "statementTarget": [
-        "table",
-        "public",
-        "runs"
-      ],
-      "writes": [
-        "s|fk|public.runs.runs_chat_id_chats_id_fkey",
-        "n|fk|public.runs.runs_chat_id_chats_id_fkey",
-        "e|fk|public.runs.runs_chat_id_chats_id_fkey",
-        "n|con|public.runs.runs_chat_id_chats_id_fkey"
-      ],
-      "reads": [
-        "n|tbl|public.runs",
-        "n|sch|public",
-        "n|tbl|public.chats",
-        "n|sch|public",
-        "n|col|public.runs.chat_id",
-        "n|col|public.chats.id",
-        "e|uniqueness|public.chats.id"
+        "n|col|public.chats.user_id",
+        "e|uniqueness|public.chats.id.user_id"
       ]
     },
     {
@@ -331,6 +311,31 @@
         "n|col|public.runs.assistant_message_id",
         "n|col|public.messages.id",
         "e|uniqueness|public.messages.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "runs"
+      ],
+      "writes": [
+        "s|fk|public.runs.runs_chat_id_user_id_fk",
+        "n|fk|public.runs.runs_chat_id_user_id_fk",
+        "e|fk|public.runs.runs_chat_id_user_id_fk",
+        "n|con|public.runs.runs_chat_id_user_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.runs",
+        "n|sch|public",
+        "n|tbl|public.chats",
+        "n|sch|public",
+        "n|col|public.runs.chat_id",
+        "n|col|public.runs.user_id",
+        "n|col|public.chats.id",
+        "n|col|public.chats.user_id",
+        "e|uniqueness|public.chats.id.user_id"
       ]
     },
     {
@@ -535,6 +540,19 @@
     {
       "schema": "public",
       "table": "messages",
+      "name": "user_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "messages",
       "name": "author",
       "type": "message_author",
       "typeSchema": "public",
@@ -588,6 +606,19 @@
       "schema": "public",
       "table": "runs",
       "name": "chat_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "runs",
+      "name": "user_id",
       "type": "uuid",
       "typeSchema": null,
       "notNull": true,
@@ -861,32 +892,17 @@
     {
       "schema": "public",
       "table": "messages",
-      "name": "messages_chat_id_chats_id_fkey",
-      "nameExplicit": false,
+      "name": "messages_chat_id_user_id_fk",
+      "nameExplicit": true,
       "columns": [
-        "chat_id"
+        "chat_id",
+        "user_id"
       ],
       "schemaTo": "public",
       "tableTo": "chats",
       "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
-      "onDelete": "CASCADE",
-      "entityType": "fks"
-    },
-    {
-      "schema": "public",
-      "table": "runs",
-      "name": "runs_chat_id_chats_id_fkey",
-      "nameExplicit": false,
-      "columns": [
-        "chat_id"
-      ],
-      "schemaTo": "public",
-      "tableTo": "chats",
-      "columnsTo": [
-        "id"
+        "id",
+        "user_id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
@@ -904,6 +920,25 @@
       "tableTo": "messages",
       "columnsTo": [
         "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "runs",
+      "name": "runs_chat_id_user_id_fk",
+      "nameExplicit": true,
+      "columns": [
+        "chat_id",
+        "user_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "chats",
+      "columnsTo": [
+        "id",
+        "user_id"
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
@@ -994,6 +1029,18 @@
       ],
       "nameExplicit": false,
       "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "chats",
+      "name": "chats_id_user_id_unique",
+      "nameExplicit": true,
+      "columns": [
+        "id",
+        "user_id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
     },
     {
       "schema": "public",

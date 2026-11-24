@@ -26,6 +26,7 @@ const userMessageId = '0192d4e0-7b3a-7c00-8000-0000000000a2'
 const userMessage = {
   id: userMessageId,
   chatId,
+  userId,
   author: 'user',
   text: 'Hi',
   createdAt,
@@ -39,6 +40,7 @@ const run = (
 ): RunRow => ({
   id,
   chatId,
+  userId,
   userMessageId,
   status: 'queued',
   failure: null,
@@ -71,8 +73,8 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const owned = yield* runs.selectOne({ id: queued.id, chat: { userId } })
-      const foreign = yield* runs.selectOne({ id: queued.id, chat: { userId: strangerId } })
+      const owned = yield* runs.selectOne({ id: queued.id, userId })
+      const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
 
       assertSchemaEquals(SelectedRun, owned, Option.some(queued))
       assert.deepStrictEqual(foreign, Option.none())

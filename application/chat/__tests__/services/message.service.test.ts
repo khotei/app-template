@@ -14,7 +14,7 @@ import { layerChatTest } from '#testing/chat/chat.test-layer'
 
 const firstMessageRow = encodeWith(Message)(firstMessage)
 
-const where = { id: firstMessage.id, chatId: chat.id, chat: { userId: owner } }
+const where = { id: firstMessage.id, chatId: chat.id, userId: owner }
 
 describe('MessageService', () => {
   it.effect('getOne reads the message by the where it was given', () => {
