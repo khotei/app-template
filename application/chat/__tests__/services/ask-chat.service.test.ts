@@ -4,7 +4,6 @@ import { Array as Arr, DateTime, Effect, Exit, Fiber, Option } from 'effect'
 
 import type {
   MessageColumns,
-  MessageEntityWhere,
   RunColumns,
   RunEntitySet,
   RunEntityWhere,
@@ -15,7 +14,6 @@ import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/test
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
-import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
@@ -56,11 +54,6 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
       }),
   },
 })
-
-/** The read of the message the failed Run answers. */
-const readsFirstMessage = {
-  messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
-} satisfies ChatRepositoryMocks
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
 function recordUpdates(queue: ChatLeaves['queue']) {
@@ -192,7 +185,6 @@ describe('AskChatService', () => {
         // No `selectOne`: a read of the message's active Run, a later retry's, would die on it.
         layerChatTest(
           {
-            ...readsFirstMessage,
             runs: {
               insert: (row) =>
                 Effect.sync(() => {
@@ -226,7 +218,6 @@ describe('AskChatService', () => {
         Effect.provide(
           layerChatTest(
             {
-              ...readsFirstMessage,
               runs: {
                 insert: () => Effect.void,
                 // The Run stored is no longer queued, so the guarded write touches no row.
@@ -308,12 +299,7 @@ describe('AskChatService', () => {
         ['reply-to-message'],
       )
     }).pipe(
-      Effect.provide(
-        layerChatTest(
-          { ...readsFirstMessage, runs: { insert: () => held.hold } },
-          { queue: jobs.layer },
-        ),
-      ),
+      Effect.provide(layerChatTest({ runs: { insert: () => held.hold } }, { queue: jobs.layer })),
     )
   })
 
@@ -362,44 +348,7 @@ describe('AskChatService', () => {
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(retried)])
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* jobs.sent, [replyJob(retried)])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(insertingInto(inserts, readsFirstMessage), { queue: jobs.layer }),
-        ),
-      )
-    },
-  )
-
-  it.effect(
-    "retry asks the store for the failed Run's message by its id and returns its none as MessageNotFoundError, sending no job",
-    () => {
-      const wheres: Array<MessageEntityWhere> = []
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        const error = yield* retry(withNewest(failedRun)).pipe(Effect.flip)
-
-        assertSchemaEquals(
-          MessageNotFoundError,
-          error,
-          new MessageNotFoundError({ id: firstMessage.id }),
-        )
-        assert.deepStrictEqual(wheres, [{ id: firstMessage.id }])
-        assertEquals(yield* jobs.sent, [])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(
-            {
-              messages: {
-                selectOne: (where) =>
-                  Effect.sync(() => {
-                    wheres.push(where)
-                  }).pipe(Effect.as(Option.none())),
-              },
-            },
-            { queue: jobs.layer },
-          ),
-        ),
-      )
+      }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))
     },
   )
 })
