@@ -1,4 +1,4 @@
-import { defineRelations } from 'drizzle-orm'
+import { defineRelations, type RelationsFilter } from 'drizzle-orm'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
@@ -20,3 +20,9 @@ export const relations = defineRelations({ users, credentials, chats, messages, 
     replyOf: r.one.runs({ from: r.messages.id, to: r.runs.assistantMessageId }),
   },
 }))
+
+/** What a relational query of the table `Name` takes as its `where`: its columns and relations. */
+export type FilterOf<Name extends keyof typeof relations> = RelationsFilter<
+  (typeof relations)[Name],
+  typeof relations
+>

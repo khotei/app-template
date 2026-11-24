@@ -11,7 +11,10 @@ import { buildResourceName } from '#kernel/aws/resources/resources-naming'
 
 const buildClientOptions = ({ region, endpoint }: AwsConfig) => ({
   region,
-  endpoint: endpoint.pipe(Option.map(String), Option.getOrUndefined),
+  ...Option.match(endpoint, {
+    onNone: () => ({}),
+    onSome: (url) => ({ endpoint: String(url) }),
+  }),
 })
 
 /** With an endpoint set, addresses buckets by path, so presigned URLs carry that endpoint's host. */

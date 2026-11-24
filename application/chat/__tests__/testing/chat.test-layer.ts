@@ -1,4 +1,3 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { Layer } from 'effect'
 
 import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
@@ -57,7 +56,6 @@ export const layerChatTest = (
         messageAssistant,
         chatAssistant,
         transaction,
-        BunCrypto.layer,
       ),
     ),
   )

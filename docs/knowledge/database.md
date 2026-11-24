@@ -27,8 +27,9 @@ the entities derived from them.
   spelled twice.
 - **Shared columns** come from `@app-template/packages/db`: `id()`, a `uuid` primary key with
   `DEFAULT uuidv7()`, and `createdAt()` and `updatedAt()`, `timestamptz` columns with no default
-  and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
-  `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
+  and no `$onUpdate`. A model's insert and update variants make every id and every timestamp
+  from the app's clock ([Entities and models](#entities-and-models)), so `TestClock` holds and
+  the database's clock is never read; the `uuidv7()` default serves only
   hand-written SQL, and needs Postgres 18 or later.
 - **Enums and checks state the data layer's own values.** An enum takes its values from a tuple
   the table exports (`runStatuses = ['queued', …] as const`, then
@@ -56,6 +57,13 @@ the entities derived from them.
   `(user_message_id, chat_id)` over `messages (id, chat_id)` (`runs_user_message_id_chat_id_fk`),
   so the message can only be one of the Run's chat. The cascade never reaches S3: a flow that
   stores bytes beside a row deletes them itself.
+- **A message and a Run store their chat's owner.** `messages.user_id` and `runs.user_id` repeat
+  `chats.user_id`, so a user's read filters the row itself (`{ id, userId }`), as a chat's does,
+  with no relation to its chat. The insert writes it once: an ask takes it from the chat it was
+  given, a retry from the failed Run, a reply from the Run it started. The key that names the
+  chat holds the copy: the pair `(chat_id, user_id)` over `chats (id, user_id)`
+  (`messages_chat_id_user_id_fk`, `runs_chat_id_user_id_fk`), in place of a key on `chat_id`
+  alone and cascading as it did, so the database refuses a row whose owner is not its chat's.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
   foreign key on array elements, so a copy would drift: a message's Runs are the rows whose
   `runs.user_message_id` names it, and `messages` keeps no list of them.
@@ -81,16 +89,20 @@ other: a message's Run comes from two relations, the newest that answers a user'
 the one that wrote an assistant's, so `buildMessageEntity` keeps the one its author has and the
 repository maps every read through it.
 
-A model is the codec of its own row: it declares each stored value as its row holds it, a
-nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as `Schema.DateTimeUtcFromDate`,
-so its encoded side is its entity and its type side is what the rules read. No mapper sits
-between them: a service codes a row with `encodeWith` and `decodeWith` from
-`@app-template/packages/schema`, given the model. A read decodes the entity with the model in the
-read's shape, whose nested models decode their own rows, and a write encodes the model's own
-fields, its `<Model>Fields`, since a write holds no nested record:
+A model is the codec of its own row: a `Model.Class` that declares each stored value as its row
+holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
+(`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
+entity and its type side is what the rules read. No mapper sits between them: a service codes a
+row with `encodeWith` and `decodeWith` from `@app-template/packages/schema`, given the model or
+one of its variants. A read decodes the entity with the model in the read's shape, whose nested
+models decode their own rows. A write builds and encodes a variant: `insert` makes the id and
+both times, `update` holds only the fields an update may set and moves `updatedAt`, and neither
+holds a nested record, which is a field of the select variant alone
+([Models with variants](decisions.md#models-with-variants)):
 
 ```ts
-const row = yield* encodeWith(ChatFields)(chat)
+const fields = yield* Chat.insert.makeEffect({ userId })
+const row = yield* encodeWith(Chat.insert)(fields)
 const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeWith(Schema.Option(Chat))))
 ```
 
@@ -122,8 +134,8 @@ in one relational query, and never a nested `with`: `Chat.run` and `Message.run`
 fields another table holds, read and never written by their own writes. A `one` relation over
 many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: newestFirst } }`, since a
 relation holds no order and renders `limit 1`. A relational query
-aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never on
-the `chats` constant.
+aliases its table, so its `where` is the filter object, which the query renders on that alias,
+never a condition built on the `chats` constant.
 
 ## Repositories
 
@@ -141,9 +153,24 @@ in the e2e), so the transaction runs on the connection `Db` uses. Every method e
 `orDieWithSqlError` from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
-their codecs: a write encodes the model into the row, the set takes its fields from that row, the
-service maps each `Option` of a `where` to `null`, and a read decodes the entities into models; a
-mapping failure dies.
+their codecs: a write encodes the model into the row, the set takes its fields from that row,
+and a read decodes the entities into models; a mapping failure dies.
+
+A `where` has two forms, one on each side of a service. What a caller hands a service is model
+values alone: a branded id, an `Option` for a field that may be null
+(`{ id, title: Option.none() }` is a chat still untitled), a list for one of several
+(`status: activeRunStatuses`). Its key is a required field, and so is the owner a call on a
+user's behalf names in its type (`ChatOwnerWhere`, `RunOwnerWhere`, `MessageWhere`); a narrowing
+a caller may leave out, a query-string parameter, is `T | undefined`, never an `Option`
+([effect.md › Schemas](../../.claude/rules/effect.md#schemas)). A method two callers reach with
+different fields takes a union of two named wheres: `ChatService.update` the user's rename or the
+title job's, `RunService.getOne` the api's read or the worker's. What a service hands a
+repository is Drizzle's relational filter object, built in the method that calls the repository,
+field by field from its where: a value as it is, an `Option` of none as `{ isNull: true }`, a
+list as `{ in: […] }`, a narrowing left out as no key. So Drizzle's operators appear only at a
+service's repository call, never in a handler, a use case or a `<Verb><Model>Service`, and no
+filter holds an `undefined` field, which Drizzle throws on and `exactOptionalPropertyTypes`
+([tooling.md › TypeScript](tooling.md#typescript)) refuses at `make typecheck`.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder
@@ -163,13 +190,18 @@ The entity file lists the columns an update may write once, as `<name>SetColumns
 table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
 fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
 repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
-only those columns, and an `undefined` field is skipped by Drizzle's `set`.
-`buildWhere<Fields>(columns)` from `@app-template/packages/db` takes a `WhereColumns<Fields>`,
-one mapper per field returning `SQL | undefined`, and joins them with `and`, which skips an
-absent field (`UndefinedOr.map`); a mapper returning the wrong shape and a field the type gains
-without a mapper fail typecheck.
-A nullable field's mapper is `eqOrIsNull(column)`, which renders `null` as `IS NULL`, since
-SQL's `=` never matches it.
+only those columns; a column the set leaves out is not written, and a set that holds an
+`undefined` does not compile.
+A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
+<Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
+`FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
+keys names both, and its `where` must hold one. A relational query takes it as
+`buildFilter(where)`, and a core-builder statement as `encodeFilter(<table>, where)`, which
+renders the same object as that statement's condition. A filter that names nothing matches no
+row in both (``{ RAW: sql`false` }``, `` sql`false` ``), so no statement goes without its
+`WHERE`.
+A column that is null is matched by `{ isNull: true }`: Drizzle throws on a `null` in a filter,
+as on an `undefined`.
 
 ## Guards
 
@@ -187,7 +219,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status IN (…)`: `RunService.move(run, transition)` moves the
+  and `updatedAt` `WHERE id = … AND status = …`: `RunService.move(run, transition)` moves the
   Run it is given through the model's transition and writes it through `RunService.update(to,
   where)`, which stamps it with the current time and passes it, encoded, as the set, with the
   Run's id under the status it was read in as the `where`, where a read's `RunEntitySelectWhere`
@@ -212,7 +244,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   refusal, then writes only the changed fields under the same `where`, so a row another writer
   changed in between is missed and the write dies. A repository's `update(set, where)` takes a
   set that is `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck, and a
-  `where` of a key and optionally a field the row must still hold, mapped through `buildWhere`
+  `where` of a key and any field the row must still hold, rendered by `encodeFilter`
   (above). The worked case is a chat's rename: the title job renames `where` `title` is still
   `none`, so a rename landing between its read and its write wins, and the title job dies and
   fails.

@@ -212,10 +212,11 @@ user. Each model of it has its own domain services: `<Model>Service` and those c
 _Avoid_: Entity group, root, aggregate root
 
 **Model**:
-The `Schema.Class` of a domain concept as its module sees it, with its pure operations (`Chat`,
+The `Model.Class` of a domain concept as its module sees it, with its pure operations (`Chat`,
 `Message`). Its encoded side is the row of its one store (`null`, a `Date`); the rules read its
-type side only. Its `<Model>Fields` is the `Schema.Struct` of its own fields, the model's
-supertype, which a write encodes and another model may nest (`Chat.run: Option<RunFields>`). Not
+type side only. Its variants are the shapes one field list gives each use: the class what a read
+decodes, `insert` and `update` what a write encodes, `json` what the api serves; a record read
+with it from another table is a field of the class alone (`Chat.run: Option<Run>`). Not
 the language model, which keeps both words in prose and is `LanguageModel` or `llm…` in code
 (`LlmError`, `llmModels`).
 _Avoid_: Entity, DTO, row

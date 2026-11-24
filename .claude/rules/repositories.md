@@ -29,12 +29,35 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   object; a write that measures what it stores returns the measure.
 - One shape per entity: a related entity is a field the same relational query fills, one level
   deep as the neighbour's `<Name>Columns`, and never becomes a second type
-  (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's
-  `<Model>Fields` supertype, its own fields, which a write encodes and a neighbour may nest, is no
-  second shape either.
+  (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's insert and
+  update variants, which a write encodes ([models.md](models.md)), are no second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
-  after the read. The field mappers and a relational query's alias:
+  after the read.
+
+## A where's two forms
+
+- A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). No
+  statement takes it bare: a relational query takes `buildFilter(where)`, a core-builder one
+  `encodeFilter(<table>, where)`, so a filter that names nothing matches no row.
+- A service's `where` is model values alone: a branded id, an `Option`, a list. Its key, and the
+  owner on a user's call, are required fields; a narrowing the caller may leave out is
+  `T | undefined` ([effect.md › Schemas](effect.md#schemas)). The method builds the repository's
+  filter where it calls the repository, branching on such a narrowing and never passing its
+  `where` through, so Drizzle's operators stay there and no filter holds an `undefined`. A method
+  two callers reach with different fields takes a union of two named wheres, never one where of
+  optional keys. The types and the alias of a relational query:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
+
+```diff
+- orders.getOne({ id, note: { isNull: true } })             // the caller speaks Drizzle
++ orders.getOne({ id, note: Option.none() })
++ // OrderService.getOne, at its repository call:
++ repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
+- orders.list({ customerId, status: Option.fromUndefinedOr(query.status) })  // none is a null column
++ orders.list({ customerId, status: query.status })         // status: OrderStatus | undefined
++ // OrderService.list, at its repository call:
++ repository.selectMany({ customerId, ...(status === undefined ? {} : { status }) })
+```
 
 ## What is stored
 

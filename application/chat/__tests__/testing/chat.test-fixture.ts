@@ -24,6 +24,7 @@ export const firstMessage = new Message({
   author: 'user',
   id: messageId,
   chatId,
+  userId: owner,
   text: 'Plan a weekend in Lisbon',
   createdAt: epoch,
 })
@@ -35,16 +36,31 @@ const historyAt = (n: number) => DateTime.makeUnsafe(n * 1000)
 
 /** The user's message at place `n` of `chat`'s history. */
 export const userMessageAt = (n: number, text: string) =>
-  new Message({ author: 'user', id: historyId(n), chatId, text, createdAt: historyAt(n) })
+  new Message({
+    author: 'user',
+    id: historyId(n),
+    chatId,
+    userId: owner,
+    text,
+    createdAt: historyAt(n),
+  })
 
 /** The assistant's message at place `n` of `chat`'s history. */
 export const assistantMessageAt = (n: number, text: string) =>
-  new Message({ author: 'assistant', id: historyId(n), chatId, text, createdAt: historyAt(n) })
+  new Message({
+    author: 'assistant',
+    id: historyId(n),
+    chatId,
+    userId: owner,
+    text,
+    createdAt: historyAt(n),
+  })
 
 /** The Run an ask of `firstMessage` queues. */
 export const queuedRun = new Run({
   id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000031'),
   chatId,
+  userId: owner,
   userMessageId: firstMessage.id,
   createdAt: epoch,
   updatedAt: epoch,

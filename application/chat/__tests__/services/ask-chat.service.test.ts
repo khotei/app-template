@@ -14,10 +14,9 @@ import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/test
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
-import { Message, MessageFields } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
@@ -56,7 +55,7 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
 })
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
-function recordUpdates(queue: ChatLeaves['queue']) {
+function recordUpdates(queue: Required<ChatLeaves>['queue']) {
   const updates: Array<RunEntitySet> = []
   const layer = layerChatTest(
     {
@@ -111,7 +110,7 @@ describe('AskChatService', () => {
       return Effect.gen(function* () {
         const run = yield* ask(chat, 'Plan a weekend in Lisbon')
 
-        const userMessage = yield* decodeWith(MessageFields)(Arr.getUnsafe(inserts.messages, 0))
+        const userMessage = yield* decodeWith(Message.insert)(Arr.getUnsafe(inserts.messages, 0))
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
         assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
@@ -121,23 +120,23 @@ describe('AskChatService', () => {
           new Run({
             id: run.id,
             chatId: chat.id,
+            userId: chat.userId,
             userMessageId: userMessage.id,
             createdAt: run.createdAt,
-            updatedAt: run.createdAt,
+            updatedAt: run.updatedAt,
           }),
         )
         assert.deepStrictEqual(inserts.messages, [
-          yield* encodeWith(MessageFields)(
-            new Message({
-              author: 'user',
-              id: userMessage.id,
-              chatId: chat.id,
-              text: 'Plan a weekend in Lisbon',
-              createdAt: sentAt,
-            }),
-          ),
+          yield* encodeWith(Message.insert)({
+            author: 'user',
+            id: userMessage.id,
+            chatId: chat.id,
+            userId: chat.userId,
+            text: 'Plan a weekend in Lisbon',
+            createdAt: sentAt,
+          }),
         ])
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
+        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(run)])
         assertEquals(yield* jobs.sent, [
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
           replyJob(run),
@@ -177,7 +176,7 @@ describe('AskChatService', () => {
 
       assert.deepStrictEqual(
         Arr.map(updates, ([set, where]) => [set.status, where]),
-        [['failed', { id: sent.id, status: ['queued'] }]],
+        [['failed', { id: sent.id, status: 'queued' }]],
       )
       assert.deepStrictEqual([Arr.map(stored, ({ id }) => id), sent.status], [[sent.id], 'failed'])
     }).pipe(
@@ -212,7 +211,7 @@ describe('AskChatService', () => {
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(
           Arr.map(updates, ({ status }) => status),
-          [['queued']],
+          ['queued'],
         )
       }).pipe(
         Effect.provide(
@@ -340,12 +339,13 @@ describe('AskChatService', () => {
           new Run({
             id: retried.id,
             chatId: chat.id,
+            userId: chat.userId,
             userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
             updatedAt: retried.createdAt,
           }),
         )
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(retried)])
+        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(retried)])
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* jobs.sent, [replyJob(retried)])
       }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))

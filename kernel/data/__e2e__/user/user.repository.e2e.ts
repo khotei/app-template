@@ -32,7 +32,7 @@ describe('UserRepository', () => {
 
       yield* users.insert(ada, credential('a'))
       const byId = yield* users.selectOne({ id: ada.id })
-      const byCredential = yield* users.selectOne({ credential: credential('a') })
+      const byCredential = yield* users.selectOne({ credentials: credential('a') })
 
       assertSchemaEquals(SelectedUser, byId, Option.some(ada))
       assertSchemaEquals(SelectedUser, byCredential, Option.some(ada))
@@ -44,7 +44,7 @@ describe('UserRepository', () => {
       const users = yield* UserRepository
 
       yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000011'), credential('a'))
-      const byCredential = yield* users.selectOne({ credential: credential('b') })
+      const byCredential = yield* users.selectOne({ credentials: credential('b') })
       const byId = yield* users.selectOne({
         id: '0192d4e0-7b3a-7c00-8000-000000000019',
       })
@@ -60,7 +60,7 @@ describe('UserRepository', () => {
 
       yield* users.insert(ada, credential('a'))
       yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000016'), credential('b'))
-      const selected = yield* users.selectOne({ id: ada.id, credential: credential('b') })
+      const selected = yield* users.selectOne({ id: ada.id, credentials: credential('b') })
 
       assert.deepStrictEqual(selected, Option.none())
     }).pipe(Effect.provide(UserRepositoryDbTest)),

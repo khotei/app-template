@@ -1,35 +1,30 @@
-import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
-import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
-import { RunId } from '#chat/domain/run.util'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
 
-/** `userId` limits a read to the user's chats, which every api caller passes. */
-type RunNarrowing = Partial<
-  Pick<Run, 'chatId'> & {
-    readonly userId: UserId
-    readonly status: ReadonlyArray<RunStatus>
-  }
+/** A Run by id in its chat, of the user `userId` names: what a call on a user's behalf reads. */
+export type RunOwnerWhere = Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userId'>>
+
+/** The Run of a user's message in one of the statuses `status` lists: what its job reads. */
+export type RunMessageWhere = Types.Simplify<
+  Pick<Run, 'userMessageId'> & { readonly status: ReadonlyArray<RunStatus> }
 >
 
-/** A Run by its `id` or by its `userMessageId`, exactly one, narrowed by the rest. */
-export type RunWhere =
-  | Types.Simplify<Pick<Run, 'id'> & { readonly userMessageId?: never } & RunNarrowing>
-  | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly id?: never } & RunNarrowing>
+/** A Run as a read finds it: a user's by its id, or a message's by its status. */
+export type RunWhere = RunOwnerWhere | RunMessageWhere
 
-/** A Run by its `id`, narrowed by the rest, as a write finds it. */
-type RunUpdateWhere = Types.Simplify<Pick<Run, 'id'> & RunNarrowing>
+/** A Run by its `id` under the status it must still hold, as a write finds it. */
+type RunUpdateWhere = Types.Simplify<Pick<Run, 'id' | 'status'>>
 
 export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (
-      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>,
     ) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
@@ -43,22 +38,25 @@ export class RunService extends Context.Service<
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('RunService.create')(function* (
-      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>,
     ) {
-      const id = yield* generateId(RunId)
-      const createdAt = yield* DateTime.now
-      const run = new Run({ ...fields, id, createdAt, updatedAt: createdAt })
-      const row = yield* encodeWith(RunFields)(run)
+      const inserted = yield* Run.insert.makeEffect(fields)
+      const row = yield* encodeWith(Run.insert)(inserted)
 
       yield* runs.insert(row)
-      return run
-    })
+      return new Run(inserted)
+    }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
-      (where: RunWhere) => runs.selectOne(where),
+      // The owner is read first, so a where that names one is never found without it.
+      (where: RunWhere) =>
+        runs.selectOne(
+          'userId' in where
+            ? { id: where.id, chatId: where.chatId, userId: where.userId }
+            : { userMessageId: where.userMessageId, status: { in: Arr.copy(where.status) } },
+        ),
       Effect.flatMap(decodeWith(Schema.Option(Run))),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>
@@ -68,21 +66,24 @@ export class RunService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
-      const updatedAt = yield* DateTime.now
-      const updated = new Run({ ...to, updatedAt })
-      const row = yield* encodeWith(RunFields)(updated)
+    const update = Effect.fn('RunService.update')(function* (
+      to: Run,
+      { id, status }: RunUpdateWhere,
+    ) {
+      // Without `to`'s `updatedAt`, so the update variant's default moves it to now.
+      const set = yield* Run.update.makeEffect(Struct.omit(to, ['updatedAt']))
+      const row = yield* encodeWith(Run.update)(set)
 
-      yield* runs.update(row, where)
-      return updated
-    })
+      yield* runs.update(row, { id, status })
+      return new Run({ ...to, ...set })
+    }, Effect.orDie)
 
     const move = Effect.fn('RunService.move')(function* (
       run: Run,
       transition: (run: Run) => Effect.Effect<Run>,
     ) {
       const to = yield* transition(run)
-      return yield* update(to, { id: run.id, status: [run.status] })
+      return yield* update(to, { id: run.id, status: run.status })
     })
 
     return { create, getOne, update, move }

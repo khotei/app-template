@@ -1,7 +1,6 @@
-import { eq } from 'drizzle-orm'
-import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, Struct } from 'effect'
 
-import { buildWhere, eqOrIsNull, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
+import { buildFilter, encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
 
 import {
   type ChatEntity,
@@ -14,20 +13,8 @@ import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
 import { newestFirst } from '#kernel/data/chat/run.entity'
 import { Db } from '#kernel/data/db.client'
 
-// Built on the table a query names: a relational query aliases `chats`, so a condition on the
-// `chats` constant would reference a table the query does not have.
-const encodeWhere = (table: typeof chats) =>
-  buildWhere<ChatEntitySelectWhere>({
-    id: UndefinedOr.map((id) => eq(table.id, id)),
-    userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
-    title: UndefinedOr.map(eqOrIsNull(table.title)),
-  })
-
-const select = (where: ChatEntitySelectWhere) =>
-  ({
-    where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
-    with: { run: { orderBy: newestFirst } },
-  }) as const
+/** Every read nests the chat's newest Run. */
+const withNewestRun = { run: { orderBy: newestFirst } } as const
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -58,23 +45,28 @@ export class ChatRepository extends Context.Service<
             db
               .update(chats)
               .set(Struct.pick(set, chatSetColumns))
-              .where(encodeWhere(chats)(where))
+              .where(encodeFilter(chats, where))
               .returning({ id: chats.id }),
           Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
           Effect.asVoid,
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
-          (where) => db.query.chats.findFirst(select(where)),
+          (where) => db.query.chats.findFirst({ where: buildFilter(where), with: withNewestRun }),
           Effect.map(Option.fromUndefinedOr),
           orDieWithSqlError,
         ),
         selectMany: Effect.fn('ChatRepository.selectMany')(
-          (where) => db.query.chats.findMany({ ...select(where), orderBy: newestFirst }),
+          (where) =>
+            db.query.chats.findMany({
+              where: buildFilter(where),
+              with: withNewestRun,
+              orderBy: newestFirst,
+            }),
           orDieWithSqlError,
         ),
         delete: Effect.fn('ChatRepository.delete')(
-          (where) => db.delete(chats).where(encodeWhere(chats)(where)).returning({ id: chats.id }),
+          (where) => db.delete(chats).where(encodeFilter(chats, where)).returning({ id: chats.id }),
           Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
           Effect.asVoid,
           orDieWithSqlError,
