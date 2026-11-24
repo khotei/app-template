@@ -114,7 +114,13 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
       ({ key, fileName }) =>
         Effect.gen(function* () {
           const files = yield* S3Bucket
-          const options = { contentType: 'image/png', fileName: Option.getOrUndefined(fileName) }
+          const options = {
+            contentType: 'image/png',
+            ...Option.match(fileName, {
+              onNone: () => ({}),
+              onSome: (name) => ({ fileName: name }),
+            }),
+          }
           yield* files.put(key, Stream.make(buildContent(1)), options)
 
           const head = yield* files.head(key)

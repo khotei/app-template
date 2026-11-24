@@ -53,7 +53,7 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 const titleWheres: ReadonlyArray<{
   readonly name: string
   readonly title: Chat['title']
-  readonly stored: ChatEntityWhere['title']
+  readonly stored: Required<ChatEntityWhere>['title']
 }> = [
   { name: 'none', title: Option.none(), stored: { isNull: true } },
   { name: 'some', title: Option.some(trip), stored: 'Trip' },
