@@ -35,25 +35,27 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   `<Model>Service.move(<record>, <transition>)`, written under the status the record was read in;
   `update(<record>, <where>)` is for any other write ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
-  combined from small pieces of one condition or step each, never repeating their logic; a
-  service, use case or repository only reads, calls it and writes
-  (`getOne(where).pipe(ensure<Rule>(at))`). Each piece is tested alone, a combination only for
-  what it adds.
+  combined from small pieces of one condition or step each, never repeating their logic; a service,
+  use case or repository only reads, calls it and writes (`getOne(where).pipe(ensure<Rule>(at))`).
+  Each piece is tested alone, a combination only for what it adds.
 - A method applies its model's rules itself, never relying on another having run first; a plain
   write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
 ## Use cases
 
-- A use case is what a handler calls, and only a handler: it adds what the entry needs (the
-  caller's scope, a job's end and its logs) to the services it calls, and orders work over modules.
-- An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
-  [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
-- It holds only its flow: the order of the calls, the transaction, what it skips and logs. It
-  reads and writes through domain services, never a repository: a read, a write or a rule no
-  service offers goes to the service or model it belongs to, and a step two use cases share lives
-  once, as a service's method; a use case holds no rule of its own and never calls another
-  ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
-- All checks precede every write; a step's own guard may repeat a check the use case made.
+- A use case is what a handler calls, and only a handler: an `Effect.fn` that adds what the entry
+  needs (the caller's scope, a job's end and its logs) to the services it calls and orders work
+  over modules ([decision](../../docs/knowledge/decisions.md#use-cases-as-functions)).
+- It holds only its flow: the order of the calls, a transaction over several modules' writes, what
+  it skips and logs. It reads and writes through domain services, never a repository: a read, a
+  write or a rule no service offers goes to the service or model it belongs to, and a step two use
+  cases share lives once, as a service's method; a use case holds no rule of its own and never
+  calls another ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
+- Read or delete a set through one batch call, never one call per id; return a model as is.
+
+## Writes and jobs
+
+- All checks precede every write; a step's own guard may repeat a check its caller made.
 - The writes commit in one transaction, `Transaction`'s `run` piped on them or their function's last
   argument, spanning a language-model call only to store its answer, never a send. An object store
   joins none: keep the bytes before the row that binds them, delete them once the rows are gone.
@@ -64,8 +66,6 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   work on any outcome but success, an interrupt included, and work it finds started, left by a
   handling that died; the use case ends the job in one tail
   ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- Read or delete a set through one batch call, never one call per id.
-- Return a model as is.
 
 ## Handlers
 

@@ -200,9 +200,10 @@ What goes where, which support a test may import and what runs on what:
 ## A use case
 
 Every use case lives in `application/use-cases/<module>/<verb>-<object>.use-case.ts`, whichever
-modules it touches: it composes their services and model rules, holds the transaction and
-enqueues the jobs, and holds nothing else: a rule, a read or a write stays in its module's models
-and services. When a flow becomes one and how it orders its writes:
+modules it touches: it composes their services and model rules, holds a transaction over several
+modules' writes, and holds nothing else: a rule, a read or a write stays in its module's models
+and services, as do one module's writes that commit together and the jobs sent after them
+(`AskChatService`). When a flow becomes one and how it orders its writes:
 [.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
 modules has the same shape as one that does not:
 

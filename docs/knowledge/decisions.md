@@ -53,7 +53,7 @@ a store outside it and enqueues the jobs, and holds nothing else: a rule, a read
 in its module's models and services, and a request's rules with the writes of one module that
 commit together sit in a service of that module, the transaction piped on those writes
 (`AskChatService`, [Composition: wrap or compose](#composition-wrap-or-compose),
-[layering.md › Use cases](../../.claude/rules/layering.md#use-cases)). The shape:
+[layering.md › Writes and jobs](../../.claude/rules/layering.md#writes-and-jobs)). The shape:
 [architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
@@ -1057,8 +1057,9 @@ without renaming provisioned resources. No app wires the files today.
 
 A job is a queue message, and no table holds it: the work it hands over keeps its own record
 (the Run, the chat's title), which the worker reads to handle it once, to settle a Run whose worker
-died and to write a failure. `QueueSender.send` encodes the job by its definition; a use case sends
-it after its commit, so every delivery finds its record. Each job goes through its `send<Job>` in
+died and to write a failure. `QueueSender.send` encodes the job by its definition;
+`AskChatService` sends it after its commit, so every delivery finds its record. Each job goes
+through its `send<Job>` in
 its module's infrastructure, in the file of its queue's definition, which only sends it and logs a
 send SQS refuses. A job hands its worker one piece of work, as a command message does in
 messaging, and is named as one: `<Verb><Object>` in the glossary's words for the work it hands

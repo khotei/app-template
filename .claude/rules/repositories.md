@@ -14,8 +14,8 @@ selectActiveByOwner(ownerId): Effect<Option<ActiveOrder>>
 existsByOwner(ownerId): Effect<boolean>
 update(set, id): Effect<boolean>
 // deep: the question is data typed from the entity, a write that misses is a defect
-selectOne(where: OrderEntityWhere): Effect<Option<OrderEntity>>
-selectMany(where: OrderEntityWhere): Effect<ReadonlyArray<OrderEntity>>
+selectOne(where: OrderEntitySelectWhere): Effect<Option<OrderEntity>>
+selectMany(where: OrderEntitySelectWhere): Effect<ReadonlyArray<OrderEntity>>
 update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 ```
 

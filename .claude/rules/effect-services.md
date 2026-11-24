@@ -8,9 +8,9 @@ paths:
 ## Functions
 
 - An effectful function follows `repos/effect/LLMS.md › Using Effect.fn and Effect.fnUntraced`. A
-  service method's span is `'<Service>.<method>'`; its pipeables are `Effect.fn`'s extra
-  arguments, never a `.pipe` in its body, save `Transaction`'s `run`
-  ([layering.md › Use cases](layering.md#use-cases)); one that reads the method's arguments takes
+  service method's span is `'<Service>.<method>'`; what applies to the whole method is
+  `Effect.fn`'s extra arguments, never a `.pipe` around its body, while a step inside keeps its
+  own tail (`effect-style.md › Errors and logs`); one that reads the method's arguments takes
   them after the effect; a body that only delegates is passed as is
   (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff

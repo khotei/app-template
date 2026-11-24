@@ -103,7 +103,9 @@ holds a nested record, which is a field of the select variant alone
 ```ts
 const fields = yield* Chat.insert.makeEffect({ userId })
 const row = yield* encodeWith(Chat.insert)(fields)
-const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeWith(Schema.Option(Chat))))
+const found = yield* chats
+  .selectOne(encodeWhere(where))
+  .pipe(Effect.flatMap(decodeWith(Schema.Option(Chat))))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
@@ -139,7 +141,7 @@ never a condition built on the `chats` constant.
 
 ## Repositories
 
-A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
+A repository is a `Layer` over `Db` in its entity's `.repository.ts` (names:
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
 `kernel/data/<store>/`, `FileRepository` over the bucket's objects among them
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
@@ -222,8 +224,8 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
-- **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status = …`: `RunService.move(run, transition)` moves the
+- **Update under a `where`.** `RunRepository.update(set, where)` writes the columns of
+  `runSetColumns` `WHERE id = … AND status = …`: `RunService.move(run, transition)` moves the
   Run it is given through the model's transition and writes it through `RunService.update(to,
   where)`, which stamps it with the current time and passes it, encoded, as the set, with the
   Run's id under the status it was read in as the `where`, where a read's `RunEntitySelectWhere`
@@ -313,7 +315,7 @@ chat's title) is the one the worker reads
 
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through the
   definition's schema to a JSON string and sends it to the definition's queue;
-  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. `AskChatService` sends its jobs
   after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
