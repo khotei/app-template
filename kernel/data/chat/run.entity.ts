@@ -32,8 +32,10 @@ export const runSetColumns = [
   'updatedAt',
 ] as const satisfies ReadonlyArray<keyof RunColumns>
 
+/** What an update is handed: the columns it writes, and the row's key it leaves as it is. */
 export type RunEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<RunColumns, (typeof runSetColumns)[number]>>
+  Partial<Pick<RunColumns, 'id'>> &
+    RequireAtLeastOne<Pick<RunColumns, (typeof runSetColumns)[number]>>
 >
 
 export const newestFirst = { createdAt: 'desc', id: 'desc' } as const

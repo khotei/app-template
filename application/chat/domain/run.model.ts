@@ -29,8 +29,7 @@ const insertOnly = Model.FieldExcept(['update', 'jsonUpdate'])
  * provider's text never reaches the wire.
  */
 export class Run extends Model.Class<Run>('Run')({
-  // `Model.UuidV7Insert` without its update variant: the repository finds the row by its `where`.
-  id: Model.Field({ select: RunId, insert: Model.UuidV7WithGenerate(RunId), json: RunId }),
+  id: Model.UuidV7Insert(RunId),
   chatId: insertOnly(ChatId),
   userMessageId: insertOnly(MessageId),
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),

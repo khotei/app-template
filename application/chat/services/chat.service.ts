@@ -75,7 +75,7 @@ export class ChatService extends Context.Service<
     const update = Effect.fn('ChatService.update')(
       function* (fields: Types.Simplify<Pick<Chat, 'title'>>, where: ChatWhere) {
         const chat = yield* getOne(where)
-        const set = yield* Chat.update.makeEffect(fields)
+        const set = yield* Chat.update.makeEffect({ id: chat.id, ...fields })
         const row = yield* encodeWith(Chat.update)(set)
 
         // Only the update variant's fields, under the `where` again: a change landing after the

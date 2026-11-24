@@ -110,7 +110,7 @@ describe('ChatService', () => {
         )
         assert.deepStrictEqual(updates, [
           [
-            { title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
+            { id: chat.id, title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
             { id: chat.id, userId: owner },
           ],
         ])

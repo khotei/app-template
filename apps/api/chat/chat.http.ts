@@ -1,4 +1,4 @@
-import { flow, Schema, Struct } from 'effect'
+import { Schema, Struct } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import {
@@ -19,7 +19,7 @@ import {
 
 /** A chat with the status its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.json
-  .mapFields(flow(Struct.omit(['run']), Struct.assign({ status: ChatStatus })))
+  .mapFields(Struct.assign({ status: ChatStatus }))
   .annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 
@@ -27,7 +27,9 @@ export type ApiChat = typeof ApiChat.Type
 // request ids, key hints or the prompt, stays in the row.
 const ApiRun = Run.json.annotate({ identifier: 'ApiRun' })
 
-const ApiMessage = Message.json.annotate({ identifier: 'ApiMessage' })
+const ApiMessage = Message.json
+  .mapFields(Struct.assign({ run: Schema.OptionFromNullOr(ApiRun) }))
+  .annotate({ identifier: 'ApiMessage' })
 
 const chatPath = { chatId: ChatId }
 

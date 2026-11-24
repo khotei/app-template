@@ -26,6 +26,8 @@ export const chatSetColumns = ['title', 'updatedAt'] as const satisfies Readonly
   keyof ChatColumns
 >
 
+/** What an update is handed: the columns it writes, and the row's key it leaves as it is. */
 export type ChatEntitySet = Types.Simplify<
-  RequireAtLeastOne<Pick<ChatColumns, (typeof chatSetColumns)[number]>>
+  Partial<Pick<ChatColumns, 'id'>> &
+    RequireAtLeastOne<Pick<ChatColumns, (typeof chatSetColumns)[number]>>
 >

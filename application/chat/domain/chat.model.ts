@@ -24,17 +24,15 @@ export type ChatTitle = typeof ChatTitle.Type
 
 /** A chat as `chats` holds it, read with its newest Run: an update writes its title and `updatedAt`. */
 export class Chat extends Model.Class<Chat>('Chat')({
-  // `Model.UuidV7Insert` without its update variant: the repository finds the row by its `where`.
-  id: Model.Field({ select: ChatId, insert: Model.UuidV7WithGenerate(ChatId), json: ChatId }),
+  id: Model.UuidV7Insert(ChatId),
   userId: UserId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,
   /** The newest Run, read with the chat and never written; none before its first ask. */
-  run: Model.Field({
-    select: Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-    json: Schema.OptionFromNullOr(Run.json),
-  }),
+  run: Model.FieldOnly(['select'])(
+    Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  ),
 }) {}
 
 /** What a chat's newest Run makes of it; a chat no ask has reached yet is `idle`. */

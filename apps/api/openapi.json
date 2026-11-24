@@ -1020,62 +1020,7 @@
           "run": {
             "anyOf": [
               {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "chatId": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "userMessageId": {
-                    "type": "string",
-                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                    "format": "uuid"
-                  },
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "queued",
-                      "generating",
-                      "done",
-                      "failed"
-                    ]
-                  },
-                  "assistantMessageId": {
-                    "anyOf": [
-                      {
-                        "type": "string",
-                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
-                        "format": "uuid"
-                      },
-                      {
-                        "type": "null"
-                      }
-                    ]
-                  },
-                  "createdAt": {
-                    "type": "string"
-                  },
-                  "updatedAt": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "id",
-                  "chatId",
-                  "userMessageId",
-                  "status",
-                  "assistantMessageId",
-                  "createdAt",
-                  "updatedAt"
-                ],
-                "additionalProperties": false,
-                "title": "Run.json"
+                "$ref": "#/components/schemas/ApiRun"
               },
               {
                 "type": "null"
@@ -1091,8 +1036,7 @@
           "createdAt",
           "run"
         ],
-        "additionalProperties": false,
-        "title": "Message.json"
+        "additionalProperties": false
       },
       "RunNotRetryableErrorEncoded": {
         "type": "object",
