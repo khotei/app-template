@@ -1,13 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { Array as Arr, Context, Effect, Layer, Option, Struct, UndefinedOr } from 'effect'
 
-import {
-  buildWhere,
-  eqOrIsNull,
-  orDieUnless,
-  orDieWithSqlError,
-  skipUndefined,
-} from '@app-template/packages/db'
+import { buildWhere, eqOrIsNull, orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
 
 import {
   type ChatEntity,
@@ -66,7 +60,8 @@ export class ChatRepository extends Context.Service<
               .set(Struct.pick(set, chatSetColumns))
               .where(encodeWhere(chats)(where))
               .returning({ id: chats.id }),
-          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was updated'),
+          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+          Effect.asVoid,
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('ChatRepository.selectOne')(
@@ -80,7 +75,8 @@ export class ChatRepository extends Context.Service<
         ),
         delete: Effect.fn('ChatRepository.delete')(
           (where) => db.delete(chats).where(encodeWhere(chats)(where)).returning({ id: chats.id }),
-          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no chat was deleted'),
+          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+          Effect.asVoid,
           orDieWithSqlError,
         ),
       }),

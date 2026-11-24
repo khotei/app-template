@@ -176,7 +176,8 @@ SQL's `=` never matches it.
 A rule that two writers could break between a read and a write is held by the database, in the
 statement that writes. The caller checks the rule first, so a write the guard refuses only lost
 a race: every repository's `insert`, `update` and `delete` dies when Postgres refuses it or it
-touches no row:
+touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the write's `RETURNING`,
+whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
   active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat

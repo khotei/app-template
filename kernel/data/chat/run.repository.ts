@@ -11,7 +11,7 @@ import {
   UndefinedOr,
 } from 'effect'
 
-import { buildWhere, orDieUnless, orDieWithSqlError } from '@app-template/packages/db'
+import { buildWhere, orDieWithSqlError } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import {
@@ -65,7 +65,8 @@ export class RunRepository extends Context.Service<
               .set(Struct.pick(set, runSetColumns))
               .where(encodeWhere(where))
               .returning({ id: runs.id }),
-          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),
+          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+          Effect.asVoid,
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('RunRepository.selectOne')(
