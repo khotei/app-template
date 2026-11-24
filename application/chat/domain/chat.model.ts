@@ -24,7 +24,7 @@ export type ChatTitle = typeof ChatTitle.Type
 
 /** A chat as `chats` holds it, read with its newest Run: an update writes its title and `updatedAt`. */
 export class Chat extends Stored.Class<Chat>('Chat')({
-  id: Stored.insertOnly(ChatId),
+  id: Stored.GeneratedId(ChatId),
   userId: Stored.insertOnly(UserId),
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   createdAt: Stored.CreatedAt,

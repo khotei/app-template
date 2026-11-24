@@ -25,7 +25,7 @@ export { RunFailure }
  * writes its status, failure, reply and `updatedAt`.
  */
 export class Run extends Stored.Class<Run>('Run')({
-  id: Stored.insertOnly(RunId),
+  id: Stored.GeneratedId(RunId),
   chatId: Stored.insertOnly(ChatId),
   userMessageId: Stored.insertOnly(MessageId),
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),

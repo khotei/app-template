@@ -2,11 +2,10 @@ import { Context, Effect, Layer, Schema, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { MessageRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
-import { MessageId } from '#chat/domain/message.util'
 
 /** A message by id in a chat of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<
@@ -26,13 +25,11 @@ export class MessageService extends Context.Service<
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
     const messages = yield* MessageRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('MessageService.create')(function* (
       fields: Pick<Message, 'chatId' | 'text' | 'author'>,
     ) {
-      const id = yield* generateId(MessageId)
-      const inserted = yield* Message.insert.makeEffect({ ...fields, id })
+      const inserted = yield* Message.insert.makeEffect(fields)
       const row = yield* encodeWith(Message.insert)(inserted)
 
       yield* messages.insert(row)

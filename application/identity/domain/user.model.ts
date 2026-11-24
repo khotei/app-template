@@ -5,7 +5,7 @@ import { Stored } from '@app-template/packages/schema'
 import { UserId } from '#identity/contract/user.util'
 
 export class User extends Stored.Class<User>('User')({
-  id: UserId,
+  id: Stored.GeneratedId(UserId),
   createdAt: Stored.CreatedAt,
 }) {}
 

@@ -1,5 +1,5 @@
 import { DateTime, Schema } from 'effect'
-import { VariantSchema } from 'effect/schema'
+import { Model, VariantSchema } from 'effect/schema'
 
 /**
  * A stored record's schema in the three forms its row takes: `select` as a read returns it,
@@ -22,6 +22,13 @@ export const UpdatedAt = Field({
   insert: DateTimeNow,
   update: DateTimeNow,
 })
+
+/**
+ * A branded UUID id its insert generates as a UUIDv7, where `makeEffect` gets none; never updated.
+ * The generator reads the clock and `globalThis.crypto`, not the context's `SecureRandom`.
+ */
+export const GeneratedId = <B extends string>(id: Schema.brand<Schema.String, B>) =>
+  Field({ select: id, insert: Model.UuidV7WithGenerate(id) })
 
 /** Written once, by the insert. */
 export const insertOnly = FieldExcept(['update'])
