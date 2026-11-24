@@ -4,18 +4,16 @@ import { Array as Arr, DateTime, Effect, Exit, Fiber, Option } from 'effect'
 
 import type {
   MessageColumns,
-  MessageEntityWhere,
   RunColumns,
   RunEntitySet,
   RunEntityWhere,
 } from '@app-template/kernel/data'
 import { recordMessages } from '@app-template/packages/queue/testing'
-import { encodeWith } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
-import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
@@ -57,11 +55,6 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
   },
 })
 
-/** The read of the message the failed Run answers. */
-const readsFirstMessage = {
-  messages: { selectOne: () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some)) },
-} satisfies ChatRepositoryMocks
-
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
 function recordUpdates(queue: ChatLeaves['queue']) {
   const updates: Array<RunEntitySet> = []
@@ -95,7 +88,6 @@ const doneRun = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(reply.id),
-  assistantMessage: Option.some(reply),
 })
 
 /** A chat an ask has reached before, so an ask sends the reply's job alone. */
@@ -119,29 +111,34 @@ describe('AskChatService', () => {
       return Effect.gen(function* () {
         const run = yield* ask(chat, 'Plan a weekend in Lisbon')
 
-        const { userMessage } = run
+        const userMessage = yield* decodeWith(MessageFields)(Arr.getUnsafe(inserts.messages, 0))
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
         assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.createdAt, sentAt))
+        // Each timestamp's default reads the clock itself, so the two may be a tick apart.
+        assert.isTrue(DateTime.isGreaterThanOrEqualTo(run.updatedAt, run.createdAt))
         assert.isTrue(isUuidV7(userMessage.id) && isUuidV7(run.id))
         assertEquals(
           run,
           new Run({
             id: run.id,
             chatId: chat.id,
-            userMessage: new Message({
+            userMessageId: userMessage.id,
+            createdAt: run.createdAt,
+            updatedAt: run.updatedAt,
+          }),
+        )
+        assert.deepStrictEqual(inserts.messages, [
+          yield* encodeWith(MessageFields)(
+            new Message({
               author: 'user',
               id: userMessage.id,
               chatId: chat.id,
               text: 'Plan a weekend in Lisbon',
               createdAt: sentAt,
             }),
-            userMessageId: userMessage.id,
-            createdAt: run.createdAt,
-            updatedAt: run.createdAt,
-          }),
-        )
-        assert.deepStrictEqual(inserts.messages, [yield* encodeWith(MessageFields)(userMessage)])
+          ),
+        ])
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(run)])
         assertEquals(yield* jobs.sent, [
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
@@ -190,7 +187,6 @@ describe('AskChatService', () => {
         // No `selectOne`: a read of the message's active Run, a later retry's, would die on it.
         layerChatTest(
           {
-            ...readsFirstMessage,
             runs: {
               insert: (row) =>
                 Effect.sync(() => {
@@ -224,7 +220,6 @@ describe('AskChatService', () => {
         Effect.provide(
           layerChatTest(
             {
-              ...readsFirstMessage,
               runs: {
                 insert: () => Effect.void,
                 // The Run stored is no longer queued, so the guarded write touches no row.
@@ -306,12 +301,7 @@ describe('AskChatService', () => {
         ['reply-to-message'],
       )
     }).pipe(
-      Effect.provide(
-        layerChatTest(
-          { ...readsFirstMessage, runs: { insert: () => held.hold } },
-          { queue: jobs.layer },
-        ),
-      ),
+      Effect.provide(layerChatTest({ runs: { insert: () => held.hold } }, { queue: jobs.layer })),
     )
   })
 
@@ -352,7 +342,6 @@ describe('AskChatService', () => {
           new Run({
             id: retried.id,
             chatId: chat.id,
-            userMessage: firstMessage,
             userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
             updatedAt: retried.createdAt,
@@ -361,44 +350,7 @@ describe('AskChatService', () => {
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(RunFields)(retried)])
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* jobs.sent, [replyJob(retried)])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(insertingInto(inserts, readsFirstMessage), { queue: jobs.layer }),
-        ),
-      )
-    },
-  )
-
-  it.effect(
-    "retry asks the store for the failed Run's message by its id and returns its none as MessageNotFoundError, sending no job",
-    () => {
-      const wheres: Array<MessageEntityWhere> = []
-      const jobs = recordMessages()
-      return Effect.gen(function* () {
-        const error = yield* retry(withNewest(failedRun)).pipe(Effect.flip)
-
-        assertSchemaEquals(
-          MessageNotFoundError,
-          error,
-          new MessageNotFoundError({ id: firstMessage.id }),
-        )
-        assert.deepStrictEqual(wheres, [{ id: firstMessage.id }])
-        assertEquals(yield* jobs.sent, [])
-      }).pipe(
-        Effect.provide(
-          layerChatTest(
-            {
-              messages: {
-                selectOne: (where) =>
-                  Effect.sync(() => {
-                    wheres.push(where)
-                  }).pipe(Effect.as(Option.none())),
-              },
-            },
-            { queue: jobs.layer },
-          ),
-        ),
-      )
+      }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))
     },
   )
 })

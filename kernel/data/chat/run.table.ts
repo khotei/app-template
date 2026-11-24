@@ -73,6 +73,6 @@ const runJsonColumns = {
   failure: () => RunFailure,
 }
 
-/** The columns of a Run, as the entities of its neighbours nest them. */
+/** The columns of a Run: what its reads return and the entities of its neighbours nest. */
 export const RunColumns = createSelectSchema(runs, runJsonColumns)
 export type RunColumns = typeof RunColumns.Type

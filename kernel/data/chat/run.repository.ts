@@ -5,22 +5,16 @@ import {
   Context,
   Effect,
   Layer,
-  Option,
+  type Option,
   Struct,
   type Types,
   UndefinedOr,
 } from 'effect'
 
-import {
-  buildWhere,
-  orDieUnless,
-  orDieWithSqlError,
-  skipUndefined,
-} from '@app-template/packages/db'
+import { buildWhere, orDieWithSqlError } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import {
-  type RunEntity,
   type RunEntitySelectWhere,
   type RunEntitySet,
   type RunEntityWhere,
@@ -29,21 +23,21 @@ import {
 import { type RunColumns, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
 
-// Built on the table a query names, as a relational query aliases `runs`; `userId` is the owner
-// of the Run's chat, so a Run of another user's chat reads as absent.
-const encodeWhere = (table: typeof runs) =>
-  buildWhere<Types.Simplify<Partial<RunEntityWhere & Pick<RunEntity, 'userMessageId'>>>>({
-    id: UndefinedOr.map((id) => eq(table.id, id)),
-    chatId: UndefinedOr.map((chatId) => eq(table.chatId, chatId)),
-    userMessageId: UndefinedOr.map((userMessageId) => eq(table.userMessageId, userMessageId)),
-    userId: UndefinedOr.map((userId) =>
-      inArray(
-        table.chatId,
-        new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
-      ),
+// `userId` is the owner of the Run's chat, so a Run of another user's chat reads as absent.
+const encodeWhere = buildWhere<
+  Types.Simplify<Partial<RunEntityWhere & Pick<RunColumns, 'userMessageId'>>>
+>({
+  id: UndefinedOr.map((id) => eq(runs.id, id)),
+  chatId: UndefinedOr.map((chatId) => eq(runs.chatId, chatId)),
+  userMessageId: UndefinedOr.map((userMessageId) => eq(runs.userMessageId, userMessageId)),
+  userId: UndefinedOr.map((userId) =>
+    inArray(
+      runs.chatId,
+      new QueryBuilder().select({ id: chats.id }).from(chats).where(eq(chats.userId, userId)),
     ),
-    status: UndefinedOr.map((statuses) => inArray(table.status, Arr.copy(statuses))),
-  })
+  ),
+  status: UndefinedOr.map((statuses) => inArray(runs.status, Arr.copy(statuses))),
+})
 
 export class RunRepository extends Context.Service<
   RunRepository,
@@ -52,8 +46,8 @@ export class RunRepository extends Context.Service<
     readonly insert: (run: RunColumns) => Effect.Effect<void>
     /** Writes the fields of `set` a Run may change where `where` holds; dies when it writes nothing. */
     readonly update: (set: RunEntitySet, where: RunEntityWhere) => Effect.Effect<void>
-    /** Returns the Run where `where` holds. */
-    readonly selectOne: (where: RunEntitySelectWhere) => Effect.Effect<Option.Option<RunEntity>>
+    /** Returns the Run where `where` holds, its row alone. */
+    readonly selectOne: (where: RunEntitySelectWhere) => Effect.Effect<Option.Option<RunColumns>>
   }
 >()('@app-template/kernel/data/chat/RunRepository') {
   static readonly layer = Layer.effect(
@@ -69,18 +63,15 @@ export class RunRepository extends Context.Service<
             db
               .update(runs)
               .set(Struct.pick(set, runSetColumns))
-              .where(encodeWhere(runs)(where))
+              .where(encodeWhere(where))
               .returning({ id: runs.id }),
-          orDieUnless(Arr.isReadonlyArrayNonEmpty, 'no run was updated'),
+          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+          Effect.asVoid,
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('RunRepository.selectOne')(
-          (where) =>
-            db.query.runs.findFirst({
-              where: { RAW: (table) => skipUndefined(encodeWhere(table)(where)) },
-              with: { userMessage: true, assistantMessage: true },
-            }),
-          Effect.map(Option.fromUndefinedOr),
+          (where) => db.select().from(runs).where(encodeWhere(where)).limit(1),
+          Effect.map(Arr.head),
           orDieWithSqlError,
         ),
       }),

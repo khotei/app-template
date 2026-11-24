@@ -19,12 +19,4 @@ export const relations = defineRelations({ users, credentials, chats, messages, 
     // An assistant's message: the Run that wrote it.
     replyOf: r.one.runs({ from: r.messages.id, to: r.runs.assistantMessageId }),
   },
-  runs: {
-    userMessage: r.one.messages({
-      from: r.runs.userMessageId,
-      to: r.messages.id,
-      optional: false,
-    }),
-    assistantMessage: r.one.messages({ from: r.runs.assistantMessageId, to: r.messages.id }),
-  },
 }))

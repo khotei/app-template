@@ -1,6 +1,5 @@
 export {
   createDb,
-  orDieUnless,
   orDieWithSqlError,
   Transaction,
   unwrapQueryError,

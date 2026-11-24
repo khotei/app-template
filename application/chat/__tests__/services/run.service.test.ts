@@ -24,7 +24,7 @@ const moves: ReadonlyArray<{
     name: 'completeRun',
     from: 'generating',
     to: 'done',
-    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.')),
+    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id),
   },
   {
     name: 'failRun',
@@ -115,7 +115,7 @@ describe('RunService', () => {
         const service = yield* RunService
 
         const defect = yield* service
-          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.')))
+          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id))
           .pipe(Effect.catchDefect(Effect.succeed))
 
         assert.instanceOf(defect, RunStatusInvalidError)

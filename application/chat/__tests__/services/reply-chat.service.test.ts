@@ -56,7 +56,6 @@ const andNow = userMessageAt(4, 'And now?')
 const lastRun = new Run({
   id: queuedRun.id,
   chatId,
-  userMessage: andNow,
   userMessageId: andNow.id,
   createdAt: andNow.createdAt,
   updatedAt: andNow.createdAt,
@@ -68,7 +67,6 @@ const doneElsewhere = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(elsewhereReply.id),
-  assistantMessage: Option.some(elsewhereReply),
 })
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
@@ -220,7 +218,6 @@ describe('ReplyChatService', () => {
           status: 'done',
           updatedAt: at(1000),
           assistantMessageId: Option.some(message.id),
-          assistantMessage: Option.some(message),
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
           yield* encodeWith(RunFields)(done),
