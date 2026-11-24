@@ -6,10 +6,8 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 
-/** A message by id of the user `userId` names, so none reads another's. */
-export type MessageWhere = Types.Simplify<
-  Pick<Message, 'id' | 'userId'> & Partial<Pick<Message, 'chatId'>>
->
+/** A message by id in its chat, of the user `userId` names, so none reads another's. */
+export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
 export class MessageService extends Context.Service<
   MessageService,
@@ -38,7 +36,7 @@ export class MessageService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
-      (where: MessageWhere) => messages.selectOne(where),
+      ({ id, chatId, userId }: MessageWhere) => messages.selectOne({ id, chatId, userId }),
       Effect.flatMap(decodeWith(Schema.Option(Message))),
       (found, where) =>
         Effect.flatMap(
@@ -48,7 +46,7 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      messages.selectMany,
+      ({ chatId }: Types.Simplify<Pick<Message, 'chatId'>>) => messages.selectMany({ chatId }),
       Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 
