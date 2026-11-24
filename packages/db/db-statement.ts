@@ -4,9 +4,6 @@ import { Statement } from 'effect/sql'
 /**
  * The `PgClient` options that map camelCase fields to snake_case columns, in the names a
  * statement writes and the rows it returns, a `to_jsonb` row nested in them included.
- *
- * Drizzle's statements on the same client stay as they are: it sends its SQL as text through
- * `unsafe` and reads its rows `withoutTransform`, as `values` or `raw`.
  */
 export const snakeCaseNames = {
   transformQueryNames: Str.camelToSnake,
@@ -19,7 +16,7 @@ export type WhereFragments<Fields> = {
 
 /**
  * Joins the fragments of the fields `fragments` names with `AND`: an absent field returns
- * `undefined`, which the join skips; every `Where` keeps one required field.
+ * `undefined`, which the join skips. A `where` of no field joins to `1=1`, true of every row.
  */
 export const buildWhereFragment =
   <Fields extends object>(fragments: WhereFragments<Fields>) =>
