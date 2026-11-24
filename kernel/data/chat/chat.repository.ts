@@ -11,6 +11,7 @@ import {
 
 import {
   type ChatEntity,
+  type ChatEntitySelectWhere,
   type ChatEntitySet,
   type ChatEntityWhere,
   chatSetColumns,
@@ -22,13 +23,13 @@ import { Db } from '#kernel/data/db.client'
 // Built on the table a query names: a relational query aliases `chats`, so a condition on the
 // `chats` constant would reference a table the query does not have.
 const encodeWhere = (table: typeof chats) =>
-  buildWhere<ChatEntityWhere>({
+  buildWhere<ChatEntitySelectWhere>({
     id: UndefinedOr.map((id) => eq(table.id, id)),
     userId: UndefinedOr.map((userId) => eq(table.userId, userId)),
     title: UndefinedOr.map(eqOrIsNull(table.title)),
   })
 
-const select = (where: ChatEntityWhere) =>
+const select = (where: ChatEntitySelectWhere) =>
   ({
     where: { RAW: (table: typeof chats) => skipUndefined(encodeWhere(table)(where)) },
     with: { run: { orderBy: newestFirst } },
@@ -38,13 +39,13 @@ export class ChatRepository extends Context.Service<
   ChatRepository,
   {
     readonly insert: (chat: ChatColumns) => Effect.Effect<void>
-    /** Writes the fields of `set` a chat may change where `where` holds; dies when it writes nothing. */
+    /** Writes the fields of `set` a chat may change on the chat `where` finds; dies when it writes nothing. */
     readonly update: (set: ChatEntitySet, where: ChatEntityWhere) => Effect.Effect<void>
-    readonly selectOne: (where: ChatEntityWhere) => Effect.Effect<Option.Option<ChatEntity>>
+    readonly selectOne: (where: ChatEntitySelectWhere) => Effect.Effect<Option.Option<ChatEntity>>
     /** Rows where `where` holds, the newest created first, then the greater id. */
-    readonly selectMany: (where: ChatEntityWhere) => Effect.Effect<ReadonlyArray<ChatEntity>>
+    readonly selectMany: (where: ChatEntitySelectWhere) => Effect.Effect<ReadonlyArray<ChatEntity>>
     /**
-     * Removes the chats `where` finds with their messages and Runs, in one statement; dies when it
+     * Removes the chat `where` finds with its messages and Runs, in one statement; dies when it
      * removes nothing.
      */
     readonly delete: (where: ChatEntityWhere) => Effect.Effect<void>

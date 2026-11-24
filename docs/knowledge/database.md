@@ -156,7 +156,10 @@ intent; the row it finds is the entity as Drizzle types it, returned with no dec
 of one row takes the head of its many (`Arr.head`). A filter on a relation (`{ credentials: {
 kind, hash } }`) renders as `exists (…)`.
 
-A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`.
+A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`,
+whose key is required, so no write compiles that names no row (`ChatEntityWhere`,
+`RunEntityWhere`); a read that also finds rows by another field takes its own
+`<Name>EntitySelectWhere` (a user's chats by `userId`, a Run by its user message).
 The entity file lists the columns an update may write once, as `<name>SetColumns`, typed by the
 table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
 fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the

@@ -4,7 +4,12 @@ import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
+import {
+  type ChatEntitySelectWhere,
+  type ChatEntitySet,
+  type ChatEntityWhere,
+  ChatRepository,
+} from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
@@ -87,7 +92,7 @@ describe('ChatService', () => {
   it.effect(
     'update where the title is none reads and writes only while the chat is untitled',
     () => {
-      const wheres: Array<ChatEntityWhere> = []
+      const wheres: Array<ChatEntitySelectWhere> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
@@ -121,7 +126,7 @@ describe('ChatService', () => {
   )
 
   it.effect("list reads the user's chats", () => {
-    const wheres: Array<ChatEntityWhere> = []
+    const wheres: Array<ChatEntitySelectWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
@@ -145,7 +150,7 @@ describe('ChatService', () => {
   })
 
   it.effect('delete reads the chat, then removes it, both under its owner', () => {
-    const reads: Array<ChatEntityWhere> = []
+    const reads: Array<ChatEntitySelectWhere> = []
     const deleted: Array<ChatEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
