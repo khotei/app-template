@@ -275,15 +275,66 @@ left.
 
 ### 20. `context-window`
 
-- **Goal.** A long chat keeps answering: the history sent to the model is trimmed to the model's
-  context window instead of failing every reply once it outgrows it.
-- **Scope.** Dropping the oldest messages whole, never splitting one, always keeping the system
-  prompt and the newest user message; failing when even that does not fit (a failed Run
-  carries no reason on the wire, so telling the user why is a contract change); counting tokens of attachments.
-- **Facts (2026-10-29).** `effect/ai` `Tokenizer.truncate` drops the oldest messages whole but
-  does not protect the system message; no provider package implements `Tokenizer`, so counting
-  is ours (a heuristic or Anthropic's token-counting endpoint). An overlong prompt is a 400
-  `InvalidRequestError` with no special mapping.
+- **Goal.** A long chat keeps answering at a cost its owner can see: each reply records what it
+  sent and what the cache served, and the history sent to the model is cut before it outgrows the
+  model's context window, rarely and in large steps, so the prompt cache keeps serving the turns
+  between two cuts.
+- **Scope.** Four parts, each usable alone, in this order:
+  1. A Run that is done holds its reply's usage (prompt, output, cache-read and cache-write
+     tokens) and the model that answered; today `MessageAssistant.reply` keeps the text alone.
+  2. A check that the prompt of a chat's next reply starts with the prompt of its last one, so a
+     change that would break the cached prefix fails a test.
+  3. The cut: when the size of the last prompt and its reply passes a share of the window, the
+     oldest messages are dropped whole down to a lower share, starting at a user message; the
+     start of the sent history is stored, so the next replies read from it. The messages stay in
+     the database and in the chat's list. The size comes from the stored usage, with no counting
+     call.
+  4. A reply that fails for its length says which limit ended it, the output's or the window's, in
+     the Run's failure text; a failed Run carries no reason on the wire, so telling the user why
+     is a contract change.
+- **Out of scope.** A summary of the dropped messages (the stored start is where it would go);
+  the provider's compaction and context editing; a `Tokenizer` and the token-counting endpoint;
+  `effect/ai` `Chat`; the provider's raw content blocks on a message, which `assistant-files`
+  (18) needs for tool calls; a Run left `generating`, which stays in [Later](#later).
+- **Open questions for its Shape.** Where the start of the sent history lives (a column on the
+  chat, or a row of the log, as a summary would need); the two shares of the window (the
+  applications below start between 0.8 and 0.9 and keep a recent 20–30%); whether the window is a
+  setting beside the model's name or a value per model; whether the cache's 1-hour lifetime pays,
+  decided from the usage part 1 records.
+- **Facts (2026-10-29).** An overlong prompt is a 400 `InvalidRequestError` with no special
+  mapping.
+- **Facts on `effect` and `@effect/ai-anthropic` 4.1.5 (2026-11-22, the vendored sources and
+  runs against a fake HTTP client, no call to Anthropic).** The reply already sends the top-level
+  `cache_control`, which moves the cache's breakpoint to the last block of each request.
+  `generateText`'s `usage` gives `inputTokens.total` (the uncached, cache-read and cache-write
+  tokens together), `cacheRead`, `cacheWrite` and `outputTokens.total`, every field optional; the
+  same counts are attributes of the call's span. `Tokenizer.truncate` calls `tokenize` once per
+  kept message, may return a history that starts with an assistant message, and returns none when
+  the newest message alone is over the limit; no provider package implements `Tokenizer`. A
+  persisted `Chat` keeps a chat's whole prompt as one value under one key, rewritten on each
+  call outside the caller's transaction, a second copy of the `messages` table. `Config` passes
+  `context_management` into the request, but not the beta header it needs, and the response's
+  `compaction` block is dropped, so the summary is lost. `max_tokens` and
+  `model_context_window_exceeded` both become the finish reason `length`; the raw stop reason
+  stays in the span's attributes.
+- **Facts from Anthropic's documentation (2026-11-22).** A cache write costs 1.25 times the
+  input price for 5 minutes and 2 times for 1 hour, a read 0.1 or less; a prefix under 512 tokens
+  is not cached on Sonnet 5.5 and Haiku 5.5, so the title's prompt never is. The cache matches a
+  prefix, so a cut rewrites the whole sent history once. The token-counting endpoint is free, has
+  its own rate limit and returns an estimate. On the models with preserved thinking, deleting an
+  earlier message may fail the prefix check of the thinking in the kept turns; the reply sends
+  text alone, and whether that keeps it clear of the check is not run.
+- **Facts from 14 applications' sources (2026-11-22, read by a researcher, not rechecked).**
+  LibreChat, Open WebUI, LobeHub, Claude Code, aider, Cline, OpenCode, Codex CLI, Gemini CLI,
+  Goose, Zed, Hugging Face chat-ui, Onyx and Dify each keep the history in their own store and
+  send a reduced copy. Six record usage and the model per message and size the next prompt from
+  the last real usage plus an estimate; none calls a counting endpoint per turn. Those that
+  compact start at a share of the window (Codex and Zed 0.9, Onyx 0.85, Goose 0.8), keep a
+  recent tail as it is and keep the summary in the same log (a row in Onyx, a field of the
+  checkpoint message in Open WebUI, a visibility flag in Goose), the originals staying. Goose
+  holds a test that the bytes a provider has seen never change.
+- **Not run.** Cache reads on the live API for this chat's replies; a request with a cut history
+  on Sonnet 5.5; the size of a kept tail computed as a difference of two Runs' usage.
 - **Status.** Planned.
 
 ### 21. `bedrock-provider`
