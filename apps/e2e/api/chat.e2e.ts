@@ -3,7 +3,7 @@ import { Array as Arr, Effect, Option, Order, Predicate, Schedule } from 'effect
 import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
-import { ApiClient } from '@app-template/api/testing'
+import { ApiClient, StrangerApiClient } from '@app-template/api/testing'
 import { type ChatId, isActiveRun, type RunId } from '@app-template/application/chat'
 
 import { StandTest, scriptedAnswers } from '#testing/stand.test-layer'
@@ -117,6 +117,23 @@ describe('the journey over both app layers', { concurrent: false }, () => {
             1,
           )
         }),
+    )
+
+    it.effect("another user's delete of a chat is ChatNotFoundError and removes nothing", () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+        const stranger = yield* StrangerApiClient
+        yield* api.users.recognise()
+        yield* stranger.users.recognise()
+        const chat = yield* api.chats.create()
+
+        const refused = yield* stranger.chats
+          .delete({ params: { chatId: chat.id } })
+          .pipe(Effect.flip)
+
+        assert.deepInclude(refused, { _tag: 'ChatNotFoundError', id: chat.id })
+        assert.deepStrictEqual(yield* api.chats.get({ params: { chatId: chat.id } }), chat)
+      }),
     )
   })
 })

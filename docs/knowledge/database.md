@@ -215,7 +215,10 @@ touches no row:
   fails.
 
 `ChatRepository.delete(where)` is one statement: the chat's messages and Runs go by the
-cascade, and `ChatService.delete` is all the api's delete calls.
+cascade, and `ChatService.delete` is all the api's delete calls. It takes the chat's id with its
+owner, both required (`ChatOwnerWhere`), reads the chat under them to name the refusal and
+deletes under them again, so a call that names no user fails typecheck and another user's chat
+is `ChatNotFoundError`.
 
 ## Transactions
 

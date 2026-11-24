@@ -144,19 +144,24 @@ describe('ChatService', () => {
     )
   })
 
-  it.effect("delete removes the owner's chat by its id", () => {
+  it.effect('delete reads the chat, then removes it, both under its owner', () => {
+    const reads: Array<ChatEntityWhere> = []
     const deleted: Array<ChatEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
       yield* service.delete({ id: chat.id, userId: owner })
 
-      assert.deepStrictEqual(deleted, [{ id: chat.id }])
+      assert.deepStrictEqual(reads, [{ id: chat.id, userId: owner }])
+      assert.deepStrictEqual(deleted, [{ id: chat.id, userId: owner }])
     }).pipe(
       Effect.provide(
         chatServiceOver({
           chats: {
-            selectOne: selectsOne(chat),
+            selectOne: (where) =>
+              Effect.sync(() => {
+                reads.push(where)
+              }).pipe(Effect.andThen(selectsOne(chat))),
             delete: (where) =>
               Effect.sync(() => {
                 deleted.push(where)
