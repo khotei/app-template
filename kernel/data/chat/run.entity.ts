@@ -10,10 +10,7 @@ import type { FilterOf } from '#kernel/data/relations'
 /** A Run nests nothing, so every read returns its `RunColumns`. A write finds its Run by the key. */
 export type RunEntityWhere = Keyed<TableFilter<typeof runs>, RunColumns, 'id'>
 
-/**
- * A read finds its Run by the key or by its user message, narrowed by the rest. The owner is the
- * Run's chat's: `chat: { userId }`.
- */
+/** A read finds its Run by the key or by its user message, narrowed by the rest. */
 export type RunEntitySelectWhere = Keyed<FilterOf<'runs'>, RunColumns, 'id' | 'userMessageId'>
 
 /** The columns an update may write. */

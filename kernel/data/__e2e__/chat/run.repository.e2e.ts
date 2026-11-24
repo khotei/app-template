@@ -73,8 +73,8 @@ describe('RunRepository', () => {
       yield* insertUserMessage
       yield* runs.insert(queued)
 
-      const owned = yield* runs.selectOne({ id: queued.id, chat: { userId } })
-      const foreign = yield* runs.selectOne({ id: queued.id, chat: { userId: strangerId } })
+      const owned = yield* runs.selectOne({ id: queued.id, userId })
+      const foreign = yield* runs.selectOne({ id: queued.id, userId: strangerId })
 
       assertSchemaEquals(SelectedRun, owned, Option.some(queued))
       assert.deepStrictEqual(foreign, Option.none())

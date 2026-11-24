@@ -14,16 +14,10 @@ export const relations = defineRelations({ users, credentials, chats, messages, 
     run: r.one.runs({ from: r.chats.id, to: r.runs.chatId }),
   },
   messages: {
-    // Its chat, which a read filters by for the chat's owner.
-    chat: r.one.chats({ from: r.messages.chatId, to: r.chats.id }),
     // A user's message: the newest of the Runs that answer it, ordered by the read.
     newestRun: r.one.runs({ from: r.messages.id, to: r.runs.userMessageId }),
     // An assistant's message: the Run that wrote it.
     replyOf: r.one.runs({ from: r.messages.id, to: r.runs.assistantMessageId }),
-  },
-  runs: {
-    // Its chat, which a read filters by for the chat's owner.
-    chat: r.one.chats({ from: r.runs.chatId, to: r.chats.id }),
   },
 }))
 

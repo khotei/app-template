@@ -16,7 +16,7 @@ export const MessageEntity = Schema.Struct({
 })
 export type MessageEntity = typeof MessageEntity.Type
 
-/** The owner is the row's chat's: `chat: { userId }`, so one of another user's chat reads as absent. */
+/** A read finds a message by the key or a chat's by `chatId`, narrowed by the rest. */
 export type MessageEntityWhere = Keyed<FilterOf<'messages'>, MessageColumns, 'id' | 'chatId'>
 
 export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const

@@ -1,6 +1,5 @@
 import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
-import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
@@ -8,12 +7,11 @@ import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run, type RunStatus } from '#chat/domain/run.model'
 
 /**
- * What narrows a read, as the repository's filter takes each: `chat.userId` limits it to the
- * user's chats, which every api caller passes, `status.in` to the statuses it names.
+ * What narrows a read, as the repository's filter takes each: `userId` limits it to the user's
+ * Runs, which every api caller passes, `status.in` to the statuses it names.
  */
 type RunNarrowing = Partial<
-  Pick<Run, 'chatId'> & {
-    readonly chat: { readonly userId: UserId }
+  Pick<Run, 'chatId' | 'userId'> & {
     readonly status: RunStatus | { readonly in: Array<RunStatus> }
   }
 >
