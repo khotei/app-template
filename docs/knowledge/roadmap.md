@@ -409,9 +409,6 @@ moves it into its own `Later` and deletes it here.
   owner's decision.
 - (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
   have no case at their own seam; a planted bug in each passes.
-- (2026-11-19, verified) Each of 16 `where` mappers wraps its condition in `UndefinedOr.map`, and
-  the owner subquery is copied in two repositories; `buildWhere` skips an absent field, the subquery
-  once.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
   that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
   composition fact.

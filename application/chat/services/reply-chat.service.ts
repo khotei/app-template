@@ -53,6 +53,7 @@ export class ReplyChatService extends Context.Service<
       const generated = yield* assistant.reply(history)
       const message = yield* messages.create({
         chatId: started.chatId,
+        userId: started.userId,
         text: generated.text,
         author: 'assistant',
       })

@@ -49,6 +49,16 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
   { name: 'delete', call: (service, userId, chatId) => service.delete({ id: chatId, userId }) },
 ]
 
+/** A title a where names, and what the repository's filter holds for it. */
+const titleWheres: ReadonlyArray<{
+  readonly name: string
+  readonly title: Chat['title']
+  readonly stored: Required<ChatEntityWhere>['title']
+}> = [
+  { name: 'none', title: Option.none(), stored: { isNull: true } },
+  { name: 'some', title: Option.some(trip), stored: 'Trip' },
+]
+
 describe('ChatService', () => {
   // The id's random bits come from `globalThis.crypto`, past any `SecureRandom` a test provides,
   // so the case asserts its form, not its value.
@@ -129,22 +139,22 @@ describe('ChatService', () => {
     },
   )
 
-  it.effect(
-    'update where the title is none reads and writes only while the chat is untitled',
-    () => {
+  it.effect.each(titleWheres)(
+    'update where the title is $name reads and writes only while the chat holds it',
+    ({ title, stored }) => {
       const wheres: Array<ChatEntitySelectWhere> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
         const updated = yield* service.update(
           { title: Option.some(lisbonWeekend) },
-          { id: chat.id, title: Option.none() },
+          { id: chat.id, title },
         )
 
         assertEquals(updated.title, Option.some(lisbonWeekend))
         assert.deepStrictEqual(wheres, [
-          { id: chat.id, title: null },
-          { id: chat.id, title: null },
+          { id: chat.id, title: stored },
+          { id: chat.id, title: stored },
         ])
       }).pipe(
         Effect.provide(

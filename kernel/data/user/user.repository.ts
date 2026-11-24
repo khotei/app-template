@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
+import { buildFilter, orDieWithSqlError } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import type {
@@ -10,13 +10,6 @@ import type {
   UserEntityWhere,
 } from '#kernel/data/user/user.entity'
 import { credentials, users } from '#kernel/data/user/user.table'
-
-/** The credential is a filter on the relation, so a user is found by any credential it holds. */
-const filterOf = (where: UserEntityWhere) =>
-  ({
-    id: skipUndefined(where.id),
-    credentials: skipUndefined(where.credential),
-  }) as const
 
 export class UserRepository extends Context.Service<
   UserRepository,
@@ -39,7 +32,7 @@ export class UserRepository extends Context.Service<
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('UserRepository.selectOne')(
-        (where: UserEntityWhere) => db.query.users.findFirst({ where: filterOf(where) }),
+        (where: UserEntityWhere) => db.query.users.findFirst({ where: buildFilter(where) }),
         Effect.map(Option.fromUndefinedOr),
         orDieWithSqlError,
       ),

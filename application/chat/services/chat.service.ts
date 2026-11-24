@@ -1,14 +1,4 @@
-import {
-  Context,
-  Effect,
-  Layer,
-  Option,
-  Schema,
-  SchemaIssue,
-  Struct,
-  type Types,
-  UndefinedOr,
-} from 'effect'
+import { Context, Effect, Layer, Option, Schema, SchemaIssue, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
@@ -17,17 +7,23 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
 
-/**
- * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
- * untitled one.
- */
-export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
-
 /** A chat by id and its owner: what a call on a user's behalf names, so none reaches another's. */
 export type ChatOwnerWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
-const encodeChatWhere = (where: ChatWhere): ChatEntityWhere =>
-  Struct.evolve(where, { title: UndefinedOr.map(Option.getOrNull) })
+/** A chat by id while its title is `title`, none for an untitled one: what a job names. */
+export type ChatTitleWhere = Types.Simplify<Pick<Chat, 'id' | 'title'>>
+
+/** A chat as a write finds it: a user's, or one that still holds a title. */
+export type ChatWhere = ChatOwnerWhere | ChatTitleWhere
+
+/**
+ * `where` as the repository's filter: a title of none is a column that is null. The owner is
+ * read first, so a where that names one is never found without it.
+ */
+const buildChatFilter = (where: ChatWhere): ChatEntityWhere =>
+  'userId' in where
+    ? { id: where.id, userId: where.userId }
+    : { id: where.id, title: Option.getOrElse(where.title, () => ({ isNull: true })) }
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -63,7 +59,7 @@ export class ChatService extends Context.Service<
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatWhere) => chats.selectOne(encodeChatWhere(where)),
+      (where: ChatWhere) => chats.selectOne(buildChatFilter(where)),
       Effect.flatMap(decodeWith(Schema.Option(Chat))),
       (found, where) =>
         Effect.flatMap(
@@ -80,7 +76,7 @@ export class ChatService extends Context.Service<
 
         // Only the update variant's fields, under the `where` again: a change landing after the
         // read is kept.
-        yield* chats.update(row, encodeChatWhere(where))
+        yield* chats.update(row, buildChatFilter(where))
         return new Chat({ ...chat, ...set })
       },
       Effect.catchIf(SchemaIssue.isIssue, Effect.die),
@@ -89,8 +85,8 @@ export class ChatService extends Context.Service<
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatOwnerWhere) {
       yield* getOne(where)
 
-      // Under the owner again; the cascade takes the messages and the Runs, by their `chat_id`.
-      yield* chats.delete(where)
+      // Under the owner again; the cascade takes the messages and the Runs, by their key to the chat.
+      yield* chats.delete(buildChatFilter(where))
     })
 
     return { create, list, getOne, update, delete: remove }

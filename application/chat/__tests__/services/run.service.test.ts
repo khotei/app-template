@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Cause, Effect, Option, Struct } from 'effect'
 
-import type { RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
+import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -14,7 +14,7 @@ import {
   type RunStatus,
   startRun,
 } from '#chat/domain/run.model'
-import { RunService } from '#chat/services/run.service'
+import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
@@ -37,6 +37,27 @@ const moves: ReadonlyArray<{
     from: 'queued',
     to: 'failed',
     transition: (run) => failRun(run, Cause.fail('SQS is unavailable')),
+  },
+]
+
+/** Each read a where names: the filter the repository takes for it, and its key alone. */
+const reads: ReadonlyArray<{
+  readonly name: string
+  readonly where: RunWhere
+  readonly filter: RunEntitySelectWhere
+  readonly key: RunNotFoundError['where']
+}> = [
+  {
+    name: 'id',
+    where: { id: queuedRun.id, chatId: queuedRun.chatId, userId: queuedRun.userId },
+    filter: { id: queuedRun.id, chatId: queuedRun.chatId, userId: queuedRun.userId },
+    key: { id: queuedRun.id },
+  },
+  {
+    name: 'user message',
+    where: { userMessageId: queuedRun.userMessageId, status: activeRunStatuses },
+    filter: { userMessageId: queuedRun.userMessageId, status: { in: ['queued', 'generating'] } },
+    key: { userMessageId: queuedRun.userMessageId },
   },
 ]
 
@@ -63,11 +84,11 @@ describe('RunService', () => {
     return Effect.gen(function* () {
       const service = yield* RunService
 
-      yield* service.update(failed, { id: failed.id, chatId: failed.chatId })
+      yield* service.update(failed, { id: failed.id, status: 'queued' })
 
       assert.deepStrictEqual(
         Arr.map(updates, ([set, where]) => [set.status, where]),
-        [['failed', { id: failed.id, chatId: failed.chatId }]],
+        [['failed', { id: failed.id, status: 'queued' }]],
       )
     }).pipe(Effect.provide(layer))
   })
@@ -85,7 +106,7 @@ describe('RunService', () => {
         assert.strictEqual(moved.status, to)
         assert.deepStrictEqual(
           Arr.map(updates, ([set, where]) => [set.status, where]),
-          [[to, { id: run.id, status: [from] }]],
+          [[to, { id: run.id, status: from }]],
         )
       }).pipe(Effect.provide(layer))
     },
@@ -109,7 +130,7 @@ describe('RunService', () => {
         .pipe(Effect.catchDefect(Effect.succeed))
 
       assert.strictEqual(defect, 'no run was updated')
-      assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: ['queued'] }])
+      assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: 'queued' }])
     }).pipe(Effect.provide(layer))
   })
 
@@ -135,18 +156,30 @@ describe('RunService', () => {
     },
   )
 
-  it.effect.each([
-    {
-      name: 'id',
-      where: { id: queuedRun.id, chatId: queuedRun.chatId },
-      key: { id: queuedRun.id },
+  it.effect.each(reads)(
+    "getOne by $name reads the Run under its where's filter",
+    ({ where, filter }) => {
+      const filters: Array<RunEntitySelectWhere> = []
+      const layer = layerChatTest({
+        runs: {
+          selectOne: (read) =>
+            Effect.sync(() => {
+              filters.push(read)
+            }).pipe(Effect.andThen(encodeWith(Run)(queuedRun)), Effect.map(Option.some)),
+        },
+      })
+      return Effect.gen(function* () {
+        const service = yield* RunService
+
+        const found = yield* service.getOne(where)
+
+        assert.strictEqual(found.id, queuedRun.id)
+        assert.deepStrictEqual(filters, [filter])
+      }).pipe(Effect.provide(layer))
     },
-    {
-      name: 'user message',
-      where: { userMessageId: queuedRun.userMessageId, status: activeRunStatuses },
-      key: { userMessageId: queuedRun.userMessageId },
-    },
-  ])(
+  )
+
+  it.effect.each(reads)(
     'getOne by $name the store finds none of fails RunNotFoundError by its key alone',
     ({ where, key }) => {
       const { layer } = recordUpdates(Option.none())

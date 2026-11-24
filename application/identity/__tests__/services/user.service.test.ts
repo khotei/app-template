@@ -40,7 +40,7 @@ describe('UserService', () => {
       const user = yield* service.authenticate(unknownSecret)
 
       const hash = yield* hashWithWebCrypto(unknownSecret)
-      assert.deepStrictEqual(wheres, [{ credential: { kind: 'secret', hash } }])
+      assert.deepStrictEqual(wheres, [{ credentials: { kind: 'secret', hash } }])
       assert.strictEqual(user.id, storedUser.id)
     }).pipe(
       Effect.provide(

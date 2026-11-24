@@ -76,7 +76,7 @@ const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn'
 /** A Messages API error response. */
 const apiError = (
   status: number,
-  { text, headers }: { readonly text: string; readonly headers?: Record<string, string> },
+  { text, headers = {} }: { readonly text: string; readonly headers?: Record<string, string> },
 ) =>
   Response.json(
     { type: 'error', error: { type: 'error', message: text }, request_id: null },

@@ -55,7 +55,7 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
 })
 
 /** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
-function recordUpdates(queue: ChatLeaves['queue']) {
+function recordUpdates(queue: Required<ChatLeaves>['queue']) {
   const updates: Array<RunEntitySet> = []
   const layer = layerChatTest(
     {
@@ -120,6 +120,7 @@ describe('AskChatService', () => {
           new Run({
             id: run.id,
             chatId: chat.id,
+            userId: chat.userId,
             userMessageId: userMessage.id,
             createdAt: run.createdAt,
             updatedAt: run.updatedAt,
@@ -130,6 +131,7 @@ describe('AskChatService', () => {
             author: 'user',
             id: userMessage.id,
             chatId: chat.id,
+            userId: chat.userId,
             text: 'Plan a weekend in Lisbon',
             createdAt: sentAt,
           }),
@@ -174,7 +176,7 @@ describe('AskChatService', () => {
 
       assert.deepStrictEqual(
         Arr.map(updates, ([set, where]) => [set.status, where]),
-        [['failed', { id: sent.id, status: ['queued'] }]],
+        [['failed', { id: sent.id, status: 'queued' }]],
       )
       assert.deepStrictEqual([Arr.map(stored, ({ id }) => id), sent.status], [[sent.id], 'failed'])
     }).pipe(
@@ -209,7 +211,7 @@ describe('AskChatService', () => {
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(
           Arr.map(updates, ({ status }) => status),
-          [['queued']],
+          ['queued'],
         )
       }).pipe(
         Effect.provide(
@@ -337,6 +339,7 @@ describe('AskChatService', () => {
           new Run({
             id: retried.id,
             chatId: chat.id,
+            userId: chat.userId,
             userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
             updatedAt: retried.createdAt,
