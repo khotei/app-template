@@ -78,21 +78,6 @@ function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
 }
 
 describe('RunService', () => {
-  it.effect('update writes the Run under the id and status of its where alone', () => {
-    const failed = new Run({ ...queuedRun, status: 'failed' })
-    const { updates, layer } = recordUpdates()
-    return Effect.gen(function* () {
-      const service = yield* RunService
-
-      yield* service.update(failed, queuedRun)
-
-      assert.deepStrictEqual(
-        Arr.map(updates, ([set, where]) => [set.status, where]),
-        [['failed', { id: failed.id, status: 'queued' }]],
-      )
-    }).pipe(Effect.provide(layer))
-  })
-
   it.effect.each(moves)(
     'move by $name writes the $to Run under the status it was read in',
     ({ from, to, transition }) => {

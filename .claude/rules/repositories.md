@@ -43,11 +43,11 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   Its key, and the owner on a type only a user's calls take, are required fields; a narrowing the
   caller may leave out is an absent key, `key?: T` ([effect.md › Schemas](effect.md#schemas)).
 - A method hands its repository `encodeWhere(where)`, the one function over a service's where: an
-  `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, any other value itself. It first
-  picks the where's fields, listed once beside its type (`Struct.pick`), so a record handed whole
-  adds no condition. No method writes a Drizzle operator, copies a field or tests which fields
-  its where holds. A read by either of two keys, as its repository's `Keyed` names them, takes a
-  where per key, encoded unpicked. The types and the alias of a relational query:
+  `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, any other value itself. Every
+  field becomes a condition, so a caller writes a where as a literal of its type's fields, never
+  a record whole. No method writes a Drizzle operator, copies a field, picks a where's fields or
+  tests which it holds. A read by either of two keys, as its repository's `Keyed` names them,
+  takes a where per key. The types and the alias of a relational query:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
 
 ```diff
@@ -56,8 +56,9 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - orders.getMany({ customerId, status: Option.fromUndefinedOr(query.status) })  // a null column
 + orders.getMany({ customerId, ...(query.status === undefined ? {} : { status: query.status }) })
 - repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
-+ // OrderWhere = Pick<Order, 'id'> & Partial<Pick<Order, (typeof orderWhereFields)[number]>>
-+ pipe(where, Struct.pick(orderWhereFields), encodeWhere, repository.selectOne)
++ repository.selectOne(encodeWhere(where))
+- orders.getOne(order)                                      // every field of the record a condition
++ orders.getOne({ id: order.id, customerId: order.customerId })
 ```
 
 ## What is stored

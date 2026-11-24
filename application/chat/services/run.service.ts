@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, pipe, Schema, Struct, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import { encodeWhere, RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
@@ -65,7 +65,7 @@ export class RunService extends Context.Service<
       const set = yield* Run.update.makeEffect(Struct.omit(to, ['updatedAt']))
       const row = yield* encodeWith(Run.update)(set)
 
-      yield* runs.update(row, pipe(where, Struct.pick(['id', 'status']), encodeWhere))
+      yield* runs.update(row, encodeWhere(where))
       return new Run({ ...to, ...set })
     }, Effect.orDie)
 

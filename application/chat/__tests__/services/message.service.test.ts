@@ -17,12 +17,12 @@ const firstMessageRow = encodeWith(Message)(firstMessage)
 const where = { id: firstMessage.id, chatId: chat.id, userId: owner }
 
 describe('MessageService', () => {
-  it.effect('getOne reads the message by the id, chat and user of its where alone', () => {
+  it.effect('getOne reads the message by the id, chat and user of its where', () => {
     const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
 
-      const found = yield* service.getOne(firstMessage)
+      const found = yield* service.getOne(where)
 
       assertEquals(found, firstMessage)
       assert.deepStrictEqual(wheres, [where])
@@ -50,12 +50,12 @@ describe('MessageService', () => {
     }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 
-  it.effect("getMany reads the chat's messages by the chat of its where alone", () => {
+  it.effect("getMany reads the chat's messages by the chat of its where", () => {
     const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
 
-      const found = yield* service.getMany(firstMessage)
+      const found = yield* service.getMany({ chatId: chat.id })
 
       assertEquals(found, [firstMessage])
       assert.deepStrictEqual(wheres, [{ chatId: chat.id }])

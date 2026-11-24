@@ -167,11 +167,11 @@ id with `userId?` and `title?`, so `ChatService.update` takes the user's rename 
 job's alike. What a service hands a repository is Drizzle's filter object, which
 `encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
 none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, any other value stays
-itself. A service lists its where's fields once, derives the type from the list and picks them
-before encoding (`pipe(where, Struct.pick(chatWhereFields), encodeWhere, chats.selectOne)`), so a
-record handed whole as a where is read by those fields alone. `RunService.getOne` reads by
-either of two keys, as `RunEntitySelectWhere` does, so its where is one type per key, the api's
-`RunOwnerWhere` or the worker's `RunMessageWhere`, encoded unpicked. So Drizzle's operators
+itself (`chats.selectOne(encodeWhere(where))`). Every field of the value becomes a condition, so
+a caller writes its where as a literal of the type's fields, which the compiler checks, and never
+hands a record whole. `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere`
+does, so its where is one type per key, the api's `RunOwnerWhere` or the worker's
+`RunMessageWhere`. So Drizzle's operators
 appear in that one function, never in a service, a handler or a use case. Neither an `undefined`
 field, which `exactOptionalPropertyTypes` ([tooling.md › TypeScript](tooling.md#typescript))
 refuses at `make typecheck`, nor an empty where has a rule: Drizzle throws on the first, and the

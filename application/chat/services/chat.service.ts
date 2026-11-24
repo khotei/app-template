@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, pipe, Schema, SchemaIssue, Struct, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, SchemaIssue, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
@@ -10,13 +10,8 @@ import { Chat } from '#chat/domain/chat.model'
 /** A chat by id and its owner: what a call on a user's behalf names, so none reaches another's. */
 export type ChatOwnerWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
-/** The fields a chat is found by: a where handed wider, a chat whole, is read by these alone. */
-const chatWhereFields = ['id', 'userId', 'title'] as const satisfies ReadonlyArray<keyof Chat>
-
 /** A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. */
-export type ChatWhere = Types.Simplify<
-  Pick<Chat, 'id'> & Partial<Pick<Chat, (typeof chatWhereFields)[number]>>
->
+export type ChatWhere = Types.Simplify<Pick<Chat, 'id'> & Partial<Pick<Chat, 'userId' | 'title'>>>
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -52,7 +47,7 @@ export class ChatService extends Context.Service<
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatWhere) => pipe(where, Struct.pick(chatWhereFields), encodeWhere, chats.selectOne),
+      (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Chat))),
       (found, where) =>
         Effect.flatMap(
@@ -69,7 +64,7 @@ export class ChatService extends Context.Service<
 
         // Only the update variant's fields, under the `where` again: a change landing after the
         // read is kept.
-        yield* chats.update(row, pipe(where, Struct.pick(chatWhereFields), encodeWhere))
+        yield* chats.update(row, encodeWhere(where))
         return new Chat({ ...chat, ...set })
       },
       Effect.catchIf(SchemaIssue.isIssue, Effect.die),
@@ -79,7 +74,7 @@ export class ChatService extends Context.Service<
       yield* getOne(where)
 
       // Under the owner again; the cascade takes the messages and the Runs, by their key to the chat.
-      yield* pipe(where, Struct.pick(chatWhereFields), encodeWhere, chats.delete)
+      yield* chats.delete(encodeWhere(where))
     })
 
     return { create, list, getOne, update, delete: remove }
