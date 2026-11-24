@@ -1,4 +1,4 @@
-import { Array as Arr, Context, Effect, Layer, Option } from 'effect'
+import { Context, Effect, Layer, Option } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { orDieWithSqlError, skipUndefined } from '@app-template/packages/db'
@@ -32,10 +32,8 @@ export class UserRepository extends Context.Service<
     return {
       insert: Effect.fn('UserRepository.insert')(
         function* (user: UserEntity, { kind, hash }: UserEntityCredential) {
-          const inserted = yield* db.insert(users).values(user).returning({ userId: users.id })
-          yield* db
-            .insert(credentials)
-            .values(Arr.map(inserted, ({ userId }) => ({ hash, kind, userId })))
+          yield* db.insert(users).values(user)
+          yield* db.insert(credentials).values({ hash, kind, userId: user.id })
         },
         sql.withTransaction,
         orDieWithSqlError,
