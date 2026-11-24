@@ -1,4 +1,4 @@
-import { type Cause, Context, Effect, Layer } from 'effect'
+import { type Cause, Context, Effect, Layer, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -52,8 +52,7 @@ export class ReplyChatService extends Context.Service<
       const history = yield* messages.getMany({ chatId: started.chatId })
       const generated = yield* assistant.reply(history)
       const message = yield* messages.create({
-        chatId: started.chatId,
-        userId: started.userId,
+        ...Struct.pick(started, ['chatId', 'userId']),
         text: generated.text,
         author: 'assistant',
       })

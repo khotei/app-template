@@ -52,8 +52,7 @@ const run = (
 ) =>
   ({
     id,
-    chatId: answered.chatId,
-    userId: answered.userId,
+    ...Struct.pick(answered, ['chatId', 'userId']),
     userMessageId: answered.id,
     status,
     failure: status === 'failed' ? { cause: '529 overloaded' } : null,

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Option, Schema, Struct } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -45,8 +45,7 @@ const run = (
 ) =>
   ({
     id,
-    chatId: answered.chatId,
-    userId: answered.userId,
+    ...Struct.pick(answered, ['chatId', 'userId']),
     userMessageId: answered.id,
     status,
     failure: (

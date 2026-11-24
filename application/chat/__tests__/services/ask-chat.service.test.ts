@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, DateTime, Effect, Exit, Fiber, Option } from 'effect'
+import { Array as Arr, DateTime, Effect, Exit, Fiber, Option, Struct } from 'effect'
 
 import type {
   MessageColumns,
@@ -118,12 +118,10 @@ describe('AskChatService', () => {
         assertEquals(
           run,
           new Run({
-            id: run.id,
+            ...Struct.pick(run, ['id', 'createdAt', 'updatedAt']),
             chatId: chat.id,
             userId: chat.userId,
             userMessageId: userMessage.id,
-            createdAt: run.createdAt,
-            updatedAt: run.updatedAt,
           }),
         )
         assert.deepStrictEqual(inserts.messages, [
