@@ -7,7 +7,7 @@ import {
   type TableFilter,
 } from 'drizzle-orm'
 import { timestamp, uuid } from 'drizzle-orm/pg-core'
-import { Array as Arr, Predicate, pipe, Record, type Types, UndefinedOr } from 'effect'
+import { Record, type Types, UndefinedOr } from 'effect'
 
 // Functions, not shared constants: each call returns a fresh builder, because a table names a
 // builder's column the first time it sees it, so a constant reused under another key would keep
@@ -30,36 +30,18 @@ export type Keyed<Filter, Row, Key extends keyof Row & keyof Filter> = Key exten
 
 const matchesNone = { RAW: sql`false` } as const
 
-// A filter's own objects (itself, an operator's, a relation's), never a value such as a `Date`.
-const isFilterObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
-  Predicate.isObject(value) && Object.getPrototypeOf(value) === Object.prototype
-
-const dropUndefined = (value: unknown): unknown => {
-  if (Arr.isArray(value)) {
-    return Arr.map(value, dropUndefined)
-  }
-  if (!isFilterObject(value)) {
-    return value
-  }
-  return pipe(value, Record.filter(Predicate.isNotUndefined), Record.map(dropUndefined))
-}
-
 /**
- * `filter` as a relational query takes its `where`. A field left `undefined` is no condition,
- * which Drizzle would throw on; a filter with no condition matches no row, so no statement goes
- * without its `WHERE`.
+ * `filter` as a relational query takes its `where`: one that names no field matches no row, so
+ * no statement goes without its `WHERE`.
  */
-export const buildFilter = <Filter extends object>(filter: Filter): Filter | typeof matchesNone => {
-  const conditions = dropUndefined(filter)
-  // The same fields less the `undefined` ones, which the type already reads as left out.
-  return Record.isEmptyRecord(conditions as Record<string, unknown>)
-    ? matchesNone
-    : (conditions as Filter)
-}
+export const buildFilter = <Filter extends Readonly<Record<string, unknown>>>(
+  filter: Filter,
+): Filter | typeof matchesNone => (Record.isEmptyReadonlyRecord(filter) ? matchesNone : filter)
 
 /**
  * The condition of `filter`, the object a relational query takes as its `where`, for a statement
- * of the core builder: `buildFilter`'s, so a write always has its `WHERE`.
+ * of the core builder. It always returns one, so no write goes without its `WHERE`: a filter
+ * with no condition matches no row.
  */
 export const encodeFilter = <TTable extends Table>(
   table: TTable,
@@ -67,7 +49,7 @@ export const encodeFilter = <TTable extends Table>(
 ): SQL =>
   // Drizzle's own queries hand it a table's filter the same way: its type for any table's filter
   // takes no plain value, so no filter of a table is assignable to it.
-  UndefinedOr.match(relationsFilterToSQL(table, buildFilter(filter) as AnyTableFilter).sql, {
+  UndefinedOr.match(relationsFilterToSQL(table, filter as AnyTableFilter).sql, {
     onUndefined: () => sql`false`,
     onDefined: (chunks) => new SQL(chunks),
   })
