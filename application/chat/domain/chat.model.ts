@@ -2,6 +2,7 @@ import { Effect, Option, Schema } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { maxTitleLength, textPattern } from '@app-template/kernel/data'
+import { Stored } from '@app-template/packages/schema'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
@@ -22,20 +23,19 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-/** A chat's own fields: the row its writes encode. */
-export const ChatFields = Schema.Struct({
-  id: ChatId,
-  userId: UserId,
+/** A chat as `chats` holds it, read with its newest Run: an update writes its title and `updatedAt`. */
+export class Chat extends Stored.Class<Chat>('Chat')({
+  id: Stored.insertOnly(ChatId),
+  userId: Stored.insertOnly(UserId),
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-})
-export type ChatFields = typeof ChatFields.Type
-
-export class Chat extends Schema.Class<Chat>('Chat')({
-  ...ChatFields.fields,
+  createdAt: Stored.CreatedAt,
+  updatedAt: Stored.UpdatedAt,
   /** The newest Run, flat, read with the chat and never written; none before its first ask. */
-  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  run: Stored.readOnly(
+    Schema.OptionFromNullOr(RunFields.select).pipe(
+      Schema.withConstructorDefault(Effect.succeedNone),
+    ),
+  ),
 }) {}
 
 /** What a chat's newest Run makes of it; a chat no ask has reached yet is `idle`. */

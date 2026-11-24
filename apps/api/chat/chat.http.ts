@@ -9,7 +9,6 @@ import {
   ChatStatus,
   ChatTitle,
   Message,
-  MessageFields,
   MessageId,
   MessageNotFoundError,
   Run,
@@ -65,7 +64,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
   HttpApiEndpoint.post('ask', '/chats/:chatId/messages', {
     params: chatPath,
     payload: Schema.Struct({
-      text: MessageFields.fields.text.check(Schema.isMaxLength(20_000)),
+      text: Message.fields.text.check(Schema.isMaxLength(20_000)),
     }),
     success: ApiRun.pipe(HttpApiSchema.status(202)),
     error: [

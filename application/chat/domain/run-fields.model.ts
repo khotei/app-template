@@ -1,6 +1,7 @@
 import { Effect, Schema } from 'effect'
 
 import { RunFailure, runStatuses } from '@app-template/kernel/data'
+import { Stored } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
@@ -13,11 +14,14 @@ export type RunStatus = typeof RunStatus.Type
 // The column's shape is the model's own: one definition, served through the module's entry.
 export { RunFailure }
 
-/** A Run's own fields: what a chat and a message nest of it. */
-export const RunFields = Schema.Struct({
-  id: RunId,
-  chatId: ChatId,
-  userMessageId: MessageId,
+/**
+ * A Run's own fields, as `runs` holds them: what a chat and a message nest of it. An update
+ * writes its status, failure, reply and `updatedAt`.
+ */
+export class RunFields extends Stored.Class<RunFields>('RunFields')({
+  id: Stored.insertOnly(RunId),
+  chatId: Stored.insertOnly(ChatId),
+  userMessageId: Stored.insertOnly(MessageId),
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
   failure: Schema.OptionFromNullOr(RunFailure).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
@@ -26,7 +30,6 @@ export const RunFields = Schema.Struct({
   assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-})
-export type RunFields = typeof RunFields.Type
+  createdAt: Stored.CreatedAt,
+  updatedAt: Stored.UpdatedAt,
+}) {}

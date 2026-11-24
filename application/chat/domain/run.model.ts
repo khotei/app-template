@@ -1,6 +1,7 @@
 import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
+import { Stored } from '@app-template/packages/schema'
 
 import { MessageFields } from '#chat/domain/message.model'
 import {
@@ -15,12 +16,11 @@ import { hasStatus } from '#chat/domain/status.model'
  * The work of answering one user message; a retry is a new Run of the same message. Read with
  * its messages, flat; its writes never touch them.
  */
-export class Run extends Schema.Class<Run>('Run')({
-  ...RunFields.fields,
-  userMessage: MessageFields,
+export class Run extends RunFields.extend<Run>('Run')({
+  userMessage: Stored.readOnly(MessageFields),
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.OptionFromNullOr(MessageFields).pipe(
-    Schema.withConstructorDefault(Effect.succeedNone),
+  assistantMessage: Stored.readOnly(
+    Schema.OptionFromNullOr(MessageFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   ),
 }) {}
 

@@ -1,10 +1,12 @@
-import { type Redacted, Schema } from 'effect'
+import type { Redacted } from 'effect'
+
+import { Stored } from '@app-template/packages/schema'
 
 import { UserId } from '#identity/contract/user.util'
 
-export class User extends Schema.Class<User>('User')({
+export class User extends Stored.Class<User>('User')({
   id: UserId,
-  createdAt: Schema.DateTimeUtcFromDate,
+  createdAt: Stored.CreatedAt,
 }) {}
 
 /** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
