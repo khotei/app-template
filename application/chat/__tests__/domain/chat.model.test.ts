@@ -11,10 +11,10 @@ import {
   ensureChatNotBusy,
   isNewChat,
 } from '#chat/domain/chat.model'
-import type { RunStatus } from '#chat/domain/run-fields.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
-const runAt = (status: RunStatus) => Option.some({ ...queuedRun, status })
+const runAt = (status: RunStatus) => Option.some(new Run({ ...queuedRun, status }))
 
 const chatAt = (status: RunStatus) => new Chat({ ...chat, run: runAt(status) })
 

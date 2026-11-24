@@ -6,6 +6,7 @@ import { DateTime, Effect, Layer, Option } from 'effect'
 import type { UserId } from '@app-template/application/identity'
 import {
   type ChatColumns,
+  type ChatEntitySelectWhere,
   type ChatEntitySet,
   type ChatEntityWhere,
   ChatRepository,
@@ -132,7 +133,7 @@ describe('ChatService', () => {
   it.effect(
     'update where the title is none reads and writes only while the chat is untitled',
     () => {
-      const wheres: Array<ChatEntityWhere> = []
+      const wheres: Array<ChatEntitySelectWhere> = []
       return Effect.gen(function* () {
         const service = yield* ChatService
 
@@ -166,7 +167,7 @@ describe('ChatService', () => {
   )
 
   it.effect("list reads the user's chats", () => {
-    const wheres: Array<ChatEntityWhere> = []
+    const wheres: Array<ChatEntitySelectWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
@@ -189,19 +190,24 @@ describe('ChatService', () => {
     )
   })
 
-  it.effect("delete removes the owner's chat by its id", () => {
+  it.effect('delete reads the chat, then removes it, both under its owner', () => {
+    const reads: Array<ChatEntitySelectWhere> = []
     const deleted: Array<ChatEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* ChatService
 
       yield* service.delete({ id: chat.id, userId: owner })
 
-      assert.deepStrictEqual(deleted, [{ id: chat.id }])
+      assert.deepStrictEqual(reads, [{ id: chat.id, userId: owner }])
+      assert.deepStrictEqual(deleted, [{ id: chat.id, userId: owner }])
     }).pipe(
       Effect.provide(
         chatServiceOver({
           chats: {
-            selectOne: selectsOne(chat),
+            selectOne: (where) =>
+              Effect.sync(() => {
+                reads.push(where)
+              }).pipe(Effect.andThen(selectsOne(chat))),
             delete: (where) =>
               Effect.sync(() => {
                 deleted.push(where)

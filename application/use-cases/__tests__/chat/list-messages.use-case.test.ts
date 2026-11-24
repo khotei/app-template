@@ -3,14 +3,14 @@ import { Effect, Option } from 'effect'
 
 import { ChatNotFoundError } from '@app-template/application/chat'
 import { chat, layerChatTest, owner } from '@app-template/application/chat/testing'
-import type { ChatEntityWhere } from '@app-template/kernel/data'
+import type { ChatEntitySelectWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { listMessages } from '#use-cases/chat/list-messages.use-case'
 
 describe('listMessages', () => {
   it.effect('list of a chat the store finds none of for the user is ChatNotFoundError', () => {
-    const wheres: Array<ChatEntityWhere> = []
+    const wheres: Array<ChatEntitySelectWhere> = []
     return Effect.gen(function* () {
       const error = yield* listMessages(owner, chat.id).pipe(Effect.flip)
 

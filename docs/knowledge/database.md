@@ -17,8 +17,8 @@ columns' schema `<Name>Columns` (`createSelectSchema(<table>)`) where a neighbou
 it, and its entities, the schemas read from it, in `<name>.entity.ts`; what each may import:
 [kernel/CLAUDE.md](../../kernel/CLAUDE.md).
 The tables form a DAG and import no entity, so an entity nests a neighbour's `<Name>Columns`
-from the table file without a cycle: `RunEntity` nests `MessageColumns`, and
-`ChatEntity` and `MessageEntity` nest `RunColumns`, where the entities would import each other.
+from the table file without a cycle: `ChatEntity` and `MessageEntity` nest `RunColumns`. A Run
+nests nothing, so its reads return `RunColumns` itself and its messages are the ids it holds.
 The tables are the one declaration of the schema: the migrations are generated from them and
 the entities derived from them.
 
@@ -67,8 +67,7 @@ An entity file lays its entity over the table's columns, in the data layer's own
 reads and writes filter and change by. A repository's `insert` takes the table's full row, its
 `<Name>Columns` (the entity itself where it nests nothing), so a row that leaves a column out
 fails typecheck. An entity is the shape every read returns, one level deep: a chat's and a
-message's nest their Run's columns, a Run's its messages' columns, and the nested columns nest
-nothing:
+message's nest their Run's columns, and the nested columns nest nothing:
 
 ```ts
 export const ChatEntity = Schema.Struct({
@@ -101,7 +100,7 @@ const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeWith(Schem
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insert` takes the credential with no codec and writes
-  `{ hash, kind, userId }`, the user's id from the row it inserted.
+  `{ hash, kind, userId }`, the user's id from the user it was given.
 - A `jsonb` column carries its shape's type (`jsonb().$type<RunFailure>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -114,15 +113,15 @@ states it with `orderBy`. A relational query returns nested rows typed as the en
 repository returns them as they are:
 
 ```ts
-const rows = yield* db.query.runs.findMany({ with: { userMessage: true } })
-// rows: [{ id, chatId, …, userMessage: { id, chatId, author, … } }]
+const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: newestFirst } } })
+// rows: [{ id, userId, …, run: { id, chatId, status, … } | null }]
 ```
 
 A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
-in one relational query, and never a nested `with`: `Chat.run`,
-`Run.userMessage` and `Message.run` are model fields another table holds, read and never written by
-their own writes. A `one` relation over many rows (a chat's Runs) is ordered by the read, `{ run: {
-orderBy: newestFirst } }`, since a relation holds no order and renders `limit 1`. A relational query
+in one relational query, and never a nested `with`: `Chat.run` and `Message.run` are model
+fields another table holds, read and never written by their own writes. A `one` relation over
+many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: newestFirst } }`, since a
+relation holds no order and renders `limit 1`. A relational query
 aliases its table, so the chat's `where` is built on the table the query hands to `RAW`, never on
 the `chats` constant.
 
@@ -156,7 +155,10 @@ intent; the row it finds is the entity as Drizzle types it, returned with no dec
 of one row takes the head of its many (`Arr.head`). A filter on a relation (`{ credentials: {
 kind, hash } }`) renders as `exists (…)`.
 
-A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`.
+A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>EntityWhere`,
+whose key is required, so no write compiles that names no row (`ChatEntityWhere`,
+`RunEntityWhere`); a read that also finds rows by another field takes its own
+`<Name>EntitySelectWhere` (a user's chats by `userId`, a Run by its user message).
 The entity file lists the columns an update may write once, as `<name>SetColumns`, typed by the
 table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
 fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
@@ -174,7 +176,8 @@ SQL's `=` never matches it.
 A rule that two writers could break between a read and a write is held by the database, in the
 statement that writes. The caller checks the rule first, so a write the guard refuses only lost
 a race: every repository's `insert`, `update` and `delete` dies when Postgres refuses it or it
-touches no row:
+touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the write's `RETURNING`,
+whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
   active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat
@@ -215,7 +218,10 @@ touches no row:
   fails.
 
 `ChatRepository.delete(where)` is one statement: the chat's messages and Runs go by the
-cascade, and `ChatService.delete` is all the api's delete calls.
+cascade, and `ChatService.delete` is all the api's delete calls. It takes the chat's id with its
+owner, both required (`ChatOwnerWhere`), reads the chat under them to name the refusal and
+deletes under them again, so a call that names no user fails typecheck and another user's chat
+is `ChatNotFoundError`.
 
 ## Transactions
 

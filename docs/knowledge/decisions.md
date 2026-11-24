@@ -327,8 +327,8 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
   for the Run's three). Two checked-in files move with every
   wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned. Keeping the cause off the wire takes five wire shapes (the failure, the Run, the Run a
-  message nests, the message, the `503` error), each in the snapshot, and two assertions that it
+  pinned. Keeping the cause off the wire takes four wire shapes (the failure, the Run, the
+  message that nests it, the `503` error), each in the snapshot, and two assertions that it
   stays off (`listMessages`, `getRun`); a new shape that nests a Run, or a new listing of an
   error with a cause, must omit it too, which only review of the snapshot diff holds.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
@@ -577,12 +577,12 @@ built-in call is not written; the built-in is called.
 ### A Run's guarded moves
 
 A Run's status moves are the model's plain transitions (`startRun(run)`, `completeRun(run,
-reply)`, `failRun(run, cause)`, each named for the move it makes, not the status it reaches, as the
+replyId)`, `failRun(run, cause)`, each named for the move it makes, not the status it reaches, as the
 started Run's stored status stays `generating`), each written through `RunService.move(run,
 transition)`: it moves the Run it is given and writes the result under the status that Run was
 read in, so a caller of a move hands over the Run it holds and the transition, never a `where`; a
 transition that takes an argument gets it from a lambda at the call (`(run) => completeRun(run,
-message)`). `move` is a method of `RunService` over its `update(to, where)`, the service's
+message.id)`). `move` is a method of `RunService` over its `update(to, where)`, the service's
 flexible write as `ChatService`'s, which stamps `updatedAt` and writes under any `where` of the
 Run's id and its narrowings, the repository's `RunEntityWhere`; a write whose `where` matches no
 Run dies in `RunRepository.update`, which both reach. `failRun` takes the `Cause` that ended the

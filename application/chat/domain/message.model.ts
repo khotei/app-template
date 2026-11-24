@@ -1,11 +1,11 @@
-import { Effect, Predicate, Schema, Struct } from 'effect'
+import { Effect, Predicate, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { messageAuthors, textPattern } from '@app-template/kernel/data'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { isBlank, MessageId } from '#chat/domain/message.util'
-import { RunFields } from '#chat/domain/run-fields.model'
+import { Run } from '#chat/domain/run.model'
 
 export const MessageAuthor = Schema.Literals(messageAuthors)
 export type MessageAuthor = typeof MessageAuthor.Type
@@ -23,21 +23,9 @@ export class Message extends Model.Class<Message>('Message')({
     }),
   ),
   createdAt: Model.DateTimeInsertFromDate,
-  /**
-   * A user's newest Run, an assistant's own, flat; read with the message, never written. Its
-   * `select` struct, not the class, so a plain record of a Run's fields fits it.
-   */
+  /** A user's newest Run, an assistant's own; read with the message, never written. */
   run: Model.Field({
-    select: Schema.OptionFromNullOr(RunFields.select).pipe(
-      Schema.withConstructorDefault(Effect.succeedNone),
-    ),
-    json: Schema.OptionFromNullOr(RunFields.json),
+    select: Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+    json: Schema.OptionFromNullOr(Run.json),
   }),
 }) {}
-
-/** A message's own fields: what a Run nests of it. */
-export const MessageFields = Message.mapFields(Struct.omit(['run']))
-export type MessageFields = typeof MessageFields.Type
-
-/** A message's own fields on the wire. */
-export const MessageFieldsJson = Message.json.mapFields(Struct.omit(['run']))

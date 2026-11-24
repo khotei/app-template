@@ -11,7 +11,13 @@ export const ChatEntity = Schema.Struct({
 })
 export type ChatEntity = typeof ChatEntity.Type
 
+/** A write finds its chat by the key, narrowed by the rest. */
 export type ChatEntityWhere = Types.Simplify<
+  Pick<ChatEntity, 'id'> & Partial<Pick<ChatEntity, 'userId' | 'title'>>
+>
+
+/** A read finds a chat by the key or a user's chats by their owner, narrowed by the rest. */
+export type ChatEntitySelectWhere = Types.Simplify<
   RequireAtLeastOne<Pick<ChatEntity, 'id' | 'userId'>> & Partial<Pick<ChatEntity, 'title'>>
 >
 

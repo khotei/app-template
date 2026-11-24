@@ -6,8 +6,7 @@ import { maxTitleLength, textPattern } from '@app-template/kernel/data'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
-import { isActiveRun } from '#chat/domain/run.model'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import { isActiveRun, Run, type RunStatus } from '#chat/domain/run.model'
 import { Status } from '#chat/domain/status.model'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
@@ -31,15 +30,10 @@ export class Chat extends Model.Class<Chat>('Chat')({
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,
-  /**
-   * The newest Run, flat, read with the chat and never written; none before its first ask. Its
-   * `select` struct, not the class, so a plain record of a Run's fields fits it.
-   */
+  /** The newest Run, read with the chat and never written; none before its first ask. */
   run: Model.Field({
-    select: Schema.OptionFromNullOr(RunFields.select).pipe(
-      Schema.withConstructorDefault(Effect.succeedNone),
-    ),
-    json: Schema.OptionFromNullOr(RunFields.json),
+    select: Schema.OptionFromNullOr(Run).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+    json: Schema.OptionFromNullOr(Run.json),
   }),
 }) {}
 
@@ -51,14 +45,14 @@ const chatStatuses = {
   failed: 'failed',
 } as const satisfies Record<RunStatus, ChatStatus>
 
-export const buildChatStatus = (newestRun: Option.Option<RunFields>): ChatStatus =>
+export const buildChatStatus = (newestRun: Option.Option<Run>): ChatStatus =>
   Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
 
 /** True while no ask has reached the chat: every user message starts a Run, so it has none. */
 export const isNewChat = (chat: Chat): boolean => Option.isNone(chat.run)
 
 /** An ask takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
-export const ensureChatNotBusy = Effect.fnUntraced(function* (newestRun: Option.Option<RunFields>) {
-  const active = Option.filter<RunFields>(newestRun, isActiveRun)
+export const ensureChatNotBusy = Effect.fnUntraced(function* (newestRun: Option.Option<Run>) {
+  const active = Option.filter<Run>(newestRun, isActiveRun)
   if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
 })
