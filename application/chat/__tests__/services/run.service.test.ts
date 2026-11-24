@@ -14,7 +14,7 @@ import {
   type RunStatus,
   startRun,
 } from '#chat/domain/run.model'
-import { RunService, type RunWhere } from '#chat/services/run.service'
+import { type RunGetOne, RunService } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
@@ -43,7 +43,7 @@ const moves: ReadonlyArray<{
 /** Each read a where names: the filter the repository takes for it, and its key alone. */
 const reads: ReadonlyArray<{
   readonly name: string
-  readonly where: RunWhere
+  readonly where: RunGetOne
   readonly filter: RunEntitySelectWhere
   readonly key: RunNotFoundError['where']
 }> = [

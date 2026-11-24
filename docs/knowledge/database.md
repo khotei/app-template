@@ -157,25 +157,24 @@ their codecs: a write encodes the model into the row, the set takes its fields f
 and a read decodes the entities into models; a mapping failure dies.
 
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
-values alone: a branded id, an `Option` for a field that may be null
-(`{ id, title: Option.none() }` is a chat still untitled), a list for one of several
-(`status: activeRunStatuses`). It is one plain type whose key is a required field, and so is the
-owner on a type only a call on a user's behalf takes (`ChatOwnerWhere`, `MessageWhere`,
-`RunOwnerWhere`); a narrowing a caller may leave out is an absent key, never an `Option` nor an
-`undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere` is the
-id with `userId?` and `title?`, so `ChatService.update` takes the user's rename and the title
-job's alike. What a service hands a repository is Drizzle's filter object, which
-`encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
-none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, any other value stays
-itself (`chats.selectOne(encodeWhere(where))`). Every field of the value becomes a condition, so
-a caller writes its where as a literal of the type's fields, which the compiler checks, and never
-hands a record whole. `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere`
-does, so its where is one type per key, the api's `RunOwnerWhere` or the worker's
-`RunMessageWhere`. So Drizzle's operators
-appear in that one function, never in a service, a handler or a use case. Neither an `undefined`
-field, which `exactOptionalPropertyTypes` ([tooling.md › TypeScript](tooling.md#typescript))
-refuses at `make typecheck`, nor an empty where has a rule: Drizzle throws on the first, and the
-repository's key refuses the second.
+values alone: a branded id, an `Option` for a field that may be null (`{ id, title: Option.none() }`
+is a chat still untitled), a list for one of several (`status: activeRunStatuses`). It is one plain
+type whose key is a required field, and so is the owner on a type only a call on a user's behalf
+takes (`ChatGetOne`, `MessageGetOne`, the first member of `RunGetOne`); a narrowing a caller may
+leave out is an absent key, never an `Option` nor an `undefined` ([effect.md ›
+Schemas](../../.claude/rules/effect.md#schemas)): `ChatUpdateWhere` is the id with `userId?` and
+`title?`, so `ChatService.update` takes the user's rename and the title job's alike. What a service
+hands a repository is Drizzle's filter object, which `encodeWhere(where)` of
+`@app-template/kernel/data` makes of any service's where: an `Option` of none becomes `{ isNull:
+true }`, of some its value, a list `{ in: […] }`, any other value stays itself
+(`chats.selectOne(encodeWhere(where))`). Every field of the value becomes a condition, so a caller
+writes its where as a literal of the type's fields, which the compiler checks, and never hands a
+record whole. `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere` does, so
+`RunGetOne` is a union of one member per key, the api's by the id and owner or the worker's by the
+message and statuses. So Drizzle's operators appear in that one function, never in a service, a
+handler or a use case. Neither an `undefined` field, which `exactOptionalPropertyTypes` ([tooling.md
+› TypeScript](tooling.md#typescript)) refuses at `make typecheck`, nor an empty where has a rule:
+Drizzle throws on the first, and the repository's key refuses the second.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder
@@ -256,7 +255,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
 
 `ChatRepository.delete(where)` is one statement: the chat's messages and Runs go by the
 cascade, and `ChatService.delete` is all the api's delete calls. It takes the chat's id with its
-owner, both required (`ChatOwnerWhere`), reads the chat under them to name the refusal and
+owner, both required (`ChatGetOne`), reads the chat under them to name the refusal and
 deletes under them again, so a call that names no user fails typecheck and another user's chat
 is `ChatNotFoundError`.
 

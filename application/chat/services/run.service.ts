@@ -6,27 +6,24 @@ import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run, type RunStatus } from '#chat/domain/run.model'
 
-/** A Run by id in its chat, of the user `userId` names: what a call on a user's behalf reads. */
-export type RunOwnerWhere = Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userId'>>
+export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>
 
-/** The Run of a user's message in one of the statuses `status` lists: what its job reads. */
-export type RunMessageWhere = Types.Simplify<
-  Pick<Run, 'userMessageId'> & { readonly status: ReadonlyArray<RunStatus> }
->
-
-/** A Run as a read finds it: a user's by its id, or a message's by its status. */
-export type RunWhere = RunOwnerWhere | RunMessageWhere
+/**
+ * A Run as a read finds it: a user's by its id in its chat, which a call on a user's behalf
+ * reads, or a message's in one of the statuses `status` lists, which its job reads.
+ */
+export type RunGetOne =
+  | Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userId'>>
+  | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly status: ReadonlyArray<RunStatus> }>
 
 /** A Run by its `id` under the status it must still hold, as a write finds it. */
-type RunUpdateWhere = Types.Simplify<Pick<Run, 'id' | 'status'>>
+export type RunUpdateWhere = Types.Simplify<Pick<Run, 'id' | 'status'>>
 
 export class RunService extends Context.Service<
   RunService,
   {
-    readonly create: (
-      fields: Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>,
-    ) => Effect.Effect<Run>
-    readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
+    readonly create: (fields: RunCreate) => Effect.Effect<Run>
+    readonly getOne: (where: RunGetOne) => Effect.Effect<Run, RunNotFoundError>
     /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
     readonly update: (to: Run, where: RunUpdateWhere) => Effect.Effect<Run>
     /**
@@ -39,9 +36,7 @@ export class RunService extends Context.Service<
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
 
-    const create = Effect.fn('RunService.create')(function* (
-      fields: Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>,
-    ) {
+    const create = Effect.fn('RunService.create')(function* (fields: RunCreate) {
       const inserted = yield* Run.insert.makeEffect(fields)
       const row = yield* encodeWith(Run.insert)(inserted)
 
@@ -50,7 +45,7 @@ export class RunService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
-      (where: RunWhere) => runs.selectOne(encodeWhere(where)),
+      (where: RunGetOne) => runs.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Run))),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>

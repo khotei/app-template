@@ -14,14 +14,14 @@ paths:
   them after the effect; a body that only delegates is passed as is
   (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff
-- const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
+- const getOne = Effect.fn('OrderService.getOne')((where: OrderGetOne) =>
 -   orders.selectOne(encodeWhere(where)).pipe(               // a pipe nested in the body
 -     Effect.flatMap(decodeWith(Schema.Option(Order))),
 -     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 -   ),
 - )
 + const getOne = Effect.fn('OrderService.getOne')(
-+   (where: OrderWhere) => orders.selectOne(encodeWhere(where)),
++   (where: OrderGetOne) => orders.selectOne(encodeWhere(where)),
 +   Effect.flatMap(decodeWith(Schema.Option(Order))),
 +   (found, where) =>
 +     Effect.flatMap(found, Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
