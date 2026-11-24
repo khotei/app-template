@@ -78,7 +78,7 @@ export class ChatService extends Context.Service<
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatOwnerWhere) {
       yield* getOne(where)
 
-      // Under the owner again; the cascade takes the messages and the Runs, by their `chat_id`.
+      // Under the owner again; the cascade takes the messages and the Runs, by their key to the chat.
       yield* chats.delete(where)
     })
 

@@ -32,9 +32,10 @@ const chat = (id: string, userId: string): ChatEntity => ({
   run: null,
 })
 
-const question = (id: string, chatId: string): MessageEntity => ({
+const question = (id: string, asked: ChatEntity): MessageEntity => ({
   id,
-  chatId,
+  chatId: asked.id,
+  userId: asked.userId,
   author: 'user',
   text: 'Hi',
   createdAt,
@@ -52,6 +53,7 @@ const run = (
   ({
     id,
     chatId: answered.chatId,
+    userId: answered.userId,
     userMessageId: answered.id,
     status,
     failure: status === 'failed' ? { cause: '529 overloaded' } : null,
@@ -181,7 +183,7 @@ describe('ChatRepository', () => {
       const runs = yield* RunRepository
       const ada = '0192d4e0-7b3a-7c00-8000-000000000010'
       const asked = chat('0192d4e0-7b3a-7c00-8000-000000000030', ada)
-      const first = question('0192d4e0-7b3a-7c00-8000-000000000050', asked.id)
+      const first = question('0192d4e0-7b3a-7c00-8000-000000000050', asked)
       const older = run('0192d4e0-7b3a-7c00-8000-000000000060', first, { status: 'failed' })
       const newer = run('0192d4e0-7b3a-7c00-8000-000000000061', first, { seconds: 1 })
       yield* insertUser(ada)
@@ -205,8 +207,8 @@ describe('ChatRepository', () => {
       const cy = '0192d4e0-7b3a-7c00-8000-000000000012'
       const kept = chat('0192d4e0-7b3a-7c00-8000-000000000033', cy)
       const deleted = chat('0192d4e0-7b3a-7c00-8000-000000000034', cy)
-      const keptQuestion = question('0192d4e0-7b3a-7c00-8000-000000000050', kept.id)
-      const deletedQuestion = question('0192d4e0-7b3a-7c00-8000-000000000051', deleted.id)
+      const keptQuestion = question('0192d4e0-7b3a-7c00-8000-000000000050', kept)
+      const deletedQuestion = question('0192d4e0-7b3a-7c00-8000-000000000051', deleted)
       const deletedRun = run('0192d4e0-7b3a-7c00-8000-000000000060', deletedQuestion)
       yield* insertUser(cy)
       yield* Effect.forEach([kept, deleted], chats.insert)

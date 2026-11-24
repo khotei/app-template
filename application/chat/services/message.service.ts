@@ -17,7 +17,9 @@ export type MessageWhere = Types.Simplify<
 export class MessageService extends Context.Service<
   MessageService,
   {
-    readonly create: (fields: Pick<Message, 'chatId' | 'text' | 'author'>) => Effect.Effect<Message>
+    readonly create: (
+      fields: Pick<Message, 'chatId' | 'userId' | 'text' | 'author'>,
+    ) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
     /** The chat's messages in creation order. */
     readonly getMany: (
@@ -29,7 +31,7 @@ export class MessageService extends Context.Service<
     const messages = yield* MessageRepository
 
     const create = Effect.fn('MessageService.create')(function* (
-      fields: Pick<Message, 'chatId' | 'text' | 'author'>,
+      fields: Pick<Message, 'chatId' | 'userId' | 'text' | 'author'>,
     ) {
       const inserted = yield* Message.insert.makeEffect(fields)
       const row = yield* encodeWith(Message.insert)(inserted)

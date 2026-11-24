@@ -28,6 +28,7 @@ const userMessage = (id: string, { chatId, seconds = 0 }: { chatId: string; seco
   ({
     id,
     chatId,
+    userId,
     author: 'user',
     text: 'Hi',
     createdAt: at(seconds),
@@ -45,6 +46,7 @@ const run = (
   ({
     id,
     chatId: answered.chatId,
+    userId: answered.userId,
     userMessageId: answered.id,
     status,
     failure: (

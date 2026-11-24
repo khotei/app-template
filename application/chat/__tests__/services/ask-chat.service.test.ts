@@ -120,6 +120,7 @@ describe('AskChatService', () => {
           new Run({
             id: run.id,
             chatId: chat.id,
+            userId: chat.userId,
             userMessageId: userMessage.id,
             createdAt: run.createdAt,
             updatedAt: run.updatedAt,
@@ -130,6 +131,7 @@ describe('AskChatService', () => {
             author: 'user',
             id: userMessage.id,
             chatId: chat.id,
+            userId: chat.userId,
             text: 'Plan a weekend in Lisbon',
             createdAt: sentAt,
           }),
@@ -337,6 +339,7 @@ describe('AskChatService', () => {
           new Run({
             id: retried.id,
             chatId: chat.id,
+            userId: chat.userId,
             userMessageId: firstMessage.id,
             createdAt: retried.createdAt,
             updatedAt: retried.createdAt,

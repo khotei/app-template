@@ -35,6 +35,7 @@ import {
   assistantMessageAt,
   chatId,
   firstMessage,
+  owner,
   queuedRun,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
@@ -55,6 +56,7 @@ const andNow = userMessageAt(4, 'And now?')
 const lastRun = new Run({
   id: queuedRun.id,
   chatId,
+  userId: owner,
   userMessageId: andNow.id,
   createdAt: andNow.createdAt,
   updatedAt: andNow.createdAt,
@@ -219,6 +221,7 @@ describe('ReplyChatService', () => {
           author: 'assistant',
           id: stored.id,
           chatId,
+          userId: owner,
           text: 'Sure.',
           createdAt: at(1000),
         })

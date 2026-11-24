@@ -30,7 +30,7 @@ export class RunService extends Context.Service<
   RunService,
   {
     readonly create: (
-      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>,
     ) => Effect.Effect<Run>
     readonly getOne: (where: RunWhere) => Effect.Effect<Run, RunNotFoundError>
     /** Writes `to` on the Run `where` finds and moves its `updatedAt`. */
@@ -46,7 +46,7 @@ export class RunService extends Context.Service<
     const runs = yield* RunRepository
 
     const create = Effect.fn('RunService.create')(function* (
-      fields: Types.Simplify<Pick<Run, 'chatId' | 'userMessageId'>>,
+      fields: Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>,
     ) {
       const inserted = yield* Run.insert.makeEffect(fields)
       const row = yield* encodeWith(Run.insert)(inserted)

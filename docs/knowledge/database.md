@@ -57,6 +57,12 @@ the entities derived from them.
   `(user_message_id, chat_id)` over `messages (id, chat_id)` (`runs_user_message_id_chat_id_fk`),
   so the message can only be one of the Run's chat. The cascade never reaches S3: a flow that
   stores bytes beside a row deletes them itself.
+- **A message and a Run store their chat's owner.** `messages.user_id` and `runs.user_id` repeat
+  `chats.user_id`, written once by the insert: an ask takes it from the chat it was given, a
+  retry from the failed Run, a reply from the Run it started. The key that names the chat holds
+  the copy: the pair `(chat_id, user_id)` over `chats (id, user_id)`
+  (`messages_chat_id_user_id_fk`, `runs_chat_id_user_id_fk`), in place of a key on `chat_id`
+  alone and cascading as it did, so the database refuses a row whose owner is not its chat's.
 - **A link lives in one foreign key, never in an array beside it.** Postgres cannot hold a
   foreign key on array elements, so a copy would drift: a message's Runs are the rows whose
   `runs.user_message_id` names it, and `messages` keeps no list of them.

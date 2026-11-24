@@ -1,6 +1,7 @@
 import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
+import { UserId } from '@app-template/application/identity'
 import { activeRunStatuses, RunFailure, runStatuses } from '@app-template/kernel/data'
 
 import { ChatId } from '#chat/domain/chat.util'
@@ -28,6 +29,8 @@ export { RunFailure }
 export class Run extends Model.Class<Run>('Run')({
   id: Model.UuidV7Insert(RunId),
   chatId: ChatId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
+  /** The owner of the Run's chat. */
+  userId: UserId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   userMessageId: MessageId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
   failure: Schema.OptionFromNullOr(RunFailure).pipe(
