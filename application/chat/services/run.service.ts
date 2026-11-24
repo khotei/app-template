@@ -1,6 +1,6 @@
-import { Array as Arr, Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
+import { Context, Effect, Layer, pipe, Schema, Struct, type Types } from 'effect'
 
-import { RunRepository } from '@app-template/kernel/data'
+import { encodeWhere, RunRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
@@ -50,13 +50,7 @@ export class RunService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
-      // The owner is read first, so a where that names one is never found without it.
-      (where: RunWhere) =>
-        runs.selectOne(
-          'userId' in where
-            ? { id: where.id, chatId: where.chatId, userId: where.userId }
-            : { userMessageId: where.userMessageId, status: { in: Arr.copy(where.status) } },
-        ),
+      (where: RunWhere) => runs.selectOne(encodeWhere(where)),
       Effect.flatMap(decodeWith(Schema.Option(Run))),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>
@@ -66,15 +60,12 @@ export class RunService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('RunService.update')(function* (
-      to: Run,
-      { id, status }: RunUpdateWhere,
-    ) {
+    const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
       // Without `to`'s `updatedAt`, so the update variant's default moves it to now.
       const set = yield* Run.update.makeEffect(Struct.omit(to, ['updatedAt']))
       const row = yield* encodeWith(Run.update)(set)
 
-      yield* runs.update(row, { id, status })
+      yield* runs.update(row, pipe(where, Struct.pick(['id', 'status']), encodeWhere))
       return new Run({ ...to, ...set })
     }, Effect.orDie)
 

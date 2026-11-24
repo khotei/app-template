@@ -39,24 +39,25 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). A
   relational query (`db.query.<table>`) takes it as it is; a core-builder statement (`update`,
   `delete`, a plain `select`) takes `encodeFilter(<table>, where)`, the one function over it.
-- A service's `where` is model values alone: a branded id, an `Option`, a list. Its key, and the
-  owner on a user's call, are required fields; a narrowing the caller may leave out is
-  `T | undefined` ([effect.md › Schemas](effect.md#schemas)). The method builds the repository's
-  filter where it calls the repository, branching on such a narrowing and never passing its
-  `where` through, so Drizzle's operators stay there and no filter holds an `undefined`. A method
-  two callers reach with different fields takes a union of two named wheres, never one where of
-  optional keys. The types and the alias of a relational query:
+- A service's `where` is model values alone, one plain type: a branded id, an `Option`, a list.
+  Its key, and the owner on a type only a user's calls take, are required fields; a narrowing the
+  caller may leave out is an absent key, `key?: T` ([effect.md › Schemas](effect.md#schemas)).
+- A method hands its repository `encodeWhere(where)`, the one function over a service's where: an
+  `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, any other value itself. It first
+  picks the where's fields, listed once beside its type (`Struct.pick`), so a record handed whole
+  adds no condition. No method writes a Drizzle operator, copies a field or tests which fields
+  its where holds. A read by either of two keys, as its repository's `Keyed` names them, takes a
+  where per key, encoded unpicked. The types and the alias of a relational query:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
 
 ```diff
 - orders.getOne({ id, note: { isNull: true } })             // the caller speaks Drizzle
 + orders.getOne({ id, note: Option.none() })
-+ // OrderService.getOne, at its repository call:
-+ repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
-- orders.list({ customerId, status: Option.fromUndefinedOr(query.status) })  // none is a null column
-+ orders.list({ customerId, status: query.status })         // status: OrderStatus | undefined
-+ // OrderService.list, at its repository call:
-+ repository.selectMany({ customerId, ...(status === undefined ? {} : { status }) })
+- orders.getMany({ customerId, status: Option.fromUndefinedOr(query.status) })  // a null column
++ orders.getMany({ customerId, ...(query.status === undefined ? {} : { status: query.status }) })
+- repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
++ // OrderWhere = Pick<Order, 'id'> & Partial<Pick<Order, (typeof orderWhereFields)[number]>>
++ pipe(where, Struct.pick(orderWhereFields), encodeWhere, repository.selectOne)
 ```
 
 ## What is stored

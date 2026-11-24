@@ -15,13 +15,13 @@ paths:
   (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff
 - const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
--   orders.selectOne({ id: where.id }).pipe(               // a pipe nested in the body
+-   orders.selectOne(encodeWhere(where)).pipe(               // a pipe nested in the body
 -     Effect.flatMap(decodeWith(Schema.Option(Order))),
 -     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 -   ),
 - )
 + const getOne = Effect.fn('OrderService.getOne')(
-+   (where: OrderWhere) => orders.selectOne({ id: where.id }),
++   (where: OrderWhere) => orders.selectOne(encodeWhere(where)),
 +   Effect.flatMap(decodeWith(Schema.Option(Order))),
 +   (found, where) =>
 +     Effect.flatMap(found, Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),

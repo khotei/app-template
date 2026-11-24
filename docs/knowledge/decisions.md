@@ -711,9 +711,9 @@ bug, and a race dies on the write's guard instead. A reply writes the Run twice,
   the same way. A transition that takes an argument is a lambda at each call. `update` takes the
   status of its guard from its caller, so a status move written through it can name another status
   than the one read: only `move`, the line of `.claude/rules/layering.md` and review hold it. A
-  where that fits both of `RunWhere`'s members compiles, and is read as the user's. The api's `404`
-  for a Run carries `where: { id }`, and its schema lists the `userMessageId` key the api never
-  sends. A
+  where that fits both of `RunWhere`'s members compiles, and is read under every field it holds.
+  The api's `404` for a Run carries `where: { id }`, and its schema lists the `userMessageId` key
+  the api never sends. A
   refused send whose job SQS took after all, once a worker settled the Run, responds with `500`. A
   later stage the user should see before `generating` (reading a chat's files) adds its status back:
   one value of `runStatuses`, one row of the moves' table, one move, and a regenerated `init`.

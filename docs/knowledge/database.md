@@ -159,18 +159,23 @@ and a read decodes the entities into models; a mapping failure dies.
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
 values alone: a branded id, an `Option` for a field that may be null
 (`{ id, title: Option.none() }` is a chat still untitled), a list for one of several
-(`status: activeRunStatuses`). Its key is a required field, and so is the owner a call on a
-user's behalf names in its type (`ChatOwnerWhere`, `RunOwnerWhere`, `MessageWhere`); a narrowing
-a caller may leave out, a query-string parameter, is `T | undefined`, never an `Option`
-([effect.md › Schemas](../../.claude/rules/effect.md#schemas)). A method two callers reach with
-different fields takes a union of two named wheres: `ChatService.update` the user's rename or the
-title job's, `RunService.getOne` the api's read or the worker's. What a service hands a
-repository is Drizzle's relational filter object, built in the method that calls the repository,
-field by field from its where: a value as it is, an `Option` of none as `{ isNull: true }`, a
-list as `{ in: […] }`, a narrowing left out as no key. So Drizzle's operators appear only at a
-service's repository call, never in a handler, a use case or a `<Verb><Model>Service`, and no
-filter holds an `undefined` field, which Drizzle throws on and `exactOptionalPropertyTypes`
-([tooling.md › TypeScript](tooling.md#typescript)) refuses at `make typecheck`.
+(`status: activeRunStatuses`). It is one plain type whose key is a required field, and so is the
+owner on a type only a call on a user's behalf takes (`ChatOwnerWhere`, `MessageWhere`,
+`RunOwnerWhere`); a narrowing a caller may leave out is an absent key, never an `Option` nor an
+`undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere` is the
+id with `userId?` and `title?`, so `ChatService.update` takes the user's rename and the title
+job's alike. What a service hands a repository is Drizzle's filter object, which
+`encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
+none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, any other value stays
+itself. A service lists its where's fields once, derives the type from the list and picks them
+before encoding (`pipe(where, Struct.pick(chatWhereFields), encodeWhere, chats.selectOne)`), so a
+record handed whole as a where is read by those fields alone. `RunService.getOne` reads by
+either of two keys, as `RunEntitySelectWhere` does, so its where is one type per key, the api's
+`RunOwnerWhere` or the worker's `RunMessageWhere`, encoded unpicked. So Drizzle's operators
+appear in that one function, never in a service, a handler or a use case. Neither an `undefined`
+field, which `exactOptionalPropertyTypes` ([tooling.md › TypeScript](tooling.md#typescript))
+refuses at `make typecheck`, nor an empty where has a rule: Drizzle throws on the first, and the
+repository's key refuses the second.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder

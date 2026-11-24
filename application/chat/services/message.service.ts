@@ -1,13 +1,18 @@
-import { Context, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, pipe, Schema, Struct, type Types } from 'effect'
 
-import { MessageRepository } from '@app-template/kernel/data'
+import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 
+/** The fields a message is found by: a where handed wider is read by these alone. */
+const messageWhereFields = ['id', 'chatId', 'userId'] as const satisfies ReadonlyArray<
+  keyof Message
+>
+
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
-export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
+export type MessageWhere = Types.Simplify<Pick<Message, (typeof messageWhereFields)[number]>>
 
 export class MessageService extends Context.Service<
   MessageService,
@@ -36,7 +41,8 @@ export class MessageService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
-      ({ id, chatId, userId }: MessageWhere) => messages.selectOne({ id, chatId, userId }),
+      (where: MessageWhere) =>
+        pipe(where, Struct.pick(messageWhereFields), encodeWhere, messages.selectOne),
       Effect.flatMap(decodeWith(Schema.Option(Message))),
       (found, where) =>
         Effect.flatMap(
@@ -46,7 +52,8 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      ({ chatId }: Types.Simplify<Pick<Message, 'chatId'>>) => messages.selectMany({ chatId }),
+      (where: Types.Simplify<Pick<Message, 'chatId'>>) =>
+        pipe(where, Struct.pick(['chatId']), encodeWhere, messages.selectMany),
       Effect.flatMap(decodeWith(Schema.Array(Message))),
     )
 

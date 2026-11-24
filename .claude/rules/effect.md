@@ -48,7 +48,7 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
 | What may be absent | Its spelling, which `exactOptionalPropertyTypes` holds apart | Never |
 |---|---|---|
 | a model's value (a column that is null) | an `Option` (`Schema.OptionFromNullOr(…)` in a model) | `null` or `undefined` for it in code: `null` exists only in a row and on the wire |
-| a narrowing a caller may leave out (a query-string parameter) | `T \| undefined` in the type (`Schema.optional(…)` in the api's schema), handed to the service as it is; the service branches on it where it builds the repository's filter ([repositories.md](repositories.md#a-wheres-two-forms)) | an `Option`, which is not "the caller passed nothing"; a helper that cleans `undefined` out |
+| a narrowing a caller may leave out (a query-string parameter) | an absent key of the service's `where`, `key?: T` ([repositories.md](repositories.md#a-wheres-two-forms)); a caller holding `T \| undefined` (`Schema.optional(…)` in the api's schema) builds the object without the key, as the next row shows | an `Option`, which is not "the caller passed nothing"; a helper that cleans `undefined` out |
 | a key of an object: `key?: T` alone means the key is absent | the object built without the key: `{ id, ...(note === undefined ? {} : { note }) }` | `{ id, note: undefined }`, a cast, `!` |
 | nothing: a key or an owner | a required field, where an `undefined` does not compile | `?` or `\| undefined` on it |
 
