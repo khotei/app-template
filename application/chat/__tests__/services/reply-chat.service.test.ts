@@ -13,6 +13,7 @@ import {
   type Types,
   UndefinedOr,
 } from 'effect'
+import { Model } from 'effect/schema'
 import { TestClock } from 'effect/testing'
 
 import type {
@@ -30,7 +31,6 @@ import { Message, MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
-import { RunFields } from '#chat/domain/run-fields.model'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
   assistantMessageAt,
@@ -223,7 +223,8 @@ describe('ReplyChatService', () => {
           assistantMessage: Option.some(message),
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
-          yield* encodeWith(RunFields)(done),
+          // An explicit time enters the update variant marked as an override of its default.
+          yield* encodeWith(Run.update)({ ...done, updatedAt: Model.Override(done.updatedAt) }),
           { id: queuedRun.id, status: ['generating'] },
         ])
         assert.deepStrictEqual(logs, [])

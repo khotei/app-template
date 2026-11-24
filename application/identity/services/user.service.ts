@@ -1,11 +1,10 @@
-import { Context, DateTime, Effect, Layer, Redacted, Schema } from 'effect'
+import { Context, Effect, Layer, Redacted, Schema, SchemaIssue } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
 import { UserRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
-import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
 import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
 
@@ -28,7 +27,6 @@ export class UserService extends Context.Service<
     const users = yield* UserRepository
     const digest = yield* Digest.Digest
     const random = yield* SecureRandom.SecureRandom
-    const generateId = yield* idGenerator
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const hash = yield* digest.digestHex(Digest.sha256, encoder.encode(Redacted.value(secret)))
@@ -43,17 +41,15 @@ export class UserService extends Context.Service<
     )
 
     const register = Effect.gen(function* () {
-      const id = yield* generateId(UserId)
-      const createdAt = yield* DateTime.now
       const bytes = yield* random.randomBytes(secretBytes)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
-      const user = new User({ id, createdAt })
+      const fields = yield* User.insert.makeEffect({})
       const credential = yield* hashSecret(fresh)
-      const row = yield* encodeWith(User)(user)
+      const row = yield* encodeWith(User.insert)(fields)
       yield* users.insert(row, credential)
-      return { user, secret: fresh }
-    })
+      return { user: new User(fields), secret: fresh }
+    }).pipe(Effect.catchIf(SchemaIssue.isIssue, Effect.die))
 
     const recognise = Effect.fn('UserService.recognise')(
       function* (secret: UserSecret) {

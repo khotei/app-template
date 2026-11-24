@@ -1,8 +1,9 @@
 import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
 import { activeRunStatuses } from '@app-template/kernel/data'
 
-import { MessageFields } from '#chat/domain/message.model'
+import { MessageFields, MessageFieldsJson } from '#chat/domain/message.model'
 import {
   RunNotRetryableError,
   RunStartedError,
@@ -15,13 +16,15 @@ import { hasStatus } from '#chat/domain/status.model'
  * The work of answering one user message; a retry is a new Run of the same message. Read with
  * its messages, flat; its writes never touch them.
  */
-export class Run extends Schema.Class<Run>('Run')({
-  ...RunFields.fields,
-  userMessage: MessageFields,
+export class Run extends RunFields.extend<Run>('Run')({
+  userMessage: Model.Field({ select: MessageFields, json: MessageFieldsJson }),
   /** The reply, none until the Run is done. */
-  assistantMessage: Schema.OptionFromNullOr(MessageFields).pipe(
-    Schema.withConstructorDefault(Effect.succeedNone),
-  ),
+  assistantMessage: Model.Field({
+    select: Schema.OptionFromNullOr(MessageFields).pipe(
+      Schema.withConstructorDefault(Effect.succeedNone),
+    ),
+    json: Schema.OptionFromNullOr(MessageFieldsJson),
+  }),
 }) {}
 
 // The statuses the data layer's active index holds, served through the module's entry.

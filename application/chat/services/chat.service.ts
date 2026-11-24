@@ -1,10 +1,10 @@
 import {
   Context,
-  DateTime,
   Effect,
   Layer,
   Option,
   Schema,
+  SchemaIssue,
   Struct,
   type Types,
   UndefinedOr,
@@ -12,11 +12,10 @@ import {
 
 import type { UserId } from '@app-template/application/identity'
 import { type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatFields } from '#chat/domain/chat.model'
-import { ChatId } from '#chat/domain/chat.util'
+import { Chat } from '#chat/domain/chat.model'
 
 /**
  * A chat by id; a `userId` limits it to that user's, a `title` to one so titled, `none` to an
@@ -45,17 +44,14 @@ export class ChatService extends Context.Service<
 >()('@app-template/application/chat/services/ChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const id = yield* generateId(ChatId)
-      const createdAt = yield* DateTime.now
-      const chat = new Chat({ id, userId, createdAt, updatedAt: createdAt })
-      const row = yield* encodeWith(ChatFields)(chat)
+      const fields = yield* Chat.insert.makeEffect({ userId })
+      const row = yield* encodeWith(Chat.insert)(fields)
 
       yield* chats.insert(row)
-      return chat
-    })
+      return new Chat(fields)
+    }, Effect.orDie)
 
     const list = Effect.fn('ChatService.list')(
       (userId: UserId) => chats.selectMany({ userId }),
@@ -72,19 +68,19 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('ChatService.update')(function* (
-      fields: Types.Simplify<Pick<Chat, 'title'>>,
-      where: ChatWhere,
-    ) {
-      const chat = yield* getOne(where)
-      const updatedAt = yield* DateTime.now
-      const updated = new Chat({ ...chat, ...fields, updatedAt })
-      const row = yield* encodeWith(ChatFields)(updated)
+    const update = Effect.fn('ChatService.update')(
+      function* (fields: Types.Simplify<Pick<Chat, 'title'>>, where: ChatWhere) {
+        const chat = yield* getOne(where)
+        const set = yield* Chat.update.makeEffect(fields)
+        const row = yield* encodeWith(Chat.update)(set)
 
-      // Only the set fields, under the `where` again: a change landing after the read is kept.
-      yield* chats.update(Struct.pick(row, ['title', 'updatedAt']), encodeChatWhere(where))
-      return updated
-    })
+        // Only the update variant's fields, under the `where` again: a change landing after the
+        // read is kept.
+        yield* chats.update(row, encodeChatWhere(where))
+        return new Chat({ ...chat, ...set })
+      },
+      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
+    )
 
     const remove = Effect.fn('ChatService.delete')(function* (where: ChatWhere) {
       const chat = yield* getOne(where)

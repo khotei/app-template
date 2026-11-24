@@ -1,4 +1,5 @@
 import { Effect, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
 import { RunFailure, runStatuses } from '@app-template/kernel/data'
 
@@ -13,20 +14,27 @@ export type RunStatus = typeof RunStatus.Type
 // The column's shape is the model's own: one definition, served through the module's entry.
 export { RunFailure }
 
-/** A Run's own fields: what a chat and a message nest of it. */
-export const RunFields = Schema.Struct({
-  id: RunId,
-  chatId: ChatId,
-  userMessageId: MessageId,
+/** Written once, by the insert. */
+const insertOnly = Model.FieldExcept(['update', 'jsonUpdate'])
+
+/**
+ * A Run's own fields, as `runs` holds them: what a chat and a message nest of it. An update
+ * writes its status, failure, reply and `updatedAt`; no json variant holds `failure`, so the
+ * provider's text never reaches the wire.
+ */
+export class RunFields extends Model.Class<RunFields>('RunFields')({
+  // `Model.UuidV7Insert` without its update variant: the repository finds the row by its `where`.
+  id: Model.Field({ select: RunId, insert: Model.UuidV7WithGenerate(RunId), json: RunId }),
+  chatId: insertOnly(ChatId),
+  userMessageId: insertOnly(MessageId),
   status: RunStatus.pipe(Schema.withConstructorDefault(Effect.succeed('queued' as const))),
-  failure: Schema.OptionFromNullOr(RunFailure).pipe(
-    Schema.withConstructorDefault(Effect.succeedNone),
+  failure: Model.Sensitive(
+    Schema.OptionFromNullOr(RunFailure).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   ),
   /** The reply's id, none until the Run is done. */
   assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
   ),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-})
-export type RunFields = typeof RunFields.Type
+  createdAt: Model.DateTimeInsertFromDate,
+  updatedAt: Model.DateTimeUpdateFromDate,
+}) {}

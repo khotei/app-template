@@ -1,14 +1,13 @@
-import { Context, DateTime, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
 import { RunRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith, idGenerator } from '@app-template/packages/schema'
+import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import type { MessageFields } from '#chat/domain/message.model'
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
-import { RunId } from '#chat/domain/run.util'
-import { RunFields, type RunStatus } from '#chat/domain/run-fields.model'
+import type { RunStatus } from '#chat/domain/run-fields.model'
 
 /** `userId` limits a read to the user's chats, which every api caller passes. */
 type RunNarrowing = Partial<
@@ -42,24 +41,17 @@ export class RunService extends Context.Service<
 >()('@app-template/application/chat/services/RunService', {
   make: Effect.gen(function* () {
     const runs = yield* RunRepository
-    const generateId = yield* idGenerator
 
     const create = Effect.fn('RunService.create')(function* (userMessage: MessageFields) {
-      const id = yield* generateId(RunId)
-      const createdAt = yield* DateTime.now
-      const run = new Run({
-        id,
+      const fields = yield* Run.insert.makeEffect({
         chatId: userMessage.chatId,
-        userMessage,
         userMessageId: userMessage.id,
-        createdAt,
-        updatedAt: createdAt,
       })
-      const row = yield* encodeWith(RunFields)(run)
+      const row = yield* encodeWith(Run.insert)(fields)
 
       yield* runs.insert(row)
-      return run
-    })
+      return new Run({ ...fields, userMessage })
+    }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
       (where: RunWhere) => runs.selectOne(where),
@@ -73,13 +65,13 @@ export class RunService extends Context.Service<
     )
 
     const update = Effect.fn('RunService.update')(function* (to: Run, where: RunUpdateWhere) {
-      const updatedAt = yield* DateTime.now
-      const updated = new Run({ ...to, updatedAt })
-      const row = yield* encodeWith(RunFields)(updated)
+      // Without `to`'s `updatedAt`, so the update variant's default moves it to now.
+      const set = yield* Run.update.makeEffect(Struct.omit(to, ['updatedAt']))
+      const row = yield* encodeWith(Run.update)(set)
 
       yield* runs.update(row, where)
-      return updated
-    })
+      return new Run({ ...to, ...set })
+    }, Effect.orDie)
 
     const move = Effect.fn('RunService.move')(function* (
       run: Run,

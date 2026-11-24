@@ -1,4 +1,5 @@
 import { Effect, Option, Schema } from 'effect'
+import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
 import { maxTitleLength, textPattern } from '@app-template/kernel/data'
@@ -22,20 +23,24 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-/** A chat's own fields: the row its writes encode. */
-export const ChatFields = Schema.Struct({
-  id: ChatId,
-  userId: UserId,
+/** A chat as `chats` holds it, read with its newest Run: an update writes its title and `updatedAt`. */
+export class Chat extends Model.Class<Chat>('Chat')({
+  // `Model.UuidV7Insert` without its update variant: the repository finds the row by its `where`.
+  id: Model.Field({ select: ChatId, insert: Model.UuidV7WithGenerate(ChatId), json: ChatId }),
+  userId: UserId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-  createdAt: Schema.DateTimeUtcFromDate,
-  updatedAt: Schema.DateTimeUtcFromDate,
-})
-export type ChatFields = typeof ChatFields.Type
-
-export class Chat extends Schema.Class<Chat>('Chat')({
-  ...ChatFields.fields,
-  /** The newest Run, flat, read with the chat and never written; none before its first ask. */
-  run: Schema.OptionFromNullOr(RunFields).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
+  createdAt: Model.DateTimeInsertFromDate,
+  updatedAt: Model.DateTimeUpdateFromDate,
+  /**
+   * The newest Run, flat, read with the chat and never written; none before its first ask. Its
+   * `select` struct, not the class, so a plain record of a Run's fields fits it.
+   */
+  run: Model.Field({
+    select: Schema.OptionFromNullOr(RunFields.select).pipe(
+      Schema.withConstructorDefault(Effect.succeedNone),
+    ),
+    json: Schema.OptionFromNullOr(RunFields.json),
+  }),
 }) {}
 
 /** What a chat's newest Run makes of it; a chat no ask has reached yet is `idle`. */

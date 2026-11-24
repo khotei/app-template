@@ -4,9 +4,14 @@ import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer, Option } from 'effect'
 
 import type { UserId } from '@app-template/application/identity'
-import { type ChatEntitySet, type ChatEntityWhere, ChatRepository } from '@app-template/kernel/data'
+import {
+  type ChatColumns,
+  type ChatEntitySet,
+  type ChatEntityWhere,
+  ChatRepository,
+} from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
+import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
@@ -45,6 +50,46 @@ const chatCalls: ReadonlyArray<{ readonly name: string; readonly call: ChatCall 
 ]
 
 describe('ChatService', () => {
+  // The id's random bits come from `globalThis.crypto`, past any `SecureRandom` a test provides,
+  // so the case asserts its form, not its value.
+  it.effect(
+    'create inserts an untitled chat with a UUIDv7 id at the clock time, and returns it',
+    () => {
+      const inserts: Array<ChatColumns> = []
+      return Effect.gen(function* () {
+        const service = yield* ChatService
+
+        const created = yield* service.create(owner)
+
+        assert.isTrue(isUuidV7(created.id))
+        assertEquals(
+          created,
+          new Chat({ id: created.id, userId: owner, createdAt: epoch, updatedAt: epoch }),
+        )
+        assert.deepStrictEqual(inserts, [
+          {
+            id: created.id,
+            userId: owner,
+            title: null,
+            createdAt: DateTime.toDateUtc(epoch),
+            updatedAt: DateTime.toDateUtc(epoch),
+          },
+        ])
+      }).pipe(
+        Effect.provide(
+          chatServiceOver({
+            chats: {
+              insert: (row) =>
+                Effect.sync(() => {
+                  inserts.push(row)
+                }),
+            },
+          }),
+        ),
+      )
+    },
+  )
+
   it.live(
     "update writes the title and a moved updatedAt under the owner's where, and returns the chat",
     () => {
