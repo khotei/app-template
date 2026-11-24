@@ -1,6 +1,6 @@
-import { Array as Arr, Context, Effect, Layer, Option, Struct } from 'effect'
+import { Array as Arr, Context, Effect, Layer, type Option, Struct } from 'effect'
 
-import { buildFilter, encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
+import { encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
 
 import {
   type RunEntitySelectWhere,
@@ -42,8 +42,8 @@ export class RunRepository extends Context.Service<
           orDieWithSqlError,
         ),
         selectOne: Effect.fn('RunRepository.selectOne')(
-          (where) => db.query.runs.findFirst({ where: buildFilter(where) }),
-          Effect.map(Option.fromUndefinedOr),
+          (where) => db.select().from(runs).where(encodeFilter(runs, where)).limit(1),
+          Effect.map(Arr.head),
           orDieWithSqlError,
         ),
       }),
