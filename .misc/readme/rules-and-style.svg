@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 498" role="img" aria-labelledby="title desc">
 <title id="title">The rules and the code style</title>
-<desc id="desc">The fourteen files of .claude/rules grouped by what they bind, then the six questions of name-and-body.md, the file names and the two kinds of error.</desc>
+<desc id="desc">The fifteen files of .claude/rules grouped by what they bind, then the six questions of name-and-body.md, the file names and the two kinds of error.</desc>
 <style>
 svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
   --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
@@ -43,7 +43,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <rect x="28" y="179" width="330" height="81" rx="8" class="box k-beh"/>
 <text x="40" y="203" class="b a-beh" xml:space="preserve"><tspan class="code">application/</tspan>, <tspan class="code">apps/</tspan>, <tspan class="code">kernel/</tspan></text>
 <text x="40" y="223" xml:space="preserve"><tspan class="code">layering.md</tspan> <tspan class="code">modules.md</tspan></text>
-<text x="40" y="243" xml:space="preserve"><tspan class="code">repositories.md</tspan></text>
+<text x="40" y="243" xml:space="preserve"><tspan class="code">repositories.md</tspan> <tspan class="code">models.md</tspan></text>
 <rect x="28" y="272" width="330" height="61" rx="8" class="box k-beh"/>
 <text x="40" y="296" class="b a-beh" xml:space="preserve">the tests</text>
 <text x="40" y="316" xml:space="preserve"><tspan class="code">effect-tests.md</tspan></text>

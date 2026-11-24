@@ -29,9 +29,8 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   object; a write that measures what it stores returns the measure.
 - One shape per entity: a related entity is a field the same relational query fills, one level
   deep as the neighbour's `<Name>Columns`, and never becomes a second type
-  (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's
-  `<Model>Fields` supertype, its own fields, which a write encodes and a neighbour may nest, is no
-  second shape either.
+  (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's insert and
+  update variants, which a write encodes ([models.md](models.md)), are no second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read. The field mappers and a relational query's alias:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).

@@ -508,14 +508,14 @@ def module_design():
 # ==========================================================================================
 def rules_and_style():
     f = Fig("rules-and-style", "The rules and the code style",
-            "The fourteen files of .claude/rules grouped by what they bind, then the six questions "
+            "The fifteen files of .claude/rules grouped by what they bind, then the six questions "
             "of name-and-body.md, the file names and the two kinds of error.")
     f.text(28, 42, "The rules in `.claude/rules/`, and the ones met first", "h")
     lx, lw = 28, 330
     groups = [
         ("beh", "every `.ts` file", ["`name-and-body.md` `naming.md`", "`composition.md` `effect.md`",
                                    "`effect-style.md` `effect-services.md`"]),
-        ("beh", "`application/`, `apps/`, `kernel/`", ["`layering.md` `modules.md`", "`repositories.md`"]),
+        ("beh", "`application/`, `apps/`, `kernel/`", ["`layering.md` `modules.md`", "`repositories.md` `models.md`"]),
         ("beh", "the tests", ["`effect-tests.md`"]),
         ("neu", "the repository and the toolkit", ["`tooling.md` `claude-md.md`", "`commits.md` `pull-requests.md`"]),
     ]

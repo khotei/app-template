@@ -20,8 +20,8 @@ Decision: [Module contracts](../../docs/knowledge/decisions.md#module-contracts)
 Two modules that import each other's entries form a cycle, which `noImportCycles` refuses for
 value imports and misses through `import type`: move the shared id or error into the contract of
 the module that owns it, or the flow into a use case. A cycle inside a module is broken by
-widening a type, or, where two models nest each other's fields, by a `<name>-fields.model.ts`
-that both import. Refuse too:
+widening a type; two models never nest each other: the one read with the other is its
+select-only field ([models.md](models.md)) and names it back by id. Refuse too:
 
 - a part importing one above it in its folder (a module the entry of a module above it, a kernel
   part one above or beside it, but in the data's e2e below, a package one above it), or a module's
@@ -40,7 +40,7 @@ Decisions: [Module contracts](../../docs/knowledge/decisions.md#module-contracts
 ## A service rule or a model in the kernel
 
 A check that refuses a write, a status move, a choice between outcomes or a domain
-`Schema.Class` belongs in a module's `domain/` or `services/`, even when every module needs it;
+model belongs in a module's `domain/` or `services/`, even when every module needs it;
 an entity keeps only what the store enforces (a column, a check, an index).
 Decisions: [One kernel](../../docs/knowledge/decisions.md#one-kernel),
 [The data at the centre](../../docs/knowledge/decisions.md#the-data-at-the-centre).

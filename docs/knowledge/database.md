@@ -27,8 +27,9 @@ the entities derived from them.
   spelled twice.
 - **Shared columns** come from `@app-template/packages/db`: `id()`, a `uuid` primary key with
   `DEFAULT uuidv7()`, and `createdAt()` and `updatedAt()`, `timestamptz` columns with no default
-  and no `$onUpdate`. The domain writes every id and every timestamp with its own clock, so
-  `TestClock` holds and there is no second clock; the `uuidv7()` default serves only
+  and no `$onUpdate`. A model's insert and update variants make every id and every timestamp
+  from the app's clock ([Entities and models](#entities-and-models)), so `TestClock` holds and
+  the database's clock is never read; the `uuidv7()` default serves only
   hand-written SQL, and needs Postgres 18 or later.
 - **Enums and checks state the data layer's own values.** An enum takes its values from a tuple
   the table exports (`runStatuses = ['queued', …] as const`, then
@@ -81,16 +82,20 @@ other: a message's Run comes from two relations, the newest that answers a user'
 the one that wrote an assistant's, so `buildMessageEntity` keeps the one its author has and the
 repository maps every read through it.
 
-A model is the codec of its own row: it declares each stored value as its row holds it, a
-nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as `Schema.DateTimeUtcFromDate`,
-so its encoded side is its entity and its type side is what the rules read. No mapper sits
-between them: a service codes a row with `encodeWith` and `decodeWith` from
-`@app-template/packages/schema`, given the model. A read decodes the entity with the model in the
-read's shape, whose nested models decode their own rows, and a write encodes the model's own
-fields, its `<Model>Fields`, since a write holds no nested record:
+A model is the codec of its own row: a `Model.Class` that declares each stored value as its row
+holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
+(`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
+entity and its type side is what the rules read. No mapper sits between them: a service codes a
+row with `encodeWith` and `decodeWith` from `@app-template/packages/schema`, given the model or
+one of its variants. A read decodes the entity with the model in the read's shape, whose nested
+models decode their own rows. A write builds and encodes a variant: `insert` makes the id and
+both times, `update` holds only the fields an update may set and moves `updatedAt`, and neither
+holds a nested record, which is a field of the select variant alone
+([Models with variants](decisions.md#models-with-variants)):
 
 ```ts
-const row = yield* encodeWith(ChatFields)(chat)
+const fields = yield* Chat.insert.makeEffect({ userId })
+const row = yield* encodeWith(Chat.insert)(fields)
 const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeWith(Schema.Option(Chat))))
 ```
 
