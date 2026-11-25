@@ -236,8 +236,9 @@ the data layer's repository directly.
 
 ### HTTP outside the modules
 
-The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError`) live in
-`apps/api`, outside the modules; the id format's schema (`buildIdSchema`) lives in
+The HTTP groups and the errors only HTTP raises (`RequestInvalidError`) live in
+`application/http-api`, the API contract, beside the modules and outside them, and their handlers
+in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 `packages/schema`, and a model's insert variant generates an id of it
 ([Models with variants](#models-with-variants)).
 
@@ -258,9 +259,10 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
   worker's bundle).
 - **Cost:** a module's HTTP shape lives outside the module, but for its errors' statuses
   ([The API contract in the api](#the-api-contract-in-the-api)).
-- **Guarded by:** the `apps/api` row of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); no module's manifest
-  declares `@app-template/api`, so an import of it fails TS2307.
+- **Guarded by:** the `application/http-api` row of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules), whose Biome override
+  refuses there a service, a use case and any process's code; `noImportCycles`, as a module that
+  imports the contract imports itself back through the contract's import of its entry.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own

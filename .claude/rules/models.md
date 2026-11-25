@@ -35,7 +35,8 @@ export class Order extends Model.Class<Order>('Order')({
   whether or not the model is updated today. One no client may see is `Model.Sensitive`.
 - **A record another table holds, read with the model,** is a field of the select variant alone
   (`Model.FieldOnly(['select'])`, defaulted so a new record builds without it): no write encodes
-  it, no json variant carries it, and the api adds its wire shape (`apps/CLAUDE.md`).
+  it, no json variant carries it, and the API contract adds its wire shape
+  (`application/CLAUDE.md`).
 - **A model holds no member:** its rules are statics of a class per kind beside it, one file each
   (`order-policy.ts`): `<Model>Policy` the checks (`ensure<Rule>`, failing or passing, writing
   nothing, `Effect.fnUntraced`, no span), `<Model>Move` the status moves (`<verb>`, returning the
