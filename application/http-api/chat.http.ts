@@ -15,7 +15,7 @@ import {
   RunId,
   RunNotFoundError,
   RunNotRetryableError,
-} from '@app-template/application/chat'
+} from '@app-template/application/chat/contract'
 
 /** A chat with the state its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.json

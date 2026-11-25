@@ -185,8 +185,8 @@ _Avoid_: Public API, interface, SDK, client
 
 **API contract**:
 The api's HTTP surface: the one `Api` of groups `application/http-api` declares from the domain's
-schemas, and the OpenAPI document the api writes from it, `apps/api/openapi.json`, from which the
-web's client is generated. Never a module contract.
+schemas, taken through the module contracts, and the OpenAPI document the api writes from it,
+`apps/api/openapi.json`, from which the web's client is generated. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:

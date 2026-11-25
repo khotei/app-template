@@ -272,8 +272,9 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
   ([The API contract in the api](#the-api-contract-in-the-api)).
 - **Guarded by:** the `application/http-api` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules), whose Biome override
-  refuses there a service, a use case and any process's code; `noImportCycles`, as a module that
-  imports the contract imports itself back through the contract's import of its entry.
+  admits there only the modules' contracts; a module's `domain/`, whose override admits of
+  `application/` only a contract, never imports it. No override refuses it in a module's
+  services or infrastructure or in the use cases.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
@@ -285,8 +286,9 @@ The API contract is `application/http-api`, a part of the `application` workspac
 entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
 the definitions of its middlewares (`Auth` with the `CurrentUser` it provides, `SchemaErrors` with
 its `RequestInvalidError`), whose layers, with the handlers, stay in `apps/api`. It takes of a
-module only its models, ids and errors, through its entry or contract, never a service, a queue,
-an assistant or a repository, and no kernel part, package or use case; it is declared over the
+module only its models, ids and errors, through the module's contract
+([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
+case, so it loads no service, store or client; it is declared over the
 domain's schemas: ids, payload checks, models and errors are
 the domain's own; an error's status is on its class, the annotation `{ httpApiStatus: <code> }`
 of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
@@ -359,7 +361,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   may import, as apps import no app, and no override held a group to the modules' models, ids and
   errors. The middlewares' layers beside their definitions: the contract would import
   `UserService` and the api's error mapping. A workspace of its own: a second manifest and
-  package name for files that import only `effect` and the modules' entries.
+  package name for files that import only `effect` and the modules' contracts. The modules'
+  entries with a ban by name (`Service`, `Queue`, `Assistant`, `Repository`): it held the names
+  the contract took, not what the entries loaded, so importing the contract loaded every
+  module's services and Drizzle, and a namespace import (`import * as`) passed it.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -390,10 +395,12 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
   variant, or a new listing of an error with a cause, would carry it, which only review of the
   snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
-  handler that returns the model without it fails `tsc`. The contract takes models from the
-  modules' entries, which load their services and the data layer into whatever imports it: the
-  override holds the names it takes, not what they load, and a namespace import (`import * as`)
-  passes it ([architecture.md › Known gaps](architecture.md#known-gaps)).
+  handler that returns the model without it fails `tsc`. A name a group needs of a module is a
+  line in that module's contract first. `bun build` of `application/http-api/index.ts` reads
+  100 files, none of a service, an infrastructure, the kernel, `packages/db` or Drizzle; through
+  the modules' entries it read 664, 123 of them Drizzle's. No check repeats that build: a
+  contract that re-exported a service's file would load it again, which the contracts' override
+  refuses and only review of a domain file's imports holds past it.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
@@ -402,8 +409,8 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
   `make bundle-check`; the `application/http-api/**` override, which admits of the workspaces only
-  a module's entry or contract and refuses of them a name ending in `Service`, `Queue`,
-  `Assistant` or `Repository`.
+  a module's contract (`@app-template/application/*/contract`), and `tsc`, which refuses a name
+  the contract does not export (`TS2305`).
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
   test to compare them, and the web imports it instead of the generated client. The status
   alone reversed: each error class loses its `httpApiStatus` and every listing pipes

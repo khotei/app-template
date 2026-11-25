@@ -76,7 +76,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗; of its module only `domain/` files, never their index | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
-| `application/http-api` | its models, ids and errors, through its entry | ✓, through its own entry | ✗ | ✗ | ✗ | ✗ | `application/http-api/**`, a service, queue, assistant or repository by name |
+| `application/http-api` | ✗, but its contract | ✓, through its own entry only | ✗ | ✗ | ✗ | ✗ | `application/http-api/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above or beside it: `noImportCycles` on a cycle, else review |
@@ -103,7 +103,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **The API contract's groups take the domain's schemas** through the modules' entries; the web
+- **The API contract's groups take the domain's schemas** through the modules' contracts; the web
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A module's
   `domain/` imports only `effect`, `packages/schema`, for the id schema, and another module's

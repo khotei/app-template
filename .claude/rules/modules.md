@@ -11,11 +11,12 @@ What `make check` cannot see, so review refuses it. Read the decision in
 
 ## A name past another module's contract
 
-A module's entry opens it whole; its contract's entry (`@app-template/application/<module>/contract`)
-re-exports by name the `domain/` files of its ids, its models with their errors and the group a
-wire shape reads, the one path a `domain/` may take, which Biome holds. Through the whole entry
-another module's other layers take only the names its contract exports, never a service, a rule's
-group, a mapper or a namespace import (`import * as`); a name they need is re-exported there first.
+A module's entry opens it whole; its contract's entry
+(`@app-template/application/<module>/contract`) re-exports by name the `domain/` files of its ids,
+its models with their errors and the group a wire shape reads, the one path a `domain/` and the API
+contract may take, which Biome holds. Through the whole entry another module's other layers take
+only the names its contract exports, never a service, a rule's group, a mapper or a namespace import
+(`import * as`); a name they need is re-exported there first.
 Decision: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
 ## A cycle, or an import of a part above
