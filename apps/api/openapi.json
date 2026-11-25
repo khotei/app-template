@@ -758,11 +758,11 @@
         "security": [],
         "responses": {
           "201": {
-            "description": "User",
+            "description": "ApiUser",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserEncoded"
+                  "$ref": "#/components/schemas/ApiUser"
                 }
               }
             }
@@ -830,7 +830,7 @@
         ],
         "additionalProperties": false
       },
-      "UserEncoded": {
+      "ApiUser": {
         "type": "object",
         "properties": {
           "id": {
@@ -846,7 +846,8 @@
           "id",
           "createdAt"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "title": "User.json"
       },
       "UserUnknownErrorEncoded": {
         "type": "object",

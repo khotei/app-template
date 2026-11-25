@@ -41,9 +41,9 @@ export type RunNotFoundErrorEncoded = { readonly "_tag": "RunNotFoundError", rea
 
 export const RunNotFoundErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("RunNotFoundError"), "where": Schema.Union([Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) }), Schema.Struct({ "userMessageId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) })]) }).annotate({ "identifier": "RunNotFoundErrorEncoded" })
 
-export type UserEncoded = { readonly "id": string, readonly "createdAt": string }
+export type ApiUser = { readonly "id": string, readonly "createdAt": string }
 
-export const UserEncoded = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "createdAt": Schema.String }).annotate({ "identifier": "UserEncoded" })
+export const ApiUser = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "createdAt": Schema.String }).annotate({ "title": "User.json", "identifier": "ApiUser" })
 
 export type ChatsList200 = globalThis.ReadonlyArray<ApiChat>
 
@@ -249,9 +249,9 @@ export type HealthGet400 = RequestInvalidErrorEncoded
 
 export const HealthGet400 = RequestInvalidErrorEncoded
 
-export type UsersRecognise201 = UserEncoded
+export type UsersRecognise201 = ApiUser
 
-export const UsersRecognise201 = UserEncoded
+export const UsersRecognise201 = ApiUser
 
 export type UsersRecognise400 = RequestInvalidErrorEncoded
 
