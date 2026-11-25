@@ -573,8 +573,10 @@ type of `Run.fields`) and returns `new Run(…)`.
   The function applies to any value of the shape it takes, wherever it comes from, so it stays the
   rule (`startRun({ ...run })` and `buildChatStatus(Option.some({ status }))` compile); the
   member lets a caller with the record read the rule as the record's own
-  (`chat.ensureNotBusy()`), with no import of the function. A getter or a prototype method sits on
-  the prototype, so `{ ...record }`, an encode and `Equal.equals` see the fields alone.
+  (`chat.ensureNotBusy()`), with no import of the function. `{ ...record }` copies the fields
+  alone; a struct encode reads a getter whose name it declares (the api's `status`);
+  `Equal.equals` and `Hash` call every getter, so a getter returns plain data derived from the
+  fields, never a function, and never fails.
 - **Sources:** `.claude/rules/layering.md › Ports and domain services`; the owner's review of the
   members (2026-11-25): "models should stay model but could injected into methods. Because we
   could have anywhere chat (any shape) and these methods could be applied as clean functions and
