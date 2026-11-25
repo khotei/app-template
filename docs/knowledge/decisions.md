@@ -268,8 +268,13 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
 
 ### The API contract in the api
 
-The api declares its HTTP surface in its own files, one group per entity beside its handler,
-assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
+The API contract is `application/http-api`, a part of the `application` workspace behind its own
+entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
+the definitions of its middlewares (`Auth` with the `CurrentUser` it provides, `SchemaErrors` with
+its `RequestInvalidError`), whose layers, with the handlers, stay in `apps/api`. It takes of a
+module only its models, ids and errors, through its entry or contract, never a service, a queue,
+an assistant or a repository, and no kernel part, package or use case; it is declared over the
+domain's schemas: ids, payload checks, models and errors are
 the domain's own; an error's status is on its class, the annotation `{ httpApiStatus: <code> }`
 of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
 its model's json variant (`<Model>.json`), which
@@ -279,7 +284,7 @@ the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which 
 on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`).
 A field no client may see is declared so once, in its model
 ([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
-so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. Its unit test writes
+so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. The api's unit test writes
 `apps/api/openapi.json`; the web reads that file by path and keeps the client
 `@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
 reaches the browser, and the web declares no workspace of the app but `packages`.
@@ -337,7 +342,11 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   ([Rules as pure functions](#rules-as-pure-functions)), and a wire field resting on the struct
   encoder reading a getter. The failure's cause in the worker's
   log alone, kept out of the Run's model: lost once the log rolls over, and apart from the Run it
-  belongs to.
+  belongs to. The contract in `apps/api`, each group beside its handler: code no other workspace
+  may import, as apps import no app, and no override held a group to the modules' models, ids and
+  errors. The middlewares' layers beside their definitions: the contract would import
+  `UserService` and the api's error mapping. A workspace of its own: a second manifest and
+  package name for files that import only `effect` and the modules' entries.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -368,7 +377,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
   variant, or a new listing of an error with a cause, would carry it, which only review of the
   snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
-  handler that returns the model without it fails `tsc`.
+  handler that returns the model without it fails `tsc`. The contract takes models from the
+  modules' entries, which load their services and the data layer into whatever imports it: the
+  override holds the names it takes, not what they load, and a namespace import (`import * as`)
+  passes it ([architecture.md › Known gaps](architecture.md#known-gaps)).
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
@@ -376,13 +388,16 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
-  `make bundle-check`.
+  `make bundle-check`; the `application/http-api/**` override, which admits of the workspaces only
+  a module's entry or contract and refuses of them a name ending in `Service`, `Queue`,
+  `Assistant` or `Repository`.
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
   test to compare them, and the web imports it instead of the generated client. The status
   alone reversed: each error class loses its `httpApiStatus` and every listing pipes
   `HttpApiSchema.status(…)` again.
 - **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
-  side; a client outside this repository needs the contract as code; a model's row form must
+  side; a client, the web's included, takes the contract as code (`HttpApiClient.make(Api)`),
+  which needs it to load no service or store; a model's row form must
   differ from what the wire carries; a client must show a failure's cause; or one error needs
   two statuses at two endpoints.
 

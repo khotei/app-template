@@ -29,7 +29,9 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.table` · `.entity` · `.repository` | a table with any it alone owns (drizzle-kit reads `*/*.table.ts`) · `<Name>Entity` and its verbs' types · one store's access | `kernel/data/<store>/` |
 | `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
 | `.sender` · `.consumer` | the queue's send · its run of a handler per job | `packages/queue` |
-| `.http` · `.mapper` · `.handler` | a resource's `HttpApiGroup` · its model's wire shape, where it differs · its handlers, or the worker's route | `apps/api/<resource>/`; `apps/worker/` |
+| `.http` | a resource's `HttpApiGroup` with its wire shapes | `application/http-api/` |
+| `.mapper` · `.handler` | a model's wire shape, where it differs · a resource's handlers, or the worker's route | `apps/api/<resource>/`; `apps/worker/` |
+| `.layer` | the layers of services another workspace declares (the API contract's middlewares) | an app |
 | `.test` · `.e2e` | a unit test · a test on the e2e run's containers, each named for its source | `__tests__/` · `__e2e__/`, `apps/e2e` |
 | `.test-fixture` · `.test-util` | sample values, plain data · a helper, building no layer and doubling nothing | `__tests__/testing/` |
 | `.test-fake` · `.test-layer` · `.test-setup` | one service's double · the layer a test provides · the e2e run's `globalSetup` | `__tests__/testing/`, `e2e/` for e2e support |

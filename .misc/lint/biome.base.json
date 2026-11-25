@@ -160,6 +160,38 @@
       }
     },
     {
+      "includes": ["application/http-api/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/application/*",
+                      "!@app-template/application/*/contract",
+                      "@app-template/application/use-cases",
+                      "@app-template/application/http-api",
+                      "@effect/**"
+                    ],
+                    "message": "the API contract declares its groups over the modules' schemas: it imports no workspace but a module's entry or contract, no use case, no kernel part, no package and no @effect/* package, so whatever imports it loads no client or store of its own (decisions.md › The API contract in the api)"
+                  },
+                  {
+                    "group": ["@app-template/application/*"],
+                    "importNamePattern": "[A-Za-z0-9]*(Service|Queue|Assistant|Repository)",
+                    "message": "of a module the API contract takes only its models, ids and errors: never a service, a queue, an assistant or a repository, which the api's handlers and layers call (decisions.md › The API contract in the api)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "includes": [
         "application/*/services/**",
         "!application/chat/services/ask-chat.service.ts",

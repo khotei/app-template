@@ -490,7 +490,7 @@ moves it into its own `Later` and deletes it here.
   never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
-  (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
+  (`application/http-api/chat.http.ts`) does not carry: its `text` has only the pattern and
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
   (a pattern with a non-whitespace character), or accept the round trip.

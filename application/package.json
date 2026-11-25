@@ -7,12 +7,14 @@
     "./identity": "./identity/index.ts",
     "./identity/contract": "./identity/contract/index.ts",
     "./use-cases": "./use-cases/index.ts",
+    "./http-api": "./http-api/index.ts",
     "./chat/testing": "./chat/__tests__/testing/index.ts"
   },
   "imports": {
     "#chat/*": "./chat/*.ts",
     "#identity/*": "./identity/*.ts",
     "#use-cases/*": "./use-cases/*.ts",
+    "#http-api/*": "./http-api/*.ts",
     "#testing/chat/*": "./chat/__tests__/testing/*.ts",
     "#testing/identity/*": "./identity/__tests__/testing/*.ts"
   },

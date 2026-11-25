@@ -25,12 +25,13 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   ports, the services a use case or the chat's worker services call over a client (the
   assistants) and its queues' definitions ([A module's layers](decisions.md#a-modules-layers));
   its `contract/`, once another module needs one, what other modules may take of it, behind an
-  entry of its own.
+  entry of its own. Beside the modules, `application/http-api` holds the API contract, the HTTP
+  groups over the modules' models, ids and errors.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
-  clients; the api declares the HTTP contract from the domain's schemas and writes it as
-  `apps/api/openapi.json`, from which the web's client is generated. Nothing of `application/`
+  clients; the api implements the API contract, its handlers and its middlewares' layers, and
+  writes it as `apps/api/openapi.json`, from which the web's client is generated. Nothing of `application/`
   reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
@@ -60,9 +61,9 @@ graph TD
 ```
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
-each module and the use cases a folder with one entry, a module's contract a folder in it with
-an entry of its own, re-exported by the module's entry. The `apps/e2e` test app runs both app
-layers in one test process, starts no process of its own, and nothing imports it.
+each module, the use cases and the API contract a folder with one entry, a module's contract a
+folder in it with an entry of its own, re-exported by the module's entry. The `apps/e2e` test app
+runs both app layers in one test process, starts no process of its own, and nothing imports it.
 
 ## Dependency rules
 
@@ -75,6 +76,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
+| `application/http-api` | its models, ids and errors, through its entry | ✓, through its own entry | ✗ | ✗ | ✗ | ✗ | `application/http-api/**`, a service, queue, assistant or repository by name |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above or beside it: `noImportCycles` on a cycle, else review |
@@ -101,7 +103,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **The api's HTTP groups take the domain's schemas** through the modules' entries; the web
+- **The API contract's groups take the domain's schemas** through the modules' entries; the web
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
   imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types);
@@ -177,8 +179,9 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
 | codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
-| HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
-| the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
+| HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
+| the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, `CurrentUser`, `SchemaErrors`, `RequestInvalidError` |
+| a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
@@ -276,8 +279,8 @@ imports need.
    declared as its row holds it, so the model is its row's codec and needs no mapper,
    [database.md › Entities and models](database.md#entities-and-models); its errors in the same
    file, `ChatNotFoundError` (`Schema.TaggedError`), one that reaches the wire carrying its
-   status, `{ httpApiStatus: <code> }`, [apps/CLAUDE.md](../../apps/CLAUDE.md)), each with its
-   unit test.
+   status, `{ httpApiStatus: <code> }`, [application/CLAUDE.md](../../application/CLAUDE.md)), each
+   with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, coding its rows through `RowCodec` over the model (`RowCodec.decodeOne(<Model>)`,
    `RowCodec.makeInsert(<Model>)`), the one owner every handler goes through, tested over mocks of the
@@ -291,16 +294,17 @@ imports need.
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route, the services it reads provided in the worker's layer.
-5. **The boundary.** A group in `apps/api/<entity>/<entity>.http.ts` over the domain's ids,
-   models and errors, each error with the status its class carries, a wire shape only
-   where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
-   `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
-   `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
-   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, which the
-   handler pipes on what it returns, the handler added to `ApiRoutes`; then `make api-snapshot`.
-   Test only what HTTP adds, on the api test layer; a new module's journey case goes in a file of
-   its own on `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through
-   the web's `ApiClient`, as `<group><Endpoint>`.
+5. **The boundary.** A group in `application/http-api/<entity>.http.ts` over the domain's ids,
+   models and errors, each error with the status its class carries, a wire shape only where it
+   differs from the model ([application/CLAUDE.md](../../application/CLAUDE.md)), added to `Api`
+   in `application/http-api/api.ts`, in the first `.add(…)` when it needs a user, else in the
+   second, since `.middleware(Auth)` reaches only the groups added before it; its handler in
+   `apps/api/<entity>/<entity>.handler.ts`, with a mapper in
+   `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, which the handler
+   pipes on what it returns, the handler added to `ApiRoutes`; then `make api-snapshot`. Test only
+   what HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
+   `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through the web's
+   `ApiClient`, as `<group><Endpoint>`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).

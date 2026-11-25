@@ -13,6 +13,7 @@ import {
   RunNotRetryableError,
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
+import { RequestInvalidError } from '@app-template/application/http-api'
 import { UserUnknownError } from '@app-template/application/identity'
 import type {
   ChatEntitySelectWhere,
@@ -23,7 +24,6 @@ import type {
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RequestInvalidError } from '#api/shared/api-security'
 import {
   ApiClient,
   type ApiRepositoryMocks,

@@ -7,10 +7,9 @@ import {
   MessageService,
   RunService,
 } from '@app-template/application/chat'
+import { Api, CurrentUser } from '@app-template/application/http-api'
 
-import { Api } from '#api/api'
 import { buildApiChat } from '#api/chat/chat.mapper'
-import { CurrentUser } from '#api/shared/api-security'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,
