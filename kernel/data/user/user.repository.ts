@@ -4,14 +4,14 @@ import { orDieWithSqlError } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import type { UserEntity, UserEntityWhere } from '#kernel/data/user/user.entity'
-import { credentials, users } from '#kernel/data/user/user.table'
+import { type CredentialColumns, credentials, users } from '#kernel/data/user/user.table'
 
 export class UserRepository extends Context.Service<
   UserRepository,
   {
     /** A user is never stored without its credential: its caller commits both in one transaction. */
     readonly insert: (user: UserEntity) => Effect.Effect<void>
-    readonly insertCredential: (credential: typeof credentials.$inferInsert) => Effect.Effect<void>
+    readonly insertCredential: (credential: CredentialColumns) => Effect.Effect<void>
     readonly selectOne: (where: UserEntityWhere) => Effect.Effect<Option.Option<UserEntity>>
   }
 >()('@app-template/kernel/data/user/UserRepository', {
@@ -23,7 +23,7 @@ export class UserRepository extends Context.Service<
         orDieWithSqlError,
       ),
       insertCredential: Effect.fn('UserRepository.insertCredential')(
-        (credential: typeof credentials.$inferInsert) => db.insert(credentials).values(credential),
+        (credential: CredentialColumns) => db.insert(credentials).values(credential),
         orDieWithSqlError,
       ),
       selectOne: Effect.fn('UserRepository.selectOne')(

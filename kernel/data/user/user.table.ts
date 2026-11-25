@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm'
+import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
 import { createdAt, id } from '@app-template/packages/db'
@@ -26,3 +27,7 @@ export const credentials = snakeCase.table(
   },
   (table) => [check('credentials_hash_check', sql`${table.hash} ~ ${secretHashPattern.source}`)],
 )
+
+/** The columns of a credential, the row its insert takes whole. */
+export const CredentialColumns = createSelectSchema(credentials)
+export type CredentialColumns = typeof CredentialColumns.Type

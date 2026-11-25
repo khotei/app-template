@@ -1,14 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Cause, Effect, Exit, Layer, Option, Schema } from 'effect'
+import { Effect, Layer, Option, Schema } from 'effect'
 import { SqlError } from 'effect/sql'
 
-import { flipSqlError } from '@app-template/packages/db/testing/e2e'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { Db } from '#kernel/data/db.client'
 import { UserEntity, type UserEntityCredential } from '#kernel/data/user/user.entity'
 import { UserRepository } from '#kernel/data/user/user.repository'
-import { credentials, users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
 
 const createdAt = new Date('2026-10-18T00:00:00.123Z')
@@ -82,12 +79,10 @@ describe('UserRepository', () => {
       yield* users.insertCredential({ ...credential('a'), userId: ada.id })
       yield* users.insert(bob)
 
-      const inserted = yield* users
+      const defect = yield* users
         .insertCredential({ ...credential('a'), userId: bob.id })
-        .pipe(Effect.exit)
+        .pipe(Effect.catchDefect(Effect.succeed))
 
-      assert.isTrue(Exit.hasDies(inserted))
-      const defect = Exit.isFailure(inserted) ? Cause.squash(inserted.cause) : undefined
       assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
       assert.strictEqual(defect.reason._tag, 'UniqueViolation')
     }).pipe(Effect.provide(UserRepositoryDbTest)),
@@ -109,32 +104,31 @@ describe('UserRepository', () => {
 
   it.effect('rejects a credentials.hash that is not lower-case hex, through its check', () =>
     Effect.gen(function* () {
-      const db = yield* Db
+      const users = yield* UserRepository
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000012')
 
-      yield* db.insert(users).values({ id: ada.id, createdAt: new Date(0) })
-      const error = yield* flipSqlError(
-        db.insert(credentials).values({ hash: 'A'.repeat(64), kind: 'secret', userId: ada.id }),
-      )
+      yield* users.insert(ada)
+      const defect = yield* users
+        .insertCredential({ hash: 'A'.repeat(64), kind: 'secret', userId: ada.id })
+        .pipe(Effect.catchDefect(Effect.succeed))
 
-      assert.strictEqual(error.reason._tag, 'ConstraintError')
-      assert.include(String(error.reason.cause), 'credentials_hash_check')
-    }).pipe(Effect.provide(DbTest)),
+      assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
+      assert.strictEqual(defect.reason._tag, 'ConstraintError')
+      assert.include(String(defect.reason.cause), 'credentials_hash_check')
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
   it.effect('rejects a credential of a user no row holds, through its key', () =>
     Effect.gen(function* () {
-      const db = yield* Db
+      const users = yield* UserRepository
 
-      const error = yield* flipSqlError(
-        db.insert(credentials).values({
-          ...credential('a'),
-          userId: '0192d4e0-7b3a-7c00-8000-000000000017',
-        }),
-      )
+      const defect = yield* users
+        .insertCredential({ ...credential('a'), userId: '0192d4e0-7b3a-7c00-8000-000000000017' })
+        .pipe(Effect.catchDefect(Effect.succeed))
 
-      assert.strictEqual(error.reason._tag, 'ConstraintError')
-      assert.include(String(error.reason.cause), 'credentials_user_id_users_id_fkey')
-    }).pipe(Effect.provide(DbTest)),
+      assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
+      assert.strictEqual(defect.reason._tag, 'ConstraintError')
+      assert.include(String(defect.reason.cause), 'credentials_user_id_users_id_fkey')
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 })
