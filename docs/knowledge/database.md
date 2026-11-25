@@ -260,8 +260,8 @@ deletes under them again, so a call that names no user fails typecheck and anoth
 ## Transactions
 
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
-writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
-(`Transaction.layer` wraps `SqlClient.withTransaction` over the `PgClient` that `Db.layer` takes
+writes yields `Transaction` and pipes its `run` on them (`yield* writes.pipe(transaction.run)`;
+`Transaction.layer` wraps `SqlClient.withTransaction` over the `PgClient` that `Db.layer` takes
 from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e, so it runs on the
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
