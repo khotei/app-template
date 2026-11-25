@@ -176,7 +176,6 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
-| mapper from a model to its wire shape | `apps/api/chat/chat.mapper.ts` | `buildApiChat` |
 | worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
@@ -280,11 +279,11 @@ imports need.
    where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
    `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
    `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
-   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, the handler
-   added to `ApiRoutes`; then `make api-snapshot`. Test only what HTTP adds, on the api test
-   layer; a new module's journey case goes in a file of its own on `StandTest`. A browser feature
-   calls it from `apps/web/features/<entity>/` through the web's `ApiClient`, as
-   `<group><Endpoint>`.
+   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field the model
+   has no getter for, the handler added to `ApiRoutes`; then `make api-snapshot`. Test only what
+   HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
+   `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through the web's
+   `ApiClient`, as `<group><Endpoint>`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).

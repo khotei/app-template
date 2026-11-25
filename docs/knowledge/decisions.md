@@ -247,8 +247,10 @@ assembled into one `Api`, over the domain's schemas: ids, payload checks, models
 the domain's own; every error gets its status where an endpoint or a middleware lists it
 (`HttpApiSchema.status`); a wire shape is its model's json variant (`<Model>.json`), which
 leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
-field, named by an `identifier` so the snapshot holds it once, and a mapper adds only what the
-model lacks (`buildApiChat` adds `status`); a model with nothing to leave out goes whole (`User`).
+field, named by an `identifier` so the snapshot holds it once; a field the wire adds is read
+from the model's getter (`ApiChat` adds `status`, which `Chat`'s `status` gives), so a handler
+returns the model, and a mapper adds only a field the model has no member for; a model with
+nothing to leave out goes whole (`User`).
 A field no client may see is declared so once, in its model
 ([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
 so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. Its unit test writes
@@ -299,7 +301,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
-  `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause in the worker's
+  `buildApi<Model>`: `tsc` refuses the drift without them. A mapper that spreads the model and
+  adds the value its getter gives (`buildApiChat` adding `status`): a second place for the rule's
+  call, and a function per model for one field. The failure's cause in the worker's
   log alone, kept out of the Run's model: lost once the log rolls over, and apart from the Run it
   belongs to.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
@@ -326,7 +330,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
   stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
   variant, or a new listing of an error with a cause, would carry it, which only review of the
-  snapshot diff holds.
+  snapshot diff holds. A wire field read from a getter relies on the struct's encoder reading it
+  from the instance, as Effect 4.1.5's does; one that read own keys alone would refuse the
+  response, which the handler's test of a chat's `status` stops.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
@@ -981,8 +987,9 @@ transactions that change it move (`.claude/rules/repositories.md › What is sto
 - **Why:** the Run holds the status already; a column would be its second copy, written by each
   of the Run's moves (its creation, a retry, `generating`, `done`, `failed`) in that
   move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
-  since the read nests the Run: the api and the rules (`ensureChatNotBusy`) take that Run alone,
-  not the chat, and a client derives it the same way from the Run it reads.
+  since the read nests the Run: the rules (`ensureChatNotBusy`) take that Run alone, not the
+  chat, the api serves the chat's `status` getter over them, and a client derives it the same way
+  from the Run it reads.
 - **Sources:** the owner's choice, in the Knowledge of
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
 - **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
