@@ -114,14 +114,14 @@ const replyJob = (run: Run) => ({
 /** The owner's chat each case asks or retries in; the store's read decides what it holds. */
 const inChat = { id: chat.id, userId: owner }
 
-const ask = Effect.fnUntraced(function* (text: string) {
+const ask = Effect.fnUntraced(function* (text: string, where = inChat) {
   const asks = yield* AskChatService
-  return yield* asks.ask(inChat, text)
+  return yield* asks.ask(where, text)
 })
 
-const retry = Effect.gen(function* () {
+const retry = Effect.fnUntraced(function* (where = inChat) {
   const asks = yield* AskChatService
-  return yield* asks.retry(inChat)
+  return yield* asks.retry(where)
 })
 
 describe('AskChatService', () => {
@@ -201,7 +201,7 @@ describe('AskChatService', () => {
     const stored: Array<RunColumns> = []
     const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
     return Effect.gen(function* () {
-      const sent = yield* retry
+      const sent = yield* retry()
 
       assert.deepStrictEqual(
         Arr.map(updates, ([set, where]) => [set.status, where]),
@@ -236,7 +236,7 @@ describe('AskChatService', () => {
     () => {
       const updates: Array<RunEntityWhere> = []
       return Effect.gen(function* () {
-        const exit = yield* retry.pipe(Effect.exit)
+        const exit = yield* retry().pipe(Effect.exit)
 
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(
@@ -317,7 +317,7 @@ describe('AskChatService', () => {
     const held = holdCall()
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const running = yield* retry.pipe(Effect.forkChild)
+      const running = yield* retry().pipe(Effect.forkChild)
       yield* held.reached
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),
@@ -355,7 +355,7 @@ describe('AskChatService', () => {
   ])('retry $name is RunNotRetryableError before any write or job', ({ read }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* retry.pipe(Effect.flip)
+      const refused = yield* retry().pipe(Effect.flip)
 
       assertSchemaEquals(RunNotRetryableError, refused, new RunNotRetryableError())
       assertEquals(yield* jobs.sent, [])
@@ -368,7 +368,7 @@ describe('AskChatService', () => {
       const inserts = noInserts()
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const retried = yield* retry
+        const retried = yield* retry()
 
         assertSchemaEquals(
           Run,
@@ -397,7 +397,7 @@ describe('AskChatService', () => {
 
   it.effect.each([
     { name: 'ask', refused: ask('Plan a weekend in Lisbon').pipe(Effect.flip) },
-    { name: 'retry', refused: retry.pipe(Effect.flip) },
+    { name: 'retry', refused: retry().pipe(Effect.flip) },
   ])(
     '$name in a chat the store finds none of for the user is ChatNotFoundError before any write or job',
     ({ refused }) => {
@@ -428,20 +428,8 @@ describe('AskChatService', () => {
   )
 
   it.effect.each([
-    {
-      name: 'ask',
-      refused: Effect.gen(function* () {
-        const asks = yield* AskChatService
-        return yield* asks.ask(answeredChat, 'Hi').pipe(Effect.flip)
-      }),
-    },
-    {
-      name: 'retry',
-      refused: Effect.gen(function* () {
-        const asks = yield* AskChatService
-        return yield* asks.retry(answeredChat).pipe(Effect.flip)
-      }),
-    },
+    { name: 'ask', refused: ask('Hi', answeredChat).pipe(Effect.flip) },
+    { name: 'retry', refused: retry(answeredChat).pipe(Effect.flip) },
   ])(
     '$name with a whole chat as its where reads the chat by its id and owner alone',
     ({ refused }) => {
@@ -467,7 +455,7 @@ describe('AskChatService', () => {
 
   it.effect.each([
     { name: 'ask', interrupted: ask('Plan a weekend in Lisbon'), read: chat },
-    { name: 'retry', interrupted: retry, read: withNewest(failedRun) },
+    { name: 'retry', interrupted: retry(), read: withNewest(failedRun) },
   ])(
     '$name interrupted while its chat is read stops before any write or job',
     ({ interrupted, read }) => {
