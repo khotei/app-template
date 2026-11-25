@@ -1,9 +1,8 @@
-import { Context, Effect, Layer, Redacted, Schema, SchemaIssue } from 'effect'
+import { Context, Effect, Layer, Redacted, SchemaIssue } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
 import { UserRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { UserUnknownError } from '#identity/domain/user.error'
 import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
@@ -36,7 +35,7 @@ export class UserService extends Context.Service<
     const authenticate = Effect.fn('UserService.authenticate')(
       hashSecret,
       Effect.flatMap((credentials) => users.selectOne({ credentials })),
-      Effect.flatMap(decodeWith(Schema.Option(User))),
+      Effect.flatMap(User.decodeOne),
       Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
     )
 
@@ -44,11 +43,10 @@ export class UserService extends Context.Service<
       const bytes = yield* random.randomBytes(secretBytes)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
-      const fields = yield* User.insert.makeEffect({})
+      const { set, row } = yield* User.makeInsert({})
       const credential = yield* hashSecret(fresh)
-      const row = yield* encodeWith(User.insert)(fields)
       yield* users.insert(row, credential)
-      return { user: new User(fields), secret: fresh }
+      return { user: new User(set), secret: fresh }
     }).pipe(Effect.catchIf(SchemaIssue.isIssue, Effect.die))
 
     const recognise = Effect.fn('UserService.recognise')(
