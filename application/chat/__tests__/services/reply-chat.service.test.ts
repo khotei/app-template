@@ -189,7 +189,10 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-const reply = ReplyChatService.use((replies) => replies.reply(queuedRun.userMessageId))
+const reply = Effect.gen(function* () {
+  const replies = yield* ReplyChatService
+  return yield* replies.reply(queuedRun.userMessageId)
+})
 
 describe('ReplyChatService', () => {
   it.effect(
@@ -345,7 +348,8 @@ describe('ReplyChatService', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     const writes = noWrites()
     return Effect.gen(function* () {
-      yield* ReplyChatService.use((replies) => replies.reply(lastRun.userMessageId))
+      const replies = yield* ReplyChatService
+      yield* replies.reply(lastRun.userMessageId)
 
       assertEquals(yield* assistant.histories, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(

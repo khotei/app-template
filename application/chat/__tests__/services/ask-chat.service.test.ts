@@ -114,9 +114,15 @@ const replyJob = (run: Run) => ({
 /** The owner's chat each case asks or retries in; the store's read decides what it holds. */
 const inChat = { id: chat.id, userId: owner }
 
-const ask = (text: string) => AskChatService.use((asks) => asks.ask(inChat, text))
+const ask = Effect.fnUntraced(function* (text: string) {
+  const asks = yield* AskChatService
+  return yield* asks.ask(inChat, text)
+})
 
-const retry = AskChatService.use((asks) => asks.retry(inChat))
+const retry = Effect.gen(function* () {
+  const asks = yield* AskChatService
+  return yield* asks.retry(inChat)
+})
 
 describe('AskChatService', () => {
   it.live(
@@ -424,11 +430,17 @@ describe('AskChatService', () => {
   it.effect.each([
     {
       name: 'ask',
-      refused: AskChatService.use((asks) => asks.ask(answeredChat, 'Hi')).pipe(Effect.flip),
+      refused: Effect.gen(function* () {
+        const asks = yield* AskChatService
+        return yield* asks.ask(answeredChat, 'Hi').pipe(Effect.flip)
+      }),
     },
     {
       name: 'retry',
-      refused: AskChatService.use((asks) => asks.retry(answeredChat)).pipe(Effect.flip),
+      refused: Effect.gen(function* () {
+        const asks = yield* AskChatService
+        return yield* asks.retry(answeredChat).pipe(Effect.flip)
+      }),
     },
   ])(
     '$name with a whole chat as its where reads the chat by its id and owner alone',
