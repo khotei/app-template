@@ -403,9 +403,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   handler that returns the model without it fails `tsc`. A name a group needs of a module is a
   line in that module's contract first. `bun build` of `application/http-api/index.ts` reads
   100 files, none of a service, an infrastructure, the kernel, `packages/db` or Drizzle; through
-  the modules' entries it read 664, 123 of them Drizzle's. No check repeats that build: a
-  contract that re-exported a service's file would load it again, which the contracts' override
-  refuses and only review of a domain file's imports holds past it.
+  the modules' entries it read 664, 123 of them Drizzle's. `make bundle-check` repeats that build
+  and refuses any of those files in it, so a domain file that reaches the kernel past its
+  override (a `biome-ignore`) or a contract that re-exports a service fails `make check`.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
@@ -413,7 +413,8 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
-  `make bundle-check`; the `application/http-api/**` override, which admits of the workspaces only
+  `make bundle-check`, over the web's bundle and the contract's; the `application/http-api/**`
+  override, which admits of the workspaces only
   a module's contract (`@app-template/application/*/contract`), and `tsc`, which refuses a name
   the contract does not export (`TS2305`).
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
@@ -1560,8 +1561,9 @@ regenerates it, and every local database is recreated
 
 The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
 bundle check, which reads the web build's metafile against the packages the web's manifest lists
-in `browserPackages`; what no configuration expresses are the review rules `.claude/rules/modules.md`
-and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
+in `browserPackages`, and the API contract's against the paths the `Makefile` refuses in it;
+what no configuration expresses are the review rules `.claude/rules/modules.md` and, for a
+handler, `layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no part inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one
 `tsconfig.json` project each; `.misc/lint/biome.base.json` has one override per layer, never
