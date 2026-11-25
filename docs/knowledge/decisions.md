@@ -737,10 +737,10 @@ the model: a read's rows decode through `RowCodec.decodeOne(Chat)` or `decodeMan
 variant makes its value and encodes its row in one call of `makeInsert` or `makeUpdate`, which
 returns both, `{ set, row }`, and dies on a value the variant refuses as a `Schema.SchemaError`,
 the issue's text its message. `makeUpdate` drops from its input the keys the update variant
-renews, found by Effect's own marker, never by name, of a field the select variant holds too: in
-the type one typed with the `Override` brand, at run time one with a constructor default in the
-update variant and none in the select variant (`updatedAt` of a Chat and a Run), so the variant
-moves it to now whatever the caller passes, fields or a record as read. A model holds no codec
+renews, found by Effect's own marker, never by name: a field the select variant holds whose
+update field is `Overrideable`, typed with the `Override` brand (`updatedAt` of a Chat and a Run),
+one rule for the type and the run time, so the variant moves it to now whatever the caller passes,
+fields or a record as read, and keeps any other value the type accepts. A model holds no codec
 static and imports no codec. The insert variant makes a new record's id (`Model.UuidV7Insert`)
 and both its times, the update variant moves `updatedAt`, a field written once by the insert is
 left out of the update variants, a field no client may see out of the json ones
@@ -800,10 +800,9 @@ message hold their Run as that select-only field.
   reads four of them (the class, `insert`, `update`, `json`). A service still names its model
   at each read and write and builds the record it returns from what the variant made. A class
   of statics alone trips Biome's `noStaticOnlyClass`, turned off for `RowCodec`'s file alone. The
-  type finds a renewed key by its brand, the run time by its default, so the two agree only while
-  every field typed `Override` is defaulted in the update variant alone, as `Model`'s update
-  fields are; a defaulted field only the update variant holds is kept by both, as `RowCodec`'s
-  test holds.
+  type finds a renewed key by its brand; a brand leaves the AST as it is, so the run time reads it
+  off the schemas `Overrideable` composes (`schema.to.identifier`): an Effect release that builds
+  `Overrideable` otherwise renews nothing, and `RowCodec`'s test of a record as read fails.
 - **Guarded by:** `tsc` at each service's insert, where the repository takes the table's full
   row ([Entity names](#entity-names)); the services' unit tests, which assert a new id's form
   and each write's row or set; the api's snapshot test and its two assertions that a failure

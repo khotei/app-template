@@ -179,4 +179,22 @@ describe('RowCodec.makeUpdate', () => {
       assert.deepStrictEqual(row, { id: order.id, step: 3, updatedAt: new Date(0) })
     }),
   )
+
+  it.effect('keeps a value passed for a field the update variant defaults without Override', () =>
+    Effect.gen(function* () {
+      class Task extends Model.Class<Task>('Task')({
+        id: Model.UuidV7Insert(OrderId),
+        priority: Model.Field({
+          select: Schema.Number,
+          insert: Schema.Number,
+          update: Schema.Number.pipe(Schema.withConstructorDefault(Effect.succeed(0))),
+        }),
+        updatedAt: Model.DateTimeUpdateFromDate,
+      }) {}
+
+      const { row } = yield* RowCodec.makeUpdate(Task)({ id: order.id, priority: 5 })
+
+      assert.deepStrictEqual(row, { id: order.id, priority: 5, updatedAt: new Date(0) })
+    }),
+  )
 })
