@@ -1,7 +1,7 @@
 import { Effect, Predicate, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
-import { UserId } from '@app-template/application/identity/contract'
+import { UserId } from '@app-template/application/user/contract'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { isBlank, MessageId, textPattern } from '#chat/domain/message.util'

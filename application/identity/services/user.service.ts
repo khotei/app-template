@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Redacted } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
+import { User, UserUnknownError } from '@app-template/application/user'
 import {
   encodeWhere,
   type UserEntity,
@@ -11,7 +12,7 @@ import {
 import { Transaction } from '@app-template/packages/db'
 import { RowCodec } from '@app-template/packages/schema'
 
-import { secretBytes, User, type UserSecret, UserUnknownError } from '#identity/domain/user.model'
+import { secretBytes, type UserSecret } from '#identity/domain/identity.model'
 
 const encoder = new TextEncoder()
 

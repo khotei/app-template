@@ -29,20 +29,34 @@ may import what:
 ### Modules by capability
 
 The behaviour is split by business capability, a module per capability under `application/`:
-`chat` and `identity`.
+`chat`, `user` and `identity`. `user` holds the user's model, its id and the error of an
+unknown user, which other modules' models and the API contract name; `identity` the recognising
+of a user by its secret, and it imports `user`, never the reverse.
 
-- **Why:** a module owns what changes together. `identity` names the capability, and `user` is
-  reserved in Postgres.
+- **Why:** a module owns what changes together. Who a user is changes apart from how the api
+  recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
+  `user`'s contract, and a second way to sign in changes `identity` alone.
 - **Sources:** the guide's "a module's mission fits one sentence" and "what always changes
   together belongs in one module"
   ([defining-components](https://software-architecture-guild.com/guide/architecture/boundaries/defining-components/));
-  the ticket's count of the imports.
-- **Rejected:** a module per table: the guide's anemic modules.
-- **Cost:** `chat` is the largest module.
-- **Guarded by:** review; no tool sees a capability.
-- **If reversed:** modules split by table, and a flow over one capability spans several.
+  the ticket's count of the imports; for `user` and `identity`, the owner's yes of 2026-11-25 to
+  option B of issue #48 (`docs/tickets/2026-11-25-1922_pure-models/`).
+- **Rejected:** a module per table: the guide's anemic modules. The user's model in `identity`:
+  `chat`'s models would name an id of the module that holds the secrets and the sign-in. A
+  `UserService` in `user` with no write of its own: a service that only forwards what
+  `identity` asks of the `users` rows.
+- **Cost:** `chat` is the largest module. `user` has no `services/` until it has a write of its
+  own, so `identity`'s service writes the `users` rows, and a user's records have their one owner
+  ([layering.md](../../.claude/rules/layering.md#ports-and-domain-services)) outside the user's
+  module.
+- **Guarded by:** review; no tool sees a capability, nor `user` importing `identity`'s contract,
+  which forms no cycle of files ([modules.md](../../.claude/rules/modules.md)).
+- **If reversed:** modules split by table, and a flow over one capability spans several; `user`
+  folded back into `identity`, every reader of the user's id imports `identity` again.
 - **Revisit when:** files come back with a life outside a chat
-  ([Attachments removed](#attachments-removed)); they may take a module of their own.
+  ([Attachments removed](#attachments-removed)); they may take a module of their own. The user
+  gains a write of its own (a profile, an account it merges into): `user` gets its
+  `UserService` over the `users` rows, and `identity` calls it.
 
 ### Use cases above the modules
 
@@ -138,11 +152,11 @@ only through that entry; its other layers may take the contract's names through 
 entry, which re-exports every layer. A dependency on a module's contract counts as one on the
 module.
 
-- **Why:** `chat` needs a few names of identity and little else; one entry per module is all a
+- **Why:** `chat` needs a few names of `user` and little else; one entry per module is all a
   caller must know, and the kernel's parts work the same way. The domain is the exception: the
   module's entry loads its services and, through them, the data layer and Drizzle into whatever
-  imports it, so a model would carry them. `bun build` of identity's entry reads 488 files, 123 of
-  them Drizzle's; of its contract's entry, 53 and none. A domain file imports only `effect`, ids
+  imports it, so a model would carry them. `bun build` of chat's entry reads 636 files, 123 of
+  them Drizzle's; of its contract's entry, 74 and none. A domain file imports only `effect`, ids
   and other models, so a contract over its files loads no more than the domain does, and the
   models stay where their module's rules and services import them.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
@@ -166,9 +180,9 @@ module.
 - **Cost:** two ways in for one module's contract, its entry and the module's. The module's entry
   opens it whole, so which of its names another module's services take is review's
   (`modules.md`), not Biome's. A name a new reader needs is a line added to the contract's index
-  first, and that the index lists only names a reader takes is review's. A contract file of
-  its own imports no workspace but `@app-template/packages/schema`, which knows no app, so its ids
-  are built like the domain's ([Utils apart from models](#utils-apart-from-models)).
+  first, and that the index lists only names a reader takes is review's. A contract holds no
+  file but its index, so an id lives in its model's `.util` file in `domain/`, as every other
+  util does ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in
   [architecture.md › Dependency rules](architecture.md#dependency-rules), the domain's override
   admitting of `application/` only a contract's entry (`@app-template/application/*/contract`) and
@@ -699,7 +713,7 @@ built-in call is not written; the built-in is called.
   helper two models share sits in one of them, the one that calls it first, and the other imports
   that util file. A util a second workspace needs moves into a package, and the domain's Biome
   override then admits that package by name, as it admits `@app-template/packages/schema` for
-  `buildIdSchema`, which the contracts' override admits too (`UserId`).
+  `buildIdSchema`.
 - **Guarded by:** review, by `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
   a util that imports a model importing it back; nothing refuses a rule written in a util.
 - **If reversed:** the utils go back into the model files beside the rules they serve, and each

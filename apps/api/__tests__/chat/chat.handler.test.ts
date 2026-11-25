@@ -14,7 +14,7 @@ import {
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { RequestInvalidError } from '@app-template/application/http-api'
-import { UserUnknownError } from '@app-template/application/identity'
+import { UserUnknownError } from '@app-template/application/user'
 import type {
   ChatEntitySelectWhere,
   MessageColumns,

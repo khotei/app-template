@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 import type { SetOptional, SetRequired } from 'type-fest'
 
-import type { UserId } from '@app-template/application/identity'
+import type { UserId } from '@app-template/application/user'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 

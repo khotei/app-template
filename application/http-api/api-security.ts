@@ -1,7 +1,7 @@
 import { Context, Schema } from 'effect'
 import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
-import { type UserId, UserUnknownError } from '@app-template/application/identity/contract'
+import { type UserId, UserUnknownError } from '@app-template/application/user/contract'
 
 /** `path` mixes property names and array indices, as Standard Schema reports them. */
 export const RequestIssue = Schema.Struct({

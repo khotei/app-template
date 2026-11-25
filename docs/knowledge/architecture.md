@@ -345,8 +345,8 @@ imported as `@app-template/application/<module>`; its contract, once another mod
 the folder `application/<module>/contract/`, behind an entry of its own.
 Decision: [Modules by capability](decisions.md#modules-by-capability).
 
-1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel, and its
-   contract's while the contract holds a file of its own; in
+1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel, never the
+   contract's, which re-exports domain files the domain's barrel already gives; in
    `application/package.json`, an `exports` entry `./<module>` and the alias `#<module>/*`, and
    once it has test support that support's entry and alias
    ([tooling.md › Tests](tooling.md#tests)), as chat's. The folder's one `tsconfig.json` project

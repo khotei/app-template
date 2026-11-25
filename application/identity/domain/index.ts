@@ -1,1 +1,1 @@
-export * from '#identity/domain/user.model'
+export * from '#identity/domain/identity.model'

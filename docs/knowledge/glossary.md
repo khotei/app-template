@@ -16,7 +16,8 @@ file suffixes: [naming.md](../../.claude/rules/naming.md); the rings, folders an
 **User**:
 An anonymous browser the api recognises by a secret it issued on first contact; the owner of chats.
 Not an account: there is nothing to sign in to. Not the person who works on this repository,
-whom the toolkit calls the owner, nor a database role (`username`).
+whom the toolkit calls the owner, nor a database role (`username`). Its model and id are the
+`user` module's; recognising it is `identity`'s.
 _Avoid_: Visitor, account, anonymous user, device, session
 
 **User secret**:

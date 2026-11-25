@@ -408,7 +408,7 @@ def architecture():
     f.text(82, 248, "`application/use-cases`")
     f.text(82, 272, "a module's `services/`")
     f.text(82, 296, "a module's `domain/` and `contract/`")
-    f.text(82, 320, "modules: `chat`, `identity`", "m")
+    f.text(82, 320, "modules: `chat`, `user`, `identity`", "m")
 
     f.rect(100, 346, 416, 158, "box k-dat")
     f.text(118, 372, "data", "b", accent="dat")

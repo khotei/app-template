@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Exit, Layer, Option, Schema, Struct } from 'effect'
 
-import type { UserId } from '@app-template/application/identity'
+import type { UserId } from '@app-template/application/user'
 import {
   type ChatColumns,
   type ChatEntitySelectWhere,

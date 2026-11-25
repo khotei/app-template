@@ -3,12 +3,11 @@ import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option, Redacted, Result } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
+import { UserId, UserUnknownError } from '@app-template/application/user'
 import type { UserEntityWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { UserId } from '#identity/contract/user.util'
-import type { UserSecret } from '#identity/domain/user.model'
-import { UserUnknownError } from '#identity/domain/user.model'
+import type { UserSecret } from '#identity/domain/identity.model'
 import { UserService } from '#identity/services/user.service'
 import { layerUserTest } from '#testing/identity/user.test-layer'
 
