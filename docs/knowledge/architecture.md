@@ -172,7 +172,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
-| codecs that turn a failure into a defect; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `buildIdSchema` |
+| codecs whose failed encode or decode is a defect, a variant's make with its row, whose refused make stays a typed failure; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `makeRowWith`, `buildIdSchema` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |

@@ -93,9 +93,9 @@ A model is the codec of its own row: a `Model.Class` that declares each stored v
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
 (`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
 entity and its type side is what the rules read. No mapper sits between them: a service codes a
-row through the model's statics, each a ready codec of `encodeWith` or `decodeWith` from
-`@app-template/packages/schema` over the model in a read's shape or one of its variants
-([models.md](../../.claude/rules/models.md)). A read decodes the entity with the model in the
+row through the model's statics over `@app-template/packages/schema`: a read's through
+`decodeWith` over the model in the read's shape, a write's through `makeRowWith` over one of its
+variants ([models.md](../../.claude/rules/models.md)). A read decodes the entity with the model in the
 read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
 `insert` makes the id and both times, `update` holds only the fields an update may set and moves
 `updatedAt`, and neither holds a nested record, which is a field of the select variant alone

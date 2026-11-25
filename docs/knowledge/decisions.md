@@ -611,7 +611,7 @@ record's id (`Model.UuidV7Insert`) and both its times, the update variant moves 
 field written once by the insert is left out of the update variants, a field no client may see
 out of the json ones (`Model.Sensitive`), and a record another table holds, read with the model,
 is a field of the select variant alone. A service builds a write with
-`<Model>.insert.makeEffect` or `<Model>.update.makeEffect`. A Run carries no messages: it names
+`<Model>.makeInsert` or `<Model>.makeUpdate`. A Run carries no messages: it names
 them by id, and a chat and a message hold their Run as that select-only field.
 
 - **Why:** as a `Schema.Class` a model said only what a read returns, so what a write and the
