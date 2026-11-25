@@ -158,10 +158,31 @@ The wire is unchanged by this step.
 
 ### Shape
 
-`application/user` holds `User`, `UserId` and the user's record; `application/identity` holds
-the recognising of a user (`authenticate`, `recognise`, the secret, `UserUnknownError`) and
-`CurrentUser`. The split of `UserService` is drafted by the implementer as a `[D:ai]` before it
-is built.
+The owner's yes, 2026-11-25, to the draft's option B:
+
+```
+application/user/
+  domain/user.util.ts            UserId
+  domain/user.model.ts           User
+  contract/index.ts              export { UserId }, export { User }
+application/identity/
+  domain/identity.model.ts       UserUnknownError, UserSecret, secretBytes
+  domain/current-user.ts         CurrentUser
+  services/identity.service.ts   IdentityService { recognise, authenticate }, today's UserService
+  contract/index.ts              the names http-api and the api read, by name
+```
+
+- `user` has no service until it has a write of its own; `identity` writes the `users` rows
+  meanwhile, the cost the decision records.
+- `user.util.ts` leaves `contract/`: every `contract/` is an entry only.
+- The wire, the snapshot and the web's client do not change.
+
+Two guards the owner took with it:
+
+- a module's `services/`, `infrastructure/` and the use cases may not import
+  `@app-template/application/http-api` (Biome);
+- `make check` holds the contract's bundle: no file of a `services/`, an `infrastructure/`,
+  the kernel, `packages/db` or drizzle.
 
 ## L9 — A module's contract holds what others may take
 
