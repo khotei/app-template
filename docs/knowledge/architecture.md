@@ -133,7 +133,7 @@ import { Effect } from 'effect'                             // external packages
 
 import { ChatService } from '@app-template/application/chat'  // another part
 
-import { askChat } from '#use-cases/chat/ask-chat.use-case'  // this part
+import { titleChat } from '#use-cases/chat/title-chat.use-case'  // this part
 ```
 
 - **`@app-template/<folder>`** reaches another part through its workspace's `exports`, each
@@ -166,7 +166,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `ChatQueue`, its `sendReplyToMessage` and `sendTitleChat` |
 | service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
-| use case | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat` |
+| use case | `application/use-cases/chat/title-chat.use-case.ts` | `titleChat` |
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |

@@ -40,7 +40,7 @@ _Avoid_: Prompt, completion, turn
 
 **Ask**:
 What the user does to a chat: their message stored with a queued Run, then the jobs that answer
-it sent (`POST /chats/:chatId/messages`, `askChat`, `AskChatService.ask`). A chat no ask has
+it sent (`POST /chats/:chatId/messages`, `AskChatService.ask`). A chat no ask has
 reached is new and `idle`; asking a `queued` chat is refused as busy. The same verb names a Run
 asking the assistant for its reply and the assistant asking the language model (`askModel`): one
 act, asking for an answer. Never a job put on its queue, which is a send.
@@ -57,7 +57,7 @@ task, attempt
 
 **Retry**:
 A new Run of the message a failed Run answered, which the user asks for (`POST
-/chats/:chatId/runs`, `retryRun`, `AskChatService.retry`); only a chat's newest Run, once failed,
+/chats/:chatId/runs`, `AskChatService.retry`); only a chat's newest Run, once failed,
 can be retried (`ensureRunRetryable`, `RunNotRetryableError`). Not a call repeated after its
 failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which is written with the call
 it repeats (*the model call's retries*, `retryWhileUnreachable`) and never alone.
@@ -197,9 +197,10 @@ _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:
 One scenario that composes domain services and model rules, of one module or several, or one
-transaction, or ends a job; what a handler calls when a flow is more than one service method. It
-holds only its flow, the order of the calls, the transaction, what it skips and logs; each
-module's rules, records and jobs stay in its models and services.
+transaction, or ends a job; what a handler calls when a flow is more than one service method and
+no one service owns it, never for a read of the caller's record before one call. It holds only its
+flow, the order of the calls, the transaction, what it skips and logs; each module's rules, records
+and jobs stay in its models and services.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Boundary**:

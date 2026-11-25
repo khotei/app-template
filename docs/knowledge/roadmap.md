@@ -339,9 +339,9 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`ChatQueue.sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
-  `retry`): a send SQS refuses fails the Run, and both methods run uninterruptibly, but no handler
-  runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active Runs. The owner
-  refused a rule by a Run's age.
+  `retry`): a send SQS refuses fails the Run, and both run uninterruptibly once the chat is read,
+  but no handler runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active
+  Runs. The owner refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
   (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
@@ -355,8 +355,8 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
   an ask of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that
-  only the newest user message gets one (`application/use-cases/chat/retry-run.use-case.ts`, the
-  chat's read, and `AskChatService.retry`'s `runs.create`).
+  only the newest user message gets one (`AskChatService.retry`'s chat read and its `runs.create`,
+  `application/chat/services/ask-chat.service.ts`).
   Claimed by a review, not reproduced: it needs an ask, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.

@@ -3,6 +3,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, DateTime, Effect, Exit, Fiber, Option, Struct } from 'effect'
 
 import type {
+  ChatEntitySelectWhere,
   MessageColumns,
   RunColumns,
   RunEntitySet,
@@ -12,14 +13,20 @@ import { recordMessages } from '@app-template/packages/queue/testing'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { ChatBusyError } from '#chat/domain/chat.error'
+import { ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
 import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run } from '#chat/domain/run.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
-import { assistantMessageAt, chat, firstMessage, queuedRun } from '#testing/chat/chat.test-fixture'
+import {
+  assistantMessageAt,
+  chat,
+  firstMessage,
+  owner,
+  queuedRun,
+} from '#testing/chat/chat.test-fixture'
 import {
   type ChatLeaves,
   type ChatRepositoryMocks,
@@ -54,11 +61,15 @@ const insertingInto = (inserts: Inserts, mocks: ChatRepositoryMocks = {}): ChatR
   },
 })
 
-/** The services over `queue`, inserts that keep nothing and Run updates that land in `updates`. */
-function recordUpdates(queue: Required<ChatLeaves>['queue']) {
+/**
+ * The services over `queue` and the read of `read`, inserts that keep nothing and Run updates that
+ * land in `updates`.
+ */
+function recordUpdates(read: Chat, queue: Required<ChatLeaves>['queue']) {
   const updates: Array<RunEntitySet> = []
   const layer = layerChatTest(
     {
+      ...reading(read),
       messages: { insert: () => Effect.void },
       runs: {
         insert: () => Effect.void,
@@ -72,6 +83,11 @@ function recordUpdates(queue: Required<ChatLeaves>['queue']) {
   )
   return { updates, layer }
 }
+
+/** The chat read of `read`, whatever the where. */
+const reading = (read: Chat): ChatRepositoryMocks => ({
+  chats: { selectOne: () => encodeWith(Chat)(read).pipe(Effect.map(Option.some)) },
+})
 
 const withNewest = (newest: Run) => new Chat({ ...chat, run: Option.some(newest) })
 
@@ -97,9 +113,12 @@ const replyJob = (run: Run) => ({
   message: new ReplyToMessage({ messageId: run.userMessageId }),
 })
 
-const ask = (read: Chat, text: string) => AskChatService.use((askChat) => askChat.ask(read, text))
+/** The owner's chat each case asks or retries in; the store's read decides what it holds. */
+const inChat = { chatId: chat.id, userId: owner }
 
-const retry = (read: Chat) => AskChatService.use((askChat) => askChat.retry(read))
+const ask = (text: string) => AskChatService.use((asks) => asks.ask(inChat, text))
+
+const retry = AskChatService.use((asks) => asks.retry(inChat))
 
 describe('AskChatService', () => {
   it.live(
@@ -108,7 +127,7 @@ describe('AskChatService', () => {
       const inserts = noInserts()
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const run = yield* ask(chat, 'Plan a weekend in Lisbon')
+        const run = yield* ask('Plan a weekend in Lisbon')
 
         const userMessage = yield* decodeWith(Message.insert)(Arr.getUnsafe(inserts.messages, 0))
         const sentAt = userMessage.createdAt
@@ -139,23 +158,31 @@ describe('AskChatService', () => {
           { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
           replyJob(run),
         ])
-      }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))
+      }).pipe(
+        Effect.provide(layerChatTest(insertingInto(inserts, reading(chat)), { queue: jobs.layer })),
+      )
     },
   )
 
   it.effect("ask on an answered chat sends the reply's job alone", () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const run = yield* ask(answeredChat, 'And in Porto?')
+      const run = yield* ask('And in Porto?')
 
       assertEquals(yield* jobs.sent, [replyJob(run)])
-    }).pipe(Effect.provide(layerChatTest(insertingInto(noInserts()), { queue: jobs.layer })))
+    }).pipe(
+      Effect.provide(
+        layerChatTest(insertingInto(noInserts(), reading(answeredChat)), {
+          queue: jobs.layer,
+        }),
+      ),
+    )
   })
 
   it.effect("ask fails the Run with the text of SQS's refusal, and returns the failed Run", () => {
-    const { updates, layer } = recordUpdates(layerRefusingQueueTest())
+    const { updates, layer } = recordUpdates(answeredChat, layerRefusingQueueTest())
     return Effect.gen(function* () {
-      const sent = yield* ask(answeredChat, 'And in Porto?')
+      const sent = yield* ask('And in Porto?')
 
       assert.strictEqual(sent.status, 'failed')
       assert.include(Option.getOrThrow(sent.failure).cause, 'SQS is unavailable')
@@ -170,7 +197,7 @@ describe('AskChatService', () => {
     const stored: Array<RunColumns> = []
     const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
     return Effect.gen(function* () {
-      const sent = yield* retry(withNewest(failedRun))
+      const sent = yield* retry
 
       assert.deepStrictEqual(
         Arr.map(updates, ([set, where]) => [set.status, where]),
@@ -182,6 +209,7 @@ describe('AskChatService', () => {
         // No `selectOne`: a read of the message's active Run, a later retry's, would die on it.
         layerChatTest(
           {
+            ...reading(withNewest(failedRun)),
             runs: {
               insert: (row) =>
                 Effect.sync(() => {
@@ -204,7 +232,7 @@ describe('AskChatService', () => {
     () => {
       const updates: Array<RunEntityWhere> = []
       return Effect.gen(function* () {
-        const exit = yield* retry(withNewest(failedRun)).pipe(Effect.exit)
+        const exit = yield* retry.pipe(Effect.exit)
 
         assert.isTrue(Exit.hasDies(exit))
         assert.deepStrictEqual(
@@ -215,6 +243,7 @@ describe('AskChatService', () => {
         Effect.provide(
           layerChatTest(
             {
+              ...reading(withNewest(failedRun)),
               runs: {
                 insert: () => Effect.void,
                 // The Run stored is no longer queued, so the guarded write touches no row.
@@ -233,9 +262,9 @@ describe('AskChatService', () => {
 
   it.effect('ask interrupted while SQS refuses the job still fails the Run', () => {
     const held = holdCall()
-    const { updates, layer } = recordUpdates(layerRefusingQueueTest(held.hold))
+    const { updates, layer } = recordUpdates(answeredChat, layerRefusingQueueTest(held.hold))
     return Effect.gen(function* () {
-      const running = yield* ask(answeredChat, 'And in Porto?').pipe(Effect.forkChild)
+      const running = yield* ask('And in Porto?').pipe(Effect.forkChild)
       yield* held.reached
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),
@@ -254,7 +283,7 @@ describe('AskChatService', () => {
     const held = holdCall()
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const running = yield* ask(chat, 'Plan a weekend in Lisbon').pipe(Effect.forkChild)
+      const running = yield* ask('Plan a weekend in Lisbon').pipe(Effect.forkChild)
       yield* held.reached
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),
@@ -270,6 +299,7 @@ describe('AskChatService', () => {
       Effect.provide(
         layerChatTest(
           {
+            ...reading(chat),
             messages: { insert: () => Effect.void },
             runs: { insert: () => held.hold },
           },
@@ -283,7 +313,7 @@ describe('AskChatService', () => {
     const held = holdCall()
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const running = yield* retry(withNewest(failedRun)).pipe(Effect.forkChild)
+      const running = yield* retry.pipe(Effect.forkChild)
       yield* held.reached
       const interrupting = yield* Fiber.interrupt(running).pipe(
         Effect.forkChild({ startImmediately: true }),
@@ -296,18 +326,23 @@ describe('AskChatService', () => {
         ['reply-to-message'],
       )
     }).pipe(
-      Effect.provide(layerChatTest({ runs: { insert: () => held.hold } }, { queue: jobs.layer })),
+      Effect.provide(
+        layerChatTest(
+          { ...reading(withNewest(failedRun)), runs: { insert: () => held.hold } },
+          { queue: jobs.layer },
+        ),
+      ),
     )
   })
 
   it.effect('ask while a Run is in work is ChatBusyError before any write or job', () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* ask(withNewest(queuedRun), 'And in Porto?').pipe(Effect.flip)
+      const refused = yield* ask('And in Porto?').pipe(Effect.flip)
 
       assertSchemaEquals(ChatBusyError, refused, new ChatBusyError({ id: chat.id }))
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest({}, { queue: jobs.layer })))
+    }).pipe(Effect.provide(layerChatTest(reading(withNewest(queuedRun)), { queue: jobs.layer })))
   })
 
   it.effect.each([
@@ -316,11 +351,11 @@ describe('AskChatService', () => {
   ])('retry $name is RunNotRetryableError before any write or job', ({ read }) => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
-      const refused = yield* retry(read).pipe(Effect.flip)
+      const refused = yield* retry.pipe(Effect.flip)
 
       assertSchemaEquals(RunNotRetryableError, refused, new RunNotRetryableError())
       assertEquals(yield* jobs.sent, [])
-    }).pipe(Effect.provide(layerChatTest({}, { queue: jobs.layer })))
+    }).pipe(Effect.provide(layerChatTest(reading(read), { queue: jobs.layer })))
   })
 
   it.effect(
@@ -329,7 +364,7 @@ describe('AskChatService', () => {
       const inserts = noInserts()
       const jobs = recordMessages()
       return Effect.gen(function* () {
-        const retried = yield* retry(withNewest(failedRun))
+        const retried = yield* retry
 
         assertSchemaEquals(
           Run,
@@ -346,7 +381,105 @@ describe('AskChatService', () => {
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(retried)])
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* jobs.sent, [replyJob(retried)])
-      }).pipe(Effect.provide(layerChatTest(insertingInto(inserts), { queue: jobs.layer })))
+      }).pipe(
+        Effect.provide(
+          layerChatTest(insertingInto(inserts, reading(withNewest(failedRun))), {
+            queue: jobs.layer,
+          }),
+        ),
+      )
+    },
+  )
+
+  it.effect.each([
+    { name: 'ask', refused: ask('Plan a weekend in Lisbon').pipe(Effect.flip) },
+    { name: 'retry', refused: retry.pipe(Effect.flip) },
+  ])(
+    '$name in a chat the store finds none of for the user is ChatNotFoundError before any write or job',
+    ({ refused }) => {
+      const wheres: Array<ChatEntitySelectWhere> = []
+      const jobs = recordMessages()
+      return Effect.gen(function* () {
+        const error = yield* refused
+
+        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chat.id }))
+        assert.deepStrictEqual(wheres, [{ id: chat.id, userId: owner }])
+        assertEquals(yield* jobs.sent, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest(
+            {
+              chats: {
+                selectOne: (where) =>
+                  Effect.sync(() => {
+                    wheres.push(where)
+                  }).pipe(Effect.as(Option.none())),
+              },
+            },
+            { queue: jobs.layer },
+          ),
+        ),
+      )
+    },
+  )
+
+  it.effect.each([
+    { name: 'ask', interrupted: ask('Plan a weekend in Lisbon'), read: chat },
+    { name: 'retry', interrupted: retry, read: withNewest(failedRun) },
+  ])(
+    '$name interrupted while its chat is read stops before any write or job',
+    ({ interrupted, read }) => {
+      const held = holdCall()
+      const inserts = noInserts()
+      const jobs = recordMessages()
+      return Effect.gen(function* () {
+        const running = yield* Effect.forkChild(interrupted)
+        yield* held.reached
+        const interrupting = yield* Fiber.interrupt(running).pipe(
+          Effect.forkChild({ startImmediately: true }),
+        )
+        yield* held.release
+        yield* Fiber.join(interrupting)
+
+        assert.deepStrictEqual(inserts, noInserts())
+        assertEquals(yield* jobs.sent, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest(
+            insertingInto(inserts, {
+              chats: {
+                selectOne: () =>
+                  held.hold.pipe(Effect.andThen(encodeWith(Chat)(read)), Effect.map(Option.some)),
+              },
+            }),
+            { queue: jobs.layer },
+          ),
+        ),
+      )
+    },
+  )
+
+  it.effect(
+    "a new chat's ask whose sends SQS refuses tries the title's and the reply's, and returns the failed Run",
+    () => {
+      let tried = 0
+      const { updates, layer } = recordUpdates(
+        chat,
+        layerRefusingQueueTest(
+          Effect.sync(() => {
+            tried += 1
+          }),
+        ),
+      )
+      return Effect.gen(function* () {
+        const sent = yield* ask('Plan a weekend in Lisbon')
+
+        assert.deepStrictEqual([tried, sent.status], [2, 'failed'])
+        assert.deepStrictEqual(
+          Arr.map(updates, ({ status }) => status),
+          ['failed'],
+        )
+      }).pipe(Effect.provide(layer))
     },
   )
 })

@@ -1,8 +1,13 @@
 import { Effect, Option } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { ChatService, MessageService, RunService } from '@app-template/application/chat'
-import { askChat, listMessages, retryRun } from '@app-template/application/use-cases'
+import {
+  AskChatService,
+  ChatService,
+  MessageService,
+  RunService,
+} from '@app-template/application/chat'
+import { listMessages } from '@app-template/application/use-cases'
 
 import { Api } from '#api/api'
 import { CurrentUser } from '#api/shared/api-security'
@@ -14,6 +19,7 @@ export const ChatHandler = HttpApiBuilder.group(
     const chatService = yield* ChatService
     const messageService = yield* MessageService
     const runService = yield* RunService
+    const askService = yield* AskChatService
 
     return handlers.handleAll({
       create: Effect.fn('ChatHandler.create')(function* () {
@@ -45,11 +51,11 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
       ask: Effect.fn('ChatHandler.ask')(function* ({ params, payload }) {
         const user = yield* CurrentUser
-        return yield* askChat(user.id, params.chatId, payload.text)
+        return yield* askService.ask({ chatId: params.chatId, userId: user.id }, payload.text)
       }),
       retryRun: Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
         const user = yield* CurrentUser
-        return yield* retryRun(user.id, params.chatId)
+        return yield* askService.retry({ chatId: params.chatId, userId: user.id })
       }),
       getMessage: Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
         const user = yield* CurrentUser

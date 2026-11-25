@@ -42,8 +42,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Use cases
 
-- A use case is what a handler calls, and only a handler: it adds what the entry needs (the
-  caller's scope, a job's end and its logs) to the services it calls, and orders work over modules.
+- A use case is what a handler calls, and only a handler, for a flow no one service owns (a job's
+  end and its logs, an order over modules); a read for the caller's scope is a service's own step.
 - An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
 - It holds only its flow: the order of the calls, the transaction, what it skips and logs. It

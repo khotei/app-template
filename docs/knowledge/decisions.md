@@ -83,9 +83,12 @@ commit together sit in a service of that module, the transaction piped on those 
 
 ### Use cases as functions
 
-A use case is an `Effect.fn` that yields what it composes, its type inferred. The process provides
-the services it reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A
-job's sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
+A use case is an `Effect.fn` that yields what it composes, its type inferred, and exists only for
+a flow that no one service owns: a job's end and its logs, an order over modules. A read of the
+caller's record before one call is that service's own first step: `AskChatService.ask` and `retry`
+take `{ chatId, userId }` and read the user's chat themselves. The process provides the services it
+reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's sends are a
+service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 - **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
   errors among it, and closed its services in a layer that each handler group or route provided
@@ -99,11 +102,15 @@ job's sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 - **Rejected:** the class with its `Shape` inferred from `make`: its layer and provide lists
   stay. The services provided in each handler group: a handler's own requirement is a request's
   (`repos/effect/packages/effect/src/http-api/HttpApiBuilder.ts:222-232`), which the group's
-  provide never reaches, so `tsc` refuses the process.
-- **Cost:** a flow that reads a service its process lacks fails `tsc` at the process's `main.ts`
-  and its tests, not at the flow; a unit test merges its doubles into the layer it provides
-  (`Layer.provideMerge`), since the flow reads them itself; the worker's route test mocks the
-  leaves, not the use cases; a span is the function's name.
+  provide never reaches, so `tsc` refuses the process. A use case per endpoint that reads the
+  user's chat and then makes one call (`askChat`, `retryRun`): a pass-through over a `where` the
+  service it calls can take itself, a second unit for each such read.
+- **Cost:** `ask` and `retry` cannot be called with a `Chat` already read: a caller that holds one
+  passes its key and owner, and the service reads it again; the read stays outside their
+  uninterruptible region, a step apart from it. A flow that reads a service its process lacks
+  fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit test merges its
+  doubles into the layer it provides (`Layer.provideMerge`), since the flow reads them itself; the
+  worker's route test mocks the leaves, not the use cases; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
   list, a job's failure at `consumeQueue`.
 - **If reversed:** each use case becomes a `Context.Service` whose layer provides
@@ -446,12 +453,11 @@ plain one; another model's service stays a use case's, save in the last grouping
 logic before a use case, a `<Verb><Model>Service` named for its verb, its main method that verb,
 which use cases share: the chat's services of its jobs
 ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). `AskChatService`, the
-api's, takes a chat as read, checks a request to it (an ask of a busy chat; a retry of a newest
-Run that is not failed, one in work included), stores what the jobs read, the user's message with
-its queued Run in one transaction, or a retry's new Run of the failed Run's message, and sends the
-jobs after the commit; the worker's, one per job, `ReplyChatService` and `TitleChatService`, write
-other models' records of its module. The use cases of a request, an ask and a retry, keep the chat's
-read scoped to the user.
+api's, reads the chat a request names, scoped to the user, checks the request to it (an ask of a
+busy chat; a retry of a newest Run that is not failed, one in work included), stores what the jobs
+read, the user's message with its queued Run in one transaction, or a retry's new Run of the failed
+Run's message, and sends the jobs after the commit; the worker's, one per job, `ReplyChatService`
+and `TitleChatService`, write other models' records of its module.
 
 ```ts
 // the bytes' service reads through the plain one, pipes the model's guard, passes it on, then
@@ -1183,9 +1189,9 @@ names the chat, whose first message the worker reads. The reply's send returns i
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's
 full text as its failure; the request responds with `202` and that failed Run. Both methods run
-uninterruptibly, so a client that aborts after the Run's write still leaves the Run sent or
-failed. The title's send only logs it, as its work has no record to settle. Which services a Run
-has and over which: [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
+uninterruptibly once they have read the chat, so a client that aborts after the Run's write still
+leaves the Run sent or failed. The title's send only logs it, as its work has no record to settle.
+Which services a Run has and over which: [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
 who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
@@ -1287,7 +1293,8 @@ refused move's included, is the queue consumer's to log. `ReplyChatService` take
 the message's assistant and the services of the module's other models, for the records the reply
 writes; `TitleChatService` the chat's assistant and those services, as its one write needs no
 transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
-services, for the request and its sends ([Composition: wrap or compose](#composition-wrap-or-compose)).
+services, `ChatService` reading the user's chat each request names, for the request and its sends
+([Composition: wrap or compose](#composition-wrap-or-compose)).
 
 - **Why:** each job's run sits in one service: the rule a job keeps (an unstarted Run only), the
   moves it makes and the handler that fails the Run on what ends the answer, the rule's refusal
@@ -1362,8 +1369,9 @@ What a Run's job accepts when it is cut short or handled twice. `ReplyChatServic
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
 interrupt included: a worker interrupted while the job reads its Run starts it, then fails it, and
 one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
-`ask` and `retry` run uninterruptibly whole, so a client that aborts once the request is handled
-still leaves the Run stored with its jobs sent, or failed by a refused send. Two deliveries at the
+`ask` and `retry` read the user's chat interruptibly, so a client that aborts during that read stops
+the request, then run uninterruptibly to their sends, so one that aborts later still leaves the Run
+stored with its jobs sent, or failed by a refused send. Two deliveries at the
 same instant both read the Run queued; the loser's guarded `generating` write dies before its tail
 exists, so it fails nothing and the winner's reply stands. A Run settled or deleted under the reply
 makes the tail's write die, and the Run stays as the other writer left it. The job names the user's
@@ -1399,8 +1407,9 @@ and a worker settled the Run dies on the write's guard and fails no later Run
   fails the retry's Run, and the user retries again. A model's error on a Run whose chat was deleted
   meanwhile ends the job as a defect, not as a warning. An interrupt waits for the start's read and
   write to end.
-- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send and an ask and a
-  retry interrupted while their Run is stored, and of `ReplyChatService`, one while the assistant
+- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a
+  retry interrupted while their Run is stored and an ask and a retry interrupted while their chat
+  is read, and of `ReplyChatService`, one while the assistant
   answers, one while the job reads its Run, one losing the `generating` write to a rival, one of a
   failed Run's job delivered again after its retry, one that dies after its Run was failed elsewhere
   and retried, and `AskChatService`'s of a refused send whose Run a worker settled, which fails no

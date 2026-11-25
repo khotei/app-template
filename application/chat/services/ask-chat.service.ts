@@ -1,14 +1,18 @@
-import { Cause, Context, Effect, Layer, Struct } from 'effect'
+import { Cause, Context, Effect, Layer, Struct, type Types } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { ChatBusyError } from '#chat/domain/chat.error'
+import type { ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.error'
 import type { Chat } from '#chat/domain/chat.model'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
 import type { Run } from '#chat/domain/run.model'
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
+import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
+
+/** The chat an ask or a retry acts in, by its id, of the user `userId` names. */
+export type ChatAskWhere = Types.Simplify<Pick<Run, 'chatId' | 'userId'>>
 
 /**
  * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
@@ -18,19 +22,25 @@ export class AskChatService extends Context.Service<
   AskChatService,
   {
     /**
-     * Asks `chat` for a reply to the user's `text`: stores the message with its queued Run, then
-     * sends a new chat's title job and the reply's; returns the Run sent, or failed with the full
-     * text of SQS's refusal.
+     * Asks the user's chat `where` names for a reply to `text`: stores the message with its queued
+     * Run, then sends a new chat's title job and the reply's; returns the Run sent, or failed with
+     * the full text of SQS's refusal. Another user's chat is not found.
      */
-    readonly ask: (chat: Chat, text: string) => Effect.Effect<Run, ChatBusyError>
+    readonly ask: (
+      where: ChatAskWhere,
+      text: string,
+    ) => Effect.Effect<Run, ChatNotFoundError | ChatBusyError>
     /**
-     * Retries `chat`'s failed newest Run: stores a new queued Run of its user message, then
-     * sends the reply's job as `ask` does.
+     * Retries the failed newest Run of the user's chat `where` names: stores a new queued Run of
+     * its user message, then sends the reply's job as `ask` does.
      */
-    readonly retry: (chat: Chat) => Effect.Effect<Run, RunNotRetryableError>
+    readonly retry: (
+      where: ChatAskWhere,
+    ) => Effect.Effect<Run, ChatNotFoundError | RunNotRetryableError>
   }
 >()('@app-template/application/chat/services/AskChatService', {
   make: Effect.gen(function* () {
+    const chats = yield* ChatService
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
@@ -67,9 +77,10 @@ export class AskChatService extends Context.Service<
       })
     }, transaction.run)
 
-    // `ask` and `retry` are uninterruptible: a client's abort after the Run commits would leave it
-    // queued with no job, its chat busy and its retry refused, so one that began runs to its send.
-    const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
+    // `askIn` and `retryIn` are uninterruptible: a client's abort after the Run commits would leave
+    // it queued with no job, its chat busy and its retry refused, so one that began runs to its
+    // send. The chat's read before them stays interruptible, so an abort there stops the request.
+    const askIn = Effect.fnUntraced(function* (chat: Chat, text: string) {
       yield* chat.ensureNotBusy()
       const run = yield* createMessageRun(chat, text)
 
@@ -79,17 +90,30 @@ export class AskChatService extends Context.Service<
       return yield* askReply(run)
     }, Effect.uninterruptible)
 
-    const retry = Effect.fn('AskChatService.retry')(function* (chat: Chat) {
+    const retryIn = Effect.fnUntraced(function* (chat: Chat) {
       const failed = yield* chat.ensureRetryable()
       const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
       return yield* askReply(run)
     }, Effect.uninterruptible)
+
+    const ask = Effect.fn('AskChatService.ask')(function* (
+      { chatId, userId }: ChatAskWhere,
+      text: string,
+    ) {
+      const chat = yield* chats.getOne({ id: chatId, userId })
+      return yield* askIn(chat, text)
+    })
+
+    const retry = Effect.fn('AskChatService.retry')(function* ({ chatId, userId }: ChatAskWhere) {
+      const chat = yield* chats.getOne({ id: chatId, userId })
+      return yield* retryIn(chat)
+    })
 
     return { ask, retry }
   }),
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)
   static readonly layer = this.layerNoDeps.pipe(
-    Layer.provide([MessageService.layer, RunService.layer, ChatQueue.layer]),
+    Layer.provide([ChatService.layer, MessageService.layer, RunService.layer, ChatQueue.layer]),
   )
 }
