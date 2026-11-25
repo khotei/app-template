@@ -16,7 +16,7 @@ import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/test
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
-import { ChatService, ChatWhere } from '#chat/services/chat.service'
+import { ChatService } from '#chat/services/chat.service'
 import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
 
 /** The service over a repository that implements only the methods the case gives; any other dies. */
@@ -238,13 +238,4 @@ describe('ChatService', () => {
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
       }).pipe(Effect.provide(chatServiceOver({ chats: { selectOne: () => Effect.succeedNone } }))),
   )
-})
-
-describe('ChatWhere', () => {
-  it('encodes an untitled where as a null title, its id as it is', () => {
-    assert.deepStrictEqual(ChatWhere.encode({ id: chat.id, title: Option.none() }), {
-      id: chat.id,
-      title: { isNull: true },
-    })
-  })
 })

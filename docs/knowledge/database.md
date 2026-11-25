@@ -158,24 +158,21 @@ and a read decodes the entities into models; a mapping failure dies.
 
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
 values alone: a branded id, an `Option` for a field that may be null (`{ id, title: Option.none() }`
-is a chat still untitled), a list for one of several (`status: activeRunStatuses`). It is one
-`Schema.Opaque` struct over its model's fields, so a literal stands for it, whose key is a required
-field, and so is the owner on a type only a call on a user's behalf takes
-(`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, the first member of `RunWhere`);
-a narrowing a caller may leave out is an absent key, never an `Option` nor an `undefined`
-([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's one where, is
-the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename and the title
-job's alike. What a service hands a repository is Drizzle's filter object, which
-`encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where, called through the
-where's static: an `Option` of none becomes `{ isNull: true }`, of some its value, a list
-`{ in: […] }`, any other value stays itself (`chats.selectOne(ChatWhere.encode(where))`). Every
-field of the value becomes a condition, so a caller writes its where as a literal of the type's
-fields, which the compiler checks, and never hands a record whole. `RunService.getOne` reads by
-either of two keys, as `RunEntitySelectWhere` does, so `RunWhere` is a union of one member per key,
-the api's by the id and owner or the worker's by the message and statuses; a union is no class
-(`TS2509`), so its two members are classes and `RunWhere.encode` a value of the union's name. So
-Drizzle's operators appear in that one function, never in a service, a handler or a use case.
-Neither an `undefined` field, which `exactOptionalPropertyTypes`
+is a chat still untitled), a list for one of several (`status: activeRunStatuses`). It is one plain
+type whose key is a required field, and so is the owner on a type only a call on a user's behalf
+takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, the first member of
+`RunWhere`); a narrowing a caller may leave out is an absent key, never an `Option` nor an
+`undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's
+one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
+and the title job's alike. What a service hands a repository is Drizzle's filter object, which
+`encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
+none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, any other value stays
+itself (`chats.selectOne(encodeWhere(where))`). Every field of the value becomes a condition, so a
+caller writes its where as a literal of the type's fields, which the compiler checks, and never
+hands a record whole. `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere`
+does, so `RunWhere` is a union of one member per key, the api's by the id and owner or the worker's
+by the message and statuses. So Drizzle's operators appear in that one function, never in a service,
+a handler or a use case. Neither an `undefined` field, which `exactOptionalPropertyTypes`
 ([tooling.md › TypeScript](tooling.md#typescript)) refuses at `make typecheck`, nor an empty where
 has a rule: Drizzle throws on the first, and the repository's key refuses the second.
 

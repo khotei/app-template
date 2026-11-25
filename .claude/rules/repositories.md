@@ -39,12 +39,10 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). A
   relational query (`db.query.<table>`) takes it as it is; a core-builder statement (`update`,
   `delete`, a plain `select`) takes `encodeFilter(<table>, where)`, the one function over it.
-- A service's `where` is model values alone, one `Schema.Opaque` struct of its model's fields
-  (`<Model>Where`), so a literal stands for it: a branded id, an `Option`, a list.
+- A service's `where` is model values alone, one plain type: a branded id, an `Option`, a list.
   Its key, and the owner on a type only a user's calls take, are required fields; a narrowing the
   caller may leave out is an absent key, `key?: T` ([effect.md › Schemas](effect.md#schemas)).
-- A method hands its repository `<Model>Where.encode(where)`, the where's static over `encodeWhere`,
-  the one function over a service's where: an
+- A method hands its repository `encodeWhere(where)`, the one function over a service's where: an
   `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, any other value itself. Every
   field becomes a condition, so a caller writes a where as a literal of its type's fields, never
   a record whole. No method writes a Drizzle operator, copies a field, picks a where's fields or
@@ -58,7 +56,7 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - orders.getMany({ customerId, status: Option.fromUndefinedOr(query.status) })  // a null column
 + orders.getMany({ customerId, ...(query.status === undefined ? {} : { status: query.status }) })
 - repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
-+ repository.selectOne(OrderWhere.encode(where))
++ repository.selectOne(encodeWhere(where))
 - orders.getOne(order)                                      // every field of the record a condition
 + orders.getOne({ id: order.id, customerId: order.customerId })
 ```

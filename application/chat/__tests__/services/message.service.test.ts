@@ -8,7 +8,7 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
-import { MessageService, MessageWhere } from '#chat/services/message.service'
+import { MessageService } from '#chat/services/message.service'
 import { chat, firstMessage, owner } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
@@ -74,13 +74,5 @@ describe('MessageService', () => {
         }),
       ),
     )
-  })
-})
-
-describe('MessageWhere', () => {
-  it('encodes its plain values as they are', () => {
-    const where = { id: firstMessage.id, chatId: chat.id, userId: owner }
-
-    assert.deepStrictEqual(MessageWhere.encode(where), where)
   })
 })

@@ -7,7 +7,7 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { activeRunStatuses, Run, type RunStatus } from '#chat/domain/run.model'
-import { RunService, RunWhere } from '#chat/services/run.service'
+import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
@@ -149,13 +149,4 @@ describe('RunService', () => {
       }).pipe(Effect.provide(layer))
     },
   )
-})
-
-describe('RunWhere', () => {
-  it("encodes a message's where by its statuses as any of them", () => {
-    assert.deepStrictEqual(
-      RunWhere.encode({ userMessageId: queuedRun.userMessageId, status: ['queued'] }),
-      { userMessageId: queuedRun.userMessageId, status: { in: ['queued'] } },
-    )
-  })
 })
