@@ -12,4 +12,6 @@ export class RunState {
   static readonly isStarted = Predicate.Struct({
     status: Schema.is(RunStatus.pick(['generating'])),
   })
+
+  static readonly isFailed = Predicate.Struct({ status: Schema.is(RunStatus.pick(['failed'])) })
 }

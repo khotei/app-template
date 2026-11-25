@@ -1,9 +1,7 @@
-import { Effect, Option, Predicate, Schema, type Types } from 'effect'
+import { Effect, Option, type Types } from 'effect'
 
-import { type Run, RunNotRetryableError, RunStartedError, RunStatus } from '#chat/domain/run.model'
+import { type Run, RunNotRetryableError, RunStartedError } from '#chat/domain/run.model'
 import { RunState } from '#chat/domain/run-state'
-
-const isFailed = Predicate.Struct({ status: Schema.is(RunStatus.pick(['failed'])) })
 
 /** The checks a Run passes before a move; each fails or hands its Run back. */
 export class RunPolicy {
@@ -24,7 +22,7 @@ export class RunPolicy {
   static readonly ensureRetryable = Effect.fnUntraced(function* <
     R extends Types.Simplify<Pick<Run, 'status'>>,
   >(newestRun: Option.Option<R>) {
-    const failed = Option.filter<R>(newestRun, isFailed)
+    const failed = Option.filter<R>(newestRun, RunState.isFailed)
     if (Option.isNone(failed)) return yield* new RunNotRetryableError()
     return failed.value
   })
