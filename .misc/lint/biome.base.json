@@ -254,14 +254,14 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{schema,db,queue}",
+                      "!@app-template/packages/{schema,db}",
                       "!@app-template/kernel/data",
                       "!@app-template/application/*",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's ask service (AskChatService), the api's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction, of @app-template/packages/queue, the sender: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "the chat's ask service (AskChatService), the api's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
@@ -270,19 +270,13 @@
                     "message": "of @app-template/packages/db the chat's ask service takes only Transaction, to store the message and its Run in one transaction (decisions.md › Jobs as queue messages)"
                   },
                   {
-                    "group": ["@app-template/packages/queue"],
-                    "importNamePattern": "QueueSender",
-                    "invertImportNamePattern": true,
-                    "message": "of @app-template/packages/queue the chat's ask service takes only QueueSender, which it gives its sends from its make (decisions.md › Jobs as queue messages)"
-                  },
-                  {
                     "group": ["@app-template/kernel/data"],
                     "importNamePattern": "(Db|relations|migrationsFolder)",
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
-                    "message": "the chat's ask service reaches its module's infrastructure only through a port and its queue file, whose sends it calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "the chat's ask service reaches its module's infrastructure only through a port and its queue file, whose ChatQueue it calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }

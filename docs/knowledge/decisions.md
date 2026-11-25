@@ -193,8 +193,7 @@ the data layer's repository directly.
   their infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds `Transaction` alone of
-  `@app-template/packages/db`, `QueueSender` alone of `@app-template/packages/queue` and of the
-  infrastructure the queue file alone, the chat's reply
+  `@app-template/packages/db` and of the infrastructure the queue file alone, the chat's reply
   service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the message's
   assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its own, which
   adds the chat's assistant's `.llm` file alone
@@ -504,8 +503,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
   so the rule the reader pipes names every absent id at once. The chat's jobs take three services
-  and three Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`,
-  `QueueSender` and the queue file, `ReplyChatService`, the worker's, `Transaction` and the
+  and three Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`
+  and the queue file, `ReplyChatService`, the worker's, `Transaction` and the
   message's assistant,
   and `TitleChatService`, the worker's too, the chat's assistant alone; each takes other models'
   services, by its file's name.
@@ -513,8 +512,7 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   every TypeScript diff, and by `layering.md`; `noImportCycles` refuses a unit below that imports
   the one over it. Nothing refuses a fold, nor a service of another model, in a job's service or
   any other. The ask and reply services' Biome overrides admit of `@app-template/packages/db`
-  only `Transaction`, the title service's none of it, and the ask service's of
-  `@app-template/packages/queue` only `QueueSender`; of the infrastructure the ask service's
+  only `Transaction`, the title service's none of it; of the infrastructure the ask service's
   admits only the queue file, the reply and title services' only their assistant's `.llm` file;
   the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
   ask whose Run Postgres refuses keeps no message. `tsc` refuses a root that leaves a service's
@@ -1191,7 +1189,7 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   replaces it, and what the old one held is lost.
 - **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of the
   create flow; the ask service's Biome override, which admits of its infrastructure only
-  `#*/infrastructure/*.queue` and of `@app-template/packages/queue` only `QueueSender`; the
+  `#*/infrastructure/*.queue` and nothing of `@app-template/packages/queue`; the
   `infrastructure/` and `use-cases` rows of [architecture.md › Dependency
   rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
@@ -1294,7 +1292,7 @@ services, for the request and its sends ([Composition: wrap or compose](#composi
   end and its logs in its use case; the reply service's Biome override, which adds to the
   services' the message's assistant's `.llm` file and of `@app-template/packages/db` only
   `Transaction`; the title service's, which adds the chat's assistant's `.llm` file alone; the
-  ask service's, which adds the queue file, `Transaction` and `QueueSender` alone.
+  ask service's, which adds the queue file and `Transaction` alone.
 - **If reversed:** the Run's rule and moves go back into the job's use case, which then fails the
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
