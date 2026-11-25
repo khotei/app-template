@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Schema, SchemaIssue } from 'effect'
+import { Cause, Effect, Schema } from 'effect'
 
 import { makeRowWith, makeUpdateWith } from '#schema/schema-codec'
 
@@ -23,11 +23,15 @@ describe('makeRowWith', () => {
     }),
   )
 
-  it.effect('fails a value its schema refuses with the issue', () =>
+  it.effect('dies on a value its schema refuses, the defect reading as its message', () =>
     Effect.gen(function* () {
-      const issue = yield* makeRowWith(Sample)({ count: 0 }).pipe(Effect.flip)
+      const cause = yield* makeRowWith(Sample)({ count: 0 }).pipe(Effect.sandbox, Effect.flip)
 
-      assert.isTrue(SchemaIssue.isIssue(issue))
+      assert.isTrue(Cause.hasDies(cause))
+      assert.strictEqual(
+        Cause.pretty(cause),
+        'SchemaError: Expected a value greater than 0\n  at ["count"]',
+      )
     }),
   )
 })

@@ -35,7 +35,7 @@ export class RunService extends Context.Service<
 
       yield* runs.insert(row)
       return new Run(set)
-    }, Effect.orDie)
+    })
 
     const getOne = Effect.fn('RunService.getOne')(
       (where: RunWhere) => runs.selectOne(encodeWhere(where)),
@@ -53,7 +53,7 @@ export class RunService extends Context.Service<
 
       yield* runs.update(row, encodeWhere(Struct.pick(from, ['id', 'status'])))
       return new Run({ ...to, ...set })
-    }, Effect.orDie)
+    })
 
     return { create, getOne, update }
   }),

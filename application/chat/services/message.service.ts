@@ -29,7 +29,7 @@ export class MessageService extends Context.Service<
 
       yield* messages.insert(row)
       return new Message(set)
-    }, Effect.orDie)
+    })
 
     const getOne = Effect.fn('MessageService.getOne')(
       (where: MessageWhere) => messages.selectOne(encodeWhere(where)),

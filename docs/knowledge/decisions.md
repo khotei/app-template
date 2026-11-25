@@ -638,7 +638,8 @@ the api serves. The Drizzle tables, the entities and the kernel's repositories s
 service still codes its rows, through the model's statics over `packages/schema`'s functions: a
 read's shape decodes through `decodeWith` (`Chat.decodeOne`, `decodeMany`), and a write's variant
 makes its value and encodes its row in one call of `makeRowWith` (`makeInsert`,
-`makeUpdate`), which returns both, `{ set, row }`; a model has only the statics its service
+`makeUpdate`), which returns both, `{ set, row }`, and dies on a value the variant refuses as a
+`Schema.SchemaError`, the issue's text its message; a model has only the statics its service
 calls, and every `makeUpdate` goes through `makeUpdateWith`, which drops the input's own
 `updatedAt`, so the update variant moves it to now whatever the caller passes, fields or a
 record as read. The insert variant makes a new

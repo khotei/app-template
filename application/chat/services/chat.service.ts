@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, SchemaIssue, type Types } from 'effect'
+import { Context, Effect, Layer, type Types } from 'effect'
 import type { SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
@@ -44,7 +44,7 @@ export class ChatService extends Context.Service<
 
       yield* chats.insert(row)
       return new Chat(set)
-    }, Effect.orDie)
+    })
 
     const list = Effect.fn('ChatService.list')(
       (userId: UserId) => chats.selectMany({ userId }),
@@ -61,18 +61,18 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('ChatService.update')(
-      function* (fields: typeof Chat.jsonUpdate.Type, where: ChatWhere) {
-        const chat = yield* getOne(where)
-        const { set, row } = yield* Chat.makeUpdate({ id: chat.id, ...fields })
+    const update = Effect.fn('ChatService.update')(function* (
+      fields: typeof Chat.jsonUpdate.Type,
+      where: ChatWhere,
+    ) {
+      const chat = yield* getOne(where)
+      const { set, row } = yield* Chat.makeUpdate({ id: chat.id, ...fields })
 
-        // Only the update variant's fields, under the `where` again: a change landing after the
-        // read is kept.
-        yield* chats.update(row, encodeWhere(where))
-        return new Chat({ ...chat, ...set })
-      },
-      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
-    )
+      // Only the update variant's fields, under the `where` again: a change landing after the
+      // read is kept.
+      yield* chats.update(row, encodeWhere(where))
+      return new Chat({ ...chat, ...set })
+    })
 
     const remove = Effect.fn('ChatService.delete')(function* (
       where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,

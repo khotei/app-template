@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Redacted, SchemaIssue } from 'effect'
+import { Context, Effect, Layer, Redacted } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
@@ -54,18 +54,15 @@ export class UserService extends Context.Service<
       yield* users.insertCredential({ ...credential, userId: user.id })
     }, transaction.run)
 
-    const register = Effect.fnUntraced(
-      function* () {
-        const bytes = yield* random.randomBytes(secretBytes)
-        const fresh = Redacted.make(Base64Url.encode(bytes))
+    const register = Effect.fnUntraced(function* () {
+      const bytes = yield* random.randomBytes(secretBytes)
+      const fresh = Redacted.make(Base64Url.encode(bytes))
 
-        const { set, row } = yield* User.makeInsert({})
-        const credential = yield* hashSecret(fresh)
-        yield* createUser(row, credential)
-        return { user: new User(set), secret: fresh }
-      },
-      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
-    )
+      const { set, row } = yield* User.makeInsert({})
+      const credential = yield* hashSecret(fresh)
+      yield* createUser(row, credential)
+      return { user: new User(set), secret: fresh }
+    })
 
     const recognise = Effect.fn('UserService.recognise')(
       function* (secret: UserSecret) {

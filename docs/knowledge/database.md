@@ -153,7 +153,9 @@ from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
 their codecs: a write encodes the model into the row, the set takes its fields from that row,
-and a read decodes the entities into models; a mapping failure dies.
+and a read decodes the entities into models; a mapping failure, a value a variant refuses
+included, dies as a `Schema.SchemaError`, whose message is the issue's text, so no service
+settles it.
 
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
 values alone: a branded id, an `Option` for a field that may be null (`{ id, title: Option.none() }`
