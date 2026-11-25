@@ -1,8 +1,9 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, DateTime, Effect, Equal, Option, Struct } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Equal, Option, Schema, Struct } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { activeRunStatuses } from '@app-template/kernel/data'
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId } from '#chat/domain/chat.util'
@@ -163,6 +164,32 @@ describe('Run', () => {
       assert.strictEqual(yield* queued.ensureUnstarted(), queued)
       assert.instanceOf(error, RunStartedError)
       assert.deepStrictEqual(Struct.pick(error, ['id']), { id: queued.id })
+    }),
+  )
+
+  it.effect('decodes the row it reads into a Run, and dies on a row that does not decode', () =>
+    Effect.gen(function* () {
+      const row = yield* encodeWith(Run)(queued)
+
+      const one = yield* Run.decodeOne(Option.some(row))
+      const defect = yield* Run.decodeOne(Option.some({ ...row, id: 'not-a-uuid' })).pipe(
+        Effect.catchDefect(Effect.succeed),
+      )
+
+      assert.instanceOf(Option.getOrThrow(one), Run)
+      assert.isTrue(Equal.equals(Option.getOrThrow(one), queued))
+      assert.isTrue(Schema.isSchemaError(defect))
+    }),
+  )
+
+  it.effect('makes the update row of a Run as it holds it, its updatedAt moved to now', () =>
+    Effect.gen(function* () {
+      const { set, row } = yield* Run.makeUpdate(runAt('done'))
+
+      assert.deepStrictEqual(
+        [set.status, DateTime.toEpochMillis(set.updatedAt), row.updatedAt.getTime()],
+        ['done', 0, 0],
+      )
     }),
   )
 

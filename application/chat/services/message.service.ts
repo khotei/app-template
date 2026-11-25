@@ -1,7 +1,6 @@
-import { Context, Effect, Layer, Schema, type Types } from 'effect'
+import { Context, Effect, Layer, type Types } from 'effect'
 
 import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
@@ -26,16 +25,15 @@ export class MessageService extends Context.Service<
     const create = Effect.fn('MessageService.create')(function* (
       fields: typeof Message.jsonCreate.Type,
     ) {
-      const inserted = yield* Message.insert.makeEffect(fields)
-      const row = yield* encodeWith(Message.insert)(inserted)
+      const { set, row } = yield* Message.makeInsert(fields)
 
       yield* messages.insert(row)
-      return new Message(inserted)
+      return new Message(set)
     }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
       (where: MessageWhere) => messages.selectOne(encodeWhere(where)),
-      Effect.flatMap(decodeWith(Schema.Option(Message))),
+      Effect.flatMap(Message.decodeOne),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -46,7 +44,7 @@ export class MessageService extends Context.Service<
     const getMany = Effect.fn('MessageService.getMany')(
       (where: Types.Simplify<Pick<MessageWhere, 'chatId'>>) =>
         messages.selectMany(encodeWhere(where)),
-      Effect.flatMap(decodeWith(Schema.Array(Message))),
+      Effect.flatMap(Message.decodeMany),
     )
 
     return { create, getOne, getMany }

@@ -12,10 +12,10 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   I/O, over the clients the process provides (`HttpClient`) and the settings of
   `@app-template/kernel/config`, never `Bun.env`.
 - **A module's `domain/` is pure:** it imports `effect`, another module's contract,
-  `@app-template/packages/schema` (the id schema), the data layer's values (a table's limit,
-  pattern, enum values or JSON column's shape, never a table, entity or repository), no other
-  workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and domain
-  services only in `services/`, never beside a model.
+  `@app-template/packages/schema` (the id schema, the row codecs), the data layer's values (a
+  table's limit, pattern, enum values or JSON column's shape, never a table, entity or
+  repository), no other workspace, no Bun API and no Node built-in. Ports live only in `.port.ts`
+  files and domain services only in `services/`, never beside a model.
   Decision: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
 - **Each service in a module's `infrastructure/` has one fake** in its module's test
   support (a port would too), for every workspace's unit tests:

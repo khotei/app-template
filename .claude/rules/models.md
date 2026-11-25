@@ -48,14 +48,25 @@ export class Order extends Model.Class<Order>('Order')({ … }) {
 }
 export const isOrderPaid = (order: Pick<Order, 'payment'>): boolean => Option.isSome(order.payment)
 ```
-- **A service builds a write through its variant,** `<Model>.insert.makeEffect(…)` or
-  `<Model>.update.makeEffect(…)`, encodes that variant for the repository and returns
-  `new <Model>(…)` over what it built; never `new <Model>(…)` with an id or a time made by hand
-  (`DateTime.now`, a generator of its own).
+- **A service builds a write through its model's static,** `<Model>.makeInsert(…)` or
+  `<Model>.makeUpdate(…)`, the variant's `makeEffect` and its encode in one call: it hands
+  `row` to the repository and returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an
+  id or a time made by hand (`DateTime.now`, a generator of its own).
+- **A service codes its rows through the model's statics alone,** one per read's shape or write's
+  variant, never `encodeWith`, `decodeWith` or `makeRowWith` at the call; a model holds only those
+  its service calls, and an input its variant must not take (a record's own `updatedAt`) is
+  trimmed by the static ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
+```ts
+static readonly decodeOne = decodeWith(Schema.Option(this))    // selectOne's row
+static readonly decodeMany = decodeWith(Schema.Array(this))    // selectMany's rows
+static readonly makeInsert = makeRowWith(this.insert)       // { set, row }
+static readonly makeUpdate = (order: Order) =>               // only on a model it updates
+  makeRowWith(this.update)(Struct.omit(order, ['updatedAt']))  // the variant moves the time
+```
 - **An update passes every field it must keep:** a default on an updatable field fills it when
   left out, and the write then resets the column.
 
 ```diff
 - yield* Order.update.makeEffect({ id: order.id, note })        // `status` defaults to 'placed'
-+ yield* Order.update.makeEffect(Struct.omit(shipped, ['updatedAt']))   // whole, the time moved
++ yield* Order.makeUpdate(shipped)                           // whole, the time moved
 ```

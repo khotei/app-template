@@ -1,8 +1,9 @@
-import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Schema, Struct } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
 import { activeRunStatuses, RunFailure, runStatuses } from '@app-template/kernel/data'
+import { decodeWith, makeRowWith } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
@@ -44,6 +45,12 @@ export class Run extends Model.Class<Run>('Run')({
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,
 }) {
+  static readonly decodeOne = decodeWith(Schema.Option(this))
+  static readonly makeInsert = makeRowWith(this.insert)
+  /** Without the Run's own `updatedAt`, so the update variant's default moves it to now. */
+  static readonly makeUpdate = (run: Run) =>
+    makeRowWith(this.update)(Struct.omit(run, ['updatedAt']))
+
   ensureUnstarted() {
     return ensureRunUnstarted(this)
   }

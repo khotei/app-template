@@ -39,9 +39,9 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="40" y="90" class="b" xml:space="preserve">A guarded move</text>
 <text x="40" y="110" xml:space="preserve"><tspan class="code">yield* runs.update(queued, yield* queued.start())</tspan></text>
 <text x="40" y="130" xml:space="preserve"><tspan class="code">// RunService.update(from, to):</tspan></text>
-<text x="40" y="150" xml:space="preserve"><tspan class="code">runs.update(encodeWith(Run.update)(to),</tspan></text>
-<text x="40" y="170" xml:space="preserve"><tspan class="code">  encodeWhere(Struct.pick(from,</tspan></text>
-<text x="40" y="190" xml:space="preserve"><tspan class="code">    ['id', 'status'])))</tspan></text>
+<text x="40" y="150" xml:space="preserve"><tspan class="code">const { row } = yield* Run.makeUpdate(to)</tspan></text>
+<text x="40" y="170" xml:space="preserve"><tspan class="code">runs.update(row, encodeWhere(</tspan></text>
+<text x="40" y="190" xml:space="preserve"><tspan class="code">  Struct.pick(from, ['id', 'status'])))</tspan></text>
 <text x="40" y="217" class="m" xml:space="preserve">the write carries the status the Run was read in, so a Run</text>
 <text x="40" y="236" class="m" xml:space="preserve">moved since dies</text>
 <rect x="488" y="66" width="444" height="187" rx="8" class="box k-neu"/>

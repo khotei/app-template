@@ -1,9 +1,8 @@
-import { Context, Effect, Layer, Schema, SchemaIssue, type Types } from 'effect'
+import { Context, Effect, Layer, SchemaIssue, type Types } from 'effect'
 import type { SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { ChatNotFoundError } from '#chat/domain/chat.error'
 import { Chat } from '#chat/domain/chat.model'
@@ -41,21 +40,20 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const fields = yield* Chat.insert.makeEffect({ userId })
-      const row = yield* encodeWith(Chat.insert)(fields)
+      const { set, row } = yield* Chat.makeInsert({ userId })
 
       yield* chats.insert(row)
-      return new Chat(fields)
+      return new Chat(set)
     }, Effect.orDie)
 
     const list = Effect.fn('ChatService.list')(
       (userId: UserId) => chats.selectMany({ userId }),
-      Effect.flatMap(decodeWith(Schema.Array(Chat))),
+      Effect.flatMap(Chat.decodeMany),
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
       (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
-      Effect.flatMap(decodeWith(Schema.Option(Chat))),
+      Effect.flatMap(Chat.decodeOne),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -66,8 +64,7 @@ export class ChatService extends Context.Service<
     const update = Effect.fn('ChatService.update')(
       function* (fields: typeof Chat.jsonUpdate.Type, where: ChatWhere) {
         const chat = yield* getOne(where)
-        const set = yield* Chat.update.makeEffect({ id: chat.id, ...fields })
-        const row = yield* encodeWith(Chat.update)(set)
+        const { set, row } = yield* Chat.makeUpdate({ id: chat.id, ...fields })
 
         // Only the update variant's fields, under the `where` again: a change landing after the
         // read is kept.

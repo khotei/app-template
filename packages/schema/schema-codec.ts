@@ -10,3 +10,15 @@ export const encodeWith = <Codec extends Schema.Constraint>(codec: Codec) =>
  */
 export const decodeWith = <Codec extends Schema.Constraint>(codec: Codec) =>
   flow(Schema.decodeEffect(codec), Effect.orDie)
+
+/**
+ * Makes a value through `codec`'s constructor, its defaults applied, and encodes its row: `set`
+ * is the value, `row` what a store writes. A value the schema refuses fails with its
+ * `SchemaIssue`, for the caller to settle; a failed encode is a defect.
+ */
+export const makeRowWith = <Codec extends Schema.Top>(codec: Codec) =>
+  Effect.fnUntraced(function* (input: Codec['~type.make.in']) {
+    const set = yield* codec.makeEffect(input)
+    const row = yield* encodeWith(codec)(set)
+    return { set, row }
+  })

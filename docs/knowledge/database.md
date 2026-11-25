@@ -93,22 +93,22 @@ A model is the codec of its own row: a `Model.Class` that declares each stored v
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
 (`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
 entity and its type side is what the rules read. No mapper sits between them: a service codes a
-row with `encodeWith` and `decodeWith` from `@app-template/packages/schema`, given the model or
-one of its variants. A read decodes the entity with the model in the read's shape, whose nested
-models decode their own rows. A write builds and encodes a variant: `insert` makes the id and
-both times, `update` holds only the fields an update may set and moves `updatedAt`, and neither
-holds a nested record, which is a field of the select variant alone
+row through the model's statics, each a ready codec of `encodeWith` or `decodeWith` from
+`@app-template/packages/schema` over the model in a read's shape or one of its variants
+([models.md](../../.claude/rules/models.md)). A read decodes the entity with the model in the
+read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
+`insert` makes the id and both times, `update` holds only the fields an update may set and moves
+`updatedAt`, and neither holds a nested record, which is a field of the select variant alone
 ([Models with variants](decisions.md#models-with-variants)):
 
 ```ts
-const fields = yield* Chat.insert.makeEffect({ userId })
-const row = yield* encodeWith(Chat.insert)(fields)
-const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeWith(Schema.Option(Chat))))
+const { set, row } = yield* Chat.makeInsert({ userId })
+const found = yield* chats.selectOne(where).pipe(Effect.flatMap(Chat.decodeOne))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
   back a mapper of its own, which lays the model's schemas over that store's columns.
-- A service writes a model encoded through `encodeWith` into the row the repository's `insert`
+- A service writes a model encoded through its `makeInsert` into the row the repository's `insert`
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insert` takes the credential with no codec and writes

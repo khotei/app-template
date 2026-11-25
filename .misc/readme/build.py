@@ -563,9 +563,9 @@ def patterns():
         ("A guarded move", [
             "yield* runs.update(queued, yield* queued.start())",
             "// RunService.update(from, to):",
-            "runs.update(encodeWith(Run.update)(to),",
-            "  encodeWhere(Struct.pick(from,",
-            "    ['id', 'status'])))",
+            "const { row } = yield* Run.makeUpdate(to)",
+            "runs.update(row, encodeWhere(",
+            "  Struct.pick(from, ['id', 'status'])))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),
         ("A rule keyed by a table", [
             "const moveRunRules = {",

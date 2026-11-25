@@ -601,7 +601,12 @@ built-in call is not written; the built-in is called.
 A domain model is a `Model.Class` of `effect/schema` over one field list: the class is the row a
 read decodes, its `insert` and `update` variants what a write encodes, its `json` variant what
 the api serves. The Drizzle tables, the entities and the kernel's repositories stay, and a
-service still codes its rows itself (`encodeWith`, `decodeWith`). The insert variant makes a new
+service still codes its rows, through the model's statics over `packages/schema`'s functions: a
+read's shape decodes through `decodeWith` (`Chat.decodeOne`, `decodeMany`), and a write's variant
+makes its value and encodes its row in one call of `makeRowWith` (`makeInsert`,
+`makeUpdate`), which returns both, `{ set, row }`; a model has only the statics its service
+calls, and one whose variant must not take a field of the record (the Run's own `updatedAt`)
+trims it inside. The insert variant makes a new
 record's id (`Model.UuidV7Insert`) and both its times, the update variant moves `updatedAt`, a
 field written once by the insert is left out of the update variants, a field no client may see
 out of the json ones (`Model.Sensitive`), and a record another table holds, read with the model,
@@ -618,7 +623,12 @@ them by id, and a chat and a message hold their Run as that select-only field.
   encode, insert.
 - **Sources:** the owner's choice among three versions built on the same models, this one and
   the two of Rejected; `repos/effect/packages/effect/src/schema/Model.ts`; the trial recorded in
-  [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle".
+  [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle"; for the
+  statics, the owner's words (2026-11-25): "let it be static, and apply to all models where it
+  used", then "what if crete single static method of `const set = yield*
+  Chat.update.makeEffect({ id: chat.id, ...fields })` / `const row = yield*
+  encodeWith(Chat.update)(set)` — `Chat.makeUpate` which will combine 2 calls?", then
+  "makeUpdate(row) / makeInsert(row) and where needed auto omit under the hood".
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
   `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
   field written once and one only read: the same unstable module underneath, the fields `Model`
@@ -628,7 +638,10 @@ them by id, and a chat and a message hold their Run as that select-only field.
   fields written once included, and nothing in a field's declaration kept it out of an update or
   off the wire. The ids kept on a generator over `SecureRandom` that a service yields in its
   `make`, beside the variants: a test could fix an id, for a generator in every service and an
-  id passed to each insert by hand.
+  id passed to each insert by hand. The codec built at each call
+  (`decodeWith(Schema.Option(<Model>))`, `encodeWith(<Model>.insert)`): the read's shape or the
+  variant spelled again in every call, where the model names it once. A static per step
+  (`encodeInsert` beside `insert.makeEffect`): two calls at each write for one act.
 - **Cost:** an id no longer comes through the `SecureRandom` service: `Model.UuidV7Insert` reads
   `globalThis.crypto`, so no test layer fixes one, and a test asserts an id's form (`isUuidV7`)
   and builds its expected record with it. Each time is its own read of the clock, so on a live
@@ -895,10 +908,11 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
-only, and its callers code its row with the generic `encodeWith` and `decodeWith`, a read through
-the model and a write through its insert or update variant
-([Models with variants](#models-with-variants)), with no mapper per model. A second stored form
-of a model brings back a mapper that lays the model's schemas over that store's columns.
+only, and its callers code its row through the model's statics over the generic `encodeWith`
+and `decodeWith`, a read through the model in the read's shape and a write through its insert or
+update variant ([Models with variants](#models-with-variants)), with no mapper per model. A
+second stored form of a model brings back a mapper that lays the model's schemas over that
+store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
@@ -908,13 +922,14 @@ of a model brings back a mapper that lays the model's schemas over that store's 
 - **Rejected:** a flat entity beside a second one with its Run: a second name for the one
   shape every read returns. The service composing a chat from two repositories: two queries and a
   grouping where one relational read serves. A mapper that lays the model's schemas over the
-  columns (`<Model>FromEntity`): a second list of the model's fields. A mapper that only names
-  the model's codec pair (`encode<Model>`, `decode<Model>`): a pass-through over one generic call,
-  which the deletion test removes.
+  columns (`<Model>FromEntity`): a second list of the model's fields. A mapper beside the model
+  that only names its codec pair (`encode<Model>`, `decode<Model>`): a second unit per model for
+  what the model's statics hold.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
-  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. Each call names
-  its codec: the read's shape at a read (`decodeWith(Schema.Option(<Model>))`), the variant at a
-  write (`encodeWith(<Model>.insert)`, `encodeWith(<Model>.update)`).
+  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. A model holds a
+  static per read shape and write variant its service codes (`decodeOne`, `decodeMany`,
+  `makeInsert`, `makeUpdate`), and a service that needs another shape adds one: a model
+  never updated has no `makeUpdate`.
 - **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the
   repository's `insert`, which takes the table's full row, so a column the model lacks or a model
   field its row cannot take fails typecheck at the service's insert.

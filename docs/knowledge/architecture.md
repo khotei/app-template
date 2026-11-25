@@ -103,9 +103,9 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
   imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types),
-  **a module's `domain/` also the values its tables declare** (a limit, a pattern, an enum's
-  values, a JSON column's shape, from `@app-template/kernel/data`), and none of them nor a
-  module's `services/` import an `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
+  **a module's `domain/` also the row codecs and the values its tables declare** (a limit, a
+  pattern, an enum's values, a JSON column's shape, from `@app-template/kernel/data`), and none of
+  them nor a module's `services/` import an `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -263,9 +263,9 @@ imports need.
    [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`,
    each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
-   repository, coding its rows through the model and its variants with `encodeWith` and
-   `decodeWith`, the
-   one owner every handler goes through, tested over mocks of the repositories it calls, and
+   repository, coding its rows through the model's codec statics (`<Model>.decodeOne`,
+   `<Model>.makeInsert`), the one owner every handler goes through, tested over mocks of the
+   repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A purpose the service was not made for comes later as a service composed over it,
    never as an edit of it ([Composition: wrap or compose](decisions.md#composition-wrap-or-compose)).

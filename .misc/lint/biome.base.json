@@ -138,7 +138,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, @app-template/packages/schema, for the id schema, the data layer (@app-template/kernel/data), for the limits, patterns, enum values and JSON columns' shapes its tables declare, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; The data at the centre; Module contracts; Guards are configuration)"
+                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, @app-template/packages/schema, for the id schema and the row codecs, the data layer (@app-template/kernel/data), for the limits, patterns, enum values and JSON columns' shapes its tables declare, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; The data at the centre; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],

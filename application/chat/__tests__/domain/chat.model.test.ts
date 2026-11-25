@@ -1,6 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Equal, Option, Schema } from 'effect'
 
+import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
@@ -92,6 +93,23 @@ describe('Chat', () => {
         yield* chat.ensureRetryable().pipe(Effect.flip),
         new RunNotRetryableError(),
       )
+    }),
+  )
+
+  it.effect('decodes the rows it reads into Chats, and dies on a row that does not decode', () =>
+    Effect.gen(function* () {
+      const row = yield* encodeWith(Chat)(chatAt('done'))
+
+      const one = yield* Chat.decodeOne(Option.some(row))
+      const [many] = yield* Chat.decodeMany([row])
+      const defect = yield* Chat.decodeOne(Option.some({ ...row, id: 'not-a-uuid' })).pipe(
+        Effect.catchDefect(Effect.succeed),
+      )
+
+      assert.instanceOf(Option.getOrThrow(one), Chat)
+      assert.instanceOf(many, Chat)
+      assert.isTrue(Equal.equals(Option.getOrThrow(one), chatAt('done')))
+      assert.isTrue(Schema.isSchemaError(defect))
     }),
   )
 

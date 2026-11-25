@@ -1,7 +1,6 @@
-import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
+import { Context, Effect, Layer, Struct, type Types } from 'effect'
 
 import { encodeWhere, RunRepository } from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
 import { Run, type RunStatus } from '#chat/domain/run.model'
@@ -32,16 +31,15 @@ export class RunService extends Context.Service<
     const runs = yield* RunRepository
 
     const create = Effect.fn('RunService.create')(function* (fields: RunCreate) {
-      const inserted = yield* Run.insert.makeEffect(fields)
-      const row = yield* encodeWith(Run.insert)(inserted)
+      const { set, row } = yield* Run.makeInsert(fields)
 
       yield* runs.insert(row)
-      return new Run(inserted)
+      return new Run(set)
     }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
       (where: RunWhere) => runs.selectOne(encodeWhere(where)),
-      Effect.flatMap(decodeWith(Schema.Option(Run))),
+      Effect.flatMap(Run.decodeOne),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>
         Effect.flatMap(
@@ -51,9 +49,7 @@ export class RunService extends Context.Service<
     )
 
     const update = Effect.fn('RunService.update')(function* (from: Run, to: Run) {
-      // Without `to`'s `updatedAt`, so the update variant's default moves it to now.
-      const set = yield* Run.update.makeEffect(Struct.omit(to, ['updatedAt']))
-      const row = yield* encodeWith(Run.update)(set)
+      const { set, row } = yield* Run.makeUpdate(to)
 
       yield* runs.update(row, encodeWhere(Struct.pick(from, ['id', 'status'])))
       return new Run({ ...to, ...set })
