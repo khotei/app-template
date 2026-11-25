@@ -97,7 +97,7 @@ describe('Chat', () => {
 
   it('compares by its fields alone, its members adding none', () => {
     assert.isTrue(Equal.equals(chatAt('done'), chatAt('done')))
-    assert.notInclude(Object.keys(chat), 'status')
+    assert.sameMembers(Object.keys(chat), Object.keys(Chat.fields))
   })
 })
 

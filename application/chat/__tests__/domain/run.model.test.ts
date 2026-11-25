@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, DateTime, Effect, Option, Struct } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Equal, Option, Struct } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
 import { activeRunStatuses } from '@app-template/kernel/data'
@@ -165,6 +165,11 @@ describe('Run', () => {
       assert.deepStrictEqual(Struct.pick(error, ['id']), { id: queued.id })
     }),
   )
+
+  it('compares by its fields alone, its members adding none', () => {
+    assert.isTrue(Equal.equals(runAt('done'), runAt('done')))
+    assert.sameMembers(Object.keys(queued), Object.keys(Run.fields))
+  })
 })
 
 describe('ensureRunRetryable', () => {
