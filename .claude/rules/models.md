@@ -48,6 +48,10 @@ export class Order extends Model.Class<Order>('Order')({ … }) {
 }
 export const isOrderPaid = (payment: Option.Option<Payment>): boolean => Option.isSome(payment)
 ```
+- **An effectful rule's form is its kind's:** a check (`ensure<Rule>`, it fails or passes and
+  writes nothing) is `Effect.fnUntraced`, no span; a move (`<verb><Model>`, it returns the record's
+  next state) is `Effect.fn('<verb><Model>')`, its span
+  ([effect-services.md › Functions](effect-services.md#functions)).
 - **A service builds a write through its model's static,** `<Model>.makeInsert(…)` or
   `<Model>.makeUpdate(…)`, the variant's `makeEffect` and its encode in one call: it hands
   `row` to the repository and returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an
