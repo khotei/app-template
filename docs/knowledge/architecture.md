@@ -177,7 +177,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services a use case reads, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.client.ts` | `Api`, `ApiClient` |
 | test fixture: sample values and the functions that build them, plain data with no `Effect` to run and no layer | `application/chat/__tests__/testing/chat.test-fixture.ts`; `packages/testing/clock.test-fixture.ts` | `chat`, `chatId`; `epoch` |
@@ -207,19 +207,20 @@ modules has the same shape as one that does not:
 
 ```ts
 // application/use-cases/order/place-order.use-case.ts
-/** Places the order of an active customer. */
-export const placeOrder = Effect.fn('placeOrder')(function* (
-  customerId: CustomerId,
-  lines: OrderLines,
-) {
-  const customers = yield* CustomerService   // the customer module
-  const orders = yield* OrderService         // the order module
-  const transaction = yield* Transaction
+/** Places an active customer's order, its total reserved on the customer's credit. */
+export const placeOrder = Effect.fn('placeOrder')(
+  function* (customerId: CustomerId, lines: OrderLines) {
+    const customers = yield* CustomerService   // the customer module
+    const orders = yield* OrderService         // the order module
 
-  yield* customers.requireActive(customerId) // the customer's rule, called
-  // the writes commit together or not at all
-  return yield* orders.place(customerId, lines).pipe(transaction.run)
-})
+    yield* customers.requireActive(customerId) // the customer's rule, called
+    const order = yield* orders.place(customerId, lines)
+    yield* customers.reserveCredit(customerId, order.total)
+    return order
+  },
+  // the writes of both modules commit together or not at all
+  (placed) => Transaction.use((transaction) => transaction.run(placed)),
+)
 ```
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service

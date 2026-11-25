@@ -58,10 +58,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - Send a job after the commit of the writes it reads, so a delivery always finds its record,
   through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
   on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
-- A job is handled once, unretried: its handling, the worker's `<Verb><Model>Service`, ends its
-  work on any outcome but success, an interrupt included, and work it finds started, left by a
-  handling that died; the use case ends the job in one tail
-  ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+- A job is handled once, unretried: the worker's `<Verb><Model>Service` ends its work on any outcome
+  but success, an interrupt included, and work a dead handling left started; the use case ends the
+  job in one tail ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - Read or delete a set through one batch call, never one call per id; return a model as is.
 
 ## Handlers
@@ -70,8 +69,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   the read of the record it acts in for the user (`<Model>Service.getOne` with the owner), returns
   the model and fails with the domain's errors as they are. It composes nothing else, holds no rule
   and imports no repository or data layer: only the process's `layer.ts` provides them.
-- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`, a constant one a plain function, an
-  effectful group or router builder `Effect.fnUntraced` ([functions](effect-services.md#functions)).
+- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`; one that calls nothing (it returns a
+  constant) is a plain function, no span; an effectful group or router builder `Effect.fnUntraced`
+  ([functions](effect-services.md#functions)).
 
 ## Concurrency
 

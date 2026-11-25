@@ -198,7 +198,7 @@ _Avoid_: DTO layer, SDK, wire schemas, shared domain
 **Use case**:
 One scenario that composes domain services and model rules, of one module or several, or one
 transaction, or ends a job; what a handler calls when a flow is more than one service method and
-no one service owns it, never for a read of the caller's record before one call. It holds only its
+no one service owns it ([which flow](../../.claude/rules/layering.md#use-cases)). It holds only its
 flow, the order of the calls, the transaction, what it skips and logs; each module's rules, records
 and jobs stay in its models and services.
 _Avoid_: Interactor, orchestrator, workflow, application service, job

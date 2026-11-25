@@ -83,11 +83,11 @@ commit together sit in a service of that module, the transaction piped on those 
 
 ### Use cases as functions
 
-A use case is an `Effect.fn` that yields what it composes, its type inferred, and exists only for
-a flow that no one service owns: a job's end and its logs, an order over modules. A read of the
-caller's record before one call is no use case: `AskChatService.ask` and `retry` take
-`{ chatId, userId }` and read the user's chat themselves, and the list of a chat's messages reads
-the user's chat in its handler (`ChatService.getOne`), then lists (`MessageService.getMany`). The
+A use case is an `Effect.fn` that yields what it composes, its type inferred; which flow is one:
+[layering.md › Use cases](../../.claude/rules/layering.md#use-cases). So `AskChatService.ask` and
+`retry` take `{ chatId, userId }` and read the user's chat themselves, and the list of a chat's
+messages reads the user's chat in its handler (`ChatService.getOne`), then lists
+(`MessageService.getMany`). The
 process provides the services it reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker
 in its layer. A job's sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
@@ -104,10 +104,9 @@ in its layer. A job's sends are a service's: [Jobs as queue messages](#jobs-as-q
   stay. The services provided in each handler group: a handler's own requirement is a request's
   (`repos/effect/packages/effect/src/http-api/HttpApiBuilder.ts:222-232`), which the group's
   provide never reaches, so `tsc` refuses the process. A use case per endpoint that reads the
-  user's chat and then makes one call (`askChat`, `retryRun`, `listMessages`): a pass-through
-  over one read, a unit of no purpose of its own for each such endpoint. The list's owner as a
-  `where` field of its query: a chat that is not the user's, or none, would answer `200` with an
-  empty list in place of `404 ChatNotFoundError`.
+  user's chat and then makes one call: a pass-through over one read, a unit of no purpose of its
+  own for each such endpoint. The list's owner as a `where` field of its query: a chat that is not
+  the user's, or none, would answer `200` with an empty list in place of `404 ChatNotFoundError`.
 - **Cost:** one endpoint, the list of a chat's messages, whose handler makes two calls, the chat's
   read and the list. `ask` and `retry` cannot be called with a `Chat` already read: a caller that
   holds one passes its key and owner, and the service reads it again; the read stays outside their
@@ -173,10 +172,9 @@ the data layer's repository directly.
   free of models ([The data at the centre](#the-data-at-the-centre)). The
   data layer's repository already is the contract a service needs, and a port with an adapter
   over it would repeat its methods; the aliases keep the layer in every import line, so each
-  layer's Biome override matches the others by glob (`#*/services/**`). A handler calls one
-  service method or one use case, at most after the read of the user's record it acts in, and a
-  use case calls services, neither a repository, so each record has one owner every caller goes
-  through.
+  layer's Biome override matches the others by glob (`#*/services/**`). A handler and a use case
+  call services, never a repository ([layering.md](../../.claude/rules/layering.md)), so each
+  record has one owner every caller goes through.
 - **Sources:** the guide's "Keep internal layering per module"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.
@@ -1194,9 +1192,10 @@ on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveri
 names the chat, whose first message the worker reads. The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's
-full text as its failure; the request responds with `202` and that failed Run. Both methods run
-uninterruptibly once they have read the chat, so a client that aborts after the Run's write still
-leaves the Run sent or failed. The title's send only logs it, as its work has no record to settle.
+full text as its failure; the request responds with `202` and that failed Run; what a client's
+abort leaves: [A Run's job on interrupt and on two
+deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's send only logs it, as
+its work has no record to settle.
 Which services a Run has and over which: [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
 who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
 
@@ -1354,7 +1353,9 @@ services, `ChatService` reading the user's chat each request names, for the requ
   the kernel. Each service takes what its process provides, its assistant or the queue's sender,
   once, in its `make`, so each method's type says only its result and errors, and the module's test
   layer builds a double of each, a mock whose calls die, which a case replaces through the layer's
-  argument, never per call. A service holding its own transaction cannot join a caller's
+  argument, never per call. A service's transaction nests in a caller's as a savepoint
+  ([One way to open a transaction](#one-way-to-open-a-transaction)), but the jobs a service sends
+  after its own commit, as `AskChatService` does, go out before the caller's transaction commits
   ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's call,
   so each reply in flight holds one pooled Postgres connection for that call's length: `PgPool`
   opens at most 10 unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the
