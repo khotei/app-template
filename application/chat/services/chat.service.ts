@@ -1,11 +1,11 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 import type { SetOptional, SetRequired } from 'type-fest'
 
-import type { UserId } from '@app-template/application/identity'
+import type { UserId } from '@app-template/application/user'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
+import { RowCodec } from '@app-template/packages/schema'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat } from '#chat/domain/chat.model'
+import { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 
 /**
  * A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. A
@@ -40,7 +40,7 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const { set, row } = yield* Chat.makeInsert({ userId })
+      const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
 
       yield* chats.insert(row)
       return new Chat(set)
@@ -48,12 +48,12 @@ export class ChatService extends Context.Service<
 
     const list = Effect.fn('ChatService.list')(
       (userId: UserId) => chats.selectMany(encodeWhere({ userId })),
-      Effect.flatMap(Chat.decodeMany),
+      Effect.flatMap(RowCodec.decodeMany(Chat)),
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
       (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
-      Effect.flatMap(Chat.decodeOne),
+      Effect.flatMap(RowCodec.decodeOne(Chat)),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -66,7 +66,7 @@ export class ChatService extends Context.Service<
       where: ChatWhere,
     ) {
       const chat = yield* getOne(where)
-      const { set, row } = yield* Chat.makeUpdate({ id: chat.id, ...fields })
+      const { set, row } = yield* RowCodec.makeUpdate(Chat)({ id: chat.id, ...fields })
 
       // Only the update variant's fields, under the `where` again: a change landing after the
       // read is kept.

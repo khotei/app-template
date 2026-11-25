@@ -4,7 +4,7 @@
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
-  fmt typecheck test test-unit test-e2e bundle-check outdated vendor-effect vendor-drizzle \
+  fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle \
   migrate migration migration-check api-snapshot api-client-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -120,7 +120,7 @@ debug-worker: ## Run the worker with the inspector
 debug-web: ## Run the web dev server with the inspector
 	bun --filter @app-template/web debug
 
-check: api-client-check typecheck bundle-check link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
+check: api-client-check typecheck link-check migration-check sh-lint doc-lint lint test ## Run every gate, the cheapest first
 
 # Its scope and rules are .misc/lint/markdownlint-cli2.mjs; a reworded limits line stops it with 2.
 doc-lint: ## Lint the Markdown outside docs/tickets: width, paths, rule filters, file limits
@@ -174,15 +174,6 @@ test-unit: ## Run the unit tests under __tests__/ (no Docker)
 
 test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own containers (Docker running)
 	bun --bun vitest run --project e2e
-
-# Reads the build's metafile, so it sees what the bundle holds however Bun applies "sideEffects":
-# docs/knowledge/architecture.md › Boundary guards. A metafile or manifest the script cannot read
-# stops the check with 2, so it never reads as a clean bundle.
-WEB_BUNDLE = node_modules/.cache/web-bundle
-
-bundle-check: ## Fail when the web bundle holds a package outside browserPackages in apps/web/package.json, naming its import chain
-	bun build apps/web/app/main.ts --outdir $(WEB_BUNDLE) --target browser --metafile=$(WEB_BUNDLE)/meta.json
-	@bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json
 
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive

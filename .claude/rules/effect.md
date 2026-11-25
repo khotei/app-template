@@ -61,7 +61,7 @@ schemas, the HTTP API and config a long one in `repos/effect/packages/effect/` (
   + readonly getOne: (where: OrderWhere) => Effect.Effect<Order, OrderNotFoundError>
   ```
 - An error that reaches the wire is a `Schema.TaggedError` tagged with its class name, so the
-  api serves it as it is, with the status its class carries (`apps/CLAUDE.md`); one that
+  api serves it as it is, with the status its class carries (`application/CLAUDE.md`); one that
   never reaches the wire is a `Data.TaggedError`. Not-found from a repository or a port is a
   value (`Option`, an id left out); its reader turns it into the `*NotFoundError` that carries
   the key of its read alone, one error whichever key the read takes.

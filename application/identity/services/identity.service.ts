@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Redacted } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
+import { User } from '@app-template/application/user'
 import {
   encodeWhere,
   type UserEntity,
@@ -9,14 +10,14 @@ import {
   UserRepository,
 } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
+import { RowCodec } from '@app-template/packages/schema'
 
-import { UserUnknownError } from '#identity/domain/user.error'
-import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
+import { IdentityUnknownError, secretBytes, type UserSecret } from '#identity/domain/identity.model'
 
 const encoder = new TextEncoder()
 
-export class UserService extends Context.Service<
-  UserService,
+export class IdentityService extends Context.Service<
+  IdentityService,
   {
     /**
      * Recognises the user a valid secret names; any other secret registers a new user with a new
@@ -25,9 +26,9 @@ export class UserService extends Context.Service<
     readonly recognise: (
       secret: UserSecret,
     ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
-    readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
+    readonly authenticate: (secret: UserSecret) => Effect.Effect<User, IdentityUnknownError>
   }
->()('@app-template/application/identity/services/UserService', {
+>()('@app-template/application/identity/services/IdentityService', {
   make: Effect.gen(function* () {
     const users = yield* UserRepository
     const digest = yield* Digest.Digest
@@ -39,11 +40,11 @@ export class UserService extends Context.Service<
       return { kind: 'secret', hash } as const
     })
 
-    const authenticate = Effect.fn('UserService.authenticate')(
+    const authenticate = Effect.fn('IdentityService.authenticate')(
       hashSecret,
       Effect.flatMap((credentials) => users.selectOne(encodeWhere({ credentials }))),
-      Effect.flatMap(User.decodeOne),
-      Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
+      Effect.flatMap(RowCodec.decodeOne(User)),
+      Effect.flatMap(Effect.fromOption(() => new IdentityUnknownError())),
     )
 
     // The user and its credential commit together: a user is never stored without its secret.
@@ -59,18 +60,18 @@ export class UserService extends Context.Service<
       const bytes = yield* random.randomBytes(secretBytes)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
-      const { set, row } = yield* User.makeInsert({})
+      const { set, row } = yield* RowCodec.makeInsert(User)({})
       const credential = yield* hashSecret(fresh)
       yield* createUser(row, credential)
       return { user: new User(set), secret: fresh }
     })
 
-    const recognise = Effect.fn('UserService.recognise')(
+    const recognise = Effect.fn('IdentityService.recognise')(
       function* (secret: UserSecret) {
         const user = yield* authenticate(secret)
         return { user, secret }
       },
-      Effect.catchTag('UserUnknownError', () => register()),
+      Effect.catchTag('IdentityUnknownError', () => register()),
     )
 
     return { recognise, authenticate }

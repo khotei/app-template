@@ -1,2 +1,2 @@
-export * from '#identity/domain/user.error'
-export * from '#identity/domain/user.model'
+export * from '#identity/domain/identity'
+export * from '#identity/domain/identity.model'

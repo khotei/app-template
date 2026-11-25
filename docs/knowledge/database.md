@@ -35,15 +35,16 @@ the entities derived from them.
   the table exports (`runStatuses = ['queued', …] as const`, then
   `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the lower-case hex SHA-256 a credential's hash is;
-  `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
-  what the domain rejects. A model that holds the value imports it from the table and checks the
-  same rule on its side, so a change to the value changes both; a value no model holds, such as
-  the hash its service computes, has the check alone. drizzle-kit inlines the values
+  `chats_title_check` a trimmed, non-empty title), so a row written by hand cannot hold
+  what the domain rejects. A model that holds the value declares it again on its side and checks
+  the same rule there, never importing the table's
+  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)); a value no model holds,
+  such as the hash its service computes, has the check alone. drizzle-kit inlines the values
   into the DDL, so a changed literal, pattern or limit changes the schema, and
   `make migration-check` fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
-  refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
-  `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
+  refuses, never the reverse: `chats_title_check` trims spaces only and caps no length, where
+  `ChatTitle` trims every whitespace and caps the length, a rule of the domain alone. Checks are named
   `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
   `<table>_<columns>_<predicate>_index` (`runs_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `runs_chat_id_active_index` allows one
@@ -93,26 +94,26 @@ A model is the codec of its own row: a `Model.Class` that declares each stored v
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
 (`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
 entity and its type side is what the rules read. No mapper sits between them: a service codes a
-row through the model's statics over `@app-template/packages/schema`: a read's through
-`decodeWith` over the model in the read's shape, a write's through `makeRowWith` over one of its
-variants ([models.md](../../.claude/rules/models.md)). A read decodes the entity with the model in the
-read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
+row through the statics of `RowCodec` (`@app-template/packages/schema`), which take the model: a
+read's through `decodeOne` or `decodeMany`, a write's through `makeInsert` or `makeUpdate` over
+its variant ([models.md](../../.claude/rules/models.md)). A read decodes the entity with the
+model in the read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
 `insert` makes the id and both times, `update` holds only the fields an update may set and moves
 `updatedAt`, and neither holds a nested record, which is a field of the select variant alone
 ([Models with variants](decisions.md#models-with-variants)):
 
 ```ts
-const { set, row } = yield* Chat.makeInsert({ userId })
-const found = yield* chats.selectOne(where).pipe(Effect.flatMap(Chat.decodeOne))
+const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
+const found = yield* chats.selectOne(where).pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
   back a mapper of its own, which lays the model's schemas over that store's columns.
-- A service writes a model encoded through its `makeInsert` into the row the repository's `insert`
+- A service writes a model encoded through `RowCodec.makeInsert` into the row the repository's `insert`
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insertCredential` takes the credential's row `{ hash, kind, userId }` with no
-  codec, `UserService` setting `userId` from the user's row.
+  codec, `IdentityService` setting `userId` from the user's row.
 - A `jsonb` column carries its shape's type (`jsonb().$type<RunFailure>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -145,9 +146,9 @@ A repository is a `Layer` over `Db` in its entity's `.repository.ts` (names:
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and return
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
-through its models (`UserService` over `UserRepository`). Rows of several tables that commit
+through its models (`IdentityService` over `UserRepository`). Rows of several tables that commit
 together are a method each, which their service commits in one transaction
-([Transactions](#transactions)), as `UserService` does a user and its credential
+([Transactions](#transactions)), as `IdentityService` does a user and its credential
 ([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `orDieWithSqlError`
 from `@app-template/packages/db`.
 
@@ -218,7 +219,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
   active Run in a chat fails on the index and dies. `AskChatService.ask` reads the chat
-  with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
+  with its newest Run and refuses a chat whose Run is active (`ChatPolicy.ensureNotBusy`,
   `ChatBusyError`, 409);
   of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
@@ -268,7 +269,7 @@ from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e,
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
 ([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
-passes `transaction.run` as the last argument of the function that holds them: `UserService`'s
+passes `transaction.run` as the last argument of the function that holds them: `IdentityService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
 `ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the
 Run's `done`, so that transaction,
@@ -291,10 +292,10 @@ read ([Guards](#guards)).
 ```mermaid
 stateDiagram-v2
   [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
-  queued --> generating: startRun (ReplyChatService.reply)
-  queued --> failed: failRun (AskChatService on a refused send)
-  generating --> done: completeRun (ReplyChatService.reply)
-  generating --> failed: failRun (ReplyChatService.reply's tail; its start, on a Run some worker started)
+  queued --> generating: RunMove.start (ReplyChatService.reply)
+  queued --> failed: RunMove.fail (AskChatService on a refused send)
+  generating --> done: RunMove.complete (ReplyChatService.reply)
+  generating --> failed: RunMove.fail (ReplyChatService.reply's tail; its start, on a Run some worker started)
   done --> [*]
   failed --> [*]
 ```

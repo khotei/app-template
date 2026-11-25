@@ -16,7 +16,8 @@ file suffixes: [naming.md](../../.claude/rules/naming.md); the rings, folders an
 **User**:
 An anonymous browser the api recognises by a secret it issued on first contact; the owner of chats.
 Not an account: there is nothing to sign in to. Not the person who works on this repository,
-whom the toolkit calls the owner, nor a database role (`username`).
+whom the toolkit calls the owner, nor a database role (`username`). Its model and id are the
+`user` module's; recognising it is `identity`'s.
 _Avoid_: Visitor, account, anonymous user, device, session
 
 **User secret**:
@@ -24,6 +25,14 @@ The credential the api issues to a user on first contact and recognises them by 
 the user's browser holds it. Not a secret of the deployment (Pulumi's passphrase, a CI secret,
 AWS's `secretAccessKey`), which keeps its tool's name.
 _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not the secret)
+
+**Identity**:
+What a request's credential names: today a user's id (`Identity`, `{ userId }`), later a token's
+claims; the api's `Auth` provides it to the handlers. Not the `User`, the user's whole record,
+which extends it. The `identity` module recognises a user by their user secret:
+`IdentityService.recognise` returns the user a known secret names, or a new user with a new
+secret; `authenticate` fails `IdentityUnknownError` on a secret it does not know.
+_Avoid_: Current user, principal, login, session, Auth (the api's middleware, `Auth`)
 
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
@@ -58,7 +67,7 @@ task, attempt
 **Retry**:
 A new Run of the message a failed Run answered, which the user asks for (`POST
 /chats/:chatId/runs`, `AskChatService.retry`); only a chat's newest Run, once failed,
-can be retried (`ensureRunRetryable`, `RunNotRetryableError`). Not a call repeated after its
+can be retried (`RunPolicy.ensureRetryable`, `RunNotRetryableError`). Not a call repeated after its
 failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which is written with the call
 it repeats (*the model call's retries*, `retryWhileUnreachable`) and never alone.
 _Avoid_: Rerun, resend, regenerate
@@ -69,7 +78,7 @@ the Run is done, the assistant's message that holds it. Never the Run, which is 
 _Avoid_: Response (an HTTP response keeps the word), completion
 
 **Run status**:
-Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `generating` (the
+Where a Run is, as `runs` stores it: `queued` (the chat has asked for it), `generating` (the
 assistant reads the chat and writes; the text appears whole when it is done), `done`, or
 `failed` (the assistant gave up or declined; the Run keeps the full text of what ended it, off
 the wire). The last two are terminal: a Run in either is settled.
@@ -82,20 +91,12 @@ user message's active Run that finds none (its Run done, failed or gone with its
 `RunNotFoundError` by that message.
 _Avoid_: Pending run, current reply
 
-**Status**:
-The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
-`generating` works on it, `done` and `failed` end it.
-Every status picks its subset of `Status` (the Run's, the chat's), and a check on one value
-reads the shared predicate. A value is written in code font, or as a word before Run or chat (a
-failed Run). Not an HTTP status (`{ httpApiStatus: 404 }`), written *HTTP status*, nor the
-health check's `status: 'ok'` on the wire, nor a tool's (`git status`).
-_Avoid_: State, stage, in progress; a new word for one of the five
-
-**Chat status**:
-What the chat's newest Run makes of it: `queued` while that Run is active, `failed` after it
-failed, else `idle`, also before the first ask. Read with the chat, never stored. Asking a
-`queued` chat is refused as busy (`ChatBusyError`).
-_Avoid_: Busy as a status, chat state; a value outside its subset (`generating`)
+**Chat state**:
+What the chat's newest Run makes of it (`ChatState.build`): `queued` while that Run is active,
+`failed` after it failed, else `idle`, also before the first ask. Read with the chat, never
+stored; the wire's `state` of a chat. Asking a `queued` chat is refused as busy
+(`ChatBusyError`). A value is written in code font, or as a word before chat (a failed chat).
+_Avoid_: Busy as a state, chat status; a Run's status (`generating`)
 
 **Title**:
 The few words that stand for a chat in the user's chat list. The assistant proposes them from
@@ -185,14 +186,16 @@ and `infrastructure/` are *a module's layers*, always with the module named
 _Avoid_: Tier, level
 
 **Module contract**:
-The part of a module other modules may depend on, its folder `contract/`, exported through its
-entry: its ids, its errors and the shapes they carry, with no implementation.
+The part of a module other modules may depend on, an entry of its own,
+`@app-template/application/<module>/contract` (`contract/index.ts`), which exports by name, from
+the module's `domain/` files, the ids, models, errors and the group a wire shape reads
+(`ChatState`) that readers outside the module take, and so loads no service, store or kernel file.
 _Avoid_: Public API, interface, SDK, client
 
 **API contract**:
-The api's HTTP surface: the one `Api` of groups `apps/api` declares from the domain's schemas,
-and the OpenAPI document it writes, `apps/api/openapi.json`, from which the web's client is
-generated. Never a module contract.
+The api's HTTP surface: the one `Api` of groups `application/http-api` declares from the domain's
+schemas, taken through the module contracts, and the OpenAPI document the api writes from it,
+`apps/api/openapi.json`, from which the web's client is generated. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:
@@ -224,16 +227,31 @@ the language model, which keeps both words in prose and is `LanguageModel` or `l
 _Avoid_: Entity, DTO, row
 
 **Rule**:
-A business rule: a pure function in its model's `.model` file over values passed in; a service,
-a use case or a repository reads, calls it and writes. Not a lint rule, written *lint rule*, nor
-a file of `.claude/rules/`, the toolkit's rule.
-_Avoid_: Policy, validator, business logic
+A business rule: a pure function over values passed in, a static of its model's group of its
+kind (a Policy, a Move, a State), in a file of its own beside the model (`run-policy.ts`); a
+service, a use case or a repository reads, calls it and writes. Not a lint rule, written *lint
+rule*, nor a file of `.claude/rules/`, the toolkit's rule.
+_Avoid_: validator, business logic
+
+**State**:
+What a record's values say of it, derived and never stored: a static of `<Model>State`
+(`ChatState.build`, `RunState.isActive`). A status is what a record stores (`Run.status`); a
+chat has a state, a Run a status. Not an HTTP status (`{ httpApiStatus: 404 }`), written *HTTP
+status*, nor the health check's `status: 'ok'` on the wire, nor a tool's (`git status`).
+_Avoid_: Status for a derived value, stage
+
+**Policy**:
+A model's checks before a write, `<Model>Policy`, each an `ensure<Rule>` that fails with a
+refusal or passes, returning nothing (`ChatPolicy.ensureNotBusy`); a check that returns its record
+is generic over it (`RunPolicy.ensureUnstarted`). Not the language model's call policy
+(`llm-call-policy.ts`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
+_Avoid_: Guard (a check by configuration), validator
 
 **Move**:
-A record's change of status to an allowed next one: the model's pure transition, named for the
-act (`startRun`, `completeRun`, `failRun`) and called as the record's member (`run.start()`),
-which `<Model>Service.update` writes under the status the record was read in
-(`runs.update(run, yield* run.start())`). A move the model's table refuses dies
+A record's change of status to an allowed next one: a pure transition, a static of the model's
+`<Model>Move` named for the act (`RunMove.start`, `RunMove.complete`, `RunMove.fail`), which
+`<Model>Service.update` writes under the status the record was read in
+(`runs.update(run, yield* RunMove.start(run))`). A move the table of `<Model>Move` refuses dies
 (`RunStatusInvalidError`).
 _Avoid_: Transition (the move's pure half), state change
 
@@ -245,8 +263,8 @@ rejects code *fails*.
 _Avoid_: Rejection, denial
 
 **Guard**:
-A check by configuration that refuses code: `exports`, the isolated linker, `tsc -b`, Biome with
-its GritQL plugin and the bundle check ([decisions.md](decisions.md#guards-are-configuration)).
+A check by configuration that refuses code: `exports`, the isolated linker, `tsc -b` and Biome
+with its GritQL plugin ([decisions.md](decisions.md#guards-are-configuration)).
 The condition a write carries is a *write guard* ([database.md](database.md#guards)).
 _Avoid_: Fitness test, architecture test
 

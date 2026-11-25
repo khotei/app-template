@@ -4,6 +4,7 @@ import { Cookies, HttpClient } from 'effect/http'
 import { HttpApiClient } from 'effect/http-api'
 
 import { owner } from '@app-template/application/chat/testing'
+import { Api } from '@app-template/application/http-api'
 import {
   ChatRepository,
   MessageRepository,
@@ -14,7 +15,6 @@ import { TransactionTest } from '@app-template/packages/db/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
 
-import { Api } from '#api/api'
 import { ApiHttp } from '#api/layer'
 
 /** The whole api process, clients and all, for the e2e journey that runs it beside the worker. */

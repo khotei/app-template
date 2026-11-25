@@ -24,12 +24,14 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   its `infrastructure/` everything of it that connects to the environment, the adapters of its
   ports, the services a use case or the chat's worker services call over a client (the
   assistants) and its queues' definitions ([A module's layers](decisions.md#a-modules-layers));
-  its `contract/`, once another module needs one, what other modules may take of it.
+  its `contract/`, once another module needs one, an entry of its own that re-exports what other
+  modules may take of its `domain/`. Beside the modules, `application/http-api` holds the API
+  contract, the HTTP groups over the modules' models, ids and errors.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
-  clients; the api declares the HTTP contract from the domain's schemas and writes it as
-  `apps/api/openapi.json`, from which the web's client is generated. Nothing of `application/`
+  clients; the api implements the API contract, its handlers and its middlewares' layers, and
+  writes it as `apps/api/openapi.json`, from which the web's client is generated. Nothing of `application/`
   reaches the browser.
 
 `packages/*` holds generic tools, configured by their caller, that know no app. `deployment/`
@@ -59,9 +61,9 @@ graph TD
 ```
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
-each module and the use cases a folder with one entry, a module's contract a folder in it,
-exported through the module's entry. The `apps/e2e` test app runs both app layers in one test
-process, starts no process of its own, and nothing imports it.
+each module, the use cases and the API contract a folder with one entry, a module's contract a
+folder in it with an entry of its own over files of its `domain/`. The `apps/e2e` test app
+runs both app layers in one test process, starts no process of its own, and nothing imports it.
 
 ## Dependency rules
 
@@ -70,17 +72,18 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | `schema` only | `application/*/domain/**`, `kernel/data` by name |
+| a module's `domain/` | ✗; `/testing` in its tests only | ✓, through its own entry only | ✗ | ✗ | ✗ | `schema`; `testing` in its tests only | `application/*/domain/**`; its tests, `application/*/__tests__/domain/**` |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
-| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
+| a contract | ✗; of its module only `domain/` files, never their index, a policy or a move group | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
+| `application/http-api` | ✗, but its contract | ✓, through its own entry only | ✗ | ✗ | ✗ | ✗ | `application/http-api/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above or beside it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
 | `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
 | `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
-| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `apps/web/**`; TS2307, any workspace but `packages`; `make bundle-check` |
+| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `apps/web/**`; TS2307, any workspace but `packages` |
 | `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `biome-imports.grit`, another app and `deployment`; TS2307, any workspace but `packages`; review, a package but `ui` |
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
 | `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
@@ -93,19 +96,23 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
   through a port its `domain/` declares, the sends of that queue file's `<Model>Queue`, or, in the worker's
   services, the assistants that do the jobs' work, and a module reaches its
-  own files, its contract's too, through `#<module>/…`, never its entry. Of another module's
-  entry a module takes only the names of its contract, which review holds
-  ([modules.md](../../.claude/rules/modules.md)), not Biome.
+  own files, its contract's too, through `#<module>/…`, never its entry. A module's `domain/`
+  takes another module only through its contract's entry, which Biome holds; of another module's
+  entry its other layers take only the names of its contract, which review holds
+  ([modules.md](../../.claude/rules/modules.md)).
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **The api's HTTP groups take the domain's schemas** through the modules' entries; the web
-  takes none of them, only its generated client
-  ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
-  imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types),
-  **a module's `domain/` also the row codecs and the values its tables declare** (a limit, a
-  pattern, an enum's values, a JSON column's shape, from `@app-template/kernel/data`), and none of
-  them nor a module's `services/` import an `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
+- **The API contract's groups take the domain's schemas** through the modules' contracts, and
+  only the apps read the contract: the overrides of a module's `services/` and `infrastructure/`
+  and of the use cases refuse it; the web takes none of them, only its generated client
+  ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A module's
+  `domain/` imports only `effect`, `packages/schema`, for the id schema, and another module's
+  contract** (and `type-fest` for types), never the kernel, as it declares its values itself
+  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)); **a contract only
+  `effect`, `packages/schema` and its module's `domain/` files**, so it loads no more than the
+  domain; none of them nor a module's `services/` import an `@effect/*` package
+  ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -140,7 +147,8 @@ import { titleChat } from '#use-cases/chat/title-chat.use-case'  // this part
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
   a module or the use cases by theirs (`@app-template/application/<module>` →
-  `application/<module>/index.ts`, every layer), each with its test support's entries
+  `application/<module>/index.ts`, every layer), a module's contract by its folder
+  (`@app-template/application/<module>/contract`), each with its test support's entries
   ([tooling.md › Tests](tooling.md#tests)). An entry only re-exports what other parts import,
   never what loads code they do not run (a process's entry, the migration runner,
   testcontainers), so e2e support sits behind an entry of its own.
@@ -159,9 +167,9 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 
 | What | File | Named |
 |---|---|---|
-| model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
+| model with its errors, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
+| a model's rules, a class of statics per kind ([Rules as pure functions](decisions.md#rules-as-pure-functions)) | `application/chat/domain/chat-policy.ts`, `run-move.ts`, `chat-state.ts` | `ChatPolicy`, `RunMove`, `ChatState` |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
-| domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `ChatQueue`, its `sendReplyToMessage` and `sendTitleChat` |
@@ -172,9 +180,10 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
-| codecs whose failed encode or decode is a defect, a variant's make with its row, whose refused make stays a typed failure; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `makeRowWith`, `buildIdSchema` |
-| HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
-| the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
+| codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
+| HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
+| the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity`, `SchemaErrors`, `RequestInvalidError` |
+| a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
@@ -265,17 +274,18 @@ imports need.
    the database adds included; the unit tests above it mock it
    ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.util.ts` (its id),
-   `<entity>.model.ts` (a `Model.Class`, its fields by `.claude/rules/models.md`, with its pure
-   operations, which read no clock;
-   a limit, a pattern or an enum's values imported from its table, never declared again,
+   `<entity>.model.ts` (a `Model.Class`, its fields by `.claude/rules/models.md`, its rules in a
+   class per kind beside it, `<entity>-policy.ts`, which read no clock;
+   a limit, a pattern or an enum's values declared on its side, never imported from its table,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
-   [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`
-   (an error that reaches the wire carries its status, `{ httpApiStatus: <code> }`,
-   [apps/CLAUDE.md](../../apps/CLAUDE.md)), each with its unit test.
+   [database.md › Entities and models](database.md#entities-and-models); its errors in the same
+   file, `ChatNotFoundError` (`Schema.TaggedError`), one that reaches the wire carrying its
+   status, `{ httpApiStatus: <code> }`, [application/CLAUDE.md](../../application/CLAUDE.md)), each
+   with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
-   repository, coding its rows through the model's codec statics (`<Model>.decodeOne`,
-   `<Model>.makeInsert`), the one owner every handler goes through, tested over mocks of the
+   repository, coding its rows through `RowCodec` over the model (`RowCodec.decodeOne(<Model>)`,
+   `RowCodec.makeInsert(<Model>)`), the one owner every handler goes through, tested over mocks of the
    repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A purpose the service was not made for comes later as a service composed over it,
@@ -286,14 +296,15 @@ imports need.
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route, the services it reads provided in the worker's layer.
-5. **The boundary.** A group in `apps/api/<entity>/<entity>.http.ts` over the domain's ids,
-   models and errors, each error with the status its class carries, a wire shape only
-   where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
-   `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
-   `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
-   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field the model
-   has no getter for, the handler added to `ApiRoutes`; then `make api-snapshot`. Test only what
-   HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
+5. **The boundary.** A group in `application/http-api/<entity>.http.ts` over the domain's ids,
+   models and errors, each error with the status its class carries, a wire shape only where it
+   differs from the model ([application/CLAUDE.md](../../application/CLAUDE.md)), added to `Api`
+   in `application/http-api/api.ts`, in the first `.add(…)` when it needs a user, else in the
+   second, since `.middleware(Auth)` reaches only the groups added before it; its handler in
+   `apps/api/<entity>/<entity>.handler.ts`, with a mapper in
+   `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, which the handler
+   pipes on what it returns, the handler added to `ApiRoutes`; then `make api-snapshot`. Test only
+   what HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
    `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through the web's
    `ApiClient`, as `<group><Endpoint>`.
 
@@ -331,10 +342,11 @@ Layer.provide([Db.layer, FileRepository.layer]), Layer.provide([PgClientFromConf
 
 A module is a folder `application/<module>/` of the `@app-template/application` workspace,
 imported as `@app-template/application/<module>`; its contract, once another module needs it,
-the folder `application/<module>/contract/`, exported through the same entry.
+the folder `application/<module>/contract/`, behind an entry of its own.
 Decision: [Modules by capability](decisions.md#modules-by-capability).
 
-1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel; in
+1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel, never the
+   contract's, which re-exports domain files the domain's barrel already gives; in
    `application/package.json`, an `exports` entry `./<module>` and the alias `#<module>/*`, and
    once it has test support that support's entry and alias
    ([tooling.md › Tests](tooling.md#tests)), as chat's. The folder's one `tsconfig.json` project
@@ -342,39 +354,43 @@ Decision: [Modules by capability](decisions.md#modules-by-capability).
 2. **No Biome override.** The overrides and the plugin already match a new module; a layer of a
    new name passes every ban but the plugin's
    ([Guards are configuration](decisions.md#guards-are-configuration)).
-3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry;
-   the `application/*/contract/**` override already covers it. Decision:
+3. **A contract** is a folder `contract/` with an `index.ts` that exports by name, from the
+   module's `domain/` files, each id, model, error or group a wire shape reads that a reader
+   outside the module takes, never `export *` nor `domain/index.ts`, exported as its own,
+   `./<module>/contract` in `application/package.json`, the one path the other modules' `domain/`
+   and the API contract may import; the `application/*/contract/**` override already covers it.
+   Decision:
    [Module contracts](decisions.md#module-contracts).
 4. **The workspaces that import it** declare `@app-template/application` in their `package.json`;
-   the browser is none, and `make bundle-check` refuses the module in its bundle with no edit.
+   the browser is none: the `apps/web/**` override and its manifest refuse the module with no
+   edit.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a decision if the cut is
    one ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
 ## Boundary guards
 
 Each import rule of [Dependency rules](#dependency-rules) is held once, by the guard that can see
-it, and a last guard checks what an allowed import brings into the web bundle; what no
-guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modules.md), and
+it; what no guard sees, review refuses
+([.claude/rules/modules.md](../../.claude/rules/modules.md), and
 [layering.md](../../.claude/rules/layering.md) for a handler). Decision:
 [Guards are configuration](decisions.md#guards-are-configuration).
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `.misc/lint/biome.base.json`, covering the layer's tests (the services' tests: one of their own) | the ✗ of each row whose *Refused by* names its glob, by part and by imported name, test support aside in the tests; a layer that points outward inside a module; any workspace in an entry of `application/`; the decision named in the message | `make lint`, `pre-commit`, CI |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `.misc/lint/biome.base.json`, covering the layer's tests (the services' and the domain's tests: one each) | the ✗ of each row whose *Refused by* names its glob, by part and by imported name, test support aside in the tests; a layer that points outward inside a module; any workspace in an entry of `application/`; the decision named in the message | `make lint`, `pre-commit`, CI |
 | the GritQL plugin `biome-imports.grit`, which reads the part (`application/<module>`, `kernel/<part>`, `packages/<package>`) and the ring (`apps/<app>`, `deployment`) from the file's path | another part's `#<part>/…`, `#kernel/<part>/…` or `#testing/<part>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; the workspaces the rows whose *Refused by* names it refuse, even when the manifest declares them | the same |
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts` with a metafile, read by `.misc/lint/bundle-check.mjs` | a package in the browser bundle outside `browserPackages` in `apps/web/package.json`: a workspace's entry, a third-party library, a Node built-in | the package and the shortest import chain from the entry, in `make check` |
 
 Why each rule sits with its guard, and what that costs:
 [Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard passes a type-only import, which the build erases, as it should. `apps/web`
-imports only `packages/ui` and its generated client, which imports only `effect`, so a leak
-comes through a package the list allows growing a server import, which the guard refuses with
-its chain.
+`apps/web` imports only `packages/ui` and its generated client, which imports only `effect`,
+so a server import reaches the browser only through `packages/ui` growing one, which no guard
+sees: a check of what the browser's bundle holds is the web framework's work
+([The API contract in the api](decisions.md#the-api-contract-in-the-api)).
 
 ### Known gaps
 
@@ -389,18 +405,13 @@ them:
 - **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
   only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
   `Data.<Name>` then reaches what the names were refused for.
-- **A data layer's export named like a value, in a module's `domain/`.** Of
-  `@app-template/kernel/data` the domain guard admits only the names of a value's shape
-  (`<name>Pattern`, `<name>Length`, a plural such as `<name>Statuses`) and refuses
-  the rest, a namespace import included; a table or an enum given such a name passes it, so
-  review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. `Bun.env` passes
   too; `make typecheck` refuses `Date.now`, `new Date`, `crypto.randomUUID`, `fetch` and
   `process.env` anywhere in `application/`.
 - **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
-  its tests, save the services', whose tests have one of their own, so `@effect/vitest` and a
-  `/testing` entry pass in the source of every other layer too. A module's test support
+  its tests, save the services' and the domain's, whose tests have one each, so `@effect/vitest`
+  and a `/testing` entry pass in the source of every other layer too. A module's test support
   (`application/<module>/__tests__/testing/`) serves several layers and keeps no list, and the
   data layer's tests and e2e sit outside its override, so `@app-template/kernel/llm` passes
   there; `tsc -b` too, as the folder's manifest declares the kernel.

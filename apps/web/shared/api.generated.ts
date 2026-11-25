@@ -1,17 +1,17 @@
 import * as Schema from "effect/Schema"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, HttpApiSecurity, OpenApi } from "effect/http-api"
 
-export type ApiChat = { readonly "id": string, readonly "userId": string, readonly "title": string | null, readonly "createdAt": string, readonly "updatedAt": string, readonly "status": "idle" | "queued" | "failed" }
+export type ApiChat = { readonly "id": string, readonly "userId": string, readonly "title": string | null, readonly "createdAt": string, readonly "updatedAt": string, readonly "state": "idle" | "queued" | "failed" }
 
-export const ApiChat = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "userId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "title": Schema.Union([Schema.String.check(Schema.isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(Schema.isMaxCodePoints(120).annotate({ "expected": "a string with at most 120 code points" })).check(Schema.isPattern(new globalThis.RegExp("^\\S[\\s\\S]*\\S$|^\\S$|^$", "u")).annotate({ "expected": "a string matching the RegExp ^\\S[\\s\\S]*\\S$|^\\S$|^$" })).check(Schema.isPattern(new globalThis.RegExp("^[^\\0]*$", "u")).annotate({ "expected": "a string matching the RegExp ^[^\\0]*$" })), Schema.Null]), "createdAt": Schema.String, "updatedAt": Schema.String, "status": Schema.Literals(["idle", "queued", "failed"]) }).annotate({ "identifier": "ApiChat" })
+export const ApiChat = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "userId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "title": Schema.Union([Schema.String.check(Schema.isMinLength(1).annotate({ "expected": "a value with a length of at least 1" })).check(Schema.isMaxCodePoints(120).annotate({ "expected": "a string with at most 120 code points" })).check(Schema.isPattern(new globalThis.RegExp("^\\S[\\s\\S]*\\S$|^\\S$|^$", "u")).annotate({ "expected": "a string matching the RegExp ^\\S[\\s\\S]*\\S$|^\\S$|^$" })).check(Schema.isPattern(new globalThis.RegExp("^[^\\0]*$", "u")).annotate({ "expected": "a string matching the RegExp ^[^\\0]*$" })), Schema.Null]), "createdAt": Schema.String, "updatedAt": Schema.String, "state": Schema.Literals(["idle", "queued", "failed"]) }).annotate({ "identifier": "ApiChat" })
 
 export type RequestInvalidErrorEncoded = { readonly "_tag": "RequestInvalidError", readonly "issues": globalThis.ReadonlyArray<{ readonly "path": globalThis.ReadonlyArray<string | number>, readonly "message": string }> }
 
 export const RequestInvalidErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("RequestInvalidError"), "issues": Schema.Array(Schema.Struct({ "path": Schema.Array(Schema.Union([Schema.String, Schema.Int.check(Schema.isGreaterThanOrEqualTo(-9007199254740991).annotate({ "expected": "a value greater than or equal to -9007199254740991" })).check(Schema.isLessThanOrEqualTo(9007199254740991).annotate({ "expected": "a value less than or equal to 9007199254740991" }))])), "message": Schema.String })) }).annotate({ "identifier": "RequestInvalidErrorEncoded" })
 
-export type UserUnknownErrorEncoded = { readonly "_tag": "UserUnknownError" }
+export type IdentityUnknownErrorEncoded = { readonly "_tag": "IdentityUnknownError" }
 
-export const UserUnknownErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("UserUnknownError") }).annotate({ "identifier": "UserUnknownErrorEncoded" })
+export const IdentityUnknownErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("IdentityUnknownError") }).annotate({ "identifier": "IdentityUnknownErrorEncoded" })
 
 export type ChatNotFoundErrorEncoded = { readonly "_tag": "ChatNotFoundError", readonly "id": string }
 
@@ -53,9 +53,9 @@ export type ChatsList400 = RequestInvalidErrorEncoded
 
 export const ChatsList400 = RequestInvalidErrorEncoded
 
-export type ChatsList401 = UserUnknownErrorEncoded
+export type ChatsList401 = IdentityUnknownErrorEncoded
 
-export const ChatsList401 = UserUnknownErrorEncoded
+export const ChatsList401 = IdentityUnknownErrorEncoded
 
 export type ChatsCreate201 = ApiChat
 
@@ -65,9 +65,9 @@ export type ChatsCreate400 = RequestInvalidErrorEncoded
 
 export const ChatsCreate400 = RequestInvalidErrorEncoded
 
-export type ChatsCreate401 = UserUnknownErrorEncoded
+export type ChatsCreate401 = IdentityUnknownErrorEncoded
 
-export const ChatsCreate401 = UserUnknownErrorEncoded
+export const ChatsCreate401 = IdentityUnknownErrorEncoded
 
 export type ChatsGetPathParams = { readonly "chatId": string }
 
@@ -81,9 +81,9 @@ export type ChatsGet400 = RequestInvalidErrorEncoded
 
 export const ChatsGet400 = RequestInvalidErrorEncoded
 
-export type ChatsGet401 = UserUnknownErrorEncoded
+export type ChatsGet401 = IdentityUnknownErrorEncoded
 
-export const ChatsGet401 = UserUnknownErrorEncoded
+export const ChatsGet401 = IdentityUnknownErrorEncoded
 
 export type ChatsGet404 = ChatNotFoundErrorEncoded
 
@@ -97,9 +97,9 @@ export type ChatsDelete400 = RequestInvalidErrorEncoded
 
 export const ChatsDelete400 = RequestInvalidErrorEncoded
 
-export type ChatsDelete401 = UserUnknownErrorEncoded
+export type ChatsDelete401 = IdentityUnknownErrorEncoded
 
-export const ChatsDelete401 = UserUnknownErrorEncoded
+export const ChatsDelete401 = IdentityUnknownErrorEncoded
 
 export type ChatsDelete404 = ChatNotFoundErrorEncoded
 
@@ -121,9 +121,9 @@ export type ChatsRename400 = RequestInvalidErrorEncoded
 
 export const ChatsRename400 = RequestInvalidErrorEncoded
 
-export type ChatsRename401 = UserUnknownErrorEncoded
+export type ChatsRename401 = IdentityUnknownErrorEncoded
 
-export const ChatsRename401 = UserUnknownErrorEncoded
+export const ChatsRename401 = IdentityUnknownErrorEncoded
 
 export type ChatsRename404 = ChatNotFoundErrorEncoded
 
@@ -141,9 +141,9 @@ export type ChatsListMessages400 = RequestInvalidErrorEncoded
 
 export const ChatsListMessages400 = RequestInvalidErrorEncoded
 
-export type ChatsListMessages401 = UserUnknownErrorEncoded
+export type ChatsListMessages401 = IdentityUnknownErrorEncoded
 
-export const ChatsListMessages401 = UserUnknownErrorEncoded
+export const ChatsListMessages401 = IdentityUnknownErrorEncoded
 
 export type ChatsListMessages404 = ChatNotFoundErrorEncoded
 
@@ -165,9 +165,9 @@ export type ChatsAsk400 = RequestInvalidErrorEncoded
 
 export const ChatsAsk400 = RequestInvalidErrorEncoded
 
-export type ChatsAsk401 = UserUnknownErrorEncoded
+export type ChatsAsk401 = IdentityUnknownErrorEncoded
 
-export const ChatsAsk401 = UserUnknownErrorEncoded
+export const ChatsAsk401 = IdentityUnknownErrorEncoded
 
 export type ChatsAsk404 = ChatNotFoundErrorEncoded
 
@@ -189,9 +189,9 @@ export type ChatsRetryRun400 = RequestInvalidErrorEncoded
 
 export const ChatsRetryRun400 = RequestInvalidErrorEncoded
 
-export type ChatsRetryRun401 = UserUnknownErrorEncoded
+export type ChatsRetryRun401 = IdentityUnknownErrorEncoded
 
-export const ChatsRetryRun401 = UserUnknownErrorEncoded
+export const ChatsRetryRun401 = IdentityUnknownErrorEncoded
 
 export type ChatsRetryRun404 = ChatNotFoundErrorEncoded
 
@@ -213,9 +213,9 @@ export type ChatsGetMessage400 = RequestInvalidErrorEncoded
 
 export const ChatsGetMessage400 = RequestInvalidErrorEncoded
 
-export type ChatsGetMessage401 = UserUnknownErrorEncoded
+export type ChatsGetMessage401 = IdentityUnknownErrorEncoded
 
-export const ChatsGetMessage401 = UserUnknownErrorEncoded
+export const ChatsGetMessage401 = IdentityUnknownErrorEncoded
 
 export type ChatsGetMessage404 = MessageNotFoundErrorEncoded
 
@@ -233,9 +233,9 @@ export type ChatsGetRun400 = RequestInvalidErrorEncoded
 
 export const ChatsGetRun400 = RequestInvalidErrorEncoded
 
-export type ChatsGetRun401 = UserUnknownErrorEncoded
+export type ChatsGetRun401 = IdentityUnknownErrorEncoded
 
-export const ChatsGetRun401 = UserUnknownErrorEncoded
+export const ChatsGetRun401 = IdentityUnknownErrorEncoded
 
 export type ChatsGetRun404 = RunNotFoundErrorEncoded
 

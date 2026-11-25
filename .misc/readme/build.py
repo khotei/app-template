@@ -298,16 +298,16 @@ def how_it_works():
     pill("failed", "bad")
     cy = ys + ph / 2
     f.arrow([(px["queued"] + pw, cy), (px["generating"], cy)])
-    f.label((px["queued"] + pw + px["generating"]) / 2, cy - 8, "`startRun`")
+    f.label((px["queued"] + pw + px["generating"]) / 2, cy - 8, "`RunMove.start`")
     f.arrow([(px["generating"] + pw, cy), (px["done"], cy)])
-    f.label((px["generating"] + pw + px["done"]) / 2, cy - 8, "`completeRun`")
+    f.label((px["generating"] + pw + px["done"]) / 2, cy - 8, "`RunMove.complete`")
     fy = py["failed"] + ph / 2
     f.arrow([(px["generating"] + pw / 2, ys + ph), (px["generating"] + pw / 2, fy), (px["failed"], fy)])
-    f.label(px["generating"] + pw / 2 + 12, fy - 8, "`failRun`: any other end", anchor="start")
+    f.label(px["generating"] + pw / 2 + 12, fy - 8, "`RunMove.fail`: any other end", anchor="start")
     qy = fy + 44
     fx = px["failed"] + pw / 2
     f.arrow([(px["queued"] + pw / 2, ys + ph), (px["queued"] + pw / 2, qy), (fx, qy), (fx, py["failed"] + ph)])
-    f.label(px["queued"] + pw / 2 + 12, qy + 5, "`failRun`: SQS refused the send", anchor="start")
+    f.label(px["queued"] + pw / 2 + 12, qy + 5, "`RunMove.fail`: SQS refused the send", anchor="start")
     # retry
     rx = px["failed"] + pw
     ry = qy + 40
@@ -391,8 +391,8 @@ def architecture():
     f = Fig("architecture", "Three rings, imports point inward",
             "The boundary (apps, the kernel's clients, a module's infrastructure) imports the "
             "behaviour (the use cases, a module's services, domain and contract), which imports "
-            "the data, kernel/data. Biome, its GritQL plugin, the isolated linker with tsc -b "
-            "and make bundle-check refuse an import that points the wrong way.")
+            "the data, kernel/data. Biome, its GritQL plugin and the isolated linker with tsc -b "
+            "refuse an import that points the wrong way.")
     f.text(28, 42, "Three rings, every import points inward", "h")
     # rings
     f.rect(28, 66, 560, 486, "box k-bnd")
@@ -408,7 +408,7 @@ def architecture():
     f.text(82, 248, "`application/use-cases`")
     f.text(82, 272, "a module's `services/`")
     f.text(82, 296, "a module's `domain/` and `contract/`")
-    f.text(82, 320, "modules: `chat`, `identity`", "m")
+    f.text(82, 320, "modules: `chat`, `user`, `identity`", "m")
 
     f.rect(100, 346, 416, 158, "box k-dat")
     f.text(118, 372, "data", "b", accent="dat")
@@ -434,7 +434,6 @@ def architecture():
         ("`biome-imports.grit`", "another part's file, a relative path"),
         ("Biome `noImportCycles`", "a cycle of imports"),
         ("isolated linker, `tsc -b`", "a workspace its `package.json` does not declare"),
-        ("`make bundle-check`", "a server package in the browser's bundle"),
     ]
     y = 110
     for t, d in rows:
@@ -461,7 +460,7 @@ def module_design():
         ("beh", "use case · `application/use-cases`", ["`replyToMessage` `titleChat`", ("m", "a plain `Effect.fn`; only a handler calls it")]),
         ("beh", "`<Verb><Model>Service` · `services/`", ["`AskChatService.ask`, `.retry`", "`ReplyChatService.reply`", "`TitleChatService.title`"]),
         ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`RunService.update(from, to)`: under the status read"]),
-        ("beh", "rules and moves · `domain/`", ["`ensureChatNotBusy` `ensureRunRetryable`", "`startRun` `completeRun` `failRun`", ("m", "plain functions in `<model>.model.ts`, members over them")]),
+        ("beh", "rules and moves · `domain/`", ["`ChatPolicy` `RunPolicy` `RunMove`", "`ChatState` `RunState`", ("m", "a class of statics per kind, beside the model")]),
     ]
     y = 66
     tops = []
@@ -561,9 +560,10 @@ def patterns():
     xs = [28, 28 + tw + gap]
     tiles = [
         ("A guarded move", [
-            "yield* runs.update(queued, yield* queued.start())",
+            "runs.update(run, yield* RunMove.start(run))",
             "// RunService.update(from, to):",
-            "const { row } = yield* Run.makeUpdate(to)",
+            "const { row } =",
+            "  yield* RowCodec.makeUpdate(Run)(to)",
             "runs.update(row, encodeWhere(",
             "  Struct.pick(from, ['id', 'status'])))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),
@@ -579,7 +579,8 @@ def patterns():
             "  .create({ chatId: chat.id, text, … })",
             "  .pipe(Effect.flatMap(runs.create),",
             "    transaction.run)",
-            "if (chat.isNew) yield* queue.sendTitleChat(chat)",
+            "if (ChatState.isNew(chat.run))",
+            "  yield* queue.sendTitleChat(chat)",
             "return yield* askReply(run)",
         ], "a delivery always finds the Run it names"),
         ("Errors handled once, at the flow's end", [
@@ -637,10 +638,10 @@ def principles():
          "A new purpose is a new unit that wraps or composes the old one; minimal means less code in each unit, never fewer units.",
          "`composition.md`, decisions › Composition: wrap or compose"),
         ("Guards in the build, not in review",
-         "Biome, its GritQL plugin, `tsc -b` and the bundle check refuse a wrong import before anyone reads it; review keeps what no tool sees.",
+         "Biome, its GritQL plugin and `tsc -b` refuse a wrong import before anyone reads it; review keeps what no tool sees.",
          "decisions › Guards are configuration"),
         ("One source of truth for data",
-         "`kernel/data` declares every store; a module's domain takes the tables' limits, patterns and enum values instead of declaring them again.",
+         "`kernel/data` declares every store; a module's domain imports none of it and declares its own values, which a service holds in step with the tables'.",
          "decisions › The data at the centre, Checks kept in the tables"),
         ("Minimal, then right, then hard",
          "The whole feature in its smallest form, played end to end; then its design; then the `Later` items the owner picks.",

@@ -27,8 +27,7 @@ import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Message } from '#chat/domain/message.model'
-import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run, RunStatus } from '#chat/domain/run.model'
+import { Run, RunNotFoundError, RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {

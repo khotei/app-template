@@ -1,12 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, Effect, Option } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Exit, Option } from 'effect'
 
 import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals } from '@app-template/packages/testing'
+import { encodeWith, RowCodec } from '@app-template/packages/schema'
+import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
-import { RunNotFoundError } from '#chat/domain/run.error'
-import { activeRunStatuses, Run, type RunStatus } from '#chat/domain/run.model'
+import { activeRunStatuses, Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
+import { RunMove } from '#chat/domain/run-move'
 import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
@@ -18,18 +18,18 @@ const moves: ReadonlyArray<{
   readonly to: RunStatus
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { name: 'start', from: 'queued', to: 'generating', move: (run) => run.start() },
+  { name: 'start', from: 'queued', to: 'generating', move: RunMove.start },
   {
     name: 'complete',
     from: 'generating',
     to: 'done',
-    move: (run) => run.complete(assistantMessageAt(1, 'Sure.').id),
+    move: (run) => RunMove.complete(run, assistantMessageAt(1, 'Sure.').id),
   },
   {
     name: 'fail',
     from: 'queued',
     to: 'failed',
-    move: (run) => run.fail(Cause.fail('SQS is unavailable')),
+    move: (run) => RunMove.fail(run, Cause.fail('SQS is unavailable')),
   },
 ]
 
@@ -102,7 +102,7 @@ describe('RunService', () => {
     })
     return Effect.gen(function* () {
       const service = yield* RunService
-      const started = yield* queuedRun.start()
+      const started = yield* RunMove.start(queuedRun)
 
       const defect = yield* service
         .update(queuedRun, started)
@@ -110,6 +110,23 @@ describe('RunService', () => {
 
       assert.strictEqual(defect, 'no run was updated')
       assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: 'queued' }])
+    }).pipe(Effect.provide(layer))
+  })
+
+  it.effect('update writes a Run as read with its updatedAt moved to now', () => {
+    const { updates, layer } = recordUpdates()
+    return Effect.gen(function* () {
+      const service = yield* RunService
+      const read = new Run({ ...queuedRun, updatedAt: DateTime.makeUnsafe('2026-11-09T00:00Z') })
+      const failed = yield* RunMove.fail(read, Cause.fail('529 overloaded'))
+
+      const moved = yield* service.update(read, failed)
+
+      assert.deepStrictEqual(moved.updatedAt, epoch)
+      assert.deepStrictEqual(
+        Arr.map(updates, ([set]) => [set.status, set.failure, set.updatedAt]),
+        [['failed', Option.getOrThrow(failed.failure), DateTime.toDateUtc(epoch)]],
+      )
     }).pipe(Effect.provide(layer))
   })
 
@@ -148,5 +165,22 @@ describe('RunService', () => {
         assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ where: key }))
       }).pipe(Effect.provide(layer))
     },
+  )
+})
+
+describe("a Run's update, as its service codes it", () => {
+  it.effect('keeps its status, failure and reply typed, and dies on another type', () =>
+    Effect.gen(function* () {
+      const update = RowCodec.makeUpdate(Run)
+
+      // @ts-expect-error a status is one of a Run's
+      const lost = yield* update({ ...queuedRun, status: 'lost' }).pipe(Effect.exit)
+      // @ts-expect-error a failure is an Option of a RunFailure
+      const failed = yield* update({ ...queuedRun, failure: 'down' }).pipe(Effect.exit)
+      // @ts-expect-error a reply is an Option of a MessageId
+      const reply = yield* update({ ...queuedRun, assistantMessageId: 'x' }).pipe(Effect.exit)
+
+      assert.deepStrictEqual(Arr.map([lost, failed, reply], Exit.hasDies), [true, true, true])
+    }),
   )
 })

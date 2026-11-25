@@ -85,13 +85,11 @@ left.
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The web's cookie is the user cookie of `chat-core`'s `CurrentUser` security.
-- **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
-  `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
-  `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
-  service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
-  the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
-  Bun's today), clear the output dir before each build, and keep it in `make check`, which CI runs.
+  The web's cookie is the user cookie the api's `Auth` reads to provide `Identity`.
+- **What the browser's bundle holds** is this ticket's to check, on the new bundler: `make check`
+  reads no bundle, and only the `apps/web/**` override and the web's manifest hold the browser's
+  imports (the owner's word, 2026-11-25:
+  [Later › From `pure-models`](#from-pure-models)).
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
@@ -345,14 +343,14 @@ moves it into its own `Later` and deletes it here.
   Runs. The owner refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
-  (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
-  which dies, so the client gets a bare `500`, not a `409`; a double click, its second request
-  arriving after the first Run is stored, already gets the `409` (`RunRepository.insert`,
-  `RunService.create`). Left: a lost race dies by
-  [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
-  weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
-  `ChatBusyError` (an exception to `repositories.md`'s "a write dies where it misses"), or a
-  `SELECT … FOR UPDATE` on the chat before the check.
+  (`ChatPolicy.ensureNotBusy`, `RunPolicy.ensureRetryable`); the active Run's index refuses the
+  second insert, which dies, so the client gets a bare `500`, not a `409`; a double click, its
+  second request arriving after the first Run is stored, already gets the `409`
+  (`RunRepository.insert`, `RunService.create`). Left: a lost race dies by [database.md ›
+  Guards](database.md#guards), and no client offers a retry button yet. Ways out to weigh: the
+  insert fails a typed `RunActiveError` that `RunService.create` maps to `ChatBusyError` (an
+  exception to `repositories.md`'s "a write dies where it misses"), or a `SELECT … FOR UPDATE` on
+  the chat before the check.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
   an ask of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that
@@ -373,7 +371,7 @@ moves it into its own `Later` and deletes it here.
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `UserUnknownError`
+  (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `IdentityUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
   First check, by a live run, which of an error's fields reach the api's and the worker's logs and
   spans.
@@ -404,9 +402,6 @@ moves it into its own `Later` and deletes it here.
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
 - (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
   with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
-- (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
-  `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
-  owner's decision.
 - (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
   have no case at their own seam; a planted bug in each passes.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
@@ -490,7 +485,7 @@ moves it into its own `Later` and deletes it here.
   never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
-  (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
+  (`application/http-api/chat.http.ts`) does not carry: its `text` has only the pattern and
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
   (a pattern with a non-whitespace character), or accept the round trip.
@@ -540,10 +535,12 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-25) The Biome override of a module's `services/` (`.misc/lint/biome.base.json`) still
   admits `@app-template/packages/schema`, and its message says the import is "for the codecs and
   the id generator", while [models.md](../../.claude/rules/models.md) has a service code its rows
-  through its model's statics alone. A service that calls `decodeWith` again passes `make lint`;
-  none does today. Left on the owner's word: no guard before the harm is seen. Ways out to weigh:
-  drop the package from that override's exceptions and fix the message, once a service has
-  slipped; or leave it to the rule.
+  through `RowCodec` alone. A service that calls `decodeWith` again passes `make lint`;
+  none does today. Left on the owner's word: no guard before the harm is seen. The package cannot
+  leave that override's exceptions, as every service imports `RowCodec` from it. Ways out to
+  weigh: admit of the package only the name `RowCodec`, with an `importNamePattern` as the
+  override admits only `Transaction` of `@app-template/packages/db`, and fix the message, once a
+  service has slipped; or leave it to the rule.
 - (2026-11-25) `kernel/aws/__e2e__/queue.sender.e2e.ts` keeps its `sampleQueue` as a separate
   definition object, the form the job classes left for a `queue` static. It is a package test
   with no job class, so it was left. Way out: a job class of its own in the test, if the two
@@ -556,6 +553,14 @@ moves it into its own `Later` and deletes it here.
   `apps/worker/layer.ts:29-35`), so "api started" or "worker started" can be logged before the
   server listens, or when binding the port fails. Claimed by a review, not reproduced. Way out:
   order the log after the server in both processes.
+
+### From `pure-models`
+
+- (2026-11-25) No check reads what a bundle holds: a server import that reaches the browser
+  through a package the `apps/web/**` override admits (`packages/ui` importing `packages/db`),
+  or a service, the kernel or Drizzle that reaches the API contract's bundle past the domain's
+  and the contracts' overrides, passes `make check`. Left on the owner's word: "It will be task
+  of web framework". Way out: the bundler of `web-app` (7) checks both.
 
 ## Ideas to weigh
 
@@ -665,7 +670,7 @@ For a future ticket on durable workflows.
 
 No ticket yet; `chat-core` decided that today's user later merges into an account.
 
-- **Today.** `identity`'s `UserService` issues 32 random bytes as a base64url secret in an
+- **Today.** `identity`'s `IdentityService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
   through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
 - **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,

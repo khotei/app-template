@@ -13,7 +13,8 @@ import {
   RunNotRetryableError,
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
-import { UserUnknownError } from '@app-template/application/identity'
+import { RequestInvalidError } from '@app-template/application/http-api'
+import { IdentityUnknownError } from '@app-template/application/identity'
 import type {
   ChatEntitySelectWhere,
   MessageColumns,
@@ -23,7 +24,6 @@ import type {
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RequestInvalidError } from '#api/shared/api-security'
 import {
   ApiClient,
   type ApiRepositoryMocks,
@@ -61,7 +61,7 @@ const getJson = (url: string) =>
   )
 
 describe('chats', () => {
-  it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>
+  it.effect('GET /chats without a cookie is 401 IdentityUnknownError', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
       const http = yield* HttpClient.HttpClient
@@ -70,8 +70,8 @@ describe('chats', () => {
       const error = yield* api.chats.list().pipe(Effect.flip)
 
       assert.strictEqual(response.status, 401)
-      assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
-      assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
+      assert.deepStrictEqual(yield* response.json, { _tag: 'IdentityUnknownError' })
+      assertSchemaEquals(IdentityUnknownError, error, new IdentityUnknownError())
     }).pipe(Effect.provide(layerApiTest({ users: { selectOne: () => Effect.succeedNone } }))),
   )
 
@@ -323,7 +323,7 @@ describe('chats', () => {
     },
   )
 
-  it.effect('a failed Run reaches the wire by its status alone, never its failure', () =>
+  it.effect('a failed Run reaches the wire by its status alone, its chat by its state', () =>
     Effect.gen(function* () {
       const [wire, chatWire] = yield* Effect.forEach(
         [`/chats/${chat.id}/runs/${refusedRun.id}`, `/chats/${chat.id}`],
@@ -332,7 +332,8 @@ describe('chats', () => {
 
       assert.deepInclude(wire, { status: 'failed', assistantMessageId: null })
       assert.notProperty(wire, 'failure')
-      assert.deepInclude(chatWire, { status: 'failed' })
+      assert.deepInclude(chatWire, { state: 'failed' })
+      assert.notProperty(chatWire, 'status')
       assert.notProperty(chatWire, 'run')
     }).pipe(
       Effect.provide(

@@ -59,9 +59,9 @@ static readonly layerAudited = Layer.effect(
   model field), never a new name; another purpose is a unit of its own (2 and 3 above), never a
   method or an option stretched to hold it.
 - Caller: what only tests use is no interface; delete it with its mapper, fake branch and test.
-- What still goes: dead code; a pass-through, but a model's member over its own function
-  ([models.md](models.md)); a copy per variant, which becomes one unit over the varying value (a
-  model's predicate or a value its service builds is no copy, however short or few its callers).
+- What still goes: dead code; a pass-through; a copy per variant, which becomes one unit over the
+  varying value (a model's predicate or a value its service builds is no copy, however short or
+  few its callers).
   A deletion never moves a unit's added behaviour into the unit below.
 - A fold or a merge is the owner's call: its proposal names the purpose each unit holds and where it
   lives after.

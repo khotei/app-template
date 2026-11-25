@@ -6,7 +6,7 @@ import {
   ChatBusyError,
   ChatId,
   ChatNotFoundError,
-  ChatStatus,
+  ChatState,
   ChatTitle,
   Message,
   MessageId,
@@ -15,11 +15,11 @@ import {
   RunId,
   RunNotFoundError,
   RunNotRetryableError,
-} from '@app-template/application/chat'
+} from '@app-template/application/chat/contract'
 
-/** A chat with the status its newest Run gives it, in place of that Run. */
+/** A chat with the state its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.json
-  .mapFields(Struct.assign({ status: ChatStatus }))
+  .mapFields(Struct.assign({ state: ChatState.values }))
   .annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 

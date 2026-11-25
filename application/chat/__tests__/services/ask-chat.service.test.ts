@@ -13,11 +13,9 @@ import { recordMessages } from '@app-template/packages/queue/testing'
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat } from '#chat/domain/chat.model'
+import { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
-import { RunNotRetryableError } from '#chat/domain/run.error'
-import { Run } from '#chat/domain/run.model'
+import { Run, RunNotRetryableError } from '#chat/domain/run.model'
 import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import {

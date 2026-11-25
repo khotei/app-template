@@ -15,7 +15,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A port speaks the domain's words, never a client's type or error ([failures](effect.md#failures)).
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
-  key with its `*NotFoundError`), coding the rows through the model's codec statics
+  key with its `*NotFoundError`), coding the rows through `RowCodec` over the model
   ([models.md](models.md); no port between, [why](effect-services.md#services)). It
   sees the repositories, its ports, the clock, `SecureRandom`, `Digest` and `Transaction`; never
   another model's service or its infrastructure but as below ([composition.md](composition.md)).
@@ -27,16 +27,16 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   `Transaction` and what one process provides, the api's its `<Model>Queue`, the worker's
   its `.llm` files, each admitted by its file's own Biome override, and calls no use case
   ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- A status move is a pure transition, a function of the model ([its name](naming.md#symbols)): it
+- A status move is a pure transition, a static of `<Model>Move` ([models.md](models.md)): it
   checks one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as
   its callers move a record just read or moved; a refusal the user can reach is a check of its own
   before it, failing its own error (`<Model>BusyError`). A status move is written as
-  `<Model>Service.update(<record>, yield* <record>.<move>(…))`, under the status the record was
-  read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
-- A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
-  combined from small pieces of one condition or step each, never repeating their logic; a service,
-  use case or repository only reads, calls it and writes (`const order = yield* getOne(where)`;
-  `yield* order.ensure<Rule>(at)`). Pieces are tested alone, a combination only for what it adds.
+  `<Model>Service.update(<record>, yield* <Model>Move.<move>(<record>, …))`, under the status the
+  record was read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
+- A rule is a pure function, a static of its model's group of its kind, over values passed in
+  (time, ids), combined from small pieces of one condition or step each; a service, use case or
+  repository only reads, calls it and writes (`yield* OrderPolicy.ensure<Rule>(order, at)`).
+  Pieces are tested alone, a combination only for what it adds.
 - A method applies its model's rules itself, never relying on another having run first; a plain
   write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
@@ -73,8 +73,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A handler decodes the input, calls one domain service method or one use case, before it at most
   the read of the record it acts in for the user (`<Model>Service.getOne` with the owner), returns
-  the model and fails with the domain's errors as they are. It composes nothing else, holds no rule
-  and imports no repository or data layer: only the process's `layer.ts` provides them.
-- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`; one that calls nothing (it returns a
-  constant) is a plain function, no span; an effectful group or router builder `Effect.fnUntraced`
-  ([functions](effect-services.md#functions)).
+  the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with the domain's
+  errors as they are. It composes nothing else, holds no rule and imports no repository or data
+  layer, which only the process's `layer.ts` provides.
+- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`, one returning a constant a plain
+  function, no span; an effectful group or router builder `Effect.fnUntraced` ([why](effect-services.md#functions)).

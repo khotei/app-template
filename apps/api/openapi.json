@@ -39,11 +39,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -86,11 +86,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -143,11 +143,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -208,11 +208,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -285,11 +285,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -355,11 +355,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -420,11 +420,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -518,11 +518,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -605,11 +605,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -682,11 +682,11 @@
             }
           },
           "401": {
-            "description": "UserUnknownError",
+            "description": "IdentityUnknownError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserUnknownErrorEncoded"
+                  "$ref": "#/components/schemas/IdentityUnknownErrorEncoded"
                 }
               }
             }
@@ -849,13 +849,13 @@
         "additionalProperties": false,
         "title": "User.json"
       },
-      "UserUnknownErrorEncoded": {
+      "IdentityUnknownErrorEncoded": {
         "type": "object",
         "properties": {
           "_tag": {
             "type": "string",
             "enum": [
-              "UserUnknownError"
+              "IdentityUnknownError"
             ]
           }
         },
@@ -1145,7 +1145,7 @@
           "updatedAt": {
             "type": "string"
           },
-          "status": {
+          "state": {
             "type": "string",
             "enum": [
               "idle",
@@ -1160,7 +1160,7 @@
           "title",
           "createdAt",
           "updatedAt",
-          "status"
+          "state"
         ],
         "additionalProperties": false
       }

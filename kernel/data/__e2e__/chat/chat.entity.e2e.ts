@@ -3,7 +3,7 @@ import { Effect } from 'effect'
 
 import { flipSqlError } from '@app-template/packages/db/testing/e2e'
 
-import { chats, maxTitleLength } from '#kernel/data/chat/chat.table'
+import { chats } from '#kernel/data/chat/chat.table'
 import { Db } from '#kernel/data/db.client'
 import { users } from '#kernel/data/user/user.table'
 import { DbTest } from '#testing/data/e2e/db.test-layer'
@@ -19,17 +19,16 @@ const chat = {
 } satisfies typeof chats.$inferInsert
 
 describe('chats', () => {
-  it.effect('accepts a title of the maximum length through its check', () =>
+  it.effect('accepts a trimmed title through its check', () =>
     Effect.gen(function* () {
       const db = yield* Db
 
       yield* db.insert(users).values({ id: userId, createdAt: new Date(0) })
-      yield* db.insert(chats).values({ ...chat, title: 'a'.repeat(maxTitleLength) })
+      yield* db.insert(chats).values({ ...chat, title: 'Trip' })
     }).pipe(Effect.provide(DbTest)),
   )
 
   it.effect.each([
-    { name: 'longer than the maximum', title: 'a'.repeat(maxTitleLength + 1) },
     { name: 'empty', title: '' },
     { name: 'untrimmed', title: ' Trip' },
   ])('refuses a title that is $name through its check', ({ title }) =>

@@ -1,6 +1,6 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-import { User } from '@app-template/application/identity'
+import { User } from '@app-template/application/user/contract'
 
 const ApiUser = User.json.annotate({ identifier: 'ApiUser' })
 

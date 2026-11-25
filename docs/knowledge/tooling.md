@@ -91,9 +91,8 @@ Which suite runs where:
   `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
   the `SqlError` of a refused statement, comes from `@app-template/packages/db/testing/e2e`. What
   they check: [database.md › Tests](database.md#tests). A limit, a pattern or an enum's values
-  is declared once, in its table, and a model that holds it imports it. The data layer's e2e
-  refuse a limit plus one by its constant and accept the limit itself, and accept a pattern's
-  extreme value.
+  is declared in its table, and a model that holds it declares its own. The data layer's e2e
+  accept a check's extreme value and refuse what is just past it.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the
@@ -282,8 +281,7 @@ its package symlink and checks its sources either way.
 Code the browser imports is a package, a folder of `packages/`, never a workspace of its own,
 since the web declares no workspace of the app but `packages`
 ([decisions.md › The API contract in the api](decisions.md#the-api-contract-in-the-api)): the
-package joins the `apps/web/**` override's allowed imports and `browserPackages` in
-`apps/web/package.json`, which `make bundle-check` reads, so it imports only `effect` and the
+package joins the `apps/web/**` override's allowed imports, so it imports only `effect` and the
 browser's other packages; a new module, kernel part or other package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 

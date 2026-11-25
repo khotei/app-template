@@ -10,33 +10,34 @@ import {
   MessageService,
   RunService,
 } from '@app-template/application/chat'
-import { UserService } from '@app-template/application/identity'
+import { Api } from '@app-template/application/http-api'
+import { IdentityService } from '@app-template/application/identity'
 import { QueueSenderFromConfig } from '@app-template/kernel/aws'
 import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
 import { Transaction } from '@app-template/packages/db'
 
-import { Api } from '#api/api'
 import { ChatHandler } from '#api/chat/chat.handler'
 import { HealthHandler } from '#api/health/health.handler'
-import { Auth, SchemaErrors } from '#api/shared/api-security'
+import { AuthLayer, SchemaErrorsLayer } from '#api/shared/api-security.layer'
 import { UserHandler } from '#api/user/user.handler'
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide([HealthHandler, UserHandler, ChatHandler]),
-  Layer.provide([Auth.layer, SchemaErrors.layer]),
+  Layer.provide([AuthLayer, SchemaErrorsLayer]),
 )
 
-// After `serve`, which makes what a handler reads per request its own requirement: what the
-// handler calls reads its services so, and a handler group's provide never reaches them.
+// After `serve`, which makes what a handler reads per request its own requirement. Each handler
+// group yields its services when it is built, which a provide before `serve` would reach too; a
+// use case a handler calls reads its services per request, which only a provide here reaches.
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     AskChatService.layer,
     ChatService.layer,
     MessageService.layer,
     RunService.layer,
-    UserService.layer,
+    IdentityService.layer,
   ]),
 )
 
