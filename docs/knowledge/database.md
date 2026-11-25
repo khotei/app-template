@@ -262,7 +262,9 @@ A use case that writes several aggregates commits them together: the `Effect.fn`
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
 (`Transaction.layer` wraps `SqlClient.withTransaction` over the `PgClient` that `Db.layer` takes
 from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e, so it runs on the
-connection `Db` uses), the one way to open a transaction. A service whose writes commit together
+connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
+the outer one: it rolls back alone on its own failure and commits with the outer
+([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
 passes `transaction.run` as the last argument of the function that holds them: `UserService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
 `ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the

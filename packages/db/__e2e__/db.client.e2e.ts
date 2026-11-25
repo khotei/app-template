@@ -42,7 +42,63 @@ describe('createDb', () => {
   })
 })
 
+/** `probes` on the test's own database, as the migrated template has no table of this package. */
+const createProbes = SqlClient.SqlClient.use(
+  (sql) => sql`CREATE TABLE probes (id integer PRIMARY KEY)`,
+)
+
+const insertProbe = (id: number) =>
+  SqlClient.SqlClient.use((sql) => sql`INSERT INTO probes ${sql.insert({ id })}`)
+
+const selectProbes = SqlClient.SqlClient.use((sql) => sql`SELECT id FROM probes ORDER BY id`)
+
 describe('Transaction', () => {
+  it.effect('a run inside a run commits with the outer', () =>
+    Effect.gen(function* () {
+      const transaction = yield* Transaction
+      yield* createProbes
+
+      yield* transaction.run(insertProbe(1).pipe(Effect.andThen(transaction.run(insertProbe(2)))))
+      const probes = yield* selectProbes
+
+      assert.deepStrictEqual(probes, [{ id: 1 }, { id: 2 }])
+    }).pipe(Effect.provide(Layer.provideMerge(Transaction.layer, PgClientTest))),
+  )
+
+  it.effect('a run inside a run that fails rolls back alone, the outer going on', () =>
+    Effect.gen(function* () {
+      const transaction = yield* Transaction
+      yield* createProbes
+
+      yield* transaction.run(
+        Effect.gen(function* () {
+          yield* insertProbe(1)
+          yield* transaction
+            .run(insertProbe(2).pipe(Effect.andThen(Effect.fail('refused'))))
+            .pipe(Effect.ignore)
+          yield* insertProbe(3)
+        }),
+      )
+      const probes = yield* selectProbes
+
+      assert.deepStrictEqual(probes, [{ id: 1 }, { id: 3 }])
+    }).pipe(Effect.provide(Layer.provideMerge(Transaction.layer, PgClientTest))),
+  )
+
+  it.effect('a run inside a run rolls back with the outer', () =>
+    Effect.gen(function* () {
+      const transaction = yield* Transaction
+      yield* createProbes
+
+      yield* transaction
+        .run(transaction.run(insertProbe(1)).pipe(Effect.andThen(Effect.fail('refused'))))
+        .pipe(Effect.ignore)
+      const probes = yield* selectProbes
+
+      assert.deepStrictEqual(probes, [])
+    }).pipe(Effect.provide(Layer.provideMerge(Transaction.layer, PgClientTest))),
+  )
+
   it.effect("run's own SqlError is a defect", () =>
     Effect.gen(function* () {
       const transaction = yield* Transaction

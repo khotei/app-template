@@ -207,7 +207,9 @@ the data layer's repository directly.
   the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
-  `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
+  `.claude/rules/layering.md`, a repository or the data layer in an app's handler; the cases of
+  `Transaction` that nest a `run` in a `run` (`packages/db/__e2e__/db.client.e2e.ts`), so a
+  service's transaction inside its caller's leaves the caller's whole.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path; a domain without the
   data layer declares each value again, and a mapper's unit test per value compares the copies.
