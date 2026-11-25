@@ -405,7 +405,8 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   100 files, none of a service, an infrastructure, the kernel, `packages/db` or Drizzle; through
   the modules' entries it read 664, 123 of them Drizzle's. No check repeats that build: a
   contract that re-exported a service's file would load it again, which the contracts' override
-  refuses and only review of a domain file's imports holds past it.
+  refuses and only review of a domain file's imports holds past it; a mechanical check of that
+  bundle is left to the web framework's work (the owner's word, 2026-11-25).
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
