@@ -199,9 +199,13 @@ What goes where, which support a test may import and what runs on what:
 ## A use case
 
 Every use case lives in `application/use-cases/<module>/<verb>-<object>.use-case.ts`, whichever
-modules it touches: it composes their services and model rules, holds the transaction and
-enqueues the jobs, and holds nothing else: a rule, a read or a write stays in its module's models
-and services. When a flow becomes one and how it orders its writes:
+modules it touches: an order over modules, holding the transaction their writes share, or a job's
+end, what it skips and logs. It composes the modules' services and model rules and holds nothing
+else: a rule, a read or a write stays in its module's models and services, and an order over one
+module's services, with their transaction and their jobs' sends, is that module's
+`<Verb><Model>Service`
+([composition.md › Where a change goes](../../.claude/rules/composition.md#where-a-change-goes)).
+When a flow becomes one and how it orders its writes:
 [.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
 modules has the same shape as one that does not:
 
@@ -227,9 +231,10 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
 ```
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
-  method, and the endpoint's error list checks what it fails with; the api provides the services
-  it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer, and a unit test from
-  its mocks. Decision: [Use cases as functions](decisions.md#use-cases-as-functions).
+  method, and what the handler hands it to checks what it fails with: the worker's
+  `consumeQueue`, whose `never` makes the use case end every failure, or an endpoint's error
+  list; the api provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker
+  in its layer, and a unit test from its mocks. Decision: [Use cases as functions](decisions.md#use-cases-as-functions).
 - **A rule another module owns is called, never copied.** The order module may read the
   customer's row itself, but whether a customer may order is the customer module's rule, so the
   use case calls it. How to tell one rule from two that only look alike:
@@ -275,8 +280,9 @@ imports need.
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A purpose the service was not made for comes later as a service composed over it,
    never as an edit of it ([Composition: wrap or compose](decisions.md#composition-wrap-or-compose)).
-4. **The flows.** A flow over two services or a job is a [use case](#a-use-case). A job adds its
-   queue to the inventory and its definition to the module's `infrastructure/`
+4. **The flows.** An order over the module's services, their transaction or their sends is its
+   `<Verb><Model>Service`; an order over modules, or a job's end, is a [use case](#a-use-case).
+   A job adds its queue to the inventory and its definition to the module's `infrastructure/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route, the services it reads provided in the worker's layer.

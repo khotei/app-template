@@ -47,12 +47,14 @@ The behaviour is split by business capability, a module per capability under `ap
 ### Use cases above the modules
 
 Every use case lives in `application/use-cases`, above the modules: synchronous, one transaction
-whatever modules it touches; no events, facades or reactions between modules. A use case
-composes the modules' services and model rules, holds the transaction, orders the writes against
-a store outside it and enqueues the jobs, and holds nothing else: a rule, a read or a write stays
-in its module's models and services, and a request's rules with the writes of one module that
-commit together sit in a service of that module, the transaction piped on those writes
-(`AskChatService`, [Composition: wrap or compose](#composition-wrap-or-compose),
+whatever modules it touches; no events, facades or reactions between modules. A use case is an
+order over modules, holding the transaction their writes share, or a job's end; it composes the
+modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
+module's models and services, and an order over one module's services, a request's checks with
+the writes that commit together and the jobs sent after them, sits in that module's
+`<Verb><Model>Service`, the transaction piped on those writes (`AskChatService`,
+[Composition: wrap or compose](#composition-wrap-or-compose),
+[The chat's jobs in their services](#the-chats-jobs-in-their-services),
 [layering.md › Use cases](../../.claude/rules/layering.md#use-cases)). The shape:
 [architecture.md › A use case](architecture.md#a-use-case).
 
@@ -1190,8 +1192,9 @@ without renaming provisioned resources. No app wires the files today.
 
 A job is a queue message, and no table holds it: the work it hands over keeps its own record
 (the Run, the chat's title), which the worker reads to handle it once, to settle a Run whose worker
-died and to write a failure. `QueueSender.send` encodes the job by its definition; a use case sends
-it after its commit, so every delivery finds its record. Each job goes through its `send<Job>`, a
+died and to write a failure. `QueueSender.send` encodes the job by its definition; the
+`<Verb><Model>Service` that writes its record sends it after its commit, so every delivery finds
+its record. Each job goes through its `send<Job>`, a
 method of its module's `<Model>Queue` in its module's infrastructure, in the file of its queue's
 definition, which takes `QueueSender` in its `make`, only sends the job and logs a send SQS
 refuses. A job hands its worker one piece of work, as a command message does in messaging,

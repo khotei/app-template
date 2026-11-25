@@ -318,8 +318,8 @@ chat's title) is the one the worker reads
 
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through the
   definition's schema to a JSON string and sends it to the definition's queue;
-  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
-  after its transaction commits, so a delivery always finds the record it names. A transaction
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`
+  sends its jobs after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
   message's and its Run's too. For the reply's, `AskChatService` also fails the Run it sent
