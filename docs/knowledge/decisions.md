@@ -109,11 +109,11 @@ in its layer. A job's sends are a service's: [Jobs as queue messages](#jobs-as-q
   the user's, or none, would answer `200` with an empty list in place of `404 ChatNotFoundError`.
 - **Cost:** one endpoint, the list of a chat's messages, whose handler makes two calls, the chat's
   read and the list. `ask` and `retry` cannot be called with a `Chat` already read: a caller that
-  holds one passes its key and owner, and the service reads it again; the read stays outside their
-  uninterruptible region, a step apart from it. A flow that reads a service its process lacks
-  fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit test merges its
-  doubles into the layer it provides (`Layer.provideMerge`), since the flow reads them itself; the
-  worker's route test mocks the leaves, not the use cases; a span is the function's name.
+  holds one passes its key and owner, and the service reads it again. A flow that reads a service
+  its process lacks fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit
+  test merges its doubles into the layer it provides (`Layer.provideMerge`), since the flow reads
+  them itself; the worker's route test mocks the leaves, not the use cases; a span is the
+  function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
   list, a job's failure at `consumeQueue`; `.claude/rules/layering.md › Handlers` and review, a
   handler composing more than the user's record's read and one call.
@@ -1376,9 +1376,9 @@ What a Run's job accepts when it is cut short or handled twice. `ReplyChatServic
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
 interrupt included: a worker interrupted while the job reads its Run starts it, then fails it, and
 one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
-`ask` and `retry` read the user's chat interruptibly, so a client that aborts during that read stops
-the request, then run uninterruptibly to their sends, so one that aborts later still leaves the Run
-stored with its jobs sent, or failed by a refused send. Two deliveries at the
+`ask` and `retry` read and check the user's chat interruptibly, so a client that aborts there stops
+the request, then run their writes and sends as one uninterruptible region, so one that aborts later
+still leaves the Run stored with its jobs sent, or failed by a refused send. Two deliveries at the
 same instant both read the Run queued; the loser's guarded `generating` write dies before its tail
 exists, so it fails nothing and the winner's reply stands. A Run settled or deleted under the reply
 makes the tail's write die, and the Run stays as the other writer left it. The job names the user's

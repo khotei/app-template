@@ -339,8 +339,9 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
   and the reply's send (`ChatQueue.sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
-  `retry`): a send SQS refuses fails the Run, and both run uninterruptibly once the chat is read,
-  but no handler runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active
+  `retry`): a send SQS refuses fails the Run, and a client's abort leaves it sent
+  ([decision](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries)), but no handler runs in
+  a dead process. Ways out to weigh: a ledger of jobs, a sweep of active
   Runs. The owner refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check

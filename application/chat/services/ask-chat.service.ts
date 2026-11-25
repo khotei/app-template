@@ -77,36 +77,34 @@ export class AskChatService extends Context.Service<
       })
     }, transaction.run)
 
-    // `askIn` and `retryIn` are uninterruptible: a client's abort after the Run commits would leave
-    // it queued with no job, its chat busy and its retry refused, so one that began runs to its
-    // send. The chat's read before them stays interruptible, so an abort there stops the request.
-    const askIn = Effect.fnUntraced(function* (chat: Chat, text: string) {
-      yield* chat.ensureNotBusy()
-      const run = yield* createMessageRun(chat, text)
-
-      // A chat no ask has reached yet is titled once, from its first message; the title's send
-      // never fails, so the jobs go in either order.
-      if (chat.isNew) yield* queue.sendTitleChat(chat)
-      return yield* askReply(run)
-    }, Effect.uninterruptible)
-
-    const retryIn = Effect.fnUntraced(function* (chat: Chat) {
-      const failed = yield* chat.ensureRetryable()
-      const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
-      return yield* askReply(run)
-    }, Effect.uninterruptible)
-
     const ask = Effect.fn('AskChatService.ask')(function* (
       { chatId, userId }: AskChatWhere,
       text: string,
     ) {
       const chat = yield* chats.getOne({ id: chatId, userId })
-      return yield* askIn(chat, text)
+      yield* chat.ensureNotBusy()
+
+      // The writes and the sends are uninterruptible: a client's abort after the Run commits would
+      // leave it queued with no job, its chat busy and its retry refused. The read and the check
+      // above stay interruptible, so an abort there stops the request.
+      return yield* Effect.gen(function* () {
+        const run = yield* createMessageRun(chat, text)
+
+        // A chat no ask has reached yet is titled once, from its first message; the title's send
+        // never fails, so the jobs go in either order.
+        if (chat.isNew) yield* queue.sendTitleChat(chat)
+        return yield* askReply(run)
+      }).pipe(Effect.uninterruptible)
     })
 
     const retry = Effect.fn('AskChatService.retry')(function* ({ chatId, userId }: AskChatWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
-      return yield* retryIn(chat)
+      const failed = yield* chat.ensureRetryable()
+
+      return yield* Effect.gen(function* () {
+        const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
+        return yield* askReply(run)
+      }).pipe(Effect.uninterruptible)
     })
 
     return { ask, retry }
