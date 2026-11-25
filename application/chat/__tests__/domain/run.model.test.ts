@@ -14,7 +14,6 @@ import {
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
 import {
-  buildRunUpdateWhere,
   completeRun,
   ensureRunRetryable,
   ensureRunUnstarted,
@@ -193,12 +192,6 @@ describe('Run', () => {
       )
     }),
   )
-
-  it('is written under its id and the status it was read in', () => {
-    const where = { id: queued.id, status: 'queued' }
-
-    assert.deepStrictEqual([buildRunUpdateWhere(queued), queued.updateWhere], [where, where])
-  })
 
   it('compares by its fields alone, its members adding none', () => {
     assert.isTrue(Equal.equals(runAt('done'), runAt('done')))

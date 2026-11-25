@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Effect, Option, Schema, Struct, type Types } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
@@ -49,10 +49,6 @@ export class Run extends Model.Class<Run>('Run')({
   static readonly makeInsert = makeRowWith(this.insert)
   static readonly makeUpdate = makeUpdateWith(this.update)
 
-  get updateWhere() {
-    return buildRunUpdateWhere(this)
-  }
-
   ensureUnstarted() {
     return ensureRunUnstarted(this)
   }
@@ -77,10 +73,6 @@ export const isActiveRun = hasStatus(activeRunStatuses)
 
 /** A Run past `queued` that has not ended. */
 export const isStartedRun = hasStatus(['generating'])
-
-/** A write finds a Run by its id under the status it was read in, so one moved since misses. */
-export const buildRunUpdateWhere = (run: Types.Simplify<Pick<Run, 'id' | 'status'>>) =>
-  Struct.pick(run, ['id', 'status'])
 
 /** A job refuses a Run some worker started (`RunStartedError`): that worker has died. */
 export const ensureRunUnstarted = Effect.fnUntraced(function* (run: Run) {

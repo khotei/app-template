@@ -676,9 +676,7 @@ started Run's stored status stays `generating`), which the Run's members call (`
 `run.complete(replyId)`, `run.fail(cause)`, [Rules as pure functions](#rules-as-pure-functions)).
 Each is written through `RunService.update(from, to)`: it writes `to`, the Run the move made, under
 the id and the status of `from`, the Run the caller read or last wrote, so a caller hands over the
-two Runs it holds, never a `where` (`runs.update(run, yield* run.start())`). That where is the
-model's, `buildRunUpdateWhere(run)`, which `from.updateWhere` calls and the service hands to the
-repository as it is: plain values, which `encodeWhere` would leave unchanged. `update` stamps
+two Runs it holds, never a `where` (`runs.update(run, yield* run.start())`). `update` stamps
 `updatedAt`, and a write whose guard matches no Run dies in `RunRepository.update`. `failRun`
 takes the `Cause` that ended the work and keeps its full text (`Cause.pretty`). The api fails the
 Run it stored and sent: a refused send's `runs.update(run, yield* run.fail(Cause.fail(error)))`,
@@ -767,12 +765,12 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
   `getOne` that finds no Run fails `RunNotFoundError` with the read's key alone, by `id` or by
   `userMessageId`, and reads under the filter its `where` names, a user's by `id` or a message's
   by its statuses; the model's tests of the moves, a refused one dying, `failRun`'s full text,
-  `ensureRunUnstarted`, the where a write finds a Run by and the members; `ReplyChatService`'s:
-  an interrupt while the start reads still starts the Run and then fails it, a reply that dies
-  after its Run was failed elsewhere and retried fails no Run, a delivery losing the start to a
-  rival fails none; `AskChatService`'s, a refused send that fails the Run it stored by its id,
-  reading no Run, and one whose Run a worker settled that dies on the guard; review, by
-  `.claude/rules/layering.md › Ports and domain services`.
+  `ensureRunUnstarted` and the members; `ReplyChatService`'s: an interrupt while the start reads
+  still starts the Run and then fails it, a reply that dies after its Run was failed elsewhere and
+  retried fails no Run, a delivery losing the start to a rival fails none; `AskChatService`'s, a
+  refused send that fails the Run it stored by its id, reading no Run, and one whose Run a worker
+  settled that dies on the guard; review, by `.claude/rules/layering.md › Ports and domain
+  services`.
 - **If reversed:** `RunService.move(run, transition)` returns over `update(to, where)`, the
   callers passing the transition, a lambda where it takes an argument; with the moves out of the
   callers, `MoveRunService` returns over `RunService`, holding the guard, the job's start and

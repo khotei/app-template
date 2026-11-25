@@ -26,6 +26,14 @@ export class RunByMessageWhere extends Schema.Opaque<RunByMessageWhere>()(
   }),
 ) {}
 
+/** A Run by its id under the status it must still hold, as a write finds it. */
+export class RunUpdateWhere extends Schema.Opaque<RunUpdateWhere>()(
+  Schema.Struct(Struct.pick(Run.fields, ['id', 'status'])),
+) {
+  /** The where as the repository's filter (`encodeWhere`). */
+  static readonly encode = <Where extends RunUpdateWhere>(where: Where) => encodeWhere(where)
+}
+
 /** A union is no class, so the shared encoding sits on a value of the union's name. */
 export const RunWhere = {
   /** The where as the repository's filter (`encodeWhere`). */
@@ -68,7 +76,7 @@ export class RunService extends Context.Service<
     const update = Effect.fn('RunService.update')(function* (from: Run, to: Run) {
       const { set, row } = yield* Run.makeUpdate(to)
 
-      yield* runs.update(row, from.updateWhere)
+      yield* runs.update(row, RunUpdateWhere.encode(Struct.pick(from, ['id', 'status'])))
       return new Run({ ...to, ...set })
     }, Effect.orDie)
 
