@@ -196,11 +196,12 @@ generated. Never a module contract.
 _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:
-One scenario that composes domain services and model rules, of one module or several, or one
+One scenario that composes domain services and model rules over modules, their writes in one
 transaction, or ends a job; what a handler calls when a flow is more than one service method and
 no one service owns it ([which flow](../../.claude/rules/layering.md#use-cases)). It holds only its
 flow, the order of the calls, the transaction, what it skips and logs; each module's rules, records
-and jobs stay in its models and services.
+and jobs stay in its models and services, and an order over one module's services is that
+module's `<Verb><Model>Service`.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
 **Boundary**:
