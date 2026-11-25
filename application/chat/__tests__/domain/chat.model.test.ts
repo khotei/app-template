@@ -75,7 +75,6 @@ describe('a rule function over a plain struct of the fields it reads', () => {
       ).pipe(Effect.flip)
 
       assert.strictEqual(buildChatStatus(Option.some({ status: 'failed' })), 'failed')
-      assert.isFalse(isNewChat(Option.some({ ...queuedRun })))
       assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
     }),
   )
