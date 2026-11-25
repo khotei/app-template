@@ -3,6 +3,7 @@ import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
 import {
+  encodeWhere,
   type UserEntity,
   type UserEntityCredential,
   UserRepository,
@@ -40,7 +41,7 @@ export class UserService extends Context.Service<
 
     const authenticate = Effect.fn('UserService.authenticate')(
       hashSecret,
-      Effect.flatMap((credentials) => users.selectOne({ credentials })),
+      Effect.flatMap((credentials) => users.selectOne(encodeWhere({ credentials }))),
       Effect.flatMap(User.decodeOne),
       Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
     )

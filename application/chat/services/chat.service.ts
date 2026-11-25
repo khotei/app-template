@@ -47,7 +47,7 @@ export class ChatService extends Context.Service<
     })
 
     const list = Effect.fn('ChatService.list')(
-      (userId: UserId) => chats.selectMany({ userId }),
+      (userId: UserId) => chats.selectMany(encodeWhere({ userId })),
       Effect.flatMap(Chat.decodeMany),
     )
 
