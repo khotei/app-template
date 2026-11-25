@@ -188,4 +188,5 @@ the stand's worker, and the `s3` suite creates one bucket, named as a stage is, 
 project is for `make up` alone.
 
 MiniStack differs from AWS in what it never does: lifecycle rules never run, and the 5 MiB minimum
-part size is not enforced. What depends on those is checked on real AWS in the deploy ticket.
+part size is not enforced. What depends on those is checked on real AWS in the deploy ticket; on
+MiniStack, the `s3` suite's part counts (`TotalPartsCount`) prove where an upload cuts its parts.

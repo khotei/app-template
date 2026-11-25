@@ -1,6 +1,6 @@
 import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
-import { Array as Arr, Bytes, Effect, Layer, Option, Stream } from 'effect'
+import { Array as Arr, Bytes, Deferred, Effect, Fiber, Layer, Option, Stream } from 'effect'
 
 import { generateStage, S3ClientTest } from '@app-template/packages/aws/testing/e2e'
 import { breakAfter, StreamBrokenError } from '@app-template/packages/testing'
@@ -67,10 +67,12 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
     )
 
     // A part is sent once the part after it is cut, and a failure still emits the part being cut.
-    // At 11 MiB the failure finds the multipart upload open. At exactly 5 MiB one whole part is
-    // held and none sent, so a put that took the failure for the end would store it alone.
+    // At 10 and 11 MiB the failure finds the multipart upload open; at 10 MiB it comes right after
+    // a whole part, with no short one to send. At exactly 5 MiB one whole part is held and none
+    // sent, so a put that took the failure for the end would store it alone.
     it.effect.each([
       { name: 'after a part is sent', key: 'broken-multipart', size: 11 * mebibyte },
+      { name: 'after two whole parts', key: 'broken-two', size: 2 * partSize },
       { name: 'after one whole part', key: 'broken-single', size: partSize },
     ])('fails the put of a stream that breaks $name, leaving no object', ({ key, size }) =>
       Effect.gen(function* () {
@@ -84,6 +86,30 @@ describe('S3Bucket over S3ClientTest against MiniStack', () => {
         const { Uploads } = yield* s3.listMultipartUploads({ Bucket: bucket, Prefix: key })
 
         assert.strictEqual(failed, error)
+        assert.deepStrictEqual(head, Option.none())
+        assert.deepStrictEqual(Uploads ?? [], [])
+      }),
+    )
+
+    it.effect('interrupting a put mid-way leaves no object and no open upload', () =>
+      Effect.gen(function* () {
+        const s3 = yield* S3Service
+        const files = yield* S3Bucket
+        const key = 'interrupted'
+        const reached = yield* Deferred.make<void>()
+        const content = Stream.fromArray(splitIntoMebibytes(buildContent(11 * mebibyte))).pipe(
+          Stream.concat(Stream.fromEffectDrain(Deferred.succeed(reached, undefined))),
+          Stream.concat(Stream.never),
+        )
+
+        const put = yield* files.put(key, content, octetStream).pipe(Effect.forkChild)
+        yield* Deferred.await(reached)
+        const { Uploads: open } = yield* s3.listMultipartUploads({ Bucket: bucket, Prefix: key })
+        yield* Fiber.interrupt(put)
+        const head = yield* files.head(key)
+        const { Uploads } = yield* s3.listMultipartUploads({ Bucket: bucket, Prefix: key })
+
+        assert.lengthOf(open ?? [], 1)
         assert.deepStrictEqual(head, Option.none())
         assert.deepStrictEqual(Uploads ?? [], [])
       }),
