@@ -225,17 +225,18 @@ export class S3Bucket extends Context.Service<
       return { receivePart, finishUpload }
     }
 
-    const put = Effect.fn('S3Bucket.put')(
-      <E>(key: string, content: Stream.Stream<Uint8Array, E>, options: PutOptions) => {
-        const upload = createUpload(key, options)
-        return content.pipe(
-          cutParts,
-          Stream.runFoldEffect(() => initialUploadState, upload.receivePart),
-          Effect.flatMap(upload.finishUpload),
-          Effect.scoped,
-        )
-      },
-    )
+    const put = Effect.fn('S3Bucket.put')(function* <E>(
+      key: string,
+      content: Stream.Stream<Uint8Array, E>,
+      options: PutOptions,
+    ) {
+      const upload = createUpload(key, options)
+      const state = yield* content.pipe(
+        cutParts,
+        Stream.runFoldEffect(() => initialUploadState, upload.receivePart),
+      )
+      return yield* upload.finishUpload(state)
+    }, Effect.scoped)
 
     const download = Effect.fn('S3Bucket.download')(
       (key: string) => s3.getObject(buildObjectRef(key)),
@@ -257,15 +258,13 @@ export class S3Bucket extends Context.Service<
 
     const url = Effect.fn('S3Bucket.url')(function* (key: string, lifetime: Duration.Duration) {
       const now = yield* DateTime.nowAsDate
-      const signed = yield* s3
-        .getObject(buildObjectRef(key), {
-          presigned: true,
-          expiresIn: Duration.toSeconds(lifetime),
-          signingDate: now,
-        })
-        .pipe(Effect.orDie)
+      const signed = yield* s3.getObject(buildObjectRef(key), {
+        presigned: true,
+        expiresIn: Duration.toSeconds(lifetime),
+        signingDate: now,
+      })
       return new URL(signed)
-    })
+    }, Effect.orDie)
 
     const deleteBatch = (keys: Arr.NonEmptyReadonlyArray<string>) =>
       s3
