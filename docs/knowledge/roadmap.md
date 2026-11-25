@@ -345,14 +345,14 @@ moves it into its own `Later` and deletes it here.
   Runs. The owner refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
-  (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
-  which dies, so the client gets a bare `500`, not a `409`; a double click, its second request
-  arriving after the first Run is stored, already gets the `409` (`RunRepository.insert`,
-  `RunService.create`). Left: a lost race dies by
-  [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
-  weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
-  `ChatBusyError` (an exception to `repositories.md`'s "a write dies where it misses"), or a
-  `SELECT … FOR UPDATE` on the chat before the check.
+  (`ChatPolicy.ensureNotBusy`, `RunPolicy.ensureRetryable`); the active Run's index refuses the
+  second insert, which dies, so the client gets a bare `500`, not a `409`; a double click, its
+  second request arriving after the first Run is stored, already gets the `409`
+  (`RunRepository.insert`, `RunService.create`). Left: a lost race dies by [database.md ›
+  Guards](database.md#guards), and no client offers a retry button yet. Ways out to weigh: the
+  insert fails a typed `RunActiveError` that `RunService.create` maps to `ChatBusyError` (an
+  exception to `repositories.md`'s "a write dies where it misses"), or a `SELECT … FOR UPDATE` on
+  the chat before the check.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
   an ask of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that

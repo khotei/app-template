@@ -82,20 +82,12 @@ user message's active Run that finds none (its Run done, failed or gone with its
 `RunNotFoundError` by that message.
 _Avoid_: Pending run, current reply
 
-**Status**:
-The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
-`generating` works on it, `done` and `failed` end it.
-A chat's status picks its subset of `Status`; a Run's is its own list. A value is written in code
-font, or as a word before Run or chat (a failed Run). Not an HTTP status
-(`{ httpApiStatus: 404 }`), written *HTTP status*, nor the health check's `status: 'ok'` on the
-wire, nor a tool's (`git status`).
-_Avoid_: State, stage, in progress; a new word for one of the five
-
-**Chat status**:
-What the chat's newest Run makes of it: `queued` while that Run is active, `failed` after it
-failed, else `idle`, also before the first ask. Read with the chat, never stored. Asking a
-`queued` chat is refused as busy (`ChatBusyError`).
-_Avoid_: Busy as a status, chat state; a value outside its subset (`generating`)
+**Chat state**:
+What the chat's newest Run makes of it (`ChatState.build`): `queued` while that Run is active,
+`failed` after it failed, else `idle`, also before the first ask. Read with the chat, never
+stored; the wire's `status` of a chat. Asking a `queued` chat is refused as busy
+(`ChatBusyError`). A value is written in code font, or as a word before chat (a failed chat).
+_Avoid_: Busy as a state, chat status; a Run's status (`generating`)
 
 **Title**:
 The few words that stand for a chat in the user's chat list. The assistant proposes them from
@@ -229,6 +221,13 @@ kind (a Policy, a Move, a State), in a file of its own beside the model (`run-po
 service, a use case or a repository reads, calls it and writes. Not a lint rule, written *lint
 rule*, nor a file of `.claude/rules/`, the toolkit's rule.
 _Avoid_: validator, business logic
+
+**State**:
+What a record's values say of it, derived and never stored: a static of `<Model>State`
+(`ChatState.build`, `RunState.isActive`). A status is what a record stores (`Run.status`); a
+chat has a state, a Run a status. Not an HTTP status (`{ httpApiStatus: 404 }`), written *HTTP
+status*, nor the health check's `status: 'ok'` on the wire, nor a tool's (`git status`).
+_Avoid_: Status for a derived value, stage
 
 **Policy**:
 A model's checks before a write, `<Model>Policy`, each an `ensure<Rule>` that fails with a

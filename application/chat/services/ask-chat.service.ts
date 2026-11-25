@@ -4,8 +4,11 @@ import type { SetRequired } from 'type-fest'
 import { Transaction } from '@app-template/packages/db'
 
 import type { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
+import { ChatPolicy } from '#chat/domain/chat-policy'
+import { ChatState } from '#chat/domain/chat-state'
 import type { Run, RunNotRetryableError } from '#chat/domain/run.model'
 import { RunMove } from '#chat/domain/run-move'
+import { RunPolicy } from '#chat/domain/run-policy'
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
 import { ChatService, type ChatWhere } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
@@ -79,7 +82,7 @@ export class AskChatService extends Context.Service<
 
     const ask = Effect.fn('AskChatService.ask')(function* (where: AskChatWhere, text: string) {
       const chat = yield* chats.getOne(where)
-      yield* chat.ensureNotBusy()
+      yield* ChatPolicy.ensureNotBusy(chat.run)
 
       // The writes and the sends are uninterruptible: a client's abort after the Run commits would
       // leave it queued with no job, its chat busy and its retry refused. The read and the check
@@ -89,14 +92,14 @@ export class AskChatService extends Context.Service<
 
         // A chat no ask has reached yet is titled once, from its first message; the title's send
         // never fails, so the jobs go in either order.
-        if (chat.isNew) yield* queue.sendTitleChat(chat)
+        if (ChatState.isNew(chat.run)) yield* queue.sendTitleChat(chat)
         return yield* askReply(run)
       }).pipe(Effect.uninterruptible)
     })
 
     const retry = Effect.fn('AskChatService.retry')(function* (where: AskChatWhere) {
       const chat = yield* chats.getOne(where)
-      const failed = yield* chat.ensureRetryable()
+      const failed = yield* RunPolicy.ensureRetryable(chat.run)
 
       return yield* Effect.gen(function* () {
         const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))

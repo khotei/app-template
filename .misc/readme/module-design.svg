@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 746" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 727" role="img" aria-labelledby="title desc">
 <title id="title">How a module is cut</title>
 <desc id="desc">From a handler down: use cases, the module's &lt;Verb&gt;&lt;Model&gt;Service, its &lt;Model&gt;Service over the data layer's repositories, and its models' rules and moves; a change that is no fix wraps or composes a unit instead of editing it.</desc>
 <style>
@@ -33,7 +33,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 .hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
 .lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
 </style>
-<rect x="0.5" y="0.5" width="959" height="745" rx="12" class="panel"/>
+<rect x="0.5" y="0.5" width="959" height="726" rx="12" class="panel"/>
 <text x="28" y="42" class="h" xml:space="preserve">How a module is cut, in <tspan class="code">chat</tspan></text>
 <rect x="28" y="66" width="400" height="99" rx="8" class="box k-bnd"/>
 <text x="40" y="90" class="b a-bnd" xml:space="preserve">handler · <tspan class="code">apps/</tspan></text>
@@ -55,12 +55,11 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="40" y="512" xml:space="preserve"><tspan class="code">create</tspan> <tspan class="code">getOne(where)</tspan> <tspan class="code">update(to, where)</tspan></text>
 <text x="40" y="532" xml:space="preserve"><tspan class="code">RunService.update(from, to)</tspan>: under the status</text>
 <text x="40" y="552" xml:space="preserve">read</text>
-<rect x="28" y="603" width="400" height="119" rx="8" class="box k-beh"/>
+<rect x="28" y="603" width="400" height="100" rx="8" class="box k-beh"/>
 <text x="40" y="627" class="b a-beh" xml:space="preserve">rules and moves · <tspan class="code">domain/</tspan></text>
-<text x="40" y="647" xml:space="preserve"><tspan class="code">ensureChatNotBusy</tspan> <tspan class="code">ensureRunRetryable</tspan></text>
-<text x="40" y="667" xml:space="preserve"><tspan class="code">startRun</tspan> <tspan class="code">completeRun</tspan> <tspan class="code">failRun</tspan></text>
-<text x="40" y="686" class="m" xml:space="preserve">plain functions in <tspan class="code">&lt;model&gt;.model.ts</tspan>, members over</text>
-<text x="40" y="705" class="m" xml:space="preserve">them</text>
+<text x="40" y="647" xml:space="preserve"><tspan class="code">ChatPolicy</tspan> <tspan class="code">RunPolicy</tspan> <tspan class="code">RunMove</tspan></text>
+<text x="40" y="667" xml:space="preserve"><tspan class="code">ChatState</tspan> <tspan class="code">RunState</tspan></text>
+<text x="40" y="686" class="m" xml:space="preserve">a class of statics per kind, beside the model</text>
 <polyline points="88,165 88,190" class="ln"/>
 <polygon points="88,199 83,189 93,189" class="hd"/>
 <rect x="93" y="175.1" width="36.24" height="16.1" class="lbg"/>

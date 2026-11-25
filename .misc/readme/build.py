@@ -461,7 +461,7 @@ def module_design():
         ("beh", "use case · `application/use-cases`", ["`replyToMessage` `titleChat`", ("m", "a plain `Effect.fn`; only a handler calls it")]),
         ("beh", "`<Verb><Model>Service` · `services/`", ["`AskChatService.ask`, `.retry`", "`ReplyChatService.reply`", "`TitleChatService.title`"]),
         ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`RunService.update(from, to)`: under the status read"]),
-        ("beh", "rules and moves · `domain/`", ["`ensureChatNotBusy` `ensureRunRetryable`", "`startRun` `completeRun` `failRun`", ("m", "plain functions in `<model>.model.ts`, members over them")]),
+        ("beh", "rules and moves · `domain/`", ["`ChatPolicy` `RunPolicy` `RunMove`", "`ChatState` `RunState`", ("m", "a class of statics per kind, beside the model")]),
     ]
     y = 66
     tops = []
@@ -579,7 +579,8 @@ def patterns():
             "  .create({ chatId: chat.id, text, … })",
             "  .pipe(Effect.flatMap(runs.create),",
             "    transaction.run)",
-            "if (chat.isNew) yield* queue.sendTitleChat(chat)",
+            "if (ChatState.isNew(chat.run))",
+            "  yield* queue.sendTitleChat(chat)",
             "return yield* askReply(run)",
         ], "a delivery always finds the Run it names"),
         ("Errors handled once, at the flow's end", [

@@ -159,7 +159,8 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 
 | What | File | Named |
 |---|---|---|
-| model with its pure operations and its errors, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
+| model with its errors, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
+| a model's rules, a class of statics per kind ([Rules as pure functions](decisions.md#rules-as-pure-functions)) | `application/chat/domain/chat-policy.ts`, `run-move.ts`, `chat-state.ts` | `ChatPolicy`, `RunMove`, `ChatState` |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
@@ -264,8 +265,8 @@ imports need.
    the database adds included; the unit tests above it mock it
    ([tooling.md › Tests](tooling.md#tests)).
 2. **The model.** `application/<module>/domain/`: `<entity>.util.ts` (its id),
-   `<entity>.model.ts` (a `Model.Class`, its fields by `.claude/rules/models.md`, with its pure
-   operations, which read no clock;
+   `<entity>.model.ts` (a `Model.Class`, its fields by `.claude/rules/models.md`, its rules in a
+   class per kind beside it, `<entity>-policy.ts`, which read no clock;
    a limit, a pattern or an enum's values declared on its side, never imported from its table,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
@@ -291,11 +292,11 @@ imports need.
    where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
    `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
    `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
-   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field the model
-   has no getter for, the handler added to `ApiRoutes`; then `make api-snapshot`. Test only what
-   HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on
-   `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through the web's
-   `ApiClient`, as `<group><Endpoint>`.
+   mapper in `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, which the
+   handler pipes on what it returns, the handler added to `ApiRoutes`; then `make api-snapshot`.
+   Test only what HTTP adds, on the api test layer; a new module's journey case goes in a file of
+   its own on `StandTest`. A browser feature calls it from `apps/web/features/<entity>/` through
+   the web's `ApiClient`, as `<group><Endpoint>`.
 
 A new entity in existing workspaces usually needs no new dependency; an undeclared one fails
 `make typecheck` with TS2307 ([tooling.md › Add a dependency](tooling.md#add-a-dependency)).

@@ -262,9 +262,9 @@ the domain's own; an error's status is on its class, the annotation `{ httpApiSt
 of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
 its model's json variant (`<Model>.json`), which
 leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
-field, named by an `identifier` so the snapshot holds it once; a field the wire adds is read
-from the model's getter (`ApiChat` adds `status`, which `Chat`'s `status` gives), so a handler
-returns the model, and a mapper adds only a field the model has no member for.
+field, named by an `identifier` so the snapshot holds it once; a field the wire adds is set by
+the api's mapper (`buildApiChat` sets `status` through `ChatState.build`), which a handler pipes
+on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`).
 A field no client may see is declared so once, in its model
 ([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
 so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. Its unit test writes
@@ -320,9 +320,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
-  `buildApi<Model>`: `tsc` refuses the drift without them. A mapper that spreads the model and
-  adds the value its getter gives (`buildApiChat` adding `status`): a second place for the rule's
-  call, and a function per model for one field. The failure's cause in the worker's
+  `buildApi<Model>`: `tsc` refuses the drift without them. The field read from the model's
+  getter (`chat.status`), a shape this decision held before: a member on a model that holds none
+  ([Rules as pure functions](#rules-as-pure-functions)), and a wire field resting on the struct
+  encoder reading a getter. The failure's cause in the worker's
   log alone, kept out of the Run's model: lost once the log rolls over, and apart from the Run it
   belongs to.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
@@ -354,11 +355,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
   stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
   variant, or a new listing of an error with a cause, would carry it, which only review of the
-  snapshot diff holds. A wire field read from a getter relies on the struct's encoder reading it
-  from the instance, as Effect 4.1.5's does; one that read own keys alone would refuse the
-  response, which the handler's test of a chat's `status` stops.
+  snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
+  handler that returns the model without it fails `tsc`.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
-  model lacks fails `TS2322` at each handler that returns it, and a group past
+  handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
   and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
@@ -374,18 +374,25 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   differ from what the wire carries; a client must show a failure's cause; or one error needs
   two statuses at two endpoints.
 
-### Status owned by chat
+### Each model's own statuses
 
-`Status` belongs to `chat`.
+A Run's statuses are `RunStatus`, a `Schema.Literals` of its own, and a chat's states are
+`ChatState.values`, another; a subset is a `.pick` of its model's list
+(`RunStatus.pick(activeRunStatuses)`), tested with `Schema.is`. No vocabulary is shared.
 
-- **Why:** only the chat and the Run use it.
-- **Sources:** the ticket's survey of its users.
-- **Rejected:** `Status` in a shared place: a vocabulary owned by no module.
-- **Cost:** none today.
-- **Guarded by:** another module reaches chat only through its entry and takes only the names of
-  its contract, which review holds (`modules.md`).
-- **If reversed:** a shared `Status` couples every module that reads it to chat's states.
-- **Revisit when:** a second module's model needs a status.
+- **Why:** the two lists share words, not meanings: a chat's `queued` covers a Run's `queued` and
+  `generating`, so one list let a chat's value be spelled with a Run's word that only a pick
+  refused. A list of its own names what its model can be and nothing else.
+- **Sources:** the lab's Shape of L3 (2026-11-25): "`status.model.ts` (`Status`, `hasStatus`)
+  goes; each side declares its own values".
+- **Rejected:** one `Status` of five values that the chat and the Run each picked from, with a
+  predicate over any subset (`hasStatus`), the shape this decision held before: a vocabulary of
+  no model. The shared list in a place of its own: owned by no module.
+- **Cost:** `queued` and `failed` are spelled in both lists; `ChatState.build` reads a table from
+  each Run status to a chat's state, which a new Run status fails until its row exists.
+- **Guarded by:** the `satisfies Record<RunStatus, …>` of that table in `chat-state.ts`; review.
+- **If reversed:** one `Status` again, each list a pick of it.
+- **Revisit when:** a third model needs the same words for the same meaning.
 
 ### A failed Run keeps its text
 
@@ -1102,16 +1109,16 @@ alone returns newest first.
 
 ### Status from the newest Run
 
-A chat has no status column: the chat model's `buildChatStatus` derives it from the chat's newest
-Run, which every read of a chat nests. Any other value another table implies is a column the
+A chat has no status column: `ChatState.build` derives the chat's state from its newest Run,
+which every read of a chat nests. Any other value another table implies is a column the
 transactions that change it move (`.claude/rules/repositories.md › What is stored`).
 
 - **Why:** the Run holds the status already; a column would be its second copy, written by each
   of the Run's moves (its creation, a retry, `generating`, `done`, `failed`) in that
   move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
-  since the read nests the Run: the rules (`ensureChatNotBusy`) take that Run alone, not the
-  chat, the api serves the chat's `status` getter over them, and a client derives it the same way
-  from the Run it reads.
+  since the read nests the Run: the rules (`ChatPolicy.ensureNotBusy`) take that Run alone, not
+  the chat, the api's mapper sets the chat's `status` on the wire from it, and a client derives it
+  the same way from the Run it reads.
 - **Sources:** the owner's choice, in the Knowledge of
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
 - **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
@@ -1120,7 +1127,7 @@ transactions that change it move (`.claude/rules/repositories.md › What is sto
   status has to nest that Run.
 - **Guarded by:** review, by `.claude/rules/repositories.md`; nothing mechanical.
 - **If reversed:** a migration adds the column, each Run move writes it in its transaction, and
-  `buildChatStatus` moves from the reads to the writes.
+  `ChatState.build` moves from the reads to the writes.
 - **Revisit when:** a read lists or filters chats by status, or reads a chat's status without its
   Run.
 
@@ -1366,11 +1373,11 @@ services, `ChatService` reading the user's chat each request names, for the requ
   service for both jobs, `ReplyChatService { replyMessage, replyTitle }`: temporal cohesion, two
   units under one name, and a Reply that titles, which the glossary's Reply excludes. `askMessage`
   and `askRetryMessage`: "ask a message", and no retry message exists. `askAgain` for the retry: the
-  model's word is retry (`ensureRunRetryable`, `RunNotRetryableError`, `retryRun`). A word or a file
-  suffix for the tier (application service, act, orchestrator): the glossary avoids or holds each,
-  and a suffix's glob would widen each service's override to the others' infrastructure. Each method
-  requiring its assistant or the sender, so the module's test layer built without one and a case
-  provided its own per call: a method's type carried its process's dependency, against Effect's
+  model's word is retry (`RunPolicy.ensureRetryable`, `RunNotRetryableError`, `retryRun`). A word or
+  a file suffix for the tier (application service, act, orchestrator): the glossary avoids or holds
+  each, and a suffix's glob would widen each service's override to the others' infrastructure. Each
+  method requiring its assistant or the sender, so the module's test layer built without one and a
+  case provided its own per call: a method's type carried its process's dependency, against Effect's
   guidance that a service's operations require nothing. For the sender, a provider exported by the
   queue file, an effect returning a function, harder to read than the task; or the sends' context
   read by their type (`Effect.context`), which keeps that type. A `storeReply` beside the answer

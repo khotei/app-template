@@ -1,4 +1,4 @@
-import { Effect, Option } from 'effect'
+import { Array as Arr, Effect, Option } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import {
@@ -9,6 +9,7 @@ import {
 } from '@app-template/application/chat'
 
 import { Api } from '#api/api'
+import { buildApiChat } from '#api/chat/chat.mapper'
 import { CurrentUser } from '#api/shared/api-security'
 
 export const ChatHandler = HttpApiBuilder.group(
@@ -24,22 +25,25 @@ export const ChatHandler = HttpApiBuilder.group(
       create: Effect.fn('ChatHandler.create')(function* () {
         const user = yield* CurrentUser
         return yield* chatService.create(user.id)
-      }),
-      list: Effect.fn('ChatHandler.list')(function* () {
-        const user = yield* CurrentUser
-        return yield* chatService.list(user.id)
-      }),
+      }, Effect.map(buildApiChat)),
+      list: Effect.fn('ChatHandler.list')(
+        function* () {
+          const user = yield* CurrentUser
+          return yield* chatService.list(user.id)
+        },
+        Effect.map(Arr.map(buildApiChat)),
+      ),
       get: Effect.fn('ChatHandler.get')(function* ({ params }) {
         const user = yield* CurrentUser
         return yield* chatService.getOne({ id: params.chatId, userId: user.id })
-      }),
+      }, Effect.map(buildApiChat)),
       rename: Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
         const user = yield* CurrentUser
         return yield* chatService.update(
           { title: Option.some(payload.title) },
           { id: params.chatId, userId: user.id },
         )
-      }),
+      }, Effect.map(buildApiChat)),
       delete: Effect.fn('ChatHandler.delete')(function* ({ params }) {
         const user = yield* CurrentUser
         yield* chatService.delete({ id: params.chatId, userId: user.id })

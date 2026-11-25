@@ -6,7 +6,7 @@ import {
   ChatBusyError,
   ChatId,
   ChatNotFoundError,
-  ChatStatus,
+  ChatState,
   ChatTitle,
   Message,
   MessageId,
@@ -19,7 +19,7 @@ import {
 
 /** A chat with the status its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.json
-  .mapFields(Struct.assign({ status: ChatStatus }))
+  .mapFields(Struct.assign({ status: ChatState.values }))
   .annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 

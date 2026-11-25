@@ -1,4 +1,4 @@
-import { Effect, Option, Schema, type Types } from 'effect'
+import { Effect, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
@@ -6,14 +6,7 @@ import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/
 
 import { ChatId } from '#chat/domain/chat.util'
 import { textPattern } from '#chat/domain/message.util'
-import { Run, type RunStatus } from '#chat/domain/run.model'
-import { RunPolicy } from '#chat/domain/run-policy'
-import { RunState } from '#chat/domain/run-state'
-import { Status } from '#chat/domain/status.model'
-
-/** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
-export const ChatStatus = Status.pick(['idle', 'queued', 'failed'])
-export type ChatStatus = typeof ChatStatus.Type
+import { Run } from '#chat/domain/run.model'
 
 export const maxTitleLength = 120
 
@@ -55,44 +48,4 @@ export class Chat extends Model.Class<Chat>('Chat')({
   static readonly decodeMany = decodeWith(Schema.Array(this))
   static readonly makeInsert = makeRowWith(this.insert)
   static readonly makeUpdate = makeUpdateWith(this.update)
-
-  get status(): ChatStatus {
-    return buildChatStatus(this.run)
-  }
-
-  get isNew(): boolean {
-    return isNewChat(this.run)
-  }
-
-  ensureNotBusy() {
-    return ensureChatNotBusy(this.run)
-  }
-
-  ensureRetryable() {
-    return RunPolicy.ensureRetryable(this.run)
-  }
 }
-
-/** What a chat's newest Run makes of it; a chat no ask has reached yet is `idle`. */
-const chatStatuses = {
-  queued: 'queued',
-  generating: 'queued',
-  done: 'idle',
-  failed: 'failed',
-} as const satisfies Record<RunStatus, ChatStatus>
-
-export const buildChatStatus = (
-  newestRun: Option.Option<Types.Simplify<Pick<Run, 'status'>>>,
-): ChatStatus =>
-  Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
-
-/** True while no ask has reached the chat: every user message starts a Run, so none is newest. */
-export const isNewChat = (newestRun: Option.Option<unknown>): boolean => Option.isNone(newestRun)
-
-/** An ask takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
-export const ensureChatNotBusy = Effect.fnUntraced(function* <
-  R extends Types.Simplify<Pick<Run, 'chatId' | 'status'>>,
->(newestRun: Option.Option<R>) {
-  const active = Option.filter<R>(newestRun, RunState.isActive)
-  if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
-})
