@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option, Schema } from 'effect'
+import { Effect, Equal, Option, Schema } from 'effect'
 
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -11,6 +11,7 @@ import {
   ensureChatNotBusy,
   isNewChat,
 } from '#chat/domain/chat.model'
+import { RunNotRetryableError } from '#chat/domain/run.error'
 import { Run, type RunStatus } from '#chat/domain/run.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
@@ -63,6 +64,41 @@ describe('ensureChatNotBusy', () => {
         assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
       }),
   )
+})
+
+describe('Chat', () => {
+  it('reads its status and newness from its newest Run', () => {
+    assert.deepStrictEqual(
+      [chat.status, chat.isNew, chatAt('failed').status, chatAt('failed').isNew],
+      ['idle', true, 'failed', false],
+    )
+  })
+
+  it.effect('refuses an ask while its newest Run is in work with ChatBusyError', () =>
+    Effect.gen(function* () {
+      const error = yield* chatAt('generating').ensureNotBusy().pipe(Effect.flip)
+
+      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+    }),
+  )
+
+  it.effect('takes its failed newest Run for a retry, and refuses one with none', () =>
+    Effect.gen(function* () {
+      const failed = chatAt('failed')
+
+      assert.deepStrictEqual(yield* failed.ensureRetryable(), Option.getOrThrow(failed.run))
+      assertSchemaEquals(
+        RunNotRetryableError,
+        yield* chat.ensureRetryable().pipe(Effect.flip),
+        new RunNotRetryableError(),
+      )
+    }),
+  )
+
+  it('compares by its fields alone, its members adding none', () => {
+    assert.isTrue(Equal.equals(chatAt('done'), chatAt('done')))
+    assert.notInclude(Object.keys(chat), 'status')
+  })
 })
 
 describe('ChatTitle', () => {

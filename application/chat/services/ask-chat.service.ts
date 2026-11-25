@@ -4,9 +4,9 @@ import { Transaction } from '@app-template/packages/db'
 import { QueueSender } from '@app-template/packages/queue'
 
 import type { ChatBusyError } from '#chat/domain/chat.error'
-import { type Chat, ensureChatNotBusy, isNewChat } from '#chat/domain/chat.model'
+import type { Chat } from '#chat/domain/chat.model'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
-import { ensureRunRetryable, failRun, type Run } from '#chat/domain/run.model'
+import { failRun, type Run } from '#chat/domain/run.model'
 import { sendReplyToMessage, sendTitleChat } from '#chat/infrastructure/chat.queue'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
@@ -68,12 +68,12 @@ export class AskChatService extends Context.Service<
     // queued with no job, its chat busy and its retry refused, so one that began runs to its send.
     const ask = Effect.fn('AskChatService.ask')(
       function* (chat: Chat, text: string) {
-        yield* ensureChatNotBusy(chat.run)
+        yield* chat.ensureNotBusy()
         const run = yield* createMessageRun(chat, text)
 
         // A chat no ask has reached yet is titled once, from its first message; the title's send
         // never fails, so the jobs go in either order.
-        if (isNewChat(chat)) yield* sendTitleChat(chat)
+        if (chat.isNew) yield* sendTitleChat(chat)
         return yield* askReply(run)
       },
       Effect.uninterruptible,
@@ -82,7 +82,7 @@ export class AskChatService extends Context.Service<
 
     const retry = Effect.fn('AskChatService.retry')(
       function* (chat: Chat) {
-        const failed = yield* ensureRunRetryable(chat.run)
+        const failed = yield* chat.ensureRetryable()
         const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
         return yield* askReply(run)
       },

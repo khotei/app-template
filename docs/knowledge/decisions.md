@@ -518,18 +518,38 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 
 A business rule is a pure function in its model's `.model` file, over the values passed in (the
 time, the ids), built from small pieces of one condition or step each; a service, a use case or a
-repository only reads, calls it and writes.
+repository only reads, calls it and writes. A value or rule that needs only the record is also a
+member of the model's class, a getter or a prototype method of one line that calls that function
+(`chat.status` calls `buildChatStatus(chat.run)`): a caller holding an instance uses the member,
+code holding a plain struct (an `insert`, `update` or `json` variant, a shape of another module)
+the function, which stays exported and tested.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
-- **Sources:** `.claude/rules/layering.md › Ports and domain services`.
+  The function applies to any value of the shape it takes, wherever it comes from, so it stays the
+  rule; the member lets a caller with the record read the rule as the record's own
+  (`chat.ensureNotBusy()`), with no import of the function. A getter or a prototype method sits on
+  the prototype, so `{ ...record }`, an encode and `Equal.equals` see the fields alone.
+- **Sources:** `.claude/rules/layering.md › Ports and domain services`; the owner's review of the
+  members (2026-11-25): "models should stay model but could injected into methods. Because we
+  could have anywhere chat (any shape) and these methods could be applied as clean functions and
+  business rules".
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
-  and the next service that needs it copies it.
-- **Cost:** more small exported names in a model; a combination keeps its name however few its
-  callers ([Composition: wrap or compose](#composition-wrap-or-compose)).
-- **Guarded by:** review, by `layering.md`; nothing mechanical.
-- **If reversed:** the rules move back into the services' bodies, and their tests need layers.
-- **Revisit when:** a model's pieces outgrow one file.
+  and the next service that needs it copies it. The rule's body moved into the class: it would
+  apply to the class's instances alone, never to a variant or another shape. A member written as
+  a field (`readonly status = …`): an own key, which `{ ...record }` copies and `Equal.equals`
+  compares. A subclass of the model holding the members: a read decodes into the model's own
+  class, so no record read would carry them.
+- **Cost:** more small exported names in a model, and a member beside each function an instance's
+  caller reads; a combination keeps its name however few its callers
+  ([Composition: wrap or compose](#composition-wrap-or-compose)). A member exists only on an
+  instance of the class: a variant's struct has none, and its holder calls the function.
+- **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the model's unit tests,
+  one per function and one per member, and one that two records of the same fields are equal;
+  nothing mechanical.
+- **If reversed:** the members go and their callers call the functions; with the rules out of the
+  models, they move back into the services' bodies, and their tests need layers.
+- **Revisit when:** a model's pieces outgrow one file, or a member needs more than its record.
 
 ### Utils apart from models
 
