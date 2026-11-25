@@ -670,7 +670,7 @@ For a future ticket on durable workflows.
 
 No ticket yet; `chat-core` decided that today's user later merges into an account.
 
-- **Today.** `identity`'s `UserService` issues 32 random bytes as a base64url secret in an
+- **Today.** `identity`'s `IdentityService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
   through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
 - **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,

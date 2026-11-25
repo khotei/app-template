@@ -8,8 +8,8 @@ import type { UserEntityWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import type { UserSecret } from '#identity/domain/identity.model'
-import { UserService } from '#identity/services/user.service'
-import { layerUserTest } from '#testing/identity/user.test-layer'
+import { IdentityService } from '#identity/services/identity.service'
+import { layerIdentityTest } from '#testing/identity/identity.test-layer'
 
 const storedUser = {
   id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000010'),
@@ -24,11 +24,11 @@ const hashWithWebCrypto = (secret: UserSecret) =>
     crypto.subtle.digest('SHA-256', new TextEncoder().encode(Redacted.value(secret))),
   ).pipe(Effect.map((digest) => Hex.encode(new Uint8Array(digest))))
 
-describe('UserService', () => {
+describe('IdentityService', () => {
   it.effect('authenticate reads the user by the hex SHA-256 of the secret', () => {
     const wheres: Array<UserEntityWhere> = []
     return Effect.gen(function* () {
-      const service = yield* UserService
+      const service = yield* IdentityService
 
       const user = yield* service.authenticate(unknownSecret)
 
@@ -37,7 +37,7 @@ describe('UserService', () => {
       assert.strictEqual(user.id, storedUser.id)
     }).pipe(
       Effect.provide(
-        layerUserTest({
+        layerIdentityTest({
           selectOne: (where) =>
             Effect.sync(() => wheres.push(where)).pipe(Effect.as(Option.some(storedUser))),
         }),
@@ -47,14 +47,16 @@ describe('UserService', () => {
 
   it.effect('recognise of a stored user returns it and the secret, inserting none', () =>
     Effect.gen(function* () {
-      const service = yield* UserService
+      const service = yield* IdentityService
 
       const { user, secret } = yield* service.recognise(unknownSecret)
 
       assert.strictEqual(user.id, storedUser.id)
       assert.strictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
     }).pipe(
-      Effect.provide(layerUserTest({ selectOne: () => Effect.succeed(Option.some(storedUser)) })),
+      Effect.provide(
+        layerIdentityTest({ selectOne: () => Effect.succeed(Option.some(storedUser)) }),
+      ),
     ),
   )
 
@@ -63,7 +65,7 @@ describe('UserService', () => {
     () => {
       const writes: Array<readonly [string, unknown]> = []
       return Effect.gen(function* () {
-        const service = yield* UserService
+        const service = yield* IdentityService
 
         const { user, secret } = yield* service.recognise(unknownSecret)
 
@@ -81,7 +83,7 @@ describe('UserService', () => {
         ])
       }).pipe(
         Effect.provide(
-          layerUserTest({
+          layerIdentityTest({
             selectOne: () => Effect.succeed(Option.none()),
             insert: (row) => Effect.sync(() => void writes.push(['insert', row])),
             insertCredential: (row) =>
@@ -94,11 +96,11 @@ describe('UserService', () => {
 
   it.effect('authenticate of an unknown secret is UserUnknownError', () =>
     Effect.gen(function* () {
-      const service = yield* UserService
+      const service = yield* IdentityService
 
       const error = yield* service.authenticate(unknownSecret).pipe(Effect.flip)
 
       assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
-    }).pipe(Effect.provide(layerUserTest({ selectOne: () => Effect.succeed(Option.none()) }))),
+    }).pipe(Effect.provide(layerIdentityTest({ selectOne: () => Effect.succeed(Option.none()) }))),
   )
 })

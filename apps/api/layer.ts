@@ -11,7 +11,7 @@ import {
   RunService,
 } from '@app-template/application/chat'
 import { Api } from '@app-template/application/http-api'
-import { UserService } from '@app-template/application/identity'
+import { IdentityService } from '@app-template/application/identity'
 import { QueueSenderFromConfig } from '@app-template/kernel/aws'
 import { apiPort, MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
@@ -37,7 +37,7 @@ export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
     ChatService.layer,
     MessageService.layer,
     RunService.layer,
-    UserService.layer,
+    IdentityService.layer,
   ]),
 )
 

@@ -113,7 +113,7 @@ const found = yield* chats.selectOne(where).pipe(Effect.flatMap(RowCodec.decodeO
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insertCredential` takes the credential's row `{ hash, kind, userId }` with no
-  codec, `UserService` setting `userId` from the user's row.
+  codec, `IdentityService` setting `userId` from the user's row.
 - A `jsonb` column carries its shape's type (`jsonb().$type<RunFailure>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -146,9 +146,9 @@ A repository is a `Layer` over `Db` in its entity's `.repository.ts` (names:
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and return
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
-through its models (`UserService` over `UserRepository`). Rows of several tables that commit
+through its models (`IdentityService` over `UserRepository`). Rows of several tables that commit
 together are a method each, which their service commits in one transaction
-([Transactions](#transactions)), as `UserService` does a user and its credential
+([Transactions](#transactions)), as `IdentityService` does a user and its credential
 ([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `orDieWithSqlError`
 from `@app-template/packages/db`.
 
@@ -269,7 +269,7 @@ from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e,
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
 ([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
-passes `transaction.run` as the last argument of the function that holds them: `UserService`'s
+passes `transaction.run` as the last argument of the function that holds them: `IdentityService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
 `ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the
 Run's `done`, so that transaction,

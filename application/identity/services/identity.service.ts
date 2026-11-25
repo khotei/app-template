@@ -16,8 +16,8 @@ import { secretBytes, type UserSecret } from '#identity/domain/identity.model'
 
 const encoder = new TextEncoder()
 
-export class UserService extends Context.Service<
-  UserService,
+export class IdentityService extends Context.Service<
+  IdentityService,
   {
     /**
      * Recognises the user a valid secret names; any other secret registers a new user with a new
@@ -28,7 +28,7 @@ export class UserService extends Context.Service<
     ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
     readonly authenticate: (secret: UserSecret) => Effect.Effect<User, UserUnknownError>
   }
->()('@app-template/application/identity/services/UserService', {
+>()('@app-template/application/identity/services/IdentityService', {
   make: Effect.gen(function* () {
     const users = yield* UserRepository
     const digest = yield* Digest.Digest
@@ -40,7 +40,7 @@ export class UserService extends Context.Service<
       return { kind: 'secret', hash } as const
     })
 
-    const authenticate = Effect.fn('UserService.authenticate')(
+    const authenticate = Effect.fn('IdentityService.authenticate')(
       hashSecret,
       Effect.flatMap((credentials) => users.selectOne(encodeWhere({ credentials }))),
       Effect.flatMap(RowCodec.decodeOne(User)),
@@ -66,7 +66,7 @@ export class UserService extends Context.Service<
       return { user: new User(set), secret: fresh }
     })
 
-    const recognise = Effect.fn('UserService.recognise')(
+    const recognise = Effect.fn('IdentityService.recognise')(
       function* (secret: UserSecret) {
         const user = yield* authenticate(secret)
         return { user, secret }

@@ -43,20 +43,20 @@ of a user by its secret, and it imports `user`, never the reverse.
   option B of issue #48 (`docs/tickets/2026-11-25-1922_pure-models/`).
 - **Rejected:** a module per table: the guide's anemic modules. The user's model in `identity`:
   `chat`'s models would name an id of the module that holds the secrets and the sign-in. A
-  `UserService` in `user` with no write of its own: a service that only forwards what
-  `identity` asks of the `users` rows.
+  service in `user` with no write of its own: it would only forward what `identity` asks of
+  the `users` rows.
 - **Cost:** `chat` is the largest module. `user` has no `services/` until it has a write of its
-  own, so `identity`'s service writes the `users` rows, and a user's records have their one owner
-  ([layering.md](../../.claude/rules/layering.md#ports-and-domain-services)) outside the user's
-  module.
+  own, so `identity`'s `IdentityService` writes the `users` rows, and a user's records have
+  their one owner ([layering.md](../../.claude/rules/layering.md#ports-and-domain-services))
+  outside the user's module.
 - **Guarded by:** review; no tool sees a capability, nor `user` importing `identity`'s contract,
   which forms no cycle of files ([modules.md](../../.claude/rules/modules.md)).
 - **If reversed:** modules split by table, and a flow over one capability spans several; `user`
   folded back into `identity`, every reader of the user's id imports `identity` again.
 - **Revisit when:** files come back with a life outside a chat
   ([Attachments removed](#attachments-removed)); they may take a module of their own. The user
-  gains a write of its own (a profile, an account it merges into): `user` gets its
-  `UserService` over the `users` rows, and `identity` calls it.
+  gains a write of its own (a profile, an account it merges into): `user` gets a service
+  of its own over the `users` rows, and `identity` calls it.
 
 ### Use cases above the modules
 
@@ -377,7 +377,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   belongs to. The contract in `apps/api`, each group beside its handler: code no other workspace
   may import, as apps import no app, and no override held a group to the modules' models, ids and
   errors. The middlewares' layers beside their definitions: the contract would import
-  `UserService` and the api's error mapping. A workspace of its own: a second manifest and
+  `IdentityService` and the api's error mapping. A workspace of its own: a second manifest and
   package name for files that import only `effect` and the modules' contracts. The modules'
   entries with a ban by name (`Service`, `Queue`, `Assistant`, `Repository`): it held the names
   the contract took, not what the entries loaded, so importing the contract loaded every
@@ -1164,7 +1164,7 @@ each, are a method each, which the service or use case holding them commits in o
   leaves the second out stores a user with no credential. The traces change shape:
   `UserRepository.insert` is one statement's span and `UserRepository.insertCredential` a span of
   its own, both under the `sql.transaction` span the service's `run` opens.
-- **Guarded by:** `UserService` being the one caller of the two writes; the api's e2e of a
+- **Guarded by:** `IdentityService` being the one caller of the two writes; the api's e2e of a
   refused credential (`apps/e2e/api/user.e2e.ts`), which keeps no user; the cases of
   `Transaction` that nest a `run` in a `run`; the services' Biome override, which admits of
   `@app-template/packages/db` only `Transaction`

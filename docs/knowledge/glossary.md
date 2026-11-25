@@ -26,6 +26,12 @@ the user's browser holds it. Not a secret of the deployment (Pulumi's passphrase
 AWS's `secretAccessKey`), which keeps its tool's name.
 _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not the secret)
 
+**Identity**:
+The recognising of a user by their user secret: the user a known secret names, or a new user
+with a new secret for any other; the `identity` module, `IdentityService`'s `recognise` and
+`authenticate`. Not the user, whose model is the `user` module's.
+_Avoid_: Auth (the api's middleware, `Auth`), login, session
+
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
 has an active Run, the user cannot ask it again.

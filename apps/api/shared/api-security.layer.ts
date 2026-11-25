@@ -7,14 +7,14 @@ import {
   RequestInvalidError,
   SchemaErrors,
 } from '@app-template/application/http-api'
-import { UserService } from '@app-template/application/identity'
+import { IdentityService } from '@app-template/application/identity'
 
 export const AuthLayer = Layer.effect(
   Auth,
-  UserService.useSync((users) =>
+  IdentityService.useSync((identity) =>
     Auth.of({
       cookie: (httpEffect, { credential }) =>
-        Effect.provideServiceEffect(httpEffect, CurrentUser, users.authenticate(credential)),
+        Effect.provideServiceEffect(httpEffect, CurrentUser, identity.authenticate(credential)),
     }),
   ),
 )
