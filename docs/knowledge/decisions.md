@@ -86,12 +86,14 @@ shape: [architecture.md › A use case](architecture.md#a-use-case).
 ### Use cases as functions
 
 A use case is an `Effect.fn` that yields what it composes, its type inferred; which flow is one:
-[layering.md › Use cases](../../.claude/rules/layering.md#use-cases). So `AskChatService.ask` and
-`retry` take `{ id, userId }` and read the user's chat themselves, and the list of a chat's
-messages reads the user's chat in its handler (`ChatService.getOne`), then lists
-(`MessageService.getMany`). The
-process provides the services it reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker
-in its layer. A job's sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
+[layering.md › Use cases](../../.claude/rules/layering.md#use-cases). The chat's two,
+`replyToMessage` and `titleChat`, each end a job over one method of a `<Verb><Model>Service`. A
+flow inside the module is that service's, so `AskChatService.ask` and `retry` take
+`{ id, userId }` and read the user's chat themselves, and a read of the user's record before one
+call is its handler's: the list of a chat's messages reads the user's chat
+(`ChatService.getOne`), then lists (`MessageService.getMany`). The process provides the services a
+use case reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's
+sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 - **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
   errors among it, and closed its services in a layer that each handler group or route provided
