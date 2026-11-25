@@ -39,12 +39,12 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
   function expression in the `pipe` or combinator that orders the steps, when its name says what a
   lambda would not (`pipe(rows, function dropStale(rows) { … })`). One used from two places is a
   declaration or an arrow constant, as are a tail's recovery and one transaction's writes.
-- A generator reads a service with `yield*`; outside one it is `Service.use((s) => s.m(…))`, or
-  `useSync` for a plain value, never `Effect.flatMap` over it. A call never takes another call's
-  result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
-  data through `pipe(value, …)`, never both in one chain. A function whose every step feeds only
-  the next is point-free (`flow(…)`, or an arrow whose body is one `.pipe`), never at the cost of
-  a cast, an annotation or a lost `E` or `R`.
+- A service is read with `yield*`, in a generator, never through its `use` or `useSync` nor by
+  `Effect.flatMap` over it. A call never takes another call's result as its subject (`make lint`
+  fails on each). A value with `.pipe` goes through it, plain data through `pipe(value, …)`, never
+  both in one chain. A function whose every step feeds only the next is point-free (`flow(…)`, or
+  an arrow whose body is one `.pipe`), never at the cost of a cast, an annotation or a lost `E` or
+  `R`.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`), when its partial call reads as a whole step
   (`Effect.tap(Arr.match({ … }))`); a move stays plain, its record first (`OrderMove.ship(order,

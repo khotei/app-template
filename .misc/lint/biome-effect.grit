@@ -63,7 +63,15 @@ or {
   `$callee($subject, $_, $...)` as $call where {
     $callee <: r"Effect\.(?:flatMap|map)",
     $subject <: r"[A-Z][A-Za-z0-9_.]*",
-    register_diagnostic(span=$call, message="a service is reached by <Service>.use((s) => s.<method>(…)), or useSync for a plain value, never Effect.flatMap or Effect.map over it (effect-style.md › Composition)")
+    register_diagnostic(span=$call, message="a service is read with yield* in a generator, never by Effect.flatMap or Effect.map over it (effect-style.md › Composition)")
+  },
+  // Effect's modules export a `use` that reads no service (`HttpRouter.use`, `Pool.use`,
+  // `Scope.use`), which stays.
+  `$service.$accessor($...)` as $call where {
+    $accessor <: r"use(?:Sync)?",
+    $service <: r"[A-Z][A-Za-z0-9_.]*",
+    not $service <: r"(?:HttpRouter|Pool|Scope)",
+    register_diagnostic(span=$call, message="a service is read with yield* in a generator, never through its use or useSync (effect-style.md › Composition)")
   },
   or {
     `$value === undefined`,
