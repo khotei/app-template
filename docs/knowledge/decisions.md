@@ -310,7 +310,8 @@ The API contract is `application/http-api`, a part of the `application` workspac
 entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
 the definitions of its middlewares (`Auth`, which provides identity's `Identity`,
 `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers, stay in
-`apps/api`. It takes of a module only its models, ids, errors and `Identity`, through the
+`apps/api`. It takes of a module only its models, ids, errors, `Identity` and `ChatState`, the
+group a wire shape reads, through the
 module's contract
 ([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
 case, so it loads no service, store or client; it is declared over the
@@ -421,9 +422,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   variant, or a new listing of an error with a cause, would carry it, which only review of the
   snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
   handler that returns the model without it fails `tsc`. A name a group needs of a module is a
-  line in that module's contract first. `bun build` of `application/http-api/index.ts` reads
-  100 files, none of a service, an infrastructure, the kernel, `packages/db` or Drizzle; through
-  the modules' entries it read 664, 123 of them Drizzle's. No check repeats that build: a
+  line in that module's contract first. `bun build application/http-api/index.ts --target bun
+  --metafile` lists 103 input files in its metafile, none of a service, an infrastructure, the
+  kernel, `packages/db` or Drizzle; through the modules' entries it read 664, 123 of them
+  Drizzle's. No check repeats that build: a
   contract that re-exported a service's file would load it again, which the contracts' override
   refuses and only review of a domain file's imports holds past it; a mechanical check of that
   bundle is left to the web framework's work (the owner's word, 2026-11-25), and so is one of the
@@ -692,13 +694,15 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
 
 ### Utils apart from models
 
-A model's file holds its schemas and its rules, each naming a word of the glossary, a refusal or a
-lifecycle move. Beside it, one `<model>.util.ts` per model that needs one holds the model's branded
-id and the pure steps with no domain meaning, generic over their types, that the module's code
-shares, in the file of the model that calls them (`isBlank` in `message.util.ts`); the module's one
-id schema is built by `packages/schema`'s `buildIdSchema`, which every module's ids share. A util
-file imports only `effect`, `packages/schema` and other util files, never a model, so a model takes
-another model's id from its util file and no import cycle forms. A util that would only rename one
+A model's file holds its schemas and the errors its rules fail with; its rules, each naming a word
+of the glossary, a refusal or a lifecycle move, sit in the groups beside it
+([Rules as pure functions](#rules-as-pure-functions)). Beside it too, one `<model>.util.ts` per
+model that needs one holds the model's branded id and the pure steps with no domain meaning,
+generic over their types, that the module's code shares, in the file of the model that calls
+them (`isBlank` in `message.util.ts`); the module's one id schema is built by `packages/schema`'s
+`buildIdSchema`, which every module's ids share. A util file imports only `effect`,
+`packages/schema` and other util files, never a model, so a model takes another model's id from
+its util file and no import cycle forms. A util that would only rename one
 built-in call is not written; the built-in is called.
 
 - **Why:** a reader of a model sees only the rules it states, where `Option` and `Array` plumbing

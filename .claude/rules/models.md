@@ -41,11 +41,12 @@ export class Order extends Model.Class<Order>('Order')({
   (`order-policy.ts`): `<Model>Policy` the checks (`ensure<Rule>`, failing or passing, writing
   nothing, `Effect.fnUntraced`, no span), `<Model>Move` the status moves (`<verb>`, returning the
   record's next state, `Effect.fn('<Model>Move.<verb>')`), `<Model>State` what the record's
-  values say of it (`build`, `is<Value>`). A model imports no group; a static calls another by
-  its class's name, never `this`, so one passed as a value runs (`Effect.flatMap(<Group>.<rule>)`).
-  Each is typed over what it reads, never the class, so a plain struct (a variant, another
-  module's shape, a spread) passes: a check or a value takes a `Pick` of its fields, a check that
-  returns it generic, a move `<Model>Fields`
+  values say of it (`build`, `is<Value>`). A model imports no group.
+- **A static calls another by its class's name,** never `this`, so one passed as a value runs
+  (`Effect.flatMap(<Group>.<rule>)`).
+- **A rule is typed over the fields it reads,** never the class, so a plain struct (a variant,
+  another module's shape, a spread) passes: a check or a value takes a `Pick` of its fields, a
+  check that returns it generic, a move `<Model>Fields`
   ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
 ```ts
 export type OrderFields = Schema.Struct.Type<typeof Order.fields>     // in order.model.ts

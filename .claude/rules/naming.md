@@ -31,7 +31,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.sender` · `.consumer` | the queue's send · its run of a handler per job | `packages/queue` |
 | `.http` | a resource's `HttpApiGroup` with its wire shapes | `application/http-api/` |
 | `.mapper` · `.handler` | a model's wire shape, where it differs · a resource's handlers, or the worker's route | `apps/api/<resource>/`; `apps/worker/` |
-| `.layer` | the layers of services another workspace declares (the API contract's middlewares) | an app |
+| `.layer` | the layers of services another workspace declares (the API contract's middlewares), each `<Service>Layer` | an app |
 | `.test` · `.e2e` | a unit test · a test on the e2e run's containers, each named for its source | `__tests__/` · `__e2e__/`, `apps/e2e` |
 | `.test-fixture` · `.test-util` | sample values, plain data · a helper, building no layer and doubling nothing | `__tests__/testing/` |
 | `.test-fake` · `.test-layer` · `.test-setup` | one service's double · the layer a test provides · the e2e run's `globalSetup` | `__tests__/testing/`, `e2e/` for e2e support |

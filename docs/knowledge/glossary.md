@@ -242,8 +242,9 @@ _Avoid_: Status for a derived value, stage
 
 **Policy**:
 A model's checks before a write, `<Model>Policy`, each an `ensure<Rule>` that fails with a
-refusal or hands its record back (`RunPolicy.ensureUnstarted`). Not the language model's call
-policy (`llm-call-policy.ts`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
+refusal or passes, returning nothing (`ChatPolicy.ensureNotBusy`); a check that returns its record
+is generic over it (`RunPolicy.ensureUnstarted`). Not the language model's call policy
+(`llm-call-policy.ts`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
 _Avoid_: Guard (a check by configuration), validator
 
 **Move**:

@@ -11,11 +11,11 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   (`.claude/rules/models.md`). An adapter in `infrastructure/` does the
   I/O, over the clients the process provides (`HttpClient`) and the settings of
   `@app-template/kernel/config`, never `Bun.env`.
-- **A module's `domain/` is pure:** it imports `effect`, another module's contract,
-  `@app-template/packages/schema` (the id schema), never the kernel: a value its
-  table declares too (a limit, an enum's values) the model declares again, no other workspace,
-  no Bun API and no Node built-in. Ports live only in `.port.ts`
-  files and domain services only in `services/`, never beside a model.
+- **A module's `domain/` is pure:** it imports `effect`, another module's contract and
+  `@app-template/packages/schema` (the id schema), and no other workspace, Bun API or Node
+  built-in. It never imports the kernel: a value its table declares too (a limit, an enum's
+  values) the model declares again. Ports live only in `.port.ts` files and domain services only
+  in `services/`, never beside a model.
   Decision: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
 - **An infrastructure service a test stands in for, a leaf (a port's adapter, a client-backed
   service), has one fake** in its module's test support, for every workspace's unit tests; a
