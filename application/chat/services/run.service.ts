@@ -1,9 +1,9 @@
-import { Context, Effect, Layer, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import { encodeWhere, RunRepository } from '@app-template/kernel/data'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run, type RunStatus } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
 
 export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>
 
@@ -11,9 +11,26 @@ export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMess
  * A Run as a read finds it: a user's by its id in its chat, which a call on a user's behalf
  * reads, or a message's in one of the statuses `status` lists, which its job reads.
  */
-export type RunWhere =
-  | Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userId'>>
-  | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly status: ReadonlyArray<RunStatus> }>
+export type RunWhere = RunByIdWhere | RunByMessageWhere
+
+/** A user's Run by its id in its chat. */
+export class RunByIdWhere extends Schema.Opaque<RunByIdWhere>()(
+  Schema.Struct(Struct.pick(Run.fields, ['id', 'chatId', 'userId'])),
+) {}
+
+/** A message's Run in one of the statuses `status` lists. */
+export class RunByMessageWhere extends Schema.Opaque<RunByMessageWhere>()(
+  Schema.Struct({
+    userMessageId: Run.fields.userMessageId,
+    status: Schema.Array(Run.fields.status),
+  }),
+) {}
+
+/** A union is no class, so the shared encoding sits on a value of the union's name. */
+export const RunWhere = {
+  /** The where as the repository's filter (`encodeWhere`). */
+  encode: <Where extends RunWhere>(where: Where) => encodeWhere(where),
+}
 
 export class RunService extends Context.Service<
   RunService,
@@ -38,7 +55,7 @@ export class RunService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('RunService.getOne')(
-      (where: RunWhere) => runs.selectOne(encodeWhere(where)),
+      (where: RunWhere) => runs.selectOne(RunWhere.encode(where)),
       Effect.flatMap(Run.decodeOne),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>

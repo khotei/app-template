@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, type Types } from 'effect'
+import { Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
 
@@ -6,7 +6,12 @@ import { MessageNotFoundError } from '#chat/domain/message.error'
 import { Message } from '#chat/domain/message.model'
 
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
-export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
+export class MessageWhere extends Schema.Opaque<MessageWhere>()(
+  Schema.Struct(Struct.pick(Message.fields, ['id', 'chatId', 'userId'])),
+) {
+  /** The where, or a part of it, as the repository's filter (`encodeWhere`). */
+  static readonly encode = <Where extends Partial<MessageWhere>>(where: Where) => encodeWhere(where)
+}
 
 export class MessageService extends Context.Service<
   MessageService,
@@ -32,7 +37,7 @@ export class MessageService extends Context.Service<
     }, Effect.orDie)
 
     const getOne = Effect.fn('MessageService.getOne')(
-      (where: MessageWhere) => messages.selectOne(encodeWhere(where)),
+      (where: MessageWhere) => messages.selectOne(MessageWhere.encode(where)),
       Effect.flatMap(Message.decodeOne),
       (found, where) =>
         Effect.flatMap(
@@ -43,7 +48,7 @@ export class MessageService extends Context.Service<
 
     const getMany = Effect.fn('MessageService.getMany')(
       (where: Types.Simplify<Pick<MessageWhere, 'chatId'>>) =>
-        messages.selectMany(encodeWhere(where)),
+        messages.selectMany(MessageWhere.encode(where)),
       Effect.flatMap(Message.decodeMany),
     )
 
