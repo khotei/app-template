@@ -104,7 +104,7 @@ stage is new on every e2e run.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/infrastructure/<model>.queue.ts`,
-   reading `name` from the entry, and its row in the worker's route
+   a static `queue` of its job's class reading `name` from the entry, and its row in the worker's route
    (`apps/worker/worker.handler.ts`), which typecheck asks for. A bucket's entry alone reaches no
    code: `S3BucketFromConfig` binds the one `S3Bucket` to the `attachments` entry, so a second
    bucket needs a client of its own

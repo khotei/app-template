@@ -8,9 +8,7 @@ import {
   type MessageId,
   ReplyToMessage,
   Run,
-  replyToMessageQueue,
   TitleChat,
-  titleChatQueue,
 } from '@app-template/application/chat'
 import {
   type ChatRepositoryMocks,
@@ -73,7 +71,7 @@ describe('askChat', () => {
       const queued: Array<string> = []
       const RefusingReplyQueueTest = Layer.mock(QueueSender, {
         send: ({ name }) =>
-          name === replyToMessageQueue.name
+          name === ReplyToMessage.queue.name
             ? Effect.fail(new QueueError({ cause: new Error('SQS is unavailable') }))
             : Effect.sync(() => {
                 queued.push(name)
@@ -84,7 +82,7 @@ describe('askChat', () => {
         const run = yield* askChat(owner, chat.id, 'Plan a weekend in Lisbon')
 
         assert.strictEqual(run.status, 'failed')
-        assert.deepStrictEqual(queued, [titleChatQueue.name])
+        assert.deepStrictEqual(queued, [TitleChat.queue.name])
       }).pipe(
         Effect.provide(
           layerChatTest(

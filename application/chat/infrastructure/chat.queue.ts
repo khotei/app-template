@@ -13,22 +13,22 @@ const { replyToMessage, titleChat } = resources.queues
 /** `messageId` is the user's message the worker replies to, through its active Run. */
 export class ReplyToMessage extends Schema.Class<ReplyToMessage>('ReplyToMessage')({
   messageId: MessageId,
-}) {}
-
-export const replyToMessageQueue = {
-  name: replyToMessage.name,
-  schema: ReplyToMessage,
-} satisfies QueueDefinition<typeof ReplyToMessage>
+}) {
+  static readonly queue = {
+    name: replyToMessage.name,
+    schema: this,
+  } satisfies QueueDefinition<typeof ReplyToMessage>
+}
 
 /** `chatId` is the chat the worker titles, from the first message it reads there. */
 export class TitleChat extends Schema.Class<TitleChat>('TitleChat')({
   chatId: ChatId,
-}) {}
-
-export const titleChatQueue = {
-  name: titleChat.name,
-  schema: TitleChat,
-} satisfies QueueDefinition<typeof TitleChat>
+}) {
+  static readonly queue = {
+    name: titleChat.name,
+    schema: this,
+  } satisfies QueueDefinition<typeof TitleChat>
+}
 
 /**
  * Sends the job that replies to the Run's user message; one SQS refuses is logged and fails with
@@ -37,7 +37,7 @@ export const titleChatQueue = {
 export const sendReplyToMessage = Effect.fn('sendReplyToMessage')(
   (run: Run) =>
     QueueSender.use((queue) =>
-      queue.send(replyToMessageQueue, new ReplyToMessage({ messageId: run.userMessageId })),
+      queue.send(ReplyToMessage.queue, new ReplyToMessage({ messageId: run.userMessageId })),
     ),
   Effect.tapError((error) => Effect.logError('reply job not queued', Cause.fail(error))),
   (sent, run) =>
@@ -47,7 +47,7 @@ export const sendReplyToMessage = Effect.fn('sendReplyToMessage')(
 /** Sends the job that titles the chat; one SQS refuses is logged, and the ask goes on. */
 export const sendTitleChat = Effect.fn('sendTitleChat')(
   (chat: Chat) =>
-    QueueSender.use((queue) => queue.send(titleChatQueue, new TitleChat({ chatId: chat.id }))),
+    QueueSender.use((queue) => queue.send(TitleChat.queue, new TitleChat({ chatId: chat.id }))),
   Effect.ignore({ log: 'Error', message: 'title job not queued' }),
   (sent, chat) => Effect.annotateLogs(sent, { chatId: chat.id }),
 )

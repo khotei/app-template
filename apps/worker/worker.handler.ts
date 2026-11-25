@@ -1,7 +1,7 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-import { replyToMessageQueue, titleChatQueue } from '@app-template/application/chat'
+import { ReplyToMessage, TitleChat } from '@app-template/application/chat'
 import { replyToMessage, titleChat } from '@app-template/application/use-cases'
 import { buildResourceName, type resources } from '@app-template/kernel/aws'
 import { awsConfig } from '@app-template/kernel/config'
@@ -12,8 +12,8 @@ type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name'
 type JobServices = Effect.Services<ReturnType<typeof replyToMessage | typeof titleChat>>
 
 const routes = {
-  [replyToMessageQueue.name]: consumeQueue(replyToMessageQueue, replyToMessage),
-  [titleChatQueue.name]: consumeQueue(titleChatQueue, titleChat),
+  [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, replyToMessage),
+  [TitleChat.queue.name]: consumeQueue(TitleChat.queue, titleChat),
 } satisfies Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, JobServices>>
 
 /**
