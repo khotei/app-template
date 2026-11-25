@@ -40,11 +40,11 @@ describe('buildChatStatus', () => {
 
 describe('isNewChat', () => {
   it('reads a chat no ask has reached as new', () => {
-    assert.isTrue(isNewChat(chat))
+    assert.isTrue(isNewChat(Option.none()))
   })
 
   it('reads a chat with a Run as not new', () => {
-    assert.isFalse(isNewChat(chatAt('done')))
+    assert.isFalse(isNewChat(runAt('done')))
   })
 })
 

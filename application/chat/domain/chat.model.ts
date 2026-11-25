@@ -1,4 +1,4 @@
-import { Effect, Option, Schema, type Types } from 'effect'
+import { Effect, Option, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
@@ -46,7 +46,7 @@ export class Chat extends Model.Class<Chat>('Chat')({
   }
 
   get isNew(): boolean {
-    return isNewChat(this)
+    return isNewChat(this.run)
   }
 
   ensureNotBusy() {
@@ -69,9 +69,8 @@ const chatStatuses = {
 export const buildChatStatus = (newestRun: Option.Option<Run>): ChatStatus =>
   Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
 
-/** True while no ask has reached the chat: every user message starts a Run, so it has none. */
-export const isNewChat = (chat: Types.Simplify<Pick<Chat, 'run'>>): boolean =>
-  Option.isNone(chat.run)
+/** True while no ask has reached the chat: every user message starts a Run, so none is newest. */
+export const isNewChat = (newestRun: Option.Option<Run>): boolean => Option.isNone(newestRun)
 
 /** An ask takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
 export const ensureChatNotBusy = Effect.fnUntraced(function* (newestRun: Option.Option<Run>) {

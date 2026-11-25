@@ -43,10 +43,10 @@ export class Order extends Model.Class<Order>('Order')({
   ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
 ```ts
 export class Order extends Model.Class<Order>('Order')({ … }) {
-  get isPaid(): boolean { return isOrderPaid(this) }
+  get isPaid(): boolean { return isOrderPaid(this.payment) }
   ensureCancellable() { return ensureOrderCancellable(this) }
 }
-export const isOrderPaid = (order: Pick<Order, 'payment'>): boolean => Option.isSome(order.payment)
+export const isOrderPaid = (payment: Option.Option<Payment>): boolean => Option.isSome(payment)
 ```
 - **A service builds a write through its model's static,** `<Model>.makeInsert(…)` or
   `<Model>.makeUpdate(…)`, the variant's `makeEffect` and its encode in one call: it hands
