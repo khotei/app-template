@@ -267,23 +267,22 @@ describe('chats', () => {
           wheres.push(where)
         }).pipe(Effect.as(Option.none()))
       return Effect.gen(function* () {
-        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
 
-        const message = yield* api.chats
-          .getMessage({ params: { chatId: chat.id, messageId: firstMessage.id } })
-          .pipe(Effect.flip)
-        const run = yield* api.chats
-          .getRun({ params: { chatId: chat.id, runId: queuedRun.id } })
-          .pipe(Effect.flip)
+        const message = yield* http.get(`/chats/${chat.id}/messages/${firstMessage.id}`)
+        const run = yield* http.get(`/chats/${chat.id}/runs/${queuedRun.id}`)
 
+        assert.deepStrictEqual([message.status, run.status], [404, 404])
         assertSchemaEquals(
           MessageNotFoundError,
-          message,
+          yield* message.json.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(MessageNotFoundError)),
+          ),
           new MessageNotFoundError({ id: firstMessage.id }),
         )
         assertSchemaEquals(
           RunNotFoundError,
-          run,
+          yield* run.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(RunNotFoundError))),
           new RunNotFoundError({ where: { id: queuedRun.id } }),
         )
         assert.deepStrictEqual(wheres, [
