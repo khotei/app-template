@@ -801,7 +801,8 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
   whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not
   as the use case's warning; a dead worker's Run settled between its read and its failure dies
   the same way. `update` takes two Runs a caller could mismatch: a `to` made from another Run
-  than `from` writes that Run's fields, its id included, onto `from`'s row; only the call's form
+  than `from` writes that Run's status, failure and reply onto `from`'s row, and the Run it
+  returns carries `to`'s id; only the call's form
   (`runs.update(run, yield* run.<move>(…))`), the line of `.claude/rules/layering.md` and review
   hold it. `RunService.update`'s form departs from the other services' `update(to, where)`. A
   where that fits both of `RunWhere`'s members compiles, and is read under every field it holds.
