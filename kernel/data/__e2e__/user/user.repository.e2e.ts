@@ -30,7 +30,8 @@ describe('UserRepository', () => {
       const users = yield* UserRepository
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000010')
 
-      yield* users.insert(ada, credential('a'))
+      yield* users.insert(ada)
+      yield* users.insertCredential({ ...credential('a'), userId: ada.id })
       const byId = yield* users.selectOne({ id: ada.id })
       const byCredential = yield* users.selectOne({ credentials: credential('a') })
 
@@ -42,8 +43,10 @@ describe('UserRepository', () => {
   it.effect('selects none for an unknown credential or id', () =>
     Effect.gen(function* () {
       const users = yield* UserRepository
+      const ada = user('0192d4e0-7b3a-7c00-8000-000000000011')
 
-      yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000011'), credential('a'))
+      yield* users.insert(ada)
+      yield* users.insertCredential({ ...credential('a'), userId: ada.id })
       const byCredential = yield* users.selectOne({ credentials: credential('b') })
       const byId = yield* users.selectOne({
         id: '0192d4e0-7b3a-7c00-8000-000000000019',
@@ -57,32 +60,37 @@ describe('UserRepository', () => {
     Effect.gen(function* () {
       const users = yield* UserRepository
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000015')
+      const bob = user('0192d4e0-7b3a-7c00-8000-000000000016')
 
-      yield* users.insert(ada, credential('a'))
-      yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000016'), credential('b'))
+      yield* users.insert(ada)
+      yield* users.insertCredential({ ...credential('a'), userId: ada.id })
+      yield* users.insert(bob)
+      yield* users.insertCredential({ ...credential('b'), userId: bob.id })
       const selected = yield* users.selectOne({ id: ada.id, credentials: credential('b') })
 
       assert.deepStrictEqual(selected, Option.none())
     }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
-  it.effect(
-    'writes no user when its credential is taken, since both rows share a transaction',
-    () =>
-      Effect.gen(function* () {
-        const users = yield* UserRepository
-        const bob = user('0192d4e0-7b3a-7c00-8000-000000000014')
+  it.effect('dies with a UniqueViolation on a credential another user holds', () =>
+    Effect.gen(function* () {
+      const users = yield* UserRepository
+      const ada = user('0192d4e0-7b3a-7c00-8000-000000000013')
+      const bob = user('0192d4e0-7b3a-7c00-8000-000000000014')
 
-        yield* users.insert(user('0192d4e0-7b3a-7c00-8000-000000000013'), credential('a'))
-        const inserted = yield* users.insert(bob, credential('a')).pipe(Effect.exit)
-        const selected = yield* users.selectOne({ id: bob.id })
+      yield* users.insert(ada)
+      yield* users.insertCredential({ ...credential('a'), userId: ada.id })
+      yield* users.insert(bob)
 
-        assert.isTrue(Exit.hasDies(inserted))
-        const defect = Exit.isFailure(inserted) ? Cause.squash(inserted.cause) : undefined
-        assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
-        assert.strictEqual(defect.reason._tag, 'UniqueViolation')
-        assert.deepStrictEqual(selected, Option.none())
-      }).pipe(Effect.provide(UserRepositoryDbTest)),
+      const inserted = yield* users
+        .insertCredential({ ...credential('a'), userId: bob.id })
+        .pipe(Effect.exit)
+
+      assert.isTrue(Exit.hasDies(inserted))
+      const defect = Exit.isFailure(inserted) ? Cause.squash(inserted.cause) : undefined
+      assert(SqlError.isSqlError(defect), `expected a SqlError defect, got ${defect}`)
+      assert.strictEqual(defect.reason._tag, 'UniqueViolation')
+    }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 
   it.effect('accepts a credentials.hash of every hex digit, through its check', () =>
@@ -90,7 +98,12 @@ describe('UserRepository', () => {
       const users = yield* UserRepository
       const ada = user('0192d4e0-7b3a-7c00-8000-000000000015')
 
-      yield* users.insert(ada, { kind: 'secret', hash: '0123456789abcdef'.repeat(4) })
+      yield* users.insert(ada)
+      yield* users.insertCredential({
+        kind: 'secret',
+        hash: '0123456789abcdef'.repeat(4),
+        userId: ada.id,
+      })
     }).pipe(Effect.provide(UserRepositoryDbTest)),
   )
 

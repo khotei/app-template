@@ -16,7 +16,11 @@ const readUserSecretCookie = (response: HttpClientResponse.HttpClientResponse) =
   Cookies.get(response.cookies, 'user_secret')
 
 /** A `UserRepository` that finds no user and takes every new one. */
-const newcomer = { selectOne: () => Effect.succeedNone, insert: () => Effect.void }
+const newcomer = {
+  selectOne: () => Effect.succeedNone,
+  insert: () => Effect.void,
+  insertCredential: () => Effect.void,
+}
 
 describe('users', () => {
   it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>

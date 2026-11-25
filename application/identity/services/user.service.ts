@@ -2,7 +2,12 @@ import { Context, Effect, Layer, Redacted, SchemaIssue } from 'effect'
 import { Digest, SecureRandom } from 'effect/crypto'
 import { Base64Url } from 'effect/encoding'
 
-import { UserRepository } from '@app-template/kernel/data'
+import {
+  type UserEntity,
+  type UserEntityCredential,
+  UserRepository,
+} from '@app-template/kernel/data'
+import { Transaction } from '@app-template/packages/db'
 
 import { UserUnknownError } from '#identity/domain/user.error'
 import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
@@ -26,6 +31,7 @@ export class UserService extends Context.Service<
     const users = yield* UserRepository
     const digest = yield* Digest.Digest
     const random = yield* SecureRandom.SecureRandom
+    const transaction = yield* Transaction
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
       const hash = yield* digest.digestHex(Digest.sha256, encoder.encode(Redacted.value(secret)))
@@ -39,22 +45,34 @@ export class UserService extends Context.Service<
       Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
     )
 
-    const register = Effect.gen(function* () {
-      const bytes = yield* random.randomBytes(secretBytes)
-      const fresh = Redacted.make(Base64Url.encode(bytes))
+    // The user and its credential commit together: a user is never stored without its secret.
+    const createUser = Effect.fnUntraced(function* (
+      user: UserEntity,
+      credential: UserEntityCredential,
+    ) {
+      yield* users.insert(user)
+      yield* users.insertCredential({ ...credential, userId: user.id })
+    }, transaction.run)
 
-      const { set, row } = yield* User.makeInsert({})
-      const credential = yield* hashSecret(fresh)
-      yield* users.insert(row, credential)
-      return { user: new User(set), secret: fresh }
-    }).pipe(Effect.catchIf(SchemaIssue.isIssue, Effect.die))
+    const register = Effect.fnUntraced(
+      function* () {
+        const bytes = yield* random.randomBytes(secretBytes)
+        const fresh = Redacted.make(Base64Url.encode(bytes))
+
+        const { set, row } = yield* User.makeInsert({})
+        const credential = yield* hashSecret(fresh)
+        yield* createUser(row, credential)
+        return { user: new User(set), secret: fresh }
+      },
+      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
+    )
 
     const recognise = Effect.fn('UserService.recognise')(
       function* (secret: UserSecret) {
         const user = yield* authenticate(secret)
         return { user, secret }
       },
-      Effect.catchTag('UserUnknownError', () => register),
+      Effect.catchTag('UserUnknownError', () => register()),
     )
 
     return { recognise, authenticate }

@@ -111,8 +111,8 @@ const found = yield* chats.selectOne(where).pipe(Effect.flatMap(Chat.decodeOne))
 - A service writes a model encoded through its `makeInsert` into the row the repository's `insert`
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
-  `UserRepository.insert` takes the credential with no codec and writes
-  `{ hash, kind, userId }`, the user's id from the user it was given.
+  `UserRepository.insertCredential` takes the credential's row `{ hash, kind, userId }` with no
+  codec, `UserService` setting `userId` from the user's row.
 - A `jsonb` column carries its shape's type (`jsonb().$type<RunFailure>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -139,18 +139,16 @@ never a condition built on the `chats` constant.
 
 ## Repositories
 
-A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
+A repository is a `Layer` over `Db` in its entity's `.repository.ts` (names:
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
 `kernel/data/<store>/`, `FileRepository` over the bucket's objects among them
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and return
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
-through its models (`UserService` over `UserRepository`). A method that writes several tables
-runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
-`UserRepository.insert` writes the user and its credential, or neither. `SqlClient` is the
-`PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
-in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
-`orDieWithSqlError` from `@app-template/packages/db`.
+through its models (`UserService` over `UserRepository`). A method is one statement and opens
+no transaction: writes of several tables are a method each, which their service commits together
+([Transactions](#transactions)), as `UserService` does `UserRepository.insert` and
+`insertCredential`. Every method ends with `orDieWithSqlError` from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
 their codecs: a write encodes the model into the row, the set takes its fields from that row,
@@ -262,10 +260,13 @@ deletes under them again, so a call that names no user fails typecheck and anoth
 
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
 writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
-(`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
-passes `transaction.run` as the last argument of the function that holds them:
-`AskChatService.ask`'s the user's message and its queued Run, `ReplyChatService.reply`'s answer
-the chat's history, the assistant's call and the reply with the Run's `done`, so that transaction,
+(`Transaction.layer` wraps `SqlClient.withTransaction` over the `PgClient` that `Db.layer` takes
+from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e, so it runs on the
+connection `Db` uses), the one way to open a transaction. A service whose writes commit together
+passes `transaction.run` as the last argument of the function that holds them: `UserService`'s
+new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
+`ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the
+Run's `done`, so that transaction,
 and the pooled connection it holds, stays open for the language model's call. Every
 repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every

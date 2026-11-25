@@ -1,22 +1,16 @@
-import { BunCrypto } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option, Redacted, Result } from 'effect'
+import { DateTime, Effect, Option, Redacted, Result } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { type UserEntityWhere, UserRepository } from '@app-template/kernel/data'
+import type { UserEntityWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { UserId } from '#identity/contract/user.util'
 import { UserUnknownError } from '#identity/domain/user.error'
 import type { UserSecret } from '#identity/domain/user.model'
 import { UserService } from '#identity/services/user.service'
-
-type Insert = Parameters<UserRepository['Service']['insert']>
-
-/** The service over `repository`, a `Layer.mock` of the methods the case lets it call. */
-const userServiceOver = (repository: Layer.Layer<UserRepository>) =>
-  UserService.layer.pipe(Layer.provide([repository, BunCrypto.layer]))
+import { layerUserTest } from '#testing/identity/user.test-layer'
 
 const storedUser = {
   id: UserId.make('0192d4e0-7b3a-7c00-8000-000000000010'),
@@ -44,12 +38,10 @@ describe('UserService', () => {
       assert.strictEqual(user.id, storedUser.id)
     }).pipe(
       Effect.provide(
-        userServiceOver(
-          Layer.mock(UserRepository, {
-            selectOne: (where) =>
-              Effect.sync(() => wheres.push(where)).pipe(Effect.as(Option.some(storedUser))),
-          }),
-        ),
+        layerUserTest({
+          selectOne: (where) =>
+            Effect.sync(() => wheres.push(where)).pipe(Effect.as(Option.some(storedUser))),
+        }),
       ),
     )
   })
@@ -63,18 +55,14 @@ describe('UserService', () => {
       assert.strictEqual(user.id, storedUser.id)
       assert.strictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
     }).pipe(
-      Effect.provide(
-        userServiceOver(
-          Layer.mock(UserRepository, { selectOne: () => Effect.succeed(Option.some(storedUser)) }),
-        ),
-      ),
+      Effect.provide(layerUserTest({ selectOne: () => Effect.succeed(Option.some(storedUser)) })),
     ),
   )
 
   it.effect(
     'recognise of an unknown secret creates a user with a UUIDv7 id at the clock time and a new secret, storing only its hex SHA-256',
     () => {
-      const inserts: Array<Insert> = []
+      const writes: Array<readonly [string, unknown]> = []
       return Effect.gen(function* () {
         const service = yield* UserService
 
@@ -88,23 +76,18 @@ describe('UserService', () => {
           Result.map(Base64Url.decode(Redacted.value(secret)), (bytes) => bytes.length),
           Result.succeed(32),
         )
-        assert.deepStrictEqual(inserts, [
-          [
-            { id: user.id, createdAt: DateTime.toDateUtc(epoch) },
-            { kind: 'secret', hash },
-          ],
+        assert.deepStrictEqual(writes, [
+          ['insert', { id: user.id, createdAt: DateTime.toDateUtc(epoch) }],
+          ['insertCredential', { kind: 'secret', hash, userId: user.id }],
         ])
       }).pipe(
         Effect.provide(
-          userServiceOver(
-            Layer.mock(UserRepository, {
-              selectOne: () => Effect.succeed(Option.none()),
-              insert: (...insert) =>
-                Effect.sync(() => {
-                  inserts.push(insert)
-                }),
-            }),
-          ),
+          layerUserTest({
+            selectOne: () => Effect.succeed(Option.none()),
+            insert: (row) => Effect.sync(() => void writes.push(['insert', row])),
+            insertCredential: (row) =>
+              Effect.sync(() => void writes.push(['insertCredential', row])),
+          }),
         ),
       )
     },
@@ -117,12 +100,6 @@ describe('UserService', () => {
       const error = yield* service.authenticate(unknownSecret).pipe(Effect.flip)
 
       assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
-    }).pipe(
-      Effect.provide(
-        userServiceOver(
-          Layer.mock(UserRepository, { selectOne: () => Effect.succeed(Option.none()) }),
-        ),
-      ),
-    ),
+    }).pipe(Effect.provide(layerUserTest({ selectOne: () => Effect.succeed(Option.none()) }))),
   )
 })

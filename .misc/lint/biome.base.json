@@ -162,7 +162,8 @@
         "application/*/services/**",
         "!application/chat/services/ask-chat.service.ts",
         "!application/chat/services/reply-chat.service.ts",
-        "!application/chat/services/title-chat.service.ts"
+        "!application/chat/services/title-chat.service.ts",
+        "!application/identity/services/user.service.ts"
       ],
       "linter": {
         "rules": {
@@ -190,7 +191,7 @@
                   },
                   {
                     "group": ["#*/infrastructure/**"],
-                    "message": "a module's services reach its infrastructure only through a port; the chat's ask, reply and title services have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "a module's services reach its infrastructure only through a port; the chat's ask, reply and title services and the identity's user service have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
                   }
                 ]
               }
@@ -360,6 +361,49 @@
                   {
                     "group": ["#*/infrastructure/**", "!#chat/infrastructure/chat-assistant.llm"],
                     "message": "the chat's title service reaches its module's infrastructure only through a port and the chat's assistant, which proposes the title (decisions.md › A module's layers; The chat's jobs in their services)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/identity/services/user.service.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/packages/{schema,db}",
+                      "!@app-template/kernel/data",
+                      "!@app-template/application/*",
+                      "@app-template/application/use-cases",
+                      "@app-template/application/use-cases/**",
+                      "@effect/**"
+                    ],
+                    "message": "the identity's user service (UserService) imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": ["@app-template/packages/db"],
+                    "importNamePattern": "Transaction",
+                    "invertImportNamePattern": true,
+                    "message": "of @app-template/packages/db the user service takes only Transaction, to store a user with its credential in one transaction (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": ["@app-template/kernel/data"],
+                    "importNamePattern": "(Db|relations|migrationsFolder)",
+                    "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
+                  },
+                  {
+                    "group": ["#*/infrastructure/**"],
+                    "message": "a module's services reach its infrastructure only through a port (decisions.md › A module's layers)"
                   }
                 ]
               }

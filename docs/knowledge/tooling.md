@@ -85,7 +85,7 @@ Which suite runs where:
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistants over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
 | apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants |
-| assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
+| assembled | `apps/e2e/api/`: the journey and the races and rollbacks of a service's or use case's transaction, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
   `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
@@ -109,8 +109,8 @@ Which suite runs where:
   `make up`, and two trees run them side by side.
 - **The journey, in the `apps/e2e` test app.** `StandTest`, in the test app's support, runs the
   api's and the worker's layers in the test's runtime over a `PgClientTest` database, an
-  `AwsTest` stage and the chat module's scripted assistants ([ai.md](ai.md)). The use cases'
-  races share its stand, and each rollback takes a stand of its own, since it alters the schema
+  `AwsTest` stage and the chat module's scripted assistants ([ai.md](ai.md)). The races share
+  its stand, and each rollback takes a stand of its own, since it alters the schema
   to make Postgres refuse a write. The journey proves the wiring; every rule keeps its lower
   seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every

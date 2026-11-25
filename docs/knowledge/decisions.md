@@ -183,8 +183,13 @@ the data layer's repository directly.
   of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
   shape widens the guard's pattern; one entry opens the
   module whole, so another part's ban on a layer matches the names it imports. A layer's override
-  covers its tests, save the services', so what they need passes in its source too. What passes
-  every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
+  covers its tests, save the services', so what they need passes in its source too. A repository's
+  method is one statement and opens no transaction, so a service whose rows of one model span
+  tables commits them through `Transaction`, the one way to open one: the identity's user service
+  takes it to store a user with its credential, and `UserRepository.insert` stays callable
+  without `insertCredential`, which only the service being their one caller and the api's e2e of
+  a refused credential (`apps/e2e/api/user.e2e.ts`) stop. What passes every guard:
+  [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, save the services', whose tests have one of their own, the domain's admitting
   of the kernel only `@app-template/kernel/data`, and of it only a value's name
@@ -197,7 +202,8 @@ the data layer's repository directly.
   service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the message's
   assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its own, which
   adds the chat's assistant's `.llm` file alone
-  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)):
+  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)), and the identity's
+  user service (`user.service.ts`) its own, which adds `Transaction` alone:
   the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
