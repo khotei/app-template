@@ -92,8 +92,7 @@ Which suite runs where:
   the `SqlError` of a refused statement, comes from `@app-template/packages/db/testing/e2e`. What
   they check: [database.md › Tests](database.md#tests). A limit, a pattern or an enum's values
   is declared in its table, and a model that holds it declares its own. The data layer's e2e
-  refuse a limit plus one by its constant and accept the limit itself, and accept a pattern's
-  extreme value.
+  accept a check's extreme value and refuse what is just past it.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the

@@ -1016,8 +1016,9 @@ table's; a service, which imports both, holds the two in step.
   that check them.
 - **Cost:** a rule lives twice, as a check and as a model's refinement, and each value twice, in
   the table and in the model; the model's side may add to the check (trimming every whitespace,
-  counting UTF-16 units), never accept less. A field a JSON column's shape makes optional on
-  one side alone passes every check, harmless as a decode drops the extra key.
+  capping a title's length, which only the domain caps), never accept less. A field a JSON
+  column's shape makes optional on one side alone passes every check, harmless as a decode drops
+  the extra key.
 - **Guarded by:** `make typecheck` at the service that codes the row, where the repository takes
   and returns the table's row: an enum's value or a required field of a JSON column's shape
   changed on one side fails there; the active statuses, which only the index's predicate reads,

@@ -8,7 +8,7 @@ CREATE TABLE "chats" (
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "chats_id_user_id_unique" UNIQUE("id","user_id"),
-	CONSTRAINT "chats_title_check" CHECK ("title" = btrim("title") and char_length("title") between 1 and 120)
+	CONSTRAINT "chats_title_check" CHECK ("title" = btrim("title") and "title" <> '')
 );
 --> statement-breakpoint
 CREATE TABLE "messages" (

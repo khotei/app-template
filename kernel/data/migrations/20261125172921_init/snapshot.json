@@ -2,7 +2,7 @@
   "type": "base",
   "version": "10",
   "dialect": "postgres",
-  "id": "f6e518e1-460e-40a6-a319-85e940f345f2",
+  "id": "1e19fcef-1b06-4499-921f-bc9768f9ec38",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -1069,7 +1069,7 @@
       "schema": "public",
       "table": "chats",
       "name": "chats_title_check",
-      "value": "\"title\" = btrim(\"title\") and char_length(\"title\") between 1 and 120",
+      "value": "\"title\" = btrim(\"title\") and \"title\" <> ''",
       "entityType": "checks"
     },
     {

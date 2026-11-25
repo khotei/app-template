@@ -35,7 +35,7 @@ the entities derived from them.
   the table exports (`runStatuses = ['queued', …] as const`, then
   `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the lower-case hex SHA-256 a credential's hash is;
-  `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
+  `chats_title_check` a trimmed, non-empty title), so a row written by hand cannot hold
   what the domain rejects. A model that holds the value declares it again on its side and checks
   the same rule there, never importing the table's
   ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)); a value no model holds,
@@ -43,8 +43,8 @@ the entities derived from them.
   into the DDL, so a changed literal, pattern or limit changes the schema, and
   `make migration-check` fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
-  refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
-  `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
+  refuses, never the reverse: `chats_title_check` trims spaces only and caps no length, where
+  `ChatTitle` trims every whitespace and caps the length, a rule of the domain alone. Checks are named
   `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
   `<table>_<columns>_<predicate>_index` (`runs_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `runs_chat_id_active_index` allows one
