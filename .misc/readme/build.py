@@ -460,8 +460,8 @@ def module_design():
         ("bnd", "handler · `apps/`", ["`ChatHandler`, `WorkerHandler`", ("m", "calls one service method or one use case")]),
         ("beh", "use case · `application/use-cases`", ["`askChat` `retryRun` `listMessages` `replyToMessage` `titleChat`", ("m", "a plain `Effect.fn`; only a handler calls it")]),
         ("beh", "`<Verb><Model>Service` · `services/`", ["`AskChatService.ask`, `.retry`", "`ReplyChatService.reply`", "`TitleChatService.title`"]),
-        ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`move(run, transition)`: under the status read"]),
-        ("beh", "rules and moves · `domain/`", ["`ensureChatNotBusy` `ensureRunRetryable`", "`startRun` `completeRun` `failRun`", ("m", "plain functions in `<model>.model.ts`")]),
+        ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`RunService.update(from, to)`: under the status read"]),
+        ("beh", "rules and moves · `domain/`", ["`ensureChatNotBusy` `ensureRunRetryable`", "`startRun` `completeRun` `failRun`", ("m", "plain functions in `<model>.model.ts`, members over them")]),
     ]
     y = 66
     tops = []
@@ -561,11 +561,11 @@ def patterns():
     xs = [28, 28 + tw + gap]
     tiles = [
         ("A guarded move", [
-            "yield* runs.move(queued, startRun)",
-            "// RunService.move:",
-            "transition(run).pipe(Effect.flatMap((to) =>",
-            "  update(to, { id: run.id,",
-            "    status: [run.status] })))",
+            "yield* runs.update(queued, yield* queued.start())",
+            "// RunService.update(from, to):",
+            "runs.update(encodeWith(Run.update)(to),",
+            "  encodeWhere(Struct.pick(from,",
+            "    ['id', 'status'])))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),
         ("A rule keyed by a table", [
             "const moveRunRules = {",
@@ -579,7 +579,7 @@ def patterns():
             "  .create({ chatId: chat.id, text, … })",
             "  .pipe(Effect.flatMap(runs.create),",
             "    transaction.run)",
-            "if (isNewChat(chat)) yield* sendTitleChat(chat)",
+            "if (chat.isNew) yield* sendTitleChat(chat)",
             "return yield* askReply(run)",
         ], "a delivery always finds the Run it names"),
         ("Errors handled once, at the flow's end", [

@@ -43,7 +43,23 @@ export class Run extends Model.Class<Run>('Run')({
   ),
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,
-}) {}
+}) {
+  ensureUnstarted() {
+    return ensureRunUnstarted(this)
+  }
+
+  start() {
+    return startRun(this)
+  }
+
+  complete(replyId: MessageId) {
+    return completeRun(this, replyId)
+  }
+
+  fail(cause: Cause.Cause<unknown>) {
+    return failRun(this, cause)
+  }
+}
 
 // The statuses the data layer's active index holds, served through the module's entry.
 export { activeRunStatuses }

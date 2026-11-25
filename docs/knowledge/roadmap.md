@@ -504,14 +504,6 @@ moves it into its own `Later` and deletes it here.
   that must stay above the worker's timeout as either changes. The owner refused a rule by age for
   a Run the api leaves queued (`reply-run` above); this entry, for the worker's start, is the
   owner's (2026-11-21).
-- (2026-11-22) `completeRun` and `failRun` (`application/chat/domain/run.model.ts`) take their
-  record first, so each `RunService.move` through them wraps them in a lambda,
-  `runs.move(run, (run) => failRun(run, cause))` (three calls in `reply-chat.service.ts`, one in
-  `ask-chat.service.ts`). Effect's `dual` (`repos/effect/packages/effect/src/Function.ts`) would
-  let them be called data-last too, `runs.move(run, failRun(cause))`, at the cost of an
-  overloaded signature per transition and a change of `effect-style.md`'s line that a model's
-  transition stays plain and takes a lambda, which
-  [A Run's guarded moves](decisions.md#a-runs-guarded-moves) also records. Undecided by the owner.
 - (2026-11-22) `make link-check` passes a relative link whose `#anchor` names no heading: lychee
   runs without `--include-fragments`, so it checks the file alone. An agent's wrong anchor stayed
   green on 2026-11-22, and a probe link to `decisions.md#no-such-heading` passed. The pinned

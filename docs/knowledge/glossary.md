@@ -229,9 +229,10 @@ _Avoid_: Policy, validator, business logic
 
 **Move**:
 A record's change of status to an allowed next one: the model's pure transition, named for the
-act (`startRun`, `completeRun`, `failRun`), which `<Model>Service.move` writes under the
-status the record was read in (`runs.move(run, startRun)`). A move the model's table refuses
-dies (`RunStatusInvalidError`).
+act (`startRun`, `completeRun`, `failRun`) and called as the record's member (`run.start()`),
+which `<Model>Service.update` writes under the status the record was read in
+(`runs.update(run, yield* run.start())`). A move the model's table refuses dies
+(`RunStatusInvalidError`).
 _Avoid_: Transition (the move's pure half), state change
 
 **Refusal**:

@@ -6,7 +6,7 @@ import { QueueSender } from '@app-template/packages/queue'
 import type { ChatBusyError } from '#chat/domain/chat.error'
 import type { Chat } from '#chat/domain/chat.model'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
-import { failRun, type Run } from '#chat/domain/run.model'
+import type { Run } from '#chat/domain/run.model'
 import { sendReplyToMessage, sendTitleChat } from '#chat/infrastructure/chat.queue'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
@@ -47,7 +47,12 @@ export class AskChatService extends Context.Service<
         return run
       },
       (sent, run) =>
-        Effect.catch(sent, (error) => runs.move(run, (run) => failRun(run, Cause.fail(error)))),
+        Effect.catch(
+          sent,
+          Effect.fnUntraced(function* (error) {
+            return yield* runs.update(run, yield* run.fail(Cause.fail(error)))
+          }),
+        ),
     )
 
     // The message and its Run commit together: a Run that loses the race keeps no message.

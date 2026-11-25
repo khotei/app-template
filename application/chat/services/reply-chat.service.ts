@@ -4,14 +4,7 @@ import { Transaction } from '@app-template/packages/db'
 
 import type { MessageId } from '#chat/domain/message.util'
 import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
-import {
-  activeRunStatuses,
-  completeRun,
-  ensureRunUnstarted,
-  failRun,
-  type Run,
-  startRun,
-} from '#chat/domain/run.model'
+import { activeRunStatuses, type Run } from '#chat/domain/run.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
@@ -41,10 +34,10 @@ export class ReplyChatService extends Context.Service<
     const assistant = yield* MessageAssistant
 
     // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
-    const failUnanswered =
-      (run: Run) =>
-      <E>(cause: Cause.Cause<E>) =>
-        runs.move(run, (run) => failRun(run, cause))
+    const failUnanswered = (run: Run) =>
+      Effect.fnUntraced(function* <E>(cause: Cause.Cause<E>) {
+        return yield* runs.update(run, yield* run.fail(cause))
+      })
 
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
@@ -56,7 +49,7 @@ export class ReplyChatService extends Context.Service<
         text: generated.text,
         author: 'assistant',
       })
-      yield* runs.move(started, (run) => completeRun(run, message.id))
+      yield* runs.update(started, yield* started.complete(message.id))
     }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
@@ -65,8 +58,8 @@ export class ReplyChatService extends Context.Service<
     const reply = Effect.fn('ReplyChatService.reply')(function* (userMessageId: MessageId) {
       const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
       // A Run some worker started was left by a worker that died, so it fails as it is read.
-      const queued = yield* ensureRunUnstarted(active).pipe(Effect.onError(failUnanswered(active)))
-      const started = yield* runs.move(queued, startRun)
+      const queued = yield* active.ensureUnstarted().pipe(Effect.onError(failUnanswered(active)))
+      const started = yield* runs.update(queued, yield* queued.start())
 
       yield* Effect.interruptible(answer(started)).pipe(Effect.onError(failUnanswered(started)))
     }, Effect.uninterruptible)

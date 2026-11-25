@@ -31,9 +31,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A status move is a pure transition, a function of the model ([its name](naming.md#symbols)): it
   checks one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as
   its callers move a record just read or moved; a refusal the user can reach is a check of its own
-  before it, failing its own error (`<Model>BusyError`). A status move goes through
-  `<Model>Service.move(<record>, <transition>)`, written under the status the record was read in;
-  `update(<record>, <where>)` is for any other write ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
+  before it, failing its own error (`<Model>BusyError`). A status move is written as
+  `<Model>Service.update(<record>, yield* <record>.<move>(…))`, under the status the record was
+  read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a
   service, use case or repository only reads, calls it and writes

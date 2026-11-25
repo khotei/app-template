@@ -37,11 +37,11 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="28" y="42" class="h" xml:space="preserve">Patterns the code repeats</text>
 <rect x="28" y="66" width="444" height="187" rx="8" class="box k-neu"/>
 <text x="40" y="90" class="b" xml:space="preserve">A guarded move</text>
-<text x="40" y="110" xml:space="preserve"><tspan class="code">yield* runs.move(queued, startRun)</tspan></text>
-<text x="40" y="130" xml:space="preserve"><tspan class="code">// RunService.move:</tspan></text>
-<text x="40" y="150" xml:space="preserve"><tspan class="code">transition(run).pipe(Effect.flatMap((to) =&gt;</tspan></text>
-<text x="40" y="170" xml:space="preserve"><tspan class="code">  update(to, { id: run.id,</tspan></text>
-<text x="40" y="190" xml:space="preserve"><tspan class="code">    status: [run.status] })))</tspan></text>
+<text x="40" y="110" xml:space="preserve"><tspan class="code">yield* runs.update(queued, yield* queued.start())</tspan></text>
+<text x="40" y="130" xml:space="preserve"><tspan class="code">// RunService.update(from, to):</tspan></text>
+<text x="40" y="150" xml:space="preserve"><tspan class="code">runs.update(encodeWith(Run.update)(to),</tspan></text>
+<text x="40" y="170" xml:space="preserve"><tspan class="code">  encodeWhere(Struct.pick(from,</tspan></text>
+<text x="40" y="190" xml:space="preserve"><tspan class="code">    ['id', 'status'])))</tspan></text>
 <text x="40" y="217" class="m" xml:space="preserve">the write carries the status the Run was read in, so a Run</text>
 <text x="40" y="236" class="m" xml:space="preserve">moved since dies</text>
 <rect x="488" y="66" width="444" height="187" rx="8" class="box k-neu"/>
@@ -58,7 +58,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="40" y="331" xml:space="preserve"><tspan class="code">  .create({ chatId: chat.id, text, … })</tspan></text>
 <text x="40" y="351" xml:space="preserve"><tspan class="code">  .pipe(Effect.flatMap(runs.create),</tspan></text>
 <text x="40" y="371" xml:space="preserve"><tspan class="code">    transaction.run)</tspan></text>
-<text x="40" y="391" xml:space="preserve"><tspan class="code">if (isNewChat(chat)) yield* sendTitleChat(chat)</tspan></text>
+<text x="40" y="391" xml:space="preserve"><tspan class="code">if (chat.isNew) yield* sendTitleChat(chat)</tspan></text>
 <text x="40" y="411" xml:space="preserve"><tspan class="code">return yield* askReply(run)</tspan></text>
 <text x="40" y="438" class="m" xml:space="preserve">a delivery always finds the Run it names</text>
 <rect x="488" y="267" width="444" height="188" rx="8" class="box k-neu"/>

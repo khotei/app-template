@@ -215,7 +215,7 @@ Each addition has a checklist, written from the data outward and test first:
 - a dependency or a workspace: [tooling.md › Dependencies](docs/knowledge/tooling.md#dependencies).
 
 <img src=".misc/readme/patterns.svg"
-  alt="Six shapes from chat: a guarded move through RunService.move, a rule keyed by a table, the
+  alt="Six shapes from chat: a guarded move through RunService.update, a rule keyed by a table, the
   writes in one transaction with the sends after it, errors handled once at a flow's end,
   Effect.acquireUseRelease around the answer, and Layer.mock of the repositories in unit
   suites"

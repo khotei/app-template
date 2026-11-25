@@ -1,42 +1,35 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, Effect, Option, Struct } from 'effect'
+import { Array as Arr, Cause, Effect, Option } from 'effect'
 
 import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
-import {
-  activeRunStatuses,
-  completeRun,
-  failRun,
-  Run,
-  type RunStatus,
-  startRun,
-} from '#chat/domain/run.model'
+import { RunNotFoundError } from '#chat/domain/run.error'
+import { activeRunStatuses, Run, type RunStatus } from '#chat/domain/run.model'
 import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
-/** Each transition, the status it leaves from and the status it writes. */
+/** Each move, the status it leaves from and the status it writes. */
 const moves: ReadonlyArray<{
   readonly name: string
   readonly from: RunStatus
   readonly to: RunStatus
-  readonly transition: (run: Run) => Effect.Effect<Run>
+  readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { name: 'startRun', from: 'queued', to: 'generating', transition: startRun },
+  { name: 'start', from: 'queued', to: 'generating', move: (run) => run.start() },
   {
-    name: 'completeRun',
+    name: 'complete',
     from: 'generating',
     to: 'done',
-    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id),
+    move: (run) => run.complete(assistantMessageAt(1, 'Sure.').id),
   },
   {
-    name: 'failRun',
+    name: 'fail',
     from: 'queued',
     to: 'failed',
-    transition: (run) => failRun(run, Cause.fail('SQS is unavailable')),
+    move: (run) => run.fail(Cause.fail('SQS is unavailable')),
   },
 ]
 
@@ -79,14 +72,14 @@ function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
 
 describe('RunService', () => {
   it.effect.each(moves)(
-    'move by $name writes the $to Run under the status it was read in',
-    ({ from, to, transition }) => {
+    'update by $name writes the $to Run under the status it was read in',
+    ({ from, to, move }) => {
       const run = new Run({ ...queuedRun, status: from })
       const { updates, layer } = recordUpdates()
       return Effect.gen(function* () {
         const service = yield* RunService
 
-        const moved = yield* service.move(run, transition)
+        const moved = yield* service.update(run, yield* move(run))
 
         assert.strictEqual(moved.status, to)
         assert.deepStrictEqual(
@@ -97,7 +90,7 @@ describe('RunService', () => {
     },
   )
 
-  it.effect('move of a Run moved since it was read dies on the guard in the write', () => {
+  it.effect('update of a Run moved since it was read dies on the guard in the write', () => {
     const wheres: Array<RunEntityWhere> = []
     const layer = layerChatTest({
       runs: {
@@ -109,37 +102,16 @@ describe('RunService', () => {
     })
     return Effect.gen(function* () {
       const service = yield* RunService
+      const started = yield* queuedRun.start()
 
       const defect = yield* service
-        .move(queuedRun, startRun)
+        .update(queuedRun, started)
         .pipe(Effect.catchDefect(Effect.succeed))
 
       assert.strictEqual(defect, 'no run was updated')
       assert.deepStrictEqual(wheres, [{ id: queuedRun.id, status: 'queued' }])
     }).pipe(Effect.provide(layer))
   })
-
-  it.effect(
-    'move by a transition the model refuses dies with RunStatusInvalidError, unwritten',
-    () => {
-      const { updates, layer } = recordUpdates()
-      return Effect.gen(function* () {
-        const service = yield* RunService
-
-        const defect = yield* service
-          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id))
-          .pipe(Effect.catchDefect(Effect.succeed))
-
-        assert.instanceOf(defect, RunStatusInvalidError)
-        assert.deepStrictEqual(Struct.pick(defect, ['id', 'from', 'to']), {
-          id: queuedRun.id,
-          from: 'queued',
-          to: 'done',
-        })
-        assert.deepStrictEqual(updates, [])
-      }).pipe(Effect.provide(layer))
-    },
-  )
 
   it.effect.each(reads)(
     "getOne by $name reads the Run under its where's filter",

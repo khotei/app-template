@@ -136,6 +136,31 @@ describe('ensureRunUnstarted', () => {
   )
 })
 
+describe('Run', () => {
+  it.effect('starts, completes with its reply and fails with the text of its cause', () =>
+    Effect.gen(function* () {
+      const started = yield* queued.start()
+      const done = yield* started.complete(replyId)
+      const failed = yield* started.fail(Cause.fail('529 overloaded'))
+
+      assert.deepStrictEqual(
+        [started.status, done.status, done.assistantMessageId, failed.status],
+        ['generating', 'done', Option.some(replyId), 'failed'],
+      )
+      assert.include(Option.getOrThrow(failed.failure).cause, '529 overloaded')
+    }),
+  )
+
+  it.effect('takes itself while unstarted, and refuses once started with RunStartedError', () =>
+    Effect.gen(function* () {
+      const error = yield* runAt('generating').ensureUnstarted().pipe(Effect.flip)
+
+      assert.strictEqual(yield* queued.ensureUnstarted(), queued)
+      assert.strictEqual(error.id, queued.id)
+    }),
+  )
+})
+
 describe('ensureRunRetryable', () => {
   it.effect('returns a failed newest Run', () =>
     Effect.gen(function* () {
