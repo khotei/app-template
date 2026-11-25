@@ -5,8 +5,7 @@ import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-te
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RunNotFoundError } from '#chat/domain/run.error'
-import { activeRunStatuses, Run, type RunStatus } from '#chat/domain/run.model'
+import { activeRunStatuses, Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
 import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'

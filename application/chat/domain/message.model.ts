@@ -11,6 +11,12 @@ import { Run } from '#chat/domain/run.model'
 export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
 
+export class MessageNotFoundError extends Schema.TaggedError<MessageNotFoundError>()(
+  'MessageNotFoundError',
+  { id: MessageId },
+  { httpApiStatus: 404 },
+) {}
+
 /** A message as `messages` holds it, read with its Run; a message is never changed. */
 export class Message extends Model.Class<Message>('Message')({
   id: Model.UuidV7Insert(MessageId),

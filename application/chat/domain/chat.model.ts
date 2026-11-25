@@ -4,7 +4,6 @@ import { Model } from 'effect/schema'
 import { UserId } from '@app-template/application/identity'
 import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/schema'
 
-import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
 import { textPattern } from '#chat/domain/message.util'
 import { ensureRunRetryable, isActiveRun, Run, type RunStatus } from '#chat/domain/run.model'
@@ -24,6 +23,18 @@ export const ChatTitle = Schema.String.check(
   Schema.isPattern(textPattern),
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
+
+export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
+  'ChatNotFoundError',
+  { id: ChatId },
+  { httpApiStatus: 404 },
+) {}
+
+export class ChatBusyError extends Schema.TaggedError<ChatBusyError>()(
+  'ChatBusyError',
+  { id: ChatId },
+  { httpApiStatus: 409 },
+) {}
 
 /** A chat as `chats` holds it, read with its newest Run: an update writes its title and `updatedAt`. */
 export class Chat extends Model.Class<Chat>('Chat')({

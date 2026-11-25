@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Effect, Option, Schema, type Types } from 'effect'
+import { Array as Arr, Cause, Data, Effect, Option, Schema, type Types } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
@@ -6,11 +6,6 @@ import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
-import {
-  RunNotRetryableError,
-  RunStartedError,
-  RunStatusInvalidError,
-} from '#chat/domain/run.error'
 import { RunId } from '#chat/domain/run.util'
 import { hasStatus, Status } from '#chat/domain/status.model'
 
@@ -20,6 +15,37 @@ export type RunStatus = typeof RunStatus.Type
 /** Why a Run failed: the full text of what ended it, for operators; no wire shape holds it. */
 export const RunFailure = Schema.Struct({ cause: Schema.String })
 export type RunFailure = typeof RunFailure.Type
+
+export class RunStatusInvalidError extends Data.TaggedError('RunStatusInvalidError')<{
+  readonly id: RunId
+  readonly from: Status
+  readonly to: Status
+}> {}
+
+export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()(
+  'RunNotFoundError',
+  {
+    where: Schema.Union([
+      Schema.Struct({ id: RunId }),
+      Schema.Struct({ userMessageId: MessageId }),
+    ]),
+  },
+  { httpApiStatus: 404 },
+) {}
+
+export class RunStartedError extends Data.TaggedError('RunStartedError')<{
+  readonly id: RunId
+}> {
+  override get message() {
+    return 'the worker that started the Run stopped before it ended'
+  }
+}
+
+export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableError>()(
+  'RunNotRetryableError',
+  {},
+  { httpApiStatus: 409 },
+) {}
 
 /**
  * The work of answering one user message, as `runs` holds it: `userMessageId` names the message

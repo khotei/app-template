@@ -2,8 +2,7 @@ import { Context, Effect, Layer, type Types } from 'effect'
 
 import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
 
-import { MessageNotFoundError } from '#chat/domain/message.error'
-import { Message } from '#chat/domain/message.model'
+import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>

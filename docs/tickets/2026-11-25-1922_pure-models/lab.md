@@ -34,7 +34,7 @@ is `state`.
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | The chat domain owns its values; no `domain/` file imports the kernel · visible: `make lint` refuses a probe import of `@app-template/kernel/data` in a model; `make check` | minimal | build | in progress |
-| L2 | A model's errors live in its model file · visible: no `application/*/domain/*.error.ts`; `make check` | minimal | build | todo |
+| L2 | A model's errors live in its model file · visible: no `application/*/domain/*.error.ts`; `make check` | minimal | build | in progress |
 | L3 | Rules live in `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`, `RunState`; the models hold no member and `Status` is gone · visible: `git grep -n "ensureNotBusy()\|\.start()" application apps` is empty; `make check` | minimal | build | todo |
 | L4 | A chat's wire field is `state` · visible: `apps/api/openapi.json` has `state` on `ApiChat`; the handler and e2e cases read it | minimal | build | todo |
 | L5 | Row coding is `RowCodec`'s statics over a model; the models hold no codec static · visible: `git grep -n "decodeOne\|makeInsert" application/*/domain` is empty; `make check` | minimal | build | todo |

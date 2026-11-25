@@ -7,8 +7,8 @@ import type { UserEntityWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { UserId } from '#identity/contract/user.util'
-import { UserUnknownError } from '#identity/domain/user.error'
 import type { UserSecret } from '#identity/domain/user.model'
+import { UserUnknownError } from '#identity/domain/user.model'
 import { UserService } from '#identity/services/user.service'
 import { layerUserTest } from '#testing/identity/user.test-layer'
 

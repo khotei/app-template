@@ -4,16 +4,15 @@ import { DateTime, Effect, Equal, Option, Schema } from 'effect'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { ChatBusyError } from '#chat/domain/chat.error'
 import {
   buildChatStatus,
   Chat,
+  ChatBusyError,
   ChatTitle,
   ensureChatNotBusy,
   isNewChat,
 } from '#chat/domain/chat.model'
-import { RunNotRetryableError } from '#chat/domain/run.error'
-import { Run, type RunStatus } from '#chat/domain/run.model'
+import { Run, RunNotRetryableError, type RunStatus } from '#chat/domain/run.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
 const runAt = (status: RunStatus) => Option.some(new Run({ ...queuedRun, status }))

@@ -8,11 +8,6 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
 import {
-  RunNotRetryableError,
-  RunStartedError,
-  RunStatusInvalidError,
-} from '#chat/domain/run.error'
-import {
   activeRunStatuses,
   completeRun,
   ensureRunRetryable,
@@ -21,7 +16,10 @@ import {
   isActiveRun,
   isStartedRun,
   Run,
+  RunNotRetryableError,
+  RunStartedError,
   RunStatus,
+  RunStatusInvalidError,
   startRun,
 } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'

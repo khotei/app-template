@@ -3,8 +3,12 @@ import { type Cause, Context, Effect, Layer, Struct } from 'effect'
 import { Transaction } from '@app-template/packages/db'
 
 import type { MessageId } from '#chat/domain/message.util'
-import type { RunNotFoundError, RunStartedError } from '#chat/domain/run.error'
-import { activeRunStatuses, type Run } from '#chat/domain/run.model'
+import {
+  activeRunStatuses,
+  type Run,
+  type RunNotFoundError,
+  type RunStartedError,
+} from '#chat/domain/run.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'

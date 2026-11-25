@@ -3,10 +3,8 @@ import type { SetRequired } from 'type-fest'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.error'
-import type { Chat } from '#chat/domain/chat.model'
-import type { RunNotRetryableError } from '#chat/domain/run.error'
-import type { Run } from '#chat/domain/run.model'
+import type { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
+import type { Run, RunNotRetryableError } from '#chat/domain/run.model'
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
 import { ChatService, type ChatWhere } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'

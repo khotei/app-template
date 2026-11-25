@@ -13,8 +13,7 @@ import {
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatNotFoundError, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
 import { ChatService } from '#chat/services/chat.service'
 import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'

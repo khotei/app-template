@@ -5,6 +5,12 @@ import { decodeWith, makeRowWith } from '@app-template/packages/schema'
 
 import { UserId } from '#identity/contract/user.util'
 
+export class UserUnknownError extends Schema.TaggedError<UserUnknownError>()(
+  'UserUnknownError',
+  {},
+  { httpApiStatus: 401 },
+) {}
+
 export class User extends Model.Class<User>('User')({
   id: Model.UuidV7Insert(UserId),
   createdAt: Model.DateTimeInsertFromDate,

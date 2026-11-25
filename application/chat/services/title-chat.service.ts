@@ -1,6 +1,6 @@
 import { Array as Arr, Context, Effect, Layer, Option, pipe } from 'effect'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
+import { ChatNotFoundError } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'

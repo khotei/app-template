@@ -10,8 +10,7 @@ import {
 } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
 
-import { UserUnknownError } from '#identity/domain/user.error'
-import { secretBytes, User, type UserSecret } from '#identity/domain/user.model'
+import { secretBytes, User, type UserSecret, UserUnknownError } from '#identity/domain/user.model'
 
 const encoder = new TextEncoder()
 

@@ -4,8 +4,7 @@ import type { SetOptional, SetRequired } from 'type-fest'
 import type { UserId } from '@app-template/application/identity'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat } from '#chat/domain/chat.model'
+import { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 
 /**
  * A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. A

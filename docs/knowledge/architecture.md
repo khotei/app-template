@@ -159,9 +159,8 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 
 | What | File | Named |
 |---|---|---|
-| model with its pure operations, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
+| model with its pure operations and its errors, the codec of its own row | `application/chat/domain/chat.model.ts`, `message.model.ts`; the shared `Status` in `status.model.ts` | `Chat`, `Message` (`Model.Class`, [Models with variants](decisions.md#models-with-variants)) |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
-| domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `ChatQueue`, its `sendReplyToMessage` and `sendTitleChat` |
@@ -270,9 +269,10 @@ imports need.
    a limit, a pattern or an enum's values declared on its side, never imported from its table,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
-   [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`
-   (an error that reaches the wire carries its status, `{ httpApiStatus: <code> }`,
-   [apps/CLAUDE.md](../../apps/CLAUDE.md)), each with its unit test.
+   [database.md › Entities and models](database.md#entities-and-models); its errors in the same
+   file, `ChatNotFoundError` (`Schema.TaggedError`), one that reaches the wire carrying its
+   status, `{ httpApiStatus: <code> }`, [apps/CLAUDE.md](../../apps/CLAUDE.md)), each with its
+   unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, coding its rows through the model's codec statics (`<Model>.decodeOne`,
    `<Model>.makeInsert`), the one owner every handler goes through, tested over mocks of the
