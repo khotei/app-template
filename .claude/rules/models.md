@@ -59,8 +59,8 @@ export const isOrderPaid = (order: Pick<Order, 'payment'>): boolean => Option.is
 ```ts
 static readonly decodeOne = decodeWith(Schema.Option(this))    // selectOne's row
 static readonly decodeMany = decodeWith(Schema.Array(this))    // selectMany's rows
-static readonly makeInsert = makeRowWith(this.insert)       // { set, row }
-static readonly makeUpdate = (order: Order) =>               // only on a model it updates
+static readonly makeInsert = makeRowWith(this.insert)          // { set, row }
+static readonly makeUpdate = (order: Order) =>                 // only on a model it updates
   makeRowWith(this.update)(Struct.omit(order, ['updatedAt']))  // the variant moves the time
 ```
 - **An update passes every field it must keep:** a default on an updatable field fills it when
