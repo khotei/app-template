@@ -37,14 +37,15 @@ is `state`.
 | L2 | A model's errors live in its model file · visible: no `application/*/domain/*.error.ts`; `make check` | minimal | build | in progress |
 | L3 | Rules live in `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`, `RunState`; the models hold no member and `Status` is gone · visible: `git grep -n "ensureNotBusy()\|\.start()" application apps` is empty; `make check` | minimal | build | in progress |
 | L4 | A chat's wire field is `state` · visible: `apps/api/openapi.json` has `state` on `ApiChat`; the handler and e2e cases read it | minimal | build | in progress |
-| L5 | Row coding is `RowCodec`'s statics over a model; the models hold no codec static · visible: `git grep -n "decodeOne\|makeInsert" application/*/domain` is empty; `make check` | minimal | build | todo |
-| L6 | A module's contract has an entry of its own, the only path a `domain/` may import of another module · visible: `make lint` refuses `@app-template/application/identity` in a model | minimal | build | todo |
-| L7 | The API contract is `application/http-api`; `Auth`'s and `SchemaErrors`' layers stay in `apps/api` · visible: `apps/api/openapi.json` unchanged by this step; `make check` | minimal | build | todo |
+| L5 | Row coding is `RowCodec`'s statics over a model; the models hold no codec static · visible: `git grep -n "decodeOne\|makeInsert" application/*/domain` is empty; `make check` | minimal | build | in progress |
+| L6 | A module's contract has an entry of its own, the only path a `domain/` may import of another module · visible: `make lint` refuses `@app-template/application/identity` in a model | minimal | build | in progress |
+| L7 | The API contract is `application/http-api`; `Auth`'s and `SchemaErrors`' layers stay in `apps/api` · visible: `apps/api/openapi.json` unchanged by this step; `make check` | minimal | build | in progress |
 | L8 | Issue #48: `user` holds the model, `identity` the recognising of a user and `CurrentUser` · visible: `make check`; the issue closed by the PR | minimal | build | todo |
-| L9 | Later: the items of the open list the owner picks | hard | build | todo |
+| L9 | A module's contract entry holds its ids, models, errors and `ChatState`; `application/http-api` and another module's `domain/` import a module only through it · visible: a bundle of `application/http-api/index.ts` reads no service, repository or drizzle file; `make lint` refuses a module's whole entry in `application/http-api` | minimal | build | todo |
+| L10 | Later: the items of the open list the owner picks | hard | build | todo |
 
-L1 to L4 run in one tree in order; L5 and L6 + L7 each in a tree of their own beside it; L8
-follows their joining.
+L1 to L4 run in one tree in order; L5 and L6 + L7 each in a tree of their own beside it. Their
+joining comes next, then L9, then L8.
 
 ## L1 — The chat domain owns its values
 
@@ -161,6 +162,26 @@ The wire is unchanged by this step.
 the recognising of a user (`authenticate`, `recognise`, the secret, `UserUnknownError`) and
 `CurrentUser`. The split of `UserService` is drafted by the implementer as a `[D:ai]` before it
 is built.
+
+## L9 — A module's contract holds what others may take
+
+### Shape
+
+The owner's yes, 2026-11-25, to: "контракт модуля отдаёт всё, что видно снаружи: id, модели,
+ошибки и `ChatState`. Тогда `http-api` и чужие `domain/` импортируют только `…/chat/contract`,
+и сервисы в сборку не попадают."
+
+- `@app-template/application/<module>/contract` exports the module's ids, models, errors and
+  the group a wire shape reads (`ChatState`); it loads no service, queue, assistant or kernel
+  file.
+- `application/http-api/**` and another module's `domain/**` import a module only through that
+  path; Biome refuses the whole entry there.
+- Rewrites "Module contracts".
+
+### Notes
+
+- [N:ai] Measured in L6: the identity contract's entry reads 53 files and no drizzle file, the
+  module's whole entry 488 and 123.
 
 ## Knowledge
 
