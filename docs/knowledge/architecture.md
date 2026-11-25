@@ -83,7 +83,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |
 | `apps/api` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
 | `apps/worker` | ✓ | ✓ | ✓ | `layer.ts` only | ✓ | ✓ | `biome-imports.grit`, another app and `deployment`; review, the data |
-| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `apps/web/**`; TS2307, any workspace but `packages`; `make bundle-check` |
+| `apps/web` client | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `apps/web/**`; TS2307, any workspace but `packages` |
 | `apps/web/main.ts` | ✗ | ✗ | ✗ | ✗ | ✗ | `ui` only | `biome-imports.grit`, another app and `deployment`; TS2307, any workspace but `packages`; review, a package but `ui` |
 | `deployment` | ✗ | ✗ | ✗ | the files' key only | `/config`, `/aws`: the inventory | ✓ | `biome-imports.grit`, any workspace but these and another part; review, the kernel's names |
 | `apps/e2e` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | the apps' `exports`, their `./testing` only |
@@ -362,15 +362,16 @@ Decision: [Modules by capability](decisions.md#modules-by-capability).
    Decision:
    [Module contracts](decisions.md#module-contracts).
 4. **The workspaces that import it** declare `@app-template/application` in their `package.json`;
-   the browser is none, and `make bundle-check` refuses the module in its bundle with no edit.
+   the browser is none: the `apps/web/**` override and its manifest refuse the module with no
+   edit.
 5. **The docs.** The glossary gains the module's words; `decisions.md` a decision if the cut is
    one ([Decisions recorded in one page](decisions.md#decisions-recorded-in-one-page)).
 
 ## Boundary guards
 
 Each import rule of [Dependency rules](#dependency-rules) is held once, by the guard that can see
-it, and a last guard checks what an allowed import brings into the web bundle; what no
-guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modules.md), and
+it; what no guard sees, review refuses
+([.claude/rules/modules.md](../../.claude/rules/modules.md), and
 [layering.md](../../.claude/rules/layering.md) for a handler). Decision:
 [Guards are configuration](decisions.md#guards-are-configuration).
 
@@ -381,16 +382,15 @@ guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modul
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
-| `make bundle-check`: `bun build` of `apps/web/app/main.ts` with a metafile, read by `.misc/lint/bundle-check.mjs` | a package in the browser bundle outside `browserPackages` in `apps/web/package.json`: a workspace's entry, a third-party library, a Node built-in | the package and the shortest import chain from the entry, in `make check` |
 
 Why each rule sits with its guard, and what that costs:
 [Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:
 [tooling.md › Troubleshooting](tooling.md#troubleshooting).
 
-The bundle guard passes a type-only import, which the build erases, as it should. `apps/web`
-imports only `packages/ui` and its generated client, which imports only `effect`, so a leak
-comes through a package the list allows growing a server import, which the guard refuses with
-its chain.
+`apps/web` imports only `packages/ui` and its generated client, which imports only `effect`,
+so a server import reaches the browser only through `packages/ui` growing one, which no guard
+sees: a check of what the browser's bundle holds is the web framework's work
+([The API contract in the api](decisions.md#the-api-contract-in-the-api)).
 
 ### Known gaps
 

@@ -240,8 +240,6 @@ the data layer's repository directly.
   own, which adds the chat's assistant's `.llm` file alone
   ([The chat's jobs in their services](#the-chats-jobs-in-their-services)): the rows of a
   module's layers in [architecture.md › Dependency rules](architecture.md#dependency-rules);
-  `make bundle-check`,
-  which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path; a domain that imports
@@ -347,7 +345,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   of the wire's fields: every field listed again. Each wire shape omitting by name what stays
   off (`<Model>.mapFields(Struct.omit([…]))`): every shape that nests the record repeats the
   omission, where the model's field now says it once. A client generated at build time:
-  typecheck, the bundle check and the editor would need a step first. The client held by a
+  typecheck and the editor would need a step first. The client held by a
   vitest file snapshot of the generator's output: 27 lines of test and `@effect/vitest` in the
   web, where the generator's command and `cmp` check the same. Track B had rejected that command,
   as the test called the same service and `bunx` wrote 33 lines apart on a fetched peer `effect`
@@ -406,15 +404,18 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   the modules' entries it read 664, 123 of them Drizzle's. No check repeats that build: a
   contract that re-exported a service's file would load it again, which the contracts' override
   refuses and only review of a domain file's imports holds past it; a mechanical check of that
-  bundle is left to the web framework's work (the owner's word, 2026-11-25).
+  bundle is left to the web framework's work (the owner's word, 2026-11-25), and so is one of the
+  browser's: the `apps/web/**` override and the web's manifest, which declares no workspace but
+  `packages`, refuse a direct import of the app, but nothing refuses a server import that
+  reaches the bundle through a package they admit (`packages/ui` importing `packages/db`).
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
   and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
-  `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
-  `make bundle-check`; the `application/http-api/**` override, which admits of the workspaces only
+  `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override; the
+  `application/http-api/**` override, which admits of the workspaces only
   a module's contract (`@app-template/application/*/contract`), and `tsc`, which refuses a name
   the contract does not export (`TS2305`).
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
@@ -1559,10 +1560,9 @@ regenerates it, and every local database is recreated
 
 ### Guards are configuration
 
-The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
-bundle check, which reads the web build's metafile against the packages the web's manifest lists
-in `browserPackages`; what no configuration expresses are the review rules `.claude/rules/modules.md`
-and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
+The guards are `exports`, the isolated linker, `tsc -b` and Biome with its GritQL plugin; what no
+configuration expresses are the review rules `.claude/rules/modules.md` and, for a handler,
+`layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no part inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one
 `tsconfig.json` project each; `.misc/lint/biome.base.json` has one override per layer, never

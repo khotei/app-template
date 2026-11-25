@@ -14,10 +14,6 @@
     "@app-template/packages": "workspace:*",
     "effect": "catalog:effect"
   },
-  "browserPackages": [
-    "effect",
-    "@app-template/packages/ui"
-  ],
   "devDependencies": {
     "@effect/openapi-generator": "catalog:effect",
     "@effect/platform-node": "catalog:effect"

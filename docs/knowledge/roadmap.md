@@ -86,12 +86,10 @@ left.
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
   The web's cookie is the user cookie of `chat-core`'s `CurrentUser` security.
-- **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
-  `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
-  `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
-  service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
-  the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
-  Bun's today), clear the output dir before each build, and keep it in `make check`, which CI runs.
+- **What the browser's bundle holds** is this ticket's to check, on the new bundler: `make check`
+  reads no bundle, and only the `apps/web/**` override and the web's manifest hold the browser's
+  imports (the owner's word, 2026-11-25:
+  [Later › From `pure-models`](#from-pure-models)).
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
@@ -404,9 +402,6 @@ moves it into its own `Later` and deletes it here.
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
 - (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
   with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
-- (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
-  `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
-  owner's decision.
 - (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
   have no case at their own seam; a planted bug in each passes.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
@@ -558,6 +553,14 @@ moves it into its own `Later` and deletes it here.
   `apps/worker/layer.ts:29-35`), so "api started" or "worker started" can be logged before the
   server listens, or when binding the port fails. Claimed by a review, not reproduced. Way out:
   order the log after the server in both processes.
+
+### From `pure-models`
+
+- (2026-11-25) No check reads what a bundle holds: a server import that reaches the browser
+  through a package the `apps/web/**` override admits (`packages/ui` importing `packages/db`),
+  or a service, the kernel or Drizzle that reaches the API contract's bundle past the domain's
+  and the contracts' overrides, passes `make check`. Left on the owner's word: "It will be task
+  of web framework". Way out: the bundler of `web-app` (7) checks both.
 
 ## Ideas to weigh
 

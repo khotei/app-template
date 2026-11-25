@@ -281,8 +281,7 @@ its package symlink and checks its sources either way.
 Code the browser imports is a package, a folder of `packages/`, never a workspace of its own,
 since the web declares no workspace of the app but `packages`
 ([decisions.md › The API contract in the api](decisions.md#the-api-contract-in-the-api)): the
-package joins the `apps/web/**` override's allowed imports and `browserPackages` in
-`apps/web/package.json`, which `make bundle-check` reads, so it imports only `effect` and the
+package joins the `apps/web/**` override's allowed imports, so it imports only `effect` and the
 browser's other packages; a new module, kernel part or other package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 

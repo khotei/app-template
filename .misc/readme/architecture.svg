@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 610" role="img" aria-labelledby="title desc">
 <title id="title">Three rings, imports point inward</title>
-<desc id="desc">The boundary (apps, the kernel's clients, a module's infrastructure) imports the behaviour (the use cases, a module's services, domain and contract), which imports the data, kernel/data. Biome, its GritQL plugin, the isolated linker with tsc -b and make bundle-check refuse an import that points the wrong way.</desc>
+<desc id="desc">The boundary (apps, the kernel's clients, a module's infrastructure) imports the behaviour (the use cases, a module's services, domain and contract), which imports the data, kernel/data. Biome, its GritQL plugin and the isolated linker with tsc -b refuse an import that points the wrong way.</desc>
 <style>
 svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
   --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
@@ -81,9 +81,6 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="624" y="373" class="b" xml:space="preserve">isolated linker, <tspan class="code">tsc -b</tspan></text>
 <text x="624" y="393" xml:space="preserve">a workspace its <tspan class="code">package.json</tspan> does not</text>
 <text x="624" y="413" xml:space="preserve">declare</text>
-<rect x="612" y="442" width="320" height="61" rx="8" class="box k-neu"/>
-<text x="624" y="466" class="b" xml:space="preserve"><tspan class="code">make bundle-check</tspan></text>
-<text x="624" y="486" xml:space="preserve">a server package in the browser's bundle</text>
-<text x="612" y="529" class="m" xml:space="preserve">what no tool sees, review refuses</text>
+<text x="612" y="456" class="m" xml:space="preserve">what no tool sees, review refuses</text>
 <text x="28" y="580" class="m" xml:space="preserve"><tspan class="code">packages/*</tspan> (generic tools) and <tspan class="code">deployment/</tspan> sit outside the rings.</text>
 </svg>

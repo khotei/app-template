@@ -253,8 +253,8 @@ rejects code *fails*.
 _Avoid_: Rejection, denial
 
 **Guard**:
-A check by configuration that refuses code: `exports`, the isolated linker, `tsc -b`, Biome with
-its GritQL plugin and the bundle check ([decisions.md](decisions.md#guards-are-configuration)).
+A check by configuration that refuses code: `exports`, the isolated linker, `tsc -b` and Biome
+with its GritQL plugin ([decisions.md](decisions.md#guards-are-configuration)).
 The condition a write carries is a *write guard* ([database.md](database.md#guards)).
 _Avoid_: Fitness test, architecture test
 

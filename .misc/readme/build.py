@@ -391,8 +391,8 @@ def architecture():
     f = Fig("architecture", "Three rings, imports point inward",
             "The boundary (apps, the kernel's clients, a module's infrastructure) imports the "
             "behaviour (the use cases, a module's services, domain and contract), which imports "
-            "the data, kernel/data. Biome, its GritQL plugin, the isolated linker with tsc -b "
-            "and make bundle-check refuse an import that points the wrong way.")
+            "the data, kernel/data. Biome, its GritQL plugin and the isolated linker with tsc -b "
+            "refuse an import that points the wrong way.")
     f.text(28, 42, "Three rings, every import points inward", "h")
     # rings
     f.rect(28, 66, 560, 486, "box k-bnd")
@@ -434,7 +434,6 @@ def architecture():
         ("`biome-imports.grit`", "another part's file, a relative path"),
         ("Biome `noImportCycles`", "a cycle of imports"),
         ("isolated linker, `tsc -b`", "a workspace its `package.json` does not declare"),
-        ("`make bundle-check`", "a server package in the browser's bundle"),
     ]
     y = 110
     for t, d in rows:
@@ -639,7 +638,7 @@ def principles():
          "A new purpose is a new unit that wraps or composes the old one; minimal means less code in each unit, never fewer units.",
          "`composition.md`, decisions › Composition: wrap or compose"),
         ("Guards in the build, not in review",
-         "Biome, its GritQL plugin, `tsc -b` and the bundle check refuse a wrong import before anyone reads it; review keeps what no tool sees.",
+         "Biome, its GritQL plugin and `tsc -b` refuse a wrong import before anyone reads it; review keeps what no tool sees.",
          "decisions › Guards are configuration"),
         ("One source of truth for data",
          "`kernel/data` declares every store; a module's domain imports none of it and declares its own values, which a service holds in step with the tables'.",
