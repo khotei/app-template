@@ -617,7 +617,7 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
   could have anywhere chat (any shape) and these methods could be applied as clean functions and
   business rules"; and of the files (2026-11-25): "ChatGuard -> ensure, ChatStatus ->
   buildStatus, RunMove -> move rules", named `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`,
-  `RunState`, "i think there should be '-' not '.'", "класс со статиками - yes".
+  `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian).
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it. The rule's body moved into the class: it would
   apply to the class's instances alone, never to a variant or another shape. Members over the
