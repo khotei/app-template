@@ -466,10 +466,11 @@ Run's message, and sends the jobs after the commit; the worker's, one per job, `
 and `TitleChatService`, write other models' records of its module.
 
 ```ts
-// the bytes' service reads through the plain one, pipes the model's guard, passes it on, then
+// the bytes' service reads through the plain one, checks the model's guard, passes it on, then
 // removes the bytes once the row is gone
 const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
-  yield* orders.getOne(where).pipe(ensureUnpaid)
+  const order = yield* orders.getOne(where)
+  yield* order.ensureUnpaid()
   yield* orders.delete({ ...where, paidAt: Option.none() })
   yield* files.delete({ id: [where.id] })
 })

@@ -35,8 +35,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
   combined from small pieces of one condition or step each, never repeating their logic; a service,
-  use case or repository only reads, calls it and writes (`getOne(where).pipe(ensure<Rule>(at))`).
-  Each piece is tested alone, a combination only for what it adds.
+  use case or repository only reads, calls it and writes (`const order = yield* getOne(where)`;
+  `yield* order.ensure<Rule>(at)`). Pieces are tested alone, a combination only for what it adds.
 - A method applies its model's rules itself, never relying on another having run first; a plain
   write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
