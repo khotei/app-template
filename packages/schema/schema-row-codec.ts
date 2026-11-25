@@ -8,21 +8,31 @@ type UpdatableModel = Model.Any & {
   readonly update: Schema.Top & { readonly fields: Schema.Struct.Fields }
 }
 
-/** The keys the update variant fills itself: `Model.DateTimeUpdate*`, typed `Override`. */
+/**
+ * The keys the update variant fills itself: `Model.DateTimeUpdate*`, typed `Override`, of a field
+ * the select variant holds too.
+ */
 type Renewed<M extends UpdatableModel> = {
-  [K in keyof M['update']['fields']]: M['update']['fields'][K]['Type'] extends Brand.Brand<'Override'>
-    ? K
+  [K in keyof M['update']['fields']]: K extends keyof M['fields']
+    ? M['update']['fields'][K]['Type'] extends Brand.Brand<'Override'>
+      ? K
+      : never
     : never
 }[keyof M['update']['fields']]
 
 const hasConstructorDefault = (field: Schema.Constraint | undefined) =>
   Predicate.isNotUndefined(field?.ast.context?.constructorDefault)
 
-/** The same keys at run time: a default the update variant has and the select variant lacks. */
+/**
+ * The same keys at run time: a field the select variant holds without a default and the update
+ * variant with one.
+ */
 const renewedKeys = <M extends UpdatableModel>(model: M) =>
   Object.keys(model.update.fields).filter(
     (key): key is Extract<Renewed<M>, string> =>
-      hasConstructorDefault(model.update.fields[key]) && !hasConstructorDefault(model.fields[key]),
+      Object.hasOwn(model.fields, key) &&
+      !hasConstructorDefault(model.fields[key]) &&
+      hasConstructorDefault(model.update.fields[key]),
   )
 
 /**

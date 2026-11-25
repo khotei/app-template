@@ -162,4 +162,21 @@ describe('RowCodec.makeUpdate', () => {
       )
     }),
   )
+
+  it.effect('keeps a value passed for a field only the update variant holds, defaulted', () =>
+    Effect.gen(function* () {
+      class Counter extends Model.Class<Counter>('Counter')({
+        id: Model.UuidV7Insert(OrderId),
+        step: Schema.Number.pipe(
+          Schema.withConstructorDefault(Effect.succeed(7)),
+          Model.FieldOnly(['update']),
+        ),
+        updatedAt: Model.DateTimeUpdateFromDate,
+      }) {}
+
+      const { row } = yield* RowCodec.makeUpdate(Counter)({ id: order.id, step: 3 })
+
+      assert.deepStrictEqual(row, { id: order.id, step: 3, updatedAt: new Date(0) })
+    }),
+  )
 })
