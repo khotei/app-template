@@ -47,8 +47,8 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
   a cast, an annotation or a lost `E` or `R`.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`), when its partial call reads as a whole step
-  (`Effect.tap(Arr.match({ … }))`); a model's transition stays plain, called as its record's member
-  (`order.ship(carrier)`); a lambda only adds an argument or a name; `dual` only for both ways.
+  (`Effect.tap(Arr.match({ … }))`); a move stays plain, its record first (`OrderMove.ship(order,
+  carrier)`); a lambda only adds an argument or a name; `dual` only for both ways.
 - Helpers that differ only by a step inside one frame (a predicate, a mapper) are one function
   taking that step, each caller passing its own in place, never a named alias per variant.
 ```ts

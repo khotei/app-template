@@ -19,7 +19,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 
 | Suffix | Holds | Where |
 |---|---|---|
-| `.model` | a concept's schemas with their pure rules and the errors they fail with, a file per value they act on | `domain/` |
+| `.model` | a concept's schemas and the errors its rules fail with, a file per value they act on; its rules in `<model>-<kind>.ts`, one group each ([models.md](models.md)) | `domain/` |
 | `.util` | `<model>.util.ts`: the model's branded id and the utils its module shares, importing only `effect`, `packages/schema` and other utils | `domain/`; the id alone in `contract/` |
 | `.error` | the errors a contract or a kernel part fails with; a model's live in its `.model` file | `contract/`; a kernel part's, behind an entry of its own |
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
@@ -52,8 +52,8 @@ keep theirs. What each role holds and may import, with this app's files of each:
   - `layer<Variant>`: a static building one variant of a service's `Layer`; a `Layer` that runs
     work is named for it;
   - `build` / `ensure`: a pure function that derives a value or guards an invariant; a pure
-    transition is named for the move, as a verb (`start<Model>`, `complete<Model>`,
-    `fail<Model>`), which wins over this list;
+    transition, a static of `<Model>Move`, is named for the move, as a verb (`start`,
+    `complete`, `fail`), which wins over this list;
   - `generate`: an impure function that makes a fresh value; `is` / `has`: a predicate;
   - `getOne` / `getMany`: a domain service's read over a `where`, returning the records or their
     `*NotFoundError`; `get<Payload>` a payload a record's store holds (its bytes), or its

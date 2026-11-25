@@ -4,7 +4,7 @@ import type { HttpClientError } from 'effect/http'
 import { SqlClient } from 'effect/sql'
 
 import { ApiClient, StrangerApiClient } from '@app-template/api/testing'
-import { type ChatId, isActiveRun, type RunId } from '@app-template/application/chat'
+import { type ChatId, type RunId, RunState } from '@app-template/application/chat'
 
 import { StandTest, scriptedAnswers } from '#testing/stand.test-layer'
 
@@ -17,7 +17,7 @@ const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =
 /** Reads the Run until the worker has settled it, as the browser's polling does. */
 const pollSettledRun = (chatId: ChatId, runId: RunId) =>
   ApiClient.use((api) =>
-    poll(api.chats.getRun({ params: { chatId, runId } }), Predicate.not(isActiveRun)),
+    poll(api.chats.getRun({ params: { chatId, runId } }), Predicate.not(RunState.isActive)),
   )
 
 const pollTitledChat = (chatId: ChatId) =>

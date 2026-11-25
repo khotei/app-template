@@ -117,6 +117,16 @@
       }
     },
     {
+      "includes": ["application/*/domain/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noStaticOnlyClass": "off"
+          }
+        }
+      }
+    },
+    {
       "includes": ["application/*/domain/**", "application/*/__tests__/domain/**"],
       "linter": {
         "rules": {

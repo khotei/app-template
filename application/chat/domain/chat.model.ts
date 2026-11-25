@@ -6,7 +6,9 @@ import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/
 
 import { ChatId } from '#chat/domain/chat.util'
 import { textPattern } from '#chat/domain/message.util'
-import { ensureRunRetryable, isActiveRun, Run, type RunStatus } from '#chat/domain/run.model'
+import { Run, type RunStatus } from '#chat/domain/run.model'
+import { RunPolicy } from '#chat/domain/run-policy'
+import { RunState } from '#chat/domain/run-state'
 import { Status } from '#chat/domain/status.model'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
@@ -67,7 +69,7 @@ export class Chat extends Model.Class<Chat>('Chat')({
   }
 
   ensureRetryable() {
-    return ensureRunRetryable(this.run)
+    return RunPolicy.ensureRetryable(this.run)
   }
 }
 
@@ -91,6 +93,6 @@ export const isNewChat = (newestRun: Option.Option<unknown>): boolean => Option.
 export const ensureChatNotBusy = Effect.fnUntraced(function* <
   R extends Types.Simplify<Pick<Run, 'chatId' | 'status'>>,
 >(newestRun: Option.Option<R>) {
-  const active = Option.filter<R>(newestRun, isActiveRun)
+  const active = Option.filter<R>(newestRun, RunState.isActive)
   if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
 })

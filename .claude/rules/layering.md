@@ -27,16 +27,16 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   `Transaction` and what one process provides, the api's its `<Model>Queue`, the worker's
   its `.llm` files, each admitted by its file's own Biome override, and calls no use case
   ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- A status move is a pure transition, a function of the model ([its name](naming.md#symbols)): it
+- A status move is a pure transition, a static of `<Model>Move` ([models.md](models.md)): it
   checks one table of allowed moves and dies with `<Model>StatusInvalidError { id, from, to }`, as
   its callers move a record just read or moved; a refusal the user can reach is a check of its own
   before it, failing its own error (`<Model>BusyError`). A status move is written as
-  `<Model>Service.update(<record>, yield* <record>.<move>(…))`, under the status the record was
-  read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
-- A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
-  combined from small pieces of one condition or step each, never repeating their logic; a service,
-  use case or repository only reads, calls it and writes (`const order = yield* getOne(where)`;
-  `yield* order.ensure<Rule>(at)`). Pieces are tested alone, a combination only for what it adds.
+  `<Model>Service.update(<record>, yield* <Model>Move.<move>(<record>, …))`, under the status the
+  record was read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
+- A rule is a pure function, a static of its model's group of its kind, over values passed in
+  (time, ids), combined from small pieces of one condition or step each; a service, use case or
+  repository only reads, calls it and writes (`yield* OrderPolicy.ensure<Rule>(order, at)`).
+  Pieces are tested alone, a combination only for what it adds.
 - A method applies its model's rules itself, never relying on another having run first; a plain
   write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 

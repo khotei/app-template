@@ -292,10 +292,10 @@ read ([Guards](#guards)).
 ```mermaid
 stateDiagram-v2
   [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
-  queued --> generating: startRun (ReplyChatService.reply)
-  queued --> failed: failRun (AskChatService on a refused send)
-  generating --> done: completeRun (ReplyChatService.reply)
-  generating --> failed: failRun (ReplyChatService.reply's tail; its start, on a Run some worker started)
+  queued --> generating: RunMove.start (ReplyChatService.reply)
+  queued --> failed: RunMove.fail (AskChatService on a refused send)
+  generating --> done: RunMove.complete (ReplyChatService.reply)
+  generating --> failed: RunMove.fail (ReplyChatService.reply's tail; its start, on a Run some worker started)
   done --> [*]
   failed --> [*]
 ```

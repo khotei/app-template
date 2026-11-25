@@ -36,26 +36,22 @@ export class Order extends Model.Class<Order>('Order')({
 - **A record another table holds, read with the model,** is a field of the select variant alone
   (`Model.FieldOnly(['select'])`, defaulted so a new record builds without it): no write encodes
   it, no json variant carries it, and the api adds its wire shape (`apps/CLAUDE.md`).
-- **A value or rule that needs only the record is also a member** calling the model's function:
-  a getter or a prototype method of one line, never a field, never a plain subclass
-  (`class B extends A`); a getter returns plain data from the fields, never a function, and never
-  fails, as `Equal.equals` and `Hash` call it. The function stays exported and tested, typed over
-  what it reads, never the class, so a plain struct (a variant, another module's shape, a spread)
-  passes: a check or a value takes a `Pick` of its fields, a check that returns it generic, a move
-  `<Model>Fields` ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
+- **A model holds no member:** its rules are statics of a class per kind beside it, one file each
+  (`order-policy.ts`): `<Model>Policy` the checks (`ensure<Rule>`, failing or passing, writing
+  nothing, `Effect.fnUntraced`, no span), `<Model>Move` the status moves (`<verb>`, returning the
+  record's next state, `Effect.fn('<Model>Move.<verb>')`), `<Model>State` what the record's
+  values say of it (`build`, `is<Value>`). A model imports no group; a static calls another by
+  its class's name, never `this`, so one passed as a value runs (`Effect.flatMap(<Group>.<rule>)`).
+  Each is typed over what it reads, never the class, so a plain struct (a variant, another
+  module's shape, a spread) passes: a check or a value takes a `Pick` of its fields, a check that
+  returns it generic, a move `<Model>Fields`
+  ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
 ```ts
-export class Order extends Model.Class<Order>('Order')({ … }) {
-  get isPaid(): boolean { return isOrderPaid(this.payment) }
-  ship() { return shipOrder(this) }
+export type OrderFields = Schema.Struct.Type<typeof Order.fields>     // in order.model.ts
+export class OrderMove {                                              // order-move.ts
+  static readonly ship = Effect.fn('OrderMove.ship')((order: OrderFields) => …) // a new Order
 }
-export type OrderFields = Schema.Struct.Type<typeof Order.fields>   // the fields, no members
-export const isOrderPaid = (payment: Option.Option<Payment>): boolean => Option.isSome(payment)
-export const shipOrder = Effect.fn('shipOrder')((order: OrderFields) => …) // returns new Order
 ```
-- **An effectful rule's form is its kind's:** a check (`ensure<Rule>`, it fails or passes and
-  writes nothing) is `Effect.fnUntraced`, no span; a move (`<verb><Model>`, it returns the record's
-  next state) is `Effect.fn('<verb><Model>')`, its span
-  ([effect-services.md › Functions](effect-services.md#functions)).
 - **A service builds a write through its model's static,** `<Model>.makeInsert(…)` or
   `<Model>.makeUpdate(…)`, the variant's `makeEffect` and its encode in one call: it hands
   `row` to the repository and returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an

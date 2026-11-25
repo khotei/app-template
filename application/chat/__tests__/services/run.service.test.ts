@@ -6,6 +6,7 @@ import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { activeRunStatuses, Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
+import { RunMove } from '#chat/domain/run-move'
 import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
@@ -17,18 +18,18 @@ const moves: ReadonlyArray<{
   readonly to: RunStatus
   readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { name: 'start', from: 'queued', to: 'generating', move: (run) => run.start() },
+  { name: 'start', from: 'queued', to: 'generating', move: RunMove.start },
   {
     name: 'complete',
     from: 'generating',
     to: 'done',
-    move: (run) => run.complete(assistantMessageAt(1, 'Sure.').id),
+    move: (run) => RunMove.complete(run, assistantMessageAt(1, 'Sure.').id),
   },
   {
     name: 'fail',
     from: 'queued',
     to: 'failed',
-    move: (run) => run.fail(Cause.fail('SQS is unavailable')),
+    move: (run) => RunMove.fail(run, Cause.fail('SQS is unavailable')),
   },
 ]
 
@@ -101,7 +102,7 @@ describe('RunService', () => {
     })
     return Effect.gen(function* () {
       const service = yield* RunService
-      const started = yield* queuedRun.start()
+      const started = yield* RunMove.start(queuedRun)
 
       const defect = yield* service
         .update(queuedRun, started)

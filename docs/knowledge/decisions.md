@@ -557,52 +557,55 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 
 ### Rules as pure functions
 
-A business rule is a pure function in its model's `.model` file, over the values passed in (the
-time, the ids), built from small pieces of one condition or step each; a service, a use case or a
-repository only reads, calls it and writes. A value or rule that needs only the record is also a
-member of the model's class, a getter or a prototype method of one line that calls that function
-(`chat.status` calls `buildChatStatus(chat.run)`): a caller holding an instance uses the member,
-code holding a plain struct (an `insert`, `update` or `json` variant, a shape of another module,
-a spread record) the function, which stays exported and tested. The function is typed over what
-it reads, never over the class: a check or a derived value takes a `Pick` of the fields it reads
-(`buildChatStatus` an `Option` of a `Pick<Run, 'status'>`), a check that hands its record back is
-generic over it, and a move takes the model's fields without its members (`RunFields`, the struct
-type of `Run.fields`) and returns `new Run(…)`.
+A business rule is a pure function over the values passed in (the time, the ids), built from small
+pieces of one condition or step each; a service, a use case or a repository only reads, calls it
+and writes. The rules of a model are statics of a class per kind, one file each beside the model
+(`run-policy.ts`): `<Model>Policy` the checks (`RunPolicy.ensureUnstarted`), `<Model>Move` the
+status moves (`RunMove.start`), `<Model>State` what the record's values say of it
+(`RunState.isActive`). The model holds no member and imports no group; a caller names the group
+and passes the record (`RunMove.start(run)`). A rule is typed over what it reads, never over the
+class: a check or a derived value takes a `Pick` of the fields it reads, a check that hands its
+record back is generic over it, and a move takes the model's fields (`RunFields`, the struct type
+of `Run.fields`) and returns `new Run(…)`. A static calls another by its class's name, never
+`this`, so a static passed as a value runs.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
-  The function applies to any value of the shape it takes, wherever it comes from, so it stays the
-  rule (`startRun({ ...run })` and `buildChatStatus(Option.some({ status }))` compile); the
-  member lets a caller with the record read the rule as the record's own
-  (`chat.ensureNotBusy()`), with no import of the function. `{ ...record }` copies the fields
-  alone; a struct encode reads a getter whose name it declares (the api's `status`);
-  `Equal.equals` and `Hash` call every getter, so a getter returns plain data derived from the
-  fields, never a function, and never fails.
+  The rule applies to any value of the shape it takes, wherever it comes from (`RunMove.start({
+  ...run })` and `RunState.isActive({ status })` compile), and the model stays a model: its
+  fields, variants and codecs. A group names the kind of a rule at its call, so a reader tells a
+  check from a move by the class alone. `this` in a static is the class only when called on it:
+  passed as a value (`Effect.flatMap(RunPolicy.ensureRetryable)`), it is `undefined`.
 - **Sources:** `.claude/rules/layering.md › Ports and domain services`; the owner's review of the
   members (2026-11-25): "models should stay model but could injected into methods. Because we
   could have anywhere chat (any shape) and these methods could be applied as clean functions and
-  business rules".
+  business rules"; and of the files (2026-11-25): "ChatGuard -> ensure, ChatStatus ->
+  buildStatus, RunMove -> move rules", named `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`,
+  `RunState`, "i think there should be '-' not '.'", "класс со статиками - yes".
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it. The rule's body moved into the class: it would
-  apply to the class's instances alone, never to a variant or another shape. The function typed
-  over the class (`(run: Run)`): its members are part of that type, so a struct of the same fields
-  fails to compile (TS2739, its members missing). A member written as a field
-  (`readonly status = …`): an own key, which `{ ...record }` copies and `Equal.equals` compares.
-  A subclass of the model holding the members: a read decodes into the model's own class, so no
-  record read would carry them.
-- **Cost:** more small exported names in a model, and a member beside each function an instance's
-  caller reads; a combination keeps its name however few its callers
-  ([Composition: wrap or compose](#composition-wrap-or-compose)). A member exists only on an
-  instance of the class: a variant's struct has none, and its holder calls the function. Each
-  function's signature names the fields it reads, a check that returns its record a type
-  parameter, and a model with moves one exported `<Model>Fields` type.
-- **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the model's unit tests,
-  one per function and one per member, one calling the functions with plain structs, which
-  `make typecheck` refuses once a function is typed over the class, and one that two records of
-  the same fields are equal.
-- **If reversed:** the members go and their callers call the functions; with the rules out of the
-  models, they move back into the services' bodies, and their tests need layers.
-- **Revisit when:** a model's pieces outgrow one file, or a member needs more than its record.
+  apply to the class's instances alone, never to a variant or another shape. Members over the
+  functions (`run.start()`, a getter `chat.status`), a shape this decision held before: two names
+  per rule, a getter that `Equal.equals` and `Hash` call, and a wire field read from a getter.
+  The rules as plain exported functions in the model's file: a model's file read as rules
+  beside its schemas, and a function's kind only in its name. The function typed over the class
+  (`(run: Run)`): a struct of the same fields would fail to compile once the class has any
+  member. A group file with a suffix of its own (`.policy`): a new row of naming.md for what
+  `<owner>-<what>.ts` names.
+- **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so the domain's
+  override turns it off; a static declared after one that reads it at load is `undefined`, so a
+  group orders its statics. Each rule's signature names the fields it reads, a check that returns
+  its record a type parameter, and a model with moves one exported `<Model>Fields` type; a
+  combination keeps its name however few its callers
+  ([Composition: wrap or compose](#composition-wrap-or-compose)).
+- **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the groups' unit tests,
+  in `__tests__/domain/<group file>.test.ts`, calling the rules with plain structs, which
+  `make typecheck` refuses once a rule is typed over the class, and passing a static as a value
+  (`move: RunMove.start`); the model's test that two records of the same fields are equal.
+- **If reversed:** the groups go and their statics become functions of the model's file, or
+  members of the class; with the rules out of the domain, they move back into the services'
+  bodies, and their tests need layers.
+- **Revisit when:** a group outgrows one file, or a rule needs more than its record.
 
 ### Utils apart from models
 
@@ -721,22 +724,22 @@ them by id, and a chat and a message hold their Run as that select-only field.
 
 ### A Run's guarded moves
 
-A Run's status moves are the model's plain transitions (`startRun(run)`, `completeRun(run,
-replyId)`, `failRun(run, cause)`, each named for the move it makes, not the status it reaches, as the
-started Run's stored status stays `generating`), which the Run's members call (`run.start()`,
-`run.complete(replyId)`, `run.fail(cause)`, [Rules as pure functions](#rules-as-pure-functions)).
-Each is written through `RunService.update(from, to)`: it writes `to`, the Run the move made, under
-the id and the status of `from`, the Run the caller read or last wrote, so a caller hands over the
-two Runs it holds, never a `where` (`runs.update(run, yield* run.start())`). `update` stamps
-`updatedAt`, and a write whose guard matches no Run dies in `RunRepository.update`. `failRun`
-takes the `Cause` that ended the work and keeps its full text (`Cause.pretty`). The api fails the
-Run it stored and sent: a refused send's `runs.update(run, yield* run.fail(Cause.fail(error)))`,
+A Run's status moves are plain transitions, the statics of `RunMove` (`RunMove.start(run)`,
+`RunMove.complete(run, replyId)`, `RunMove.fail(run, cause)`, each named for the move it makes, not
+the status it reaches, as the started Run's stored status stays `generating`,
+[Rules as pure functions](#rules-as-pure-functions)). Each is written through
+`RunService.update(from, to)`: it writes `to`, the Run the move made, under the id and the status
+of `from`, the Run the caller read or last wrote, so a caller hands over the two Runs it holds,
+never a `where` (`runs.update(run, yield* RunMove.start(run))`). `update` stamps `updatedAt`, and a
+write whose guard matches no Run dies in `RunRepository.update`. `RunMove.fail` takes the `Cause`
+that ended the work and keeps its full text (`Cause.pretty`). The api fails the Run it stored and
+sent: a refused send's `runs.update(run, yield* RunMove.fail(run, Cause.fail(error)))`,
 written under `queued`, so a Run a worker settled meanwhile, as SQS took the job after all, dies on
 the write's guard and the request responds with `500`; it never reads, fails or returns another Run
 of the message. The worker's `ReplyChatService.reply` starts the Run in one uninterruptible step: it
 reads the message's active Run through `RunService.getOne({ userMessageId, status:
 activeRunStatuses })`, `RunNotFoundError` by the message when it has none, refuses one some worker
-started through the model's `ensureRunUnstarted` (`run.ensureUnstarted()`), `RunStartedError`,
+started through `RunPolicy.ensureUnstarted(run)`, `RunStartedError`,
 failing that Run as it was read, and writes the start. The method is uninterruptible but for the
 answer, and the answer's tail (`Effect.onError`) fails exactly the Run the start wrote, under
 `generating`, on whatever ends the answer, an interrupt included. A move the model's table refuses
@@ -747,15 +750,15 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
 - **Why:** the guard on the status read is part of a move's write, so the service that owns the
   Run's records holds it once, in `update`: it takes the guard from the Run the caller holds, so a
   caller can neither forget it nor name a status of its own. The move is the model's and the write
-  the service's plain update, one method for both, and a member that takes an argument
-  (`run.complete(replyId)`) needs no lambda at the call. The worker's tail holds the Run its start
-  wrote, so it fails that Run alone: a reply that dies after its Run was failed elsewhere and
-  retried fails no later Run, and a delivery that loses the start to a rival dies before its tail
-  exists, leaving the rival's reply to finish. The failure's text and the rule that a job takes
+  the service's plain update, one method for both, and a move that takes an argument
+  (`RunMove.complete(run, replyId)`) needs no lambda at the call. The worker's tail holds the Run
+  its start wrote, so it fails that Run alone: a reply that dies after its Run was failed elsewhere
+  and retried fails no later Run, and a delivery that loses the start to a rival dies before its
+  tail exists, leaving the rival's reply to finish. The failure's text and the rule that a job takes
   only an unstarted Run are the Run's, so the model holds them and the job's start calls the rule
   ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). One started status: a
-  status of its own before `generating` lasted one read of the chat's history, and no code
-  branched on it.
+  status of its own before `generating` lasted one read of the chat's history, and no code branched
+  on it.
 - **Sources:** the owner's call in the design audit (2026-11-21): the moves without a service of
   their own, written by the caller through `RunService`, and the tail failing the Run the body
   holds; the owner's call of a service's `where` in model values alone (2026-11-24); the owner's
@@ -774,9 +777,9 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
   one could drop it. `RunService.move(run, transition)` over `update(to, where)`, the shape this
   decision held last: a second method for one write, a `where` a caller of `update` could fill
   with any status, and a lambda at each transition that takes an argument (`(run) =>
-  completeRun(run, replyId)`). `RunService.update(run, move)`, a shape held before it: the
+  RunMove.complete(run, replyId)`). `RunService.update(run, move)`, a shape held before it: the
   service's one write took a transition, so the model's transitions that take an argument had to
-  return functions (`completeRun(reply)(run)`). A curried or `dual` transition beside the plain
+  return functions (`complete(reply)(run)`). A curried or `dual` transition beside the plain
   one: two forms of one function for one lambda saved. The tail failing the message's active Run,
   read again or written by the message (`{ userMessageId, status: active }`): the later Run's
   failure above, and a write by the message still needs a Run for the transition. The start
@@ -788,7 +791,8 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
   retried failed the retry's Run, and the request responded with it. The api's refused send on a
   settled Run returning the Run as the request created it: the write's miss is a defect the code
   cannot tell from a chat deleted meanwhile, and catching it hides a bug. The job's read and
-  `ensureRunUnstarted` in the use case: a rule's call in a flow. The check folded into `startRun`:
+  `RunPolicy.ensureUnstarted` in the use case: a rule's call in a flow. The check folded into
+  `RunMove.start`:
   a transition of two conditions, against the model's pieces of one each. The refusal as a typed
   failure: it rode every signature, no caller could raise it, and each one turned it into a
   defect. A started status for the history's read alone: a status, a move, a method and a write
@@ -799,25 +803,24 @@ then `done` (or `failed`), and a client polling it sees only `queued`, `generati
 - **Cost:** the start's read and write hold off an interrupt, so a shutdown waits for them. The
   start fails a dead worker's Run itself, a second place beside the tail that fails a Run. A Run
   settled or deleted under the reply makes the tail's write die, so an assistant's error on a Run
-  whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not
-  as the use case's warning; a dead worker's Run settled between its read and its failure dies
-  the same way. `update` takes two Runs a caller could mismatch: a `to` made from another Run
-  than `from` writes that Run's status, failure and reply onto `from`'s row, and the Run it
-  returns carries `to`'s id; only the call's form
-  (`runs.update(run, yield* run.<move>(…))`), the line of `.claude/rules/layering.md` and review
-  hold it. `RunService.update`'s form departs from the other services' `update(to, where)`. A
-  where that fits both of `RunWhere`'s members compiles, and is read under every field it holds.
-  The api's `404` for a Run carries `where: { id }`, and its schema lists the `userMessageId` key
-  the api never sends. A refused send whose job SQS took after all, once a worker settled the
-  Run, responds with `500`. A later stage the user should see before `generating` (reading a
-  chat's files) adds its status back: one value of `runStatuses`, one row of the moves' table, one
-  move and its member, and a regenerated `init`.
+  whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not as
+  the use case's warning; a dead worker's Run settled between its read and its failure dies the same
+  way. `update` takes two Runs a caller could mismatch: a `to` made from another Run than `from`
+  writes that Run's status, failure and reply onto `from`'s row, and the Run it returns carries
+  `to`'s id; only the call's form (`runs.update(run, yield* RunMove.<move>(run, …))`), the line of
+  `.claude/rules/layering.md` and review hold it. `RunService.update`'s form departs from the other
+  services' `update(to, where)`. A where that fits both of `RunWhere`'s members compiles, and is
+  read under every field it holds. The api's `404` for a Run carries `where: { id }`, and its schema
+  lists the `userMessageId` key the api never sends. A refused send whose job SQS took after all,
+  once a worker settled the Run, responds with `500`. A later stage the user should see before
+  `generating` (reading a chat's files) adds its status back: one value of `runStatuses` and of
+  `RunStatus`, one row of the moves' table, one static of `RunMove`, and a regenerated `init`.
 - **Guarded by:** `RunService`'s unit test: `update` writes each move's Run under the id and the
   status of the Run it moved from, an update of a Run moved since dies on the write's guard,
   `getOne` that finds no Run fails `RunNotFoundError` with the read's key alone, by `id` or by
   `userMessageId`, and reads under the filter its `where` names, a user's by `id` or a message's
-  by its statuses; the model's tests of the moves, a refused one dying, `failRun`'s full text,
-  `ensureRunUnstarted` and the members; `ReplyChatService`'s: an interrupt while the start reads
+  by its statuses; the groups' tests of the moves, a refused one dying, `RunMove.fail`'s full
+  text, and `RunPolicy.ensureUnstarted`; `ReplyChatService`'s: an interrupt while the start reads
   still starts the Run and then fails it, a reply that dies after its Run was failed elsewhere and
   retried fails no Run, a delivery losing the start to a rival fails none; `AskChatService`'s, a
   refused send that fails the Run it stored by its id, reading no Run, and one whose Run a worker
@@ -1233,8 +1236,8 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
   has no use apart from its queue. Each unit knows only its own: the send its queue,
-  `failRun` the move to `failed`, `RunService` its write, `AskChatService` the pair, a step its two
-  methods share, which lives once there
+  `RunMove.fail` the move to `failed`, `RunService` its write, `AskChatService` the pair, a step
+  its two methods share, which lives once there
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
   another. A port for the sends would add a declaration in the domain and an adapter in front of
   their one implementation. The sends

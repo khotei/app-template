@@ -9,6 +9,8 @@ import {
   type RunNotFoundError,
   type RunStartedError,
 } from '#chat/domain/run.model'
+import { RunMove } from '#chat/domain/run-move'
+import { RunPolicy } from '#chat/domain/run-policy'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
@@ -40,7 +42,7 @@ export class ReplyChatService extends Context.Service<
     // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
     const failUnanswered = (run: Run) =>
       Effect.fnUntraced(function* <E>(cause: Cause.Cause<E>) {
-        return yield* runs.update(run, yield* run.fail(cause))
+        return yield* runs.update(run, yield* RunMove.fail(run, cause))
       })
 
     // One transaction, open across the model's call: the reply is written first, as the Run names
@@ -53,7 +55,7 @@ export class ReplyChatService extends Context.Service<
         text: generated.text,
         author: 'assistant',
       })
-      yield* runs.update(started, yield* started.complete(message.id))
+      yield* runs.update(started, yield* RunMove.complete(started, message.id))
     }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
@@ -62,8 +64,10 @@ export class ReplyChatService extends Context.Service<
     const reply = Effect.fn('ReplyChatService.reply')(function* (userMessageId: MessageId) {
       const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
       // A Run some worker started was left by a worker that died, so it fails as it is read.
-      const queued = yield* active.ensureUnstarted().pipe(Effect.onError(failUnanswered(active)))
-      const started = yield* runs.update(queued, yield* queued.start())
+      const queued = yield* RunPolicy.ensureUnstarted(active).pipe(
+        Effect.onError(failUnanswered(active)),
+      )
+      const started = yield* runs.update(queued, yield* RunMove.start(queued))
 
       yield* Effect.interruptible(answer(started)).pipe(Effect.onError(failUnanswered(started)))
     }, Effect.uninterruptible)

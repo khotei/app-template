@@ -298,16 +298,16 @@ def how_it_works():
     pill("failed", "bad")
     cy = ys + ph / 2
     f.arrow([(px["queued"] + pw, cy), (px["generating"], cy)])
-    f.label((px["queued"] + pw + px["generating"]) / 2, cy - 8, "`startRun`")
+    f.label((px["queued"] + pw + px["generating"]) / 2, cy - 8, "`RunMove.start`")
     f.arrow([(px["generating"] + pw, cy), (px["done"], cy)])
-    f.label((px["generating"] + pw + px["done"]) / 2, cy - 8, "`completeRun`")
+    f.label((px["generating"] + pw + px["done"]) / 2, cy - 8, "`RunMove.complete`")
     fy = py["failed"] + ph / 2
     f.arrow([(px["generating"] + pw / 2, ys + ph), (px["generating"] + pw / 2, fy), (px["failed"], fy)])
-    f.label(px["generating"] + pw / 2 + 12, fy - 8, "`failRun`: any other end", anchor="start")
+    f.label(px["generating"] + pw / 2 + 12, fy - 8, "`RunMove.fail`: any other end", anchor="start")
     qy = fy + 44
     fx = px["failed"] + pw / 2
     f.arrow([(px["queued"] + pw / 2, ys + ph), (px["queued"] + pw / 2, qy), (fx, qy), (fx, py["failed"] + ph)])
-    f.label(px["queued"] + pw / 2 + 12, qy + 5, "`failRun`: SQS refused the send", anchor="start")
+    f.label(px["queued"] + pw / 2 + 12, qy + 5, "`RunMove.fail`: SQS refused the send", anchor="start")
     # retry
     rx = px["failed"] + pw
     ry = qy + 40
@@ -561,7 +561,7 @@ def patterns():
     xs = [28, 28 + tw + gap]
     tiles = [
         ("A guarded move", [
-            "yield* runs.update(queued, yield* queued.start())",
+            "runs.update(run, yield* RunMove.start(run))",
             "// RunService.update(from, to):",
             "const { row } = yield* Run.makeUpdate(to)",
             "runs.update(row, encodeWhere(",

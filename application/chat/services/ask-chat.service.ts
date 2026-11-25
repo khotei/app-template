@@ -5,6 +5,7 @@ import { Transaction } from '@app-template/packages/db'
 
 import type { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
 import type { Run, RunNotRetryableError } from '#chat/domain/run.model'
+import { RunMove } from '#chat/domain/run-move'
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
 import { ChatService, type ChatWhere } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
@@ -57,7 +58,7 @@ export class AskChatService extends Context.Service<
         Effect.catch(
           sent,
           Effect.fnUntraced(function* (error) {
-            return yield* runs.update(run, yield* run.fail(Cause.fail(error)))
+            return yield* runs.update(run, yield* RunMove.fail(run, Cause.fail(error)))
           }),
         ),
     )

@@ -58,7 +58,7 @@ task, attempt
 **Retry**:
 A new Run of the message a failed Run answered, which the user asks for (`POST
 /chats/:chatId/runs`, `AskChatService.retry`); only a chat's newest Run, once failed,
-can be retried (`ensureRunRetryable`, `RunNotRetryableError`). Not a call repeated after its
+can be retried (`RunPolicy.ensureRetryable`, `RunNotRetryableError`). Not a call repeated after its
 failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which is written with the call
 it repeats (*the model call's retries*, `retryWhileUnreachable`) and never alone.
 _Avoid_: Rerun, resend, regenerate
@@ -69,7 +69,7 @@ the Run is done, the assistant's message that holds it. Never the Run, which is 
 _Avoid_: Response (an HTTP response keeps the word), completion
 
 **Run status**:
-Where a Run is, its subset of `Status`: `queued` (the chat has asked for it), `generating` (the
+Where a Run is, as `runs` stores it: `queued` (the chat has asked for it), `generating` (the
 assistant reads the chat and writes; the text appears whole when it is done), `done`, or
 `failed` (the assistant gave up or declined; the Run keeps the full text of what ended it, off
 the wire). The last two are terminal: a Run in either is settled.
@@ -85,10 +85,10 @@ _Avoid_: Pending run, current reply
 **Status**:
 The one vocabulary of states in flight: `idle` waits for work, `queued` has work in flight,
 `generating` works on it, `done` and `failed` end it.
-Every status picks its subset of `Status` (the Run's, the chat's), and a check on one value
-reads the shared predicate. A value is written in code font, or as a word before Run or chat (a
-failed Run). Not an HTTP status (`{ httpApiStatus: 404 }`), written *HTTP status*, nor the
-health check's `status: 'ok'` on the wire, nor a tool's (`git status`).
+A chat's status picks its subset of `Status`; a Run's is its own list. A value is written in code
+font, or as a word before Run or chat (a failed Run). Not an HTTP status
+(`{ httpApiStatus: 404 }`), written *HTTP status*, nor the health check's `status: 'ok'` on the
+wire, nor a tool's (`git status`).
 _Avoid_: State, stage, in progress; a new word for one of the five
 
 **Chat status**:
@@ -224,16 +224,23 @@ the language model, which keeps both words in prose and is `LanguageModel` or `l
 _Avoid_: Entity, DTO, row
 
 **Rule**:
-A business rule: a pure function in its model's `.model` file over values passed in; a service,
-a use case or a repository reads, calls it and writes. Not a lint rule, written *lint rule*, nor
-a file of `.claude/rules/`, the toolkit's rule.
-_Avoid_: Policy, validator, business logic
+A business rule: a pure function over values passed in, a static of its model's group of its
+kind (a Policy, a Move, a State), in a file of its own beside the model (`run-policy.ts`); a
+service, a use case or a repository reads, calls it and writes. Not a lint rule, written *lint
+rule*, nor a file of `.claude/rules/`, the toolkit's rule.
+_Avoid_: validator, business logic
+
+**Policy**:
+A model's checks before a write, `<Model>Policy`, each an `ensure<Rule>` that fails with a
+refusal or hands its record back (`RunPolicy.ensureUnstarted`). Not the language model's call
+policy (`llm-call-policy.ts`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
+_Avoid_: Guard (a check by configuration), validator
 
 **Move**:
-A record's change of status to an allowed next one: the model's pure transition, named for the
-act (`startRun`, `completeRun`, `failRun`) and called as the record's member (`run.start()`),
-which `<Model>Service.update` writes under the status the record was read in
-(`runs.update(run, yield* run.start())`). A move the model's table refuses dies
+A record's change of status to an allowed next one: a pure transition, a static of the model's
+`<Model>Move` named for the act (`RunMove.start`, `RunMove.complete`, `RunMove.fail`), which
+`<Model>Service.update` writes under the status the record was read in
+(`runs.update(run, yield* RunMove.start(run))`). A move the table of `<Model>Move` refuses dies
 (`RunStatusInvalidError`).
 _Avoid_: Transition (the move's pure half), state change
 
