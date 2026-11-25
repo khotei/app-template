@@ -21,32 +21,32 @@ export class RunRepository extends Context.Service<
     /** Returns the Run where `where` holds, its row alone. */
     readonly selectOne: (where: RunEntitySelectWhere) => Effect.Effect<Option.Option<RunColumns>>
   }
->()('@app-template/kernel/data/chat/RunRepository') {
-  static readonly layer = Layer.effect(
-    this,
-    Db.useSync((db) =>
-      this.of({
-        insert: Effect.fn('RunRepository.insert')(
-          (run) => db.insert(runs).values(run),
-          orDieWithSqlError,
-        ),
-        update: Effect.fn('RunRepository.update')(
-          (set, where) =>
-            db
-              .update(runs)
-              .set(Struct.pick(set, runSetColumns))
-              .where(encodeFilter(runs, where))
-              .returning({ id: runs.id }),
-          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
-          Effect.asVoid,
-          orDieWithSqlError,
-        ),
-        selectOne: Effect.fn('RunRepository.selectOne')(
-          (where) => db.select().from(runs).where(encodeFilter(runs, where)).limit(1),
-          Effect.map(Arr.head),
-          orDieWithSqlError,
-        ),
-      }),
-    ),
-  )
+>()('@app-template/kernel/data/chat/RunRepository', {
+  make: Effect.gen(function* () {
+    const db = yield* Db
+    return {
+      insert: Effect.fn('RunRepository.insert')(
+        (run) => db.insert(runs).values(run),
+        orDieWithSqlError,
+      ),
+      update: Effect.fn('RunRepository.update')(
+        (set, where) =>
+          db
+            .update(runs)
+            .set(Struct.pick(set, runSetColumns))
+            .where(encodeFilter(runs, where))
+            .returning({ id: runs.id }),
+        Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+        Effect.asVoid,
+        orDieWithSqlError,
+      ),
+      selectOne: Effect.fn('RunRepository.selectOne')(
+        (where) => db.select().from(runs).where(encodeFilter(runs, where)).limit(1),
+        Effect.map(Arr.head),
+        orDieWithSqlError,
+      ),
+    }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
 }

@@ -21,9 +21,13 @@ class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations
   static readonly layer = Layer.effect(this, this.make)
 }
 
-const greet = Db.use((db) =>
-  db.execute<{ greeting: string }>(sql`select ${'hello'}::text as greeting`, 'objects'),
-)
+const greet = Effect.gen(function* () {
+  const db = yield* Db
+  return yield* db.execute<{ greeting: string }>(
+    sql`select ${'hello'}::text as greeting`,
+    'objects',
+  )
+})
 
 describe('createDb', () => {
   it.effect.each<{ level: LogLevel.LogLevel; expected: ReadonlyArray<ReadonlyArray<unknown>> }>([
@@ -43,14 +47,20 @@ describe('createDb', () => {
 })
 
 /** `probes` on the test's own database, as the migrated template has no table of this package. */
-const createProbes = SqlClient.SqlClient.use(
-  (sql) => sql`CREATE TABLE probes (id integer PRIMARY KEY)`,
-)
+const createProbes = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+  return yield* sql`CREATE TABLE probes (id integer PRIMARY KEY)`
+})
 
-const insertProbe = (id: number) =>
-  SqlClient.SqlClient.use((sql) => sql`INSERT INTO probes ${sql.insert({ id })}`)
+const insertProbe = Effect.fnUntraced(function* (id: number) {
+  const sql = yield* SqlClient.SqlClient
+  return yield* sql`INSERT INTO probes ${sql.insert({ id })}`
+})
 
-const selectProbes = SqlClient.SqlClient.use((sql) => sql`SELECT id FROM probes ORDER BY id`)
+const selectProbes = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+  return yield* sql`SELECT id FROM probes ORDER BY id`
+})
 
 describe('Transaction', () => {
   it.effect('a run inside a run commits with the outer', () =>

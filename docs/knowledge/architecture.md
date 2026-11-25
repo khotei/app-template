@@ -318,7 +318,7 @@ it. Decision: [Clients from the context](decisions.md#clients-from-the-context).
 
 ```ts
 // kernel/data: the repository asks the context for the client
-static readonly layer = Layer.effect(this, S3Bucket.useSync((bucket) => this.of({ … })))
+make: Effect.gen(function* () { const bucket = yield* S3Bucket; return { … } })
 // kernel/aws/aws.client.ts: the boundary builds it from config
 export const S3BucketFromConfig: Layer.Layer<S3Bucket, Config.ConfigError>
 // what a process that serves files adds to its layer.ts: the client after the repositories it feeds
@@ -327,7 +327,7 @@ Layer.provide([Db.layer, FileRepository.layer]), Layer.provide([PgClientFromConf
 
 1. **The client** is a generic package (`packages/<store>`) or an Effect library; it takes its
    settings as options and never reads the environment.
-2. **The data layer** takes its service from the context in the repository's `layer`, and
+2. **The data layer** takes its service from the context in the repository's `make`, and
    imports nothing of the rest of the kernel ([Dependency rules](#dependency-rules)).
 3. **The kernel** reads the settings from the `Config` values of `kernel/config` and builds
    `<Client>FromConfig` in its part (`kernel/<store>/<store>.client.ts`); a resource's name comes
