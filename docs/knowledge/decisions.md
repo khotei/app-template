@@ -624,11 +624,9 @@ them by id, and a chat and a message hold their Run as that select-only field.
 - **Sources:** the owner's choice among three versions built on the same models, this one and
   the two of Rejected; `repos/effect/packages/effect/src/schema/Model.ts`; the trial recorded in
   [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle"; for the
-  statics, the owner's words (2026-11-25): "let it be static, and apply to all models where it
-  used", then "what if crete single static method of `const set = yield*
-  Chat.update.makeEffect({ id: chat.id, ...fields })` / `const row = yield*
-  encodeWith(Chat.update)(set)` — `Chat.makeUpate` which will combine 2 calls?", then
-  "makeUpdate(row) / makeInsert(row) and where needed auto omit under the hood".
+  statics, the owner's words (2026-11-25), in order: "let it be static, and apply to all models
+  where it used"; "makeUpdateRow(row) / makeInsertRow(row) and where needed auto omit under the
+  hood."; "makeUpdate / makeInsert / apply for all classes", which renamed them; "{ set, row }".
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
   `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
   field written once and one only read: the same unstable module underneath, the fields `Model`
