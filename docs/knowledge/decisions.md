@@ -85,7 +85,7 @@ commit together sit in a service of that module, the transaction piped on those 
 
 A use case is an `Effect.fn` that yields what it composes, its type inferred; which flow is one:
 [layering.md › Use cases](../../.claude/rules/layering.md#use-cases). So `AskChatService.ask` and
-`retry` take `{ chatId, userId }` and read the user's chat themselves, and the list of a chat's
+`retry` take `{ id, userId }` and read the user's chat themselves, and the list of a chat's
 messages reads the user's chat in its handler (`ChatService.getOne`), then lists
 (`MessageService.getMany`). The
 process provides the services it reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker

@@ -114,7 +114,7 @@ const replyJob = (run: Run) => ({
 })
 
 /** The owner's chat each case asks or retries in; the store's read decides what it holds. */
-const inChat = { chatId: chat.id, userId: owner }
+const inChat = { id: chat.id, userId: owner }
 
 const ask = (text: string) => AskChatService.use((asks) => asks.ask(inChat, text))
 

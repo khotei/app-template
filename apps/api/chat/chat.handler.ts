@@ -51,11 +51,11 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
       ask: Effect.fn('ChatHandler.ask')(function* ({ params, payload }) {
         const user = yield* CurrentUser
-        return yield* askService.ask({ chatId: params.chatId, userId: user.id }, payload.text)
+        return yield* askService.ask({ id: params.chatId, userId: user.id }, payload.text)
       }),
       retryRun: Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
         const user = yield* CurrentUser
-        return yield* askService.retry({ chatId: params.chatId, userId: user.id })
+        return yield* askService.retry({ id: params.chatId, userId: user.id })
       }),
       getMessage: Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
         const user = yield* CurrentUser

@@ -1,4 +1,5 @@
 import { Cause, Context, Effect, Layer, Struct, type Types } from 'effect'
+import type { SetRequired } from 'type-fest'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -7,12 +8,12 @@ import type { Chat } from '#chat/domain/chat.model'
 import type { RunNotRetryableError } from '#chat/domain/run.error'
 import type { Run } from '#chat/domain/run.model'
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
-import { ChatService } from '#chat/services/chat.service'
+import { ChatService, type ChatWhere } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
 /** The chat an ask or a retry acts in, by its id, of the user `userId` names. */
-export type AskChatWhere = Types.Simplify<Pick<Run, 'chatId' | 'userId'>>
+export type AskChatWhere = Types.Simplify<SetRequired<Pick<ChatWhere, 'id' | 'userId'>, 'userId'>>
 
 /**
  * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
@@ -77,11 +78,8 @@ export class AskChatService extends Context.Service<
       })
     }, transaction.run)
 
-    const ask = Effect.fn('AskChatService.ask')(function* (
-      { chatId, userId }: AskChatWhere,
-      text: string,
-    ) {
-      const chat = yield* chats.getOne({ id: chatId, userId })
+    const ask = Effect.fn('AskChatService.ask')(function* (where: AskChatWhere, text: string) {
+      const chat = yield* chats.getOne(where)
       yield* chat.ensureNotBusy()
 
       // The writes and the sends are uninterruptible: a client's abort after the Run commits would
@@ -97,8 +95,8 @@ export class AskChatService extends Context.Service<
       }).pipe(Effect.uninterruptible)
     })
 
-    const retry = Effect.fn('AskChatService.retry')(function* ({ chatId, userId }: AskChatWhere) {
-      const chat = yield* chats.getOne({ id: chatId, userId })
+    const retry = Effect.fn('AskChatService.retry')(function* (where: AskChatWhere) {
+      const chat = yield* chats.getOne(where)
       const failed = yield* chat.ensureRetryable()
 
       return yield* Effect.gen(function* () {
