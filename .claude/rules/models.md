@@ -38,15 +38,18 @@ export class Order extends Model.Class<Order>('Order')({
   it, no json variant carries it, and the api adds its wire shape (`apps/CLAUDE.md`).
 - **A value or rule that needs only the record is also a member** calling the model's function:
   a getter or a prototype method of one line, never a field, never a plain subclass
-  (`class B extends A`). The function stays exported and tested; code that holds a plain struct
-  (a variant, another module's shape) calls it
+  (`class B extends A`). The function stays exported and tested, typed over what it reads, never
+  the class, so a plain struct (a variant, another module's shape, a spread) passes: a check or a
+  value takes a `Pick` of its fields, a check that returns it generic, a move `<Model>Fields`
   ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
 ```ts
 export class Order extends Model.Class<Order>('Order')({ … }) {
   get isPaid(): boolean { return isOrderPaid(this.payment) }
-  ensureCancellable() { return ensureOrderCancellable(this) }
+  ship() { return shipOrder(this) }
 }
+export type OrderFields = Schema.Struct.Type<typeof Order.fields>   // the fields, no members
 export const isOrderPaid = (payment: Option.Option<Payment>): boolean => Option.isSome(payment)
+export const shipOrder = Effect.fn('shipOrder')((order: OrderFields) => …) // returns new Order
 ```
 - **An effectful rule's form is its kind's:** a check (`ensure<Rule>`, it fails or passes and
   writes nothing) is `Effect.fnUntraced`, no span; a move (`<verb><Model>`, it returns the record's

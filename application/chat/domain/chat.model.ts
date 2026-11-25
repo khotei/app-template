@@ -1,4 +1,4 @@
-import { Effect, Option, Schema } from 'effect'
+import { Effect, Option, Schema, type Types } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
@@ -66,14 +66,18 @@ const chatStatuses = {
   failed: 'failed',
 } as const satisfies Record<RunStatus, ChatStatus>
 
-export const buildChatStatus = (newestRun: Option.Option<Run>): ChatStatus =>
+export const buildChatStatus = (
+  newestRun: Option.Option<Types.Simplify<Pick<Run, 'status'>>>,
+): ChatStatus =>
   Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStatuses[status] })
 
 /** True while no ask has reached the chat: every user message starts a Run, so none is newest. */
-export const isNewChat = (newestRun: Option.Option<Run>): boolean => Option.isNone(newestRun)
+export const isNewChat = (newestRun: Option.Option<unknown>): boolean => Option.isNone(newestRun)
 
 /** An ask takes a chat whose newest Run is not in work; one in work is `ChatBusyError`. */
-export const ensureChatNotBusy = Effect.fnUntraced(function* (newestRun: Option.Option<Run>) {
-  const active = Option.filter<Run>(newestRun, isActiveRun)
+export const ensureChatNotBusy = Effect.fnUntraced(function* <
+  R extends Types.Simplify<Pick<Run, 'chatId' | 'status'>>,
+>(newestRun: Option.Option<R>) {
+  const active = Option.filter<R>(newestRun, isActiveRun)
   if (Option.isSome(active)) return yield* new ChatBusyError({ id: active.value.chatId })
 })

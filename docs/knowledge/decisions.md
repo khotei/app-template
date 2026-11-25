@@ -561,13 +561,18 @@ time, the ids), built from small pieces of one condition or step each; a service
 repository only reads, calls it and writes. A value or rule that needs only the record is also a
 member of the model's class, a getter or a prototype method of one line that calls that function
 (`chat.status` calls `buildChatStatus(chat.run)`): a caller holding an instance uses the member,
-code holding a plain struct (an `insert`, `update` or `json` variant, a shape of another module)
-the function, which stays exported and tested.
+code holding a plain struct (an `insert`, `update` or `json` variant, a shape of another module,
+a spread record) the function, which stays exported and tested. The function is typed over what
+it reads, never over the class: a check or a derived value takes a `Pick` of the fields it reads
+(`buildChatStatus` an `Option` of a `Pick<Run, 'status'>`), a check that hands its record back is
+generic over it, and a move takes the model's fields without its members (`RunFields`, the struct
+type of `Run.fields`) and returns `new Run(…)`.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
   The function applies to any value of the shape it takes, wherever it comes from, so it stays the
-  rule; the member lets a caller with the record read the rule as the record's own
+  rule (`startRun({ ...run })` and `buildChatStatus(Option.some({ status }))` compile); the
+  member lets a caller with the record read the rule as the record's own
   (`chat.ensureNotBusy()`), with no import of the function. A getter or a prototype method sits on
   the prototype, so `{ ...record }`, an encode and `Equal.equals` see the fields alone.
 - **Sources:** `.claude/rules/layering.md › Ports and domain services`; the owner's review of the
@@ -576,17 +581,22 @@ the function, which stays exported and tested.
   business rules".
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it. The rule's body moved into the class: it would
-  apply to the class's instances alone, never to a variant or another shape. A member written as
-  a field (`readonly status = …`): an own key, which `{ ...record }` copies and `Equal.equals`
-  compares. A subclass of the model holding the members: a read decodes into the model's own
-  class, so no record read would carry them.
+  apply to the class's instances alone, never to a variant or another shape. The function typed
+  over the class (`(run: Run)`): its members are part of that type, so a struct of the same fields
+  fails to compile (TS2739, its members missing). A member written as a field
+  (`readonly status = …`): an own key, which `{ ...record }` copies and `Equal.equals` compares.
+  A subclass of the model holding the members: a read decodes into the model's own class, so no
+  record read would carry them.
 - **Cost:** more small exported names in a model, and a member beside each function an instance's
   caller reads; a combination keeps its name however few its callers
   ([Composition: wrap or compose](#composition-wrap-or-compose)). A member exists only on an
-  instance of the class: a variant's struct has none, and its holder calls the function.
+  instance of the class: a variant's struct has none, and its holder calls the function. Each
+  function's signature names the fields it reads, a check that returns its record a type
+  parameter, and a model with moves one exported `<Model>Fields` type.
 - **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the model's unit tests,
-  one per function and one per member, and one that two records of the same fields are equal;
-  nothing mechanical.
+  one per function and one per member, one calling the functions with plain structs, which
+  `make typecheck` refuses once a function is typed over the class, and one that two records of
+  the same fields are equal.
 - **If reversed:** the members go and their callers call the functions; with the rules out of the
   models, they move back into the services' bodies, and their tests need layers.
 - **Revisit when:** a model's pieces outgrow one file, or a member needs more than its record.

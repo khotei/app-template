@@ -67,6 +67,20 @@ describe('ensureChatNotBusy', () => {
   )
 })
 
+describe('a rule function over a plain struct of the fields it reads', () => {
+  it.effect('reads a chat from a newest Run of only the fields its rule reads', () =>
+    Effect.gen(function* () {
+      const error = yield* ensureChatNotBusy(
+        Option.some({ chatId: chat.id, status: 'queued' }),
+      ).pipe(Effect.flip)
+
+      assert.strictEqual(buildChatStatus(Option.some({ status: 'failed' })), 'failed')
+      assert.isFalse(isNewChat(Option.some({ ...queuedRun })))
+      assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
+    }),
+  )
+})
+
 describe('Chat', () => {
   it('reads its status and newness from its newest Run', () => {
     assert.deepStrictEqual(
