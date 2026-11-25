@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Struct, type Types } from 'effect'
+import { Context, Effect, Layer, type Types } from 'effect'
 
 import { encodeWhere, RunRepository } from '@app-template/kernel/data'
 
@@ -51,7 +51,7 @@ export class RunService extends Context.Service<
     const update = Effect.fn('RunService.update')(function* (from: Run, to: Run) {
       const { set, row } = yield* Run.makeUpdate(to)
 
-      yield* runs.update(row, encodeWhere(Struct.pick(from, ['id', 'status'])))
+      yield* runs.update(row, from.updateWhere)
       return new Run({ ...to, ...set })
     }, Effect.orDie)
 
