@@ -69,4 +69,4 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 
 A value another table implies is a column the transactions that change it move, not derived on
 each read; one a model function derives from the one row its read already nests stays derived
-([decision](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
+([decision](../../docs/knowledge/decisions.md#state-from-the-newest-run)).

@@ -17,9 +17,9 @@ import {
   RunNotRetryableError,
 } from '@app-template/application/chat'
 
-/** A chat with the status its newest Run gives it, in place of that Run. */
+/** A chat with the state its newest Run gives it, in place of that Run. */
 export const ApiChat = Chat.json
-  .mapFields(Struct.assign({ status: ChatState.values }))
+  .mapFields(Struct.assign({ state: ChatState.values }))
   .annotate({ identifier: 'ApiChat' })
 export type ApiChat = typeof ApiChat.Type
 

@@ -263,7 +263,7 @@ of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a
 its model's json variant (`<Model>.json`), which
 leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
 field, named by an `identifier` so the snapshot holds it once; a field the wire adds is set by
-the api's mapper (`buildApiChat` sets `status` through `ChatState.build`), which a handler pipes
+the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which a handler pipes
 on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`).
 A field no client may see is declared so once, in its model
 ([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
@@ -1107,28 +1107,34 @@ alone returns newest first.
 - **If reversed:** each read takes its order from its caller.
 - **Revisit when:** a client needs a chat's contents in an order it chooses.
 
-### Status from the newest Run
+### State from the newest Run
 
-A chat has no status column: `ChatState.build` derives the chat's state from its newest Run,
-which every read of a chat nests. Any other value another table implies is a column the
+A chat has no state column: `ChatState.build` derives the chat's state from its newest Run,
+which every read of a chat nests, and the wire carries it as the chat's `state`; a Run keeps its
+stored `status`. Any other value another table implies is a column the
 transactions that change it move (`.claude/rules/repositories.md › What is stored`).
 
-- **Why:** the Run holds the status already; a column would be its second copy, written by each
+- **Why:** the Run's status holds the state already; a column would be its second copy, written by each
   of the Run's moves (its creation, a retry, `generating`, `done`, `failed`) in that
   move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
   since the read nests the Run: the rules (`ChatPolicy.ensureNotBusy`) take that Run alone, not
-  the chat, the api's mapper sets the chat's `status` on the wire from it, and a client derives it
-  the same way from the Run it reads.
+  the chat, the api's mapper sets the chat's `state` on the wire from it, and a client derives it
+  the same way from the Run it reads. A derived value is a state and a stored one a status
+  ([glossary.md › State](glossary.md#architecture-language)), so the chat's wire field says
+  which it is.
 - **Sources:** the owner's choice, in the Knowledge of
-  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
+  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md); for the word, the owner's
+  (2026-11-25): "state, chat and funstions should state instead of status"; "run.status remain".
 - **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
-  keep a value that one row already gives.
-- **Cost:** a query over chats by status joins each chat's newest Run, and a read that needs the
-  status has to nest that Run.
+  keep a value that one row already gives. The chat's wire field kept as `status`, beside the
+  Run's stored `status`: one word for a stored and a derived value.
+- **Cost:** a query over chats by state joins each chat's newest Run, and a read that needs the
+  state has to nest that Run. The rename changed the wire: a client that read a chat's `status`
+  reads `state`.
 - **Guarded by:** review, by `.claude/rules/repositories.md`; nothing mechanical.
 - **If reversed:** a migration adds the column, each Run move writes it in its transaction, and
   `ChatState.build` moves from the reads to the writes.
-- **Revisit when:** a read lists or filters chats by status, or reads a chat's status without its
+- **Revisit when:** a read lists or filters chats by state, or reads a chat's state without its
   Run.
 
 ### Clients from the context

@@ -56,7 +56,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
           text: scriptedAnswers.reply.text,
         })
         assert.deepStrictEqual(titled.title, Option.some<string>(scriptedAnswers.title))
-        assert.strictEqual(titled.status, 'idle')
+        assert.strictEqual(titled.state, 'idle')
       }),
     )
 
@@ -195,7 +195,7 @@ describe('a write Postgres refuses, through the api', () => {
 
         assert.strictEqual(settled.status, 'failed')
         assert.deepStrictEqual(settled.assistantMessageId, Option.none())
-        assert.strictEqual(failedChat.status, 'failed')
+        assert.strictEqual(failedChat.state, 'failed')
         assert.strictEqual((yield* selectMessages(chat.id)).length, 1)
       }).pipe(Effect.provide(StandTest)),
     60_000,

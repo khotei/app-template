@@ -1145,7 +1145,7 @@
           "updatedAt": {
             "type": "string"
           },
-          "status": {
+          "state": {
             "type": "string",
             "enum": [
               "idle",
@@ -1160,7 +1160,7 @@
           "title",
           "createdAt",
           "updatedAt",
-          "status"
+          "state"
         ],
         "additionalProperties": false
       }

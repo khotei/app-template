@@ -323,7 +323,7 @@ describe('chats', () => {
     },
   )
 
-  it.effect('a failed Run reaches the wire by its status alone, never its failure', () =>
+  it.effect('a failed Run reaches the wire by its status alone, its chat by its state', () =>
     Effect.gen(function* () {
       const [wire, chatWire] = yield* Effect.forEach(
         [`/chats/${chat.id}/runs/${refusedRun.id}`, `/chats/${chat.id}`],
@@ -332,7 +332,8 @@ describe('chats', () => {
 
       assert.deepInclude(wire, { status: 'failed', assistantMessageId: null })
       assert.notProperty(wire, 'failure')
-      assert.deepInclude(chatWire, { status: 'failed' })
+      assert.deepInclude(chatWire, { state: 'failed' })
+      assert.notProperty(chatWire, 'status')
       assert.notProperty(chatWire, 'run')
     }).pipe(
       Effect.provide(

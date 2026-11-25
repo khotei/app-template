@@ -85,7 +85,7 @@ _Avoid_: Pending run, current reply
 **Chat state**:
 What the chat's newest Run makes of it (`ChatState.build`): `queued` while that Run is active,
 `failed` after it failed, else `idle`, also before the first ask. Read with the chat, never
-stored; the wire's `status` of a chat. Asking a `queued` chat is refused as busy
+stored; the wire's `state` of a chat. Asking a `queued` chat is refused as busy
 (`ChatBusyError`). A value is written in code font, or as a word before chat (a failed chat).
 _Avoid_: Busy as a state, chat status; a Run's status (`generating`)
 
