@@ -22,3 +22,14 @@ export const makeRowWith = <Codec extends Schema.Top>(codec: Codec) =>
     const row = yield* encodeWith(codec)(set)
     return { set, row }
   })
+
+/**
+ * Makes an update's row through `codec` as `makeRowWith` does, from the input without its own
+ * `updatedAt`, so the variant's default moves it to now; the input may be a record as read.
+ */
+export const makeUpdateWith =
+  <Codec extends Schema.Top & { readonly '~type.make.in': object }>(codec: Codec) =>
+  (input: Omit<Codec['~type.make.in'], 'updatedAt'> & { readonly updatedAt?: unknown }) => {
+    const { updatedAt: _, ...fields } = input
+    return makeRowWith(codec)(fields)
+  }

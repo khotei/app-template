@@ -54,14 +54,14 @@ export const isOrderPaid = (order: Pick<Order, 'payment'>): boolean => Option.is
   id or a time made by hand (`DateTime.now`, a generator of its own).
 - **A service codes its rows through the model's statics alone,** one per read's shape or write's
   variant, never `encodeWith`, `decodeWith` or `makeRowWith` at the call; a model holds only those
-  its service calls, and an input its variant must not take (a record's own `updatedAt`) is
-  trimmed by the static ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
+  its service calls. Every `makeUpdate` is `makeUpdateWith(this.update)`, which drops the input's
+  own `updatedAt`, so the variant moves it to now whether the caller passes fields or a record as
+  read ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
 ```ts
 static readonly decodeOne = decodeWith(Schema.Option(this))    // selectOne's row
 static readonly decodeMany = decodeWith(Schema.Array(this))    // selectMany's rows
 static readonly makeInsert = makeRowWith(this.insert)          // { set, row }
-static readonly makeUpdate = (order: Order) =>                 // only on a model it updates
-  makeRowWith(this.update)(Struct.omit(order, ['updatedAt']))  // the variant moves the time
+static readonly makeUpdate = makeUpdateWith(this.update)       // only on a model it updates
 ```
 - **An update passes every field it must keep:** a default on an updatable field fills it when
   left out, and the write then resets the column.

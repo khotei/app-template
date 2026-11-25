@@ -3,7 +3,7 @@ import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
 import { maxTitleLength, textPattern } from '@app-template/kernel/data'
-import { decodeWith, makeRowWith } from '@app-template/packages/schema'
+import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/schema'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
@@ -39,7 +39,7 @@ export class Chat extends Model.Class<Chat>('Chat')({
   static readonly decodeOne = decodeWith(Schema.Option(this))
   static readonly decodeMany = decodeWith(Schema.Array(this))
   static readonly makeInsert = makeRowWith(this.insert)
-  static readonly makeUpdate = makeRowWith(this.update)
+  static readonly makeUpdate = makeUpdateWith(this.update)
 
   get status(): ChatStatus {
     return buildChatStatus(this.run)

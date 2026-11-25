@@ -605,8 +605,9 @@ service still codes its rows, through the model's statics over `packages/schema`
 read's shape decodes through `decodeWith` (`Chat.decodeOne`, `decodeMany`), and a write's variant
 makes its value and encodes its row in one call of `makeRowWith` (`makeInsert`,
 `makeUpdate`), which returns both, `{ set, row }`; a model has only the statics its service
-calls, and one whose variant must not take a field of the record (the Run's own `updatedAt`)
-trims it inside. The insert variant makes a new
+calls, and every `makeUpdate` goes through `makeUpdateWith`, which drops the input's own
+`updatedAt`, so the update variant moves it to now whatever the caller passes, fields or a
+record as read. The insert variant makes a new
 record's id (`Model.UuidV7Insert`) and both its times, the update variant moves `updatedAt`, a
 field written once by the insert is left out of the update variants, a field no client may see
 out of the json ones (`Model.Sensitive`), and a record another table holds, read with the model,
@@ -626,7 +627,8 @@ them by id, and a chat and a message hold their Run as that select-only field.
   [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle"; for the
   statics, the owner's words (2026-11-25), in order: "let it be static, and apply to all models
   where it used"; "makeUpdateRow(row) / makeInsertRow(row) and where needed auto omit under the
-  hood."; "makeUpdate / makeInsert / apply for all classes", which renamed them; "{ set, row }".
+  hood."; "makeUpdate / makeInsert / apply for all classes", which renamed them; "{ set, row }";
+  and, for the omit on every update, "but this could be changes, so we need everywhere add this".
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
   `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
   field written once and one only read: the same unstable module underneath, the fields `Model`
@@ -639,7 +641,9 @@ them by id, and a chat and a message hold their Run as that select-only field.
   id passed to each insert by hand. The codec built at each call
   (`decodeWith(Schema.Option(<Model>))`, `encodeWith(<Model>.insert)`): the read's shape or the
   variant spelled again in every call, where the model names it once. A static per step
-  (`encodeInsert` beside `insert.makeEffect`): two calls at each write for one act.
+  (`encodeInsert` beside `insert.makeEffect`): two calls at each write for one act. The omit of
+  `updatedAt` in the Run's static alone: a Chat made from a record as read kept its old
+  `updatedAt` in the row, as the Chat's model test showed before the omit.
 - **Cost:** an id no longer comes through the `SecureRandom` service: `Model.UuidV7Insert` reads
   `globalThis.crypto`, so no test layer fixes one, and a test asserts an id's form (`isUuidV7`)
   and builds its expected record with it. Each time is its own read of the clock, so on a live

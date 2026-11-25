@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Equal, Option, Schema } from 'effect'
+import { DateTime, Effect, Equal, Option, Schema } from 'effect'
 
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
@@ -110,6 +110,19 @@ describe('Chat', () => {
       assert.instanceOf(many, Chat)
       assert.isTrue(Equal.equals(Option.getOrThrow(one), chatAt('done')))
       assert.isTrue(Schema.isSchemaError(defect))
+    }),
+  )
+
+  it.effect('makes the update row of a Chat as it holds it, its updatedAt moved to now', () =>
+    Effect.gen(function* () {
+      const read = new Chat({ ...chat, updatedAt: DateTime.makeUnsafe('2026-11-09T00:00:00.000Z') })
+
+      const { set, row } = yield* Chat.makeUpdate(read)
+
+      assert.deepStrictEqual(
+        [DateTime.toEpochMillis(set.updatedAt), row.updatedAt.getTime()],
+        [0, 0],
+      )
     }),
   )
 

@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Schema, SchemaIssue } from 'effect'
 
-import { makeRowWith } from '#schema/schema-codec'
+import { makeRowWith, makeUpdateWith } from '#schema/schema-codec'
 
 const Sample = Schema.Struct({
   count: Schema.NumberFromString.check(Schema.isGreaterThan(0)),
@@ -28,6 +28,30 @@ describe('makeRowWith', () => {
       const issue = yield* makeRowWith(Sample)({ count: 0 }).pipe(Effect.flip)
 
       assert.isTrue(SchemaIssue.isIssue(issue))
+    }),
+  )
+})
+
+const Stamped = Schema.Struct({
+  count: Schema.NumberFromString,
+  updatedAt: Schema.String.pipe(Schema.withConstructorDefault(Effect.succeed('now'))),
+})
+
+describe('makeUpdateWith', () => {
+  it.effect.each([
+    { name: 'a record with its own updatedAt', input: { count: 2, updatedAt: 'read' } },
+    { name: 'fields with none', input: { count: 2 } },
+  ])("makes the row of $name with the variant's updatedAt", ({ input }) =>
+    Effect.gen(function* () {
+      const { set, row } = yield* makeUpdateWith(Stamped)(input)
+
+      assert.deepStrictEqual(
+        [set, row],
+        [
+          { count: 2, updatedAt: 'now' },
+          { count: '2', updatedAt: 'now' },
+        ],
+      )
     }),
   )
 })
