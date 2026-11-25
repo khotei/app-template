@@ -193,19 +193,18 @@ the data layer's repository directly.
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, save the services', whose tests have one of their own, the domain's admitting
   of the kernel only `@app-template/kernel/data`, and of it only a value's name
-  (`<name>Pattern`, `<name>Statuses`), the services' admitting neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of
-  their infrastructure, and their tests' admitting test support and the queue file
+  (`<name>Pattern`, `<name>Statuses`), the services' admitting of
+  `@app-template/packages/db` only `Transaction`, and neither `@app-template/kernel/aws` nor
+  `@app-template/packages/queue` nor test support, nor any of their infrastructure, and their
+  tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
-  chat's ask service (`ask-chat.service.ts`) its own, which adds `Transaction` alone of
-  `@app-template/packages/db` and of the infrastructure the queue file alone, the chat's reply
-  service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the message's
-  assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its own, which
-  adds the chat's assistant's `.llm` file alone
-  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)), and the identity's
-  user service (`user.service.ts`) its own, which adds `Transaction` alone:
-  the rows of a module's layers in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
+  chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
+  file alone, the chat's reply service (`reply-chat.service.ts`) its own, which adds the
+  message's assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its
+  own, which adds the chat's assistant's `.llm` file alone
+  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)): the rows of a
+  module's layers in [architecture.md › Dependency rules](architecture.md#dependency-rules);
+  `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler; the cases of
   `Transaction` that nest a `run` in a `run` (`packages/db/__e2e__/db.client.e2e.ts`), so a
@@ -526,16 +525,15 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
   so the rule the reader pipes names every absent id at once. The chat's jobs take three services
-  and three Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`
-  and the queue file, `ReplyChatService`, the worker's, `Transaction` and the
-  message's assistant,
-  and `TitleChatService`, the worker's too, the chat's assistant alone; each takes other models'
+  and three Biome overrides, each of one process: `AskChatService`, the api's, admits the queue
+  file, `ReplyChatService`, the worker's, the message's assistant, and `TitleChatService`, the
+  worker's too, the chat's assistant; each takes other models'
   services, by its file's name.
 - **Guarded by:** review, by `.claude/rules/composition.md`, which `make review-rules` prints for
   every TypeScript diff, and by `layering.md`; `noImportCycles` refuses a unit below that imports
   the one over it. Nothing refuses a fold, nor a service of another model, in a job's service or
-  any other. The ask and reply services' Biome overrides admit of `@app-template/packages/db`
-  only `Transaction`, the title service's none of it; of the infrastructure the ask service's
+  any other. The three services' Biome overrides admit of `@app-template/packages/db`
+  only `Transaction`, as every service's does; of the infrastructure the ask service's
   admits only the queue file, the reply and title services' only their assistant's `.llm` file;
   the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
   ask whose Run Postgres refuses keeps no message. `tsc` refuses a root that leaves a service's
@@ -1316,9 +1314,8 @@ services, for the request and its sends ([Composition: wrap or compose](#composi
   kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
   end and its logs in its use case; the reply service's Biome override, which adds to the
-  services' the message's assistant's `.llm` file and of `@app-template/packages/db` only
-  `Transaction`; the title service's, which adds the chat's assistant's `.llm` file alone; the
-  ask service's, which adds the queue file and `Transaction` alone.
+  services' the message's assistant's `.llm` file alone; the title service's, which adds the
+  chat's assistant's `.llm` file alone; the ask service's, which adds the queue file alone.
 - **If reversed:** the Run's rule and moves go back into the job's use case, which then fails the
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
