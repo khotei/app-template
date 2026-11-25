@@ -265,8 +265,7 @@ its model's json variant (`<Model>.json`), which
 leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
 field, named by an `identifier` so the snapshot holds it once; a field the wire adds is read
 from the model's getter (`ApiChat` adds `status`, which `Chat`'s `status` gives), so a handler
-returns the model, and a mapper adds only a field the model has no member for; a model with
-nothing to leave out goes whole (`User`).
+returns the model, and a mapper adds only a field the model has no member for.
 A field no client may see is declared so once, in its model
 ([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
 so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. Its unit test writes
@@ -347,10 +346,10 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema returned in more
-  than one form, the bare one and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
-  a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
-  for the Run's three). Two checked-in files move with every
+  (`UserUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema
+  returned in more than one form, the bare one and each `.pipe(HttpApiSchema.status(…))`
+  counting as one, gets a numbered component (`<Class>Encoded_2`), which a wire shape's
+  `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move with every
   wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
   pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive` field, a message's
   wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
