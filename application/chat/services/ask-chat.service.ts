@@ -12,7 +12,7 @@ import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
 /** The chat an ask or a retry acts in, by its id, of the user `userId` names. */
-export type ChatAskWhere = Types.Simplify<Pick<Run, 'chatId' | 'userId'>>
+export type AskChatWhere = Types.Simplify<Pick<Run, 'chatId' | 'userId'>>
 
 /**
  * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
@@ -27,7 +27,7 @@ export class AskChatService extends Context.Service<
      * the full text of SQS's refusal. Another user's chat is not found.
      */
     readonly ask: (
-      where: ChatAskWhere,
+      where: AskChatWhere,
       text: string,
     ) => Effect.Effect<Run, ChatNotFoundError | ChatBusyError>
     /**
@@ -35,7 +35,7 @@ export class AskChatService extends Context.Service<
      * its user message, then sends the reply's job as `ask` does.
      */
     readonly retry: (
-      where: ChatAskWhere,
+      where: AskChatWhere,
     ) => Effect.Effect<Run, ChatNotFoundError | RunNotRetryableError>
   }
 >()('@app-template/application/chat/services/AskChatService', {
@@ -97,14 +97,14 @@ export class AskChatService extends Context.Service<
     }, Effect.uninterruptible)
 
     const ask = Effect.fn('AskChatService.ask')(function* (
-      { chatId, userId }: ChatAskWhere,
+      { chatId, userId }: AskChatWhere,
       text: string,
     ) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       return yield* askIn(chat, text)
     })
 
-    const retry = Effect.fn('AskChatService.retry')(function* ({ chatId, userId }: ChatAskWhere) {
+    const retry = Effect.fn('AskChatService.retry')(function* ({ chatId, userId }: AskChatWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       return yield* retryIn(chat)
     })
