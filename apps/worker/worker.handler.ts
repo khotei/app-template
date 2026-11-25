@@ -21,7 +21,7 @@ const routes = {
  * queue it came from; a batch of a queue with none is a defect.
  */
 export const WorkerHandler = HttpRouter.use(
-  Effect.fn(function* (router) {
+  Effect.fnUntraced(function* (router) {
     const { stage } = yield* awsConfig
     const consumers = Record.mapKeys(routes, (name) => buildResourceName(stage, name))
 

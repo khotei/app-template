@@ -19,35 +19,34 @@ export class QueueSender extends Context.Service<
       message: A,
     ) => Effect.Effect<void, QueueError>
   }
->()('@app-template/packages/queue/QueueSender') {
+>()('@app-template/packages/queue/QueueSender', {
+  make: Effect.fnUntraced(function* (buildName: (name: string) => string) {
+    const sqs = yield* SQSService
+    const client = yield* QueueClient
+
+    const send = Effect.fn('QueueSender.send')(function* <A, I>(
+      definition: QueueDefinition<Schema.Codec<A, I>>,
+      message: A,
+    ) {
+      const body = yield* encodeWith(buildMessageCodec(definition))(message)
+      const url = yield* client.getUrl(buildName(definition.name))
+      const span = yield* Effect.currentSpan.pipe(Effect.orDie)
+      const { traceparent } = HttpTraceContext.toHeaders(span)
+      yield* sqs
+        .sendMessage({
+          QueueUrl: url,
+          MessageBody: body,
+          MessageAttributes: { traceparent: { DataType: 'String', StringValue: traceparent } },
+        })
+        .pipe(Effect.mapError((cause) => new QueueError({ cause })))
+    })
+
+    return { send }
+  }),
+}) {
   /** `buildName` turns a definition's name into its queue's. */
   static readonly layer = (
     buildName: (name: string) => string,
   ): Layer.Layer<QueueSender, never, SQSService> =>
-    Layer.effect(
-      this,
-      Effect.gen(function* () {
-        const sqs = yield* SQSService
-        const client = yield* QueueClient
-
-        const send = Effect.fn('QueueSender.send')(function* <A, I>(
-          definition: QueueDefinition<Schema.Codec<A, I>>,
-          message: A,
-        ) {
-          const body = yield* encodeWith(buildMessageCodec(definition))(message)
-          const url = yield* client.getUrl(buildName(definition.name))
-          const span = yield* Effect.currentSpan.pipe(Effect.orDie)
-          const { traceparent } = HttpTraceContext.toHeaders(span)
-          yield* sqs
-            .sendMessage({
-              QueueUrl: url,
-              MessageBody: body,
-              MessageAttributes: { traceparent: { DataType: 'String', StringValue: traceparent } },
-            })
-            .pipe(Effect.mapError((cause) => new QueueError({ cause })))
-        })
-
-        return { send }
-      }),
-    ).pipe(Layer.provide(QueueClient.layer))
+    Layer.effect(this, this.make(buildName)).pipe(Layer.provide(QueueClient.layer))
 }
