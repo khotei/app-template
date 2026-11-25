@@ -55,14 +55,20 @@ paths:
 
 ## Layers
 
-- A service's layers are statics on the class. `static readonly layer = Layer.effect(this,
-  this.make)` provides each dependency that has one implementation and leaves open the leaves
-  that vary (a port, a client, a platform service); a domain service's leaves every dependency
-  open, the services it is composed over included, so the one the process provides, or its wrap,
-  reaches every holder (`composition.md`). There is no `layerNoDeps`. A variant that closes a
-  leaf, or wraps the service, is `static layer<Variant>`, a function when it takes options; a layer
-  for a service declared elsewhere (a domain port) is a constant in the workspace that implements
-  it (`naming.md`).
+- A service's layers are statics on the class. `static readonly layer` provides each dependency
+  that has one implementation, the services it is composed over included, and leaves open the
+  leaves that vary (a port, a client, a platform service, the transaction); a root provides only
+  what its handlers and flows read, as a layer given twice builds once per process. A service
+  composed over services builds it on `layerNoDeps`, every dependency open, which a process or
+  test provides instead when it gives a wrap or a double of one of those services; one over
+  leaves alone has `layer = Layer.effect(this, this.make)`, never a `layerNoDeps` equal to it.
+  ```ts
+  static readonly layerNoDeps = Layer.effect(this, this.make)
+  static readonly layer = this.layerNoDeps.pipe(Layer.provide([OrderService.layer, StockService.layer]))
+  ```
+  A variant that closes a leaf, or wraps the service, is `static layer<Variant>`, a function when
+  it takes options; a layer for a service declared elsewhere (a domain port) is a constant in the
+  workspace that implements it (`naming.md`).
 - Variants live in the service's file: a separate file would import the class while the class
   referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward; `Layer.provide([a, b])` only for

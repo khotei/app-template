@@ -21,7 +21,8 @@ Ask in order; the first yes decides:
 2. **Every holder must get it, behind the same interface** (a guard each write passes, an
    audit, a retry) → **wrap**: a unit of the same interface around the old one, which stays as
    it is. A service's wrap is a `layer<Variant>` that reads the same tag below and provides it
-   again, the spread forwarding what it leaves as is.
+   again, the spread forwarding what it leaves as is; a service composed over the wrapped one
+   takes it under its `layerNoDeps` ([effect-services.md › Layers](effect-services.md#layers)).
 3. **A capability or rule only some callers need, over units of one model** → **compose**: a
    unit named for what it adds (`<Aspect><Model>Service`, `ensure<Combined>`), built from the old
    ones; a caller that needs only the old one keeps it.

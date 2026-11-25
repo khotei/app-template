@@ -469,7 +469,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   ([The Open Closed Principle](https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html));
   Gamma et al., *Design Patterns* (1994): "Favor object composition over class inheritance", and
   the Decorator, also known as Wrapper; `repos/effect/LLMS.md`: "Build focused service layers,
-  then compose them with `Layer.provide` and `Layer.provideMerge`";
+  then compose them with `Layer.provide` and `Layer.provideMerge`", and its services'
+  `layerNoDeps` with a `layer` over it (`repos/effect/ai-docs/src/01_effect/03_services/`);
   `.claude/rules/layering.md › Ports and domain services`; the owner's call in the design audit,
   the request in `AskChatService`; the owner's split of the chat's jobs at the queue, the api's
   half and the worker's (2026-11-21).
@@ -486,14 +487,19 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   that asks composed the request, the title's send and the reply's, and the new chat's rule sat in
   one of them. One service holding the request, the sends and the handling: the needs of two
   processes (the queue's sender, the assistants) in one unit, which each process provides whole.
+  Every dependency of a service left open, the services it is composed over included, each
+  process and test layer providing them below it: every root repeats the services' graph in
+  levels of provides.
 - **Cost:** more units, files and layers, and longer provide lists; Gamma et al. name the price,
   "more objects (if fewer classes)". Whether a change extends a unit's purpose or adds another is
   judgement: review decides it, and the owner settles a dispute. For a model with bytes, two
   services and two layers; a handler of the model takes both; the plain `create` and `delete`
   have one caller, the file service, and `delete` only forwards to the repository with its span:
-  they stay as the records' one owner, which a test that counts callers would delete. Each process
-  provides the plain service once, below the file service, so a wrap of it reaches the file
-  service and the plain service's other holders alike:
+  they stay as the records' one owner, which a test that counts callers would delete. A service
+  composed over others provides them in its `layer`, built on its `layerNoDeps`, so a process
+  names only the services its handlers and use cases read, and a layer given in several places
+  builds once per process; a wrap or a double of a service another is composed over reaches that
+  holder only when the process or test provides the holder's `layerNoDeps` over it:
   [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule over the
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
@@ -511,10 +517,13 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   `@app-template/packages/queue` only `QueueSender`; of the infrastructure the ask service's
   admits only the queue file, the reply and title services' only their assistant's `.llm` file;
   the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
-  ask whose Run Postgres refuses keeps no message.
+  ask whose Run Postgres refuses keeps no message. `tsc` refuses a root that leaves a service's
+  dependency unprovided; nothing refuses a wrap given at a root beside a holder's `layer`, which
+  keeps the unwrapped service it carries.
 - **If reversed:** a new purpose edits the unit nearest to it, and each unit's tests gain cases for
   purposes not its own; the file methods fold into one `<Model>Service`, and every holder of the
-  records depends on the byte store.
+  records depends on the byte store. Services that leave their composed-over services open again
+  make each root and test layer provide those below them, a level per depth of the graph.
 - **Revisit when:** a chain of wraps over one unit grows so long that a caller cannot tell from the
   names which unit holds a rule; or two units change together in every change, so they hold one
   purpose, which the owner then merges; or a rule over the reads must reach every reader, so a service

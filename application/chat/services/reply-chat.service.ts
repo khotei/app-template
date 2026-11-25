@@ -67,5 +67,8 @@ export class ReplyChatService extends Context.Service<
     return { reply }
   }),
 }) {
-  static readonly layer = Layer.effect(this, this.make)
+  static readonly layerNoDeps = Layer.effect(this, this.make)
+  static readonly layer = this.layerNoDeps.pipe(
+    Layer.provide([MessageService.layer, RunService.layer]),
+  )
 }

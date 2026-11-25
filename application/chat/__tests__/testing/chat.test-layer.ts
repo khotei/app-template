@@ -45,8 +45,14 @@ export const layerChatTest = (
     transaction = TransactionTest,
   }: ChatLeaves = {},
 ) =>
-  Layer.mergeAll(AskChatService.layer, ReplyChatService.layer, TitleChatService.layer).pipe(
-    Layer.provideMerge(Layer.mergeAll(ChatService.layer, MessageService.layer, RunService.layer)),
+  Layer.mergeAll(
+    AskChatService.layer,
+    ReplyChatService.layer,
+    TitleChatService.layer,
+    ChatService.layer,
+    MessageService.layer,
+    RunService.layer,
+  ).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
         Layer.mock(ChatRepository, chats),
