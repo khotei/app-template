@@ -24,9 +24,9 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   its `infrastructure/` everything of it that connects to the environment, the adapters of its
   ports, the services a use case or the chat's worker services call over a client (the
   assistants) and its queues' definitions ([A module's layers](decisions.md#a-modules-layers));
-  its `contract/`, once another module needs one, what other modules may take of it, behind an
-  entry of its own. Beside the modules, `application/http-api` holds the API contract, the HTTP
-  groups over the modules' models, ids and errors.
+  its `contract/`, once another module needs one, an entry of its own that re-exports what other
+  modules may take of its `domain/`. Beside the modules, `application/http-api` holds the API
+  contract, the HTTP groups over the modules' models, ids and errors.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
@@ -62,7 +62,7 @@ graph TD
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
 each module, the use cases and the API contract a folder with one entry, a module's contract a
-folder in it with an entry of its own, re-exported by the module's entry. The `apps/e2e` test app
+folder in it with an entry of its own over files of its `domain/`. The `apps/e2e` test app
 runs both app layers in one test process, starts no process of its own, and nothing imports it.
 
 ## Dependency rules
@@ -75,7 +75,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `domain/` | ✗ | ✓, through its own entry only | ✗ | ✗ | ✗ | `schema` only | `application/*/domain/**` |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
-| a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
+| a contract | ✗; of its module only `domain/` files, never their index | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `application/http-api` | its models, ids and errors, through its entry | ✓, through its own entry | ✗ | ✗ | ✗ | ✗ | `application/http-api/**`, a service, queue, assistant or repository by name |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
@@ -105,11 +105,12 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
 - **The API contract's groups take the domain's schemas** through the modules' entries; the web
   takes none of them, only its generated client
-  ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
-  imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types);
-  **so does a module's `domain/`, never the kernel**, as it declares its values itself
-  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), and none of them nor a
-  module's `services/` import an `@effect/*` package
+  ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A module's
+  `domain/` imports only `effect`, `packages/schema`, for the id schema, and another module's
+  contract** (and `type-fest` for types), never the kernel, as it declares its values itself
+  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)); **a contract only
+  `effect`, `packages/schema` and its module's `domain/` files**, so it loads no more than the
+  domain; none of them nor a module's `services/` import an `@effect/*` package
   ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
@@ -340,11 +341,11 @@ Layer.provide([Db.layer, FileRepository.layer]), Layer.provide([PgClientFromConf
 
 A module is a folder `application/<module>/` of the `@app-template/application` workspace,
 imported as `@app-template/application/<module>`; its contract, once another module needs it,
-the folder `application/<module>/contract/`, exported through the same entry.
+the folder `application/<module>/contract/`, behind an entry of its own.
 Decision: [Modules by capability](decisions.md#modules-by-capability).
 
-1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel, its contract's
-   too; in
+1. **The entry.** `application/<module>/index.ts` re-exports each layer's barrel, and its
+   contract's while the contract holds a file of its own; in
    `application/package.json`, an `exports` entry `./<module>` and the alias `#<module>/*`, and
    once it has test support that support's entry and alias
    ([tooling.md › Tests](tooling.md#tests)), as chat's. The folder's one `tsconfig.json` project
@@ -352,10 +353,11 @@ Decision: [Modules by capability](decisions.md#modules-by-capability).
 2. **No Biome override.** The overrides and the plugin already match a new module; a layer of a
    new name passes every ban but the plugin's
    ([Guards are configuration](decisions.md#guards-are-configuration)).
-3. **A contract** is a folder `contract/` with an `index.ts`, re-exported by the module's entry
-   and exported as its own, `./<module>/contract` in `application/package.json`, the one path the
-   other modules' `domain/` may import; the `application/*/contract/**` override already covers
-   it. Decision:
+3. **A contract** is a folder `contract/` with an `index.ts` that re-exports by name the
+   `domain/` files of the module's ids, models with their errors and the group a wire shape
+   reads, never `domain/index.ts`, exported as its own, `./<module>/contract` in
+   `application/package.json`, the one path the other modules' `domain/` may import; the
+   `application/*/contract/**` override already covers it. Decision:
    [Module contracts](decisions.md#module-contracts).
 4. **The workspaces that import it** declare `@app-template/application` in their `package.json`;
    the browser is none, and `make bundle-check` refuses the module in its bundle with no edit.

@@ -106,8 +106,13 @@
                     "message": "a module contract imports no workspace but @app-template/packages/schema, for the id schema, and no @effect/* package: every consumer of the module reads it (decisions.md › Module contracts; Guards are configuration)"
                   },
                   {
-                    "group": ["#*/index", "#*/domain/**", "#*/services/**", "#*/infrastructure/**"],
-                    "message": "a module contract imports none of its module's other files: every consumer of the module reads it (decisions.md › Module contracts)"
+                    "group": [
+                      "#*/index",
+                      "#*/domain/index",
+                      "#*/services/**",
+                      "#*/infrastructure/**"
+                    ],
+                    "message": "a module contract re-exports its module's domain files by name, its ids, models with their errors and the group a wire shape reads, never the domain's index, which brings the rules too, nor the module's entry, services or infrastructure, which load the data layer: every consumer of the module reads it (decisions.md › Module contracts)"
                   }
                 ]
               }

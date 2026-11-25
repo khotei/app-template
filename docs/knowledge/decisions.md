@@ -129,37 +129,48 @@ sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 A module other modules need exposes a contract, a folder of the module created with the first module
 that imports it, `application/<module>/contract/`, behind an entry of its own,
-`@app-template/application/<module>/contract`, which the module's entry re-exports with the rest of
-the module. A module's `domain/` takes another module only through that entry. A dependency on a
-module's contract counts as one on the module.
+`@app-template/application/<module>/contract`. Its `index.ts` re-exports by name the module's
+`domain/` files that hold what others may take: its ids, its models with the errors their rules
+fail with, and the group a wire shape reads (`ChatState`); never `domain/index.ts`, which brings
+the rules' other groups and the assistant's output too. A module's `domain/` takes another module
+only through that entry; its other layers may take the contract's names through the module's
+entry, which re-exports every layer. A dependency on a module's contract counts as one on the
+module.
 
 - **Why:** `chat` needs a few names of identity and little else; one entry per module is all a
   caller must know, and the kernel's parts work the same way. The domain is the exception: the
   module's entry loads its services and, through them, the data layer and Drizzle into whatever
   imports it, so a model would carry them. `bun build` of identity's entry reads 488 files, 123 of
-  them Drizzle's; of its contract's entry, 53 and none.
+  them Drizzle's; of its contract's entry, 53 and none. A domain file imports only `effect`, ids
+  and other models, so a contract over its files loads no more than the domain does, and the
+  models stay where their module's rules and services import them.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
-  Spring Modulith's named interfaces and Packwerk's public folder (research).
+  Spring Modulith's named interfaces and Packwerk's public folder (research); for the
+  re-exports, the owner's word (2026-11-25).
 - **Rejected:** the contract as its own workspace: the linker refused the rest of the module,
   but a nested workspace needed `exclude` and a reference in its module's `tsconfig.json`, and a
   second package name for one module. The module's entry alone, the domain taking its contract's
   names from it: a model loads the module's services, the data layer and Drizzle. The contract's
   entry for every layer: a services' or an app's import of the contract and of a service of one
-  module would need two lines, where the domain alone must not load the services. A Biome list of
-  the contract's names (`allowImportNames`) or a ban by name (`importNamePattern`): review holds
-  the names instead.
+  module would need two lines, where the domain alone must not load the services. The models,
+  ids and errors moved from `domain/` into `contract/`: a module's models split across two
+  folders by who may see them, and each of the module's own imports of them renamed. A Biome
+  list of the contract's names (`allowImportNames`) or a ban by name (`importNamePattern`): the
+  contract's index lists its files instead, and `tsc` refuses a name it does not export.
 - **Cost:** two ways in for one module's contract, its entry and the module's. The module's entry
   opens it whole, so which of its names another module's services take is review's
-  (`modules.md`), not Biome's. A contract imports no workspace but
-  `@app-template/packages/schema`, which knows no app, so its ids are built like the domain's
-  ([Utils apart from models](#utils-apart-from-models)).
+  (`modules.md`), not Biome's. An `export *` of a domain file exports each of its names, a helper
+  beside a model too (`isBlank`), and which files the index lists is review's. A contract file of
+  its own imports no workspace but `@app-template/packages/schema`, which knows no app, so its ids
+  are built like the domain's ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in
   [architecture.md › Dependency rules](architecture.md#dependency-rules), the domain's override
   admitting of `application/` only a contract's entry (`@app-template/application/*/contract`) and
-  a module's test support; `.claude/rules/modules.md` refuses a name past the contract, a module
-  importing one above it and a cycle through contracts.
+  a module's test support, the contract's admitting of its module only `domain/` files, never
+  their index, the entry, the services or the infrastructure; `.claude/rules/modules.md` refuses
+  a name past the contract, a module importing one above it and a cycle through contracts.
 - **If reversed:** a module that imports another's entry reaches its services and
   models, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second module needs more of a module than its contract holds: grow the

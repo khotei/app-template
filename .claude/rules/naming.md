@@ -21,7 +21,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 |---|---|---|
 | `.model` | a concept's schemas and the errors its rules fail with, a file per value they act on; its rules in `<model>-<kind>.ts`, one group each ([models.md](models.md)) | `domain/` |
 | `.util` | `<model>.util.ts`: the model's branded id and the utils its module shares, importing only `effect`, `packages/schema` and other utils | `domain/`; the id alone in `contract/` |
-| `.error` | the errors a contract or a kernel part fails with; a model's live in its `.model` file | `contract/`; a kernel part's, behind an entry of its own |
+| `.error` | the errors a kernel part fails with; a module's live in its models' `.model` files | a kernel part, behind an entry of its own |
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
 | `.service` | `<model>.service.ts`, `<aspect>-<model>.service.ts` composed over it, `<operation>.service.ts` for one of no model | `services/`; a package's or kernel part's takes its role's (`.client`, `.sender`) |
 | `.use-case` | `<verb>-<object>.use-case.ts`: one use case | `application/use-cases/<module>/` |
