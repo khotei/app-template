@@ -27,11 +27,12 @@ AWS's `secretAccessKey`), which keeps its tool's name.
 _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not the secret)
 
 **Identity**:
-The recognising of a user by their user secret: the user a known secret names, or a new user
-with a new secret for any other; the `identity` module, `IdentityService`'s `recognise` and
-`authenticate`, which fails `IdentityUnknownError` on a secret it does not know. Not the user,
-whose model is the `user` module's.
-_Avoid_: Auth (the api's middleware, `Auth`), login, session
+What a request's credential names: today a user's id (`Identity`, `{ userId }`), later a token's
+claims; the api's `Auth` provides it to the handlers. Not the `User`, the user's whole record,
+which extends it. The `identity` module recognises a user by their user secret:
+`IdentityService.recognise` returns the user a known secret names, or a new user with a new
+secret; `authenticate` fails `IdentityUnknownError` on a secret it does not know.
+_Avoid_: Current user, principal, login, session, Auth (the api's middleware, `Auth`)
 
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat

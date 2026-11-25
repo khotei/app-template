@@ -85,7 +85,7 @@ left.
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The web's cookie is the user cookie of `chat-core`'s `CurrentUser` security.
+  The web's cookie is the user cookie the api's `Auth` reads to provide `Identity`.
 - **What the browser's bundle holds** is this ticket's to check, on the new bundler: `make check`
   reads no bundle, and only the `apps/web/**` override and the web's manifest hold the browser's
   imports (the owner's word, 2026-11-25:
