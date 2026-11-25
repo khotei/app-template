@@ -1,7 +1,7 @@
 import { Data, Effect, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
-import { UserId } from '@app-template/application/identity'
+import { UserId } from '@app-template/application/identity/contract'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'

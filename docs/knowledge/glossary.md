@@ -177,8 +177,9 @@ and `infrastructure/` are *a module's layers*, always with the module named
 _Avoid_: Tier, level
 
 **Module contract**:
-The part of a module other modules may depend on, its folder `contract/`, exported through its
-entry: its ids, its errors and the shapes they carry, with no implementation.
+The part of a module other modules may depend on, its folder `contract/`, behind an entry of its
+own, `@app-template/application/<module>/contract`, which the module's entry re-exports: its ids,
+its errors and the shapes they carry, with no implementation.
 _Avoid_: Public API, interface, SDK, client
 
 **API contract**:

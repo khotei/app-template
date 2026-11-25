@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { DateTime, Equal, Option } from 'effect'
 
-import { UserId } from '@app-template/application/identity'
+import { UserId } from '@app-template/application/identity/contract'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'

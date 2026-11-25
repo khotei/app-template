@@ -128,28 +128,38 @@ sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 ### Module contracts
 
 A module other modules need exposes a contract, a folder of the module created with the first module
-that imports it, `application/<module>/contract/`, exported through the module's one entry with the
-rest of the module. A dependency on a module's contract counts as one on the module.
+that imports it, `application/<module>/contract/`, behind an entry of its own,
+`@app-template/application/<module>/contract`, which the module's entry re-exports with the rest of
+the module. A module's `domain/` takes another module only through that entry. A dependency on a
+module's contract counts as one on the module.
 
 - **Why:** `chat` needs a few names of identity and little else; one entry per module is all a
-  caller must know, and the kernel's parts work the same way.
+  caller must know, and the kernel's parts work the same way. The domain is the exception: the
+  module's entry loads its services and, through them, the data layer and Drizzle into whatever
+  imports it, so a model would carry them. `bun build` of identity's entry reads 488 files, 123 of
+  them Drizzle's; of its contract's entry, 53 and none.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
   Spring Modulith's named interfaces and Packwerk's public folder (research).
 - **Rejected:** the contract as its own workspace: the linker refused the rest of the module,
   but a nested workspace needed `exclude` and a reference in its module's `tsconfig.json`, and a
-  second package name for one module. A second entry for the contract: two ways in for one
-  module. A Biome list of the contract's names (`allowImportNames`) or a ban
-  by name (`importNamePattern`): review holds the names instead.
-- **Cost:** the entry opens the module whole, so which of its names another module takes is
-  review's (`modules.md`), not Biome's. A contract imports no workspace but
+  second package name for one module. The module's entry alone, the domain taking its contract's
+  names from it: a model loads the module's services, the data layer and Drizzle. The contract's
+  entry for every layer: a services' or an app's import of the contract and of a service of one
+  module would need two lines, where the domain alone must not load the services. A Biome list of
+  the contract's names (`allowImportNames`) or a ban by name (`importNamePattern`): review holds
+  the names instead.
+- **Cost:** two ways in for one module's contract, its entry and the module's. The module's entry
+  opens it whole, so which of its names another module's services take is review's
+  (`modules.md`), not Biome's. A contract imports no workspace but
   `@app-template/packages/schema`, which knows no app, so its ids are built like the domain's
   ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules);
-  `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
-  and a cycle through contracts.
+  [architecture.md › Dependency rules](architecture.md#dependency-rules), the domain's override
+  admitting of `application/` only a contract's entry (`@app-template/application/*/contract`) and
+  a module's test support; `.claude/rules/modules.md` refuses a name past the contract, a module
+  importing one above it and a cycle through contracts.
 - **If reversed:** a module that imports another's entry reaches its services and
   models, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second module needs more of a module than its contract holds: grow the
@@ -182,7 +192,8 @@ the data layer's repository directly.
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.
 - **Rejected:** ports in `domain/` with adapters over the data layer: two layers with the same
-  methods. An export per layer (`/chat/domain`): a caller must know the module's inside. The same
+  methods. An export per layer (`/chat/domain`): a caller must know the module's inside; only the
+  contract has one, the part another module may take ([Module contracts](#module-contracts)). The same
   `#domain/*` aliases in every module: inside one workspace they would collide. The domain taking
   the data layer's schemas too: the tables would first declare a brand and a checked column for
   every id and constrained string, and own the domain's vocabulary, against
@@ -195,17 +206,18 @@ the data layer's repository directly.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
   repositories; a value both the domain and a table hold is declared twice, held in step at the
   service that codes the row ([Checks kept in the tables](#checks-kept-in-the-tables)); one entry
-  opens the module whole, so another part's ban on a layer matches the names it imports. A layer's override
-  covers its tests, save the services', so what they need passes in its source too. A
+  opens the module whole, so another part's ban on a layer matches the names it imports, but
+  the domain's, which admits only a contract's entry. A layer's override covers its tests, save
+  the services', so what they need passes in its source too. A
   repository's method opens no transaction, and a service commits rows that span tables:
   [One way to open a transaction](#one-way-to-open-a-transaction). What passes every guard:
   [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests, save the services', whose tests have one of their own, the domain's refusing
-  every part of the kernel, the services' admitting of
-  `@app-template/packages/db` only `Transaction`, and neither `@app-template/kernel/aws` nor
-  `@app-template/packages/queue` nor test support, nor any of their infrastructure, and their
-  tests' admitting test support and the queue file
+  layer's tests, save the services', whose tests have one of their own, the domain's admitting
+  of another module only its contract's entry and refusing every part of the kernel, the
+  services' admitting of `@app-template/packages/db` only `Transaction`, and neither
+  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of their
+  infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
   file alone, the chat's reply service (`reply-chat.service.ts`) its own, which adds the
@@ -1555,7 +1567,8 @@ what:
 A file imports its own part's files through the workspace's `#…` subpaths, never a relative path,
 and another part only through that part's entry, even inside one workspace. A part of the
 kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
-is one workspace with one export per part, its `index.ts`, and its test support. The apps keep
+is one workspace with one export per part, its `index.ts`, and its test support, and a module with
+a contract one more, the contract's (`@app-template/application/<module>/contract`). The apps keep
 their package names. The forms, with examples:
 [architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
@@ -1570,12 +1583,14 @@ their package names. The forms, with examples:
   pattern tells a layer's own folder from the next. A workspace per part with `paths` aliases
   in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
   tool. A subpath per store or per layer (`/data/<store>`, `/chat/domain`): a caller must know
-  the part's inside. A `tsconfig.json` project per module: its `references` would repeat the
-  Biome overrides, one rule in two places.
+  the part's inside; a module's contract is the one subpath past an entry, the part another
+  module may take, so a domain imports it without the module's services
+  ([Module contracts](#module-contracts)). A `tsconfig.json` project per module: its
+  `references` would repeat the Biome overrides, one rule in two places.
 - **Cost:** every workspace declares its `imports`; one manifest declares every part's
   dependencies, so the linker tells the folders apart but not one part from another; a part's
   one entry opens it whole, so a layer that may take only some of it (the inventory of `/aws`,
-  the stores of `/data`, a module's contract) is held by the names it imports; `application/`
+  the stores of `/data`) is held by the names it imports, and only a module's contract by a path; `application/`
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
   refuses an import between their parts ([Guards are configuration](#guards-are-configuration)
   says what does).

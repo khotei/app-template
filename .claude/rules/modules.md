@@ -11,8 +11,10 @@ What `make check` cannot see, so review refuses it. Read the decision in
 
 ## A name past another module's contract
 
-A module's entry opens it whole; another module takes from it only the names of its `contract/`
-folder, never a model, a service, a mapper or a namespace import (`import * as`).
+A module's entry opens it whole, its contract's entry (`@app-template/application/<module>/contract`)
+only the contract, the one path a `domain/` may take, which Biome holds. Through the whole entry
+another module's other layers take only the names of its `contract/` folder, never a model, a
+service, a mapper or a namespace import (`import * as`).
 Decision: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
 ## A cycle, or an import of a part above

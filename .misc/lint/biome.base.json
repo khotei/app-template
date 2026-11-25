@@ -138,16 +138,15 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/application/*",
+                      "!@app-template/application/*/contract",
                       "!@app-template/application/*/testing",
                       "!@app-template/packages/{schema,testing}",
-                      "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**",
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and @app-template/packages/schema, for the id schema; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
+                    "message": "a module's domain is pure: it imports no workspace but another module's contract, @app-template/application/<module>/contract, never its entry, which loads its services and the data layer, and @app-template/packages/schema, for the id schema; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
