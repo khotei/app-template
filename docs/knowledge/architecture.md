@@ -91,7 +91,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   jobs the services' tests read too, and, in its reply and title services, each its assistant's
   `.llm` file, and
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
-  through a port its `domain/` declares, a job's send in that queue file, or, in the worker's
+  through a port its `domain/` declares, the sends of that queue file's `<Model>Queue`, or, in the worker's
   services, the assistants that do the jobs' work, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. Of another module's
   entry a module takes only the names of its contract, which review holds
@@ -164,7 +164,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | domain errors | `application/chat/domain/chat.error.ts`, `message.error.ts` | `ChatNotFoundError` (`Schema.TaggedError`) |
 | what a service over a client takes and returns | `application/chat/domain/assistant.model.ts` | `AssistantReply` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `sendReplyToMessage`, `sendTitleChat` |
+| a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `ChatQueue`, its `sendReplyToMessage` and `sendTitleChat` |
 | service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant`, `ChatAssistant`, both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | use case | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat` |
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |

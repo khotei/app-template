@@ -43,7 +43,7 @@ paths:
     the queue's sender;
   - a client its layer builds once for every holder: the database, a bucket, the API client;
   - a value a middleware provides to the handlers behind it (`HttpApiMiddleware`'s `provides`);
-  - a domain service ([layering.md](layering.md)); a use case and a job's `send<Job>` are functions.
+  - a domain service ([layering.md](layering.md)), a module's `<Model>Queue`; a use case is a function.
 - No port in front of one implementation: a service over a client (a language model, a store)
   is its own class with its layer, and a test provides a layer of that class; a port comes with
   the second implementation ([decision](../../docs/knowledge/decisions.md#a-modules-layers)).

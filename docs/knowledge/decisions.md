@@ -83,9 +83,9 @@ commit together sit in a service of that module, the transaction piped on those 
 
 ### Use cases as functions
 
-A use case, and a job's `send<Job>`, is an `Effect.fn` that yields what it composes, its type
-inferred. The process provides the services it reads: the api in `ApiHttp`, after
-`HttpRouter.serve`, the worker in its layer.
+A use case is an `Effect.fn` that yields what it composes, its type inferred. The process provides
+the services it reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A
+job's sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 - **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
   errors among it, and closed its services in a layer that each handler group or route provided
@@ -106,7 +106,7 @@ inferred. The process provides the services it reads: the api in `ApiHttp`, afte
   leaves, not the use cases; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
   list, a job's failure at `consumeQueue`.
-- **If reversed:** each use case and each `send<Job>` become a `Context.Service` whose layer provides
+- **If reversed:** each use case becomes a `Context.Service` whose layer provides
   the services it composes, and each handler group and the worker's route provide those layers.
 - **Revisit when:** a use case needs a second implementation, a test double or state of its own.
 
@@ -1113,18 +1113,19 @@ without renaming provisioned resources. No app wires the files today.
 A job is a queue message, and no table holds it: the work it hands over keeps its own record
 (the Run, the chat's title), which the worker reads to handle it once, to settle a Run whose worker
 died and to write a failure. `QueueSender.send` encodes the job by its definition; a use case sends
-it after its commit, so every delivery finds its record. Each job goes through its `send<Job>` in
-its module's infrastructure, in the file of its queue's definition, which only sends it and logs a
-send SQS refuses. A job hands its worker one piece of work, as a command message does in
-messaging, and is named as one: `<Verb><Object>` in the glossary's words for the work it hands
+it after its commit, so every delivery finds its record. Each job goes through its `send<Job>`, a
+method of its module's `<Model>Queue` in its module's infrastructure, in the file of its queue's
+definition, which takes `QueueSender` in its `make`, only sends the job and logs a send SQS
+refuses. A job hands its worker one piece of work, as a command message does in messaging,
+and is named as one: `<Verb><Object>` in the glossary's words for the work it hands
 over, never after a method, its queue or one step of the work; its queue, its `send<Job>` and the
 use case that ends it take its name. The chat's two are `ReplyToMessage { messageId }`, on
-`reply-to-message`, sent by `sendReplyToMessage` and ended by `replyToMessage`, and
-`TitleChat { chatId }`, on `title-chat`, sent by `sendTitleChat` and ended by `titleChat`. The
-reply's names the user's message and starts its active Run, which the unique index on a chat's
-active Run keeps to one; what a job that names no one Run costs: [A Run's job on interrupt and on
-two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's names the chat, whose
-first message the worker reads. The reply's send returns its
+`reply-to-message`, sent by `ChatQueue.sendReplyToMessage` and ended by `replyToMessage`, and
+`TitleChat { chatId }`, on `title-chat`, sent by `ChatQueue.sendTitleChat` and ended by
+`titleChat`. The reply's names the user's message and starts its active Run, which the unique
+index on a chat's active Run keeps to one; what a job that names no one Run costs: [A Run's job
+on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's
+names the chat, whose first message the worker reads. The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's
 full text as its failure; the request responds with `202` and that failed Run. Both methods run
@@ -1142,9 +1143,11 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   `failRun` the move to `failed`, `RunService` its write, `AskChatService` the pair, a step its two
   methods share, which lives once there
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
-  another. A port for the send would put an interface and a layer in front of one call. A
-  command's name belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun
-  sequence, following the tell style"), here the glossary's, so the job and the service method
+  another. A port for the send would put an interface and a layer in front of one call. The sends
+  are a service's methods, not functions with `QueueSender` in their requirements, so a caller
+  takes `ChatQueue` in its `make` and no method carries a service in its `R`. A command's name
+  belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun sequence,
+  following the tell style"), here the glossary's, so the job and the service method
   that runs it share a verb because both take the glossary's word, not because one copies the
   other; the class never rides on the wire (the body is its fields, the queue routes it), so its
   name costs no deployed state.
@@ -1158,9 +1161,11 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   deleted chat's, leaving the reply queued. A stuck Run that a retry may take after an age: a
   rule by time, and a Run that reads queued while it is lost. A callback into the send that
   settles its refusal: infrastructure would decide the refusal's outcome and depend on the Run.
-  The settlement as a `RunService` method: the Run's records would know the queue. A function beside
-  the use cases that both call: a use case calling another. A port the service calls, adapted
-  in infrastructure: an interface and a layer for one call. The settlement
+  The settlement as a `RunService` method: the Run's records would know the queue. Each send a
+  function that reads `QueueSender` itself: its caller took the sender in its `make` only to
+  provide it to each call. A function beside the use cases that both call: a use case calling
+  another. A port the service calls, adapted in infrastructure: an interface and a layer for one call.
+  The settlement
   copied into each use case that sends the reply: one step in two places, where a fix must land
   in both. A sweep resending unsent work: a schedule and a route of its own, and a reply
   up to a minute late. Retries with a delay per attempt: a failed reply the user waits on through
@@ -1178,8 +1183,9 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its chat
   busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a client
   reads the failure from the Run's status, not the response's. A domain service now reaches its
-  module's queue file, so the ask service's guard admits that one file of infrastructure, and the
-  sender, which it takes in its `make` and gives its sends; a send inside its transaction would send
+  module's queue file, so the ask service's guard admits that one file of infrastructure, whose
+  `ChatQueue` it takes in its `make`; the sends cost one more service and its layer,
+  `ChatQueue.layer`, which `AskChatService.layer` provides; a send inside its transaction would send
   before the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
   it. A queue's name changes only as a new queue, as SQS renames none: each stack's next `make up`
   replaces it, and what the old one held is lost.

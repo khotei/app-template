@@ -337,7 +337,7 @@ moves it into its own `Later` and deletes it here.
 ### From `reply-run`
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
-  and the reply's send (`sendReplyToMessage`, called by
+  and the reply's send (`ChatQueue.sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
   `retry`): a send SQS refuses fails the Run, and both methods run uninterruptibly, but no handler
   runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active Runs. The owner

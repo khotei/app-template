@@ -23,5 +23,5 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
 - **A module's `infrastructure/` holds what connects to the environment**
   ([decision](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a
   service its module calls there, keeps its client and prompts inside, so callers never see them.
-- A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and each job's
-  `send<Job>`; no adapter wraps the worker.
+- A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and its
+  `<Model>Queue`, each job's `send<Job>`; no adapter wraps the worker.

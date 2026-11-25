@@ -322,9 +322,9 @@ encodes, with the sender's `traceparent`. Every job is one; SQS's own names stay
 _Avoid_: Message (the chat's word), event, envelope
 
 **Send**:
-A job put on its queue after the commit of what it reads: `send<Job>` in its module's
-`<model>.queue` file, over `QueueSender.send`, which encodes it by its definition and carries the
-current trace. A send SQS refuses is logged, and fails the job's Run when it has one.
+A job put on its queue after the commit of what it reads: `<Model>Queue.send<Job>` in its
+module's `<model>.queue` file, over `QueueSender.send`, which encodes it by its definition and
+carries the current trace. A send SQS refuses is logged, and fails the job's Run when it has one.
 _Avoid_: Publish, enqueue, dispatch, ask (the user's act)
 
 **Handling**:

@@ -579,7 +579,7 @@ def patterns():
             "  .create({ chatId: chat.id, text, … })",
             "  .pipe(Effect.flatMap(runs.create),",
             "    transaction.run)",
-            "if (chat.isNew) yield* sendTitleChat(chat)",
+            "if (chat.isNew) yield* queue.sendTitleChat(chat)",
             "return yield* askReply(run)",
         ], "a delivery always finds the Run it names"),
         ("Errors handled once, at the flow's end", [
