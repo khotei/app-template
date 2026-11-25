@@ -208,19 +208,22 @@ modules has the same shape as one that does not:
 ```ts
 // application/use-cases/order/place-order.use-case.ts
 /** Places an active customer's order, its total reserved on the customer's credit. */
-export const placeOrder = Effect.fn('placeOrder')(
-  function* (customerId: CustomerId, lines: OrderLines) {
-    const customers = yield* CustomerService   // the customer module
-    const orders = yield* OrderService         // the order module
+export const placeOrder = Effect.fn('placeOrder')(function* (
+  customerId: CustomerId,
+  lines: OrderLines,
+) {
+  const customers = yield* CustomerService   // the customer module
+  const orders = yield* OrderService         // the order module
+  const transaction = yield* Transaction
 
-    yield* customers.requireActive(customerId) // the customer's rule, called
+  yield* customers.requireActive(customerId) // the customer's rule, called
+  // the writes of both modules commit together or not at all
+  return yield* Effect.gen(function* () {
     const order = yield* orders.place(customerId, lines)
     yield* customers.reserveCredit(customerId, order.total)
     return order
-  },
-  // the writes of both modules commit together or not at all
-  (placed) => Transaction.use((transaction) => transaction.run(placed)),
-)
+  }).pipe(transaction.run)
+})
 ```
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
