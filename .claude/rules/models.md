@@ -37,11 +37,10 @@ export class Order extends Model.Class<Order>('Order')({
   (`Model.FieldOnly(['select'])`, defaulted so a new record builds without it): no write encodes
   it, no json variant carries it, and the api adds its wire shape (`apps/CLAUDE.md`).
 - **A value or rule that needs only the record is also a member** calling the model's function:
-  a getter or a prototype method of one line, never a field (an own key, which a spread copies
-  and `Equal.equals` compares) nor a plain subclass (`class B extends A`), into which no read
-  decodes. The function stays exported and tested; code that holds a plain struct (a variant,
-  another module's shape) calls it
-  ([decision](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
+  a getter or a prototype method of one line, never a field, never a plain subclass
+  (`class B extends A`). The function stays exported and tested; code that holds a plain struct
+  (a variant, another module's shape) calls it
+  ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
 ```ts
 export class Order extends Model.Class<Order>('Order')({ … }) {
   get isPaid(): boolean { return isOrderPaid(this) }
