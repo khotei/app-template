@@ -45,9 +45,12 @@ const BunHttpServerFromConfig = apiPort.pipe(
   Layer.unwrap,
 )
 
-const LogApiStopped = Layer.effectDiscard(Effect.addFinalizer(() => Effect.logInfo('api stopped')))
+const LogApiLifecycle = Effect.logInfo('api started').pipe(
+  Effect.andThen(Effect.addFinalizer(() => Effect.logInfo('api stopped'))),
+  Layer.effectDiscard,
+)
 
-export const ApiLayer = Layer.merge(ApiHttp, LogApiStopped).pipe(
+export const ApiLayer = Layer.merge(ApiHttp, LogApiLifecycle).pipe(
   Layer.provide([QueueSenderFromConfig, Transaction.layer]),
   Layer.provide(PostgresRepositories),
   Layer.provide(Db.layer),
