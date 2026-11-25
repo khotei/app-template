@@ -79,7 +79,7 @@ export class AskChatService extends Context.Service<
     }, transaction.run)
 
     const ask = Effect.fn('AskChatService.ask')(function* (where: AskChatWhere, text: string) {
-      const chat = yield* chats.getOne(where)
+      const chat = yield* chats.getOne({ id: where.id, userId: where.userId })
       yield* chat.ensureNotBusy()
 
       // The writes and the sends are uninterruptible: a client's abort after the Run commits would
@@ -96,7 +96,7 @@ export class AskChatService extends Context.Service<
     })
 
     const retry = Effect.fn('AskChatService.retry')(function* (where: AskChatWhere) {
-      const chat = yield* chats.getOne(where)
+      const chat = yield* chats.getOne({ id: where.id, userId: where.userId })
       const failed = yield* chat.ensureRetryable()
 
       return yield* Effect.gen(function* () {
