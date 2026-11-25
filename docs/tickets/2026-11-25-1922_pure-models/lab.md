@@ -40,8 +40,8 @@ is `state`.
 | L5 | Row coding is `RowCodec`'s statics over a model; the models hold no codec static · visible: `git grep -n "decodeOne\|makeInsert" application/*/domain` is empty; `make check` | minimal | build | in progress |
 | L6 | A module's contract has an entry of its own, the only path a `domain/` may import of another module · visible: `make lint` refuses `@app-template/application/identity` in a model | minimal | build | in progress |
 | L7 | The API contract is `application/http-api`; `Auth`'s and `SchemaErrors`' layers stay in `apps/api` · visible: `apps/api/openapi.json` unchanged by this step; `make check` | minimal | build | in progress |
-| L8 | Issue #48: `user` holds the model, `identity` the recognising of a user and `CurrentUser` · visible: `make check`; the issue closed by the PR | minimal | build | todo |
-| L9 | A module's contract entry holds its ids, models, errors and `ChatState`; `application/http-api` and another module's `domain/` import a module only through it · visible: a bundle of `application/http-api/index.ts` reads no service, repository or drizzle file; `make lint` refuses a module's whole entry in `application/http-api` | minimal | build | todo |
+| L8 | Issue #48: `user` holds the model, `identity` the recognising of a user and `Identity` · visible: `make check`; the issue closed by the PR | minimal | build | in progress |
+| L9 | A module's contract entry holds its ids, models, errors and `ChatState`; `application/http-api` and another module's `domain/` import a module only through it · visible: `make lint` refuses a module's whole entry in `application/http-api` | minimal | build | in progress |
 | L10 | Later: the items of the open list the owner picks | hard | build | todo |
 
 L1 to L4 run in one tree in order; L5 and L6 + L7 each in a tree of their own beside it. Their
@@ -146,7 +146,7 @@ may import of another module only that path. Rewrites the "an export per layer" 
 
 ```
 application/http-api/   api.ts, chat.http.ts, user.http.ts, health.http.ts,
-                        api-security.ts (Auth, SchemaErrors, CurrentUser, RequestInvalidError: definitions)
+                        api-security.ts (Auth, SchemaErrors, RequestInvalidError: definitions)
 apps/api/shared/api-security.layer.ts   AuthLayer, SchemaErrorsLayer
 apps/api/**                              the handlers, the mapper, the snapshot and its test
 ```
@@ -158,7 +158,9 @@ The wire is unchanged by this step.
 
 ### Shape
 
-The owner's yes, 2026-11-25, to the draft's option B:
+The owner's yes, 2026-11-25, to the draft's option B, then the owner's words on the names: "Create Indentity error specificaly for this case?", "CurrentUser -> Identity?", "In future it could be
+identity and user will be extension. Like with oath when we have identity token userId but user
+is complete info":
 
 ```
 application/user/
@@ -166,23 +168,23 @@ application/user/
   domain/user.model.ts           User
   contract/index.ts              export { UserId }, export { User }
 application/identity/
-  domain/identity.model.ts       UserUnknownError, UserSecret, secretBytes
-  domain/current-user.ts         CurrentUser
+  domain/identity.model.ts       IdentityUnknownError (today's UserUnknownError), UserSecret, secretBytes
+  domain/identity.ts             Identity { userId } (today's CurrentUser { id })
   services/identity.service.ts   IdentityService { recognise, authenticate }, today's UserService
-  contract/index.ts              the names http-api and the api read, by name
+  contract/index.ts              export { Identity }, export { IdentityUnknownError }
 ```
 
 - `user` has no service until it has a write of its own; `identity` writes the `users` rows
   meanwhile, the cost the decision records.
 - `user.util.ts` leaves `contract/`: every `contract/` is an entry only.
-- The wire, the snapshot and the web's client do not change.
+- The wire changes by the error's tag alone: the snapshot and the web's client follow.
 
-Two guards the owner took with it:
+One guard the owner took with it: a module's `services/`, `infrastructure/` and the use cases may
+not import `@app-template/application/http-api` (Biome).
 
-- a module's `services/`, `infrastructure/` and the use cases may not import
-  `@app-template/application/http-api` (Biome);
-- `make check` holds the contract's bundle: no file of a `services/`, an `infrastructure/`,
-  the kernel, `packages/db` or drizzle.
+The owner then dropped every bundle check, the web's own `bundle-check` too: "I think we don't
+need bundle commands in makefile. I will be task of web framework", "delet it too". What holds
+the browser's bundle since: the `apps/web/**` Biome override and the web's manifest.
 
 ## L9 — A module's contract holds what others may take
 
