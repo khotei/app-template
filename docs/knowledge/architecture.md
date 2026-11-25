@@ -260,8 +260,9 @@ imports need.
    a limit, a pattern or an enum's values imported from its table, never declared again,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
-   [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`,
-   each with its unit test.
+   [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`
+   (an error that reaches the wire carries its status, `{ httpApiStatus: <code> }`,
+   [apps/CLAUDE.md](../../apps/CLAUDE.md)), each with its unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
    repository, coding its rows through the model's codec statics (`<Model>.decodeOne`,
    `<Model>.makeInsert`), the one owner every handler goes through, tested over mocks of the

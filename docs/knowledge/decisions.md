@@ -230,7 +230,8 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
   sibling group: it would sit apart from its handler, and every process that imports the module,
   the worker too, would load the groups and `effect/http-api` (10 modules, 27 KB more in the
   worker's bundle).
-- **Cost:** a module's HTTP shape lives outside the module.
+- **Cost:** a module's HTTP shape lives outside the module, but for its errors' statuses
+  ([The API contract in the api](#the-api-contract-in-the-api)).
 - **Guarded by:** the `apps/api` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules); no module's manifest
   declares `@app-template/api`, so an import of it fails TS2307.
@@ -265,9 +266,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   client imports only `effect`. A json variant holds only the fields its model gives it, and a
   struct writes only its own fields, so a field stays off the wire with no code in a handler,
   and the domain's error classes encode themselves, so no
-  handler translates one and no class marker internal to Effect is relied on. An error's status
-  on its class is written once, where a status per listing repeated it at every endpoint that
-  lists the error. A failure's cause
+  handler translates one and no class marker internal to Effect is relied on. A failure's cause
   is the real error (the provider's text, SQS's error, a defect's trace): kept in the row, it
   stays with the Run as long as the Run does, where a log keeps it only for its retention and
   only for those who read the log; on the wire it could show a request id, a key's hint or a
@@ -327,7 +326,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   (`httpApiStatus`), a fact of HTTP in a `domain/` the worker loads too, though as a plain key
   it imports nothing of `effect/http-api`; an error has one status across every endpoint that
   lists it, so an endpoint that needs another status needs another class; and a class without
-  the key responds with `500`, which likewise only review of the snapshot diff refuses. A user's
+  the key, or with it misspelled (`httpApiStatsu`), which `tsc` passes as `Annotations` takes
+  any key (a wrong value's type fails `TS2769`), responds with `500`: past `make api-snapshot`,
+  only a handler test that asserts that class's status stops it. A user's
   own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
@@ -346,7 +347,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
   `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
-  and its handler tests of the `400`, `401` and `404` an error's class gives;
+  and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
