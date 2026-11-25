@@ -55,8 +55,8 @@ the writes that commit together and the jobs sent after them, sits in that modul
 `<Verb><Model>Service`, the transaction piped on those writes (`AskChatService`,
 [Composition: wrap or compose](#composition-wrap-or-compose),
 [The chat's jobs in their services](#the-chats-jobs-in-their-services),
-[layering.md › Use cases](../../.claude/rules/layering.md#use-cases)). The shape:
-[architecture.md › A use case](architecture.md#a-use-case).
+[layering.md](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases)). The
+shape: [architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
   from the request to the last write, debuggable without following an event; one transaction for

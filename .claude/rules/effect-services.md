@@ -32,8 +32,8 @@ paths:
   the model in its name is often doing a neighbouring service's work.
 - A module-level function another module composes states `Effect.fn.Return<A, E, R>` on the
   generator; a helper used once, a composed function whose every caller dies on its errors
-  (`Effect.orDie`), or a use case, whose endpoint's error list or `consumeQueue`'s `never` checks
-  it, stays inferred.
+  (`Effect.orDie`), or a use case, which the worker's handler checks by `consumeQueue`'s `never`,
+  stays inferred.
 - A pure builder that cannot fail returns the model, not an `Effect`.
 
 ## Services

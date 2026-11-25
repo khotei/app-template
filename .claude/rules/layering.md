@@ -40,6 +40,19 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A method applies its model's rules itself, never relying on another having run first; a plain
   write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
+## Writes and sends, in services and use cases
+
+- All checks precede every write; a step's own guard may repeat a check its flow made.
+- The writes commit in one transaction, `Transaction`'s `run` piped on them or their function's last
+  argument, spanning a language-model call only to store its answer, never a send. An object store
+  joins none: keep the bytes before the row that binds them, delete them once the rows are gone.
+- Send a job after the commit of the writes it reads, so a delivery always finds its record,
+  through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
+  on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
+- Hold no lock in the process: a rule two writers could break is a guard in the write itself,
+  which dies when refused, and a write sets only the fields its writer owns:
+  [database.md › Guards](../../docs/knowledge/database.md#guards).
+
 ## Use cases
 
 - A use case is what a handler calls, and only a handler, for a flow no one service owns (a job's
@@ -51,13 +64,6 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   service offers goes to the service or model it belongs to, and a step two use cases share lives
   once, as a service's method; a use case holds no rule of its own and never calls another
   ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
-- All checks precede every write; a step's own guard may repeat a check the use case made.
-- The writes commit in one transaction, `Transaction`'s `run` piped on them or their function's last
-  argument, spanning a language-model call only to store its answer, never a send. An object store
-  joins none: keep the bytes before the row that binds them, delete them once the rows are gone.
-- Send a job after the commit of the writes it reads, so a delivery always finds its record,
-  through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
-  on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - A job is handled once, unretried: the worker's `<Verb><Model>Service` ends its work on any outcome
   but success, an interrupt included, and work a dead handling left started; the use case ends the
   job in one tail ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
@@ -72,9 +78,3 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - An api handler is `Effect.fn('<Group>Handler.<endpoint>')`; one that calls nothing (it returns a
   constant) is a plain function, no span; an effectful group or router builder `Effect.fnUntraced`
   ([functions](effect-services.md#functions)).
-
-## Concurrency
-
-Hold no lock in the process: a rule two writers could break is a guard in the write itself, which
-dies when refused, and a write sets only the fields its writer owns:
-[database.md › Guards](../../docs/knowledge/database.md#guards).
