@@ -178,9 +178,9 @@ _Avoid_: Tier, level
 
 **Module contract**:
 The part of a module other modules may depend on, an entry of its own,
-`@app-template/application/<module>/contract` (`contract/index.ts`), which re-exports by name the
-module's `domain/` files of its ids, its models with their errors and the group a wire shape
-reads (`ChatState`), and so loads no service, store or kernel file.
+`@app-template/application/<module>/contract` (`contract/index.ts`), which exports by name, from
+the module's `domain/` files, the ids, models, errors and the group a wire shape reads
+(`ChatState`) that readers outside the module take, and so loads no service, store or kernel file.
 _Avoid_: Public API, interface, SDK, client
 
 **API contract**:

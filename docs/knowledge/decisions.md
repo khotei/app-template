@@ -129,10 +129,11 @@ sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 A module other modules need exposes a contract, a folder of the module created with the first module
 that imports it, `application/<module>/contract/`, behind an entry of its own,
-`@app-template/application/<module>/contract`. Its `index.ts` re-exports by name the module's
-`domain/` files that hold what others may take: its ids, its models with the errors their rules
-fail with, and the group a wire shape reads (`ChatState`); never `domain/index.ts`, which brings
-the rules' other groups and the assistant's output too. A module's `domain/` takes another module
+`@app-template/application/<module>/contract`. Its `index.ts` exports by name, from the module's
+`domain/` files, what a reader outside the module takes today: its ids, its models with the
+errors their rules fail with, and the group a wire shape reads (`ChatState`); never `export *`,
+which would give out a model's helpers and constants too, nor `domain/index.ts`, which brings the
+rules' other groups and the assistant's output. A module's `domain/` takes another module
 only through that entry; its other layers may take the contract's names through the module's
 entry, which re-exports every layer. A dependency on a module's contract counts as one on the
 module.
@@ -158,11 +159,14 @@ module.
   ids and errors moved from `domain/` into `contract/`: a module's models split across two
   folders by who may see them, and each of the module's own imports of them renamed. A Biome
   list of the contract's names (`allowImportNames`) or a ban by name (`importNamePattern`): the
-  contract's index lists its files instead, and `tsc` refuses a name it does not export.
+  contract's index lists its names instead, and `tsc` refuses a name it does not export. Each
+  file re-exported whole (`export *`): every helper and constant beside a model (`isBlank`,
+  `maxTitleLength`) becomes a name others may take, and nothing tells the contract from the
+  domain (the owner's word, 2026-11-25: "we don't want to export everything").
 - **Cost:** two ways in for one module's contract, its entry and the module's. The module's entry
   opens it whole, so which of its names another module's services take is review's
-  (`modules.md`), not Biome's. An `export *` of a domain file exports each of its names, a helper
-  beside a model too (`isBlank`), and which files the index lists is review's. A contract file of
+  (`modules.md`), not Biome's. A name a new reader needs is a line added to the contract's index
+  first, and that the index lists only names a reader takes is review's. A contract file of
   its own imports no workspace but `@app-template/packages/schema`, which knows no app, so its ids
   are built like the domain's ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in

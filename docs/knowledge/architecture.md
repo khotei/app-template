@@ -353,11 +353,12 @@ Decision: [Modules by capability](decisions.md#modules-by-capability).
 2. **No Biome override.** The overrides and the plugin already match a new module; a layer of a
    new name passes every ban but the plugin's
    ([Guards are configuration](decisions.md#guards-are-configuration)).
-3. **A contract** is a folder `contract/` with an `index.ts` that re-exports by name the
-   `domain/` files of the module's ids, models with their errors and the group a wire shape
-   reads, never `domain/index.ts`, exported as its own, `./<module>/contract` in
-   `application/package.json`, the one path the other modules' `domain/` may import; the
-   `application/*/contract/**` override already covers it. Decision:
+3. **A contract** is a folder `contract/` with an `index.ts` that exports by name, from the
+   module's `domain/` files, each id, model, error or group a wire shape reads that a reader
+   outside the module takes, never `export *` nor `domain/index.ts`, exported as its own,
+   `./<module>/contract` in `application/package.json`, the one path the other modules' `domain/`
+   and the API contract may import; the `application/*/contract/**` override already covers it.
+   Decision:
    [Module contracts](decisions.md#module-contracts).
 4. **The workspaces that import it** declare `@app-template/application` in their `package.json`;
    the browser is none, and `make bundle-check` refuses the module in its bundle with no edit.

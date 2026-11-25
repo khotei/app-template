@@ -1,2 +1,2 @@
-export * from '#identity/contract/user.util'
-export * from '#identity/domain/user.model'
+export { UserId } from '#identity/contract/user.util'
+export { User, UserUnknownError } from '#identity/domain/user.model'
