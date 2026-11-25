@@ -7,7 +7,11 @@ import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
-import { RunNotRetryableError, RunStatusInvalidError } from '#chat/domain/run.error'
+import {
+  RunNotRetryableError,
+  RunStartedError,
+  RunStatusInvalidError,
+} from '#chat/domain/run.error'
 import {
   completeRun,
   ensureRunRetryable,
@@ -131,7 +135,8 @@ describe('ensureRunUnstarted', () => {
     Effect.gen(function* () {
       const error = yield* ensureRunUnstarted(runAt('generating')).pipe(Effect.flip)
 
-      assert.strictEqual(error.id, queued.id)
+      assert.instanceOf(error, RunStartedError)
+      assert.deepStrictEqual(Struct.pick(error, ['id']), { id: queued.id })
     }),
   )
 })
@@ -156,7 +161,8 @@ describe('Run', () => {
       const error = yield* runAt('generating').ensureUnstarted().pipe(Effect.flip)
 
       assert.strictEqual(yield* queued.ensureUnstarted(), queued)
-      assert.strictEqual(error.id, queued.id)
+      assert.instanceOf(error, RunStartedError)
+      assert.deepStrictEqual(Struct.pick(error, ['id']), { id: queued.id })
     }),
   )
 })
