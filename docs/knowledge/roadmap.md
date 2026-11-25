@@ -535,6 +535,23 @@ moves it into its own `Later` and deletes it here.
   volumes again after a week of resets and e2e runs before acting; a tmpfs for the test
   database's data (`withTmpFs`), so even an unreaped run leaves no Postgres volume.
 
+### From `model-members`
+
+- (2026-11-25) The Biome override of a module's `services/` (`.misc/lint/biome.base.json`) still
+  admits `@app-template/packages/schema`, and its message says the import is "for the codecs and
+  the id generator", while [models.md](../../.claude/rules/models.md) has a service code its rows
+  through its model's statics alone. A service that calls `decodeWith` again passes `make lint`;
+  none does today. Left on the owner's word: no guard before the harm is seen. Ways out to weigh:
+  drop the package from that override's exceptions and fix the message, once a service has
+  slipped; or leave it to the rule.
+- (2026-11-25) `kernel/aws/__e2e__/queue.sender.e2e.ts` keeps its `sampleQueue` as a separate
+  definition object, the form the job classes left for a `queue` static. It is a package test
+  with no job class, so it was left. Way out: a job class of its own in the test, if the two
+  forms come to confuse a reader.
+- (2026-11-25) The README picture's `<Model>Service` row (`.misc/readme/build.py`) names an
+  update's first parameter `to`, while `ChatService.update` calls it `fields`. Older than the
+  ticket, noticed in its review. Way out: rename it in the picture and rebuild.
+
 ## Ideas to weigh
 
 Options raised outside a ticket, **not decided**: the plan above stands until a ticket's feature
