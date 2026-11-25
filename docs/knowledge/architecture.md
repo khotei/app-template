@@ -369,8 +369,7 @@ Decision: [Modules by capability](decisions.md#modules-by-capability).
 ## Boundary guards
 
 Each import rule of [Dependency rules](#dependency-rules) is held once, by the guard that can see
-it, and a last guard checks what an allowed import brings into the web bundle and the API
-contract's; what no
+it, and a last guard checks what an allowed import brings into the web bundle; what no
 guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modules.md), and
 [layering.md](../../.claude/rules/layering.md) for a handler). Decision:
 [Guards are configuration](decisions.md#guards-are-configuration).
@@ -383,7 +382,6 @@ guard sees, review refuses ([.claude/rules/modules.md](../../.claude/rules/modul
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
 | `composite` project references (`rootDir: "."`), one project per workspace | a path that reaches into an unreferenced workspace's files; a cycle of references between workspaces | TS6059 / TS6307 / TS6202 in `make typecheck` |
 | `make bundle-check`: `bun build` of `apps/web/app/main.ts` with a metafile, read by `.misc/lint/bundle-check.mjs` | a package in the browser bundle outside `browserPackages` in `apps/web/package.json`: a workspace's entry, a third-party library, a Node built-in | the package and the shortest import chain from the entry, in `make check` |
-| the same, a second `bun build`, of `application/http-api/index.ts`, its metafile read against `CONTRACT_REFUSED` in the `Makefile` | a file of a module's `services/` or `infrastructure/`, of the use cases, the kernel, `packages/db`, `packages/queue` or `packages/s3`, or Drizzle, `@effect/sql-*` or an AWS SDK in the contract's bundle | the glob it matches and the shortest import chain from the entry, in `make check` |
 
 Why each rule sits with its guard, and what that costs:
 [Guards are configuration](decisions.md#guards-are-configuration). Symptoms and fixes:

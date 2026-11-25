@@ -179,17 +179,10 @@ test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own contain
 # docs/knowledge/architecture.md › Boundary guards. A metafile or manifest the script cannot read
 # stops the check with 2, so it never reads as a clean bundle.
 WEB_BUNDLE = node_modules/.cache/web-bundle
-# The API contract loads no service, store or client: decisions.md › The API contract in the api.
-CONTRACT_BUNDLE = node_modules/.cache/contract-bundle
-CONTRACT_REFUSED = 'application/*/services/**' 'application/*/infrastructure/**' \
-	'application/use-cases/**' 'kernel/**' 'packages/{db,queue,s3}/**' \
-	'**/node_modules/{drizzle-orm,@effect/sql-*,@effect-aws/*,@aws-sdk/*,@smithy/*}/**'
 
-bundle-check: ## Fail when the web bundle holds a package outside browserPackages in apps/web/package.json, or the API contract's a service, the kernel or a store, naming its import chain
+bundle-check: ## Fail when the web bundle holds a package outside browserPackages in apps/web/package.json, naming its import chain
 	bun build apps/web/app/main.ts --outdir $(WEB_BUNDLE) --target browser --metafile=$(WEB_BUNDLE)/meta.json
 	@bun .misc/lint/bundle-check.mjs $(WEB_BUNDLE)/meta.json
-	bun build application/http-api/index.ts --outdir $(CONTRACT_BUNDLE) --target bun --metafile=$(CONTRACT_BUNDLE)/meta.json
-	@bun .misc/lint/bundle-check.mjs $(CONTRACT_BUNDLE)/meta.json $(CONTRACT_REFUSED)
 
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive

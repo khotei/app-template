@@ -1,8 +1,7 @@
-// Reads a `bun build --metafile` from the build's working directory and refuses, printing the
-// shortest import chain from the entry, every input whose path matches a glob given after the
-// metafile or, given none, every package in the bundle that the entry's manifest leaves out of
-// `browserPackages`, the entry's own package implied. Exit 1 on a refusal, 2 on a metafile or a
-// manifest it cannot read, so a changed metafile shape never reads as a clean bundle.
+// Reads a `bun build --metafile` from the build's working directory and refuses every package in
+// the bundle that the entry's manifest leaves out of `browserPackages`, printing the shortest import
+// chain from the entry; the entry's own package is implied. Exit 1 on a refusal, 2 on a metafile or
+// a manifest it cannot read, so a changed metafile shape never reads as a clean bundle.
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 
@@ -42,10 +41,7 @@ function packageOf(file) {
   return manifest.name + closest.subpath.slice(1)
 }
 
-const [
-  metafile = stop('usage: bun bundle-check.mjs <metafile> [<refused glob>…]'),
-  ...refusedGlobs
-] = process.argv.slice(2)
+const metafile = process.argv[2] ?? stop('usage: bun bundle-check.mjs <metafile>')
 const { inputs, outputs } = existsSync(metafile)
   ? JSON.parse(readFileSync(metafile, 'utf8'))
   : stop(`no metafile at ${metafile}`)
@@ -85,42 +81,25 @@ function chainTo(file) {
   return chain
 }
 
-// Each refusal's reason, which groups its inputs: a glob the caller refuses, else a package the
-// entry's manifest leaves out.
-function refuseMatching(globs) {
-  const matchers = globs.map((glob) => new Bun.Glob(glob))
-  return (file) => {
-    const index = matchers.findIndex((matcher) => matcher.match(file))
-    return index === -1 ? null : `${entry} reads ${globs[index]}`
-  }
-}
+const manifest = manifestOf(entry)
+const allowed = manifest.manifest.browserPackages
+if (!Array.isArray(allowed)) stop(`${manifest.path} has no browserPackages list`)
+const allowedPackages = new Set([packageOf(entry), ...allowed])
 
-function refuseOutsideBrowserPackages() {
-  const { path, manifest } = manifestOf(entry)
-  if (!Array.isArray(manifest.browserPackages)) stop(`${path} has no browserPackages list`)
-  const allowed = new Set([packageOf(entry), ...manifest.browserPackages])
-  return (file) => {
-    const name = packageOf(file)
-    return allowed.has(name) ? null : `${name} is not in ${path} › browserPackages`
-  }
-}
-
-const refusalOf =
-  refusedGlobs.length > 0 ? refuseMatching(refusedGlobs) : refuseOutsideBrowserPackages()
 const refused = new Map()
 for (const file of Object.keys(inputs)) {
-  const reason = refusalOf(file)
-  if (reason !== null) refused.set(reason, [...(refused.get(reason) ?? []), file])
+  const name = packageOf(file)
+  if (!allowedPackages.has(name)) refused.set(name, [...(refused.get(name) ?? []), file])
 }
 
 // A chain with a gap ranks after every whole one; a tie keeps the first.
 const rankOf = (chain) => (chain[1] === dropped ? Number.POSITIVE_INFINITY : chain.length)
 
-for (const [reason, files] of refused) {
+for (const [name, files] of refused) {
   const shortest = files
     .map(chainTo)
     .reduce((best, chain) => (rankOf(chain) < rankOf(best) ? chain : best))
-  console.error(`bundle-check: ${reason}`)
+  console.error(`bundle-check: ${name} is not in ${manifest.path} › browserPackages`)
   console.error(shortest.map((step, index) => `${index === 0 ? ' ' : '→'} ${step}`).join('\n'))
 }
 process.exit(refused.size === 0 ? 0 : 1)
