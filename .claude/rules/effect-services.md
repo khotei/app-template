@@ -52,7 +52,7 @@ paths:
   root, so the key says where to look.
 - One built in a body beside its declaration is `Context.Service<Self, Shape>()(key, { make })`:
   the explicit `Shape` keeps the contract and its docs. A one-expression build
-  (`<Client>.useSync(…)`) goes straight into `Layer.effect`.
+  (`HttpApiClient.make(…)`, `Ref.make(…)`) goes straight into `Layer.effect`.
 
 ## Layers
 

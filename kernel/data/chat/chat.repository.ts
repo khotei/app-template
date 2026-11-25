@@ -31,47 +31,47 @@ export class ChatRepository extends Context.Service<
      */
     readonly delete: (where: ChatEntityWhere) => Effect.Effect<void>
   }
->()('@app-template/kernel/data/chat/ChatRepository') {
-  static readonly layer = Layer.effect(
-    this,
-    Db.useSync((db) =>
-      this.of({
-        insert: Effect.fn('ChatRepository.insert')(
-          (chat) => db.insert(chats).values(chat),
-          orDieWithSqlError,
-        ),
-        update: Effect.fn('ChatRepository.update')(
-          (set, where) =>
-            db
-              .update(chats)
-              .set(Struct.pick(set, chatSetColumns))
-              .where(encodeFilter(chats, where))
-              .returning({ id: chats.id }),
-          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
-          Effect.asVoid,
-          orDieWithSqlError,
-        ),
-        selectOne: Effect.fn('ChatRepository.selectOne')(
-          (where) => db.query.chats.findFirst({ where, with: withNewestRun }),
-          Effect.map(Option.fromUndefinedOr),
-          orDieWithSqlError,
-        ),
-        selectMany: Effect.fn('ChatRepository.selectMany')(
-          (where) =>
-            db.query.chats.findMany({
-              where,
-              with: withNewestRun,
-              orderBy: newestFirst,
-            }),
-          orDieWithSqlError,
-        ),
-        delete: Effect.fn('ChatRepository.delete')(
-          (where) => db.delete(chats).where(encodeFilter(chats, where)).returning({ id: chats.id }),
-          Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
-          Effect.asVoid,
-          orDieWithSqlError,
-        ),
-      }),
-    ),
-  )
+>()('@app-template/kernel/data/chat/ChatRepository', {
+  make: Effect.gen(function* () {
+    const db = yield* Db
+    return {
+      insert: Effect.fn('ChatRepository.insert')(
+        (chat) => db.insert(chats).values(chat),
+        orDieWithSqlError,
+      ),
+      update: Effect.fn('ChatRepository.update')(
+        (set, where) =>
+          db
+            .update(chats)
+            .set(Struct.pick(set, chatSetColumns))
+            .where(encodeFilter(chats, where))
+            .returning({ id: chats.id }),
+        Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+        Effect.asVoid,
+        orDieWithSqlError,
+      ),
+      selectOne: Effect.fn('ChatRepository.selectOne')(
+        (where) => db.query.chats.findFirst({ where, with: withNewestRun }),
+        Effect.map(Option.fromUndefinedOr),
+        orDieWithSqlError,
+      ),
+      selectMany: Effect.fn('ChatRepository.selectMany')(
+        (where) =>
+          db.query.chats.findMany({
+            where,
+            with: withNewestRun,
+            orderBy: newestFirst,
+          }),
+        orDieWithSqlError,
+      ),
+      delete: Effect.fn('ChatRepository.delete')(
+        (where) => db.delete(chats).where(encodeFilter(chats, where)).returning({ id: chats.id }),
+        Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
+        Effect.asVoid,
+        orDieWithSqlError,
+      ),
+    }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
 }

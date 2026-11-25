@@ -22,7 +22,8 @@ describe('TitleChatService', () => {
     const { logs, layer: logger } = recordLogs()
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     return Effect.gen(function* () {
-      yield* TitleChatService.use((titleChat) => titleChat.title(chatId))
+      const titleChat = yield* TitleChatService
+      yield* titleChat.title(chatId)
 
       assert.deepStrictEqual(updates, [
         [
@@ -58,9 +59,8 @@ describe('TitleChatService', () => {
   it.effect('title fails a chat with no message as gone, without asking', () => {
     const assistant = recordChatAssistant(Effect.succeed(ChatTitle.make('Lisbon weekend')))
     return Effect.gen(function* () {
-      const error = yield* TitleChatService.use((titleChat) => titleChat.title(chatId)).pipe(
-        Effect.flip,
-      )
+      const titleChat = yield* TitleChatService
+      const error = yield* titleChat.title(chatId).pipe(Effect.flip)
 
       assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chatId }))
       assertEquals(yield* assistant.texts, [])

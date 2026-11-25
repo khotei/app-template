@@ -27,6 +27,10 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
   `for … of` around `yield*` only for an early exit.
 - A check on an effect's result is `Effect.filterOrFail` with a named predicate; a predicate built
   from others uses `Predicate.and` / `Predicate.not`, not an inline `&&`.
+- A rule that varies by a key (a stage, a reason, a kind) indexes a table
+  `as const satisfies Record<Key, …>`, never a predicate parameter or a chain of `if`s, so a new
+  key fails typecheck until its row exists. A table of effects names its rows' `E` and `R`, never
+  `unknown`. A varying value is data (`Effect.logWithLevel(level)`), not a choice of two functions.
 
 ## Composition
 
@@ -39,12 +43,13 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
   function expression in the `pipe` or combinator that orders the steps, when its name says what a
   lambda would not (`pipe(rows, function dropStale(rows) { … })`). One used from two places is a
   declaration or an arrow constant, as are a tail's recovery and one transaction's writes.
-- A generator reads a service with `yield*`; outside one it is `Service.use((s) => s.m(…))`, or
-  `useSync` for a plain value, never `Effect.flatMap` over it. A call never takes another call's
-  result as its subject (`make lint` fails on both). A value with `.pipe` goes through it, plain
-  data through `pipe(value, …)`, never both in one chain. A function whose every step feeds only
-  the next is point-free (`flow(…)`, or an arrow whose body is one `.pipe`), never at the cost of
-  a cast, an annotation or a lost `E` or `R`.
+- A service is read with `yield*`, in a generator, never by `use`, `useSync` or a combinator over
+  it; `make lint` refuses the two and `Effect.flatMap`, `map`, `andThen` and `tap`, data-first or
+  piped, on a capitalised name. A call never takes another call's result as its subject; `make lint`
+  refuses it for the effect combinators it lists. A value with `.pipe` goes through it, plain data
+  through `pipe(value, …)`, never both in one chain. A function whose every step feeds only the next
+  is point-free (`flow(…)`, or an arrow whose body is one `.pipe`), never at the cost of a cast, an
+  annotation or a lost `E` or `R`; one that opens on a service is a generator.
 - A composable function takes its subject last and alone, options first and curried
   (`pipe(message, encodeWith(codec))`), when its partial call reads as a whole step
   (`Effect.tap(Arr.match({ … }))`); a move stays plain, its record first (`OrderMove.ship(order,
@@ -60,13 +65,6 @@ const sumBy = <A>(amount: (a: A) => number) => (xs: ReadonlyArray<A>) =>
   pipe(xs, Arr.map(amount), Num.sumAll)
 pipe(orders, sumBy((order) => order.refunded))
 ```
-
-## Branching
-
-- A rule that varies by a key (a stage, a reason, a kind) indexes a table
-  `as const satisfies Record<Key, …>`, never a predicate parameter or a chain of `if`s, so a new
-  key fails typecheck until its row exists. A table of effects names its rows' `E` and `R`, never
-  `unknown`. A varying value is data (`Effect.logWithLevel(level)`), not a choice of two functions.
 
 ## Errors and logs
 

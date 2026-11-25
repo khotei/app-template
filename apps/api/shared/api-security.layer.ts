@@ -6,8 +6,9 @@ import { Identity, IdentityService } from '@app-template/application/identity'
 
 export const AuthLayer = Layer.effect(
   Auth,
-  IdentityService.useSync((identityService) =>
-    Auth.of({
+  Effect.gen(function* () {
+    const identityService = yield* IdentityService
+    return Auth.of({
       cookie: (httpEffect, { credential }) =>
         Effect.provideServiceEffect(
           httpEffect,
@@ -16,8 +17,8 @@ export const AuthLayer = Layer.effect(
             .authenticate(credential)
             .pipe(Effect.map((user) => Identity.of({ userId: user.id }))),
         ),
-    }),
-  ),
+    })
+  }),
 )
 
 /** Request parts become a `400`; a response that fails to encode stays the built-in `500`. */

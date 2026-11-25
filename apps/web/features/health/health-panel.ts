@@ -4,7 +4,10 @@ import { joinClassNames } from '@app-template/packages/ui'
 
 import { ApiClient } from '#web/shared/api.client'
 
-const getHealth = ApiClient.use((api) => api.health.healthGet())
+const getHealth = Effect.gen(function* () {
+  const api = yield* ApiClient
+  return yield* api.health.healthGet()
+})
 
 const failureMessages = {
   RequestInvalidError: 'API status unknown: the api refused the health check.',

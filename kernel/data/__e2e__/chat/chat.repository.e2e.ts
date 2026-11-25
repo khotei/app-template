@@ -61,8 +61,10 @@ const run = (
     updatedAt: at(seconds),
   }) satisfies RunColumns
 
-const insertUser = (id: string) =>
-  Db.use((db) => db.insert(users).values({ id, createdAt: new Date(0) }))
+const insertUser = Effect.fnUntraced(function* (id: string) {
+  const db = yield* Db
+  return yield* db.insert(users).values({ id, createdAt: new Date(0) })
+})
 
 const SelectedChat = Schema.Option(ChatEntity)
 

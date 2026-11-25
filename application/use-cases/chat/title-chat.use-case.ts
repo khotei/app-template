@@ -7,7 +7,10 @@ import { type TitleChat, TitleChatService } from '@app-template/application/chat
  * skipped.
  */
 export const titleChat = Effect.fn('titleChat')(
-  (job: TitleChat) => TitleChatService.use((titles) => titles.title(job.chatId)),
+  function* (job: TitleChat) {
+    const titles = yield* TitleChatService
+    return yield* titles.title(job.chatId)
+  },
   Effect.catchTags({
     LlmError: (error) =>
       Effect.logWarning('title skipped: the assistant failed', Cause.fail(error)),
