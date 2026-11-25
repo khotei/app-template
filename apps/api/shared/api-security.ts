@@ -1,10 +1,5 @@
 import { Array as Arr, Context, Effect, Layer, Predicate, Schema, SchemaIssue } from 'effect'
-import {
-  type HttpApiError,
-  HttpApiMiddleware,
-  HttpApiSchema,
-  HttpApiSecurity,
-} from 'effect/http-api'
+import { type HttpApiError, HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
 import { type UserId, UserService, UserUnknownError } from '@app-template/application/identity'
 
@@ -18,6 +13,7 @@ export type RequestIssue = typeof RequestIssue.Type
 export class RequestInvalidError extends Schema.TaggedError<RequestInvalidError>()(
   'RequestInvalidError',
   { issues: Schema.Array(RequestIssue) },
+  { httpApiStatus: 400 },
 ) {}
 
 export class CurrentUser extends Context.Service<CurrentUser, { readonly id: UserId }>()(
@@ -28,7 +24,7 @@ export class Auth extends HttpApiMiddleware.Service<Auth, { provides: CurrentUse
   '@app-template/apps/api/shared/Auth',
   {
     security: { cookie: HttpApiSecurity.apiKey({ key: 'user_secret', in: 'cookie' }) },
-    error: UserUnknownError.pipe(HttpApiSchema.status(401)),
+    error: UserUnknownError,
   },
 ) {
   static readonly layer = Layer.effect(
@@ -67,7 +63,7 @@ const toRequestInvalidError = (error: HttpApiError.HttpApiSchemaError) =>
 
 export class SchemaErrors extends HttpApiMiddleware.Service<SchemaErrors>()(
   '@app-template/apps/api/shared/SchemaErrors',
-  { error: RequestInvalidError.pipe(HttpApiSchema.status(400)) },
+  { error: RequestInvalidError },
 ) {
   static readonly layer = HttpApiMiddleware.layerSchemaErrorTransform(this, (error) =>
     Effect.fail(isRequestPart[error.kind] ? toRequestInvalidError(error) : error),

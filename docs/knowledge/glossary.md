@@ -87,7 +87,7 @@ The one vocabulary of states in flight: `idle` waits for work, `queued` has work
 `generating` works on it, `done` and `failed` end it.
 Every status picks its subset of `Status` (the Run's, the chat's), and a check on one value
 reads the shared predicate. A value is written in code font, or as a word before Run or chat (a
-failed Run). Not an HTTP status (`HttpApiSchema.status(404)`), written *HTTP status*, nor the
+failed Run). Not an HTTP status (`{ httpApiStatus: 404 }`), written *HTTP status*, nor the
 health check's `status: 'ok'` on the wire, nor a tool's (`git status`).
 _Avoid_: State, stage, in progress; a new word for one of the five
 

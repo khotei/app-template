@@ -14,11 +14,12 @@ Thin processes: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev
 - **The web declares no workspace of the app but `packages`:** its client is generated from the
   API contract's OpenAPI snapshot, which it reads by path, and checked in; `make api-snapshot`
   rewrites both, never by hand.
-- **An api group takes the domain's schemas as they are** (ids, checks, models, errors): every
-  error gets its status where an endpoint or a middleware lists it (`HttpApiSchema.status`),
-  never on its class, and a model goes on the wire whole or as its `<Model>.json`, which leaves
-  out what the model keeps off the wire (a sensitive or select-only field), with `.mapFields(…)`
-  where the wire adds or swaps a field, named by an `identifier`. Decision:
+- **An api group takes the domain's schemas as they are** (ids, checks, models, errors): an
+  error's status is on its class (`{ httpApiStatus: 404 }`, the third argument of
+  `Schema.TaggedError`), an endpoint or a middleware lists the bare class, and a model goes on
+  the wire whole or as its `<Model>.json`, which leaves out what the model keeps off the wire (a
+  sensitive or select-only field), with `.mapFields(…)` where the wire adds or swaps a field,
+  named by an `identifier`. Decision:
   [The API contract in the api](../docs/knowledge/decisions.md#the-api-contract-in-the-api).
 - **`apps/e2e` is a test app, not a fourth process:** it starts nothing of its own, and its
   suites run the apps' layers in the test's runtime; what it may import:

@@ -243,8 +243,9 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
 
 The api declares its HTTP surface in its own files, one group per entity beside its handler,
 assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
-the domain's own; every error gets its status where an endpoint or a middleware lists it
-(`HttpApiSchema.status`); a wire shape is its model's json variant (`<Model>.json`), which
+the domain's own; an error's status is on its class, the annotation `{ httpApiStatus: <code> }`
+of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
+its model's json variant (`<Model>.json`), which
 leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
 field, named by an `identifier` so the snapshot holds it once; a field the wire adds is read
 from the model's getter (`ApiChat` adds `status`, which `Chat`'s `status` gives), so a handler
@@ -264,7 +265,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   client imports only `effect`. A json variant holds only the fields its model gives it, and a
   struct writes only its own fields, so a field stays off the wire with no code in a handler,
   and the domain's error classes encode themselves, so no
-  handler translates one and no class marker internal to Effect is relied on. A failure's cause
+  handler translates one and no class marker internal to Effect is relied on. An error's status
+  on its class is written once, where a status per listing repeated it at every endpoint that
+  lists the error. A failure's cause
   is the real error (the provider's text, SQS's error, a defect's trace): kept in the row, it
   stays with the Run as long as the Run does, where a log keeps it only for its retention and
   only for those who read the log; on the wire it could show a request id, a key's hint or a
@@ -273,20 +276,25 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   (`repos/effect/ai-docs/src/51_http-server/fixtures/api/Users.ts`) and gives an error its
   status both on the domain's class
   (`repos/effect/ai-docs/src/51_http-server/fixtures/domain/UserErrors.ts`) and at an endpoint
-  with `HttpApiSchema.status`; the api takes the second form only. The owner's decision of the
-  design audit (Track B). A run of the derived contract against the twins' snapshot: the same 17
-  operations, statuses and bodies. Departs from the guide's "design contracts around use cases,
-  not around internal entity models"
+  with `HttpApiSchema.status`; the api takes the first form, which `HttpApiBuilder` and `OpenApi`
+  read from the class's annotations when no listing sets one (`resolveHttpApiStatus` in
+  `effect/src/http-api/HttpApiSchema.ts`); moving the statuses there left the snapshot and the
+  web's client as they were under `make api-snapshot`. The owner's decisions of the design audit
+  (Track B) and of the status on the class. A run of the derived contract against the twins'
+  snapshot: the same 17 operations, statuses and bodies. Departs from the guide's "design
+  contracts around use cases, not around internal entity models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/)):
   the wire is the models' encoded side, held by the snapshot test. In the prototype of
   `docs/tickets/2026-11-04-1131_client-publishing/`, renaming a nested domain field on the wire
   broke 8 of 13 handlers without a mapper; here a renamed model field renames the wire field with
   no handler edit, and the api's snapshot test stops it.
 - **Rejected:** the contract as a workspace importing only `effect`: the twins, a test to hold
-  them, guards for a browser that no longer imports it. A status on the domain's class: an HTTP
-  fact in a `domain/` the worker loads too. A status on the class only for an error HTTP alone
-  raises: two forms for one fact. A constant per error with its status: a second name for one
-  class, the alias `.claude/rules/effect-style.md › Composition` refuses. A `pick`
+  them, guards for a browser that no longer imports it. A status per listing
+  (`<Error>.pipe(HttpApiSchema.status(…))` at each endpoint and middleware): it kept HTTP out of
+  `domain/`, but repeated one error's status at every listing (12 listings for 7 errors), each a
+  place to forget it. A status on the class only for an error HTTP alone raises, at the listing
+  for the rest: two forms for one fact. A constant per error with its status: a second name for
+  one class, the alias `.claude/rules/effect-style.md › Composition` refuses. A `pick`
   of the wire's fields: every field listed again. Each wire shape omitting by name what stays
   off (`<Model>.mapFields(Struct.omit([…]))`): every shape that nests the record repeats the
   omission, where the model's field now says it once. A client generated at build time:
@@ -315,13 +323,16 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   changed for the store changes the wire too, unless the wire shape swaps the field. A field
   added to a model, a secret included, reaches the wire unless the model declares it
   `Model.Sensitive`; the snapshot test stops it until `make api-snapshot` writes it into the
-  diff, and only review of that diff refuses it. An error's status is spelled at each listing
-  (13 for 7 errors), and a listing without `HttpApiSchema.status` responds with `500`, which likewise
-  only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
+  diff, and only review of that diff refuses it. A domain error names a transport status
+  (`httpApiStatus`), a fact of HTTP in a `domain/` the worker loads too, though as a plain key
+  it imports nothing of `effect/http-api`; an error has one status across every endpoint that
+  lists it, so an endpoint that needs another status needs another class; and a class without
+  the key responds with `500`, which likewise only review of the snapshot diff refuses. A user's
+  own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class returned through more
-  than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
+  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema returned in more
+  than one form, the bare one and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
   a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
   for the Run's three). Two checked-in files move with every
   wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
@@ -334,16 +345,20 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   response, which the handler's test of a chat's `status` stops.
 - **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
   model lacks fails `TS2322` at each handler that returns it, and a group past
-  `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
+  `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test,
+  and its handler tests of the `400`, `401` and `404` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
   `make bundle-check`.
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
-  test to compare them, and the web imports it instead of the generated client.
+  test to compare them, and the web imports it instead of the generated client. The status
+  alone reversed: each error class loses its `httpApiStatus` and every listing pipes
+  `HttpApiSchema.status(…)` again.
 - **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
   side; a client outside this repository needs the contract as code; a model's row form must
-  differ from what the wire carries; or a client must show a failure's cause.
+  differ from what the wire carries; a client must show a failure's cause; or one error needs
+  two statuses at two endpoints.
 
 ### Status owned by chat
 

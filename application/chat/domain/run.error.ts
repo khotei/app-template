@@ -10,9 +10,16 @@ export class RunStatusInvalidError extends Data.TaggedError('RunStatusInvalidErr
   readonly to: Status
 }> {}
 
-export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()('RunNotFoundError', {
-  where: Schema.Union([Schema.Struct({ id: RunId }), Schema.Struct({ userMessageId: MessageId })]),
-}) {}
+export class RunNotFoundError extends Schema.TaggedError<RunNotFoundError>()(
+  'RunNotFoundError',
+  {
+    where: Schema.Union([
+      Schema.Struct({ id: RunId }),
+      Schema.Struct({ userMessageId: MessageId }),
+    ]),
+  },
+  { httpApiStatus: 404 },
+) {}
 
 export class RunStartedError extends Data.TaggedError('RunStartedError')<{
   readonly id: RunId
@@ -25,4 +32,5 @@ export class RunStartedError extends Data.TaggedError('RunStartedError')<{
 export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableError>()(
   'RunNotRetryableError',
   {},
+  { httpApiStatus: 409 },
 ) {}

@@ -275,7 +275,7 @@ imports need.
    ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
    worker's route, the services it reads provided in the worker's layer.
 5. **The boundary.** A group in `apps/api/<entity>/<entity>.http.ts` over the domain's ids,
-   models and errors, each error with its status where its endpoint lists it, a wire shape only
+   models and errors, each error with the status its class carries, a wire shape only
    where it differs from the model ([apps/CLAUDE.md](../../apps/CLAUDE.md)), added to `Api` in
    `apps/api/api.ts`, in the first `.add(…)` when it needs a user, else in the second, since
    `.middleware(Auth)` reaches only the groups added before it; its handler beside it, with a
