@@ -75,7 +75,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `domain/` | ✗ | ✓, through its own entry only | ✗ | ✗ | ✗ | `schema` only | `application/*/domain/**` |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
-| a contract | ✗; of its module only `domain/` files, never their index | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
+| a contract | ✗; of its module only `domain/` files, never their index, a policy or a move group | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `application/http-api` | ✗, but its contract | ✓, through its own entry only | ✗ | ✗ | ✗ | ✗ | `application/http-api/**` |
 | `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |

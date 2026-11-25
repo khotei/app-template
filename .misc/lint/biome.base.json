@@ -109,10 +109,12 @@
                     "group": [
                       "#*/index",
                       "#*/domain/index",
+                      "#*/domain/*-policy",
+                      "#*/domain/*-move",
                       "#*/services/**",
                       "#*/infrastructure/**"
                     ],
-                    "message": "a module contract re-exports its module's domain files by name, its ids, models with their errors and the group a wire shape reads, never the domain's index, which brings the rules too, nor the module's entry, services or infrastructure, which load the data layer: every consumer of the module reads it (decisions.md › Module contracts)"
+                    "message": "a module contract re-exports its module's domain files by name, its ids, models with their errors and the state group a wire shape reads, never a policy or a move group, nor the domain's index, which brings them too, nor the module's entry, services or infrastructure, which load the data layer: every consumer of the module reads it (decisions.md › Module contracts)"
                   }
                 ]
               }

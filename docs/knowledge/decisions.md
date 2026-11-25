@@ -192,7 +192,8 @@ module.
   [architecture.md › Dependency rules](architecture.md#dependency-rules), the domain's override
   admitting of `application/` only a contract's entry (`@app-template/application/*/contract`) and
   a module's test support, the contract's admitting of its module only `domain/` files, never
-  their index, the entry, the services or the infrastructure; `.claude/rules/modules.md` refuses
+  their index, a policy or a move group (`*-policy`, `*-move`), the entry, the services or the
+  infrastructure; `.claude/rules/modules.md` refuses
   a name past the contract, a module importing one above it and a cycle through contracts.
 - **If reversed:** a module that imports another's entry reaches its services and
   models, and two modules can depend on each other with no tool noticing.
