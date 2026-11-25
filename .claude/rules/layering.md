@@ -73,8 +73,8 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A handler decodes the input, calls one domain service method or one use case, before it at most
   the read of the record it acts in for the user (`<Model>Service.getOne` with the owner), returns
-  the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with the
-  domain's errors as they are; it holds no rule and imports no repository or data layer, which
-  only the process's `layer.ts` provides.
+  the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with the domain's
+  errors as they are. It composes nothing else, holds no rule and imports no repository or data
+  layer, which only the process's `layer.ts` provides.
 - An api handler is `Effect.fn('<Group>Handler.<endpoint>')`, one returning a constant a plain
-  function; an effectful group or router builder `Effect.fnUntraced` ([why](effect-services.md#functions)).
+  function, no span; an effectful group or router builder `Effect.fnUntraced` ([why](effect-services.md#functions)).
