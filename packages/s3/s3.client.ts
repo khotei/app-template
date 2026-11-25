@@ -107,9 +107,6 @@ const sizeOf = (chunks: ReadonlyArray<Uint8Array>) =>
     Num.sumAll,
   )
 
-const appendChunk = (chunks: ReadonlyArray<Uint8Array>, chunk: Uint8Array) =>
-  Effect.succeed(Arr.append(chunks, chunk))
-
 const hasBytes = (bytes: Uint8Array) => bytes.length > 0
 
 /**
@@ -121,7 +118,11 @@ const hasBytes = (bytes: Uint8Array) => bytes.length > 0
 const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8Array, E> =>
   content.pipe(
     Stream.transduce(
-      Sink.fold(Arr.empty<Uint8Array>, (held) => sizeOf(held) < partSize, appendChunk),
+      Sink.reduceWhile(
+        Arr.empty<Uint8Array>,
+        (held) => sizeOf(held) < partSize,
+        (held, chunk) => Arr.append(held, chunk),
+      ),
     ),
     Stream.map(Bytes.concat),
     Stream.filter(hasBytes),
