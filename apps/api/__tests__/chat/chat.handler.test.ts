@@ -14,7 +14,7 @@ import {
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { RequestInvalidError } from '@app-template/application/http-api'
-import { UserUnknownError } from '@app-template/application/user'
+import { IdentityUnknownError } from '@app-template/application/identity'
 import type {
   ChatEntitySelectWhere,
   MessageColumns,
@@ -61,7 +61,7 @@ const getJson = (url: string) =>
   )
 
 describe('chats', () => {
-  it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>
+  it.effect('GET /chats without a cookie is 401 IdentityUnknownError', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
       const http = yield* HttpClient.HttpClient
@@ -70,8 +70,8 @@ describe('chats', () => {
       const error = yield* api.chats.list().pipe(Effect.flip)
 
       assert.strictEqual(response.status, 401)
-      assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
-      assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
+      assert.deepStrictEqual(yield* response.json, { _tag: 'IdentityUnknownError' })
+      assertSchemaEquals(IdentityUnknownError, error, new IdentityUnknownError())
     }).pipe(Effect.provide(layerApiTest({ users: { selectOne: () => Effect.succeedNone } }))),
   )
 

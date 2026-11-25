@@ -29,10 +29,10 @@ may import what:
 ### Modules by capability
 
 The behaviour is split by business capability, a module per capability under `application/`:
-`chat`, `user` and `identity`. `user` holds the user's model, its id and the error of an
-unknown user, which other modules' models and the API contract name; `identity` the recognising
-of a user by its secret and `CurrentUser`, the user the api's `Auth` provides to a request's
-handlers, and it imports `user`, never the reverse.
+`chat`, `user` and `identity`. `user` holds the user's model and its id, which other modules'
+models and the API contract name; `identity` the recognising of a user by its secret, the
+`IdentityUnknownError` its `authenticate` fails with and `CurrentUser`, the user the api's
+`Auth` provides to a request's handlers, and it imports `user`, never the reverse.
 
 - **Why:** a module owns what changes together. Who a user is changes apart from how the api
   recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
@@ -404,7 +404,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   own group goes in `api.ts`'s first
   `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema
+  (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema
   returned in more than one form, the bare one and each `.pipe(HttpApiSchema.status(…))`
   counting as one, gets a numbered component (`<Class>Encoded_2`), which a wire shape's
   `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move with every

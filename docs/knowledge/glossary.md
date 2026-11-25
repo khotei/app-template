@@ -29,7 +29,8 @@ _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not th
 **Identity**:
 The recognising of a user by their user secret: the user a known secret names, or a new user
 with a new secret for any other; the `identity` module, `IdentityService`'s `recognise` and
-`authenticate`. Not the user, whose model is the `user` module's.
+`authenticate`, which fails `IdentityUnknownError` on a secret it does not know. Not the user,
+whose model is the `user` module's.
 _Avoid_: Auth (the api's middleware, `Auth`), login, session
 
 **Chat**:

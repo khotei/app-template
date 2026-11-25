@@ -3,11 +3,11 @@ import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option, Redacted, Result } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
-import { UserId, UserUnknownError } from '@app-template/application/user'
+import { UserId } from '@app-template/application/user'
 import type { UserEntityWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import type { UserSecret } from '#identity/domain/identity.model'
+import { IdentityUnknownError, type UserSecret } from '#identity/domain/identity.model'
 import { IdentityService } from '#identity/services/identity.service'
 import { layerIdentityTest } from '#testing/identity/identity.test-layer'
 
@@ -94,13 +94,13 @@ describe('IdentityService', () => {
     },
   )
 
-  it.effect('authenticate of an unknown secret is UserUnknownError', () =>
+  it.effect('authenticate of an unknown secret is IdentityUnknownError', () =>
     Effect.gen(function* () {
       const service = yield* IdentityService
 
       const error = yield* service.authenticate(unknownSecret).pipe(Effect.flip)
 
-      assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
+      assertSchemaEquals(IdentityUnknownError, error, new IdentityUnknownError())
     }).pipe(Effect.provide(layerIdentityTest({ selectOne: () => Effect.succeed(Option.none()) }))),
   )
 })
