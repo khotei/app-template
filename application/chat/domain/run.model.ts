@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Effect, Option, Schema } from 'effect'
+import { Array as Arr, Cause, Effect, Option, Schema, type Types } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
@@ -66,6 +66,9 @@ export class Run extends Model.Class<Run>('Run')({
   }
 }
 
+/** A Run's fields without its members: what a move takes, a spread Run or another shape's. */
+export type RunFields = Schema.Struct.Type<typeof Run.fields>
+
 // The statuses the data layer's active index holds, served through the module's entry.
 export { activeRunStatuses }
 
@@ -75,7 +78,9 @@ export const isActiveRun = hasStatus(activeRunStatuses)
 export const isStartedRun = hasStatus(['generating'])
 
 /** A job refuses a Run some worker started (`RunStartedError`): that worker has died. */
-export const ensureRunUnstarted = Effect.fnUntraced(function* (run: Run) {
+export const ensureRunUnstarted = Effect.fnUntraced(function* <
+  R extends Types.Simplify<Pick<Run, 'id' | 'status'>>,
+>(run: R) {
   if (isStartedRun(run)) {
     return yield* new RunStartedError({ id: run.id })
   }
@@ -88,8 +93,10 @@ const isFailedRun = hasStatus(['failed'])
  * A retry takes the chat's newest Run when it failed: only the newest user message ever gets a
  * Run, so the retry answers the chat's last user message.
  */
-export const ensureRunRetryable = Effect.fnUntraced(function* (newestRun: Option.Option<Run>) {
-  const failed = Option.filter<Run>(newestRun, isFailedRun)
+export const ensureRunRetryable = Effect.fnUntraced(function* <
+  R extends Types.Simplify<Pick<Run, 'status'>>,
+>(newestRun: Option.Option<R>) {
+  const failed = Option.filter<R>(newestRun, isFailedRun)
   if (Option.isNone(failed)) return yield* new RunNotRetryableError()
   return failed.value
 })
@@ -103,14 +110,17 @@ const moveRunRules = {
 } as const satisfies Record<RunStatus, ReadonlyArray<RunStatus>>
 
 /** A move the table refuses dies: every caller moves a Run it has just read or moved. */
-const ensureRunMove = Effect.fnUntraced(function* (run: Run, to: RunStatus) {
+const ensureRunMove = Effect.fnUntraced(function* (
+  run: Types.Simplify<Pick<Run, 'id' | 'status'>>,
+  to: RunStatus,
+) {
   if (!Arr.contains(moveRunRules[run.status], to)) {
     return yield* new RunStatusInvalidError({ id: run.id, from: run.status, to })
   }
 }, Effect.orDie)
 
 const move = Effect.fnUntraced(function* (
-  run: Run,
+  run: RunFields,
   to: Exclude<RunStatus, 'queued'>,
   fields: Partial<Pick<Run, 'failure' | 'assistantMessageId'>> = {},
 ) {
@@ -118,14 +128,14 @@ const move = Effect.fnUntraced(function* (
   return new Run({ ...run, ...fields, status: to })
 })
 
-export const startRun = Effect.fn('startRun')((run: Run) => move(run, 'generating'))
+export const startRun = Effect.fn('startRun')((run: RunFields) => move(run, 'generating'))
 
 /** Ends a Run with the reply `replyId` names. */
-export const completeRun = Effect.fn('completeRun')((run: Run, replyId: MessageId) =>
+export const completeRun = Effect.fn('completeRun')((run: RunFields, replyId: MessageId) =>
   move(run, 'done', { assistantMessageId: Option.some(replyId) }),
 )
 
 /** Fails a Run with the full text of `cause`, its nested causes included. */
-export const failRun = Effect.fn('failRun')((run: Run, cause: Cause.Cause<unknown>) =>
+export const failRun = Effect.fn('failRun')((run: RunFields, cause: Cause.Cause<unknown>) =>
   move(run, 'failed', { failure: Option.some({ cause: Cause.pretty(cause) }) }),
 )

@@ -199,6 +199,37 @@ describe('Run', () => {
   })
 })
 
+describe('a rule function over a plain struct of the fields it reads', () => {
+  it.effect('a move takes a spread Run and returns a Run', () =>
+    Effect.gen(function* () {
+      const started = yield* startRun({ ...queued })
+      const done = yield* completeRun({ ...started }, replyId)
+      const failed = yield* failRun({ ...started }, Cause.fail('529 overloaded'))
+
+      assert.instanceOf(started, Run)
+      assert.deepStrictEqual(
+        [started.status, done.status, failed.status],
+        ['generating', 'done', 'failed'],
+      )
+    }),
+  )
+
+  it.effect('a check takes an object of the fields it reads and returns that object', () =>
+    Effect.gen(function* () {
+      const unstarted = { id: queued.id, status: 'queued' } as const
+      const failed = { status: 'failed' } as const
+
+      const error = yield* ensureRunUnstarted({ id: queued.id, status: 'generating' }).pipe(
+        Effect.flip,
+      )
+
+      assert.strictEqual(yield* ensureRunUnstarted(unstarted), unstarted)
+      assert.strictEqual(yield* ensureRunRetryable(Option.some(failed)), failed)
+      assert.deepStrictEqual(Struct.pick(error, ['id']), { id: queued.id })
+    }),
+  )
+})
+
 describe('ensureRunRetryable', () => {
   it.effect('returns a failed newest Run', () =>
     Effect.gen(function* () {
