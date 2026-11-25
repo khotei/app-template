@@ -24,7 +24,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   stores bytes with its records → `File<Model>Service`, holding the bytes' store.
 - The last grouping of a module's logic before a use case, which use cases share, is a
   `<Verb><Model>Service` ([its form](naming.md#symbols)): it composes the module's services, rules,
-  `Transaction` and what one process provides, the api's its `<model>.queue` sends, the worker's
+  `Transaction` and what one process provides, the api's its `<Model>Queue`, the worker's
   its `.llm` files, each admitted by its file's own Biome override, and calls no use case
   ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - A status move is a pure transition, a function of the model ([its name](naming.md#symbols)): it

@@ -145,10 +145,11 @@ A repository is a `Layer` over `Db` in its entity's `.repository.ts` (names:
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and return
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
-through its models (`UserService` over `UserRepository`). A method is one statement and opens
-no transaction: writes of several tables are a method each, which their service commits together
-([Transactions](#transactions)), as `UserService` does `UserRepository.insert` and
-`insertCredential`. Every method ends with `orDieWithSqlError` from `@app-template/packages/db`.
+through its models (`UserService` over `UserRepository`). Rows of several tables that commit
+together are a method each, which their service commits in one transaction
+([Transactions](#transactions)), as `UserService` does a user and its credential
+([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `orDieWithSqlError`
+from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
 their codecs: a write encodes the model into the row, the set takes its fields from that row,
@@ -368,5 +369,5 @@ unique index) and reads the `SqlError` of a refused statement with `flipSqlError
 [guard](#guards) the database adds, the cascades of its [foreign keys](#schema-and-entity-files)
 included, has its case in a repository suite: a unit test mocks the repository, so it sees none
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). Where each
-suite and its support live and the e2e of a use case's transaction:
+suite and its support live and the e2e of a service's or use case's transaction:
 [tooling.md › Tests](tooling.md#tests).

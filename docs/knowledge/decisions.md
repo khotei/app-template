@@ -183,12 +183,9 @@ the data layer's repository directly.
   of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
   shape widens the guard's pattern; one entry opens the
   module whole, so another part's ban on a layer matches the names it imports. A layer's override
-  covers its tests, save the services', so what they need passes in its source too. A repository's
-  method is one statement and opens no transaction, so a service whose rows of one model span
-  tables commits them through `Transaction`, the one way to open one: the identity's user service
-  takes it to store a user with its credential, and `UserRepository.insert` stays callable
-  without `insertCredential`, which only the service being their one caller and the api's e2e of
-  a refused credential (`apps/e2e/api/user.e2e.ts`) stop. What passes every guard:
+  covers its tests, save the services', so what they need passes in its source too. A
+  repository's method opens no transaction, and a service commits rows that span tables:
+  [One way to open a transaction](#one-way-to-open-a-transaction). What passes every guard:
   [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
   layer's tests, save the services', whose tests have one of their own, the domain's admitting
@@ -206,9 +203,7 @@ the data layer's repository directly.
   module's layers in [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `make bundle-check`,
   which reads the web bundle's metafile and refuses the module's package in it;
-  `.claude/rules/layering.md`, a repository or the data layer in an app's handler; the cases of
-  `Transaction` that nest a `run` in a `run` (`packages/db/__e2e__/db.client.e2e.ts`), so a
-  service's transaction inside its caller's leaves the caller's whole.
+  `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
   export per layer brings back the subpaths and a ban per layer by path; a domain without the
   data layer declares each value again, and a mapper's unit test per value compares the copies.
@@ -655,7 +650,10 @@ them by id, and a chat and a message hold their Run as that select-only field.
   the two of Rejected; `repos/effect/packages/effect/src/schema/Model.ts`; the trial recorded in
   [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle"; for the
   statics, the owner's words (2026-11-25), in order: "let it be static, and apply to all models
-  where it used"; "makeUpdateRow(row) / makeInsertRow(row) and where needed auto omit under the
+  where it used"; "what if crete single static method of `const set = yield*
+  Chat.update.makeEffect({ id: chat.id, ...fields })` / `const row = yield*
+  encodeWith(Chat.update)(set)` — `Chat.makeUpate` which will combine 2 calls?";
+  "makeUpdateRow(row) / makeInsertRow(row) and where needed auto omit under the
   hood."; "makeUpdate / makeInsert / apply for all classes", which renamed them; "{ set, row }";
   and, for the omit on every update, "but this could be changes, so we need everywhere add this".
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
@@ -1010,6 +1008,42 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 - **If reversed:** the reads take `forUpdate` again, and a check whose loser must get a domain
   error waits on the winner's commit.
 - **Revisit when:** a race's `500` reaches users often enough to need its own refusal.
+
+### One way to open a transaction
+
+A transaction opens only through the `Transaction` service of `@app-template/packages/db`, its
+`run` piped on the writes it commits or passed as their function's last argument, and a
+repository's method is one statement that opens none. Rows that commit together, one table's
+each, are a method each, which the service or use case holding them commits in one `run`.
+
+- **Why:** one place decides what commits together, the service or use case that orders the
+  writes, never a repository below it. A caller's transaction and a service's nest: a `run` inside
+  a `run` is a savepoint of the outer one, so a service that commits its rows inside its caller's
+  transaction leaves the caller's whole.
+- **Sources:** Effect SQL's `withTransaction`, which `Transaction.layer` wraps:
+  `makeWithTransaction` "uses savepoints for nested transactions"
+  (`node_modules/.bun/effect@4.1.5/node_modules/effect/src/sql/SqlClient.ts:620-621`, its
+  `SAVEPOINT` at `:339` and `:359`); the cases of `Transaction` that nest a `run` in a `run`
+  (`packages/db/__e2e__/db.client.e2e.ts`); the owner's words "use single transaction" and
+  "allow transaction in services if it doesn't breake upper transactions".
+- **Rejected:** a repository method that opens its own transaction for one record's rows in two
+  tables, as `UserRepository.insert` did for a user and its credential: two ways to open one, and
+  the service could not see or extend what commits together.
+- **Cost:** `UserRepository.insert` is callable without `insertCredential`, so a caller that
+  leaves the second out stores a user with no credential. The traces change shape:
+  `UserRepository.insert` is one statement's span and `UserRepository.insertCredential` a span of
+  its own, both under the `sql.transaction` span the service's `run` opens.
+- **Guarded by:** `UserService` being the one caller of the two writes; the api's e2e of a
+  refused credential (`apps/e2e/api/user.e2e.ts`), which keeps no user; the cases of
+  `Transaction` that nest a `run` in a `run`; the services' Biome override, which admits of
+  `@app-template/packages/db` only `Transaction`
+  ([A module's layers](#a-modules-layers)); `.claude/rules/repositories.md`, in review, a
+  repository that opens a transaction.
+- **If reversed:** a repository opens a transaction for the rows it writes together, and a
+  service holding it can neither add a write to them nor see from its own code what commits.
+- **Revisit when:** a record's rows in several tables are written by more than one service, so
+  one caller no longer guards the pair; or a store joins whose writes cannot run inside a Postgres
+  transaction.
 
 ### Reads in creation order
 
