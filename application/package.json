@@ -6,6 +6,7 @@
     "./chat": "./chat/index.ts",
     "./chat/contract": "./chat/contract/index.ts",
     "./identity": "./identity/index.ts",
+    "./identity/contract": "./identity/contract/index.ts",
     "./user": "./user/index.ts",
     "./user/contract": "./user/contract/index.ts",
     "./use-cases": "./use-cases/index.ts",

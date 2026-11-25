@@ -182,7 +182,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
 | codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
 | HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
-| the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, `CurrentUser`, `SchemaErrors`, `RequestInvalidError` |
+| the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `CurrentUser`, `SchemaErrors`, `RequestInvalidError` |
 | a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |

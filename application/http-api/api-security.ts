@@ -1,7 +1,8 @@
-import { Context, Schema } from 'effect'
+import { Schema } from 'effect'
 import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
-import { type UserId, UserUnknownError } from '@app-template/application/user/contract'
+import type { CurrentUser } from '@app-template/application/identity/contract'
+import { UserUnknownError } from '@app-template/application/user/contract'
 
 /** `path` mixes property names and array indices, as Standard Schema reports them. */
 export const RequestIssue = Schema.Struct({
@@ -14,10 +15,6 @@ export class RequestInvalidError extends Schema.TaggedError<RequestInvalidError>
   'RequestInvalidError',
   { issues: Schema.Array(RequestIssue) },
   { httpApiStatus: 400 },
-) {}
-
-export class CurrentUser extends Context.Service<CurrentUser, { readonly id: UserId }>()(
-  '@app-template/application/http-api/CurrentUser',
 ) {}
 
 export class Auth extends HttpApiMiddleware.Service<Auth, { provides: CurrentUser }>()(

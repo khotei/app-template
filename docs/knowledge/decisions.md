@@ -31,7 +31,8 @@ may import what:
 The behaviour is split by business capability, a module per capability under `application/`:
 `chat`, `user` and `identity`. `user` holds the user's model, its id and the error of an
 unknown user, which other modules' models and the API contract name; `identity` the recognising
-of a user by its secret, and it imports `user`, never the reverse.
+of a user by its secret and `CurrentUser`, the user the api's `Auth` provides to a request's
+handlers, and it imports `user`, never the reverse.
 
 - **Why:** a module owns what changes together. Who a user is changes apart from how the api
   recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
@@ -301,9 +302,10 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 
 The API contract is `application/http-api`, a part of the `application` workspace behind its own
 entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
-the definitions of its middlewares (`Auth` with the `CurrentUser` it provides, `SchemaErrors` with
-its `RequestInvalidError`), whose layers, with the handlers, stay in `apps/api`. It takes of a
-module only its models, ids and errors, through the module's contract
+the definitions of its middlewares (`Auth`, which provides identity's `CurrentUser`,
+`SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers, stay in
+`apps/api`. It takes of a module only its models, ids, errors and `CurrentUser`, through the
+module's contract
 ([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
 case, so it loads no service, store or client; it is declared over the
 domain's schemas: ids, payload checks, models and errors are
