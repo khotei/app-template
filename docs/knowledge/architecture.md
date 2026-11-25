@@ -102,10 +102,11 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The api's HTTP groups take the domain's schemas** through the modules' entries; the web
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
-  imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types),
-  **a module's `domain/` also the row codecs**, never the kernel, as it declares its values
-  itself ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), and none of
-  them nor a module's `services/` import an `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
+  imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types);
+  **so does a module's `domain/`, never the kernel**, as it declares its values itself
+  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), and none of them nor a
+  module's `services/` import an `@effect/*` package
+  ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
   ([modules.md](../../.claude/rules/modules.md)).
@@ -172,7 +173,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a handler on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
-| codecs whose failed encode or decode is a defect, a variant's make with its row, whose refused make stays a typed failure; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `makeRowWith`, `buildIdSchema` |
+| codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
 | HTTP group | `apps/api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
 | the contract | `apps/api/api.ts`, `apps/api/openapi.json` | `Api` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
@@ -275,8 +276,8 @@ imports need.
    status, `{ httpApiStatus: <code> }`, [apps/CLAUDE.md](../../apps/CLAUDE.md)), each with its
    unit test.
 3. **The service.** `application/<module>/services/<entity>.service.ts`: `<Model>Service` over the
-   repository, coding its rows through the model's codec statics (`<Model>.decodeOne`,
-   `<Model>.makeInsert`), the one owner every handler goes through, tested over mocks of the
+   repository, coding its rows through `RowCodec` over the model (`RowCodec.decodeOne(<Model>)`,
+   `RowCodec.makeInsert(<Model>)`), the one owner every handler goes through, tested over mocks of the
    repositories it calls, and
    provided in `ApiHttp` ([apps/CLAUDE.md](../../apps/CLAUDE.md)). The layers' barrels re-export
    the new files. A purpose the service was not made for comes later as a service composed over it,

@@ -563,7 +563,8 @@ def patterns():
         ("A guarded move", [
             "runs.update(run, yield* RunMove.start(run))",
             "// RunService.update(from, to):",
-            "const { row } = yield* Run.makeUpdate(to)",
+            "const { row } =",
+            "  yield* RowCodec.makeUpdate(Run)(to)",
             "runs.update(row, encodeWhere(",
             "  Struct.pick(from, ['id', 'status'])))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),

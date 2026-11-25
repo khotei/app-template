@@ -1,6 +1,7 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
 import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
+import { RowCodec } from '@app-template/packages/schema'
 
 import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 
@@ -24,7 +25,7 @@ export class MessageService extends Context.Service<
     const create = Effect.fn('MessageService.create')(function* (
       fields: typeof Message.jsonCreate.Type,
     ) {
-      const { set, row } = yield* Message.makeInsert(fields)
+      const { set, row } = yield* RowCodec.makeInsert(Message)(fields)
 
       yield* messages.insert(row)
       return new Message(set)
@@ -32,7 +33,7 @@ export class MessageService extends Context.Service<
 
     const getOne = Effect.fn('MessageService.getOne')(
       (where: MessageWhere) => messages.selectOne(encodeWhere(where)),
-      Effect.flatMap(Message.decodeOne),
+      Effect.flatMap(RowCodec.decodeOne(Message)),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -43,7 +44,7 @@ export class MessageService extends Context.Service<
     const getMany = Effect.fn('MessageService.getMany')(
       (where: Types.Simplify<Pick<MessageWhere, 'chatId'>>) =>
         messages.selectMany(encodeWhere(where)),
-      Effect.flatMap(Message.decodeMany),
+      Effect.flatMap(RowCodec.decodeMany(Message)),
     )
 
     return { create, getOne, getMany }

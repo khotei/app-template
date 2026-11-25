@@ -52,25 +52,22 @@ export class OrderMove {                                              // order-m
   static readonly ship = Effect.fn('OrderMove.ship')((order: OrderFields) => …) // a new Order
 }
 ```
-- **A service builds a write through its model's static,** `<Model>.makeInsert(…)` or
-  `<Model>.makeUpdate(…)`, the variant's `makeEffect` and its encode in one call: it hands
-  `row` to the repository and returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an
-  id or a time made by hand (`DateTime.now`, a generator of its own).
-- **A service codes its rows through the model's statics alone,** one per read's shape or write's
-  variant, never `encodeWith`, `decodeWith` or `makeRowWith` at the call; a model holds only those
-  its service calls. Every `makeUpdate` is `makeUpdateWith(this.update)`, which drops the input's
-  own `updatedAt`, so the variant moves it to now whether the caller passes fields or a record as
+- **A service codes its rows through `RowCodec` of `@app-template/packages/schema` alone,** its
+  statics taking the model: `decodeOne`/`decodeMany` a read's rows, `makeInsert`/`makeUpdate` a
+  write, the variant's `makeEffect` and its encode in one call; never `encodeWith` or
+  `decodeWith` at the call, nor a codec static on the model. It hands `row` to the repository and
+  returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an id or a time made by hand
+  (`DateTime.now`, a generator of its own). `makeUpdate` drops the keys the update variant renews
+  (`updatedAt`), so the variant moves them to now whether the caller passes fields or a record as
   read ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
 ```ts
-static readonly decodeOne = decodeWith(Schema.Option(this))    // selectOne's row
-static readonly decodeMany = decodeWith(Schema.Array(this))    // selectMany's rows
-static readonly makeInsert = makeRowWith(this.insert)          // { set, row }
-static readonly makeUpdate = makeUpdateWith(this.update)       // only on a model it updates
+const { set, row } = yield* RowCodec.makeInsert(Order)({ customerId })
+const found = yield* orders.selectOne(where).pipe(Effect.flatMap(RowCodec.decodeOne(Order)))
 ```
 - **An update passes every field it must keep:** a default on an updatable field fills it when
   left out, and the write then resets the column.
 
 ```diff
 - yield* Order.update.makeEffect({ id: order.id, note })        // `status` defaults to 'placed'
-+ yield* Order.makeUpdate(shipped)                           // whole, the time moved
++ yield* RowCodec.makeUpdate(Order)(shipped)                     // whole, the time moved
 ```

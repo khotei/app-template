@@ -658,19 +658,21 @@ built-in call is not written; the built-in is called.
 A domain model is a `Model.Class` of `effect/schema` over one field list: the class is the row a
 read decodes, its `insert` and `update` variants what a write encodes, its `json` variant what
 the api serves. The Drizzle tables, the entities and the kernel's repositories stay, and a
-service still codes its rows, through the model's statics over `packages/schema`'s functions: a
-read's shape decodes through `decodeWith` (`Chat.decodeOne`, `decodeMany`), and a write's variant
-makes its value and encodes its row in one call of `makeRowWith` (`makeInsert`,
-`makeUpdate`), which returns both, `{ set, row }`, and dies on a value the variant refuses as a
-`Schema.SchemaError`, the issue's text its message; a model has only the statics its service
-calls, and every `makeUpdate` goes through `makeUpdateWith`, which drops the input's own
-`updatedAt`, so the update variant moves it to now whatever the caller passes, fields or a
-record as read. The insert variant makes a new
-record's id (`Model.UuidV7Insert`) and both its times, the update variant moves `updatedAt`, a
+service still codes its rows, through the statics of `packages/schema`'s `RowCodec`, which take
+the model: a read's rows decode through `RowCodec.decodeOne(Chat)` or `decodeMany`, and a write's
+variant makes its value and encodes its row in one call of `makeInsert` or `makeUpdate`, which
+returns both, `{ set, row }`, and dies on a value the variant refuses as a `Schema.SchemaError`,
+the issue's text its message. `makeUpdate` drops from its input the keys the update variant
+renews, found by Effect's own marker, never by name: in the type a field typed with the
+`Override` brand, at run time a constructor default the update variant has and the select variant
+lacks (`updatedAt` of a Chat and a Run), so the variant moves it to now whatever the caller passes,
+fields or a record as read. A model holds no codec static and imports no codec. The insert
+variant makes a new record's id (`Model.UuidV7Insert`) and both its times, the update variant
+moves `updatedAt`, a
 field written once by the insert is left out of the update variants, a field no client may see
 out of the json ones (`Model.Sensitive`), and a record another table holds, read with the model,
 is a field of the select variant alone. A service builds a write with
-`<Model>.makeInsert` or `<Model>.makeUpdate`. A Run carries no messages: it names
+`RowCodec.makeInsert(<Model>)` or `RowCodec.makeUpdate(<Model>)`. A Run carries no messages: it names
 them by id, and a chat and a message hold their Run as that select-only field.
 
 - **Why:** as a `Schema.Class` a model said only what a read returns, so what a write and the
@@ -689,7 +691,10 @@ them by id, and a chat and a message hold their Run as that select-only field.
   encodeWith(Chat.update)(set)` — `Chat.makeUpate` which will combine 2 calls?";
   "makeUpdateRow(row) / makeInsertRow(row) and where needed auto omit under the
   hood."; "makeUpdate / makeInsert / apply for all classes", which renamed them; "{ set, row }";
-  and, for the omit on every update, "but this could be changes, so we need everywhere add this".
+  and, for the omit on every update, "but this could be changes, so we need everywhere add this";
+  for `RowCodec`, the owner's words (2026-11-25): "Logic which like encode,decode,(make
+  insert,update), maybe we could create classes with static methods wich will accpet args
+  (models, etc) and interanlly abstract it.", then "Группа C. Кодеки - yes".
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
   `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
   field written once and one only read: the same unstable module underneath, the fields `Model`
@@ -701,7 +706,11 @@ them by id, and a chat and a message hold their Run as that select-only field.
   `make`, beside the variants: a test could fix an id, for a generator in every service and an
   id passed to each insert by hand. The codec built at each call
   (`decodeWith(Schema.Option(<Model>))`, `encodeWith(<Model>.insert)`): the read's shape or the
-  variant spelled again in every call, where the model names it once. A static per step
+  variant spelled again in every call, where `RowCodec` names it once. The codec statics on each
+  model (`<Model>.decodeOne = decodeWith(Schema.Option(this))`): each model imported
+  `packages/schema`'s codecs and held a static per shape its service coded, where a model imports
+  only `effect`, ids and other models. The omit of `updatedAt` by its name (`makeUpdateWith`): a
+  renewed field of another name kept its old value, where the marker finds it. A static per step
   (`encodeInsert` beside `insert.makeEffect`): two calls at each write for one act. The omit of
   `updatedAt` in the Run's static alone: a Chat made from a record as read kept its old
   `updatedAt` in the row, as the Chat's model test showed before the omit.
@@ -714,12 +723,18 @@ them by id, and a chat and a message hold their Run as that select-only field.
   (`repos/effect/MIGRATION.md › Unstable Module System`). A constructor default applies in the
   update variant too: an update that leaves a defaulted field out writes the default over the
   column, so an update passes every field it must keep. A model carries six variants and the app
-  reads four of them (the class, `insert`, `update`, `json`). A service still names its variant
-  at each write and builds the record it returns from what the variant made.
+  reads four of them (the class, `insert`, `update`, `json`). A service still names its model
+  at each read and write and builds the record it returns from what the variant made. A class
+  of statics alone trips Biome's `noStaticOnlyClass`, turned off for `RowCodec`'s file alone. The
+  type finds a renewed key by its brand, the run time by its default: a defaulted field only the
+  update variant holds is typed as kept yet dropped, so its default replaces what the caller
+  passed (a probe on a sample model wrote 7 for a passed 3); no model has one.
 - **Guarded by:** `tsc` at each service's insert, where the repository takes the table's full
   row ([Entity names](#entity-names)); the services' unit tests, which assert a new id's form
   and each write's row or set; the api's snapshot test and its two assertions that a failure
-  stays off the wire; review, by `.claude/rules/models.md`. Nothing mechanical refuses a
+  stays off the wire; the `@ts-expect-error` pins of `RowCodec`'s and the chat services' tests,
+  where a row of another shape, a field written once and a kept field of another type fail to
+  compile; review, by `.claude/rules/models.md`. Nothing mechanical refuses a
   `new <Model>(…)` with an id or a time made by hand, nor an update that leaves a defaulted field
   out.
 - **If reversed:** the models are `Schema.Class` again: a struct of each model's own fields

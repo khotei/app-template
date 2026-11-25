@@ -540,7 +540,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-25) The Biome override of a module's `services/` (`.misc/lint/biome.base.json`) still
   admits `@app-template/packages/schema`, and its message says the import is "for the codecs and
   the id generator", while [models.md](../../.claude/rules/models.md) has a service code its rows
-  through its model's statics alone. A service that calls `decodeWith` again passes `make lint`;
+  through `RowCodec` alone. A service that calls `decodeWith` again passes `make lint`;
   none does today. Left on the owner's word: no guard before the harm is seen. Ways out to weigh:
   drop the package from that override's exceptions and fix the message, once a service has
   slipped; or leave it to the rule.

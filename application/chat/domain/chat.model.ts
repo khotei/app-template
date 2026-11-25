@@ -2,7 +2,6 @@ import { Effect, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
-import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { textPattern } from '#chat/domain/message.util'
@@ -43,9 +42,4 @@ export class Chat extends Model.Class<Chat>('Chat')({
     Schema.withConstructorDefault(Effect.succeedNone),
     Model.FieldOnly(['select']),
   ),
-}) {
-  static readonly decodeOne = decodeWith(Schema.Option(this))
-  static readonly decodeMany = decodeWith(Schema.Array(this))
-  static readonly makeInsert = makeRowWith(this.insert)
-  static readonly makeUpdate = makeUpdateWith(this.update)
-}
+}) {}

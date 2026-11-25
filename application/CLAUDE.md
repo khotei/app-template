@@ -12,7 +12,7 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   I/O, over the clients the process provides (`HttpClient`) and the settings of
   `@app-template/kernel/config`, never `Bun.env`.
 - **A module's `domain/` is pure:** it imports `effect`, another module's contract,
-  `@app-template/packages/schema` (the id schema, the row codecs), never the kernel: a value its
+  `@app-template/packages/schema` (the id schema), never the kernel: a value its
   table declares too (a limit, an enum's values) the model declares again, no other workspace,
   no Bun API and no Node built-in. Ports live only in `.port.ts`
   files and domain services only in `services/`, never beside a model.

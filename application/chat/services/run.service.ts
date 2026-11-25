@@ -5,6 +5,7 @@ import {
   type activeRunStatuses as indexedRunStatuses,
   RunRepository,
 } from '@app-template/kernel/data'
+import { RowCodec } from '@app-template/packages/schema'
 
 import { activeRunStatuses, Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
 
@@ -37,7 +38,7 @@ export class RunService extends Context.Service<
     const runs = yield* RunRepository
 
     const create = Effect.fn('RunService.create')(function* (fields: RunCreate) {
-      const { set, row } = yield* Run.makeInsert(fields)
+      const { set, row } = yield* RowCodec.makeInsert(Run)(fields)
 
       yield* runs.insert(row)
       return new Run(set)
@@ -45,7 +46,7 @@ export class RunService extends Context.Service<
 
     const getOne = Effect.fn('RunService.getOne')(
       (where: RunWhere) => runs.selectOne(encodeWhere(where)),
-      Effect.flatMap(Run.decodeOne),
+      Effect.flatMap(RowCodec.decodeOne(Run)),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>
         Effect.flatMap(
@@ -55,7 +56,7 @@ export class RunService extends Context.Service<
     )
 
     const update = Effect.fn('RunService.update')(function* (from: Run, to: Run) {
-      const { set, row } = yield* Run.makeUpdate(to)
+      const { set, row } = yield* RowCodec.makeUpdate(Run)(to)
 
       yield* runs.update(row, encodeWhere({ id: from.id, status: from.status }))
       return new Run({ ...to, ...set })

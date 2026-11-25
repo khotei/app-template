@@ -2,7 +2,6 @@ import { Data, Effect, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
-import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
@@ -70,11 +69,7 @@ export class Run extends Model.Class<Run>('Run')({
   ),
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,
-}) {
-  static readonly decodeOne = decodeWith(Schema.Option(this))
-  static readonly makeInsert = makeRowWith(this.insert)
-  static readonly makeUpdate = makeUpdateWith(this.update)
-}
+}) {}
 
 /** A Run's fields: what a move takes, a Run, a spread Run or another shape's. */
 export type RunFields = Schema.Struct.Type<typeof Run.fields>

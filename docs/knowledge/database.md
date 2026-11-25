@@ -94,22 +94,22 @@ A model is the codec of its own row: a `Model.Class` that declares each stored v
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
 (`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
 entity and its type side is what the rules read. No mapper sits between them: a service codes a
-row through the model's statics over `@app-template/packages/schema`: a read's through
-`decodeWith` over the model in the read's shape, a write's through `makeRowWith` over one of its
-variants ([models.md](../../.claude/rules/models.md)). A read decodes the entity with the model in the
-read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
+row through the statics of `RowCodec` (`@app-template/packages/schema`), which take the model: a
+read's through `decodeOne` or `decodeMany`, a write's through `makeInsert` or `makeUpdate` over
+its variant ([models.md](../../.claude/rules/models.md)). A read decodes the entity with the
+model in the read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
 `insert` makes the id and both times, `update` holds only the fields an update may set and moves
 `updatedAt`, and neither holds a nested record, which is a field of the select variant alone
 ([Models with variants](decisions.md#models-with-variants)):
 
 ```ts
-const { set, row } = yield* Chat.makeInsert({ userId })
-const found = yield* chats.selectOne(where).pipe(Effect.flatMap(Chat.decodeOne))
+const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
+const found = yield* chats.selectOne(where).pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
   back a mapper of its own, which lays the model's schemas over that store's columns.
-- A service writes a model encoded through its `makeInsert` into the row the repository's `insert`
+- A service writes a model encoded through `RowCodec.makeInsert` into the row the repository's `insert`
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
   `UserRepository.insertCredential` takes the credential's row `{ hash, kind, userId }` with no

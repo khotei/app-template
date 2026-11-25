@@ -15,7 +15,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A port speaks the domain's words, never a client's type or error ([failures](effect.md#failures)).
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
-  key with its `*NotFoundError`), coding the rows through the model's codec statics
+  key with its `*NotFoundError`), coding the rows through `RowCodec` over the model
   ([models.md](models.md); no port between, [why](effect-services.md#services)). It
   sees the repositories, its ports, the clock, `SecureRandom`, `Digest` and `Transaction`; never
   another model's service or its infrastructure but as below ([composition.md](composition.md)).

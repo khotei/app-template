@@ -9,6 +9,7 @@ import {
   UserRepository,
 } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
+import { RowCodec } from '@app-template/packages/schema'
 
 import { secretBytes, User, type UserSecret, UserUnknownError } from '#identity/domain/user.model'
 
@@ -41,7 +42,7 @@ export class UserService extends Context.Service<
     const authenticate = Effect.fn('UserService.authenticate')(
       hashSecret,
       Effect.flatMap((credentials) => users.selectOne(encodeWhere({ credentials }))),
-      Effect.flatMap(User.decodeOne),
+      Effect.flatMap(RowCodec.decodeOne(User)),
       Effect.flatMap(Effect.fromOption(() => new UserUnknownError())),
     )
 
@@ -58,7 +59,7 @@ export class UserService extends Context.Service<
       const bytes = yield* random.randomBytes(secretBytes)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
-      const { set, row } = yield* User.makeInsert({})
+      const { set, row } = yield* RowCodec.makeInsert(User)({})
       const credential = yield* hashSecret(fresh)
       yield* createUser(row, credential)
       return { user: new User(set), secret: fresh }

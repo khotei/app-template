@@ -147,7 +147,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and @app-template/packages/schema, for the id schema and the row codecs; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
+                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and @app-template/packages/schema, for the id schema; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],

@@ -16,13 +16,13 @@ paths:
 ```diff
 - const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
 -   orders.selectOne(encodeWhere(where)).pipe(               // the whole result, piped in the body
--     Effect.flatMap(Order.decodeOne),
+-     Effect.flatMap(RowCodec.decodeOne(Order)),
 -     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 -   ),
 - )
 + const getOne = Effect.fn('OrderService.getOne')(
 +   (where: OrderWhere) => orders.selectOne(encodeWhere(where)),
-+   Effect.flatMap(Order.decodeOne),
++   Effect.flatMap(RowCodec.decodeOne(Order)),
 +   (found, where) =>
 +     Effect.flatMap(found, Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 + )
