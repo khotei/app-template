@@ -422,6 +422,38 @@ describe('AskChatService', () => {
   )
 
   it.effect.each([
+    {
+      name: 'ask',
+      refused: AskChatService.use((asks) => asks.ask(answeredChat, 'Hi')).pipe(Effect.flip),
+    },
+    {
+      name: 'retry',
+      refused: AskChatService.use((asks) => asks.retry(answeredChat)).pipe(Effect.flip),
+    },
+  ])(
+    '$name with a whole chat as its where reads the chat by its id and owner alone',
+    ({ refused }) => {
+      const wheres: Array<ChatEntitySelectWhere> = []
+      return Effect.gen(function* () {
+        yield* refused
+
+        assert.deepStrictEqual(wheres, [{ id: chat.id, userId: owner }])
+      }).pipe(
+        Effect.provide(
+          layerChatTest({
+            chats: {
+              selectOne: (where) =>
+                Effect.sync(() => {
+                  wheres.push(where)
+                }).pipe(Effect.as(Option.none())),
+            },
+          }),
+        ),
+      )
+    },
+  )
+
+  it.effect.each([
     { name: 'ask', interrupted: ask('Plan a weekend in Lisbon'), read: chat },
     { name: 'retry', interrupted: retry, read: withNewest(failedRun) },
   ])(

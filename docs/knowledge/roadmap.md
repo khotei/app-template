@@ -551,6 +551,11 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-25) The README picture's `<Model>Service` row (`.misc/readme/build.py`) names an
   update's first parameter `to`, while `ChatService.update` calls it `fields`. Older than the
   ticket, noticed in its review. Way out: rename it in the picture and rebuild.
+- (2026-11-25) The api's and the worker's lifecycle log layer is built beside the server layer by
+  `Layer.merge`, which builds both concurrently (`apps/api/layer.ts:48-53`,
+  `apps/worker/layer.ts:29-35`), so "api started" or "worker started" can be logged before the
+  server listens, or when binding the port fails. Claimed by a review, not reproduced. Way out:
+  order the log after the server in both processes.
 
 ## Ideas to weigh
 

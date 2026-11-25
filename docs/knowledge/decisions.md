@@ -1453,11 +1453,11 @@ and a worker settled the Run dies on the write's guard and fails no later Run
   the Run's id: a second delivery found its own Run settled and was skipped, but the reply to a
   message then takes a Run's id, and the method's name and its parameter disagree.
 - **Cost:** a process that dies between the Run's commit and its send leaves the Run queued and its
-  chat busy ([roadmap.md › Later](roadmap.md#later)), and an aborted request still runs to its
-  sends, bounded by the SQS client's timeouts. A failed Run's job delivered again after a retry
-  fails the retry's Run, and the user retries again. A model's error on a Run whose chat was deleted
-  meanwhile ends the job as a defect, not as a warning. An interrupt waits for the start's read and
-  write to end.
+  chat busy ([roadmap.md › Later](roadmap.md#later)), and a request aborted past its chat's read
+  and check still runs to its sends, bounded by the SQS client's timeouts. A failed Run's job
+  delivered again after a retry fails the retry's Run, and the user retries again. A model's error
+  on a Run whose chat was deleted meanwhile ends the job as a defect, not as a warning. An
+  interrupt waits for the start's read and write to end.
 - **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a
   retry interrupted while their Run is stored and an ask and a retry interrupted while their chat
   is read, and of `ReplyChatService`, one while the assistant
