@@ -2,17 +2,19 @@ import { Effect, Option, Schema, type Types } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
-import { maxTitleLength, textPattern } from '@app-template/kernel/data'
 import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/schema'
 
 import { ChatBusyError } from '#chat/domain/chat.error'
 import { ChatId } from '#chat/domain/chat.util'
+import { textPattern } from '#chat/domain/message.util'
 import { ensureRunRetryable, isActiveRun, Run, type RunStatus } from '#chat/domain/run.model'
 import { Status } from '#chat/domain/status.model'
 
 /** `queued` while the chat's reply is in work, `failed` after its last reply failed, else `idle`. */
 export const ChatStatus = Status.pick(['idle', 'queued', 'failed'])
 export type ChatStatus = typeof ChatStatus.Type
+
+export const maxTitleLength = 120
 
 /** Its length is counted in UTF-16 code units, as `Schema.isMaxLength` counts them. */
 export const ChatTitle = Schema.String.check(

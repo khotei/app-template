@@ -2,14 +2,13 @@ import { Effect, Predicate, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
-import { messageAuthors, textPattern } from '@app-template/kernel/data'
 import { decodeWith, makeRowWith } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
-import { isBlank, MessageId } from '#chat/domain/message.util'
+import { isBlank, MessageId, textPattern } from '#chat/domain/message.util'
 import { Run } from '#chat/domain/run.model'
 
-export const MessageAuthor = Schema.Literals(messageAuthors)
+export const MessageAuthor = Schema.Literals(['user', 'assistant'])
 export type MessageAuthor = typeof MessageAuthor.Type
 
 /** A message as `messages` holds it, read with its Run; a message is never changed. */

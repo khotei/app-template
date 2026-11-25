@@ -267,7 +267,7 @@ imports need.
 2. **The model.** `application/<module>/domain/`: `<entity>.util.ts` (its id),
    `<entity>.model.ts` (a `Model.Class`, its fields by `.claude/rules/models.md`, with its pure
    operations, which read no clock;
-   a limit, a pattern or an enum's values imported from its table, never declared again,
+   a limit, a pattern or an enum's values declared on its side, never imported from its table,
    [Checks kept in the tables](decisions.md#checks-kept-in-the-tables); each stored value
    declared as its row holds it, so the model is its row's codec and needs no mapper,
    [database.md › Entities and models](database.md#entities-and-models)), `<entity>.error.ts`

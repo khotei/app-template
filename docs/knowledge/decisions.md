@@ -998,21 +998,32 @@ store's columns.
 ### Checks kept in the tables
 
 The tables keep their checks: the data layer declares the enums' values and the checks' limits
-and patterns, and a model that holds one imports it to check the same rule on its side.
+and patterns for its tables, and a model declares its own for its schemas, never importing the
+table's; a service, which imports both, holds the two in step.
 
 - **Why:** the database stays a guard against any writer, as the partial unique index already
-  is.
+  is. A model that imported the table's value would load the data layer, and with it the
+  backend, into every importer of the model.
 - **Sources:** the guide's "Foreign keys, views, triggers, and logical invariants encode coupling
   between tables"
-  ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/)).
+  ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/));
+  the owner's words for the values (2026-11-25): "if model will import kernel data this is
+  wrong, it very easy to include backend", settled as the model declaring its values itself and
+  the table its own ("lets for now").
 - **Rejected:** the checks dropped, the rule only in the modules: the database would accept a
-  row the app never writes.
-- **Cost:** a rule lives twice, as a check and as a model's refinement, though each value once;
-  the model's side may add to the check (trimming every whitespace, counting UTF-16 units),
-  never accept less.
-- **Guarded by:** the data layer exports each limit, pattern and enum's values from its table and
-  a model that holds it imports it; the data layer's e2e check the table's side
-  ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
+  row the app never writes. The model importing the table's value: the data layer in every
+  importer of a model. A leaf package of values both import: the values would leave the tables
+  that check them.
+- **Cost:** a rule lives twice, as a check and as a model's refinement, and each value twice, in
+  the table and in the model; the model's side may add to the check (trimming every whitespace,
+  counting UTF-16 units), never accept less. A field a JSON column's shape makes optional on
+  one side alone passes every check, harmless as a decode drops the extra key.
+- **Guarded by:** `make typecheck` at the service that codes the row, where the repository takes
+  and returns the table's row: an enum's value or a required field of a JSON column's shape
+  changed on one side fails there; the active statuses, which only the index's predicate reads,
+  by one line in `run.service.ts`, `<the domain's list> satisfies typeof <the kernel's>`; the
+  data layer's e2e check the table's side ([tooling.md › Tests](tooling.md#tests));
+  `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
 - **Revisit when:** a rule cannot be a check, or a model needs a value its table cannot state.

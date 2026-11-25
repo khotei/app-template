@@ -36,9 +36,10 @@ the entities derived from them.
   `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the lower-case hex SHA-256 a credential's hash is;
   `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
-  what the domain rejects. A model that holds the value imports it from the table and checks the
-  same rule on its side, so a change to the value changes both; a value no model holds, such as
-  the hash its service computes, has the check alone. drizzle-kit inlines the values
+  what the domain rejects. A model that holds the value declares it again on its side and checks
+  the same rule there, never importing the table's
+  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)); a value no model holds,
+  such as the hash its service computes, has the check alone. drizzle-kit inlines the values
   into the DDL, so a changed literal, pattern or limit changes the schema, and
   `make migration-check` fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand

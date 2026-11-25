@@ -1,9 +1,16 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
-import { encodeWhere, RunRepository } from '@app-template/kernel/data'
+import {
+  encodeWhere,
+  type activeRunStatuses as indexedRunStatuses,
+  RunRepository,
+} from '@app-template/kernel/data'
 
 import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run, type RunStatus } from '#chat/domain/run.model'
+import { activeRunStatuses, Run, type RunStatus } from '#chat/domain/run.model'
+
+// The rule's active Runs are those the partial unique index holds.
+activeRunStatuses satisfies typeof indexedRunStatuses
 
 export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMessageId'>>
 

@@ -2,7 +2,6 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Cause, DateTime, Effect, Equal, Option, Schema, Struct } from 'effect'
 
 import { UserId } from '@app-template/application/identity'
-import { activeRunStatuses } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -14,6 +13,7 @@ import {
   RunStatusInvalidError,
 } from '#chat/domain/run.error'
 import {
+  activeRunStatuses,
   completeRun,
   ensureRunRetryable,
   ensureRunUnstarted,

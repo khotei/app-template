@@ -2,7 +2,6 @@ import { Array as Arr, Cause, Effect, Option, Schema, type Types } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/identity'
-import { activeRunStatuses, RunFailure, runStatuses } from '@app-template/kernel/data'
 import { decodeWith, makeRowWith, makeUpdateWith } from '@app-template/packages/schema'
 
 import { ChatId } from '#chat/domain/chat.util'
@@ -15,11 +14,12 @@ import {
 import { RunId } from '#chat/domain/run.util'
 import { hasStatus, Status } from '#chat/domain/status.model'
 
-export const RunStatus = Status.pick(runStatuses)
+export const RunStatus = Status.pick(['queued', 'generating', 'done', 'failed'])
 export type RunStatus = typeof RunStatus.Type
 
-// The column's shape is the model's own: one definition, served through the module's entry.
-export { RunFailure }
+/** Why a Run failed: the full text of what ended it, for operators; no wire shape holds it. */
+export const RunFailure = Schema.Struct({ cause: Schema.String })
+export type RunFailure = typeof RunFailure.Type
 
 /**
  * The work of answering one user message, as `runs` holds it: `userMessageId` names the message
@@ -69,8 +69,11 @@ export class Run extends Model.Class<Run>('Run')({
 /** A Run's fields without its members: what a move takes, a spread Run or another shape's. */
 export type RunFields = Schema.Struct.Type<typeof Run.fields>
 
-// The statuses the data layer's active index holds, served through the module's entry.
-export { activeRunStatuses }
+/** The statuses of a Run still in flight. */
+export const activeRunStatuses = [
+  'queued',
+  'generating',
+] as const satisfies ReadonlyArray<RunStatus>
 
 export const isActiveRun = hasStatus(activeRunStatuses)
 
