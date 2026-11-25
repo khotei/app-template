@@ -228,6 +228,13 @@
                   {
                     "group": ["#*/infrastructure/**"],
                     "message": "a module's services reach its infrastructure only through a port; the chat's ask, reply and title services have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -271,6 +278,13 @@
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
                     "message": "a module's services' tests reach its infrastructure only through a port, save its queue file, whose jobs the ask service's tests read (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -314,6 +328,13 @@
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
                     "message": "the chat's ask service reaches its module's infrastructure only through a port and its queue file, whose ChatQueue it calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -360,6 +381,13 @@
                       "!#chat/infrastructure/message-assistant.llm"
                     ],
                     "message": "the chat's reply service reaches its module's infrastructure only through a port and the message's assistant, which replies (decisions.md › A module's layers; The chat's jobs in their services)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -403,6 +431,13 @@
                   {
                     "group": ["#*/infrastructure/**", "!#chat/infrastructure/chat-assistant.llm"],
                     "message": "the chat's title service reaches its module's infrastructure only through a port and the chat's assistant, which proposes the title (decisions.md › A module's layers; The chat's jobs in their services)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -423,6 +458,13 @@
                   {
                     "group": ["#*/services/**"],
                     "message": "a module's infrastructure holds what connects to the environment, the adapters of its domain's ports, the services a use case calls over a client, its queues' definitions with each job's send, and imports none of its services (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -460,6 +502,13 @@
                     "importNamePattern": "Llm[A-Za-z0-9]*Error",
                     "invertImportNamePattern": true,
                     "message": "of @app-template/kernel/llm/error the use cases take only the language model's errors, named Llm<Problem>Error (decisions.md › The language model in the kernel)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }

@@ -103,8 +103,9 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **The apps** never import each other or `deployment`:
   [Independent apps](decisions.md#independent-apps). What a handler may call and import:
   [layering.md › Handlers](../../.claude/rules/layering.md#handlers).
-- **The API contract's groups take the domain's schemas** through the modules' contracts; the web
-  takes none of them, only its generated client
+- **The API contract's groups take the domain's schemas** through the modules' contracts, and
+  only the apps read the contract: the overrides of a module's `services/` and `infrastructure/`
+  and of the use cases refuse it; the web takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A module's
   `domain/` imports only `effect`, `packages/schema`, for the id schema, and another module's
   contract** (and `type-fest` for types), never the kernel, as it declares its values itself

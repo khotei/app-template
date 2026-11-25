@@ -277,8 +277,9 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 - **Guarded by:** the `application/http-api` row of
   [architecture.md › Dependency rules](architecture.md#dependency-rules), whose Biome override
   admits there only the modules' contracts; a module's `domain/`, whose override admits of
-  `application/` only a contract, never imports it. No override refuses it in a module's
-  services or infrastructure or in the use cases.
+  `application/` only a contract, never imports it; the overrides of a module's `services/`, its
+  services' tests, its `infrastructure/` and the use cases refuse
+  `@app-template/application/http-api`, so only the apps read it.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
