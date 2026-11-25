@@ -723,7 +723,7 @@ message hold their Run as that select-only field.
   and, for the omit on every update, "but this could be changes, so we need everywhere add this";
   for `RowCodec`, the owner's words (2026-11-25): "Logic which like encode,decode,(make
   insert,update), maybe we could create classes with static methods wich will accpet args
-  (models, etc) and interanlly abstract it.", then "Группа C. Кодеки - yes".
+  (models, etc) and interanlly abstract it.", then "Group C. Codecs - yes" (translated from Russian).
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
   `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
   field written once and one only read: the same unstable module underneath, the fields `Model`
@@ -1017,9 +1017,10 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
-only, and its callers code its row through the model's statics over the generic `encodeWith`
-and `decodeWith`, a read through the model in the read's shape and a write through its insert or
-update variant ([Models with variants](#models-with-variants)), with no mapper per model. A
+only, and its service codes its row through `RowCodec`'s statics, which take the model, over
+the generic `encodeWith` and `decodeWith`, a read through the model in the read's shape and a
+write through its insert or update variant ([Models with variants](#models-with-variants)), with
+no mapper per model. A
 second stored form of a model brings back a mapper that lays the model's schemas over that
 store's columns.
 
@@ -1033,12 +1034,11 @@ store's columns.
   grouping where one relational read serves. A mapper that lays the model's schemas over the
   columns (`<Model>FromEntity`): a second list of the model's fields. A mapper beside the model
   that only names its codec pair (`encode<Model>`, `decode<Model>`): a second unit per model for
-  what the model's statics hold.
+  what `RowCodec` holds once for every model.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
-  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. A model holds a
-  static per read shape and write variant its service codes (`decodeOne`, `decodeMany`,
-  `makeInsert`, `makeUpdate`), and a service that needs another shape adds one: a model
-  never updated has no `makeUpdate`.
+  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. A service names
+  its model at each read and write (`RowCodec.decodeOne(<Model>)`), and a read of another shape
+  adds a static to `RowCodec`, for every model.
 - **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the
   repository's `insert`, which takes the table's full row, so a column the model lacks or a model
   field its row cannot take fails typecheck at the service's insert.
