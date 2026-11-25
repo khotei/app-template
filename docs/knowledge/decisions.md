@@ -190,11 +190,11 @@ module.
   util does ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in
   [architecture.md › Dependency rules](architecture.md#dependency-rules), the domain's override
-  admitting of `application/` only a contract's entry (`@app-template/application/*/contract`) and
-  a module's test support, the contract's admitting of its module only `domain/` files, never
-  their index, a policy or a move group (`*-policy`, `*-move`), the entry, the services or the
-  infrastructure; `.claude/rules/modules.md` refuses
-  a name past the contract, a module importing one above it and a cycle through contracts.
+  admitting of `application/` only a contract's entry (`@app-template/application/*/contract`),
+  its tests' a module's test support too, the contract's admitting of its module only `domain/`
+  files, never their index, a policy or a move group (`*-policy`, `*-move`), the entry, the
+  services or the infrastructure; `.claude/rules/modules.md` refuses a name past the contract, a
+  module importing one above it and a cycle through contracts.
 - **If reversed:** a module that imports another's entry reaches its services and
   models, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second module needs more of a module than its contract holds: grow the
@@ -243,13 +243,14 @@ the data layer's repository directly.
   service that codes the row ([Checks kept in the tables](#checks-kept-in-the-tables)); one entry
   opens the module whole, so another part's ban on a layer matches the names it imports, but
   the domain's, which admits only a contract's entry. A layer's override covers its tests, save
-  the services', so what they need passes in its source too. A
+  the services' and the domain's, so what they need passes in its source too. A
   repository's method opens no transaction, and a service commits rows that span tables:
   [One way to open a transaction](#one-way-to-open-a-transaction). What passes every guard:
   [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests, save the services', whose tests have one of their own, the domain's admitting
-  of another module only its contract's entry and refusing every part of the kernel, the
+  layer's tests, save the services' and the domain's, whose tests have one each, the domain's
+  admitting of another module only its contract's entry and refusing every part of the kernel
+  and test support, which its tests' alone admits, the
   services' admitting of `@app-template/packages/db` only `Transaction`, and neither
   `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of their
   infrastructure, and their tests' admitting test support and the queue file

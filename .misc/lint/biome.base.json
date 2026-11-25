@@ -134,7 +134,37 @@
       }
     },
     {
-      "includes": ["application/*/domain/**", "application/*/__tests__/domain/**"],
+      "includes": ["application/*/domain/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/application/*/contract",
+                      "!@app-template/packages/schema",
+                      "@app-template/application/use-cases/**",
+                      "@effect/**"
+                    ],
+                    "message": "a module's domain is pure: it imports no workspace but another module's contract, @app-template/application/<module>/contract, never its entry, which loads its services and the data layer, and @app-template/packages/schema, for the id schema; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; no test support, which its tests alone take; and no @effect/* package (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/services/**", "#*/infrastructure/**"],
+                    "message": "a module's domain imports neither its services nor its infrastructure (decisions.md › A module's layers)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/*/__tests__/domain/**"],
       "linter": {
         "rules": {
           "style": {
@@ -153,7 +183,7 @@
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's contract, @app-template/application/<module>/contract, never its entry, which loads its services and the data layer, and @app-template/packages/schema, for the id schema; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
+                    "message": "a module's domain's tests import what the domain does and test support: a module's /testing, @app-template/packages/testing and @effect/vitest; no other workspace and no other @effect/* package (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],

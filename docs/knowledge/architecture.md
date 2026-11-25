@@ -72,7 +72,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its own entry only | ✗ | ✗ | ✗ | `schema` only | `application/*/domain/**` |
+| a module's `domain/` | ✗; `/testing` in its tests only | ✓, through its own entry only | ✗ | ✗ | ✗ | `schema`; `testing` in its tests only | `application/*/domain/**`; its tests, `application/*/__tests__/domain/**` |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗; of its module only `domain/` files, never their index, a policy or a move group | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
@@ -377,7 +377,7 @@ it; what no guard sees, review refuses
 
 | Guard | Catches | Reports |
 |---|---|---|
-| Biome `noRestrictedImports`, one `overrides` entry per layer in `.misc/lint/biome.base.json`, covering the layer's tests (the services' tests: one of their own) | the ✗ of each row whose *Refused by* names its glob, by part and by imported name, test support aside in the tests; a layer that points outward inside a module; any workspace in an entry of `application/`; the decision named in the message | `make lint`, `pre-commit`, CI |
+| Biome `noRestrictedImports`, one `overrides` entry per layer in `.misc/lint/biome.base.json`, covering the layer's tests (the services' and the domain's tests: one each) | the ✗ of each row whose *Refused by* names its glob, by part and by imported name, test support aside in the tests; a layer that points outward inside a module; any workspace in an entry of `application/`; the decision named in the message | `make lint`, `pre-commit`, CI |
 | the GritQL plugin `biome-imports.grit`, which reads the part (`application/<module>`, `kernel/<part>`, `packages/<package>`) and the ring (`apps/<app>`, `deployment`) from the file's path | another part's `#<part>/…`, `#kernel/<part>/…` or `#testing/<part>/…` file, in an import, an `export … from`, an `import()` in code or in a type, a `require()`, a `require.resolve()` or `import.meta.resolve()`, or a `vi` loader (`vi.mock`, `vi.importActual`, …), a template literal included; any relative path; the workspaces the rows whose *Refused by* names it refuse, even when the manifest declares them | the same |
 | Biome `noImportCycles` | a cycle of value imports: two files, two modules, a kernel part and one that imports it, a module and its own entry | the same |
 | the isolated linker with `tsc -b` | an import of a workspace the importer's `package.json` does not declare: the TS2307 cells of [Dependency rules](#dependency-rules) | TS2307 in `make typecheck` and at runtime |
@@ -410,8 +410,8 @@ them:
   too; `make typecheck` refuses `Date.now`, `new Date`, `crypto.randomUUID`, `fetch` and
   `process.env` anywhere in `application/`.
 - **A test's needs in a layer's source, a test file outside a layer.** A layer's override covers
-  its tests, save the services', whose tests have one of their own, so `@effect/vitest` and a
-  `/testing` entry pass in the source of every other layer too. A module's test support
+  its tests, save the services' and the domain's, whose tests have one each, so `@effect/vitest`
+  and a `/testing` entry pass in the source of every other layer too. A module's test support
   (`application/<module>/__tests__/testing/`) serves several layers and keeps no list, and the
   data layer's tests and e2e sit outside its override, so `@app-template/kernel/llm` passes
   there; `tsc -b` too, as the folder's manifest declares the kernel.
