@@ -12,8 +12,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 - A model imports of another aggregate only its `.util` file, save a model it holds as a field it
   never writes; a port may `import type` another aggregate's model.
-- A port speaks the domain's words, never a client's type or error; which failures it declares:
-  [effect.md › Failures](effect.md#failures).
+- A port speaks the domain's words, never a client's type or error ([failures](effect.md#failures)).
 - A domain service owns its model's records for every caller above it: `<Model>Service` the reads
   a rule needs and the plain reads and writes a handler asks for (a list, a create, a record by
   key with its `*NotFoundError`), coding the rows through the model's codec statics
@@ -35,10 +34,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   `<Model>Service.update(<record>, yield* <record>.<move>(…))`, under the status the record was
   read in ([decision](../../docs/knowledge/decisions.md#a-runs-guarded-moves)).
 - A rule is a pure function in its model's `.model` file, over values passed in (time, ids),
-  combined from small pieces of one condition or step each, never repeating their logic; a
-  service, use case or repository only reads, calls it and writes
-  (`getOne(where).pipe(ensure<Rule>(at))`). Each piece is tested alone, a combination only for
-  what it adds.
+  combined from small pieces of one condition or step each, never repeating their logic; a service,
+  use case or repository only reads, calls it and writes (`getOne(where).pipe(ensure<Rule>(at))`).
+  Each piece is tested alone, a combination only for what it adds.
 - A method applies its model's rules itself, never relying on another having run first; a plain
   write assumes nothing of its caller, which passes the state the row must still be in as `where`.
 
@@ -64,14 +62,16 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   work on any outcome but success, an interrupt included, and work it finds started, left by a
   handling that died; the use case ends the job in one tail
   ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- Read or delete a set through one batch call, never one call per id.
-- Return a model as is.
+- Read or delete a set through one batch call, never one call per id; return a model as is.
 
 ## Handlers
 
 - A handler decodes the input, calls one domain service method or one use case, returns the
   model and fails with the domain's errors as they are. It holds no rule and imports no
   repository or data layer: only the process's `layer.ts` provides them.
+- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`; one that calls nothing (a constant)
+  is a plain function, no span; an effectful group or router builder is `Effect.fnUntraced`
+  ([effect-services.md › Functions](effect-services.md#functions)).
 
 ## Concurrency
 

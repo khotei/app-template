@@ -8,14 +8,14 @@ paths:
 ## Functions
 
 - An effectful function follows `repos/effect/LLMS.md › Using Effect.fn and Effect.fnUntraced`. A
-  service method's span is `'<Service>.<method>'`; its pipeables are `Effect.fn`'s extra
-  arguments, never a `.pipe` in its body, save `Transaction`'s `run`
-  ([layering.md › Use cases](layering.md#use-cases)); one that reads the method's arguments takes
-  them after the effect; a body that only delegates is passed as is
+  service method's span is `'<Service>.<method>'`; what applies to its whole result is an extra
+  argument of `Effect.fn`, taking the method's arguments after the effect if it reads them, never
+  a `.pipe` around or at the end of its body, where one step's plumbing is piped onto that step
+  ([effect-style.md](effect-style.md#composition)); a body that only delegates is passed as is
   (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff
 - const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
--   orders.selectOne(encodeWhere(where)).pipe(               // a pipe nested in the body
+-   orders.selectOne(encodeWhere(where)).pipe(               // the whole result, piped in the body
 -     Effect.flatMap(Order.decodeOne),
 -     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 -   ),
