@@ -15,22 +15,27 @@ const poll = <A, E, R>(self: Effect.Effect<A, E, R>, until: (a: A) => boolean) =
   )
 
 /** Reads the Run until the worker has settled it, as the browser's polling does. */
-const pollSettledRun = (chatId: ChatId, runId: RunId) =>
-  ApiClient.use((api) =>
-    poll(api.chats.getRun({ params: { chatId, runId } }), Predicate.not(RunState.isActive)),
+const pollSettledRun = Effect.fnUntraced(function* (chatId: ChatId, runId: RunId) {
+  const api = yield* ApiClient
+  return yield* poll(
+    api.chats.getRun({ params: { chatId, runId } }),
+    Predicate.not(RunState.isActive),
   )
+})
 
-const pollTitledChat = (chatId: ChatId) =>
-  ApiClient.use((api) =>
-    poll(api.chats.get({ params: { chatId } }), (chat) => Option.isSome(chat.title)),
-  )
+const pollTitledChat = Effect.fnUntraced(function* (chatId: ChatId) {
+  const api = yield* ApiClient
+  return yield* poll(api.chats.get({ params: { chatId } }), (chat) => Option.isSome(chat.title))
+})
 
 /** The api responds to a defect, such as a write Postgres refuses, with a bare `500`. */
 const isDefectAnswer = (error: HttpClientError.HttpClientError) =>
   Option.fromUndefinedOr(error.response).pipe(Option.exists(({ status }) => status === 500))
 
-const selectMessages = (chatId: ChatId) =>
-  SqlClient.SqlClient.use((sql) => sql`select id, author from messages where chat_id = ${chatId}`)
+const selectMessages = Effect.fnUntraced(function* (chatId: ChatId) {
+  const sql = yield* SqlClient.SqlClient
+  return yield* sql`select id, author from messages where chat_id = ${chatId}`
+})
 
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { timeout: '60 seconds', excludeTestServices: true })((it) => {

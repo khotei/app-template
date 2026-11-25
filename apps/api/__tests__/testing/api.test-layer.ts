@@ -41,11 +41,13 @@ export const layerApiClient = (baseUrl = '', cookies = Cookies.empty) =>
     Layer.provideMerge(
       Layer.effect(
         HttpClient.HttpClient,
-        Clock.currentTimeMillis.pipe(
-          Effect.map((now) => Cookies.mergeIntoArray([], testServerUrl, cookies, now)),
-          Effect.flatMap(Ref.make),
-          Effect.flatMap((jar) => HttpClient.HttpClient.useSync(HttpClient.withCookiesRef(jar))),
-        ),
+        Effect.gen(function* () {
+          const http = yield* HttpClient.HttpClient
+
+          const now = yield* Clock.currentTimeMillis
+          const jar = yield* Ref.make(Cookies.mergeIntoArray([], testServerUrl, cookies, now))
+          return HttpClient.withCookiesRef(http, jar)
+        }),
       ),
     ),
   )
@@ -60,7 +62,9 @@ export class StrangerApiClient extends Context.Service<
   ): Layer.Layer<StrangerApiClient, never, HttpClient.HttpClient> =>
     Layer.effect(
       this,
-      ApiClient.useSync((api) => api),
+      Effect.gen(function* () {
+        return yield* ApiClient
+      }),
     ).pipe(Layer.provide(layerApiClient(baseUrl)))
 }
 

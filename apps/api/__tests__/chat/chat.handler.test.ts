@@ -55,10 +55,11 @@ const failedChat = new Chat({ ...chat, run: Option.some(refusedRun) })
 
 const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
 
-const getJson = (url: string) =>
-  HttpClient.HttpClient.use((http) => http.get(url)).pipe(
-    Effect.flatMap((response) => response.json),
-  )
+const getJson = Effect.fnUntraced(function* (url: string) {
+  const http = yield* HttpClient.HttpClient
+  const response = yield* http.get(url)
+  return yield* response.json
+})
 
 describe('chats', () => {
   it.effect('GET /chats without a cookie is 401 IdentityUnknownError', () =>
