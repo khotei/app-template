@@ -168,12 +168,11 @@ definitions with the send of each job, which the chat's ask service (`AskChatSer
 the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
-  data cannot sit there. Nothing of it reaches the browser any more
-  ([The API contract in the api](#the-api-contract-in-the-api)), so it takes from the data layer
-  the values its tables declare (a limit, a pattern, an enum's values, a JSON column's shape,
-  which the table already declares as a schema) instead of declaring them again, and keeps its
-  own brands, models and refinements: the vocabulary is the domain's, and the data layer stays
-  free of models ([The data at the centre](#the-data-at-the-centre)). The
+  data cannot sit there; it imports no part of the kernel, whose data layer would bring the
+  backend into every importer of a model, so it declares its values itself, a value its table
+  declares too ([Checks kept in the tables](#checks-kept-in-the-tables)), and keeps its own
+  brands, models and refinements: the vocabulary is the domain's, and the data layer stays free
+  of models ([The data at the centre](#the-data-at-the-centre)). The
   data layer's repository already is the contract a service needs, and a port with an adapter
   over it would repeat its methods; the aliases keep the layer in every import line, so each
   layer's Biome override matches the others by glob (`#*/services/**`). A handler and a use case
@@ -190,22 +189,20 @@ the data layer's repository directly.
   [.claude/rules/modules.md › A service rule or a model in the kernel](../../.claude/rules/modules.md#a-service-rule-or-a-model-in-the-kernel).
   A leaf package of shared values for the data layer and the domain: the values would leave
   the tables that check them, and the wire takes them through the domain's schemas.
-  The domain's own copies kept: a value could drift between the two declarations. The queues'
+  The domain taking the tables' values: the backend in every importer of a model. The queues'
   definitions in `services/`: the services' guard would admit `@app-template/kernel/aws` and
   `@app-template/packages/queue`.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
-  repositories; the domain loads the data layer's entry, and its guard admits of it only the names
-  of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
-  shape widens the guard's pattern; one entry opens the
-  module whole, so another part's ban on a layer matches the names it imports. A layer's override
+  repositories; a value both the domain and a table hold is declared twice, held in step at the
+  service that codes the row ([Checks kept in the tables](#checks-kept-in-the-tables)); one entry
+  opens the module whole, so another part's ban on a layer matches the names it imports. A layer's override
   covers its tests, save the services', so what they need passes in its source too. A
   repository's method opens no transaction, and a service commits rows that span tables:
   [One way to open a transaction](#one-way-to-open-a-transaction). What passes every guard:
   [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests, save the services', whose tests have one of their own, the domain's admitting
-  of the kernel only `@app-template/kernel/data`, and of it only a value's name
-  (`<name>Pattern`, `<name>Statuses`), the services' admitting of
+  layer's tests, save the services', whose tests have one of their own, the domain's refusing
+  every part of the kernel, the services' admitting of
   `@app-template/packages/db` only `Transaction`, and neither `@app-template/kernel/aws` nor
   `@app-template/packages/queue` nor test support, nor any of their infrastructure, and their
   tests' admitting test support and the queue file
@@ -220,8 +217,8 @@ the data layer's repository directly.
   which reads the web bundle's metafile and refuses the module's package in it;
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
-  export per layer brings back the subpaths and a ban per layer by path; a domain without the
-  data layer declares each value again, and a mapper's unit test per value compares the copies.
+  export per layer brings back the subpaths and a ban per layer by path; a domain that imports
+  the data layer's values drops its own copies, and its guard admits the values by name.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the data layer
   brands its ids and constrained strings itself, so the domain could take its schemas too.
 
@@ -938,8 +935,8 @@ repositories in its own types, one `Db` over every table; it imports only `packa
 its clients from the context. The tables stay in `public` with their foreign keys.
 
 - **Why:** the data is the app's source of truth; one place declares every store, joins and
-  foreign keys included, and every module reads what it needs, its domain the tables' limits,
-  patterns and enum values, each declared once ([A module's layers](#a-modules-layers)).
+  foreign keys included, and every module's services read what they need; the domain declares
+  its own values ([Checks kept in the tables](#checks-kept-in-the-tables)).
 - **Sources:** departs from the guide's "share a physical database, but not each other's tables"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/))
   and "The service that writes to a table owns that table"
@@ -948,7 +945,7 @@ its clients from the context. The tables stay in `public` with their foreign key
   boundaries on data the app reads as one. The tables, repositories and models together in the
   kernel: a shared domain, the guide's coupling magnet.
 - **Cost:** most features change `kernel/data`; a table's value is the domain's too, so changing
-  it changes the model's check; two modules may use one repository, so a change of its behaviour
+  it changes the model's declaration; two modules may use one repository, so a change of its behaviour
   reaches both, held by the repository's e2e; a module can be extracted only with its stores
   carved out of the data layer.
 - **Guarded by:** the `kernel/data` row of

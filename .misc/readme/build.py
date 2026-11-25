@@ -640,7 +640,7 @@ def principles():
          "Biome, its GritQL plugin, `tsc -b` and the bundle check refuse a wrong import before anyone reads it; review keeps what no tool sees.",
          "decisions › Guards are configuration"),
         ("One source of truth for data",
-         "`kernel/data` declares every store; a module's domain takes the tables' limits, patterns and enum values instead of declaring them again.",
+         "`kernel/data` declares every store; a module's domain imports none of it and declares its own values, which a service holds in step with the tables'.",
          "decisions › The data at the centre, Checks kept in the tables"),
         ("Minimal, then right, then hard",
          "The whole feature in its smallest form, played end to end; then its design; then the `Later` items the owner picks.",

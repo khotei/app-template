@@ -54,8 +54,8 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <rect x="28" y="254" width="904" height="82" rx="8" class="box k-neu"/>
 <text x="44" y="284" class="b" xml:space="preserve">One source of truth for data</text>
 <text x="290" y="283" xml:space="preserve"><tspan class="code">kernel/data</tspan> declares every store; a module's domain</text>
-<text x="290" y="303" xml:space="preserve">takes the tables' limits, patterns and enum values</text>
-<text x="290" y="323" xml:space="preserve">instead of declaring them again.</text>
+<text x="290" y="303" xml:space="preserve">imports none of it and declares its own values, which</text>
+<text x="290" y="323" xml:space="preserve">a service holds in step with the tables'.</text>
 <text x="708" y="283" class="m" xml:space="preserve">decisions › The data at the</text>
 <text x="708" y="302" class="m" xml:space="preserve">centre, Checks kept in the</text>
 <text x="708" y="321" class="m" xml:space="preserve">tables</text>

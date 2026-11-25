@@ -131,20 +131,13 @@
                       "!@app-template/application/*",
                       "!@app-template/application/*/testing",
                       "!@app-template/packages/{schema,testing}",
-                      "!@app-template/kernel/data",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**",
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, @app-template/packages/schema, for the id schema and the row codecs, the data layer (@app-template/kernel/data), for the limits, patterns, enum values and JSON columns' shapes its tables declare, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; The data at the centre; Module contracts; Guards are configuration)"
-                  },
-                  {
-                    "group": ["@app-template/kernel/data"],
-                    "importNamePattern": "[a-z][A-Za-z0-9]*(Pattern|Length|Statuses|Authors|Reasons|Kinds)|[A-Z][A-Za-z0-9]*Failure",
-                    "invertImportNamePattern": true,
-                    "message": "of @app-template/kernel/data a module's domain takes only a table's values, a limit, a pattern or an enum's values, named <name>Pattern, <name>Length, <name>Statuses, <name>Authors, <name>Reasons or <name>Kinds, or a JSON column's shape, named <Name>Failure: no table, entity, repository or Db (decisions.md › A module's layers; The data at the centre)"
+                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, and @app-template/packages/schema, for the id schema and the row codecs; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],

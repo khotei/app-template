@@ -70,7 +70,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 
 | From ↓ / may import → | another module | a contract | `use-cases` | `kernel/data` | rest of `kernel` | `packages/*` | Refused by |
 |---|---|---|---|---|---|---|---|
-| a module's `domain/` | ✗ | ✓, through its entry | ✗ | the tables' values only | ✗ | `schema` only | `application/*/domain/**`, `kernel/data` by name |
+| a module's `domain/` | ✗ | ✓, through its entry | ✗ | ✗ | ✗ | `schema` only | `application/*/domain/**` |
 | a module's `services/` | ✗ | ✓, through its entry | ✗ | ✓, but `Db` and the relations | ✗ | `schema`, and `db`'s `Transaction` alone | `application/*/services/**`; the chat's ask service, `application/chat/services/ask-chat.service.ts`; its reply service, `application/chat/services/reply-chat.service.ts`; its title service, `application/chat/services/title-chat.service.ts` |
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗, nor its module's files | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
@@ -103,8 +103,8 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
   takes none of them, only its generated client
   ([The API contract in the api](decisions.md#the-api-contract-in-the-api)). **A contract
   imports only `effect` and `packages/schema`, for the id schema** (and `type-fest` for types),
-  **a module's `domain/` also the row codecs and the values its tables declare** (a limit, a
-  pattern, an enum's values, a JSON column's shape, from `@app-template/kernel/data`), and none of
+  **a module's `domain/` also the row codecs**, never the kernel, as it declares its values
+  itself ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)), and none of
   them nor a module's `services/` import an `@effect/*` package ([A module's layers](decisions.md#a-modules-layers)).
 - **A dependency on a module's contract counts as one on the module**, so two modules that import
   each other's contracts form a cycle, refused by review where no tool sees it
@@ -389,11 +389,6 @@ them:
 - **A namespace import of an entry.** `import * as Data from '@app-template/kernel/data'` where
   only its stores are allowed passes every ban by name (`importNamePattern` sees no name);
   `Data.<Name>` then reaches what the names were refused for.
-- **A data layer's export named like a value, in a module's `domain/`.** Of
-  `@app-template/kernel/data` the domain guard admits only the names of a value's shape
-  (`<name>Pattern`, `<name>Length`, a plural such as `<name>Statuses`) and refuses
-  the rest, a namespace import included; a table or an enum given such a name passes it, so
-  review keeps those names to values.
 - **A runtime module or third-party package in a module's `domain/`.** `node:crypto` or any npm
   package passes the domain guard, which bans only workspaces and `@effect/*`. `Bun.env` passes
   too; `make typecheck` refuses `Date.now`, `new Date`, `crypto.randomUUID`, `fetch` and
