@@ -58,10 +58,10 @@ paths:
 - A service's layers are statics on the class. `static readonly layer` provides each dependency
   that has one implementation, the services it is composed over included, and leaves open the
   leaves that vary (a port, a client, a platform service, the transaction); a root provides only
-  what its handlers and flows read, as a layer given twice builds once per process. A service
-  composed over services builds it on `layerNoDeps`, every dependency open, which a process or
-  test provides instead when it gives a wrap or a double of one of those services; one over
-  leaves alone has `layer = Layer.effect(this, this.make)`, never a `layerNoDeps` equal to it.
+  what its handlers and flows read, as the same layer value, given twice, builds once. A service
+  composed over services builds its `layer` on `layerNoDeps`, every dependency open, which a
+  process or test provides instead when it gives a wrap or a double of one of those services; one
+  over leaves alone has `layer = Layer.effect(this, this.make)`, never a `layerNoDeps` equal to it.
   ```ts
   static readonly layerNoDeps = Layer.effect(this, this.make)
   static readonly layer = this.layerNoDeps.pipe(Layer.provide([OrderService.layer, StockService.layer]))

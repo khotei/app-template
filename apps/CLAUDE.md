@@ -4,12 +4,11 @@ Thin processes: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev
 
 - `main.ts` starts the process. `api` and `worker` build it in `layer.ts`, which `main.ts` runs
   and no package exports, except the app's `./testing` for the e2e through the api. `ApiHttp`
-  provides, after `HttpRouter.serve`, the `application/` services the api's handlers and use cases
-  read, each bringing those it is composed over: a handler group's provide never reaches what its
-  handlers call. `ApiLayer` provides the transaction, the queue sender and the stores, which the api's
-  tests replace under `ApiHttp`. The worker's `layer.ts` provides what its route's use cases
-  read. Where those
-  e2e and the apps' unit suites live and what they run on:
+  provides, after `HttpRouter.serve`, the `application/` services the api's handlers and use
+  cases read: a handler group's provide never reaches what its handlers call. `ApiLayer` provides
+  the transaction, the queue sender and the stores, which the api's tests replace under
+  `ApiHttp`. The worker's `layer.ts` provides what its route's use cases read. Where those e2e
+  and the apps' unit suites live and what they run on:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **Apps never import each other.** Shared code moves down into `application` or `packages/*`.
 - **The web declares no workspace of the app but `packages`:** its client is generated from the

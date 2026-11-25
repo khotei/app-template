@@ -495,11 +495,10 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   services and two layers; a handler of the model takes both; the plain `create` and `delete`
   have one caller, the file service, and `delete` only forwards to the repository with its span:
   they stay as the records' one owner, which a test that counts callers would delete. A service
-  composed over others provides them in its `layer`, built on its `layerNoDeps`, so a process
-  names only the services its handlers and use cases read, and a layer given in several places
-  builds once per process; a wrap or a double of a service another is composed over reaches that
-  holder only when the process or test provides the holder's `layerNoDeps` over it:
-  [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule over the
+  composed over others carries them in its `layer`
+  ([effect-services.md › Layers](../../.claude/rules/effect-services.md#layers)), so a wrap or a
+  double of a composed-over service given at a root beside the holder's `layer` does not reach
+  the holder: it must go under the holder's `layerNoDeps`. A rule over the
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
   so the rule the reader pipes names every absent id at once. The chat's jobs take three services
@@ -525,7 +524,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
 - **Revisit when:** a chain of wraps over one unit grows so long that a caller cannot tell from the
   names which unit holds a rule; or two units change together in every change, so they hold one
   purpose, which the owner then merges; or a rule over the reads must reach every reader, so a service
-  named for it takes the pipe.
+  named for it takes the pipe; or the first wrap of a composed-over service, which each root and
+  test that gives it must put under the holder's `layerNoDeps`.
 
 ### Rules as pure functions
 
