@@ -392,6 +392,8 @@ them:
   (`application/<module>/__tests__/testing/`) serves several layers and keeps no list, and the
   data layer's tests and e2e sit outside its override, so `@app-template/kernel/llm` passes
   there; `tsc -b` too, as the folder's manifest declares the kernel.
+- **A re-export through an admitted file.** The ask service's guard admits the whole
+  `#*/infrastructure/*.queue` file, so a re-export of `QueueSender` from it would pass.
 - **A specifier the plugin cannot read.** `biome-imports.grit` reads a literal in the forms
   [Boundary guards](#boundary-guards) lists; one built at runtime (`import(name)`, a string
   joined at runtime) or handed to another loader passes it. In `packages/` it then reaches any

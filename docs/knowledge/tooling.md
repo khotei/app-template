@@ -67,9 +67,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   alone reads keeps the alias and no entry. Suites compose these barrels instead of copying them.
   A unit test mocks each repository it calls with `Layer.mock`, in the test; the fake
   `FileRepositoryTest` lives in `kernel/data/__tests__/testing/`, and a module's fakes of its
-  ports and infrastructure services in that module's. The shared `packages/testing` holds
-  only the support several parts use; a package's own (its Postgres or MiniStack clients) lives
-  in that package, as a kernel part's does.
+  leaves ([which](../../application/CLAUDE.md)) in that module's. The shared `packages/testing`
+  holds only the support several parts use; a package's own (its Postgres or MiniStack clients)
+  lives in that package, as a kernel part's does.
 - **What a test may import.** A unit test imports its workspace's source and the `/testing` of
   the parts its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
   imports e2e support. The `apps/e2e` test app holds e2e alone, the suites through the api in
@@ -80,7 +80,7 @@ Which suite runs where:
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its ports and infrastructure services (`@app-template/application/<module>/testing`), `TransactionTest` |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its leaves (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistants over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |

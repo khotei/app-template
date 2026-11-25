@@ -41,9 +41,10 @@ paths:
 - A `Context.Service` is one of four kinds; anything else is a plain function or constant:
   - one a test or a second implementation stands in for: a port, a repository, `Transaction`,
     the queue's sender;
-  - a client its layer builds once for every holder: the database, a bucket, the API client;
+  - a client, or a service over a leaf, its layer builds once for every holder: the database, a
+    bucket, the API client, a module's `<Model>Queue`;
   - a value a middleware provides to the handlers behind it (`HttpApiMiddleware`'s `provides`);
-  - a domain service ([layering.md](layering.md)), a module's `<Model>Queue`; a use case is a function.
+  - a domain service ([layering.md](layering.md)); a use case is a function.
 - No port in front of one implementation: a service over a client (a language model, a store)
   is its own class with its layer, and a test provides a layer of that class; a port comes with
   the second implementation ([decision](../../docs/knowledge/decisions.md#a-modules-layers)).
@@ -68,9 +69,8 @@ paths:
   ```
   A variant that closes a leaf, or wraps the service, is `static layer<Variant>`, a function when
   it takes options; a layer for a service declared elsewhere (a domain port) is a constant in the
-  workspace that implements it (`naming.md`).
-- Variants live in the service's file: a separate file would import the class while the class
-  referenced it, a cycle.
+  workspace that implements it (`naming.md`); a variant lives in the service's file, as a separate
+  file would import the class while the class referenced it, a cycle.
 - Chain `Layer.provide` from the nearest dependency outward; `Layer.provide([a, b])` only for
   siblings that cannot feed each other. `Layer.provideMerge` publishes internals: only for the
   client a caller opens transactions on (`DbTest`) and a test layer that merges what its cases

@@ -17,11 +17,12 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   repository), no other workspace, no Bun API and no Node built-in. Ports live only in `.port.ts`
   files and domain services only in `services/`, never beside a model.
   Decision: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
-- **Each service in a module's `infrastructure/` has one fake** in its module's test
-  support (a port would too), for every workspace's unit tests:
+- **An infrastructure service a test stands in for, a leaf (a port's adapter, a client-backed
+  service), has one fake** in its module's test support, for every workspace's unit tests; a
+  service built over a leaf runs real over the leaf's fake:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
   ([decision](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a
   service its module calls there, keeps its client and prompts inside, so callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and its
-  `<Model>Queue`, each job's `send<Job>`; no adapter wraps the worker.
+  `<Model>Queue`, which holds each job's `send<Job>`; no adapter wraps the worker.

@@ -30,6 +30,7 @@ export class TitleChat extends Schema.Class<TitleChat>('TitleChat')({
   } satisfies QueueDefinition<typeof TitleChat>
 }
 
+/** Hands the worker the chat's jobs, each on its own queue. */
 export class ChatQueue extends Context.Service<
   ChatQueue,
   {

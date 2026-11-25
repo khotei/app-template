@@ -1141,7 +1141,8 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   `failRun` the move to `failed`, `RunService` its write, `AskChatService` the pair, a step its two
   methods share, which lives once there
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
-  another. A port for the send would put an interface and a layer in front of one call. The sends
+  another. A port for the sends would add a declaration in the domain and an adapter in front of
+  their one implementation. The sends
   are a service's methods, not functions with `QueueSender` in their requirements, so a caller
   takes `ChatQueue` in its `make` and no method carries a service in its `R`. A command's name
   belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun sequence,
@@ -1162,7 +1163,8 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   The settlement as a `RunService` method: the Run's records would know the queue. Each send a
   function that reads `QueueSender` itself: its caller took the sender in its `make` only to
   provide it to each call. A function beside the use cases that both call: a use case calling
-  another. A port the service calls, adapted in infrastructure: an interface and a layer for one call.
+  another. A port the service calls, adapted in infrastructure: a declaration in the domain and an
+  adapter in front of one implementation.
   The settlement
   copied into each use case that sends the reply: one step in two places, where a fix must land
   in both. A sweep resending unsent work: a schedule and a route of its own, and a reply
