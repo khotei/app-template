@@ -362,11 +362,10 @@ moves it into its own `Later` and deletes it here.
   chat's newest, or a row lock on the chat before the check.
 - (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
   between the two leaves it responding with `200 []`, not `404 ChatNotFoundError`; the next read
-  gives the `404`
-  (`application/use-cases/chat/list-messages.use-case.ts`). Way out: one query that reads the
-  chat with its messages, or the two reads in one `REPEATABLE READ` transaction: `Transaction`
-  opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
-  snapshot.
+  gives the `404` (`ChatHandler.listMessages`, `apps/api/chat/chat.handler.ts`). Way out: one
+  query that reads the chat with its messages, or the two reads in one `REPEATABLE READ`
+  transaction: `Transaction` opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED`
+  gives each statement its own snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
   (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.reply`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an

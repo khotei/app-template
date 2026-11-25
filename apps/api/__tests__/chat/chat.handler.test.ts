@@ -15,6 +15,7 @@ import {
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
 import { UserUnknownError } from '@app-template/application/identity'
 import type {
+  ChatEntitySelectWhere,
   MessageColumns,
   MessageEntityWhere,
   RunEntitySelectWhere,
@@ -215,6 +216,31 @@ describe('chats', () => {
         }),
       ),
     ),
+  )
+
+  it.effect(
+    'GET /chats/:chatId/messages reads the chat for the signed-in user, then its messages',
+    () => {
+      const wheres: Array<ChatEntitySelectWhere | MessageEntityWhere> = []
+      const record = (where: ChatEntitySelectWhere | MessageEntityWhere) =>
+        Effect.sync(() => {
+          wheres.push(where)
+        })
+      return Effect.gen(function* () {
+        const api = yield* ApiClient
+
+        yield* api.chats.listMessages({ params: { chatId: chat.id } })
+
+        assert.deepStrictEqual(wheres, [{ id: chat.id, userId: owner }, { chatId: chat.id }])
+      }).pipe(
+        Effect.provide(
+          asOwner({
+            chats: { selectOne: (where) => record(where).pipe(Effect.andThen(reads.chat(chat))) },
+            messages: { selectMany: (where) => record(where).pipe(Effect.as([])) },
+          }),
+        ),
+      )
+    },
   )
 
   it.effect('a title or a text holding U+0000 is 400 before the store is asked', () =>

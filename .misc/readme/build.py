@@ -457,8 +457,8 @@ def module_design():
     sx, sw = 28, 400
     side_x, side_w = 478, 172
     rows = [
-        ("bnd", "handler · `apps/`", ["`ChatHandler`, `WorkerHandler`", ("m", "calls one service method or one use case")]),
-        ("beh", "use case · `application/use-cases`", ["`listMessages` `replyToMessage` `titleChat`", ("m", "a plain `Effect.fn`; only a handler calls it")]),
+        ("bnd", "handler · `apps/`", ["`ChatHandler`, `WorkerHandler`", ("m", "calls one method or use case, at most after the user's record's read")]),
+        ("beh", "use case · `application/use-cases`", ["`replyToMessage` `titleChat`", ("m", "a plain `Effect.fn`; only a handler calls it")]),
         ("beh", "`<Verb><Model>Service` · `services/`", ["`AskChatService.ask`, `.retry`", "`ReplyChatService.reply`", "`TitleChatService.title`"]),
         ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`RunService.update(from, to)`: under the status read"]),
         ("beh", "rules and moves · `domain/`", ["`ensureChatNotBusy` `ensureRunRetryable`", "`startRun` `completeRun` `failRun`", ("m", "plain functions in `<model>.model.ts`, members over them")]),

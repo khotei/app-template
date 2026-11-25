@@ -43,7 +43,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 ## Use cases
 
 - A use case is what a handler calls, and only a handler, for a flow no one service owns (a job's
-  end and its logs, an order over modules); a read for the caller's scope is a service's own step.
+  end and its logs, an order over modules), never for a read of the user's record before one call.
 - An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
 - It holds only its flow: the order of the calls, the transaction, what it skips and logs. It
@@ -66,12 +66,12 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Handlers
 
-- A handler decodes the input, calls one domain service method or one use case, returns the
-  model and fails with the domain's errors as they are. It holds no rule and imports no
-  repository or data layer: only the process's `layer.ts` provides them.
-- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`; one that calls nothing (a constant)
-  is a plain function, no span; an effectful group or router builder is `Effect.fnUntraced`
-  ([effect-services.md › Functions](effect-services.md#functions)).
+- A handler decodes the input, calls one domain service method or one use case, before it at most
+  the read of the record it acts in for the user (`<Model>Service.getOne` with the owner), returns
+  the model and fails with the domain's errors as they are. It composes nothing else, holds no rule
+  and imports no repository or data layer: only the process's `layer.ts` provides them.
+- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`, a constant one a plain function, an
+  effectful group or router builder `Effect.fnUntraced` ([functions](effect-services.md#functions)).
 
 ## Concurrency
 

@@ -7,7 +7,6 @@ import {
   MessageService,
   RunService,
 } from '@app-template/application/chat'
-import { listMessages } from '@app-template/application/use-cases'
 
 import { Api } from '#api/api'
 import { CurrentUser } from '#api/shared/api-security'
@@ -47,7 +46,8 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
       listMessages: Effect.fn('ChatHandler.listMessages')(function* ({ params }) {
         const user = yield* CurrentUser
-        return yield* listMessages(user.id, params.chatId)
+        yield* chatService.getOne({ id: params.chatId, userId: user.id })
+        return yield* messageService.getMany({ chatId: params.chatId })
       }),
       ask: Effect.fn('ChatHandler.ask')(function* ({ params, payload }) {
         const user = yield* CurrentUser

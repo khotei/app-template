@@ -28,8 +28,8 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide([Auth.layer, SchemaErrors.layer]),
 )
 
-// After `serve`, which makes what a handler reads per request its own requirement: a use case
-// the handler calls reads its services so, and a handler group's provide never reaches them.
+// After `serve`, which makes what a handler reads per request its own requirement: what the
+// handler calls reads its services so, and a handler group's provide never reaches them.
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     AskChatService.layer,

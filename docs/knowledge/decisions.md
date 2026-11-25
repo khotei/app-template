@@ -85,10 +85,11 @@ commit together sit in a service of that module, the transaction piped on those 
 
 A use case is an `Effect.fn` that yields what it composes, its type inferred, and exists only for
 a flow that no one service owns: a job's end and its logs, an order over modules. A read of the
-caller's record before one call is that service's own first step: `AskChatService.ask` and `retry`
-take `{ chatId, userId }` and read the user's chat themselves. The process provides the services it
-reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's sends are a
-service's: [Jobs as queue messages](#jobs-as-queue-messages).
+caller's record before one call is no use case: `AskChatService.ask` and `retry` take
+`{ chatId, userId }` and read the user's chat themselves, and the list of a chat's messages reads
+the user's chat in its handler (`ChatService.getOne`), then lists (`MessageService.getMany`). The
+process provides the services it reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker
+in its layer. A job's sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 - **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
   errors among it, and closed its services in a layer that each handler group or route provided
@@ -103,16 +104,20 @@ service's: [Jobs as queue messages](#jobs-as-queue-messages).
   stay. The services provided in each handler group: a handler's own requirement is a request's
   (`repos/effect/packages/effect/src/http-api/HttpApiBuilder.ts:222-232`), which the group's
   provide never reaches, so `tsc` refuses the process. A use case per endpoint that reads the
-  user's chat and then makes one call (`askChat`, `retryRun`): a pass-through over a `where` the
-  service it calls can take itself, a second unit for each such read.
-- **Cost:** `ask` and `retry` cannot be called with a `Chat` already read: a caller that holds one
-  passes its key and owner, and the service reads it again; the read stays outside their
+  user's chat and then makes one call (`askChat`, `retryRun`, `listMessages`): a pass-through
+  over one read, a unit of no purpose of its own for each such endpoint. The list's owner as a
+  `where` field of its query: a chat that is not the user's, or none, would answer `200` with an
+  empty list in place of `404 ChatNotFoundError`.
+- **Cost:** one endpoint, the list of a chat's messages, whose handler makes two calls, the chat's
+  read and the list. `ask` and `retry` cannot be called with a `Chat` already read: a caller that
+  holds one passes its key and owner, and the service reads it again; the read stays outside their
   uninterruptible region, a step apart from it. A flow that reads a service its process lacks
   fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit test merges its
   doubles into the layer it provides (`Layer.provideMerge`), since the flow reads them itself; the
   worker's route test mocks the leaves, not the use cases; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
-  list, a job's failure at `consumeQueue`.
+  list, a job's failure at `consumeQueue`; `.claude/rules/layering.md › Handlers` and review, a
+  handler composing more than the user's record's read and one call.
 - **If reversed:** each use case becomes a `Context.Service` whose layer provides
   the services it composes, and each handler group and the worker's route provide those layers.
 - **Revisit when:** a use case needs a second implementation, a test double or state of its own.
@@ -169,8 +174,9 @@ the data layer's repository directly.
   data layer's repository already is the contract a service needs, and a port with an adapter
   over it would repeat its methods; the aliases keep the layer in every import line, so each
   layer's Biome override matches the others by glob (`#*/services/**`). A handler calls one
-  service method or one use case, and a use case calls services, neither a repository, so each
-  record has one owner every caller goes through.
+  service method or one use case, at most after the read of the user's record it acts in, and a
+  use case calls services, neither a repository, so each record has one owner every caller goes
+  through.
 - **Sources:** the guide's "Keep internal layering per module"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.
