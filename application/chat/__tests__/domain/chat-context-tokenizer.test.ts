@@ -21,7 +21,7 @@ describe('ChatContextTokenizer.compact', () => {
   it("keeps the messages from the oldest user's whose tail holds at most 0.3 of the limit", () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact(even, { tokensSize: 900, tokensLimit: 1000 }),
+      ChatContextTokenizer.compact({ messages: even, tokensSize: 900 }, 1000),
       Arr.takeRight(even, 2),
     )
   })
@@ -38,7 +38,7 @@ describe('ChatContextTokenizer.compact', () => {
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact(messages, { tokensSize: 900, tokensLimit: 1000 }),
+      ChatContextTokenizer.compact({ messages, tokensSize: 900 }, 1000),
       Arr.takeRight(messages, 2),
     )
   })
@@ -52,7 +52,7 @@ describe('ChatContextTokenizer.compact', () => {
     ]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact(messages, { tokensSize: 9000, tokensLimit: 10_000 }),
+      ChatContextTokenizer.compact({ messages, tokensSize: 9000 }, 10_000),
       Arr.takeRight(messages, 2),
     )
   })
@@ -61,7 +61,7 @@ describe('ChatContextTokenizer.compact', () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact(messages, { tokensSize: 900, tokensLimit: 1000 }),
+      ChatContextTokenizer.compact({ messages, tokensSize: 900 }, 1000),
       messages,
     )
   })

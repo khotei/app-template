@@ -23,14 +23,14 @@ export class ChatContextTokenizer {
     promptTokens + outputTokens
 
   /**
-   * `messages`, a context of `tokensSize`, compacted for the next reply: those from the oldest
-   * user's whose tail holds at most `keepShare` of `tokensLimit`, or from the newest user's when
-   * no tail fits; those before its first are what a summary takes. All of them when nothing can
-   * go.
+   * A context, its `messages` and the `tokensSize` they were counted at, compacted for the next
+   * reply: the messages from the oldest user's whose tail holds at most `keepShare` of
+   * `tokensLimit`, or from the newest user's when no tail fits; those before its first are what a
+   * summary takes. All of them when nothing can go.
    */
   static readonly compact = <M extends Types.Simplify<Pick<Message, 'author' | 'text'>>>(
-    messages: ReadonlyArray<M>,
-    { tokensSize, tokensLimit }: { readonly tokensSize: number; readonly tokensLimit: number },
+    { messages, tokensSize }: { readonly messages: ReadonlyArray<M>; readonly tokensSize: number },
+    tokensLimit: number,
   ): ReadonlyArray<M> => {
     const chars = Arr.map(messages, ({ text }) => text.length)
     const keptChars = (Num.sumAll(chars) * keepShare * tokensLimit) / tokensSize

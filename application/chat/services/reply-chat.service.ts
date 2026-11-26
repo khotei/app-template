@@ -95,7 +95,7 @@ export class ReplyChatService extends Context.Service<
         const tokensLimit = assistant.contextTokensLimit
         if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
-        const kept = ChatContextTokenizer.compact(sent, { tokensSize, tokensLimit })
+        const kept = ChatContextTokenizer.compact({ messages: sent, tokensSize }, tokensLimit)
         const left = Arr.dropRight(sent, kept.length)
         const start = Arr.head(kept)
         if (Arr.isReadonlyArrayEmpty(left) || Option.isNone(start)) return
