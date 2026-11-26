@@ -46,8 +46,8 @@ shows them.
 _Avoid_: Context (below), log, transcript
 
 **Context**:
-What a chat's reply sends the language model: the chat's messages from a stored start, which a
-cut moves to a later user message once the last prompt and its reply pass a share of the tokens
+What a chat's reply sends the language model: the chat's messages from a stored head, which a
+cut moves to a later message once the last prompt and its reply pass a share of the tokens
 limit, opened by the summary the cut wrote of the messages before it. Its rules are
 `ChatContextPolicy` and `ChatContextTokenizer`; the model's context window is written whole. Not
 Effect's `Context` module (`Context.Service`), which every service file imports.

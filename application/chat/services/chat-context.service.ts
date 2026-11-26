@@ -1,4 +1,4 @@
-import { Array as Arr, Context, Effect, Layer, Option, type Types } from 'effect'
+import { Array as Arr, Context, Effect, identity, Layer, Option, type Types } from 'effect'
 
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
@@ -26,10 +26,10 @@ export class ChatContextService extends Context.Service<
       where: ChatContextWhere,
     ) => Effect.Effect<ReadonlyArray<Message | ContextMessage>, ChatNotFoundError>
     /**
-     * Compacts the context of the chat `where` names, read after the reply that left it over its
-     * limit: the messages its compaction leaves out are summarised, and the summary is stored
-     * with the context's new head. A summary that fails is the assistant's failure, the context
-     * left as it was.
+     * Compacts the context of the chat `where` names, whatever its size: the messages its split
+     * drops are summarised, those that remain when it drops none, and the summary is stored with
+     * the context's new head. A summary that fails is the assistant's failure, the context left
+     * as it was.
      */
     readonly compact: (
       where: ChatContextWhere,
@@ -67,16 +67,17 @@ export class ChatContextService extends Context.Service<
     }: ChatContextWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       const contextMessages = yield* getMessagesInContext(chat)
-      const split = ChatContextTokenizer.splitToCompact(
+      const { dropped, remain } = ChatContextTokenizer.splitToCompact(
         contextMessages,
         assistant.contextTokensLimit,
       )
-      if (Option.isNone(split)) return
+      if (!Arr.isReadonlyArrayNonEmpty(remain)) return
 
-      // The dropped messages open with what the context held compacted, so it is carried over.
-      const { dropped, remain } = split.value
+      // Nothing dropped: what remains is compacted, so a compaction asked for always writes one.
+      const toCompact = Arr.match(dropped, { onEmpty: () => remain, onNonEmpty: identity })
+      // Opened by what the context held compacted, so the new summary carries it over.
       const compacted = yield* assistant.summarise(
-        ChatContextTokenizer.withContext(chat.context, dropped),
+        ChatContextTokenizer.withContext(chat.context, toCompact),
       )
       yield* chats.update(
         { context: Option.some({ compacted, headMessageId: Arr.headNonEmpty(remain).id }) },

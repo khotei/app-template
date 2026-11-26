@@ -31,40 +31,32 @@ export class ChatContextTokenizer {
 
   /**
    * The context `messages` split for its compaction, its size read from its last message, the
-   * reply's: `remain` are the messages from the oldest user's whose tail holds at most
-   * `keepShare` of `tokensLimit`, or from the newest user's when no tail fits; `dropped` are
-   * those before it, for a summary. None when nothing can go, or no size is read.
+   * reply's: `remain` are the messages from the oldest whose tail holds at most `keepShare` of
+   * `tokensLimit`, the last alone when no tail fits; `dropped` are those before it, for a
+   * summary. All remain, none dropped, when the whole fits or no size is read.
    */
   static readonly splitToCompact = (
     messages: ReadonlyArray<Message>,
     tokensLimit: number,
-  ): Option.Option<{
-    readonly dropped: ReadonlyArray<Message>
-    readonly remain: Arr.NonEmptyReadonlyArray<Message>
-  }> => {
+  ): { readonly dropped: ReadonlyArray<Message>; readonly remain: ReadonlyArray<Message> } => {
     const tokensSize = pipe(
       Arr.last(messages),
       Option.match({ onNone: () => 0, onSome: ChatContextTokenizer.tokensSize }),
     )
-    if (tokensSize === 0) return Option.none()
+    if (tokensSize === 0) return { dropped: [], remain: messages }
 
     const chars = Arr.map(messages, ({ text }) => text.length)
     const keptChars = (Num.sumAll(chars) * keepShare * tokensLimit) / tokensSize
     // tails[i]: the characters of messages[i] and of every message after it.
     const tails = Arr.scanRight(chars, 0, (tail, length) => tail + length)
-
-    return pipe(
-      Arr.zip(messages, tails),
-      Arr.findFirstIndex(([{ author }, tail]) => author === 'user' && tail <= keptChars),
-      // No tail fits: the newest user's message, the least a reply needs.
-      Option.orElse(() => Arr.findLastIndex(messages, ({ author }) => author === 'user')),
-      Option.filter((start) => start > 0),
-      Option.map((start) => Arr.splitAt(messages, start)),
-      Option.filter((halves): halves is [Array<Message>, Arr.NonEmptyArray<Message>] =>
-        Arr.isArrayNonEmpty(halves[1]),
-      ),
-      Option.map(([dropped, remain]) => ({ dropped, remain })),
+    const last = messages.length - 1
+    const head = pipe(
+      Arr.findFirstIndex(tails, (tail) => tail <= keptChars),
+      Option.match({ onNone: () => last, onSome: (index) => Math.min(index, last) }),
     )
+    const [dropped, remain] = Arr.splitAt(messages, head)
+
+    return { dropped, remain }
   }
 
   /**

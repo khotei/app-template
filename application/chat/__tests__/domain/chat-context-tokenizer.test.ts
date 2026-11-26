@@ -35,76 +35,85 @@ const sized = (messages: ReadonlyArray<Message>, tokens: number) =>
       : message,
   )
 
-/** The split of `messages`, its halves as plain lists, which an expected one is built of. */
-const splitOf = (
-  messages: ReadonlyArray<Message>,
-  tokensLimit: number,
-): Option.Option<{
-  readonly dropped: ReadonlyArray<Message>
-  readonly remain: ReadonlyArray<Message>
-}> => ChatContextTokenizer.splitToCompact(messages, tokensLimit)
-
-/** `messages` split before the message at `index`, as a context that starts there is split. */
-const splitAt = (messages: ReadonlyArray<Message>, index: number) =>
-  Option.some({ dropped: Arr.take(messages, index), remain: Arr.drop(messages, index) })
+/** `messages` split before the message at `index`. */
+const splitAt = (messages: ReadonlyArray<Message>, index: number) => ({
+  dropped: Arr.take(messages, index),
+  remain: Arr.drop(messages, index),
+})
 
 describe('ChatContextTokenizer.splitToCompact', () => {
-  it("leaves out the messages before the oldest user's whose tail holds at most 0.3 of the limit", () => {
+  it('drops the messages before the oldest whose tail holds at most 0.3 of the limit', () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
-    assert.deepStrictEqual(splitOf(sized(even, 900), 1000), splitAt(sized(even, 900), 4))
+    const messages = sized(even, 900)
+
+    assert.deepStrictEqual(
+      ChatContextTokenizer.splitToCompact(messages, 1000),
+      splitAt(messages, 4),
+    )
   })
 
-  it("starts at a user's message, though an assistant's before it opens a tail that fits", () => {
-    const messages = [
-      userMessageAt(1, chars(300)),
-      assistantMessageAt(2, chars(100)),
-      userMessageAt(3, chars(200)),
-      assistantMessageAt(4, chars(100)),
-      userMessageAt(5, chars(100)),
-      assistantMessageAt(6, chars(100)),
-    ]
+  it("starts what remains at an assistant's message when its tail is the oldest that fits", () => {
+    const messages = sized(
+      [
+        userMessageAt(1, chars(300)),
+        assistantMessageAt(2, chars(100)),
+        userMessageAt(3, chars(200)),
+        assistantMessageAt(4, chars(100)),
+        userMessageAt(5, chars(100)),
+        assistantMessageAt(6, chars(100)),
+      ],
+      900,
+    )
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
-    assert.deepStrictEqual(splitOf(sized(messages, 900), 1000), splitAt(sized(messages, 900), 4))
-  })
-
-  it("starts at the newest user's message when no user's message opens a tail that fits", () => {
-    const messages = [
-      userMessageAt(1, chars(2000)),
-      assistantMessageAt(2, chars(20_000)),
-      userMessageAt(3, chars(500)),
-      assistantMessageAt(4, chars(12_000)),
-    ]
-
     assert.deepStrictEqual(
-      splitOf(sized(messages, 9000), 10_000),
-      splitAt(sized(messages, 9000), 2),
+      ChatContextTokenizer.splitToCompact(messages, 1000),
+      splitAt(messages, 3),
     )
   })
 
-  it("is none when the newest user's message is the first, as nothing can go", () => {
-    const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
+  it('leaves the last message alone when not even its tail fits', () => {
+    const messages = sized(
+      [
+        userMessageAt(1, chars(2000)),
+        assistantMessageAt(2, chars(20_000)),
+        userMessageAt(3, chars(500)),
+        assistantMessageAt(4, chars(12_000)),
+      ],
+      9000,
+    )
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.splitToCompact(sized(messages, 900), 1000),
-      Option.none(),
+      ChatContextTokenizer.splitToCompact(messages, 10_000),
+      splitAt(messages, 3),
     )
   })
 
-  it('is none when the whole context fits 0.3 of the limit', () => {
+  it('drops none when the whole context fits 0.3 of the limit', () => {
+    const messages = sized(even, 300)
+
     assert.deepStrictEqual(
-      ChatContextTokenizer.splitToCompact(sized(even, 300), 1000),
-      Option.none(),
+      ChatContextTokenizer.splitToCompact(messages, 1000),
+      splitAt(messages, 0),
     )
   })
 
   it('splits a context between 0.3 and 0.8 of the limit too, as its caller asks the policy', () => {
-    // 500 tokens over 600 characters: 300 tokens are 360 characters, the last two messages.
-    assert.deepStrictEqual(splitOf(sized(even, 500), 1000), splitAt(sized(even, 500), 4))
+    // 500 tokens over 600 characters: 300 tokens are 360 characters, the last three messages.
+    const messages = sized(even, 500)
+
+    assert.deepStrictEqual(
+      ChatContextTokenizer.splitToCompact(messages, 1000),
+      splitAt(messages, 3),
+    )
   })
 
-  it('is none when no Run with a usage wrote the last message', () => {
-    assert.deepStrictEqual(ChatContextTokenizer.splitToCompact(even, 1000), Option.none())
+  it('drops none when no Run with a usage wrote the last message', () => {
+    assert.deepStrictEqual(ChatContextTokenizer.splitToCompact(even, 1000), splitAt(even, 0))
+  })
+
+  it('splits no messages into none dropped and none that remain', () => {
+    assert.deepStrictEqual(ChatContextTokenizer.splitToCompact([], 1000), splitAt([], 0))
   })
 })
 

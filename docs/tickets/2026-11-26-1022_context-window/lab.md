@@ -52,8 +52,8 @@ processes; a header that differs between two requests.
 A reply reads its chat's context, the messages from the start the chat holds
 (`chats.context`, null until a cut). Once a reply's prompt and text pass 0.8 of
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
-(`ChatContextTokenizer.splitToCompact`) to the oldest user message whose tail holds at most 0.3 of it,
-or to the newest user message, and its start stored. The chat's list still shows every
+(`ChatContextTokenizer.splitToCompact`) to the oldest message whose tail holds at most 0.3 of it,
+or to the last message alone, and its head stored. The chat's list still shows every
 message. See it: `make test-unit`, "getMessages reads the context of the user's chat: a cut chat, those from
 the start its context stores, opened by its summary"; `make test-e2e`, the repository reads a chat's
 messages between two ids and writes a chat's context; under `make dev` with a low limit,
@@ -81,7 +81,7 @@ context had, and stores the summary with the first message kept", "reply after a
 with the summary and the chat's messages from the start it stored"; under `make dev` with a low limit,
 `select context from chats`.
 
-Built in twenty-nine rounds, L4.3 to L4.29 on the owner's reviews of PR #61 and words in the
+Built in thirty rounds, L4.3 to L4.30 on the owner's reviews of PR #61 and words in the
 terminal. Not run: a reply, a cut and a summary on the provider's API; a read of a cut chat's
 messages from Postgres with the reply's Run.
 
@@ -119,8 +119,11 @@ messages from Postgres with the reply's Run.
   reply's, so the messages and their size are one value.
 - [D] (the owner's "yes") `AssistantReply` is declared beside the call that returns it, in the
   assistant's file; the decision "The language model in the kernel" says so.
-- [D] A chat with no tail within the lower share is cut to its newest user message: a chat never
+- [D] A chat with no tail within the lower share is cut to its last message: a chat never
   cut breaks for good once past the model's window.
+- [D] (the owner's) A context's head is any message, as a compacted context opens with its
+  summary, a user message; the split returns both halves whatever the size, and `compact`
+  summarises those that remain when none is dropped, so a compaction asked for always writes.
 
 ## Later
 
@@ -130,8 +133,8 @@ messages from Postgres with the reply's Run.
 - With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts and
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
   `application/chat/infrastructure/message-assistant.llm.ts:120` — open
-- A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
-  message alone, and stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:55` — open
+- A chat whose last message holds more than 0.3 of the limit is cut to that message alone, and
+  stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:55` — open
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
   `application/chat/infrastructure/message-assistant.llm.ts:144` — open
 - A worker stopped during a summary's call logs "reply failed", though its Run is done; the cut
@@ -141,7 +144,8 @@ messages from Postgres with the reply's Run.
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A chat whose summary fails after every reply is never cut, and breaks for good once past its
   model's window — `application/chat/services/chat-context.service.ts:75` — open
-- `ChatContextService.compact` cuts a context under its limit too when called on one: the check
-  is its caller's — `application/chat/services/reply-chat.service.ts:92` — open
+- `ChatContextService.compact` called on a context whose split drops none stores a summary of
+  the messages it keeps, so the next reply sends both; its one caller asks the policy first —
+  `application/chat/services/chat-context.service.ts:76` — open
 - The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of
   a service composed over a model's — `.claude/rules/naming.md` — open

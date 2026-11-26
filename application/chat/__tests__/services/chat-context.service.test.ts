@@ -144,9 +144,31 @@ describe('ChatContextService', () => {
     }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
   })
 
-  it.effect('compact of a context no cut shortens asks for no summary and writes no chat', () => {
+  it.effect(
+    'compact of a context whose split drops none summarises those that remain and keeps its head',
+    () => {
+      const assistant = recordMessageAssistant(Effect.succeed(sureReply), {
+        contextTokensLimit: 1000,
+      })
+      const answered = answeredBy(longReply)
+      const store = storing(chat, [long, answered])
+      return Effect.gen(function* () {
+        const contexts = yield* ChatContextService
+
+        yield* contexts.compact(where)
+
+        assertEquals(yield* assistant.summarised, [[long, answered]])
+        assert.deepStrictEqual(
+          store.writes.map(({ context }) => context),
+          [{ compacted: 'A summary.', headMessageId: long.id }],
+        )
+      }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
+    },
+  )
+
+  it.effect('compact of a chat with no message asks for no summary and writes no chat', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sureReply), { contextTokensLimit: 150 })
-    const store = storing(chat, [long, answeredBy(longReply)])
+    const store = storing(chat, [])
     return Effect.gen(function* () {
       const contexts = yield* ChatContextService
 
