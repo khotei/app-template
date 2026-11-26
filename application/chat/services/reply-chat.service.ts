@@ -1,4 +1,4 @@
-import { type Cause, Context, Effect, Layer, Option, Struct } from 'effect'
+import { Cause, Context, Effect, Layer, Option, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -82,15 +82,20 @@ export class ReplyChatService extends Context.Service<
         )
         const started = yield* runs.update(queued, yield* RunMove.start(queued))
 
-        const message = yield* Effect.interruptible(answer(started)).pipe(
+        const reply = yield* Effect.interruptible(answer(started)).pipe(
           Effect.onError(failUnanswered(started)),
         )
 
         // After the commit: a summary's call is long, and one that ends badly must cost no reply.
-        const tokensSize = ChatContextTokenizer.tokensSize(message)
+        const tokensSize = ChatContextTokenizer.tokensSize(reply)
         if (!ChatContextPolicy.isOverLimit(tokensSize, assistant.contextTokensLimit)) return
-
-        yield* Effect.interruptible(contexts.update(Struct.pick(message, ['chatId', 'userId'])))
+        // A summary that fails costs no reply: the context stays, for the chat's next reply to cut.
+        yield* Effect.interruptible(contexts.update(Struct.pick(reply, ['chatId', 'userId']))).pipe(
+          Effect.tapErrorTag('LlmError', (error) =>
+            Effect.logWarning('context not cut', Cause.fail(error)),
+          ),
+          Effect.catchTag('LlmError', () => Effect.void),
+        )
       },
       // A Run's chat is there while the Run is, so a chat not found is a defect.
       Effect.catchTag('ChatNotFoundError', Effect.die),

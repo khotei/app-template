@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, Option, type Types } from 'effect'
+import { Context, Effect, Layer, Option, type Types } from 'effect'
 
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
@@ -6,6 +6,9 @@ import type { ContextMessage, Message } from '#chat/domain/message.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
+
+/** The assistant's failures, named through it, as a service imports no part of the kernel. */
+type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['summarise']>>
 
 /** The chat `chatId` names, of the user `userId` names, so none reads another's context. */
 export type ChatContextWhere = Types.Simplify<Pick<Message, 'chatId'> & Pick<Chat, 'userId'>>
@@ -25,10 +28,12 @@ export class ChatContextService extends Context.Service<
     /**
      * Cuts the context of the chat `where` names, read after the reply that left it over its
      * limit: the messages the cut leaves out are summarised, and the summary is stored with the
-     * context's new start. A summary that fails leaves the context as it was, with a warning,
-     * for the chat's next reply.
+     * context's new start. A summary that fails is the assistant's failure, the context left as
+     * it was.
      */
-    readonly update: (where: ChatContextWhere) => Effect.Effect<void, ChatNotFoundError>
+    readonly update: (
+      where: ChatContextWhere,
+    ) => Effect.Effect<void, ChatNotFoundError | MessageAssistantError>
   }
 >()('@app-template/application/chat/services/ChatContextService', {
   make: Effect.gen(function* () {
@@ -53,25 +58,19 @@ export class ChatContextService extends Context.Service<
       return ChatContextTokenizer.withContext(chat.context, stored)
     })
 
-    const update = Effect.fn('ChatContextService.update')(
-      function* (where: ChatContextWhere) {
-        const context = yield* getMessages(where)
-        const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
-        if (Option.isNone(cut)) return
+    const update = Effect.fn('ChatContextService.update')(function* (where: ChatContextWhere) {
+      const context = yield* getMessages(where)
+      const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
+      if (Option.isNone(cut)) return
 
-        // What is left opens with the summary the context held, so the new one carries it over.
-        const { left, startMessageId } = cut.value
-        const latestSummary = yield* assistant.summarise(left)
-        yield* chats.update(
-          { context: Option.some({ latestSummary, startMessageId }) },
-          { id: where.chatId, userId: where.userId },
-        )
-      },
-      Effect.tapErrorTag('LlmError', (error) =>
-        Effect.logWarning('context not cut', Cause.fail(error)),
-      ),
-      Effect.catchTag('LlmError', () => Effect.void),
-    )
+      // What is left opens with the summary the context held, so the new one carries it over.
+      const { left, startMessageId } = cut.value
+      const latestSummary = yield* assistant.summarise(left)
+      yield* chats.update(
+        { context: Option.some({ latestSummary, startMessageId }) },
+        { id: where.chatId, userId: where.userId },
+      )
+    })
 
     return { getMessages, update }
   }),
