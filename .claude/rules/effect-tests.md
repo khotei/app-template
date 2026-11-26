@@ -24,10 +24,10 @@ Where each kind of test and its support live, and what a test may import:
 
 - A unit test runs the real services and use cases over a `Layer.mock(<Name>Repository, { … })` of
   each repository, giving only the methods its flow may call (any other dies with
-  `UnimplementedError`), and over the leaf services its module's test layer takes as an argument,
-  each `Layer.mock(<Leaf>, {})` until a case passes its fake. It starts no container and asserts the
-  row or the `set` and `where` a write was handed, never a read back. A use case's unit test checks
-  the order of its steps and the jobs it sends, not the rules.
+  `UnimplementedError`), and over the leaves the module's test layer takes, each
+  `Layer.mock(<Leaf>, {})` and the transaction its own test layer until a case passes its fake. It
+  starts no container and asserts the row or the `set` and `where` a write was handed, never a read
+  back. A use case's unit test checks the order of its steps and the jobs it sends, not the rules.
 - Mock a leaf only, a repository or a leaf service (an assistant, the queue's sender): a layer
   that provides its own dependency ignores a double given from outside. What the database
   accepts, refuses, races or rolls back has its case on the repository's e2e or through the api,
@@ -35,8 +35,8 @@ Where each kind of test and its support live, and what a test may import:
   ([database.md › Tests](../../docs/knowledge/database.md#tests)).
 - An e2e test proves an adapter on the e2e run's containers, or a flow through the api, never a call
   of the use case. Atomicity: the database refuses one write (a constraint the test adds) and no row
-  and no job is kept. A race sends the rival requests with `Effect.all(…, { concurrency: 'unbounded'
-  })` and asserts an outcome that holds whichever wins; a probe that removes the guard turns it red.
+  and no job is kept. A race sends its requests with `Effect.all(…, { concurrency: 'unbounded' })`
+  and asserts an outcome that holds whichever wins; a probe that removes the guard turns it red.
 - An app's layer in a test's runtime ends in `Layer.fresh`
   (`repos/effect/migration/layer-memoization.md`): it then shares no layer with the test's own,
   builds its clients from its config, and keeps its writes in its own transaction.
