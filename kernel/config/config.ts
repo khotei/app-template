@@ -41,6 +41,8 @@ export const llmModels = Config.all({
  * The tokens a chat's context may hold: at most the reply model's context window, lower to cut a
  * chat's context sooner.
  */
-export const chatContextTokensLimit = Config.Int('LLM_CHAT_CONTEXT_TOKENS_LIMIT')
+export const chatContextConfig = Config.all({
+  chatContextTokensLimit: Config.Int('LLM_CHAT_CONTEXT_TOKENS_LIMIT'),
+})
 
 export const MinimumLogLevelFromConfig = Layer.effect(References.MinimumLogLevel, logLevel)

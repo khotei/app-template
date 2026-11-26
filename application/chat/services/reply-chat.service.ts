@@ -1,6 +1,6 @@
 import { type Cause, Context, Effect, Layer, Struct } from 'effect'
 
-import { chatContextTokensLimit } from '@app-template/kernel/config'
+import { chatContextConfig } from '@app-template/kernel/config'
 import { Transaction } from '@app-template/packages/db'
 
 import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
@@ -44,7 +44,7 @@ export class ReplyChatService extends Context.Service<
     const runs = yield* RunService
     const transaction = yield* Transaction
     const assistant = yield* MessageAssistant
-    const tokensLimit = yield* chatContextTokensLimit
+    const { chatContextTokensLimit } = yield* chatContextConfig
 
     // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
     const failUnanswered = (run: Run) =>
@@ -62,7 +62,7 @@ export class ReplyChatService extends Context.Service<
     const compactOverLimit = (started: Run) =>
       Effect.fnUntraced(function* ({ usage }: AssistantReply) {
         const tokensSize = ChatContextTokenizer.usageTokensSize(usage)
-        if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
+        if (!ChatContextPolicy.isOverLimit(tokensSize, chatContextTokensLimit)) return
 
         yield* contexts.compact(Struct.pick(started, ['chatId', 'userId']))
       })

@@ -1,6 +1,6 @@
 import { Array as Arr, Context, Effect, identity, Layer, Option, type Types } from 'effect'
 
-import { chatContextTokensLimit } from '@app-template/kernel/config'
+import { chatContextConfig } from '@app-template/kernel/config'
 
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
@@ -42,7 +42,7 @@ export class ContextChatService extends Context.Service<
     const chats = yield* ChatService
     const messages = yield* MessageService
     const assistant = yield* MessageAssistant
-    const tokensLimit = yield* chatContextTokensLimit
+    const { chatContextTokensLimit } = yield* chatContextConfig
 
     // The messages a reply of `chat` sends: all of an uncompacted chat, those from its context's head.
     const getMessagesInContext = ({ id, context }: Chat) =>
@@ -70,7 +70,10 @@ export class ContextChatService extends Context.Service<
     }: ContextChatWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       const contextMessages = yield* getMessagesInContext(chat)
-      const { dropped, remain } = ChatContextTokenizer.splitToCompact(contextMessages, tokensLimit)
+      const { dropped, remain } = ChatContextTokenizer.splitToCompact(
+        contextMessages,
+        chatContextTokensLimit,
+      )
       if (!Arr.isReadonlyArrayNonEmpty(remain)) return
 
       // Nothing dropped: what remains is compacted, so a compaction asked for always writes one.
