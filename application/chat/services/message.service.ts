@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
-import { encodeWhere, MessageRepository, type WhereRange } from '@app-template/kernel/data'
+import { encodeWhere, MessageRepository, type WhereValue } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 
 import { Message, MessageNotFoundError } from '#chat/domain/message.model'
@@ -8,10 +8,10 @@ import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
-/** A chat's messages, those of the range of ids `id` names when given. */
+/** A chat's messages, those `id` names when given: one, a list or a range of ids. */
 export type MessageManyWhere = {
   readonly chatId: Message['chatId']
-  readonly id?: WhereRange<Message['id']>
+  readonly id?: WhereValue<Message['id']>
 }
 
 export class MessageService extends Context.Service<

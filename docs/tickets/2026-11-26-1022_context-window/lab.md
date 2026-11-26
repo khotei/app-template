@@ -114,6 +114,8 @@ none.
   in L4.8: the chat stores the first message its replies send again, beside the latest summary,
   and `encodeWhere` turns a range into its bounds, so `messages.getMany` takes
   `id: { from }` and writes no condition itself.
+  Then "build data generic helper for it for any values", in L4.9: `WhereValue<A>` of
+  `kernel/data` types a field a where asks as one value, a list or a range.
 
 ### Output
 

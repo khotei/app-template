@@ -3,6 +3,9 @@ import { Array as Arr, identity, Match, Option, Predicate, Struct, UndefinedOr }
 /** The values from `from` to `to`, each included; a bound left out bounds nothing. */
 export type WhereRange<A> = { readonly from?: A; readonly to?: A }
 
+/** What a where may ask of a field of `A`: the value itself, any of a list, or a range. */
+export type WhereValue<A> = A | ReadonlyArray<A> | WhereRange<A>
+
 type EncodedWhereValue<Value> =
   Value extends Option.Option<infer A>
     ? A | { isNull: true }
