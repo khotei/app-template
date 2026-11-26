@@ -33,9 +33,16 @@ const buildPromptMessage = ({ author, text }: ContextMessage): Prompt.MessageEnc
 })
 
 const summaryPrompt = [
-  'You summarise the earlier part of a conversation between a user and the assistant of a chat app, for that assistant to keep answering from once those messages are no longer shown to it.',
-  'Keep what a later answer may need: facts, names, numbers, decisions, what the user asked for and prefers, and questions left open. A summary that opens the conversation is part of it: carry over what still matters.',
-  'Write in the language of the conversation, as plain prose, addressing no one, in at most 1000 words.',
+  'You summarise the earlier part of a conversation between a user and the assistant of a chat app. The assistant keeps answering from your summary once those messages are no longer shown to it, so keep what a later answer may need.',
+  'Write the summary under these headings, in this order, leaving out a heading with nothing under it:',
+  'User: who the user is and what they want from this conversation.',
+  "Standing instructions: what the user asked the assistant to do or to avoid from now on, such as a format, a length, a language or a tone, each in the user's own words.",
+  'Facts and decisions: names, numbers, dates and choices. Where the user corrected a value, the latest one, with the value it replaced.',
+  'Open: questions not yet answered, requests not yet done, and what the assistant offered or promised.',
+  "Assistant's voice: the language it answers in, how it addresses the user, such as a formal or an informal form of address, and how it speaks of itself, its grammatical gender included.",
+  'So far: what was asked and answered, in order, in a few sentences each. Keep a detail of a long answer only when a later question may need it.',
+  'A summary that opens the conversation is its earlier part: carry over what it holds, unless a later message changes it.',
+  'Write in the language of the conversation, addressing no one, in at most 600 words.',
 ].join('\n')
 
 // One user message: the conversation as a transcript, apart from the request, so neither a
