@@ -1,5 +1,5 @@
 import { AnthropicLanguageModel } from '@effect/ai-anthropic'
-import { Array as Arr, Context, Effect, Layer, Schema } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, Schema } from 'effect'
 import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
@@ -40,7 +40,21 @@ export class MessageAssistant extends Context.Service<
       (history: ReadonlyArray<Message>) =>
         model.generateText({ prompt: Arr.map(history, buildPromptMessage) }),
       askModel,
-      Effect.flatMap(({ text }) => Schema.decodeEffect(AssistantReply)({ text })),
+      // The usage as the provider counted it; a count or the name it left out fails the decode.
+      Effect.map(({ text, usage, content }) => ({
+        text,
+        usage: {
+          model: Arr.findFirst(content, (part) => part.type === 'response-metadata').pipe(
+            Option.flatMapNullishOr((part) => part.modelId),
+            Option.getOrUndefined,
+          ),
+          promptTokens: usage.inputTokens.total,
+          outputTokens: usage.outputTokens.total,
+          cacheReadTokens: usage.inputTokens.cacheRead,
+          cacheWriteTokens: usage.inputTokens.cacheWrite,
+        },
+      })),
+      Effect.flatMap(Schema.decodeUnknownEffect(AssistantReply)),
       Effect.catchTag('SchemaError', ({ message }) =>
         Effect.fail(new LlmError({ cause: message })),
       ),

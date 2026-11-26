@@ -13,7 +13,7 @@ import { ChatTitle } from '#chat/domain/chat.model'
 import type { Message } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-import { assistantMessageAt, userMessageAt } from '#testing/chat/chat.test-fixture'
+import { assistantMessageAt, replyUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -65,8 +65,8 @@ const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn'
     stop_sequence: null,
     usage: {
       cache_creation: null,
-      cache_creation_input_tokens: null,
-      cache_read_input_tokens: null,
+      cache_creation_input_tokens: 20,
+      cache_read_input_tokens: 100,
       input_tokens: 10,
       output_tokens: 5,
       service_tier: null,
@@ -99,7 +99,7 @@ const lisbon = 'Plan a weekend in Lisbon'
 
 describe('MessageAssistant and ChatAssistant', () => {
   it.effect(
-    "reply asks the reply's language model with the system prompt and each message as its text, and returns the language model's text",
+    "reply asks the reply's language model with the system prompt and each message as its text, and returns the language model's text, its name and the usage, the prompt's tokens counted with the cached ones",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
@@ -115,7 +115,13 @@ describe('MessageAssistant and ChatAssistant', () => {
           { role: 'user', content: [{ type: 'text', text: 'What is this?', cache_control: null }] },
           { role: 'assistant', content: [{ type: 'text', text: 'A photo.' }] },
         ])
-        assertEquals(answer, new AssistantReply({ text: 'Hello' }))
+        assertEquals(
+          answer,
+          new AssistantReply({
+            text: 'Hello',
+            usage: replyUsage,
+          }),
+        )
       }).pipe(Effect.provide(layer))
     },
   )

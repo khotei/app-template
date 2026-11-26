@@ -36,6 +36,7 @@ import {
   firstMessage,
   owner,
   queuedRun,
+  replyUsage,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
@@ -44,7 +45,7 @@ import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fak
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
-const sure = new AssistantReply({ text: 'Sure.' })
+const sure = new AssistantReply({ text: 'Sure.', usage: replyUsage })
 
 const whatIsThis = userMessageAt(1, 'What is this?')
 const aPhoto = assistantMessageAt(2, 'A photo.')

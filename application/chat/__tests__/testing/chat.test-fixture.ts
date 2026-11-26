@@ -3,6 +3,7 @@ import { DateTime } from 'effect'
 import { UserId } from '@app-template/application/user'
 import { epoch } from '@app-template/packages/testing'
 
+import type { ReplyUsage } from '#chat/domain/assistant.model'
 import { Chat } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 import { Message } from '#chat/domain/message.model'
@@ -65,3 +66,12 @@ export const queuedRun = new Run({
   createdAt: epoch,
   updatedAt: epoch,
 })
+
+/** A reply's usage whose prompt the cache served in part. */
+export const replyUsage: ReplyUsage = {
+  model: 'claude-sonnet-5-5',
+  promptTokens: 130,
+  outputTokens: 5,
+  cacheReadTokens: 100,
+  cacheWriteTokens: 20,
+}
