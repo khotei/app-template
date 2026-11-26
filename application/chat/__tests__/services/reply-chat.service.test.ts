@@ -26,7 +26,6 @@ import type {
 import { decodeWith, encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
-import { AssistantReply } from '#chat/domain/assistant.model'
 import { Chat } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
 import { Run, RunNotFoundError, RunStatus } from '#chat/domain/run.model'
@@ -41,6 +40,7 @@ import {
   owner,
   queuedRun,
   runUsage,
+  sureReply as sure,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
@@ -48,8 +48,6 @@ import { holdCall } from '#testing/chat/chat.test-util'
 import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fake'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
-
-const sure = new AssistantReply({ text: 'Sure.', usage: runUsage })
 
 const whatIsThis = userMessageAt(1, 'What is this?')
 const aPhoto = assistantMessageAt(2, 'A photo.')

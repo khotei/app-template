@@ -977,7 +977,8 @@ model, each a `Context.Service` with its `static layer`: `MessageAssistant` answ
 next message from its context, `ChatAssistant` the chat's title from its opening text. Each
 builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
 `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
-`LlmError`. The domain keeps only what they take and return (`Message`, `AssistantReply`),
+`LlmError`. The domain keeps only what they take (`Message`); what one returns is declared beside it
+(`AssistantReply`, the title's schema),
 and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in front of the
 services. A use case, or the chat's worker service of a job, yields the assistant it

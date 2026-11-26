@@ -10,6 +10,7 @@ import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { Run, type RunUsage } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
+import { AssistantReply } from '#chat/infrastructure/message-assistant.llm'
 
 export const assistantOverloaded = new LlmError({ cause: '529 overloaded' })
 
@@ -77,3 +78,5 @@ export const runUsage: RunUsage = {
   cacheReadTokens: 100,
   cacheWriteTokens: 20,
 }
+
+export const sureReply = new AssistantReply({ text: 'Sure.', usage: runUsage })

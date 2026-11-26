@@ -34,7 +34,7 @@ graph LR
    context ([below](#the-context-and-its-cut)): each message, the user's and the assistant's, as
    its text. A failed Run leaves no reply, so two
    user messages may follow each other: `@effect/ai-anthropic` folds them into one, and the
-   Messages API takes either shape. The text is decoded as the domain's `AssistantReply`, which
+   Messages API takes either shape. The text is decoded as the assistant's own `AssistantReply`, which
    drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
    Nothing streams: the answer arrives whole.
 3. `ChatAssistant.proposeTitle` calls `generateObject` on the title's language model with the opening

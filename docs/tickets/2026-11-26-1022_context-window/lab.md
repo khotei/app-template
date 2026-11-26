@@ -116,6 +116,9 @@ none.
   `id: { from }` and writes no condition itself.
   Then "build data generic helper for it for any values", in L4.9: `WhereValue<A>` of
   `kernel/data` types a field a where asks as one value, a list or a range.
+  Then, on the owner's "yes", in L4.10: `AssistantReply` is declared in
+  `message-assistant.llm.ts`, beside the call that returns it, and the decision
+  "The language model in the kernel" says so.
 
 ### Output
 

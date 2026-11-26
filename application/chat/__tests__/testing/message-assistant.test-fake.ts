@@ -2,9 +2,8 @@ import { Array as Arr, Effect, Layer, Ref } from 'effect'
 
 import type { LlmError } from '@app-template/kernel/llm/error'
 
-import type { AssistantReply } from '#chat/domain/assistant.model'
 import type { ContextMessage } from '#chat/domain/message.model'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { type AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 
 /**
  * A `MessageAssistant` returning `reply` for every reply and `summary` for every summary, keeping

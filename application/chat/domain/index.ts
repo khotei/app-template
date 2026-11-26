@@ -1,4 +1,3 @@
-export * from '#chat/domain/assistant.model'
 export * from '#chat/domain/chat.model'
 export * from '#chat/domain/chat.util'
 export * from '#chat/domain/chat-context-policy'

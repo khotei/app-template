@@ -8,11 +8,10 @@ import { TestClock } from 'effect/testing'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import type { LlmError } from '@app-template/kernel/llm/error'
 
-import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatTitle } from '#chat/domain/chat.model'
 import type { ContextMessage } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
