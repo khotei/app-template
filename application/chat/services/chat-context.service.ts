@@ -42,7 +42,7 @@ export class ChatContextService extends Context.Service<
     const assistant = yield* MessageAssistant
 
     // The messages a reply of `chat` sends: all of an uncut chat, those from its context's start.
-    const getStoredMessages = ({ id, context }: Chat) =>
+    const getMessagesInContext = ({ id, context }: Chat) =>
       messages.getMany({
         chatId: id,
         ...Option.match(context, {
@@ -56,7 +56,7 @@ export class ChatContextService extends Context.Service<
       userId,
     }: ChatContextWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
-      const stored = yield* getStoredMessages(chat)
+      const stored = yield* getMessagesInContext(chat)
 
       return ChatContextTokenizer.withContext(chat.context, stored)
     })
@@ -66,7 +66,7 @@ export class ChatContextService extends Context.Service<
       userId,
     }: ChatContextWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
-      const stored = yield* getStoredMessages(chat)
+      const stored = yield* getMessagesInContext(chat)
       const cut = ChatContextTokenizer.cut(stored, assistant.contextTokensLimit)
       if (Option.isNone(cut)) return
 
