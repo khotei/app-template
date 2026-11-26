@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
-import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
+import { type AtLeast, encodeWhere, MessageRepository } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 
 import { Message, MessageNotFoundError } from '#chat/domain/message.model'
@@ -8,15 +8,18 @@ import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
+/** A chat's messages, all of them or, bounded by `id`, those at or past that id. */
+export type MessageManyWhere = Types.Simplify<
+  Pick<MessageWhere, 'chatId'> & { readonly id?: AtLeast<Message['id']> }
+>
+
 export class MessageService extends Context.Service<
   MessageService,
   {
     readonly create: (fields: typeof Message.jsonCreate.Type) => Effect.Effect<Message>
     readonly getOne: (where: MessageWhere) => Effect.Effect<Message, MessageNotFoundError>
-    /** The chat's messages in creation order. */
-    readonly getMany: (
-      where: Types.Simplify<Pick<MessageWhere, 'chatId'>>,
-    ) => Effect.Effect<ReadonlyArray<Message>>
+    /** The chat's messages `where` finds, in creation order. */
+    readonly getMany: (where: MessageManyWhere) => Effect.Effect<ReadonlyArray<Message>>
   }
 >()('@app-template/application/chat/services/MessageService', {
   make: Effect.gen(function* () {
@@ -42,8 +45,7 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      (where: Types.Simplify<Pick<MessageWhere, 'chatId'>>) =>
-        messages.selectMany(encodeWhere(where)),
+      (where: MessageManyWhere) => messages.selectMany(encodeWhere(where)),
       Effect.flatMap(RowCodec.decodeMany(Message)),
     )
 
