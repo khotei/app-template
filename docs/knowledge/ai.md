@@ -65,14 +65,14 @@ of the assistants' suite holds. When no tail fits 0.3 of the limit, the context 
 newest user message, the least a reply needs.
 
 A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks the reply's
-language model, under a system prompt of its own, for a summary of the messages before the new
-start, the summary of an earlier cut among them, and the cut context opens with it as a user
+language model, under a system prompt of its own, for a summary of the messages the cut leaves
+out, the summary of an earlier cut among them, and the cut context opens with it as a user
 message. The call follows the reply's commit, as it is long and one that ends badly must cost no
 reply; the summary and its last message are one write, so two replies of one chat that cut at
-once each store a whole pair. A summary that fails is logged as a warning and never holds the cut back, as
-a context never cut outgrows its language model: the context keeps the summary it had, and one
-that has none opens with a fixed note that earlier messages are not shown, so the language model
-says so instead of guessing.
+once each store a whole pair. A summary that fails is logged as a warning and never holds the cut
+back, as a context never cut outgrows its language model: the context keeps the summary it had,
+and one that has none opens with a fixed note that earlier messages are not shown, so the
+language model says so instead of guessing.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite
