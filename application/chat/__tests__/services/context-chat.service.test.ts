@@ -15,10 +15,12 @@ import { layerChatTest } from '#testing/chat/chat.test-layer'
 const ofWhat = userMessageAt(3, 'Of what?')
 const aCat = assistantMessageAt(4, 'A cat.')
 
-/** `chat`, its context cut to start at `ofWhat`. */
+const aPhoto = 'They spoke of a photo.'
+
+/** `chat`, its context cut to start at `ofWhat`, what came before summarised. */
 const cut = new Chat({
   ...chat,
-  context: Option.some({ startMessageId: ofWhat.id }),
+  context: Option.some({ startMessageId: ofWhat.id, summary: Option.some(aPhoto) }),
 })
 
 const where = { id: chat.id, userId: owner }
@@ -63,7 +65,7 @@ describe('ContextChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect("getOne reads a cut chat's messages from the start it holds", () => {
+  it.effect("getOne reads a cut chat's messages from the start it holds, with its summary", () => {
     const { reads, layer } = storeContext(cut, [ofWhat, aCat])
     return Effect.gen(function* () {
       const contexts = yield* ContextChatService
@@ -72,25 +74,33 @@ describe('ContextChatService', () => {
 
       assertEquals(
         context,
-        new ChatContext({ startMessageId: Option.some(ofWhat.id), messages: [ofWhat, aCat] }),
+        new ChatContext({
+          startMessageId: Option.some(ofWhat.id),
+          summary: Option.some(aPhoto),
+          messages: [ofWhat, aCat],
+        }),
       )
       assert.deepStrictEqual(reads, [{ chatId: chat.id, id: { gte: ofWhat.id } }])
     }).pipe(Effect.provide(layer))
   })
 
-  it.live('update stores where the context starts', () => {
+  it.live('update stores where the context starts and its summary', () => {
     const { writes, layer } = storeContext(chat, [])
     return Effect.gen(function* () {
       const contexts = yield* ContextChatService
 
       yield* contexts.update(
         where,
-        new ChatContext({ startMessageId: Option.some(ofWhat.id), messages: [ofWhat] }),
+        new ChatContext({
+          startMessageId: Option.some(ofWhat.id),
+          summary: Option.some(aPhoto),
+          messages: [ofWhat],
+        }),
       )
 
       assert.deepStrictEqual(
         writes.map(([set]) => set.context),
-        [{ startMessageId: ofWhat.id }],
+        [{ startMessageId: ofWhat.id, summary: aPhoto }],
       )
     }).pipe(Effect.provide(layer))
   })

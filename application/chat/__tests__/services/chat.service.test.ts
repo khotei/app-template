@@ -149,7 +149,7 @@ describe('ChatService', () => {
   it.live('update writes a context alone, leaving the title out of what it sets', () => {
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     const titled = new Chat({ ...chat, title: Option.some(trip) })
-    const cut = { startMessageId: firstMessage.id }
+    const cut = { startMessageId: firstMessage.id, summary: Option.none() }
     return Effect.gen(function* () {
       const service = yield* ChatService
 
@@ -166,7 +166,7 @@ describe('ChatService', () => {
         [
           {
             id: chat.id,
-            context: cut,
+            context: { startMessageId: firstMessage.id, summary: null },
             updatedAt: DateTime.toDateUtc(updated.updatedAt),
           },
           { id: chat.id, userId: owner },

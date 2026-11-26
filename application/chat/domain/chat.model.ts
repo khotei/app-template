@@ -18,8 +18,14 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-/** Where a cut left a chat's context: the first message a reply sends. */
-export const ChatContextStart = Schema.Struct({ startMessageId: MessageId })
+/**
+ * Where a cut left a chat's context: the first message a reply sends, and the summary of those
+ * before it, none when its language model's call failed at the chat's first cut.
+ */
+export const ChatContextStart = Schema.Struct({
+  startMessageId: MessageId,
+  summary: Schema.OptionFromNullOr(Schema.String),
+})
 export type ChatContextStart = typeof ChatContextStart.Type
 
 export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(

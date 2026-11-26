@@ -25,7 +25,7 @@ export class ChatContextState {
    * The context cut for the next reply: its messages from the oldest user's whose tail holds at
    * most `keepShare` of `tokensLimit`, the tokens taken as spread over the messages like their
    * characters, or from the newest user's when no tail fits. The context itself when no user's
-   * message past the first starts one.
+   * message past the first starts one. Its summary stays the context's.
    */
   static readonly cut = (
     context: ChatContext,
@@ -53,9 +53,17 @@ export class ChatContextState {
               Arr.get(start),
               Option.map(({ id }) => id),
             ),
+            summary: context.summary,
             messages: Arr.drop(messages, start),
           }),
       }),
     )
   }
+
+  /** What `cut`, a cut of `context`, leaves out: the context up to the message `cut` starts at. */
+  static readonly leftOut = (context: ChatContext, cut: ChatContext): ChatContext =>
+    new ChatContext({
+      ...context,
+      messages: Arr.dropRight(context.messages, cut.messages.length),
+    })
 }

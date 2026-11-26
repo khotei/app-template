@@ -1,4 +1,4 @@
-import { Array as Arr, type Cause, Context, Effect, Layer, Struct } from 'effect'
+import { Array as Arr, type Cause, Context, Effect, Layer, Option, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -51,6 +51,7 @@ export class ReplyChatService extends Context.Service<
 
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
+    // A cut's summary is asked for in it too, so the start and the summary are stored as one.
     // A Run's chat is there while the Run is, so a chat not found is a defect.
     const answer = Effect.fnUntraced(
       function* (started: Run) {
@@ -69,12 +70,19 @@ export class ReplyChatService extends Context.Service<
           messages: Arr.append(context.messages, message),
         })
         const tokensSize = ChatContextState.tokensSize(generated.usage)
-        if (ChatContextState.isOversized(tokensSize, assistant.contextTokensLimit)) {
-          yield* contexts.update(
-            chat,
-            ChatContextState.cut(replied, tokensSize, assistant.contextTokensLimit),
-          )
-        }
+        if (!ChatContextState.isOversized(tokensSize, assistant.contextTokensLimit)) return
+
+        const cut = ChatContextState.cut(replied, tokensSize, assistant.contextTokensLimit)
+        const left = ChatContextState.leftOut(replied, cut)
+        if (Arr.isReadonlyArrayEmpty(left.messages)) return
+
+        // A summary that fails never holds the cut back: a context never cut outgrows its model.
+        const summary = yield* assistant.summarise(left).pipe(
+          Effect.map(Option.some),
+          Effect.tapCause((cause) => Effect.logWarning('context cut with no new summary', cause)),
+          Effect.orElseSucceed(() => replied.summary),
+        )
+        yield* contexts.update(chat, new ChatContext({ ...cut, summary }))
       },
       Effect.catchTag('ChatNotFoundError', Effect.die),
       transaction.run,

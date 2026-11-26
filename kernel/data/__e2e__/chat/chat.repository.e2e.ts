@@ -278,7 +278,10 @@ describe('ChatRepository', () => {
       const chats = yield* ChatRepository
       const gus = '0192d4e0-7b3a-7c00-8000-000000000016'
       const stored = chat('0192d4e0-7b3a-7c00-8000-000000000039', gus)
-      const context = { startMessageId: '0192d4e0-7b3a-7c00-8000-00000000003a' }
+      const context = {
+        startMessageId: '0192d4e0-7b3a-7c00-8000-00000000003a',
+        summary: 'They spoke of a photo.',
+      }
       yield* insertUser(gus)
       yield* chats.insert(stored)
       yield* chats.update({ title: 'Trip' }, { id: stored.id })

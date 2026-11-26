@@ -78,10 +78,35 @@ describe('ChatContextState.cut', () => {
     )
   })
 
+  it('keeps the summary the context had', () => {
+    const context = new ChatContext({ ...whole, summary: Option.some('Before.') })
+
+    assert.deepStrictEqual(ChatContextState.cut(context, 900, 1000).summary, context.summary)
+  })
+
   it("leaves a context whose newest user's message is its first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
     const context = new ChatContext({ ...whole, messages })
 
     assert.strictEqual(ChatContextState.cut(context, 900, 1000), context)
+  })
+})
+
+describe('ChatContextState.leftOut', () => {
+  it('holds the messages a cut leaves out, from the start and with the summary before it', () => {
+    const context = new ChatContext({
+      startMessageId: Option.some(userMessageAt(1, chars(100)).id),
+      summary: Option.some('Before.'),
+      messages: even,
+    })
+
+    assert.deepStrictEqual(
+      ChatContextState.leftOut(context, ChatContextState.cut(context, 900, 1000)),
+      new ChatContext({ ...context, messages: Arr.take(even, 4) }),
+    )
+  })
+
+  it('holds no message of a context its cut left whole', () => {
+    assert.deepStrictEqual(ChatContextState.leftOut(whole, whole).messages, [])
   })
 })

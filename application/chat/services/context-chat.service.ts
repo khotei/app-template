@@ -10,16 +10,16 @@ import { MessageService } from '#chat/services/message.service'
 /** The chat whose context is read or stored, of the user `userId` names. */
 export type ContextWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
-/** Where a context starts, which is all of it a chat keeps. */
-type ContextStart = Types.Simplify<Pick<ChatContext, 'startMessageId'>>
+/** Where a context starts and the summary of what came before, which is all of it a chat keeps. */
+type ContextStart = Types.Simplify<Pick<ChatContext, 'startMessageId' | 'summary'>>
 
 /** A chat's context: what its reply sends the model, and where the chat keeps it. */
 export class ContextChatService extends Context.Service<
   ContextChatService,
   {
-    /** The chat's context as its next reply sends it: its messages from the start it holds. */
+    /** The chat's context as its next reply sends it: its messages from the start it holds, with its summary. */
     readonly getOne: (where: ContextWhere) => Effect.Effect<ChatContext, ChatNotFoundError>
-    /** Stores where `context` starts, for the chat's next replies to read from. */
+    /** Stores where `context` starts and its summary, for the chat's next replies to read. */
     readonly update: (
       where: ContextWhere,
       context: ContextStart,
@@ -33,6 +33,7 @@ export class ContextChatService extends Context.Service<
     const getOne = Effect.fn('ContextChatService.getOne')(function* (where: ContextWhere) {
       const chat = yield* chats.getOne(where)
       const startMessageId = Option.map(chat.context, (context) => context.startMessageId)
+      const summary = Option.flatMap(chat.context, (context) => context.summary)
       const sent = yield* messages.getMany({
         chatId: chat.id,
         ...Option.match(startMessageId, {
@@ -41,13 +42,13 @@ export class ContextChatService extends Context.Service<
         }),
       })
 
-      return new ChatContext({ startMessageId, messages: sent })
+      return new ChatContext({ startMessageId, summary, messages: sent })
     })
 
     const update = Effect.fn('ContextChatService.update')(
-      (where: ContextWhere, { startMessageId }: ContextStart) =>
+      (where: ContextWhere, { startMessageId, summary }: ContextStart) =>
         chats.update(
-          { context: Option.map(startMessageId, (id) => ({ startMessageId: id })) },
+          { context: Option.map(startMessageId, (id) => ({ startMessageId: id, summary })) },
           where,
         ),
     )

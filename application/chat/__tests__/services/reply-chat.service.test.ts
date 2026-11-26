@@ -45,7 +45,10 @@ import {
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
 import { holdCall } from '#testing/chat/chat.test-util'
-import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fake'
+import {
+  assistantOverloaded,
+  recordMessageAssistant,
+} from '#testing/chat/message-assistant.test-fake'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
@@ -361,10 +364,10 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    "reply whose prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the chat's context",
+    "reply whose prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the chat's context, with a summary of the messages before it",
     () => {
       // 135 tokens of a limit of 150: the context is cut to a third of its 505 characters.
-      const assistant = recordMessageAssistant(Effect.succeed(sure), 150)
+      const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
       const writes = noWrites()
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = assistantMessageAt(2, 'x'.repeat(100))
@@ -375,8 +378,11 @@ describe('ReplyChatService', () => {
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
-          [{ startMessageId: short.id }],
+          [{ startMessageId: short.id, summary: 'A summary.' }],
         )
+        assertEquals(yield* assistant.summarised, [
+          new ChatContext({ startMessageId: Option.none(), messages: [long, longReply] }),
+        ])
       }).pipe(
         Effect.provide(
           layerChatTest(
@@ -392,9 +398,52 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
+    'reply whose summary fails still cuts the context, its summary left as it was, with a warning, the Run done',
+    () => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure), {
+        contextTokensLimit: 150,
+        summary: Effect.fail(assistantOverloaded),
+      })
+      const { logs, layer: logger } = recordLogs()
+      const writes = noWrites()
+      const short = userMessageAt(3, 'x'.repeat(100))
+      return Effect.gen(function* () {
+        const replies = yield* ReplyChatService
+        yield* replies.reply(queuedRun.userMessageId)
+
+        assert.deepStrictEqual(
+          Arr.map(writes.chats, ({ context }) => context),
+          [{ startMessageId: short.id, summary: null }],
+        )
+        assert.deepStrictEqual(moves(writes).at(-1), 'generating → done')
+        assert.deepStrictEqual(
+          Arr.map(logs, (line) => Arr.take(line, 2)),
+          [['Warn', 'context cut with no new summary']],
+        )
+        assert.strictEqual(logs[0]?.[2], assistantOverloaded)
+      }).pipe(
+        Effect.provide([
+          layerChatTest(
+            replyingTo(writes, {
+              runs: storeRuns(writes, queuedRun),
+              history: [
+                userMessageAt(1, 'x'.repeat(300)),
+                assistantMessageAt(2, 'x'.repeat(100)),
+                short,
+              ],
+            }),
+            { messageAssistant: assistant.layer },
+          ),
+          logger,
+        ]),
+      )
+    },
+  )
+
+  it.effect(
     "reply after a cut prompts with the chat's messages from the start the cut stored",
     () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sure), 150)
+      const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
       const writes = noWrites()
       const runs = storeRuns(writes, queuedRun)
       const short = userMessageAt(3, 'x'.repeat(100))
@@ -436,7 +485,11 @@ describe('ReplyChatService', () => {
 
         assertEquals(yield* assistant.contexts, [
           new ChatContext({ startMessageId: Option.none(), messages: history }),
-          new ChatContext({ startMessageId: Option.some(short.id), messages: [short] }),
+          new ChatContext({
+            startMessageId: Option.some(short.id),
+            summary: Option.some('A summary.'),
+            messages: [short],
+          }),
         ])
       }).pipe(Effect.provide(layerChatTest(store, { messageAssistant: assistant.layer })))
     },

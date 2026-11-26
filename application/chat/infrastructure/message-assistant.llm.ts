@@ -1,5 +1,15 @@
 import { AnthropicLanguageModel } from '@effect/ai-anthropic'
-import { Array as Arr, Context, Effect, Layer, Option, Schema } from 'effect'
+import {
+  Array as Arr,
+  Context,
+  Effect,
+  flow,
+  Layer,
+  Option,
+  pipe,
+  Schema,
+  String as Str,
+} from 'effect'
 import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
@@ -22,16 +32,35 @@ const buildPromptMessage = ({ author, text }: Message): Prompt.MessageEncoded =>
   content: [{ type: 'text', text }],
 })
 
-/** Opens a context that no longer starts at its chat's first message; fixed, as the prefix is cached. */
-const cutNote: Prompt.MessageEncoded = {
+const buildUserMessage = (text: string): Prompt.MessageEncoded => ({
   role: 'user',
-  content: [{ type: 'text', text: 'Earlier messages of this conversation are not shown to you.' }],
-}
+  content: [{ type: 'text', text }],
+})
 
-const buildPrompt = ({ startMessageId, messages }: ChatContext) => {
+/** Opens a cut context that holds no summary; fixed, as the prefix is cached. */
+const cutNote = buildUserMessage('Earlier messages of this conversation are not shown to you.')
+
+/** Opens a cut context with its summary, which changes only at a cut, as the prefix is cached. */
+const buildSummaryMessage = (summary: string) =>
+  buildUserMessage(
+    `Summary of the earlier messages of this conversation, which are not shown to you:\n\n${summary}`,
+  )
+
+const buildPrompt = ({ startMessageId, summary, messages }: ChatContext) => {
   const prompt = Arr.map(messages, buildPromptMessage)
+  if (Option.isSome(summary)) return Arr.prepend(prompt, buildSummaryMessage(summary.value))
   return Option.isSome(startMessageId) ? Arr.prepend(prompt, cutNote) : prompt
 }
+
+const summaryPrompt = [
+  'You summarise the earlier part of a conversation between a user and the assistant of a chat app, for that assistant to keep answering from once those messages are no longer shown to it.',
+  'Keep what a later answer may need: facts, names, numbers, decisions, what the user asked for and prefers, and questions left open. A summary that opens the conversation is part of it: carry over what still matters.',
+  'Write in the language of the conversation, as plain prose, addressing no one.',
+].join('\n')
+
+const summaryRequest = buildUserMessage('Summarise the conversation above.')
+
+const isWritten = flow(Str.trim, Str.isNonEmpty)
 
 export class MessageAssistant extends Context.Service<
   MessageAssistant,
@@ -40,6 +69,8 @@ export class MessageAssistant extends Context.Service<
     readonly contextTokensLimit: number
     /** The next message of the chat whose context is `context`. */
     readonly reply: (context: ChatContext) => Effect.Effect<AssistantReply, LlmError>
+    /** A summary of `context`, the messages a cut leaves out, for the cut context to open with. */
+    readonly summarise: (context: ChatContext) => Effect.Effect<string, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
@@ -73,7 +104,23 @@ export class MessageAssistant extends Context.Service<
       ),
     )
 
-    return { contextTokensLimit: replyContextTokensLimit, reply }
+    // The reply's model, as what a cut leaves out fits the window its context fitted.
+    const summaryModel = yield* AnthropicLanguageModel.make({
+      model: replyModel,
+      config: { system: summaryPrompt, max_tokens: 4_000 },
+    })
+
+    const summarise = Effect.fn('MessageAssistant.summarise')(
+      (context: ChatContext) =>
+        summaryModel.generateText({
+          prompt: pipe(context, buildPrompt, Arr.append(summaryRequest)),
+        }),
+      askModel,
+      Effect.map(({ text }) => text),
+      Effect.filterOrFail(isWritten, () => new LlmError({ cause: 'a blank summary' })),
+    )
+
+    return { contextTokensLimit: replyContextTokensLimit, reply, summarise }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

@@ -22,7 +22,7 @@ facts, its out-of-scope list and its open questions stand
 | L1 | A Run that is done holds its reply's usage and the model that answered · visible: `make test-unit`; after a reply under `make dev`, `select usage from runs` shows the counts | minimal | build | done |
 | L2 | The prompt of a chat's next reply starts with the prompt of its last one · visible: a test that fails when the system prompt or an earlier message's encoding changes between two replies | minimal | build | done |
 | L3 | A chat's context, what its reply sends the model, is cut once its last prompt and reply pass 0.8 of the tokens limit, down to 0.3, from a user message; its start is stored and a fixed note tells the model that earlier messages are not shown · visible: a chat past the upper share sends a context that starts later, and its list still shows every message | minimal | build | done |
-| L4 | A cut keeps a summary of what it left out, stored and sent in place of the note · visible: after a cut, the next request opens with the summary | minimal | build | todo |
+| L4 | A cut keeps a summary of what it left out, stored and sent in place of the note · visible: after a cut, the next request opens with the summary | minimal | build | in progress |
 | L5 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | todo |
 | L6 | Later: the items of the open list the owner picks | hard | build | todo |
 
@@ -63,6 +63,41 @@ After the close, on the owner's word ("ok apply", 2026-11-26): the rule's check 
 two statics, `isOversized` and `cut`, where one `findContext` held both; the chat's total and
 `tokensSize`, which nothing read, are gone, a Run's usage holding the counts.
 
+## L4 — A cut keeps a summary of what it left out
+
+### Shape
+
+The owner's, 2026-11-26: "ok apply" and "and continue", to a draft that showed the flow (the cut
+found, `MessageAssistant.summarise` over the summary before and the messages left out, the text
+stored beside the start, the next request opening with it) and three forks, each with a
+proposal: the call in the reply's transaction, the reply's model, the summary beside
+`startMessageId` in the chat's `context`. The forks stand as proposed, the owner having named
+none.
+
+### Notes
+
+- [DO] "and continue".
+- [D:ai] A summary that fails does not hold the cut back, where the draft said "no summary, no
+  cut": the context is cut and keeps the summary it had, with a warning. A chat whose summary
+  kept failing would never be cut, and would break for good once past its model's window, the
+  defect L3's review found in another form.
+- [D:ai] The note of L3 stays, for a cut context that holds no summary; the draft dropped it.
+- [D:ai] `summarise` is a method of `MessageAssistant`, not an assistant of its own: it shares
+  the reply's model and writes the message the reply's prompt reads back.
+- [N:ai] The call runs inside the reply's transaction: an interrupt or a defect during it takes
+  the reply back, as one during the reply's own call does.
+
+### Output
+
+Proposed: a cut asks the reply's language model for a summary of the messages it leaves out, the
+summary of an earlier cut among them, and stores it beside the context's start
+(`chats.context.summary`); the next request opens with it, in place of the note. A summary that
+fails leaves the cut in place with the summary it had. See it: `make test-unit`, "reply whose
+prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the chat's
+context, with a summary of the messages before it", "reply opens the request of a cut context
+with the summary it holds", "summarise asks the reply's language model …"; under `make dev` with
+a low limit, `select context from chats`.
+
 ## Knowledge
 
 - [D] (the owner's "ok", 2026-11-26) A Run's usage is one jsonb column shaped as `failure`, tied
@@ -90,3 +125,10 @@ two statics, `isOversized` and `cut`, where one `findContext` held both; the cha
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
 - A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
   message alone, and stays past 0.3 — `application/chat/domain/chat-context-state.ts:40` — open
+- The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
+  `application/chat/infrastructure/message-assistant.llm.ts:113` — open
+- A turn that cuts shows its reply only once the summary is written, and a worker stopped during
+  the summary's call loses the reply; a summary asked for after the commit would need a guard on
+  the chat's context — `application/chat/services/reply-chat.service.ts:80` — open
+- A second cut whose summary fails keeps the first cut's summary, which says nothing of the
+  messages that cut left out — `application/chat/services/reply-chat.service.ts:83` — open
