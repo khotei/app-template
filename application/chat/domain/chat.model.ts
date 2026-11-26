@@ -19,8 +19,9 @@ export const ChatTitle = Schema.String.check(
 export type ChatTitle = typeof ChatTitle.Type
 
 /**
- * What a chat's replies cost together, and where its context stands: the tokens of its last
- * prompt and reply, and the first message a reply sends, none for the chat's first.
+ * What a chat's stored replies cost together, and where its context stands: the tokens of its
+ * last prompt and reply, counted before a cut that reply led to, and the first message a reply
+ * sends, none for the chat's first.
  */
 export const ChatUsage = Schema.Struct({
   total: Schema.Struct(Struct.omit(RunUsage.fields, ['model'])),

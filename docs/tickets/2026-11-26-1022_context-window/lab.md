@@ -94,8 +94,34 @@ What they settled, as the last draft stood:
   `ChatService.update` now hands the repository the named columns alone (L3.3).
 - [Q:ai] The owner asked what happens when a user asks about messages no longer in the context:
   the model does not see them. Settled as the note in this step and a summary as L4.
+- [D:ai] `ContextChatService.update(where, { context, usage })` takes the reply's usage beside
+  the next context, and `ChatUsageState.add` is the rule it applies; the Shape named
+  `update(where, context)` before the chat's usage was settled. Without it the flow would read
+  the chat's usage itself to add to it.
+- [D:ai] The limit is a field of `MessageAssistant`, `contextTokensLimit`, read from the setting
+  beside its model, so every double of the assistant gives one. Without it `ReplyChatService`
+  reads a setting of the kernel and each of its tests provides a config.
+- [N:ai] Review of L3 (Intent, Hunt, Rules). Fixed: a chat with no tail within 0.3 of the limit
+  was never cut and broke for good once past the model's window, shown by the review's probe
+  (L3.8, the cut now starts at the newest user's message); a chat not found is handled once, in
+  the tail of the reply's answer, and a case sends two replies over a store that holds to the id
+  bound, the second prompting from the start the first stored, seen red with the bound removed
+  (L3.9). Rejected: other names for `findContext` and `tokensSize`, the owner's words, and for
+  `add`, which says its act; a variant in place of `ChatUpdate`, as no variant requires one of
+  two fields; a commit apart for the fix of `ChatService.update`, which no test shows red before
+  the column exists.
 
 ### Output
+
+Proposed: a reply reads its chat's context, the messages from the start the chat's usage holds,
+and in its transaction stores the chat's usage (`chats.usage`: the total of its replies, and the
+context's `tokensSize` and `startMessageId`). Once a reply's prompt and text pass 0.8 of
+`LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the context is cut to the oldest user message whose tail holds
+at most 0.3 of it, or to the newest user message; a cut context opens with a fixed note. The
+chat's list still shows every message. See it: `make test-unit`, "reply after a cut prompts with
+the chat's messages from the start the cut stored"; `make test-e2e`, the journey reads
+`chats.usage` after a reply and the repository reads a chat's messages from an id; under
+`make dev` with a low limit, `select usage from chats`.
 
 ## Knowledge
 
@@ -114,3 +140,8 @@ What they settled, as the last draft stood:
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
 - A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
   message alone, and stays past 0.3 — `application/chat/domain/chat-context-state.ts:40` — open
+- A chat's total counts its stored replies alone: an attempt the call's policy asked again, or a
+  blank reply the decode refused, is billed and counted nowhere —
+  `application/chat/infrastructure/message-assistant.llm.ts:55` — open
+- A chat's `updatedAt`, which the wire holds, now moves on every reply, as the reply writes the
+  chat's usage — `application/chat/services/context-chat.service.ts:52` — open

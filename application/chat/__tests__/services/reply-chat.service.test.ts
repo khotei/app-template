@@ -400,6 +400,57 @@ describe('ReplyChatService', () => {
     },
   )
 
+  it.effect(
+    "reply after a cut prompts with the chat's messages from the start the cut stored",
+    () => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure), 150)
+      const writes = noWrites()
+      const runs = storeRuns(writes, queuedRun)
+      const short = userMessageAt(3, 'x'.repeat(100))
+      const history = [
+        userMessageAt(1, 'x'.repeat(300)),
+        assistantMessageAt(2, 'x'.repeat(100)),
+        short,
+      ]
+      // The store's chat and messages: a chat write is kept, and a read bounded by an id holds to it.
+      let written: Partial<ChatEntitySet> = {}
+      const store: ChatRepositoryMocks = {
+        runs,
+        chats: {
+          selectOne: () =>
+            encodeWith(Chat)(chat).pipe(Effect.map((row) => Option.some({ ...row, ...written }))),
+          update: (set) =>
+            Effect.sync(() => {
+              written = set
+            }),
+        },
+        messages: {
+          selectMany: ({ id }) =>
+            pipe(
+              history,
+              Arr.filter((message) =>
+                Predicate.hasProperty(id, 'gte') ? message.id >= String(id.gte) : true,
+              ),
+              Effect.forEach((message) => encodeWith(Message)(message)),
+            ),
+          insert: () => Effect.void,
+        },
+      }
+      return Effect.gen(function* () {
+        const replies = yield* ReplyChatService
+        yield* replies.reply(queuedRun.userMessageId)
+        yield* runs.settle(queuedRun)
+
+        yield* replies.reply(queuedRun.userMessageId)
+
+        assertEquals(yield* assistant.contexts, [
+          new ChatContext({ startMessageId: Option.none(), messages: history }),
+          new ChatContext({ startMessageId: Option.some(short.id), messages: [short] }),
+        ])
+      }).pipe(Effect.provide(layerChatTest(store, { messageAssistant: assistant.layer })))
+    },
+  )
+
   it.effect("reply prompts with the chat's messages in order", () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     const writes = noWrites()

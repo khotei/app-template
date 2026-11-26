@@ -52,28 +52,32 @@ export class ReplyChatService extends Context.Service<
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply and the
     // chat's usage back. A Run's chat is there while the Run is, so a chat not found is a defect.
-    const answer = Effect.fnUntraced(function* (started: Run) {
-      const chat = { id: started.chatId, userId: started.userId }
-      const context = yield* contexts.getOne(chat).pipe(Effect.orDie)
-      const generated = yield* assistant.reply(context)
-      const message = yield* messages.create({
-        ...Struct.pick(started, ['chatId', 'userId']),
-        text: generated.text,
-        author: 'assistant',
-      })
-      yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
+    const answer = Effect.fnUntraced(
+      function* (started: Run) {
+        const chat = { id: started.chatId, userId: started.userId }
+        const context = yield* contexts.getOne(chat)
+        const generated = yield* assistant.reply(context)
+        const message = yield* messages.create({
+          ...Struct.pick(started, ['chatId', 'userId']),
+          text: generated.text,
+          author: 'assistant',
+        })
+        yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
 
-      const replied = new ChatContext({
-        ...context,
-        messages: Arr.append(context.messages, message),
-      })
-      const next = ChatContextState.findContext(
-        replied,
-        ChatContextState.tokensSize(generated.usage),
-        assistant.contextTokensLimit,
-      ).pipe(Option.getOrElse(() => replied))
-      yield* contexts.update(chat, { context: next, usage: generated.usage }).pipe(Effect.orDie)
-    }, transaction.run)
+        const replied = new ChatContext({
+          ...context,
+          messages: Arr.append(context.messages, message),
+        })
+        const next = ChatContextState.findContext(
+          replied,
+          ChatContextState.tokensSize(generated.usage),
+          assistant.contextTokensLimit,
+        ).pipe(Option.getOrElse(() => replied))
+        yield* contexts.update(chat, { context: next, usage: generated.usage })
+      },
+      Effect.catchTag('ChatNotFoundError', Effect.die),
+      transaction.run,
+    )
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
     // the answer, so the Run it started is always there to fail and never stays `generating`; the

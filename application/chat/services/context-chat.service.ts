@@ -19,8 +19,8 @@ export class ContextChatService extends Context.Service<
     /** The chat's context as its next reply sends it: its messages from the start it holds. */
     readonly getOne: (where: ContextWhere) => Effect.Effect<ChatContext, ChatNotFoundError>
     /**
-     * Stores on the chat where `context` starts, for its next replies to read from, with the
-     * `usage` of the reply that led to it added to the chat's.
+     * Stores the chat's usage after a reply: the reply's `usage` added to it, its context
+     * starting where `context` does, for the next replies to read from.
      */
     readonly update: (
       where: ContextWhere,
