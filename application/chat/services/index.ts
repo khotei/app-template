@@ -1,6 +1,5 @@
 export * from '#chat/services/ask-chat.service'
 export * from '#chat/services/chat.service'
-export * from '#chat/services/context-chat.service'
 export * from '#chat/services/message.service'
 export * from '#chat/services/reply-chat.service'
 export * from '#chat/services/run.service'

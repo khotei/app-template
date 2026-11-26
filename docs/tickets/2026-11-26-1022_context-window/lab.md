@@ -51,8 +51,8 @@ processes; a header that differs between two requests.
 
 A reply reads its chat's context, the messages from the start the chat holds
 (`chats.context`: `startMessageId`, null until a cut). Once a reply's prompt and text pass 0.8 of
-`LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextState.isOversized`), the context is cut
-(`ChatContextState.cut`) to the oldest user message whose tail holds at most 0.3 of it, or to the
+`LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
+(`ChatContextTokenizer.findStartMessageId`) to the oldest user message whose tail holds at most 0.3 of it, or to the
 newest user message, and its start stored in the reply's transaction; a cut context opens with a
 fixed note. The chat's list still shows every message. See it: `make test-unit`, "reply after a
 cut prompts with the chat's messages from the start the cut stored"; `make test-e2e`, the
@@ -98,6 +98,11 @@ none.
   the summary too. Rejected: a `Pick` for `cut`, which returns its context whole; a verb for
   `leftOut`, named as `tokensSize` is; the two commits' bodies, already pushed.
 
+- [N:ai] The owner's review of PR #61, nine comments, each answered in its thread, applied in
+  L4.3: `ChatContextState` is `ChatContextPolicy` and `ChatContextTokenizer`; `ChatContext` and
+  `ContextChatService` are gone; the assistants take ready messages; `messages.getMany` takes
+  `fromId`, and `AtLeast` is gone; `ChatUpdate` is gone and an update writes the row whole.
+
 ### Output
 
 Proposed: a cut, found once the reply is committed, asks the reply's language model for a summary
@@ -120,8 +125,16 @@ context with the summary it holds", "summarise asks the reply's language model �
 - [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
   (`startMessageId`), written by a cut in the reply's transaction; a value nothing reads (a
   total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
-- [D] (the owner's) The cut is a rule of the domain (`ChatContextState`), read and stored through
-  `ContextChatService`, and found after the reply, so a context's start holds between two cuts.
+- [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
+  when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
+  starts and what it sends. `ReplyChatService` composes them over `ChatService` and
+  `MessageService`; no class and no service of a context stands between.
+- [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
+  cut context opens with is the domain's.
+- [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;
+  a rename and a cut that land in the same milliseconds may lose one of the two.
+- [D] (the owner's) A where's field that names no column (`fromId`) is a condition its service's
+  method writes itself; no marker class stands for an operator.
 - [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
 - [D] A chat with no tail within the lower share is cut to its newest user message: a chat never
   cut breaks for good once past the model's window.
@@ -135,14 +148,14 @@ context with the summary it holds", "summarise asks the reply's language model �
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
 - A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
-  message alone, and stays past 0.3 — `application/chat/domain/chat-context-state.ts:40` — open
+  message alone, and stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:45` — open
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
-  `application/chat/infrastructure/message-assistant.llm.ts:111` — open
+  `application/chat/infrastructure/message-assistant.llm.ts:96` — open
 - A worker stopped during a summary's call logs "reply failed", though its Run is done; the cut
   is found again after the chat's next reply —
-  `application/chat/services/reply-chat.service.ts:112` — open
+  `application/chat/services/reply-chat.service.ts:131` — open
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A second cut whose summary fails keeps the first cut's summary, which says nothing of the
   messages that cut left out, as its opening line allows —
-  `application/chat/services/reply-chat.service.ts:89` — open
+  `application/chat/services/reply-chat.service.ts:106` — open

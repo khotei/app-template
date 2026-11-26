@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Option } from 'effect'
 
-import { AtLeast, type MessageEntityWhere } from '@app-template/kernel/data'
+import type { MessageEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
@@ -49,12 +49,12 @@ describe('MessageService', () => {
     }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 
-  it.effect("getMany reads the chat's messages at or past the id its where bounds them by", () => {
+  it.effect("getMany reads the chat's messages from the one its where names on", () => {
     const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const service = yield* MessageService
 
-      yield* service.getMany({ chatId: chat.id, id: new AtLeast(firstMessage.id) })
+      yield* service.getMany({ chatId: chat.id, fromId: firstMessage.id })
 
       assert.deepStrictEqual(wheres, [{ chatId: chat.id, id: { gte: firstMessage.id } }])
     }).pipe(

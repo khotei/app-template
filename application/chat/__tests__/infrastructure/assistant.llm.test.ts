@@ -1,7 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Option, Ref } from 'effect'
+import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -10,8 +10,7 @@ import type { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatTitle } from '#chat/domain/chat.model'
-import { ChatContext } from '#chat/domain/chat-context.model'
-import type { Message } from '#chat/domain/message.model'
+import type { ContextMessage } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
@@ -85,15 +84,9 @@ const apiError = (
     { status, headers },
   )
 
-/** The reply to a context of `messages`, whole unless `cut` says where it starts and what it holds of the rest. */
-const reply = Effect.fnUntraced(function* (
-  messages: ReadonlyArray<Message>,
-  cut: Partial<Pick<ChatContext, 'startMessageId' | 'summary'>> = {},
-) {
+const reply = Effect.fnUntraced(function* (messages: ReadonlyArray<ContextMessage>) {
   const assistant = yield* MessageAssistant
-  return yield* assistant.reply(
-    new ChatContext({ startMessageId: Option.none(), ...cut, messages }),
-  )
+  return yield* assistant.reply(messages)
 })
 
 const proposeTitle = Effect.fnUntraced(function* (text: string) {
@@ -156,100 +149,37 @@ describe('MessageAssistant and ChatAssistant', () => {
     },
   )
 
-  it.effect(
-    'reply opens the request of a cut context that holds no summary with a note that earlier messages are not shown, and holds the tokens limit of its setting',
-    () => {
-      const { bodies, layer } = recordAnthropic(() => message('A cat.'))
-      const ofWhat = userMessageAt(3, 'Of what?')
-      return Effect.gen(function* () {
-        const assistant = yield* MessageAssistant
-
-        yield* reply([ofWhat], { startMessageId: Option.some(ofWhat.id) })
-
-        const [body] = yield* bodies
-        assert.deepStrictEqual(body?.messages, [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Earlier messages of this conversation are not shown to you.',
-                cache_control: null,
-              },
-              { type: 'text', text: 'Of what?', cache_control: null },
-            ],
-          },
-        ])
-        assert.strictEqual(assistant.contextTokensLimit, 1_000_000)
-      }).pipe(Effect.provide(layer))
-    },
-  )
-
-  it.effect('reply opens the request of a cut context with the summary it holds', () => {
-    const { bodies, layer } = recordAnthropic(() => message('A cat.'))
-    const ofWhat = userMessageAt(3, 'Of what?')
+  it.effect('holds the tokens limit of its setting', () => {
+    const { layer } = recordAnthropic(() => message('Hello'))
     return Effect.gen(function* () {
-      yield* reply([ofWhat], {
-        startMessageId: Option.some(ofWhat.id),
-        summary: Option.some('They spoke of a photo.'),
-      })
+      const assistant = yield* MessageAssistant
 
-      const [body] = yield* bodies
-      assert.deepStrictEqual(body?.messages, [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nThey spoke of a photo.',
-              cache_control: null,
-            },
-            { type: 'text', text: 'Of what?', cache_control: null },
-          ],
-        },
-      ])
+      assert.strictEqual(assistant.contextTokensLimit, 1_000_000)
     }).pipe(Effect.provide(layer))
   })
 
   it.effect(
-    "summarise asks the reply's language model, under the summary's system prompt, with the summary before, the messages and the request to summarise them, and returns its text",
+    "summarise asks the reply's language model, under the summary's system prompt, with the messages and the request to summarise them, and returns its text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('They spoke of a cat.'))
       return Effect.gen(function* () {
         const assistant = yield* MessageAssistant
 
-        const summary = yield* assistant.summarise(
-          new ChatContext({
-            startMessageId: Option.some(userMessageAt(3, 'Of what?').id),
-            summary: Option.some('They spoke of a photo.'),
-            messages: [userMessageAt(3, 'Of what?'), assistantMessageAt(4, 'A cat.')],
-          }),
-        )
+        const summary = yield* assistant.summarise([
+          userMessageAt(3, 'Of what?'),
+          assistantMessageAt(4, 'A cat.'),
+        ])
 
         const [body] = yield* bodies
         assert.strictEqual(body?.model, 'claude-sonnet-5-5')
         assert.include(body?.system, 'You summarise the earlier part of a conversation')
         assert.deepStrictEqual(body?.messages, [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nThey spoke of a photo.',
-                cache_control: null,
-              },
-              { type: 'text', text: 'Of what?', cache_control: null },
-            ],
-          },
+          { role: 'user', content: [{ type: 'text', text: 'Of what?', cache_control: null }] },
           { role: 'assistant', content: [{ type: 'text', text: 'A cat.' }] },
           {
             role: 'user',
             content: [
-              {
-                type: 'text',
-                text: 'Summarise the conversation above.',
-                cache_control: null,
-              },
+              { type: 'text', text: 'Summarise the conversation above.', cache_control: null },
             ],
           },
         ])
@@ -263,9 +193,7 @@ describe('MessageAssistant and ChatAssistant', () => {
     return Effect.gen(function* () {
       const assistant = yield* MessageAssistant
 
-      const error = yield* assistant
-        .summarise(new ChatContext({ startMessageId: Option.none(), messages: hi }))
-        .pipe(Effect.flip)
+      const error = yield* assistant.summarise(hi).pipe(Effect.flip)
 
       assert.strictEqual(error._tag, 'LlmError')
     }).pipe(Effect.provide(layer))

@@ -17,8 +17,7 @@ import { askModel } from '@app-template/kernel/llm'
 import { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import type { ChatContext } from '#chat/domain/chat-context.model'
-import type { Message } from '#chat/domain/message.model'
+import type { ContextMessage } from '#chat/domain/message.model'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
@@ -27,30 +26,10 @@ const systemPrompt = [
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
 
-const buildPromptMessage = ({ author, text }: Message): Prompt.MessageEncoded => ({
+const buildPromptMessage = ({ author, text }: ContextMessage): Prompt.MessageEncoded => ({
   role: author,
   content: [{ type: 'text', text }],
 })
-
-const buildUserMessage = (text: string): Prompt.MessageEncoded => ({
-  role: 'user',
-  content: [{ type: 'text', text }],
-})
-
-/** Opens a cut context that holds no summary; fixed, as the prefix is cached. */
-const cutNote = buildUserMessage('Earlier messages of this conversation are not shown to you.')
-
-/** Opens a cut context with its summary, which changes only at a cut, as the prefix is cached. */
-const buildSummaryMessage = (summary: string) =>
-  buildUserMessage(
-    `Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\n${summary}`,
-  )
-
-const buildPrompt = ({ startMessageId, summary, messages }: ChatContext) => {
-  const prompt = Arr.map(messages, buildPromptMessage)
-  if (Option.isSome(summary)) return Arr.prepend(prompt, buildSummaryMessage(summary.value))
-  return Option.isSome(startMessageId) ? Arr.prepend(prompt, cutNote) : prompt
-}
 
 const summaryPrompt = [
   'You summarise the earlier part of a conversation between a user and the assistant of a chat app, for that assistant to keep answering from once those messages are no longer shown to it.',
@@ -58,17 +37,22 @@ const summaryPrompt = [
   'Write in the language of the conversation, as plain prose, addressing no one, in at most 1000 words.',
 ].join('\n')
 
-const summaryRequest = buildUserMessage('Summarise the conversation above.')
+const summaryRequest = buildPromptMessage({
+  author: 'user',
+  text: 'Summarise the conversation above.',
+})
 
 export class MessageAssistant extends Context.Service<
   MessageAssistant,
   {
-    /** The tokens a context may hold, which a chat's context is cut by. */
+    /** The tokens a reply's messages may hold, which a chat's context is cut by. */
     readonly contextTokensLimit: number
-    /** The next message of the chat whose context is `context`. */
-    readonly reply: (context: ChatContext) => Effect.Effect<AssistantReply, LlmError>
-    /** A summary of `context`, the messages a cut leaves out, for the cut context to open with. */
-    readonly summarise: (context: ChatContext) => Effect.Effect<string, LlmError>
+    /** The next message of a chat, after `messages`, sent as they are. */
+    readonly reply: (
+      messages: ReadonlyArray<ContextMessage>,
+    ) => Effect.Effect<AssistantReply, LlmError>
+    /** A summary of `messages`, sent as they are, for a context that leaves them out. */
+    readonly summarise: (messages: ReadonlyArray<ContextMessage>) => Effect.Effect<string, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
@@ -80,7 +64,8 @@ export class MessageAssistant extends Context.Service<
 
     // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
-      (context: ChatContext) => model.generateText({ prompt: buildPrompt(context) }),
+      (messages: ReadonlyArray<ContextMessage>) =>
+        model.generateText({ prompt: Arr.map(messages, buildPromptMessage) }),
       askModel,
       // The usage as the provider counted it; a count or the name it left out fails the decode.
       Effect.map(({ text, usage, content }) => ({
@@ -109,9 +94,9 @@ export class MessageAssistant extends Context.Service<
     })
 
     const summarise = Effect.fn('MessageAssistant.summarise')(
-      (context: ChatContext) =>
+      (messages: ReadonlyArray<ContextMessage>) =>
         summaryModel.generateText({
-          prompt: pipe(context, buildPrompt, Arr.append(summaryRequest)),
+          prompt: pipe(messages, Arr.map(buildPromptMessage), Arr.append(summaryRequest)),
         }),
       askModel,
       Effect.map(({ text }) => text),

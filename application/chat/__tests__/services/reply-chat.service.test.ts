@@ -28,7 +28,6 @@ import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Chat } from '#chat/domain/chat.model'
-import { ChatContext } from '#chat/domain/chat-context.model'
 import { Message } from '#chat/domain/message.model'
 import { Run, RunNotFoundError, RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
@@ -380,9 +379,7 @@ describe('ReplyChatService', () => {
           Arr.map(writes.chats, ({ context }) => context),
           [{ startMessageId: short.id, summary: 'A summary.' }],
         )
-        assertEquals(yield* assistant.summarised, [
-          new ChatContext({ startMessageId: Option.none(), messages: [long, longReply] }),
-        ])
+        assertEquals(yield* assistant.summarised, [[long, longReply]])
       }).pipe(
         Effect.provide(
           layerChatTest(
@@ -402,7 +399,6 @@ describe('ReplyChatService', () => {
     () => {
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = assistantMessageAt(2, 'x'.repeat(100))
-      const before = { startMessageId: Option.some(long.id), summary: Option.some('Before.') }
       const assistant = recordMessageAssistant(Effect.succeed(sure), {
         contextTokensLimit: 150,
         summary: Effect.fail(assistantOverloaded),
@@ -418,8 +414,15 @@ describe('ReplyChatService', () => {
           Arr.map(writes.chats, ({ context }) => context),
           [{ startMessageId: short.id, summary: 'Before.' }],
         )
-        assertEquals(yield* assistant.summarised, [
-          new ChatContext({ ...before, messages: [long, longReply] }),
+        assert.deepStrictEqual(yield* assistant.summarised, [
+          [
+            {
+              author: 'user',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nBefore.',
+            },
+            long,
+            longReply,
+          ],
         ])
         assert.deepStrictEqual(moves(writes).at(-1), 'generating → done')
         assert.deepStrictEqual(
@@ -435,7 +438,7 @@ describe('ReplyChatService', () => {
               history: [long, longReply, short],
               asked: new Chat({
                 ...chat,
-                context: Option.some({ startMessageId: long.id, summary: before.summary }),
+                context: Option.some({ startMessageId: long.id, summary: Option.some('Before.') }),
               }),
             }),
             { messageAssistant: assistant.layer },
@@ -522,13 +525,15 @@ describe('ReplyChatService', () => {
 
         yield* replies.reply(queuedRun.userMessageId)
 
-        assertEquals(yield* assistant.contexts, [
-          new ChatContext({ startMessageId: Option.none(), messages: history }),
-          new ChatContext({
-            startMessageId: Option.some(short.id),
-            summary: Option.some('A summary.'),
-            messages: [short],
-          }),
+        assert.deepStrictEqual(yield* assistant.contexts, [
+          history,
+          [
+            {
+              author: 'user',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nA summary.',
+            },
+            short,
+          ],
         ])
       }).pipe(Effect.provide(layerChatTest(store, { messageAssistant: assistant.layer })))
     },
@@ -541,12 +546,7 @@ describe('ReplyChatService', () => {
       const replies = yield* ReplyChatService
       yield* replies.reply(lastRun.userMessageId)
 
-      assertEquals(yield* assistant.contexts, [
-        new ChatContext({
-          startMessageId: Option.none(),
-          messages: [whatIsThis, aPhoto, andAgain, andNow],
-        }),
-      ])
+      assertEquals(yield* assistant.contexts, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(
       Effect.provide(
         layerChatTest(

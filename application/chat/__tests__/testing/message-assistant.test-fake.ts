@@ -3,12 +3,12 @@ import { Array as Arr, Effect, Layer, Ref } from 'effect'
 import type { LlmError } from '@app-template/kernel/llm/error'
 
 import type { AssistantReply } from '#chat/domain/assistant.model'
-import type { ChatContext } from '#chat/domain/chat-context.model'
+import type { ContextMessage } from '#chat/domain/message.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 
 /**
  * A `MessageAssistant` returning `reply` for every reply and `summary` for every summary, keeping
- * each context it took for either, its tokens limit `contextTokensLimit`, which no context of a
+ * the messages it took for either, its tokens limit `contextTokensLimit`, which no context of a
  * case reaches unless the case sets it.
  */
 export function recordMessageAssistant(
@@ -21,8 +21,8 @@ export function recordMessageAssistant(
     readonly summary?: Effect.Effect<string, LlmError>
   } = {},
 ) {
-  const contexts = Ref.makeUnsafe<ReadonlyArray<ChatContext>>([])
-  const summarised = Ref.makeUnsafe<ReadonlyArray<ChatContext>>([])
+  const contexts = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<ContextMessage>>>([])
+  const summarised = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<ContextMessage>>>([])
   const layer = Layer.succeed(MessageAssistant, {
     contextTokensLimit,
     reply: (context) => Ref.update(contexts, Arr.append(context)).pipe(Effect.andThen(reply)),

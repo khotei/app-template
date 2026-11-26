@@ -2,8 +2,10 @@ import { Array as Arr, Cause, Context, Effect, Layer, Option, Struct } from 'eff
 
 import { Transaction } from '@app-template/packages/db'
 
-import { ChatContext } from '#chat/domain/chat-context.model'
-import { ChatContextState } from '#chat/domain/chat-context-state'
+import type { Chat } from '#chat/domain/chat.model'
+import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
+import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
+import type { Message } from '#chat/domain/message.model'
 import type { MessageId } from '#chat/domain/message.util'
 import {
   activeRunStatuses,
@@ -14,7 +16,7 @@ import {
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-import { ContextChatService, type ContextWhere } from '#chat/services/context-chat.service'
+import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
@@ -37,7 +39,7 @@ export class ReplyChatService extends Context.Service<
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
-    const contexts = yield* ContextChatService
+    const chats = yield* ChatService
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
@@ -51,9 +53,16 @@ export class ReplyChatService extends Context.Service<
 
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
-    const answer = Effect.fnUntraced(function* (started: Run, chat: ContextWhere) {
-      const context = yield* contexts.getOne(chat)
-      const generated = yield* assistant.reply(context)
+    const answer = Effect.fnUntraced(function* (started: Run) {
+      const chat = yield* chats.getOne({ id: started.chatId, userId: started.userId })
+      const sent = yield* messages.getMany({
+        chatId: chat.id,
+        ...Option.match(chat.context, {
+          onNone: () => ({}),
+          onSome: ({ startMessageId }) => ({ fromId: startMessageId }),
+        }),
+      })
+      const generated = yield* assistant.reply(ChatContextTokenizer.build(chat.context, sent))
       const message = yield* messages.create({
         ...Struct.pick(started, ['chatId', 'userId']),
         text: generated.text,
@@ -62,33 +71,44 @@ export class ReplyChatService extends Context.Service<
       yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
 
       return {
-        context: new ChatContext({ ...context, messages: Arr.append(context.messages, message) }),
-        tokensSize: ChatContextState.tokensSize(generated.usage),
+        chat,
+        sent: Arr.append(sent, message),
+        tokensSize: ChatContextTokenizer.tokensSize(generated.usage),
       }
     }, transaction.run)
 
-    // Cuts a context past its share of the limit, once the reply is committed: the summary's call
-    // is long, and one that ends badly must cost no reply. The start and the summary are one write.
-    const cutOversized = Effect.fnUntraced(function* (
-      chat: ContextWhere,
-      { context, tokensSize }: { readonly context: ChatContext; readonly tokensSize: number },
-    ) {
+    // Cuts a context over its limit, once the reply is committed: the summary's call is long, and
+    // one that ends badly must cost no reply. The start and the summary are one write.
+    const cutOverLimit = Effect.fnUntraced(function* ({
+      chat,
+      sent,
+      tokensSize,
+    }: {
+      readonly chat: Chat
+      readonly sent: ReadonlyArray<Message>
+      readonly tokensSize: number
+    }) {
       const tokensLimit = assistant.contextTokensLimit
-      if (!ChatContextState.isOversized(tokensSize, tokensLimit)) return
+      if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
-      const cut = ChatContextState.cut(context, { tokensSize, tokensLimit })
-      const left = ChatContextState.leftOut(context, cut)
-      if (Arr.isReadonlyArrayEmpty(left.messages)) return
+      const start = ChatContextTokenizer.findStartMessageId(sent, { tokensSize, tokensLimit })
+      if (Option.isNone(start)) return
 
+      const left = Arr.takeWhile(sent, ({ id }) => id !== start.value)
       // A summary that fails never holds the cut back: a context never cut outgrows its model.
-      const summary = yield* assistant.summarise(left).pipe(
-        Effect.map(Option.some),
-        Effect.tapError((error) =>
-          Effect.logWarning('context cut with no new summary', Cause.fail(error)),
-        ),
-        Effect.orElseSucceed(() => context.summary),
+      const summary = yield* assistant
+        .summarise(ChatContextTokenizer.build(chat.context, left))
+        .pipe(
+          Effect.map(Option.some),
+          Effect.tapError((error) =>
+            Effect.logWarning('context cut with no new summary', Cause.fail(error)),
+          ),
+          Effect.orElseSucceed(() => Option.flatMap(chat.context, (cut) => cut.summary)),
+        )
+      yield* chats.update(
+        { context: Option.some({ startMessageId: start.value, summary }) },
+        { id: chat.id, userId: chat.userId },
       )
-      yield* contexts.update(chat, new ChatContext({ ...cut, summary }))
     })
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
@@ -104,12 +124,11 @@ export class ReplyChatService extends Context.Service<
         )
         const started = yield* runs.update(queued, yield* RunMove.start(queued))
 
-        const chat = { id: started.chatId, userId: started.userId }
-        const replied = yield* Effect.interruptible(answer(started, chat)).pipe(
+        const replied = yield* Effect.interruptible(answer(started)).pipe(
           Effect.onError(failUnanswered(started)),
         )
 
-        yield* Effect.interruptible(cutOversized(chat, replied))
+        yield* Effect.interruptible(cutOverLimit(replied))
       },
       // A Run's chat is there while the Run is, so a chat not found is a defect.
       Effect.catchTag('ChatNotFoundError', Effect.die),
@@ -121,6 +140,6 @@ export class ReplyChatService extends Context.Service<
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)
   static readonly layer = this.layerNoDeps.pipe(
-    Layer.provide([ContextChatService.layer, MessageService.layer, RunService.layer]),
+    Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
   )
 }

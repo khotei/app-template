@@ -1,7 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Option } from 'effect'
 
-import { AtLeast, encodeWhere } from '#kernel/data/data-where'
+import { encodeWhere } from '#kernel/data/data-where'
 
 describe('encodeWhere', () => {
   it('leaves a plain value as it is', () => {
@@ -29,12 +29,5 @@ describe('encodeWhere', () => {
 
     assert.deepStrictEqual(filter, { id: 'a', status: { in: ['placed', 'paid'] } })
     assert.notStrictEqual(filter.status.in, statuses)
-  })
-
-  it('turns a lower bound into a column at or past its value', () => {
-    assert.deepStrictEqual(encodeWhere({ chatId: 'a', id: new AtLeast('m3') }), {
-      chatId: 'a',
-      id: { gte: 'm3' },
-    })
   })
 })

@@ -126,7 +126,12 @@ describe('ChatService', () => {
         )
         assert.deepStrictEqual(updates, [
           [
-            { id: chat.id, title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
+            {
+              id: chat.id,
+              title: trip,
+              context: null,
+              updatedAt: DateTime.toDateUtc(updated.updatedAt),
+            },
             { id: chat.id, userId: owner },
           ],
         ])
@@ -146,7 +151,7 @@ describe('ChatService', () => {
     },
   )
 
-  it.live('update writes a context alone, leaving the title out of what it sets', () => {
+  it.live('update writes a context with the title the chat was read with', () => {
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     const titled = new Chat({ ...chat, title: Option.some(trip) })
     const cut = { startMessageId: firstMessage.id, summary: Option.none() }
@@ -166,6 +171,7 @@ describe('ChatService', () => {
         [
           {
             id: chat.id,
+            title: trip,
             context: { startMessageId: firstMessage.id, summary: null },
             updatedAt: DateTime.toDateUtc(updated.updatedAt),
           },

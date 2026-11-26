@@ -1,5 +1,5 @@
-import { Context, Effect, Layer, Struct, type Types } from 'effect'
-import type { RequireAtLeastOne, SetOptional, SetRequired } from 'type-fest'
+import { Context, Effect, Layer, type Types } from 'effect'
+import type { SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/user'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
@@ -15,9 +15,6 @@ export type ChatWhere = Types.Simplify<
   SetOptional<Pick<Chat, 'id' | 'userId' | 'title'>, 'userId' | 'title'>
 >
 
-/** The fields an update may set: a user's rename the title, a cut the context. */
-export type ChatUpdate = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'context'>>>
-
 export class ChatService extends Context.Service<
   ChatService,
   {
@@ -28,9 +25,12 @@ export class ChatService extends Context.Service<
     readonly getOne: (
       where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Sets `fields` alone on the chat `where` finds and moves its `updatedAt`. */
+    /**
+     * Sets `fields` alone, a user's rename the title, a cut the context, on the chat `where`
+     * finds and moves its `updatedAt`.
+     */
     readonly update: (
-      fields: ChatUpdate,
+      fields: Partial<Pick<Chat, 'title' | 'context'>>,
       where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the chat of the user `where` names, with its messages and Runs; another's is not found. */
@@ -65,21 +65,14 @@ export class ChatService extends Context.Service<
     )
 
     const update = Effect.fn('ChatService.update')(function* (
-      fields: ChatUpdate,
+      fields: Partial<Pick<Chat, 'title' | 'context'>>,
       where: ChatWhere,
     ) {
       const chat = yield* getOne(where)
-      const { set, row } = yield* RowCodec.makeUpdate(Chat)({
-        ...Struct.pick(chat, ['id', 'title', 'context']),
-        ...fields,
-      })
+      const { set, row } = yield* RowCodec.makeUpdate(Chat)({ ...chat, ...fields })
 
-      // Only the columns `fields` names, under the `where` again: a rename leaves the context a
-      // reply wrote since the read, and a reply the title.
-      yield* chats.update(
-        Struct.pick(row, ['id', 'updatedAt', ...Struct.keys(fields)]),
-        encodeWhere(where),
-      )
+      // Only the update variant's fields, under the `where` again.
+      yield* chats.update(row, encodeWhere(where))
       return new Chat({ ...chat, ...set })
     })
 
