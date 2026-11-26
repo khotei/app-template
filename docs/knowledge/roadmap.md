@@ -49,7 +49,7 @@ graph LR
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | paused: attachments removed, to be rethought ([docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md)) |
 | 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | paused: attachments removed, to be rethought |
-| 20 | [`context-window`](#20-context-window) | `feat` | 6 | in progress: [docs/tickets/2026-11-26-1022_context-window/](../tickets/2026-11-26-1022_context-window/lab.md) |
+| 20 | `context-window` | `feat` | 6 | done: [docs/tickets/2026-11-26-1022_context-window/](../tickets/2026-11-26-1022_context-window/lab.md) |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 | 23 | `modular-monolith` | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | `attachment-storage-failures` | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
@@ -270,70 +270,6 @@ left.
   Code Interpreter.
 - **To weigh.** [Ideas to weigh › Smaller fits](#smaller-fits): `Zip`, `Xml` and `workers` to
   turn Office files into text on our side.
-- **Status.** Planned.
-
-### 20. `context-window`
-
-- **Goal.** A long chat keeps answering at a cost its owner can see: each reply records what it
-  sent and what the cache served, and the history sent to the model is cut before it outgrows the
-  model's context window, rarely and in large steps, so the prompt cache keeps serving the turns
-  between two cuts.
-- **Scope.** Four parts, each usable alone, in this order:
-  1. A Run that is done holds its reply's usage (prompt, output, cache-read and cache-write
-     tokens) and the model that answered; today `MessageAssistant.reply` keeps the text alone.
-  2. A check that the prompt of a chat's next reply starts with the prompt of its last one, so a
-     change that would break the cached prefix fails a test.
-  3. The cut: when the size of the last prompt and its reply passes a share of the window, the
-     oldest messages are dropped whole down to a lower share, starting at a user message; the
-     start of the sent history is stored, so the next replies read from it. The messages stay in
-     the database and in the chat's list. The size comes from the stored usage, with no counting
-     call.
-  4. A reply that fails for its length says which limit ended it, the output's or the window's, in
-     the Run's failure text; a failed Run carries no reason on the wire, so telling the user why
-     is a contract change.
-- **Out of scope.** A summary of the dropped messages (the stored start is where it would go);
-  the provider's compaction and context editing; a `Tokenizer` and the token-counting endpoint;
-  `effect/ai` `Chat`; the provider's raw content blocks on a message, which `assistant-files`
-  (18) needs for tool calls; a Run left `generating`, which stays in [Later](#later).
-- **Open questions for its Shape.** Where the start of the sent history lives (a column on the
-  chat, or a row of the log, as a summary would need); the two shares of the window (the
-  applications below start between 0.8 and 0.9 and keep a recent 20–30%); whether the window is a
-  setting beside the model's name or a value per model; whether the cache's 1-hour lifetime pays,
-  decided from the usage part 1 records.
-- **Facts (2026-10-29).** An overlong prompt is a 400 `InvalidRequestError` with no special
-  mapping.
-- **Facts on `effect` and `@effect/ai-anthropic` 4.1.5 (2026-11-22, the vendored sources and
-  runs against a fake HTTP client, no call to Anthropic).** The reply already sends the top-level
-  `cache_control`, which moves the cache's breakpoint to the last block of each request.
-  `generateText`'s `usage` gives `inputTokens.total` (the uncached, cache-read and cache-write
-  tokens together), `cacheRead`, `cacheWrite` and `outputTokens.total`, every field optional; the
-  same counts are attributes of the call's span. `Tokenizer.truncate` calls `tokenize` once per
-  kept message, may return a history that starts with an assistant message, and returns none when
-  the newest message alone is over the limit; no provider package implements `Tokenizer`. A
-  persisted `Chat` keeps a chat's whole prompt as one value under one key, rewritten on each
-  call outside the caller's transaction, a second copy of the `messages` table. `Config` passes
-  `context_management` into the request, but not the beta header it needs, and the response's
-  `compaction` block is dropped, so the summary is lost. `max_tokens` and
-  `model_context_window_exceeded` both become the finish reason `length`; the raw stop reason
-  stays in the span's attributes.
-- **Facts from Anthropic's documentation (2026-11-22).** A cache write costs 1.25 times the
-  input price for 5 minutes and 2 times for 1 hour, a read 0.1 or less; a prefix under 512 tokens
-  is not cached on Sonnet 5.5 and Haiku 5.5, so the title's prompt never is. The cache matches a
-  prefix, so a cut rewrites the whole sent history once. The token-counting endpoint is free, has
-  its own rate limit and returns an estimate. On the models with preserved thinking, deleting an
-  earlier message may fail the prefix check of the thinking in the kept turns; the reply sends
-  text alone, and whether that keeps it clear of the check is not run.
-- **Facts from 14 applications' sources (2026-11-22, read by a researcher, not rechecked).**
-  LibreChat, Open WebUI, LobeHub, Claude Code, aider, Cline, OpenCode, Codex CLI, Gemini CLI,
-  Goose, Zed, Hugging Face chat-ui, Onyx and Dify each keep the history in their own store and
-  send a reduced copy. Six record usage and the model per message and size the next prompt from
-  the last real usage plus an estimate; none calls a counting endpoint per turn. Those that
-  compact start at a share of the window (Codex and Zed 0.9, Onyx 0.85, Goose 0.8), keep a
-  recent tail as it is and keep the summary in the same log (a row in Onyx, a field of the
-  checkpoint message in Open WebUI, a visibility flag in Goose), the originals staying. Goose
-  holds a test that the bytes a provider has seen never change.
-- **Not run.** Cache reads on the live API for this chat's replies; a request with a cut history
-  on Sonnet 5.5; the size of a kept tail computed as a difference of two Runs' usage.
 - **Status.** Planned.
 
 ### 21. `bedrock-provider`
@@ -637,6 +573,37 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-26) `GET /chats` and `GET /chats/:chatId/messages` return the whole list
   (`application/http-api/chat.http.ts`): no pagination. A matter of scale, left until the lists
   grow. Way out: cursor pagination with `web-app` (7).
+
+### From `context-window`
+
+- (2026-11-26) A Run's usage stays off the wire, and the tokens of a summary's call are stored
+  nowhere, a Run's usage holding its reply's alone. Way out: once the chat shows a cost, a usage
+  on the wire that counts the summary's call.
+- (2026-11-26) A chat that passes the model's window fails its Run as any other failure, and its
+  user is not told to open a new chat; a summary that fails discards a reply already generated,
+  and a chat whose summary fails on every try stops answering at 0.8 of its limit. A message is
+  at most 20 000 characters by the api's contract alone
+  (`application/http-api/chat.http.ts`). Way out: a failed Run's reason on the wire, and the
+  chat's message for a context that can grow no more.
+- (2026-11-26) A reply and its summary that together outlast the worker's 600 s
+  (`kernel/aws/resources/resources.ts`) are killed, no reply stored, and the redelivery fails
+  the Run; the reply's transaction holds a pooled connection for both calls. Reachable only with
+  a limit near the model's window. Way out: the summary in a job of its own, with the cut applied
+  before the chat's next reply.
+- (2026-11-26) With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts
+  and `MessageAssistant.reply` keeps the model asked, not the one that answered; the app sends
+  none. Way out: read the last part once `fallbacks` is set.
+- (2026-11-26) A message's text goes into a summary's transcript unescaped
+  (`application/chat/infrastructure/message-assistant.llm.ts`), so one holding `</message>`
+  reads as a turn of its own; it reaches the summary of its user's chat alone. Claimed by a
+  review, not run. Way out: a delimiter a text cannot hold.
+- (2026-11-26) A first answer over the limit compacts a context no done Run has sized, so the
+  split drops none and the question alone is summarised. Unreachable while a message holds at
+  most 20 000 characters and a reply 16 000 tokens. Way out: size the split from the answer's
+  usage.
+- (2026-11-26) A summary's headings are English in a chat of any language, and the assistant's
+  form of address is whatever the summary settled on, as the reply's system prompt names none.
+  Seen in a run on the provider's API. Way out: a form of address in the reply's system prompt.
 
 ## Ideas to weigh
 

@@ -13,7 +13,7 @@ can see. Each reply records what it sent and what the cache served, and the hist
 model is cut before it outgrows the model's context window, rarely and in large steps, so the
 prompt cache keeps serving the turns between two cuts. Four parts, each usable alone; the entry's
 facts, its out-of-scope list and its open questions stand
-([roadmap.md › 20](../../knowledge/roadmap.md#20-context-window)).
+(roadmap.md's entry 20, cut at the close; `git show 5efd3f1c40:docs/knowledge/roadmap.md` holds it).
 
 ## Map
 
@@ -24,7 +24,7 @@ facts, its out-of-scope list and its open questions stand
 | L3 | A chat's context, what its reply sends the model, is cut once its last prompt and reply pass 0.8 of the tokens limit, down to 0.3, from a user message; its start is stored and a fixed note tells the model that earlier messages are not shown · visible: a chat past the upper share sends a context that starts later, and its list still shows every message | minimal | build | done |
 | L4 | A cut keeps a summary of what it left out, stored and sent in place of the note · visible: after a cut, the next request opens with the summary | minimal | build | done |
 | L5 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | dropped |
-| L6 | Later: the items of the open list the owner picks | hard | build | todo |
+| L6 | Later: the items of the open list the owner picks · visible: `make test-unit`, the reply's and the summary's cases; a chat on the provider's API with a low limit | hard | build | done |
 
 ## L1 — A done Run holds its usage and model
 
@@ -84,8 +84,31 @@ with the summary and the chat's messages from the start it stored"; under `make 
 `select context from chats`.
 
 Built in thirty rounds, L4.3 to L4.30 on the owner's reviews of PR #61 and words in the
-terminal. Not run: a reply, a cut and a summary on the provider's API; a read of a cut chat's
-messages from Postgres with the reply's Run.
+terminal.
+
+## L6 — The open list, by the owner's pick
+
+### Output
+
+Nine rounds, L6.1 to L6.9. The context's service is `ContextChatService`, by the naming rule. A
+compaction runs inside the reply's Run, after the answer and before the reply is stored, in one
+transaction with them, so a cut context and its reply are written together or not at all and a
+summary that fails fails the Run. A summary's request is one user message holding a transcript,
+and its prompt asks for six headings (the user, standing instructions, facts and decisions, what
+is open, the assistant's voice, the course so far) in at most 600 words. The setting is
+`LLM_CHAT_CONTEXT_TOKENS_LIMIT`, read from the config by the two services that use it. See it:
+`make test-unit`, "reply opens one transaction before its context is cut and closes it with the
+cut, the reply and its Run's end written", "summarise asks the reply's language model, under the
+summary's system prompt, with one user message of the messages' transcript and the request to
+summarise it, and returns its text".
+
+Run on the provider's API, 2026-11-26, with the limit at 2000 and a database of its own: an
+English chat of four messages and a Russian one of five, with a corrected budget, a format asked
+for and a question left open. Each Run ended `done` after its chat's context was written; the
+summaries held the correction, the format in the user's words and the open question, and the
+replies after a compaction kept the name, the numbers, the format and, since L6.6, the
+assistant's grammatical gender. Not run: a chat at the real limit; a summary that fails on the
+provider's API; the one transaction against Postgres with a store that dies.
 
 ## Knowledge
 
@@ -143,30 +166,33 @@ messages from Postgres with the reply's Run.
 
 ## Later
 
-- Whether `usage` reaches the wire, for a cost shown in the chat — L1 — open
+- Whether `usage` reaches the wire, for a cost shown in the chat — L1 — moved to roadmap.md › Later
 - A reply whose cache counts the provider sends as `null` has no case of its own: the package
-  turns them into 0 today — `application/chat/__tests__/infrastructure/assistant.llm.test.ts:68` — open
+  turns them into 0 today — `application/chat/__tests__/infrastructure/assistant.llm.test.ts:68` — closed: left as it is, on the owner's yes
 - With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts and
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
-  `application/chat/infrastructure/message-assistant.llm.ts:101` — open
+  `application/chat/infrastructure/message-assistant.llm.ts:101` — moved to roadmap.md › Later
 - A chat whose last message holds more than 0.3 of the limit is cut to that message alone, and
-  stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:66` — open
+  stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:66` — closed: left as it is, on the owner's yes
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
-  `application/chat/infrastructure/message-assistant.llm.ts:125` — open
+  `application/chat/infrastructure/message-assistant.llm.ts:125` — moved to roadmap.md › Later
 - A reply and its summary that together outlast the worker's 600 s are killed, no reply stored,
   and the redelivery fails the Run; reachable only with a limit near the model's window —
-  `kernel/aws/resources/resources.ts:7` — open
+  `kernel/aws/resources/resources.ts:7` — moved to roadmap.md › Later
 - `ContextChatService.compact` called on a context whose split drops none stores a summary of
   the messages it keeps, so the next reply sends both; its one caller asks the policy first —
-  `application/chat/services/context-chat.service.ts:76` — open
+  `application/chat/services/context-chat.service.ts:76` — closed: left as it is, on the owner's yes
 - A chat that passes the model's window fails its Run as any other failure, and its user is
   not told to open a new chat. A message is at most 20 000 characters by the api's contract
   alone, so only a summary that fails after many replies, or a limit set over the model's
-  window, reaches it — `application/http-api/chat.http.ts:62` — open
+  window, reaches it — `application/http-api/chat.http.ts:62` — moved to roadmap.md › Later
 - A summary that fails discards a reply already generated and paid for, and a chat whose summary
   fails on every try stops answering at 0.8 of its limit —
-  `application/chat/services/reply-chat.service.ts:93` — open
+  `application/chat/services/reply-chat.service.ts:93` — moved to roadmap.md › Later
 - A first answer over the limit compacts a context no done Run sized: the split drops none, the
   question alone is summarised and the next reply compacts again; unreachable while a message
   holds at most 20 000 characters and a reply 16 000 tokens —
-  `application/chat/domain/chat-context-tokenizer.ts:51` — open
+  `application/chat/domain/chat-context-tokenizer.ts:51` — moved to roadmap.md › Later
+- A message's text goes into a summary's transcript unescaped, so one holding `</message>` or
+  `</conversation>` reads as a turn of its own; it reaches the summary of its user's chat alone —
+  `application/chat/infrastructure/message-assistant.llm.ts:55` — moved to roadmap.md › Later
