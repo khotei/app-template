@@ -85,3 +85,23 @@ describe('ChatContextTokenizer.cut', () => {
     assert.deepStrictEqual(ChatContextTokenizer.cut(even, 1000), Option.none())
   })
 })
+
+describe('ChatContextTokenizer.withContext', () => {
+  const ofWhat = userMessageAt(3, 'Of what?')
+
+  it('sends the messages of an uncut chat as they are', () => {
+    assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.none(), [ofWhat]), [ofWhat])
+  })
+
+  it("opens a cut chat's messages with the summary its context holds", () => {
+    const context = { latestSummary: 'They spoke of a photo.', startMessageId: ofWhat.id }
+
+    assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
+      {
+        author: 'user',
+        text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nThey spoke of a photo.',
+      },
+      ofWhat,
+    ])
+  })
+})

@@ -54,8 +54,8 @@ A reply reads its chat's context, the messages from the start the chat holds
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
 (`ChatContextTokenizer.cut`) to the oldest user message whose tail holds at most 0.3 of it,
 or to the newest user message, and its start stored. The chat's list still shows every
-message. See it: `make test-unit`, "getOne reads the context of the user's chat: a cut chat, those from the
-start its context stores and its latest summary"; `make test-e2e`, the repository reads a chat's
+message. See it: `make test-unit`, "getMessages reads the context of the user's chat: a cut chat, those from
+the start its context stores, opened by its summary"; `make test-e2e`, the repository reads a chat's
 messages between two ids and writes a chat's context; under `make dev` with a low limit,
 `select context from chats`. The fixed note a cut context opened with is gone since L4, whose
 cut always holds a summary.
@@ -72,17 +72,16 @@ A cut keeps a summary of what it leaves out. After a reply is committed, `ReplyC
 reads the context's size from the reply's Run and asks `ChatContextPolicy.isOverLimit`; past
 0.8 of the limit it calls `ChatContextService.compact`, which reads the context again, takes
 from `ChatContextTokenizer.cut` the messages left out and the first kept, asks
-`MessageAssistant.summarise` for a summary of those left out, given the summary before, and
+`MessageAssistant.summarise` for a summary of those left out, opened by the summary before, and
 stores both (`chats.context`: `latestSummary`, `startMessageId`). The next reply reads the
-messages from that start and the assistant opens its request with the summary. A summary that
+messages from that start, opened by the summary (`ChatContextService.getMessages`). A summary that
 fails leaves the context uncut, with a warning, for the chat's next reply. See it:
 `make test-unit`, "compact summarises the messages a cut leaves out, with the summary the
 context had, and stores the summary with the first message kept", "reply after a cut prompts
-with the summary and the chat's messages from the start it stored", "reply opens the request
-with the summary it is given, as a message of the user"; under `make dev` with a low limit,
+with the summary and the chat's messages from the start it stored"; under `make dev` with a low limit,
 `select context from chats`.
 
-Built in nineteen rounds, L4.3 to L4.19 on the owner's reviews of PR #61 and words in the
+Built in twenty-five rounds, L4.3 to L4.25 on the owner's reviews of PR #61 and words in the
 terminal. Not run: a reply, a cut and a summary on the provider's API; a read of a cut chat's
 messages from Postgres with the reply's Run.
 
@@ -100,14 +99,15 @@ messages from Postgres with the reply's Run.
   usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
-  and where it starts. `ChatContextService` reads a context, its messages with its summary
-  (`getOne`), and cuts one (`compact`), holding the message's assistant for the summary;
+  and where it starts. `ChatContextService` reads a context as a reply sends it
+  (`getMessages`) and cuts one (`compact`), holding the message's assistant for the summary;
   `ReplyChatService` checks the limit, calls them and settles a failed summary. No class of a
   context stands between.
-- [D] (the owner's, "move in infra") An assistant takes a chat's messages and, apart, the summary
-  of those before them, and opens the request with it; the shape it sends (`ContextMessage`) and
-  the lead's text are its own, and the domain and the services hold `Message` alone. This takes
-  back "an assistant takes the messages ready to send".
+- [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
+  cut context opens with is the domain's (`ChatContextTokenizer.withContext`), and
+  `ContextMessage`, a message as it is sent, is the domain's type. Tried and taken back on the
+  owner's word ("roll back to getMessages withContext"): the summary as an argument of its own,
+  with the type in the assistant's file (L4.19 to L4.22).
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;
   a rename and a cut that land in the same milliseconds may lose one of the two.
 - [D] (the owner's) A where's range is a plain object, `{ from, to }`, which `encodeWhere` turns
@@ -140,7 +140,7 @@ messages from Postgres with the reply's Run.
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A chat whose summary fails after every reply is never cut, and breaks for good once past its
-  model's window — `application/chat/services/chat-context.service.ts:74` — open
+  model's window — `application/chat/services/chat-context.service.ts:75` — open
 - `ChatContextService.compact` cuts a context under its limit too when called on one: the check
   is its caller's — `application/chat/services/reply-chat.service.ts:92` — open
 - The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of

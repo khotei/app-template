@@ -1,7 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Option, Ref } from 'effect'
+import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -9,7 +9,7 @@ import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import type { LlmError } from '@app-template/kernel/llm/error'
 
 import { ChatTitle } from '#chat/domain/chat.model'
-import type { Message } from '#chat/domain/message.model'
+import type { ContextMessage } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
@@ -83,12 +83,9 @@ const apiError = (
     { status, headers },
   )
 
-const reply = Effect.fnUntraced(function* (
-  messages: ReadonlyArray<Message>,
-  summary: Option.Option<string> = Option.none(),
-) {
+const reply = Effect.fnUntraced(function* (messages: ReadonlyArray<ContextMessage>) {
   const assistant = yield* MessageAssistant
-  return yield* assistant.reply(messages, summary)
+  return yield* assistant.reply(messages)
 })
 
 const proposeTitle = Effect.fnUntraced(function* (text: string) {
@@ -130,31 +127,6 @@ describe('MessageAssistant and ChatAssistant', () => {
   )
 
   it.effect(
-    'reply opens the request with the summary it is given, as a message of the user',
-    () => {
-      const { bodies, layer } = recordAnthropic(() => message('Hello'))
-      return Effect.gen(function* () {
-        yield* reply([assistantMessageAt(2, 'A photo.')], Option.some('They spoke of a photo.'))
-
-        const [body] = yield* bodies
-        assert.deepStrictEqual(body?.messages, [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nThey spoke of a photo.',
-                cache_control: null,
-              },
-            ],
-          },
-          { role: 'assistant', content: [{ type: 'text', text: 'A photo.' }] },
-        ])
-      }).pipe(Effect.provide(layer))
-    },
-  )
-
-  it.effect(
     "reply sends a chat's next request, at a later time, equal to the last one but for the messages it adds, the cache asked for",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('A cat.'))
@@ -186,32 +158,22 @@ describe('MessageAssistant and ChatAssistant', () => {
   })
 
   it.effect(
-    "summarise asks the reply's language model, under the summary's system prompt, with the summary before, the messages and the request to summarise them, and returns its text",
+    "summarise asks the reply's language model, under the summary's system prompt, with the messages and the request to summarise them, and returns its text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('They spoke of a cat.'))
       return Effect.gen(function* () {
         const assistant = yield* MessageAssistant
 
-        const summary = yield* assistant.summarise(
-          [userMessageAt(3, 'Of what?'), assistantMessageAt(4, 'A cat.')],
-          Option.some('They spoke of a photo.'),
-        )
+        const summary = yield* assistant.summarise([
+          userMessageAt(3, 'Of what?'),
+          assistantMessageAt(4, 'A cat.'),
+        ])
 
         const [body] = yield* bodies
         assert.strictEqual(body?.model, 'claude-sonnet-5-5')
         assert.include(body?.system, 'You summarise the earlier part of a conversation')
         assert.deepStrictEqual(body?.messages, [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nThey spoke of a photo.',
-                cache_control: null,
-              },
-              { type: 'text', text: 'Of what?', cache_control: null },
-            ],
-          },
+          { role: 'user', content: [{ type: 'text', text: 'Of what?', cache_control: null }] },
           { role: 'assistant', content: [{ type: 'text', text: 'A cat.' }] },
           {
             role: 'user',
@@ -230,7 +192,7 @@ describe('MessageAssistant and ChatAssistant', () => {
     return Effect.gen(function* () {
       const assistant = yield* MessageAssistant
 
-      const error = yield* assistant.summarise(hi, Option.none()).pipe(Effect.flip)
+      const error = yield* assistant.summarise(hi).pipe(Effect.flip)
 
       assert.strictEqual(error._tag, 'LlmError')
     }).pipe(Effect.provide(layer))

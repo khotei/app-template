@@ -1,13 +1,17 @@
 import { Array as Arr, Number as Num, Option, pipe, type Types } from 'effect'
 
-import type { Message } from '#chat/domain/message.model'
+import type { ChatAssistantContext } from '#chat/domain/chat.model'
+import type { ContextMessage, Message } from '#chat/domain/message.model'
 import type { MessageId } from '#chat/domain/message.util'
 
 /** A cut leaves this share of the limit, so the next cut is many replies away. */
 const keepShare = 0.3
 
+// Fixed, as a context's opening is part of the prefix the provider caches.
+const summaryLead = 'Earlier messages of this conversation are not shown to you. A summary of them:'
+
 /**
- * How a chat's context, what its reply sends the model, is counted and cut. It counts no
+ * How a chat's context, what its reply sends the model, is counted, cut and sent. It counts no
  * token itself: the usage of the Run that wrote the last message is spread over the messages
  * like their characters.
  */
@@ -64,4 +68,19 @@ export class ChatContextTokenizer {
       ),
     )
   }
+
+  /**
+   * `messages`, the chat's from where `context` starts, as they are sent: opened by a user's
+   * message that holds the context's summary. The messages themselves while the chat holds no
+   * context.
+   */
+  static readonly withContext = <M extends ContextMessage>(
+    context: Option.Option<ChatAssistantContext>,
+    messages: ReadonlyArray<M>,
+  ): ReadonlyArray<M | ContextMessage> =>
+    Option.match(context, {
+      onNone: (): ReadonlyArray<M | ContextMessage> => messages,
+      onSome: ({ latestSummary }) =>
+        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${latestSummary}` }),
+    })
 }

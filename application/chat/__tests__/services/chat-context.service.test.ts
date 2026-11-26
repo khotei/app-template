@@ -27,6 +27,8 @@ import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fak
 
 const where = { chatId: chat.id, userId: owner }
 
+const summaryLead = 'Earlier messages of this conversation are not shown to you. A summary of them:'
+
 const cut = new Chat({
   ...chat,
   context: Option.some({ latestSummary: 'A summary.', startMessageId: firstMessage.id }),
@@ -60,27 +62,26 @@ const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
 describe('ChatContextService', () => {
   it.effect.each([
     {
-      name: 'an uncut chat, every message and no summary',
+      name: 'an uncut chat, every message',
       asked: chat,
       read: { chatId: chat.id },
-      summary: Option.none<string>(),
+      sent: [firstMessage],
     },
     {
-      name: 'a cut chat, those from the start its context stores and its latest summary',
+      name: 'a cut chat, those from the start its context stores, opened by its summary',
       asked: cut,
       read: { chatId: chat.id, id: { gte: firstMessage.id } },
-      summary: Option.some('A summary.'),
+      sent: [{ author: 'user' as const, text: `${summaryLead}\n\nA summary.` }, firstMessage],
     },
-  ])("getOne reads the context of the user's chat: $name", ({ asked, read, summary }) => {
+  ])("getMessages reads the context of the user's chat: $name", ({ asked, read, sent }) => {
     const chatWheres: Array<ChatEntitySelectWhere> = []
     const messageWheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const contexts = yield* ChatContextService
 
-      const found = yield* contexts.getOne(where)
+      const found = yield* contexts.getMessages(where)
 
-      assertEquals(found.messages, [firstMessage])
-      assert.deepStrictEqual(found.summary, summary)
+      assertEquals(found, sent)
       assert.deepStrictEqual(chatWheres, [{ id: chat.id, userId: owner }])
       assert.deepStrictEqual(messageWheres, [read])
     }).pipe(
@@ -116,8 +117,9 @@ describe('ChatContextService', () => {
 
         yield* contexts.compact(where)
 
-        assertEquals(yield* assistant.summarised, [[long, longReply]])
-        assert.deepStrictEqual(yield* assistant.summaries, [Option.some('A summary.')])
+        assertEquals(yield* assistant.summarised, [
+          [{ author: 'user', text: `${summaryLead}\n\nA summary.` }, long, longReply],
+        ])
         assert.deepStrictEqual(
           store.writes.map(({ context }) => context),
           [{ latestSummary: 'A newer summary.', startMessageId: short.id }],

@@ -410,10 +410,15 @@ describe('ReplyChatService', () => {
         yield* replies.reply(queuedRun.userMessageId)
 
         assert.deepStrictEqual(writes.chats, [])
-        assert.deepStrictEqual(yield* assistant.summarised, [[long, longReply]])
-        assert.deepStrictEqual(yield* assistant.summaries, [
-          Option.some('Before.'),
-          Option.some('Before.'),
+        assert.deepStrictEqual(yield* assistant.summarised, [
+          [
+            {
+              author: 'user',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nBefore.',
+            },
+            long,
+            longReply,
+          ],
         ])
         assert.deepStrictEqual(moves(writes).at(-1), 'generating → done')
         assert.deepStrictEqual(
@@ -516,12 +521,15 @@ describe('ReplyChatService', () => {
 
         yield* replies.reply(queuedRun.userMessageId)
 
-        assert.deepStrictEqual(yield* assistant.contexts, [history, [short]])
-        // The first reply, its cut's summary, the second reply.
-        assert.deepStrictEqual(yield* assistant.summaries, [
-          Option.none(),
-          Option.none(),
-          Option.some('A summary.'),
+        assert.deepStrictEqual(yield* assistant.contexts, [
+          history,
+          [
+            {
+              author: 'user',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nA summary.',
+            },
+            short,
+          ],
         ])
       }).pipe(Effect.provide(layerChatTest(store, { messageAssistant: assistant.layer })))
     },
