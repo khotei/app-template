@@ -64,7 +64,9 @@ export class OrderMove {                                              // order-m
   read ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
 ```ts
 const { set, row } = yield* RowCodec.makeInsert(Order)({ customerId })
-const found = yield* orders.selectOne(where).pipe(Effect.flatMap(RowCodec.decodeOne(Order)))
+const found = yield* orders
+  .selectOne(encodeWhere(where))
+  .pipe(Effect.flatMap(RowCodec.decodeOne(Order)))
 ```
 - **An update passes every field it must keep:** a default on an updatable field fills it when
   left out, and the write then resets the column.

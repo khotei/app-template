@@ -1139,8 +1139,9 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 
 - **Why:** the checks run as pure functions over a plain read, before every write; a lock would
   tie the check to the transaction and hold rows while other work runs.
-- **Sources:** [database.md › Guards](database.md#guards); `.claude/rules/layering.md ›
-  Concurrency`.
+- **Sources:** [database.md › Guards](database.md#guards);
+  [layering.md › Writes and sends, in services and use
+  cases](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases).
 - **Rejected:** a `FOR UPDATE` read before the check: the loser would wait and then get its
   domain error, but the read would carry an option that changes its contract.
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a
@@ -1186,6 +1187,52 @@ each, are a method each, which the service or use case holding them commits in o
 - **Revisit when:** a record's rows in several tables are written by more than one service, so
   one caller no longer guards the pair; or a store joins whose writes cannot run inside a Postgres
   transaction.
+
+### A where's two forms
+
+A repository's `where` is Drizzle's relational filter object with its key required (`Keyed`): a
+relational query takes it as it is, a core-builder statement through `encodeFilter`
+(`packages/db`). A service's `where` is model values alone (a branded id, an `Option`, a list),
+which `encodeWhere` (`kernel/data/data-where.ts`) turns into that object, so no service writes a
+Drizzle operator.
+
+- **Why:** the least code of ours: Drizzle types and renders the filter, and a service's caller
+  speaks the model's values.
+- **Sources:** [database.md › Repositories](database.md#repositories);
+  `.claude/rules/repositories.md › A where's two forms`.
+- **Rejected:** an encoder of our own that builds every where's SQL itself, in place of
+  Drizzle's filter object (PR #58, closed). A pick of a where's fields in
+  every method: a where is written as a literal of its type's fields, which the compiler checks.
+- **Cost:** `encodeFilter` holds one type assertion over `relationsFilterToSQL`, a function of
+  Drizzle's rc line; a record handed whole from a variable compiles and makes every field a
+  condition.
+- **Guarded by:** `Keyed`, which refuses a where that names no key, and
+  `exactOptionalPropertyTypes`, which refuses an `undefined` field, both at typecheck; the
+  repositories' e2e.
+- **If reversed:** each service writes Drizzle's operators, or an encoder of ours builds every
+  where's SQL in place of Drizzle's filter object.
+- **Revisit when:** Drizzle's filter object changes shape, or a service needs a condition model
+  values cannot say (a range, a pattern).
+
+### The owner on a chat's records
+
+`messages.user_id` and `runs.user_id` repeat `chats.user_id`, held equal by one foreign key over
+`(chat_id, user_id)` onto `chats (id, user_id)` on each table, so a read on a user's behalf
+filters the row itself, and the where of a call only a user makes requires the owner in its type.
+
+- **Why:** ownership is a column of the row read: a record of another owner reads as absent, with
+  no relation to its chat and no check after the read.
+- **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files).
+- **Rejected:** the owner read through the relation to the chat in every read of a message or a
+  Run.
+- **Cost:** a column and a wider key on two tables; each insert writes the owner, taken from the
+  record it follows (the chat, the failed Run, the Run it started).
+- **Guarded by:** the keys `messages_chat_id_user_id_fk` and `runs_chat_id_user_id_fk`, each with
+  its entity's e2e ("refuses a message of another user than its chat's through the key over
+  both", and a Run's alike); the repositories' e2e read another user's record as none.
+- **If reversed:** the two columns go, and a user's read of a message or a Run filters through
+  its chat.
+- **Revisit when:** a chat is shared between users, so one column no longer names who may read it.
 
 ### Reads in creation order
 

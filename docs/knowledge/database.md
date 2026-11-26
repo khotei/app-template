@@ -104,7 +104,9 @@ model in the read's shape, whose nested models decode their own rows. A write bu
 
 ```ts
 const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
-const found = yield* chats.selectOne(where).pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
+const found = yield* chats
+  .selectOne(encodeWhere(where))
+  .pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
@@ -224,8 +226,8 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
-- **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
+- **Update under a `where`.** `RunRepository.update(set, where)` writes the columns of
+  `runSetColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
   caller read and the Run its move made, stamps the second with the current time and passes it,
   encoded, as the set, with the first's id under the status it was read in as the `where`, where
   a read's `RunEntitySelectWhere` takes the id or the user's message under a status; so a write

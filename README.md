@@ -217,7 +217,7 @@ Each addition has a checklist, written from the data outward and test first:
 <img src=".misc/readme/patterns.svg"
   alt="Six shapes from chat: a guarded move through RunService.update, a rule keyed by a table, the
   writes in one transaction with the sends after it, errors handled once at a flow's end,
-  Effect.acquireUseRelease around the answer, and Layer.mock of the repositories in unit
+  a method uninterruptible but for its answer, and Layer.mock of the repositories in unit
   suites"
   width="830">
 
