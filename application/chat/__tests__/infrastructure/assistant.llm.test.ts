@@ -1,7 +1,7 @@
 import type { Generated } from '@effect/ai-anthropic'
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Ref } from 'effect'
+import { Array as Arr, Clock, ConfigProvider, Effect, Fiber, Layer, Option, Ref } from 'effect'
 import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/http'
 import { TestClock } from 'effect/testing'
 
@@ -10,6 +10,7 @@ import type { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatTitle } from '#chat/domain/chat.model'
+import { ChatContext } from '#chat/domain/chat-context.model'
 import type { Message } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
@@ -41,6 +42,7 @@ function recordAnthropic(respond: () => Response) {
         ConfigProvider.fromUnknown({
           ANTHROPIC_API_KEY: 'sk-test-key',
           LLM_REPLY_MODEL: 'claude-sonnet-5-5',
+          LLM_REPLY_CONTEXT_TOKENS_LIMIT: 1_000_000,
           LLM_TITLE_MODEL: 'claude-haiku-5-5',
         }),
       ),
@@ -83,9 +85,13 @@ const apiError = (
     { status, headers },
   )
 
-const reply = Effect.fnUntraced(function* (history: ReadonlyArray<Message>) {
+/** The reply to a context of `messages`, whole unless `startMessageId` says where it was cut. */
+const reply = Effect.fnUntraced(function* (
+  messages: ReadonlyArray<Message>,
+  startMessageId: ChatContext['startMessageId'] = Option.none(),
+) {
   const assistant = yield* MessageAssistant
-  return yield* assistant.reply(history)
+  return yield* assistant.reply(new ChatContext({ startMessageId, messages }))
 })
 
 const proposeTitle = Effect.fnUntraced(function* (text: string) {
@@ -144,6 +150,35 @@ describe('MessageAssistant and ChatAssistant', () => {
         assert.deepStrictEqual(last?.cache_control, { type: 'ephemeral' })
         assert.deepStrictEqual(Arr.take(next?.messages ?? [], asked.length), last?.messages)
         assert.deepStrictEqual({ ...next, messages: [] }, { ...last, messages: [] })
+      }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect(
+    'reply opens the request of a cut context with a note that earlier messages are not shown, and holds the tokens limit of its setting',
+    () => {
+      const { bodies, layer } = recordAnthropic(() => message('A cat.'))
+      const ofWhat = userMessageAt(3, 'Of what?')
+      return Effect.gen(function* () {
+        const assistant = yield* MessageAssistant
+
+        yield* reply([ofWhat], Option.some(ofWhat.id))
+
+        const [body] = yield* bodies
+        assert.deepStrictEqual(body?.messages, [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Earlier messages of this conversation are not shown to you.',
+                cache_control: null,
+              },
+              { type: 'text', text: 'Of what?', cache_control: null },
+            ],
+          },
+        ])
+        assert.strictEqual(assistant.contextTokensLimit, 1_000_000)
       }).pipe(Effect.provide(layer))
     },
   )

@@ -57,7 +57,10 @@ export const scriptedAnswers = {
 }
 
 const AssistantsTest = Layer.mergeAll(
-  Layer.mock(MessageAssistant, { reply: () => Effect.succeed(scriptedAnswers.reply) }),
+  Layer.mock(MessageAssistant, {
+    contextTokensLimit: 1_000_000,
+    reply: () => Effect.succeed(scriptedAnswers.reply),
+  }),
   Layer.mock(ChatAssistant, { proposeTitle: () => Effect.succeed(scriptedAnswers.title) }),
 )
 

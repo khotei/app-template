@@ -7,6 +7,7 @@ import { askModel } from '@app-template/kernel/llm'
 import { LlmError } from '@app-template/kernel/llm/error'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
+import type { ChatContext } from '#chat/domain/chat-context.model'
 import type { Message } from '#chat/domain/message.model'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
@@ -21,15 +22,28 @@ const buildPromptMessage = ({ author, text }: Message): Prompt.MessageEncoded =>
   content: [{ type: 'text', text }],
 })
 
+/** Opens a context that no longer starts at its chat's first message; fixed, as the prefix is cached. */
+const cutNote: Prompt.MessageEncoded = {
+  role: 'user',
+  content: [{ type: 'text', text: 'Earlier messages of this conversation are not shown to you.' }],
+}
+
+const buildPrompt = ({ startMessageId, messages }: ChatContext) => {
+  const prompt = Arr.map(messages, buildPromptMessage)
+  return Option.isSome(startMessageId) ? Arr.prepend(prompt, cutNote) : prompt
+}
+
 export class MessageAssistant extends Context.Service<
   MessageAssistant,
   {
-    /** The next message of the chat whose finished messages are `history`, oldest first. */
-    readonly reply: (history: ReadonlyArray<Message>) => Effect.Effect<AssistantReply, LlmError>
+    /** The tokens a context may hold, which a chat's context is cut by. */
+    readonly contextTokensLimit: number
+    /** The next message of the chat whose context is `context`. */
+    readonly reply: (context: ChatContext) => Effect.Effect<AssistantReply, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
-    const { replyModel } = yield* llmModels
+    const { replyModel, replyContextTokensLimit } = yield* llmModels
     const model = yield* AnthropicLanguageModel.make({
       model: replyModel,
       config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
@@ -37,8 +51,7 @@ export class MessageAssistant extends Context.Service<
 
     // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
-      (history: ReadonlyArray<Message>) =>
-        model.generateText({ prompt: Arr.map(history, buildPromptMessage) }),
+      (context: ChatContext) => model.generateText({ prompt: buildPrompt(context) }),
       askModel,
       // The usage as the provider counted it; a count or the name it left out fails the decode.
       Effect.map(({ text, usage, content }) => ({
@@ -60,7 +73,7 @@ export class MessageAssistant extends Context.Service<
       ),
     )
 
-    return { reply }
+    return { contextTokensLimit: replyContextTokensLimit, reply }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

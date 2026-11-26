@@ -30,8 +30,9 @@ graph LR
 1. Each language model sends its fixed prompt as the request's `system`, set in its `config`: the
    system prompt for a reply, the title instruction for a title. A prompt that asks the language
    model to show its reasoning invites a refusal.
-2. `MessageAssistant.reply` calls `generateText` on the reply's language model with the chat's messages:
-   each message, the user's and the assistant's, as its text. A failed Run leaves no reply, so two
+2. `MessageAssistant.reply` calls `generateText` on the reply's language model with the chat's
+   context ([below](#the-context-and-its-cut)): each message, the user's and the assistant's, as
+   its text. A failed Run leaves no reply, so two
    user messages may follow each other: `@effect/ai-anthropic` folds them into one, and the
    Messages API takes either shape. The text is decoded as the domain's `AssistantReply`, which
    drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
@@ -42,15 +43,34 @@ graph LR
    language and the 120-character bound; the decode of the JSON answer trims the title and
    enforces the bound.
 
+## The context and its cut
+
+A chat's context is what its reply sends the language model: the chat's messages from a stored
+start, `ContextChatService.getOne`. The history, every message of the chat, stays in the database
+and in the chat's list. After each reply, in the reply's transaction, `ReplyChatService` adds the
+reply's usage to the chat's (`chats.usage`: `total`, and `context` with its `tokensSize` and
+`startMessageId`) and asks `ChatContextState.findContext` for the next context:
+
+- while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
+  context stays as it is;
+- past that, it starts at the oldest user message whose tail holds at most 0.3 of the limit, the
+  tokens taken as spread over the messages like their characters, and that start is stored.
+
+The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
+the cache once, and between two cuts a chat's next request starts with its last one, which a case
+of the assistants' suite holds. A cut context opens with a fixed note that earlier messages are
+not shown, so the language model says so instead of guessing. A chat whose newest user message
+alone is longer than 0.3 of the limit is not cut.
+
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite
 covers these steps.
 
 ## Request settings per purpose
 
-| Purpose | Model setting | Sent |
+| Purpose | Settings | Sent |
 |---|---|---|
-| reply | `LLM_REPLY_MODEL` | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
+| reply | `LLM_REPLY_MODEL`, `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (kept by the worker, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
 | title | `LLM_TITLE_MODEL` | `max_tokens` 1 000, `output_config.effort: 'low'`, `thinking: { type: 'disabled' }`; no cache |
 
 - **The title's language model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects

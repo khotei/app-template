@@ -1,7 +1,9 @@
-import { type Cause, Context, Effect, Layer, Struct } from 'effect'
+import { Array as Arr, type Cause, Context, Effect, Layer, Option, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
+import { ChatContext } from '#chat/domain/chat-context.model'
+import { ChatContextState } from '#chat/domain/chat-context-state'
 import type { MessageId } from '#chat/domain/message.util'
 import {
   activeRunStatuses,
@@ -12,6 +14,7 @@ import {
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
@@ -34,6 +37,7 @@ export class ReplyChatService extends Context.Service<
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
+    const contexts = yield* ContextChatService
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
@@ -46,16 +50,29 @@ export class ReplyChatService extends Context.Service<
       })
 
     // One transaction, open across the model's call: the reply is written first, as the Run names
-    // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
+    // it, and a Run another worker settled meanwhile dies on its update, taking the reply and the
+    // chat's usage back. A Run's chat is there while the Run is, so a chat not found is a defect.
     const answer = Effect.fnUntraced(function* (started: Run) {
-      const history = yield* messages.getMany({ chatId: started.chatId })
-      const generated = yield* assistant.reply(history)
+      const chat = { id: started.chatId, userId: started.userId }
+      const context = yield* contexts.getOne(chat).pipe(Effect.orDie)
+      const generated = yield* assistant.reply(context)
       const message = yield* messages.create({
         ...Struct.pick(started, ['chatId', 'userId']),
         text: generated.text,
         author: 'assistant',
       })
       yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
+
+      const replied = new ChatContext({
+        ...context,
+        messages: Arr.append(context.messages, message),
+      })
+      const next = ChatContextState.findContext(
+        replied,
+        ChatContextState.tokensSize(generated.usage),
+        assistant.contextTokensLimit,
+      ).pipe(Option.getOrElse(() => replied))
+      yield* contexts.update(chat, { context: next, usage: generated.usage }).pipe(Effect.orDie)
     }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
@@ -77,6 +94,6 @@ export class ReplyChatService extends Context.Service<
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)
   static readonly layer = this.layerNoDeps.pipe(
-    Layer.provide([MessageService.layer, RunService.layer]),
+    Layer.provide([ContextChatService.layer, MessageService.layer, RunService.layer]),
   )
 }

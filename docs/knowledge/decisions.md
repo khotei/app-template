@@ -974,7 +974,7 @@ no app.
 error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/error`, that loads no
 client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
 model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
-next message from its history, `ChatAssistant` the chat's title from its opening text. Each
+next message from its context, `ChatAssistant` the chat's title from its opening text. Each
 builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
 `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
 `LlmError`. The domain keeps only what they take and return (`Message`, `AssistantReply`),

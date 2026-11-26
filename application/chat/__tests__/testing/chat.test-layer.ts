@@ -41,7 +41,7 @@ export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   {
     queue = Layer.mock(QueueSender, {}),
-    messageAssistant = Layer.mock(MessageAssistant, {}),
+    messageAssistant = Layer.mock(MessageAssistant, { contextTokensLimit: 1_000_000 }),
     chatAssistant = Layer.mock(ChatAssistant, {}),
     transaction = TransactionTest,
   }: ChatLeaves = {},

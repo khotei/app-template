@@ -37,7 +37,7 @@ describe('POST /events', () => {
         }),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
-        Layer.mock(MessageAssistant, {}),
+        Layer.mock(MessageAssistant, { contextTokensLimit: 1_000_000 }),
         Layer.mock(ChatAssistant, {}),
         TransactionTest,
       ]),
