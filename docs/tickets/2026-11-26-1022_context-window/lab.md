@@ -45,8 +45,22 @@ under `make dev`, after a reply, `select usage from runs`.
 
 - [DO] The owner's "ok" to "Начинаю L2 (тест на неизменность кэшируемого префикса между двумя
   ответами одного чата)?".
+- [D:ai] The check is one case of `assistant.llm.test.ts`, through `MessageAssistant.reply` over
+  the recorded HTTP client: two replies of one chat, the second's history the first's with a reply
+  and a new user message; the second request, its messages cut to the first's count, equals the
+  first whole (model, system prompt, limits, cache setting, messages). No code changes: the reply
+  already sends a stable prefix. Without it: nothing fails when a change marks the newest message
+  or puts a per-request value in the prompt, and every reply then pays a cache write.
+- [N:ai] Seen red on a probe: the newest message's text given a suffix made the case fail on
+  `"What is this? (newest)"` against `"What is this?"`; the probe is reverted.
+- [N:ai] Not caught: a system prompt that differs between two processes (a value read when the
+  layer is built), as both requests of the case come from one layer.
 
 ### Output
+
+Proposed: `make test-unit` holds a case, "reply sends a chat's next request with the last one's
+model, system prompt and messages at its start", that fails when a chat's next request no longer
+starts with its last one.
 
 ## Knowledge
 

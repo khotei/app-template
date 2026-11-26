@@ -127,6 +127,22 @@ describe('MessageAssistant and ChatAssistant', () => {
   )
 
   it.effect(
+    "reply sends a chat's next request with the last one's model, system prompt and messages at its start, so the provider's cache serves them",
+    () => {
+      const { bodies, layer } = recordAnthropic(() => message('A photo.'))
+      const asked = [userMessageAt(1, 'What is this?')]
+      return Effect.gen(function* () {
+        yield* reply(asked)
+        yield* reply([...asked, assistantMessageAt(2, 'A photo.'), userMessageAt(3, 'Of what?')])
+
+        const [last, next] = yield* bodies
+        assert.deepStrictEqual(Arr.take(next?.messages ?? [], asked.length), last?.messages)
+        assert.deepStrictEqual({ ...next, messages: [] }, { ...last, messages: [] })
+      }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect(
     "proposeTitle asks the title's language model with the title instruction and the opening message, and returns the title trimmed",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('{"title":"  Lisbon weekend \\n"}'))
