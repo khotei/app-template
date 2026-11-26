@@ -19,14 +19,14 @@ export const ChatTitle = Schema.String.check(
 export type ChatTitle = typeof ChatTitle.Type
 
 /**
- * Where a cut left a chat's context: the first message a reply sends, and the summary of those
- * before it, none when its language model's call failed at the chat's first cut.
+ * What a chat keeps of its context once cut: the first message a reply sends, and the summary of
+ * those before it, none when its language model's call failed at the chat's first cut.
  */
-export const ChatContextCut = Schema.Struct({
+export const ChatAssistantContext = Schema.Struct({
   startMessageId: MessageId,
   summary: Schema.OptionFromNullOr(Schema.String),
 })
-export type ChatContextCut = typeof ChatContextCut.Type
+export type ChatAssistantContext = typeof ChatAssistantContext.Type
 
 export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
   'ChatNotFoundError',
@@ -49,7 +49,7 @@ export class Chat extends Model.Class<Chat>('Chat')({
   userId: UserId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
   /** None until the chat's context is cut: a reply then sends every message. */
-  context: Schema.OptionFromNullOr(ChatContextCut).pipe(
+  context: Schema.OptionFromNullOr(ChatAssistantContext).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
     Model.Sensitive,
   ),

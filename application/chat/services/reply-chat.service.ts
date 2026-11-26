@@ -62,7 +62,7 @@ export class ReplyChatService extends Context.Service<
           onSome: ({ startMessageId }) => ({ fromId: startMessageId }),
         }),
       })
-      const generated = yield* assistant.reply(ChatContextTokenizer.build(chat.context, sent))
+      const generated = yield* assistant.reply(ChatContextTokenizer.withContext(chat.context, sent))
       const message = yield* messages.create({
         ...Struct.pick(started, ['chatId', 'userId']),
         text: generated.text,
@@ -91,22 +91,23 @@ export class ReplyChatService extends Context.Service<
       const tokensLimit = assistant.contextTokensLimit
       if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
-      const start = ChatContextTokenizer.findStartMessageId(sent, { tokensSize, tokensLimit })
-      if (Option.isNone(start)) return
+      const kept = ChatContextTokenizer.compact(sent, { tokensSize, tokensLimit })
+      const start = Arr.head(kept)
+      if (kept.length === sent.length || Option.isNone(start)) return
 
-      const left = Arr.takeWhile(sent, ({ id }) => id !== start.value)
+      const left = Arr.dropRight(sent, kept.length)
       // A summary that fails never holds the cut back: a context never cut outgrows its model.
       const summary = yield* assistant
-        .summarise(ChatContextTokenizer.build(chat.context, left))
+        .summarise(ChatContextTokenizer.withContext(chat.context, left))
         .pipe(
           Effect.map(Option.some),
           Effect.tapError((error) =>
             Effect.logWarning('context cut with no new summary', Cause.fail(error)),
           ),
-          Effect.orElseSucceed(() => Option.flatMap(chat.context, (cut) => cut.summary)),
+          Effect.orElseSucceed(() => Option.flatMap(chat.context, (context) => context.summary)),
         )
       yield* chats.update(
-        { context: Option.some({ startMessageId: start.value, summary }) },
+        { context: Option.some({ startMessageId: start.value.id, summary }) },
         { id: chat.id, userId: chat.userId },
       )
     })

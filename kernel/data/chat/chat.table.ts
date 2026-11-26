@@ -11,11 +11,11 @@ import { users } from '#kernel/data/user/user.table'
  * Where a cut left a chat's context, as the column `context` holds it: the first message a reply
  * sends, and the summary of those before it.
  */
-export const ChatContextCut = Schema.Struct({
+export const ChatAssistantContext = Schema.Struct({
   startMessageId: Schema.String,
   summary: Schema.NullOr(Schema.String),
 })
-export type ChatContextCut = typeof ChatContextCut.Type
+export type ChatAssistantContext = typeof ChatAssistantContext.Type
 
 export const chats = snakeCase.table(
   'chats',
@@ -26,7 +26,7 @@ export const chats = snakeCase.table(
       .references(() => users.id),
     title: text(),
     /** Null until the chat's context is cut. */
-    context: jsonb().$type<ChatContextCut>(),
+    context: jsonb().$type<ChatAssistantContext>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -42,5 +42,5 @@ export const chats = snakeCase.table(
 )
 
 /** The columns of a chat, which its entity extends. */
-export const ChatColumns = createSelectSchema(chats, { context: () => ChatContextCut })
+export const ChatColumns = createSelectSchema(chats, { context: () => ChatAssistantContext })
 export type ChatColumns = typeof ChatColumns.Type

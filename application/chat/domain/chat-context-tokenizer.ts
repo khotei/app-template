@@ -1,8 +1,7 @@
 import { Array as Arr, Number as Num, Option, pipe, type Types } from 'effect'
 
-import type { ChatContextCut } from '#chat/domain/chat.model'
+import type { ChatAssistantContext } from '#chat/domain/chat.model'
 import type { ContextMessage, Message } from '#chat/domain/message.model'
-import type { MessageId } from '#chat/domain/message.util'
 import type { RunUsage } from '#chat/domain/run.model'
 
 /** A cut leaves this share of the limit, so the next cut is many replies away. */
@@ -25,14 +24,14 @@ export class ChatContextTokenizer {
     promptTokens + outputTokens
 
   /**
-   * The message a context of `messages` and `tokensSize` starts at once cut: the oldest user's
-   * whose tail holds at most `keepShare` of `tokensLimit`, or the newest user's when no tail
-   * fits. None when that is the first message, as nothing can go.
+   * `messages`, a context of `tokensSize`, compacted for the next reply: those from the oldest
+   * user's whose tail holds at most `keepShare` of `tokensLimit`, or from the newest user's when
+   * no tail fits; its first is where the context now starts. All of them when nothing can go.
    */
-  static readonly findStartMessageId = (
-    messages: ReadonlyArray<Types.Simplify<Pick<Message, 'id' | 'author' | 'text'>>>,
+  static readonly compact = <M extends Types.Simplify<Pick<Message, 'author' | 'text'>>>(
+    messages: ReadonlyArray<M>,
     { tokensSize, tokensLimit }: { readonly tokensSize: number; readonly tokensLimit: number },
-  ): Option.Option<MessageId> => {
+  ): ReadonlyArray<M> => {
     const chars = Arr.map(messages, ({ text }) => text.length)
     const keptChars = (Num.sumAll(chars) * keepShare * tokensLimit) / tokensSize
     // tails[i]: the characters of messages[i] and of every message after it.
@@ -43,22 +42,23 @@ export class ChatContextTokenizer {
       Arr.findFirstIndex(([{ author }, tail]) => author === 'user' && tail <= keptChars),
       // No tail fits: the newest user's message, the least a reply needs.
       Option.orElse(() => Arr.findLastIndex(messages, ({ author }) => author === 'user')),
-      Option.filter((start) => start > 0),
-      Option.flatMap((start) => Arr.get(messages, start)),
-      Option.map(({ id }) => id),
+      Option.match({
+        onNone: () => messages,
+        onSome: (start) => Arr.drop(messages, start),
+      }),
     )
   }
 
   /**
-   * What is sent for `messages`, the chat's from where `cut` starts: the messages themselves
-   * while the chat is uncut, else opened by a user's message that holds the cut's summary, or a
-   * note that earlier messages are not shown when it has none.
+   * `messages`, the chat's from where `context` starts, as they are sent: opened by a user's
+   * message that holds the context's summary, or a note that earlier messages are not shown when
+   * it has none. The messages themselves while the chat holds no context.
    */
-  static readonly build = (
-    cut: Option.Option<ChatContextCut>,
+  static readonly withContext = (
+    context: Option.Option<ChatAssistantContext>,
     messages: ReadonlyArray<ContextMessage>,
   ): ReadonlyArray<ContextMessage> =>
-    Option.match(cut, {
+    Option.match(context, {
       onNone: () => messages,
       onSome: ({ summary }) =>
         Arr.prepend(messages, {
