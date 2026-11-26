@@ -7,9 +7,8 @@ import type { RunUsage } from '#chat/domain/run.model'
 /** A cut leaves this share of the limit, so the next cut is many replies away. */
 const keepShare = 0.3
 
-// Both fixed, as a context's opening is part of the prefix the provider caches.
-const cutNote = 'Earlier messages of this conversation are not shown to you.'
-const summaryLead = `${cutNote} A summary of them, which may leave some out:`
+// Fixed, as a context's opening is part of the prefix the provider caches.
+const summaryLead = 'Earlier messages of this conversation are not shown to you. A summary of them:'
 
 /**
  * How a chat's context, what its reply sends the model, is counted, cut and sent. It counts no
@@ -52,8 +51,8 @@ export class ChatContextTokenizer {
 
   /**
    * `messages`, the chat's after those `context` summarises, as they are sent: opened by a user's
-   * message that holds the context's summary, or a note that earlier messages are not shown when
-   * it has none. The messages themselves while the chat holds no context.
+   * message that holds the context's summary. The messages themselves while the chat holds no
+   * context.
    */
   static readonly withContext = (
     context: Option.Option<ChatAssistantContext>,
@@ -62,12 +61,6 @@ export class ChatContextTokenizer {
     Option.match(context, {
       onNone: () => messages,
       onSome: ({ summary }) =>
-        Arr.prepend(messages, {
-          author: 'user',
-          text: Option.match(summary, {
-            onNone: () => cutNote,
-            onSome: (written) => `${summaryLead}\n\n${written}`,
-          }),
-        }),
+        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${summary}` }),
     })
 }

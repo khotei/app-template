@@ -105,13 +105,18 @@ none.
   first its new start; `build` is `withContext`; what a chat stores is `ChatAssistantContext`.
   Then the owner's "summaryLastMessageId summary", in L4.5: the chat stores the last message
   its summary holds, where it stored the first a reply sends, and a reply reads those after it.
+- [D] (the owner's, PR #61's review: "if id exists there should be summary") A cut context always
+  holds a summary, so `summary` is never null and the note of L3 is gone: a summary that fails
+  leaves the context uncut, with a warning, and the chat's next reply tries the cut again. This
+  takes back the [D:ai] line above, "a summary that fails does not hold the cut back": a chat
+  whose summary kept failing is never cut (Later).
 
 ### Output
 
 Proposed: a cut, found once the reply is committed, asks the reply's language model for a summary
 of the messages it leaves out, the summary of an earlier cut among them, and stores it beside the
 context's start (`chats.context.summary`); the next request opens with it, in place of the note.
-A summary that fails leaves the cut in place with the summary it had. See it: `make test-unit`,
+A summary that fails leaves the context uncut, for the chat's next reply to cut. See it: `make test-unit`,
 "reply whose prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the
 chat's context, with a summary of the messages before it", "reply opens the request of a cut
 context with the summary it holds", "summarise asks the reply's language model …"; under
@@ -159,6 +164,5 @@ context with the summary it holds", "summarise asks the reply's language model �
   `application/chat/services/reply-chat.service.ts:132` — open
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
-- A second cut whose summary fails keeps the first cut's summary, which says nothing of the
-  messages that cut left out, as its opening line allows —
-  `application/chat/services/reply-chat.service.ts:107` — open
+- A chat whose summary fails after every reply is never cut, and breaks for good once past its
+  model's window — `application/chat/services/reply-chat.service.ts:101` — open

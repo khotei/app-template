@@ -20,12 +20,11 @@ export type ChatTitle = typeof ChatTitle.Type
 
 /**
  * What a chat keeps of its context once cut: the last message a reply no longer sends, and the
- * summary of the messages up to it, none when its language model's call failed at the chat's
- * first cut.
+ * summary of the messages up to it.
  */
 export const ChatAssistantContext = Schema.Struct({
   summaryLastMessageId: MessageId,
-  summary: Schema.OptionFromNullOr(Schema.String),
+  summary: Schema.String,
 })
 export type ChatAssistantContext = typeof ChatAssistantContext.Type
 

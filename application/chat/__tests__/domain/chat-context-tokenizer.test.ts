@@ -76,25 +76,13 @@ describe('ChatContextTokenizer.withContext', () => {
   })
 
   it("opens a cut chat's messages with the summary its context holds", () => {
-    const context = {
-      summaryLastMessageId: aPhoto.id,
-      summary: Option.some('They spoke of a photo.'),
-    }
+    const context = { summaryLastMessageId: aPhoto.id, summary: 'They spoke of a photo.' }
 
     assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
       {
         author: 'user',
-        text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nThey spoke of a photo.',
+        text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nThey spoke of a photo.',
       },
-      ofWhat,
-    ])
-  })
-
-  it("opens a cut chat's messages with a note when its context holds no summary", () => {
-    const context = { summaryLastMessageId: aPhoto.id, summary: Option.none() }
-
-    assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
-      { author: 'user', text: 'Earlier messages of this conversation are not shown to you.' },
       ofWhat,
     ])
   })

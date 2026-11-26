@@ -13,7 +13,7 @@ import { users } from '#kernel/data/user/user.table'
  */
 export const ChatAssistantContext = Schema.Struct({
   summaryLastMessageId: Schema.String,
-  summary: Schema.NullOr(Schema.String),
+  summary: Schema.String,
 })
 export type ChatAssistantContext = typeof ChatAssistantContext.Type
 

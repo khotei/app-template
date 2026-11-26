@@ -78,39 +78,39 @@ export class ReplyChatService extends Context.Service<
     }, transaction.run)
 
     // Cuts a context over its limit, once the reply is committed: the summary's call is long, and
-    // one that ends badly must cost no reply. The summary and its last message are one write.
-    const cutOverLimit = Effect.fnUntraced(function* ({
-      chat,
-      sent,
-      tokensSize,
-    }: {
-      readonly chat: Chat
-      readonly sent: ReadonlyArray<Message>
-      readonly tokensSize: number
-    }) {
-      const tokensLimit = assistant.contextTokensLimit
-      if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
+    // one that ends badly must cost no reply. The summary and its last message are one write, so
+    // a summary that fails leaves the context uncut, for the chat's next reply to cut.
+    const cutOverLimit = Effect.fnUntraced(
+      function* ({
+        chat,
+        sent,
+        tokensSize,
+      }: {
+        readonly chat: Chat
+        readonly sent: ReadonlyArray<Message>
+        readonly tokensSize: number
+      }) {
+        const tokensLimit = assistant.contextTokensLimit
+        if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
-      const kept = ChatContextTokenizer.compact(sent, { tokensSize, tokensLimit })
-      const left = Arr.dropRight(sent, kept.length)
-      const last = Arr.last(left)
-      if (Option.isNone(last)) return
+        const kept = ChatContextTokenizer.compact(sent, { tokensSize, tokensLimit })
+        const left = Arr.dropRight(sent, kept.length)
+        const last = Arr.last(left)
+        if (Option.isNone(last)) return
 
-      // A summary that fails never holds the cut back: a context never cut outgrows its model.
-      const summary = yield* assistant
-        .summarise(ChatContextTokenizer.withContext(chat.context, left))
-        .pipe(
-          Effect.map(Option.some),
-          Effect.tapError((error) =>
-            Effect.logWarning('context cut with no new summary', Cause.fail(error)),
-          ),
-          Effect.orElseSucceed(() => Option.flatMap(chat.context, (context) => context.summary)),
+        const summary = yield* assistant.summarise(
+          ChatContextTokenizer.withContext(chat.context, left),
         )
-      yield* chats.update(
-        { context: Option.some({ summaryLastMessageId: last.value.id, summary }) },
-        { id: chat.id, userId: chat.userId },
-      )
-    })
+        yield* chats.update(
+          { context: Option.some({ summaryLastMessageId: last.value.id, summary }) },
+          { id: chat.id, userId: chat.userId },
+        )
+      },
+      Effect.tapErrorTag('LlmError', (error) =>
+        Effect.logWarning('context not cut', Cause.fail(error)),
+      ),
+      Effect.catchTag('LlmError', () => Effect.void),
+    )
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
     // the answer, so the Run it started is always there to fail and never stays `generating`; the

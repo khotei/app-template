@@ -395,7 +395,7 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    'reply whose summary fails still cuts the context, asked with the summary it had and keeping it, with a warning, the Run done',
+    'reply whose summary fails, asked with the summary the context had, leaves the context uncut, with a warning, the Run done',
     () => {
       const before = assistantMessageAt(0, 'Earlier.')
       const long = userMessageAt(1, 'x'.repeat(300))
@@ -411,15 +411,12 @@ describe('ReplyChatService', () => {
         const replies = yield* ReplyChatService
         yield* replies.reply(queuedRun.userMessageId)
 
-        assert.deepStrictEqual(
-          Arr.map(writes.chats, ({ context }) => context),
-          [{ summaryLastMessageId: longReply.id, summary: 'Before.' }],
-        )
+        assert.deepStrictEqual(writes.chats, [])
         assert.deepStrictEqual(yield* assistant.summarised, [
           [
             {
               author: 'user',
-              text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nBefore.',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nBefore.',
             },
             long,
             longReply,
@@ -428,7 +425,7 @@ describe('ReplyChatService', () => {
         assert.deepStrictEqual(moves(writes).at(-1), 'generating → done')
         assert.deepStrictEqual(
           Arr.map(logs, (line) => Arr.take(line, 2)),
-          [['Warn', 'context cut with no new summary']],
+          [['Warn', 'context not cut']],
         )
         assert.strictEqual(logs[0]?.[2], assistantOverloaded)
       }).pipe(
@@ -439,10 +436,7 @@ describe('ReplyChatService', () => {
               history: [long, longReply, short],
               asked: new Chat({
                 ...chat,
-                context: Option.some({
-                  summaryLastMessageId: before.id,
-                  summary: Option.some('Before.'),
-                }),
+                context: Option.some({ summaryLastMessageId: before.id, summary: 'Before.' }),
               }),
             }),
             { messageAssistant: assistant.layer },
@@ -534,7 +528,7 @@ describe('ReplyChatService', () => {
           [
             {
               author: 'user',
-              text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nA summary.',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nA summary.',
             },
             short,
           ],
