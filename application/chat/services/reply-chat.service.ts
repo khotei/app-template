@@ -55,17 +55,18 @@ export class ReplyChatService extends Context.Service<
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
-      const history = yield* contexts.getMessages(Struct.pick(started, ['chatId', 'userId']))
+      const scope = Struct.pick(started, ['chatId', 'userId'])
+      const history = yield* contexts.getMessages(scope)
       const generated = yield* assistant.reply(history)
       const message = yield* messages.create({
-        ...Struct.pick(started, ['chatId', 'userId']),
+        ...scope,
         text: generated.text,
         author: 'assistant',
       })
       yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
 
       return {
-        ...Struct.pick(started, ['chatId', 'userId']),
+        ...scope,
         sent: Arr.append(history, message),
         tokensSize: ChatContextTokenizer.tokensSize(generated.usage),
       }
