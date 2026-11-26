@@ -1,13 +1,14 @@
-import { Array as Arr, Effect, Layer, Ref } from 'effect'
+import { Array as Arr, Effect, Layer, type Option, Ref } from 'effect'
 
 import type { LlmError } from '@app-template/kernel/llm/error'
 
-import type { ContextMessage } from '#chat/domain/message.model'
+import type { Message } from '#chat/domain/message.model'
 import { type AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 
 /**
  * A `MessageAssistant` returning `reply` for every reply and `summary` for every summary, keeping
- * the messages it took for either, its tokens limit `contextTokensLimit`, which no context of a
+ * the messages it took for either and, in the calls' order, the summary given with them, its
+ * tokens limit `contextTokensLimit`, which no context of a
  * case reaches unless the case sets it.
  */
 export function recordMessageAssistant(
@@ -20,13 +21,26 @@ export function recordMessageAssistant(
     readonly summary?: Effect.Effect<string, LlmError>
   } = {},
 ) {
-  const contexts = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<ContextMessage>>>([])
-  const summarised = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<ContextMessage>>>([])
+  const contexts = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<Message>>>([])
+  const summarised = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<Message>>>([])
+  const summaries = Ref.makeUnsafe<ReadonlyArray<Option.Option<string>>>([])
   const layer = Layer.succeed(MessageAssistant, {
     contextTokensLimit,
-    reply: (context) => Ref.update(contexts, Arr.append(context)).pipe(Effect.andThen(reply)),
-    summarise: (context) =>
-      Ref.update(summarised, Arr.append(context)).pipe(Effect.andThen(summary)),
+    reply: (context, given) =>
+      Ref.update(contexts, Arr.append(context)).pipe(
+        Effect.andThen(Ref.update(summaries, Arr.append(given))),
+        Effect.andThen(reply),
+      ),
+    summarise: (context, given) =>
+      Ref.update(summarised, Arr.append(context)).pipe(
+        Effect.andThen(Ref.update(summaries, Arr.append(given))),
+        Effect.andThen(summary),
+      ),
   })
-  return { contexts: Ref.get(contexts), summarised: Ref.get(summarised), layer }
+  return {
+    contexts: Ref.get(contexts),
+    summarised: Ref.get(summarised),
+    summaries: Ref.get(summaries),
+    layer,
+  }
 }

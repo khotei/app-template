@@ -137,6 +137,10 @@ none.
   message, so the messages and their size cannot differ. Unshown: no test reads a cut chat's
   messages back from Postgres with the reply's Run; the repository's e2e shows a reply read
   with the Run that wrote it.
+  Then, in L4.18 and L4.19: a failed summary is settled in the reply's flow; `ContextMessage`
+  is the assistant's own ("move in infra"), so the summary reaches it as a second argument and
+  the domain and the services hold messages alone; the service's cut is `compact` ("update
+  should accept values"); the cut's cases have their own in the service's test.
 
 ### Output
 
@@ -162,11 +166,14 @@ context with the summary it holds", "summarise asks the reply's language model â
   total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
-  starts and what it sends. `ChatContextService` reads a context as a reply sends it (`getMessages`) and
-  cuts one (`update`), holding the message's assistant for the summary; `ReplyChatService`
-  checks the limit and calls both. No class of a context stands between.
-- [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
-  cut context opens with is the domain's.
+  starts and what it sends. `ChatContextService` reads a context's messages and its summary (`getMessages`,
+  `getSummary`) and cuts one (`compact`), holding the message's assistant for the summary;
+  `ReplyChatService` checks the limit, calls them and settles a failed summary. No class of a
+  context stands between.
+- [D] (the owner's, "move in infra") An assistant takes a chat's messages and, apart, the summary
+  of those before them, and opens the request with it; the shape it sends (`ContextMessage`) and
+  the lead's text are its own, and the domain and the services hold `Message` alone. This takes
+  back "an assistant takes the messages ready to send".
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;
   a rename and a cut that land in the same milliseconds may lose one of the two.
 - [D] (the owner's) A where's range is a plain object, `{ from, to }`, which `encodeWhere` turns

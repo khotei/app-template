@@ -11,6 +11,7 @@ import {
   Schema,
   SchemaTransformation,
   String as Str,
+  type Types,
 } from 'effect'
 import type { Prompt } from 'effect/ai'
 
@@ -18,7 +19,7 @@ import { llmModels } from '@app-template/kernel/config'
 import { askModel } from '@app-template/kernel/llm'
 import { LlmError } from '@app-template/kernel/llm/error'
 
-import { type ContextMessage, Message } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import { RunUsage } from '#chat/domain/run.model'
 
 /** Fixed for every request: a date or user data here would break the cached prefix. */
@@ -27,6 +28,23 @@ const systemPrompt = [
   'Reply in the language of the last user message.',
   'Be accurate and direct. When you do not know something or cannot help, say so plainly instead of guessing.',
 ].join('\n')
+
+/** A message as a language model is sent it: who wrote it and its text. */
+type ContextMessage = Types.Simplify<Pick<Message, 'author' | 'text'>>
+
+// Fixed, as a context's opening is part of the prefix the provider caches.
+const summaryLead = 'Earlier messages of this conversation are not shown to you. A summary of them:'
+
+/** `messages` as they are sent: opened by a user's message that holds `summary`, when given. */
+const withSummary = (
+  messages: ReadonlyArray<ContextMessage>,
+  summary: Option.Option<string>,
+): ReadonlyArray<ContextMessage> =>
+  Option.match(summary, {
+    onNone: () => messages,
+    onSome: (written) =>
+      Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${written}` }),
+  })
 
 const buildPromptMessage = ({ author, text }: ContextMessage): Prompt.MessageEncoded => ({
   role: author,
@@ -63,12 +81,22 @@ export class MessageAssistant extends Context.Service<
   {
     /** The tokens a reply's messages may hold, which a chat's context is cut by. */
     readonly contextTokensLimit: number
-    /** The next message of a chat, after `messages`, sent as they are. */
+    /**
+     * The next message of a chat, after `messages`: its context, opened by `summary`, that of
+     * the messages before them, when the chat holds one.
+     */
     readonly reply: (
-      messages: ReadonlyArray<ContextMessage>,
+      messages: ReadonlyArray<Message>,
+      summary: Option.Option<string>,
     ) => Effect.Effect<AssistantReply, LlmError>
-    /** A summary of `messages`, sent as they are, for a context that leaves them out. */
-    readonly summarise: (messages: ReadonlyArray<ContextMessage>) => Effect.Effect<string, LlmError>
+    /**
+     * A summary of `messages`, for a context that leaves them out, carrying over `summary`, that
+     * of the messages before them, when the chat holds one.
+     */
+    readonly summarise: (
+      messages: ReadonlyArray<Message>,
+      summary: Option.Option<string>,
+    ) => Effect.Effect<string, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
@@ -80,8 +108,10 @@ export class MessageAssistant extends Context.Service<
 
     // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
-      (messages: ReadonlyArray<ContextMessage>) =>
-        model.generateText({ prompt: Arr.map(messages, buildPromptMessage) }),
+      (messages: ReadonlyArray<Message>, summary: Option.Option<string>) =>
+        model.generateText({
+          prompt: pipe(withSummary(messages, summary), Arr.map(buildPromptMessage)),
+        }),
       askModel,
       // The usage as the provider counted it; a count or the name it left out fails the decode.
       Effect.map(({ text, usage, content }) => ({
@@ -110,9 +140,13 @@ export class MessageAssistant extends Context.Service<
     })
 
     const summarise = Effect.fn('MessageAssistant.summarise')(
-      (messages: ReadonlyArray<ContextMessage>) =>
+      (messages: ReadonlyArray<Message>, summary: Option.Option<string>) =>
         summaryModel.generateText({
-          prompt: pipe(messages, Arr.map(buildPromptMessage), Arr.append(summaryRequest)),
+          prompt: pipe(
+            withSummary(messages, summary),
+            Arr.map(buildPromptMessage),
+            Arr.append(summaryRequest),
+          ),
         }),
       askModel,
       Effect.map(({ text }) => text),

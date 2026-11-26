@@ -1,4 +1,4 @@
-import { Effect, Predicate, Schema, type Types } from 'effect'
+import { Effect, Predicate, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/user/contract'
@@ -37,6 +37,3 @@ export class Message extends Model.Class<Message>('Message')({
     Model.FieldOnly(['select']),
   ),
 }) {}
-
-/** A message as a language model is sent it: who wrote it and its text. */
-export type ContextMessage = Types.Simplify<Pick<Message, 'author' | 'text'>>

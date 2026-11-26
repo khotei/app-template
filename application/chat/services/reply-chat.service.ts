@@ -55,7 +55,8 @@ export class ReplyChatService extends Context.Service<
     const answer = Effect.fnUntraced(function* (started: Run) {
       const scope = Struct.pick(started, ['chatId', 'userId'])
       const context = yield* contexts.getMessages(scope)
-      const generated = yield* assistant.reply(context)
+      const summary = yield* contexts.getSummary(scope)
+      const generated = yield* assistant.reply(context, summary)
       const message = yield* messages.create({
         ...scope,
         text: generated.text,
@@ -90,7 +91,9 @@ export class ReplyChatService extends Context.Service<
         const tokensSize = ChatContextTokenizer.tokensSize(reply)
         if (!ChatContextPolicy.isOverLimit(tokensSize, assistant.contextTokensLimit)) return
         // A summary that fails costs no reply: the context stays, for the chat's next reply to cut.
-        yield* Effect.interruptible(contexts.update(Struct.pick(reply, ['chatId', 'userId']))).pipe(
+        yield* Effect.interruptible(
+          contexts.compact(Struct.pick(reply, ['chatId', 'userId'])),
+        ).pipe(
           Effect.tapErrorTag('LlmError', (error) =>
             Effect.logWarning('context not cut', Cause.fail(error)),
           ),

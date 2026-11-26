@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Option, Schema } from 'effect'
+import { Array as Arr, Option } from 'effect'
 
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
-import { Message } from '#chat/domain/message.model'
+import type { Message } from '#chat/domain/message.model'
 import {
   answeredBy,
   assistantMessageAt,
@@ -28,9 +28,9 @@ describe('ChatContextTokenizer.tokensSize', () => {
 })
 
 /** `messages` as read after a reply whose prompt and text held `tokens`: the last with its Run. */
-const sized = <M>(messages: ReadonlyArray<M | Message>, tokens: number) =>
+const sized = (messages: ReadonlyArray<Message>, tokens: number) =>
   Arr.map(messages, (message, index) =>
-    index === messages.length - 1 && Schema.is(Message)(message)
+    index === messages.length - 1
       ? answeredBy(message, { ...runUsage, promptTokens: tokens, outputTokens: 0 })
       : message,
   )
@@ -75,16 +75,6 @@ describe('ChatContextTokenizer.cut', () => {
     )
   })
 
-  it('leaves out the message that holds an earlier summary with those after it', () => {
-    const summary = { author: 'user' as const, text: chars(100) }
-    const messages = [summary, ...Arr.drop(even, 1)]
-
-    assert.deepStrictEqual(
-      ChatContextTokenizer.cut(sized(messages, 900), 1000),
-      Option.some({ left: Arr.take(messages, 4), startMessageId: Arr.getUnsafe(even, 4).id }),
-    )
-  })
-
   it("cuts nothing when the newest user's message is the first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
 
@@ -93,25 +83,5 @@ describe('ChatContextTokenizer.cut', () => {
 
   it('cuts nothing when no Run with a usage wrote the last message', () => {
     assert.deepStrictEqual(ChatContextTokenizer.cut(even, 1000), Option.none())
-  })
-})
-
-describe('ChatContextTokenizer.withContext', () => {
-  const ofWhat = userMessageAt(3, 'Of what?')
-
-  it('sends the messages of an uncut chat as they are', () => {
-    assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.none(), [ofWhat]), [ofWhat])
-  })
-
-  it("opens a cut chat's messages with the summary its context holds", () => {
-    const context = { latestSummary: 'They spoke of a photo.', startMessageId: ofWhat.id }
-
-    assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
-      {
-        author: 'user',
-        text: 'Earlier messages of this conversation are not shown to you. A summary of them:\n\nThey spoke of a photo.',
-      },
-      ofWhat,
-    ])
   })
 })
