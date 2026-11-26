@@ -83,7 +83,7 @@ export class MessageAssistant extends Context.Service<
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
-    const { replyModel, replyContextTokensLimit } = yield* llmModels
+    const { replyModel, chatContextTokensLimit } = yield* llmModels
     const model = yield* AnthropicLanguageModel.make({
       model: replyModel,
       config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
@@ -131,7 +131,7 @@ export class MessageAssistant extends Context.Service<
       ),
     )
 
-    return { contextTokensLimit: replyContextTokensLimit, reply, summarise }
+    return { contextTokensLimit: chatContextTokensLimit, reply, summarise }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

@@ -37,7 +37,7 @@ export const anthropicApiKey = Config.Redacted('ANTHROPIC_API_KEY')
  */
 export const llmModels = Config.all({
   replyModel: Config.String('LLM_REPLY_MODEL'),
-  replyContextTokensLimit: Config.Int('LLM_REPLY_CONTEXT_TOKENS_LIMIT'),
+  chatContextTokensLimit: Config.Int('LLM_CHAT_CONTEXT_TOKENS_LIMIT'),
   titleModel: Config.String('LLM_TITLE_MODEL'),
 })
 

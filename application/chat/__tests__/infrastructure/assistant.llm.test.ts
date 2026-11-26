@@ -40,7 +40,7 @@ function recordAnthropic(respond: () => Response) {
         ConfigProvider.fromUnknown({
           ANTHROPIC_API_KEY: 'sk-test-key',
           LLM_REPLY_MODEL: 'claude-sonnet-5-5',
-          LLM_REPLY_CONTEXT_TOKENS_LIMIT: 1_000_000,
+          LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
           LLM_TITLE_MODEL: 'claude-haiku-5-5',
         }),
       ),

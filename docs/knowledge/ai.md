@@ -53,7 +53,7 @@ and only encode it. The history, every message of the chat, stays in the databas
 list. Inside each reply's Run, after the answer and before it is stored, `ReplyChatService` asks
 `ChatContextPolicy.isOverLimit` whether the context is due a cut, by the answer's usage:
 
-- while the prompt's tokens and the answer's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
+- while the prompt's tokens and the answer's fit 0.8 of `LLM_CHAT_CONTEXT_TOKENS_LIMIT`, the
   context stays as it is, and the chat is not written;
 - past that, it calls `ContextChatService.compact`: the chat and its messages are read again, the
   user's question last among them, and `ChatContextTokenizer.splitToCompact` takes the usage of
@@ -92,7 +92,7 @@ covers these steps.
 
 | Purpose | Settings | Sent |
 |---|---|---|
-| reply | `LLM_REPLY_MODEL`, `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (kept by the worker, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
+| reply | `LLM_REPLY_MODEL`, `LLM_CHAT_CONTEXT_TOKENS_LIMIT` (kept by the worker, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
 | summary | `LLM_REPLY_MODEL` | `max_tokens` 8 000, the prompt asking for at most 1000 words; no cache; effort and thinking left to the language model's default |
 | title | `LLM_TITLE_MODEL` | `max_tokens` 1 000, `output_config.effort: 'low'`, `thinking: { type: 'disabled' }`; no cache |
 

@@ -51,7 +51,7 @@ processes; a header that differs between two requests.
 
 A reply reads its chat's context, the messages from the start the chat holds
 (`chats.context`, null until a cut). Once a reply's prompt and text pass 0.8 of
-`LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
+`LLM_CHAT_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
 (`ChatContextTokenizer.splitToCompact`) to the oldest message whose tail holds at most 0.3 of it,
 or to the last message alone, and its head stored. The chat's list still shows every
 message. See it: `make test-unit`, "getMessages reads the context of the user's chat: a cut chat, those from
