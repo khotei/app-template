@@ -47,9 +47,9 @@ graph LR
 
 A chat's context is what its reply sends the language model: the chat's messages from the start
 the chat stores and the latest summary of those before it, read as one by
-`ChatContextService.getOne` (over `messages.getMany` with `id: { from }`). `MessageAssistant` takes the two apart
-and opens the request with the summary, as a user message of a fixed lead and the summary's
-text; the domain and the services hold messages alone. The history, every message of the chat,
+`ChatContextService.getOne` (over `messages.getMany` with `id: { from }`). `MessageAssistant`
+takes the two apart and opens the request with the summary, as a user message of a fixed lead
+and the summary's text; the domain and the services hold messages alone. The history, every message of the chat,
 stays in the database and in the chat's list. After each reply, once it is committed,
 `ReplyChatService` asks `ChatContextPolicy.isOverLimit` whether the context is due a cut, by the
 usage of the Run that wrote the reply:
