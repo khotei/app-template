@@ -40,7 +40,7 @@ const move = Effect.fnUntraced(function* (
 export class RunMove {
   static readonly start = Effect.fn('RunMove.start')((run: RunFields) => move(run, 'generating'))
 
-  /** Ends a Run with the reply `replyId` names and what it cost. */
+  /** Ends a Run with the reply `replyId` names, at its `usage`. */
   static readonly complete = Effect.fn('RunMove.complete')(
     (run: RunFields, replyId: MessageId, usage: RunUsage) =>
       move(run, 'done', { assistantMessageId: Option.some(replyId), usage: Option.some(usage) }),

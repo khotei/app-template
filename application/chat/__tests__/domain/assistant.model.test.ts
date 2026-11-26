@@ -18,12 +18,6 @@ describe('AssistantReply', () => {
     )
   })
 
-  it('rejects a usage with a count left out', () => {
-    const { promptTokens: _, ...partial } = usage
-
-    assert.isTrue(decodeReply({ text: 'Sure.', usage: partial }).pipe(Option.isNone))
-  })
-
   it.each([{ text: '' }, { text: ' \n\t ' }, { text: '\u0000 ' }])(
     'rejects the blank text $text',
     ({ text }) => {

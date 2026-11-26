@@ -55,10 +55,28 @@ facts, its out-of-scope list and its open questions stand
 - [D:ai] `usage` stays off the wire (`Model.Sensitive`, as `failure`): no client reads it yet, and
   a wire field is a contract. "A cost its owner can see" is an operator's SQL in this pass.
 
+- [N:ai] Review of L1 (Intent, Hunt, Rules), no defect found. Fixed as L1.3: the doc of
+  `RunMove.complete` said "cost" for the glossary's "usage"; a model test of what `Schema.Struct`
+  guarantees is dropped. Rejected: a case at the adapter for a response with a count or the name
+  missing, as the Anthropic package fills each (`AnthropicLanguageModel.ts:1688`, `:2019`) and no
+  response reaches that path; the unsourced fact in L1.1's `Decision:`, whose source is the note
+  above.
+
 ### Output
+
+Proposed: a done Run holds `usage` (`runs.usage`, jsonb): the model that answered, the prompt's
+tokens with the cached ones counted in, the output's, and the cache-read and cache-write counts,
+read by `MessageAssistant.reply` from the provider's response. The wire is unchanged. See it:
+`make test-e2e` (a reply through the api ends `done` only with a usage, by `runs_usage_check`);
+under `make dev`, after a reply, `select usage from runs`.
 
 ## Knowledge
 
 ## Later
 
 - Whether `usage` reaches the wire, for a cost shown in the chat — L1 — open
+- A reply whose cache counts the provider sends as `null` has no case of its own: the package
+  turns them into 0 today — `application/chat/__tests__/infrastructure/assistant.llm.test.ts:68` — open
+- With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts and
+  `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
+  `application/chat/infrastructure/message-assistant.llm.ts:47` — open
