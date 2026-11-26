@@ -40,13 +40,13 @@ const splitOf = (
   messages: ReadonlyArray<Message>,
   tokensLimit: number,
 ): Option.Option<{
-  readonly toCompact: ReadonlyArray<Message>
+  readonly dropped: ReadonlyArray<Message>
   readonly remain: ReadonlyArray<Message>
 }> => ChatContextTokenizer.splitToCompact(messages, tokensLimit)
 
 /** `messages` split before the message at `index`, as a context that starts there is split. */
 const splitAt = (messages: ReadonlyArray<Message>, index: number) =>
-  Option.some({ toCompact: Arr.take(messages, index), remain: Arr.drop(messages, index) })
+  Option.some({ dropped: Arr.take(messages, index), remain: Arr.drop(messages, index) })
 
 describe('ChatContextTokenizer.splitToCompact', () => {
   it("leaves out the messages before the oldest user's whose tail holds at most 0.3 of the limit", () => {
@@ -89,6 +89,18 @@ describe('ChatContextTokenizer.splitToCompact', () => {
       ChatContextTokenizer.splitToCompact(sized(messages, 900), 1000),
       Option.none(),
     )
+  })
+
+  it('is none when the whole context fits 0.3 of the limit', () => {
+    assert.deepStrictEqual(
+      ChatContextTokenizer.splitToCompact(sized(even, 300), 1000),
+      Option.none(),
+    )
+  })
+
+  it('splits a context between 0.3 and 0.8 of the limit too, as its caller asks the policy', () => {
+    // 500 tokens over 600 characters: 300 tokens are 360 characters, the last two messages.
+    assert.deepStrictEqual(splitOf(sized(even, 500), 1000), splitAt(sized(even, 500), 4))
   })
 
   it('is none when no Run with a usage wrote the last message', () => {

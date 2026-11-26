@@ -32,14 +32,14 @@ export class ChatContextTokenizer {
   /**
    * The context `messages` split for its compaction, its size read from its last message, the
    * reply's: `remain` are the messages from the oldest user's whose tail holds at most
-   * `keepShare` of `tokensLimit`, or from the newest user's when no tail fits; `toCompact` are
+   * `keepShare` of `tokensLimit`, or from the newest user's when no tail fits; `dropped` are
    * those before it, for a summary. None when nothing can go, or no size is read.
    */
   static readonly splitToCompact = (
     messages: ReadonlyArray<Message>,
     tokensLimit: number,
   ): Option.Option<{
-    readonly toCompact: ReadonlyArray<Message>
+    readonly dropped: ReadonlyArray<Message>
     readonly remain: Arr.NonEmptyReadonlyArray<Message>
   }> => {
     const tokensSize = pipe(
@@ -63,7 +63,7 @@ export class ChatContextTokenizer {
       Option.filter((halves): halves is [Array<Message>, Arr.NonEmptyArray<Message>] =>
         Arr.isArrayNonEmpty(halves[1]),
       ),
-      Option.map(([toCompact, remain]) => ({ toCompact, remain })),
+      Option.map(([dropped, remain]) => ({ dropped, remain })),
     )
   }
 

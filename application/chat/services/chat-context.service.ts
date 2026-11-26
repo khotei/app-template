@@ -73,10 +73,10 @@ export class ChatContextService extends Context.Service<
       )
       if (Option.isNone(split)) return
 
-      // The messages to compact open with what the context held compacted, so it is carried over.
-      const { toCompact, remain } = split.value
+      // The dropped messages open with what the context held compacted, so it is carried over.
+      const { dropped, remain } = split.value
       const compacted = yield* assistant.summarise(
-        ChatContextTokenizer.withContext(chat.context, toCompact),
+        ChatContextTokenizer.withContext(chat.context, dropped),
       )
       yield* chats.update(
         { context: Option.some({ compacted, headMessageId: Arr.headNonEmpty(remain).id }) },

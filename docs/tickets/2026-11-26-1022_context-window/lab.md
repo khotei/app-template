@@ -71,7 +71,7 @@ two statics, `isOversized` and `cut`, where one `findContext` held both; the cha
 A cut keeps a summary of what it leaves out. After a reply is committed, `ReplyChatService`
 reads the context's size from the reply's Run and asks `ChatContextPolicy.isOverLimit`; past
 0.8 of the limit it calls `ChatContextService.compact`, which reads the context again, takes
-from `ChatContextTokenizer.splitToCompact` the messages to compact and those that remain, asks
+from `ChatContextTokenizer.splitToCompact` the messages dropped and those that remain, asks
 `MessageAssistant.summarise` for a summary of those left out, opened by the summary before, and
 stores it with the first that remains (`chats.context`: `compacted`, `headMessageId`). The next reply reads the
 messages from that start, opened by the summary (`ChatContextService.getMessages`). A summary that
@@ -81,7 +81,7 @@ context had, and stores the summary with the first message kept", "reply after a
 with the summary and the chat's messages from the start it stored"; under `make dev` with a low limit,
 `select context from chats`.
 
-Built in twenty-eight rounds, L4.3 to L4.28 on the owner's reviews of PR #61 and words in the
+Built in twenty-nine rounds, L4.3 to L4.29 on the owner's reviews of PR #61 and words in the
 terminal. Not run: a reply, a cut and a summary on the provider's API; a read of a cut chat's
 messages from Postgres with the reply's Run.
 
