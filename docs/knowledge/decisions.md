@@ -1139,8 +1139,9 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 
 - **Why:** the checks run as pure functions over a plain read, before every write; a lock would
   tie the check to the transaction and hold rows while other work runs.
-- **Sources:** [database.md › Guards](database.md#guards); `.claude/rules/layering.md ›
-  Concurrency`.
+- **Sources:** [database.md › Guards](database.md#guards);
+  [layering.md › Writes and sends, in services and use
+  cases](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases).
 - **Rejected:** a `FOR UPDATE` read before the check: the loser would wait and then get its
   domain error, but the read would carry an option that changes its contract.
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a

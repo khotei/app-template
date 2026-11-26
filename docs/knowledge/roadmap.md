@@ -534,13 +534,13 @@ moves it into its own `Later` and deletes it here.
 ### From `model-members`
 
 - (2026-11-25) The Biome override of a module's `services/` (`.misc/lint/biome.base.json`) still
-  admits `@app-template/packages/schema`, and its message says the import is "for the codecs and
-  the id generator", while [models.md](../../.claude/rules/models.md) has a service code its rows
-  through `RowCodec` alone. A service that calls `decodeWith` again passes `make lint`;
-  none does today. Left on the owner's word: no guard before the harm is seen. The package cannot
-  leave that override's exceptions, as every service imports `RowCodec` from it. Ways out to
-  weigh: admit of the package only the name `RowCodec`, with an `importNamePattern` as the
-  override admits only `Transaction` of `@app-template/packages/db`, and fix the message, once a
+  admits all of `@app-template/packages/schema`, "for the codecs" as its message says, while
+  [models.md](../../.claude/rules/models.md) has a service code its rows through `RowCodec` alone.
+  A service that calls `decodeWith` again passes `make lint`; none does today. Left on the
+  owner's word: no guard before the harm is seen. The package cannot leave that override's
+  exceptions, as every service imports `RowCodec` from it. Ways out to weigh: admit of the
+  package only the name `RowCodec`, with an `importNamePattern` as the override admits only
+  `Transaction` of `@app-template/packages/db`, and name `RowCodec` in the message, once a
   service has slipped; or leave it to the rule.
 - (2026-11-25) `kernel/aws/__e2e__/queue.sender.e2e.ts` keeps its `sampleQueue` as a separate
   definition object, the form the job classes left for a `queue` static. It is a package test
