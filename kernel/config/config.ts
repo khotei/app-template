@@ -31,14 +31,16 @@ export const logLevel = Config.LogLevel('LOG_LEVEL').pipe(Config.withDefault('In
 
 export const anthropicApiKey = Config.Redacted('ANTHROPIC_API_KEY')
 
-/**
- * The models that answer replies and titles, and the tokens a chat's context may hold: at most
- * the reply model's context window, lower to cut a chat's context sooner.
- */
+/** The models that answer replies and titles. */
 export const llmModels = Config.all({
   replyModel: Config.String('LLM_REPLY_MODEL'),
-  chatContextTokensLimit: Config.Int('LLM_CHAT_CONTEXT_TOKENS_LIMIT'),
   titleModel: Config.String('LLM_TITLE_MODEL'),
 })
+
+/**
+ * The tokens a chat's context may hold: at most the reply model's context window, lower to cut a
+ * chat's context sooner.
+ */
+export const chatContextTokensLimit = Config.Int('LLM_CHAT_CONTEXT_TOKENS_LIMIT')
 
 export const MinimumLogLevelFromConfig = Layer.effect(References.MinimumLogLevel, logLevel)

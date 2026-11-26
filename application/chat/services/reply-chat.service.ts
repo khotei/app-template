@@ -1,5 +1,6 @@
 import { type Cause, Context, Effect, Layer, Struct } from 'effect'
 
+import { chatContextTokensLimit } from '@app-template/kernel/config'
 import { Transaction } from '@app-template/packages/db'
 
 import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
@@ -18,7 +19,7 @@ import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
-/** The assistant's failures, named through it, as a service imports no part of the kernel. */
+/** The assistant's failures, named through it, as a service imports no part of the kernel that calls out. */
 type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['reply']>>
 
 /** Replies to a user's message through its active Run. */
@@ -43,6 +44,7 @@ export class ReplyChatService extends Context.Service<
     const runs = yield* RunService
     const transaction = yield* Transaction
     const assistant = yield* MessageAssistant
+    const tokensLimit = yield* chatContextTokensLimit
 
     // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
     const failUnanswered = (run: Run) =>
@@ -60,7 +62,7 @@ export class ReplyChatService extends Context.Service<
     const compactOverLimit = (started: Run) =>
       Effect.fnUntraced(function* ({ usage }: AssistantReply) {
         const tokensSize = ChatContextTokenizer.usageTokensSize(usage)
-        if (!ChatContextPolicy.isOverLimit(tokensSize, assistant.contextTokensLimit)) return
+        if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
         yield* contexts.compact(Struct.pick(started, ['chatId', 'userId']))
       })

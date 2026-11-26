@@ -365,7 +365,7 @@ describe('ReplyChatService', () => {
     "reply whose prompt and text pass 0.8 of the assistant's tokens limit compacts the context before it stores the reply and ends its Run",
     () => {
       // 135 tokens of a limit of 150: the context is cut to a third of its 500 characters.
-      const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = answeredBy(assistantMessageAt(2, 'x'.repeat(100)))
@@ -388,7 +388,7 @@ describe('ReplyChatService', () => {
               runs: storeRuns(writes, queuedRun),
               history: [long, longReply, short],
             }),
-            { messageAssistant: assistant.layer },
+            { messageAssistant: assistant.layer, chatContextTokensLimit: 150 },
           ),
         ),
       )
@@ -401,7 +401,6 @@ describe('ReplyChatService', () => {
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = answeredBy(assistantMessageAt(2, 'x'.repeat(100)))
       const assistant = recordMessageAssistant(Effect.succeed(sure), {
-        contextTokensLimit: 150,
         summary: Effect.fail(assistantOverloaded),
       })
       const writes = noWrites()
@@ -435,7 +434,7 @@ describe('ReplyChatService', () => {
                 context: Option.some({ compacted: 'Before.', headMessageId: long.id }),
               }),
             }),
-            { messageAssistant: assistant.layer },
+            { messageAssistant: assistant.layer, chatContextTokensLimit: 150 },
           ),
         ),
       )
@@ -444,7 +443,6 @@ describe('ReplyChatService', () => {
 
   it.effect('reply whose summary dies fails its Run and stores no reply', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure), {
-      contextTokensLimit: 150,
       summary: Effect.die('provider exploded'),
     })
     const writes = noWrites()
@@ -467,7 +465,7 @@ describe('ReplyChatService', () => {
               userMessageAt(3, 'x'.repeat(100)),
             ],
           }),
-          { messageAssistant: assistant.layer },
+          { messageAssistant: assistant.layer, chatContextTokensLimit: 150 },
         ),
       ),
     )
@@ -476,7 +474,7 @@ describe('ReplyChatService', () => {
   it.effect(
     "reply after a cut prompts with the summary and the chat's messages from the start it stored",
     () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
       const runs = storeRuns(writes, queuedRun)
       const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
@@ -526,7 +524,11 @@ describe('ReplyChatService', () => {
             short,
           ],
         ])
-      }).pipe(Effect.provide(layerChatTest(store, { messageAssistant: assistant.layer })))
+      }).pipe(
+        Effect.provide(
+          layerChatTest(store, { messageAssistant: assistant.layer, chatContextTokensLimit: 150 }),
+        ),
+      )
     },
   )
 

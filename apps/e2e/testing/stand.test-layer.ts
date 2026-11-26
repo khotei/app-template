@@ -38,6 +38,7 @@ const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, worker
     WORKER_PORT: workerPort,
     NODE_ENV: 'test',
     LOG_LEVEL: 'Warn',
+    LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
   })
 })
 
@@ -58,7 +59,6 @@ export const scriptedAnswers = {
 
 const AssistantsTest = Layer.mergeAll(
   Layer.mock(MessageAssistant, {
-    contextTokensLimit: 1_000_000,
     reply: () => Effect.succeed(scriptedAnswers.reply),
   }),
   Layer.mock(ChatAssistant, { proposeTitle: () => Effect.succeed(scriptedAnswers.title) }),

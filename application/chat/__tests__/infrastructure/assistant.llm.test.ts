@@ -40,7 +40,6 @@ function recordAnthropic(respond: () => Response) {
         ConfigProvider.fromUnknown({
           ANTHROPIC_API_KEY: 'sk-test-key',
           LLM_REPLY_MODEL: 'claude-sonnet-5-5',
-          LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
           LLM_TITLE_MODEL: 'claude-haiku-5-5',
         }),
       ),
@@ -147,15 +146,6 @@ describe('MessageAssistant and ChatAssistant', () => {
       }).pipe(Effect.provide(layer))
     },
   )
-
-  it.effect('holds the tokens limit of its setting', () => {
-    const { layer } = recordAnthropic(() => message('Hello'))
-    return Effect.gen(function* () {
-      const assistant = yield* MessageAssistant
-
-      assert.strictEqual(assistant.contextTokensLimit, 1_000_000)
-    }).pipe(Effect.provide(layer))
-  })
 
   it.effect(
     "summarise asks the reply's language model, under the summary's system prompt, with one user message of the messages' transcript and the request to summarise it, and returns its text",

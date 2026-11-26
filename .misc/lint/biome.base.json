@@ -393,12 +393,13 @@
                       "@app-template/**",
                       "!@app-template/packages/{schema,db}",
                       "!@app-template/kernel/data",
+                      "!@app-template/kernel/config",
                       "!@app-template/application/*",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, and its context service (ContextChatService) import the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, and its context service (ContextChatService) import the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores and the config, for the tokens limit of a chat's context, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],

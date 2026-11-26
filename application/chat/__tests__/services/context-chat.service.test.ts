@@ -108,7 +108,6 @@ describe('ContextChatService', () => {
     'compact summarises the messages a cut leaves out, with the summary the context had, and stores the summary with the first message kept',
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sureReply), {
-        contextTokensLimit: 150,
         summary: Effect.succeed('A newer summary.'),
       })
       const store = storing(cut, [long, longReply, short])
@@ -124,13 +123,19 @@ describe('ContextChatService', () => {
           store.writes.map(({ context }) => context),
           [{ compacted: 'A newer summary.', headMessageId: short.id }],
         )
-      }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
+      }).pipe(
+        Effect.provide(
+          layerChatTest(store.mocks, {
+            messageAssistant: assistant.layer,
+            chatContextTokensLimit: 150,
+          }),
+        ),
+      )
     },
   )
 
   it.effect('compact whose summary fails fails as the assistant did and writes no chat', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sureReply), {
-      contextTokensLimit: 150,
       summary: Effect.fail(assistantOverloaded),
     })
     const store = storing(chat, [long, longReply, short])
@@ -141,15 +146,20 @@ describe('ContextChatService', () => {
 
       assert.strictEqual(error, assistantOverloaded)
       assert.deepStrictEqual(store.writes, [])
-    }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
+    }).pipe(
+      Effect.provide(
+        layerChatTest(store.mocks, {
+          messageAssistant: assistant.layer,
+          chatContextTokensLimit: 150,
+        }),
+      ),
+    )
   })
 
   it.effect(
     'compact of a context whose split drops none summarises those that remain and keeps its head',
     () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sureReply), {
-        contextTokensLimit: 1000,
-      })
+      const assistant = recordMessageAssistant(Effect.succeed(sureReply))
       const answered = answeredBy(longReply)
       const store = storing(chat, [long, answered])
       return Effect.gen(function* () {
@@ -162,12 +172,19 @@ describe('ContextChatService', () => {
           store.writes.map(({ context }) => context),
           [{ compacted: 'A summary.', headMessageId: long.id }],
         )
-      }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
+      }).pipe(
+        Effect.provide(
+          layerChatTest(store.mocks, {
+            messageAssistant: assistant.layer,
+            chatContextTokensLimit: 1000,
+          }),
+        ),
+      )
     },
   )
 
   it.effect('compact of a chat with no message asks for no summary and writes no chat', () => {
-    const assistant = recordMessageAssistant(Effect.succeed(sureReply), { contextTokensLimit: 150 })
+    const assistant = recordMessageAssistant(Effect.succeed(sureReply))
     const store = storing(chat, [])
     return Effect.gen(function* () {
       const contexts = yield* ContextChatService
@@ -176,6 +193,13 @@ describe('ContextChatService', () => {
 
       assertEquals(yield* assistant.summarised, [])
       assert.deepStrictEqual(store.writes, [])
-    }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
+    }).pipe(
+      Effect.provide(
+        layerChatTest(store.mocks, {
+          messageAssistant: assistant.layer,
+          chatContextTokensLimit: 150,
+        }),
+      ),
+    )
   })
 })

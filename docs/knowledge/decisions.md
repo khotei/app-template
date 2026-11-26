@@ -1484,7 +1484,9 @@ assistant's error, which the Run already holds, logging each end once with its c
 included; the title's skips a chat gone or titled and logs the assistant's error; a defect, a
 refused move's included, is the queue consumer's to log. `ReplyChatService` takes `Transaction`,
 the message's assistant and the services of the module's other models, for the records the reply
-writes; `TitleChatService` the chat's assistant and those services, as its one write needs no
+writes, and reads from the config the tokens limit of a chat's context, as `ContextChatService`
+does, each where it uses it, so no instance carries a setting;
+`TitleChatService` the chat's assistant and those services, as its one write needs no
 transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
 services, `ChatService` reading the user's chat each request names, for the request and its sends
 ([Composition: wrap or compose](#composition-wrap-or-compose)).

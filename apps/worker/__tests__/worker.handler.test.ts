@@ -37,13 +37,17 @@ describe('POST /events', () => {
         }),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
-        Layer.mock(MessageAssistant, { contextTokensLimit: 1_000_000 }),
+        Layer.mock(MessageAssistant, {}),
         Layer.mock(ChatAssistant, {}),
         TransactionTest,
       ]),
       Layer.provide(
         ConfigProvider.layer(
-          ConfigProvider.fromUnknown({ AWS_REGION: 'us-east-1', STAGE: 'test' }),
+          ConfigProvider.fromUnknown({
+            AWS_REGION: 'us-east-1',
+            STAGE: 'test',
+            LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
+          }),
         ),
       ),
     )

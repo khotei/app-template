@@ -79,8 +79,6 @@ export class AssistantReply extends Schema.Class<AssistantReply>('AssistantReply
 export class MessageAssistant extends Context.Service<
   MessageAssistant,
   {
-    /** The tokens a reply's messages may hold, which a chat's context is cut by. */
-    readonly contextTokensLimit: number
     /** The next message of a chat, after `messages`, sent as they are. */
     readonly reply: (
       messages: ReadonlyArray<ContextMessage>,
@@ -90,7 +88,7 @@ export class MessageAssistant extends Context.Service<
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
   make: Effect.gen(function* () {
-    const { replyModel, chatContextTokensLimit } = yield* llmModels
+    const { replyModel } = yield* llmModels
     const model = yield* AnthropicLanguageModel.make({
       model: replyModel,
       config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
@@ -138,7 +136,7 @@ export class MessageAssistant extends Context.Service<
       ),
     )
 
-    return { contextTokensLimit: chatContextTokensLimit, reply, summarise }
+    return { reply, summarise }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

@@ -117,7 +117,9 @@ messages from Postgres with the reply's Run.
   a rename and a cut that land in the same milliseconds may lose one of the two.
 - [D] (the owner's) A where's range is a plain object, `{ from, to }`, which `encodeWhere` turns
   into `{ gte, lte }`; no marker class stands for an operator and no method writes one.
-- [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
+- [D] (the owner's, L6.7) The limit is read from the config where it is used, by
+  `ReplyChatService` and `ContextChatService` in their `make`; no instance carries it. Replaced:
+  `MessageAssistant.contextTokensLimit`.
 - [D] (the owner's, "if id exists there should be summary") A cut context always holds a summary:
   one that fails leaves the context as it was and, since L6.2, fails the Run.
 - [D] (the owner's) A cut reads the context's size from the Run read with the last message a

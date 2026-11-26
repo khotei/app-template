@@ -92,7 +92,7 @@ covers these steps.
 
 | Purpose | Settings | Sent |
 |---|---|---|
-| reply | `LLM_REPLY_MODEL`, `LLM_CHAT_CONTEXT_TOKENS_LIMIT` (kept by the worker, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
+| reply | `LLM_REPLY_MODEL`, `LLM_CHAT_CONTEXT_TOKENS_LIMIT` (read by the services that check and cut a context, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
 | summary | `LLM_REPLY_MODEL` | `max_tokens` 8 000, the prompt asking for fixed headings (the user, standing instructions, facts and decisions, what is open, the assistant's voice, the course so far) in at most 600 words; no cache; effort and thinking left to the language model's default |
 | title | `LLM_TITLE_MODEL` | `max_tokens` 1 000, `output_config.effort: 'low'`, `thinking: { type: 'disabled' }`; no cache |
 

@@ -1,5 +1,7 @@
 import { Array as Arr, Context, Effect, identity, Layer, Option, type Types } from 'effect'
 
+import { chatContextTokensLimit } from '@app-template/kernel/config'
+
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
 import type { ContextMessage, Message } from '#chat/domain/message.model'
@@ -7,7 +9,7 @@ import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 
-/** The assistant's failures, named through it, as a service imports no part of the kernel. */
+/** The assistant's failures, named through it, as a service imports no part of the kernel that calls out. */
 type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['summarise']>>
 
 /** The chat `chatId` names, of the user `userId` names, so none reads another's context. */
@@ -40,6 +42,7 @@ export class ContextChatService extends Context.Service<
     const chats = yield* ChatService
     const messages = yield* MessageService
     const assistant = yield* MessageAssistant
+    const tokensLimit = yield* chatContextTokensLimit
 
     // The messages a reply of `chat` sends: all of an uncompacted chat, those from its context's head.
     const getMessagesInContext = ({ id, context }: Chat) =>
@@ -67,10 +70,7 @@ export class ContextChatService extends Context.Service<
     }: ContextChatWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       const contextMessages = yield* getMessagesInContext(chat)
-      const { dropped, remain } = ChatContextTokenizer.splitToCompact(
-        contextMessages,
-        assistant.contextTokensLimit,
-      )
+      const { dropped, remain } = ChatContextTokenizer.splitToCompact(contextMessages, tokensLimit)
       if (!Arr.isReadonlyArrayNonEmpty(remain)) return
 
       // Nothing dropped: what remains is compacted, so a compaction asked for always writes one.

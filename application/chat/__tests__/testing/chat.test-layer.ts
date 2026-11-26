@@ -1,4 +1,4 @@
-import { Layer } from 'effect'
+import { ConfigProvider, Layer } from 'effect'
 
 import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
 import type { Transaction } from '@app-template/packages/db'
@@ -31,6 +31,8 @@ export interface ChatLeaves {
   readonly messageAssistant?: Layer.Layer<MessageAssistant>
   readonly chatAssistant?: Layer.Layer<ChatAssistant>
   readonly transaction?: Layer.Layer<Transaction>
+  /** The setting's value: none of a case's contexts reaches it unless the case sets it. */
+  readonly chatContextTokensLimit?: number
 }
 
 /**
@@ -41,9 +43,10 @@ export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   {
     queue = Layer.mock(QueueSender, {}),
-    messageAssistant = Layer.mock(MessageAssistant, { contextTokensLimit: 1_000_000 }),
+    messageAssistant = Layer.mock(MessageAssistant, {}),
     chatAssistant = Layer.mock(ChatAssistant, {}),
     transaction = TransactionTest,
+    chatContextTokensLimit = 1_000_000,
   }: ChatLeaves = {},
 ) =>
   Layer.mergeAll(
@@ -64,6 +67,11 @@ export const layerChatTest = (
         messageAssistant,
         chatAssistant,
         transaction,
+      ),
+    ),
+    Layer.provide(
+      ConfigProvider.layer(
+        ConfigProvider.fromUnknown({ LLM_CHAT_CONTEXT_TOKENS_LIMIT: chatContextTokensLimit }),
       ),
     ),
   )
