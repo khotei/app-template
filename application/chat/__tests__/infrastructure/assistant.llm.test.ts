@@ -13,7 +13,7 @@ import { ChatTitle } from '#chat/domain/chat.model'
 import type { Message } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-import { assistantMessageAt, replyUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
+import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -119,7 +119,7 @@ describe('MessageAssistant and ChatAssistant', () => {
           answer,
           new AssistantReply({
             text: 'Hello',
-            usage: replyUsage,
+            usage: runUsage,
           }),
         )
       }).pipe(Effect.provide(layer))

@@ -24,6 +24,7 @@ import {
   firstMessage,
   owner,
   queuedRun,
+  runUsage,
 } from '#testing/chat/chat.test-fixture'
 import {
   type ChatLeaves,
@@ -101,6 +102,7 @@ const doneRun = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(reply.id),
+  usage: Option.some(runUsage),
 })
 
 /** A chat an ask has reached before, so an ask sends the reply's job alone. */

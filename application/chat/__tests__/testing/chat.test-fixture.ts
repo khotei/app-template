@@ -3,12 +3,11 @@ import { DateTime } from 'effect'
 import { UserId } from '@app-template/application/user'
 import { epoch } from '@app-template/packages/testing'
 
-import type { ReplyUsage } from '#chat/domain/assistant.model'
 import { Chat } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
-import { Run } from '#chat/domain/run.model'
+import { Run, type RunUsage } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
@@ -68,7 +67,7 @@ export const queuedRun = new Run({
 })
 
 /** A reply's usage whose prompt the cache served in part. */
-export const replyUsage: ReplyUsage = {
+export const runUsage: RunUsage = {
   model: 'claude-sonnet-5-5',
   promptTokens: 130,
   outputTokens: 5,

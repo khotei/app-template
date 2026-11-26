@@ -1,7 +1,13 @@
 import { Array as Arr, Cause, Effect, Option, type Types } from 'effect'
 
 import type { MessageId } from '#chat/domain/message.util'
-import { Run, type RunFields, type RunStatus, RunStatusInvalidError } from '#chat/domain/run.model'
+import {
+  Run,
+  type RunFields,
+  type RunStatus,
+  RunStatusInvalidError,
+  type RunUsage,
+} from '#chat/domain/run.model'
 
 /** Where a Run may move from each status; `done` and `failed` end it. */
 const moveRunRules = {
@@ -24,7 +30,7 @@ const ensureRunMove = Effect.fnUntraced(function* (
 const move = Effect.fnUntraced(function* (
   run: RunFields,
   to: Exclude<RunStatus, 'queued'>,
-  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId'>> = {},
+  fields: Partial<Pick<Run, 'failure' | 'assistantMessageId' | 'usage'>> = {},
 ) {
   yield* ensureRunMove(run, to)
   return new Run({ ...run, ...fields, status: to })
@@ -34,9 +40,10 @@ const move = Effect.fnUntraced(function* (
 export class RunMove {
   static readonly start = Effect.fn('RunMove.start')((run: RunFields) => move(run, 'generating'))
 
-  /** Ends a Run with the reply `replyId` names. */
-  static readonly complete = Effect.fn('RunMove.complete')((run: RunFields, replyId: MessageId) =>
-    move(run, 'done', { assistantMessageId: Option.some(replyId) }),
+  /** Ends a Run with the reply `replyId` names and what it cost. */
+  static readonly complete = Effect.fn('RunMove.complete')(
+    (run: RunFields, replyId: MessageId, usage: RunUsage) =>
+      move(run, 'done', { assistantMessageId: Option.some(replyId), usage: Option.some(usage) }),
   )
 
   /** Fails a Run with the full text of `cause`, its nested causes included. */

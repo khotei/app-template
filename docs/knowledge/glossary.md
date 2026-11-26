@@ -56,8 +56,10 @@ act, asking for an answer. Never a job put on its queue, which is a send.
 _Avoid_: Send (a job's, below), submit, post
 
 **Run**:
-The work of answering one user message: its status and its failure. An ask creates one, queued;
-the worker starts it (`generating`) and, once it is done, writes the assistant's message.
+The work of answering one user message: its status, its failure and, once done, its usage (the
+model that answered, the tokens of the prompt and of the reply, and how many of the prompt's the
+cache served and stored). An ask creates one, queued; the worker starts it (`generating`) and,
+once it is done, writes the assistant's message.
 Capitalised in prose; in code `Run`, and `run` or `runs` for a value or the table. Not the verb
 *run* (Effect's `run*`, `Transaction`'s `run`, a test that runs), which never takes a Run as its
 object; *a run* as a noun only qualified (a test run, a dry run).

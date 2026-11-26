@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Option, Schema } from 'effect'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
-import { replyUsage as usage } from '#testing/chat/chat.test-fixture'
+import { runUsage as usage } from '#testing/chat/chat.test-fixture'
 
 const decodeReply = Schema.decodeUnknownOption(AssistantReply)
 

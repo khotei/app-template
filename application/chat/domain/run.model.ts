@@ -15,6 +15,19 @@ export type RunStatus = typeof RunStatus.Type
 export const RunFailure = Schema.Struct({ cause: Schema.String })
 export type RunFailure = typeof RunFailure.Type
 
+/**
+ * What a Run's reply cost: the model that answered, the tokens of its prompt (`promptTokens`, of which
+ * the cache served `cacheReadTokens` and stored `cacheWriteTokens`) and of its text.
+ */
+export const RunUsage = Schema.Struct({
+  model: Schema.String,
+  promptTokens: Schema.Int,
+  outputTokens: Schema.Int,
+  cacheReadTokens: Schema.Int,
+  cacheWriteTokens: Schema.Int,
+})
+export type RunUsage = typeof RunUsage.Type
+
 export class RunStatusInvalidError extends Data.TaggedError('RunStatusInvalidError')<{
   readonly id: RunId
   readonly from: RunStatus
@@ -49,8 +62,8 @@ export class RunNotRetryableError extends Schema.TaggedError<RunNotRetryableErro
 /**
  * The work of answering one user message, as `runs` holds it: `userMessageId` names the message
  * it answers, `assistantMessageId` its reply. A retry is a new Run of the same message. An update
- * writes its status, failure, reply and `updatedAt`; no json variant holds `failure`, so the
- * provider's text never reaches the wire.
+ * writes its status, failure, reply, usage and `updatedAt`; no json variant holds `failure` or
+ * `usage`, so the provider's text and the reply's cost never reach the wire.
  */
 export class Run extends Model.Class<Run>('Run')({
   id: Model.UuidV7Insert(RunId),
@@ -66,6 +79,11 @@ export class Run extends Model.Class<Run>('Run')({
   /** The reply's id, none until the Run is done. */
   assistantMessageId: Schema.OptionFromNullOr(MessageId).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
+  ),
+  /** What the reply cost, none until the Run is done. */
+  usage: Schema.OptionFromNullOr(RunUsage).pipe(
+    Schema.withConstructorDefault(Effect.succeedNone),
+    Model.Sensitive,
   ),
   createdAt: Model.DateTimeInsertFromDate,
   updatedAt: Model.DateTimeUpdateFromDate,

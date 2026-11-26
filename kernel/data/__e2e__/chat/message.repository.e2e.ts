@@ -55,6 +55,7 @@ const run = (
       } as const
     )[status],
     assistantMessageId: null,
+    usage: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
   }) satisfies RunColumns
@@ -156,7 +157,18 @@ describe('MessageRepository', () => {
         } satisfies MessageEntity
         const failed = run('0192d4e0-7b3a-7c00-8000-000000000070', question, { status: 'failed' })
         const retry = run('0192d4e0-7b3a-7c00-8000-000000000071', question, { seconds: 1 })
-        const done = { ...retry, status: 'done', assistantMessageId: reply.id } as const
+        const done = {
+          ...retry,
+          status: 'done',
+          assistantMessageId: reply.id,
+          usage: {
+            model: 'claude-sonnet-5-5',
+            promptTokens: 130,
+            outputTokens: 5,
+            cacheReadTokens: 100,
+            cacheWriteTokens: 20,
+          },
+        } as const
         yield* insertOwnedChats([chatId])
         yield* messages.insert(question)
         yield* Effect.forEach([failed, retry], runs.insert)

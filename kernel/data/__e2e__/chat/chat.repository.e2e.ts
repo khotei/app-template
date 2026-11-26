@@ -57,6 +57,7 @@ const run = (
     status,
     failure: status === 'failed' ? { cause: '529 overloaded' } : null,
     assistantMessageId: null,
+    usage: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
   }) satisfies RunColumns

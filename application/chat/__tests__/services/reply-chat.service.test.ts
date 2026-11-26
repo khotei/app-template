@@ -36,7 +36,7 @@ import {
   firstMessage,
   owner,
   queuedRun,
-  replyUsage,
+  runUsage,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
@@ -45,7 +45,7 @@ import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fak
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
-const sure = new AssistantReply({ text: 'Sure.', usage: replyUsage })
+const sure = new AssistantReply({ text: 'Sure.', usage: runUsage })
 
 const whatIsThis = userMessageAt(1, 'What is this?')
 const aPhoto = assistantMessageAt(2, 'A photo.')
@@ -68,6 +68,7 @@ const doneElsewhere = new Run({
   ...queuedRun,
   status: 'done',
   assistantMessageId: Option.some(elsewhereReply.id),
+  usage: Option.some(runUsage),
 })
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
@@ -197,7 +198,7 @@ const reply = Effect.gen(function* () {
 
 describe('ReplyChatService', () => {
   it.effect(
-    "reply moves the Run to generating, then writes the assistant's message and done",
+    "reply moves the Run to generating, then writes the assistant's message and done with the reply's usage",
     () => {
       const held = holdCall()
       const slowReply = held.hold.pipe(Effect.andThen(Effect.sleep('1 second')), Effect.as(sure))
@@ -240,6 +241,7 @@ describe('ReplyChatService', () => {
           status: 'done',
           updatedAt: at(1000),
           assistantMessageId: Option.some(message.id),
+          usage: Option.some(runUsage),
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
           // An explicit time enters the update variant marked as an override of its default.

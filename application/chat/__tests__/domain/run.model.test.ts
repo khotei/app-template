@@ -18,6 +18,7 @@ const queued = new Run({
   status: 'queued',
   failure: Option.none(),
   assistantMessageId: Option.none(),
+  usage: Option.none(),
   createdAt,
   updatedAt: createdAt,
 })

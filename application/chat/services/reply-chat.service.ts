@@ -55,7 +55,7 @@ export class ReplyChatService extends Context.Service<
         text: generated.text,
         author: 'assistant',
       })
-      yield* runs.update(started, yield* RunMove.complete(started, message.id))
+      yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
     }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for

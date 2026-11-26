@@ -46,8 +46,10 @@ facts, its out-of-scope list and its open questions stand
   is the size L3 reads. A check ties it to `done`, as `runs_failure_check` ties `failure` to
   `failed`. Without it: five nullable columns and five checks for one value read whole. Loses: a
   plain `sum(prompt_tokens)`; an operator writes `sum((usage->>'promptTokens')::int)`.
-- [D:ai] The schema is `ReplyUsage` in `assistant.model.ts`, a field of `AssistantReply`;
-  `Run.usage` is `Option<ReplyUsage>`, and `RunMove.complete(run, replyId, usage)` sets it.
+- [D:ai] The schema is `RunUsage` in `run.model.ts`, beside `RunFailure`, and a field of
+  `AssistantReply`; `Run.usage` is `Option<RunUsage>`, and `RunMove.complete(run, replyId, usage)`
+  sets it. (In `assistant.model.ts` it closed a cycle, message → run → assistant → message, which
+  `make lint` refused.)
   `MessageAssistant.reply` decodes it from the response, so a response with a count or the model
   missing fails the reply as an `LlmError`, which the Anthropic package never produces.
 - [D:ai] `usage` stays off the wire (`Model.Sensitive`, as `failure`): no client reads it yet, and
