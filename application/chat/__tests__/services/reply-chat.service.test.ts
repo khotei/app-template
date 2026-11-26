@@ -27,8 +27,7 @@ import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { AssistantReply } from '#chat/domain/assistant.model'
 import { Message } from '#chat/domain/message.model'
-import { RunNotFoundError } from '#chat/domain/run.error'
-import { Run, RunStatus } from '#chat/domain/run.model'
+import { Run, RunNotFoundError, RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
@@ -190,7 +189,10 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-const reply = ReplyChatService.use((replies) => replies.reply(queuedRun.userMessageId))
+const reply = Effect.gen(function* () {
+  const replies = yield* ReplyChatService
+  return yield* replies.reply(queuedRun.userMessageId)
+})
 
 describe('ReplyChatService', () => {
   it.effect(
@@ -346,7 +348,8 @@ describe('ReplyChatService', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sure))
     const writes = noWrites()
     return Effect.gen(function* () {
-      yield* ReplyChatService.use((replies) => replies.reply(lastRun.userMessageId))
+      const replies = yield* ReplyChatService
+      yield* replies.reply(lastRun.userMessageId)
 
       assertEquals(yield* assistant.histories, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(

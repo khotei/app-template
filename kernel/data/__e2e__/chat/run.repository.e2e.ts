@@ -52,17 +52,13 @@ const run = (
 
 const SelectedRun = Schema.Option(RunColumns)
 
-const insertUserMessage = Db.use((db) =>
-  db
-    .insert(users)
-    .values({ id: userId, createdAt: new Date(0) })
-    .pipe(
-      Effect.andThen(
-        db.insert(chats).values({ id: chatId, userId, title: null, createdAt, updatedAt }),
-      ),
-      Effect.andThen(db.insert(messages).values(userMessage)),
-    ),
-)
+const insertUserMessage = Effect.gen(function* () {
+  const db = yield* Db
+
+  yield* db.insert(users).values({ id: userId, createdAt: new Date(0) })
+  yield* db.insert(chats).values({ id: chatId, userId, title: null, createdAt, updatedAt })
+  yield* db.insert(messages).values(userMessage)
+})
 
 describe('RunRepository', () => {
   it.effect('selects a Run by id for its owner, none for a stranger', () =>

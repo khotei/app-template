@@ -106,8 +106,15 @@
                     "message": "a module contract imports no workspace but @app-template/packages/schema, for the id schema, and no @effect/* package: every consumer of the module reads it (decisions.md › Module contracts; Guards are configuration)"
                   },
                   {
-                    "group": ["#*/index", "#*/domain/**", "#*/services/**", "#*/infrastructure/**"],
-                    "message": "a module contract imports none of its module's other files: every consumer of the module reads it (decisions.md › Module contracts)"
+                    "group": [
+                      "#*/index",
+                      "#*/domain/index",
+                      "#*/domain/*-policy",
+                      "#*/domain/*-move",
+                      "#*/services/**",
+                      "#*/infrastructure/**"
+                    ],
+                    "message": "a module contract re-exports its module's domain files by name, its ids, models with their errors and the state group a wire shape reads, never a policy or a move group, nor the domain's index, which brings them too, nor the module's entry, services or infrastructure, which load the data layer: every consumer of the module reads it (decisions.md › Module contracts)"
                   }
                 ]
               }
@@ -117,7 +124,17 @@
       }
     },
     {
-      "includes": ["application/*/domain/**", "application/*/__tests__/domain/**"],
+      "includes": ["application/*/domain/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noStaticOnlyClass": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/*/domain/**"],
       "linter": {
         "rules": {
           "style": {
@@ -128,27 +145,73 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/application/*",
+                      "!@app-template/application/*/contract",
+                      "!@app-template/packages/schema",
+                      "@app-template/application/use-cases/**",
+                      "@effect/**"
+                    ],
+                    "message": "a module's domain is pure: it imports no workspace but another module's contract, @app-template/application/<module>/contract, never its entry, which loads its services and the data layer, and @app-template/packages/schema, for the id schema; never the kernel, whose data layer would bring the backend into every importer of a model, so a model declares its values itself; no test support, which its tests alone take; and no @effect/* package (decisions.md › A module's layers; Checks kept in the tables; Module contracts; Guards are configuration)"
+                  },
+                  {
+                    "group": ["#*/services/**", "#*/infrastructure/**"],
+                    "message": "a module's domain imports neither its services nor its infrastructure (decisions.md › A module's layers)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/*/__tests__/domain/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/application/*/contract",
                       "!@app-template/application/*/testing",
                       "!@app-template/packages/{schema,testing}",
-                      "!@app-template/kernel/data",
-                      "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**",
                       "!@effect/vitest",
                       "!@effect/vitest/**"
                     ],
-                    "message": "a module's domain is pure: it imports no workspace but another module's entry, for its contract, @app-template/packages/schema, for the id schema, the data layer (@app-template/kernel/data), for the limits, patterns, enum values and JSON columns' shapes its tables declare, and no @effect/* package; its tests add test support, a module's /testing, @app-template/packages/testing and @effect/vitest (decisions.md › A module's layers; The data at the centre; Module contracts; Guards are configuration)"
-                  },
-                  {
-                    "group": ["@app-template/kernel/data"],
-                    "importNamePattern": "[a-z][A-Za-z0-9]*(Pattern|Length|Statuses|Authors|Reasons|Kinds)|[A-Z][A-Za-z0-9]*Failure",
-                    "invertImportNamePattern": true,
-                    "message": "of @app-template/kernel/data a module's domain takes only a table's values, a limit, a pattern or an enum's values, named <name>Pattern, <name>Length, <name>Statuses, <name>Authors, <name>Reasons or <name>Kinds, or a JSON column's shape, named <Name>Failure: no table, entity, repository or Db (decisions.md › A module's layers; The data at the centre)"
+                    "message": "a module's domain's tests import what the domain does and test support: a module's /testing, @app-template/packages/testing and @effect/vitest; no other workspace and no other @effect/* package (decisions.md › A module's layers; Module contracts; Guards are configuration)"
                   },
                   {
                     "group": ["#*/services/**", "#*/infrastructure/**"],
                     "message": "a module's domain imports neither its services nor its infrastructure (decisions.md › A module's layers)"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["application/http-api/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@app-template/**",
+                      "!@app-template/application/*/contract",
+                      "@effect/**"
+                    ],
+                    "message": "the API contract declares its groups over the modules' contracts: it imports no workspace but a module's contract, @app-template/application/<module>/contract, never a module's entry, which loads its services and the data layer, no use case, no kernel part, no package and no @effect/* package, so whatever imports it loads no client or store (decisions.md › The API contract in the api; Module contracts)"
                   }
                 ]
               }
@@ -174,14 +237,20 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/schema",
+                      "!@app-template/packages/{schema,db}",
                       "!@app-template/kernel/data",
                       "!@app-template/application/*",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/schema for the codecs and the id generator, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no test support, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/queue, which a module's infrastructure holds (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
+                    "message": "a module's services import no workspace but @app-template/packages/schema for the codecs and the id generator, the transaction of @app-template/packages/db, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no test support, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/queue, which a module's infrastructure holds (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
+                  },
+                  {
+                    "group": ["@app-template/packages/db"],
+                    "importNamePattern": "Transaction",
+                    "invertImportNamePattern": true,
+                    "message": "of @app-template/packages/db a module's services take only Transaction, to commit the writes of several statements in one transaction, a savepoint inside a caller's (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -191,6 +260,13 @@
                   {
                     "group": ["#*/infrastructure/**"],
                     "message": "a module's services reach its infrastructure only through a port; the chat's ask, reply and title services have overrides of their own (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -234,6 +310,13 @@
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
                     "message": "a module's services' tests reach its infrastructure only through a port, save its queue file, whose jobs the ask service's tests read (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -254,14 +337,14 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/{schema,db,queue}",
+                      "!@app-template/packages/{schema,db}",
                       "!@app-template/kernel/data",
                       "!@app-template/application/*",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's ask service (AskChatService), the api's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction, of @app-template/packages/queue, the sender: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "the chat's ask service (AskChatService), the api's half of a chat's jobs, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; Jobs as queue messages)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
@@ -270,19 +353,20 @@
                     "message": "of @app-template/packages/db the chat's ask service takes only Transaction, to store the message and its Run in one transaction (decisions.md › Jobs as queue messages)"
                   },
                   {
-                    "group": ["@app-template/packages/queue"],
-                    "importNamePattern": "QueueSender",
-                    "invertImportNamePattern": true,
-                    "message": "of @app-template/packages/queue the chat's ask service takes only QueueSender, which it gives its sends from its make (decisions.md › Jobs as queue messages)"
-                  },
-                  {
                     "group": ["@app-template/kernel/data"],
                     "importNamePattern": "(Db|relations|migrationsFolder)",
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
                     "group": ["#*/infrastructure/**", "!#*/infrastructure/*.queue"],
-                    "message": "the chat's ask service reaches its module's infrastructure only through a port and its queue file, whose sends it calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                    "message": "the chat's ask service reaches its module's infrastructure only through a port and its queue file, whose ChatQueue it calls after the commit (decisions.md › A module's layers; Jobs as queue messages)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -329,6 +413,13 @@
                       "!#chat/infrastructure/message-assistant.llm"
                     ],
                     "message": "the chat's reply service reaches its module's infrastructure only through a port and the message's assistant, which replies (decisions.md › A module's layers; The chat's jobs in their services)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -349,14 +440,20 @@
                   {
                     "group": [
                       "@app-template/**",
-                      "!@app-template/packages/schema",
+                      "!@app-template/packages/{schema,db}",
                       "!@app-template/kernel/data",
                       "!@app-template/application/*",
                       "@app-template/application/use-cases",
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's title service (TitleChatService), the worker's work on the title's job, imports the workspaces a module's services do: no transaction, no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's title service (TitleChatService), the worker's work on the title's job, imports the workspaces a module's services do: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                  },
+                  {
+                    "group": ["@app-template/packages/db"],
+                    "importNamePattern": "Transaction",
+                    "invertImportNamePattern": true,
+                    "message": "of @app-template/packages/db a module's services take only Transaction, to commit the writes of several statements in one transaction, a savepoint inside a caller's (decisions.md › A module's layers)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -366,6 +463,13 @@
                   {
                     "group": ["#*/infrastructure/**", "!#chat/infrastructure/chat-assistant.llm"],
                     "message": "the chat's title service reaches its module's infrastructure only through a port and the chat's assistant, which proposes the title (decisions.md › A module's layers; The chat's jobs in their services)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -386,6 +490,13 @@
                   {
                     "group": ["#*/services/**"],
                     "message": "a module's infrastructure holds what connects to the environment, the adapters of its domain's ports, the services a use case calls over a client, its queues' definitions with each job's send, and imports none of its services (decisions.md › A module's layers)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -423,6 +534,13 @@
                     "importNamePattern": "Llm[A-Za-z0-9]*Error",
                     "invertImportNamePattern": true,
                     "message": "of @app-template/kernel/llm/error the use cases take only the language model's errors, named Llm<Problem>Error (decisions.md › The language model in the kernel)"
+                  },
+                  {
+                    "group": [
+                      "@app-template/application/http-api",
+                      "@app-template/application/http-api/**"
+                    ],
+                    "message": "only the apps read the API contract, @app-template/application/http-api: a module's services and infrastructure and the use cases return models and fail with the domain's errors, which the api serves as they are (decisions.md › HTTP outside the modules; The API contract in the api)"
                   }
                 ]
               }
@@ -471,6 +589,16 @@
                 ]
               }
             }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/schema/schema-row-codec.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noStaticOnlyClass": "off"
           }
         }
       }

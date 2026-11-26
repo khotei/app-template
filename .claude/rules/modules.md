@@ -11,16 +11,26 @@ What `make check` cannot see, so review refuses it. Read the decision in
 
 ## A name past another module's contract
 
-A module's entry opens it whole; another module takes from it only the names of its `contract/`
-folder, never a model, a service, a mapper or a namespace import (`import * as`).
+A module's entry opens it whole; its contract's entry
+(`@app-template/application/<module>/contract`) is the one path a `domain/` and the API contract
+may take, which Biome holds. It exports by name, from the module's `domain/` files, only what a
+reader outside the module takes today (an id, a model, an error, the group a wire shape reads),
+never `export *` nor the domain's index: a rule group, a helper or a constant no outside reader
+takes stays out, and a name a new reader needs is added there first.
+```diff
+- export * from '#order/domain/order.model'                       // gives out its helpers too
++ export { Order, OrderNotFoundError } from '#order/domain/order.model'
+```
+Through the whole entry another module's other layers take only the names its contract exports,
+never a service, a rule's group, a mapper or a namespace import (`import * as`).
 Decision: [Module contracts](../../docs/knowledge/decisions.md#module-contracts).
 
 ## A cycle, or an import of a part above
 
 Two modules that import each other's entries form a cycle, which `noImportCycles` refuses for
-value imports and misses through `import type`: move the shared id or error into the contract of
-the module that owns it, or the flow into a use case. A cycle inside a module is broken by
-widening a type; two models never nest each other: the one read with the other is its
+value imports and misses through `import type`: keep the shared id or error in the module that
+owns it, exported by its contract, or move the flow into a use case. A cycle inside a module is
+broken by widening a type; two models never nest each other: the one read with the other is its
 select-only field ([models.md](models.md)) and names it back by id. Refuse too:
 
 - a part importing one above it in its folder (a module the entry of a module above it, a kernel

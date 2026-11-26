@@ -4,15 +4,13 @@ import type { Types } from 'effect'
 import type { Keyed } from '@app-template/packages/db'
 
 import type { FilterOf } from '#kernel/data/relations'
-import { type credentials, users } from '#kernel/data/user/user.table'
+import { type CredentialColumns, users } from '#kernel/data/user/user.table'
 
 export const UserEntity = createSelectSchema(users)
 
 export type UserEntity = typeof UserEntity.Type
 
-export type UserEntityCredential = Types.Simplify<
-  Pick<typeof credentials.$inferSelect, 'kind' | 'hash'>
->
+export type UserEntityCredential = Types.Simplify<Pick<CredentialColumns, 'kind' | 'hash'>>
 
 /** A user by the key or by `credentials`, which matches any credential the user holds. */
 export type UserEntityWhere = Keyed<

@@ -28,26 +28,26 @@ export class MessageRepository extends Context.Service<
     /** Returns the rows where `where` holds, in creation order, a tie broken by id. */
     readonly selectMany: (where: MessageEntityWhere) => Effect.Effect<ReadonlyArray<MessageEntity>>
   }
->()('@app-template/kernel/data/chat/MessageRepository') {
-  static readonly layer = Layer.effect(
-    this,
-    Db.useSync((db) =>
-      this.of({
-        insert: Effect.fn('MessageRepository.insert')(
-          (message) => db.insert(messages).values(message),
-          orDieWithSqlError,
-        ),
-        selectOne: Effect.fn('MessageRepository.selectOne')(
-          (where) => db.query.messages.findFirst({ where, ...read }),
-          Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity))),
-          orDieWithSqlError,
-        ),
-        selectMany: Effect.fn('MessageRepository.selectMany')(
-          (where) => db.query.messages.findMany({ where, ...read }),
-          Effect.map(Arr.map(buildMessageEntity)),
-          orDieWithSqlError,
-        ),
-      }),
-    ),
-  )
+>()('@app-template/kernel/data/chat/MessageRepository', {
+  make: Effect.gen(function* () {
+    const db = yield* Db
+    return {
+      insert: Effect.fn('MessageRepository.insert')(
+        (message) => db.insert(messages).values(message),
+        orDieWithSqlError,
+      ),
+      selectOne: Effect.fn('MessageRepository.selectOne')(
+        (where) => db.query.messages.findFirst({ where, ...read }),
+        Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity))),
+        orDieWithSqlError,
+      ),
+      selectMany: Effect.fn('MessageRepository.selectMany')(
+        (where) => db.query.messages.findMany({ where, ...read }),
+        Effect.map(Arr.map(buildMessageEntity)),
+        orDieWithSqlError,
+      ),
+    }
+  }),
+}) {
+  static readonly layer = Layer.effect(this, this.make)
 }

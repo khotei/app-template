@@ -18,9 +18,10 @@ function buildDatabaseUrl(url: string, database: string) {
 }
 
 const runAdmin = (url: string, statement: string) =>
-  PgClient.PgClient.use((client) => client.unsafe(statement)).pipe(
-    Effect.provide(PgClient.layer({ url: Redacted.make(url) })),
-  )
+  Effect.gen(function* () {
+    const client = yield* PgClient.PgClient
+    return yield* client.unsafe(statement)
+  }).pipe(Effect.provide(PgClient.layer({ url: Redacted.make(url) })))
 
 /**
  * `@effect/sql-pg`'s pool reads `Clock` once, when built, and times its connections by it; on a

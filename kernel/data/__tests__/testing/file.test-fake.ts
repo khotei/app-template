@@ -38,7 +38,9 @@ const withoutBlob = (file: DownloadedFileEntity) => Struct.omit(file, ['blob'])
  */
 export const FileRepositoryTest = Layer.effect(
   FileRepository,
-  FileObjects.useSync((objects) => {
+  Effect.gen(function* () {
+    const objects = yield* FileObjects
+
     const downloadMany = ({ id }: FileEntityWhere) =>
       Ref.get(objects).pipe(
         Effect.map((all) =>

@@ -1,8 +1,8 @@
-import { buildChatStatus, type Chat } from '@app-template/application/chat'
+import { type Chat, ChatState } from '@app-template/application/chat'
+import type { ApiChat } from '@app-template/application/http-api'
 
-import type { ApiChat } from '#api/chat/chat.http'
-
+/** A chat on the wire: its fields with the state its newest Run gives it. */
 export const buildApiChat = (chat: Chat): ApiChat => ({
   ...chat,
-  status: buildChatStatus(chat.run),
+  state: ChatState.build(chat.run),
 })

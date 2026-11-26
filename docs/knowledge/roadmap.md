@@ -57,6 +57,7 @@ graph LR
 | 26 | `domain-from-data` | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 | 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
 | 30 | `effect-4-1` | `chore` | PR #39 | done, in the design audit's PR #39 |
+| 31 | `pure-models` | `refactor` | 30 | done: [docs/tickets/2026-11-25-1922_pure-models/](../tickets/2026-11-25-1922_pure-models/lab.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -85,13 +86,11 @@ left.
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The web's cookie is the user cookie of `chat-core`'s `CurrentUser` security.
-- **Inherited from `architecture-audit`.** `make bundle-check` builds `apps/web/app/main.ts` with
-  `bun build --metafile` and refuses any package of the bundle outside `browserPackages` in
-  `apps/web/package.json`, naming its import chain; `client-publishing` (10) replaced the grep of
-  service keys with it ([architecture.md › Boundary guards](architecture.md#boundary-guards)). On
-  the new bundler: rebuild its command, have it write a metafile the check reads (its shape is
-  Bun's today), clear the output dir before each build, and keep it in `make check`, which CI runs.
+  The web's cookie is the user cookie the api's `Auth` reads to provide `Identity`.
+- **What the browser's bundle holds** is this ticket's to check, on the new bundler: `make check`
+  reads no bundle, and only the `apps/web/**` override and the web's manifest hold the browser's
+  imports (the owner's word, 2026-11-25:
+  [Later › From `pure-models`](#from-pure-models)).
 - **Facts (2026-10-17).** `@tanstack/react-start@1.169.3` (router 1.170, Vite ≥ 8, React 19 for
   the Bun preset, `aws_lambda` preset with streaming); `@chakra-ui/react@3.37.0`; Effect v4 atoms
   are `effect/reactivity/*` in core plus `@effect/atom-react@4.0.5` (React ≥ 19 only) with
@@ -337,43 +336,43 @@ moves it into its own `Later` and deletes it here.
 ### From `reply-run`
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
-  and the reply's send (`sendReplyToMessage`, called by
+  and the reply's send (`ChatQueue.sendReplyToMessage`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
-  `retry`): a send SQS refuses fails the Run, and both methods run uninterruptibly, but no handler
-  runs in a dead process. Ways out to weigh: a ledger of jobs, a sweep of active Runs. The owner
-  refused a rule by a Run's age.
+  `retry`): a send SQS refuses fails the Run, and a client's abort leaves it sent
+  ([decision](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries)), but no handler runs in
+  a dead process. Ways out to weigh: a ledger of jobs, a sweep of active
+  Runs. The owner refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
-  (`ensureChatNotBusy`, `ensureRunRetryable`); the active Run's index refuses the second insert,
-  which dies, so the client gets a bare `500`, not a `409`; a double click, its second request
-  arriving after the first Run is stored, already gets the `409` (`RunRepository.insert`,
-  `RunService.create`). Left: a lost race dies by
-  [database.md › Guards](database.md#guards), and no client offers a retry button yet. Ways out to
-  weigh: the insert fails a typed `RunActiveError` that `RunService.create` maps to
-  `ChatBusyError` (an exception to `repositories.md`'s "a write dies where it misses"), or a
-  `SELECT … FOR UPDATE` on the chat before the check.
+  (`ChatPolicy.ensureNotBusy`, `RunPolicy.ensureRetryable`); the active Run's index refuses the
+  second insert, which dies, so the client gets a bare `500`, not a `409`; a double click, its
+  second request arriving after the first Run is stored, already gets the `409`
+  (`RunRepository.insert`, `RunService.create`). Left: a lost race dies by [database.md ›
+  Guards](database.md#guards), and no client offers a retry button yet. Ways out to weigh: the
+  insert fails a typed `RunActiveError` that `RunService.create` maps to `ChatBusyError` (an
+  exception to `repositories.md`'s "a write dies where it misses"), or a `SELECT … FOR UPDATE` on
+  the chat before the check.
 - (2026-11-13) A retry reads the chat's newest Run, then inserts a new Run of that Run's message;
   an ask of a newer message whose Run commits and fails between the two lets the insert pass the
   active Run's index, so an older message holds the chat's newest Run, against the premise that
-  only the newest user message gets one (`application/use-cases/chat/retry-run.use-case.ts`, the
-  chat's read, and `AskChatService.retry`'s `runs.create`).
+  only the newest user message gets one (`AskChatService.retry`'s chat read and its `runs.create`,
+  `application/chat/services/ask-chat.service.ts`).
   Claimed by a review, not reproduced: it needs an ask, a retry and a failure in one gap of
   milliseconds. Ways out to weigh: the insert also refuses a Run of a message older than the
   chat's newest, or a row lock on the chat before the check.
 - (2026-11-13) `listMessages` reads the chat, then its messages in a second query, so a delete
   between the two leaves it responding with `200 []`, not `404 ChatNotFoundError`; the next read
-  gives the `404`
-  (`application/use-cases/chat/list-messages.use-case.ts`). Way out: one query that reads the
-  chat with its messages, or the two reads in one `REPEATABLE READ` transaction: `Transaction`
-  opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED` gives each statement its own
-  snapshot.
+  gives the `404` (`ChatHandler.listMessages`, `apps/api/chat/chat.handler.ts`). Way out: one
+  query that reads the chat with its messages, or the two reads in one `REPEATABLE READ`
+  transaction: `Transaction` opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED`
+  gives each statement its own snapshot.
 - (2026-11-13) No e2e runs a worker's lost race of a completion
   (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.reply`): its
   unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
   e2e of the completion's race.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
-  (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `UserUnknownError`
+  (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `IdentityUnknownError`
   stays empty, so no secret reaches a reply or a log. Left: the lab's step for it was skipped.
   First check, by a live run, which of an error's fields reach the api's and the worker's logs and
   spans.
@@ -404,9 +403,6 @@ moves it into its own `Later` and deletes it here.
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
 - (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
   with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
-- (2026-11-19, verified) `make bundle-check` could become one Biome override over `apps/web` and
-  `packages/ui`, dropping the 105-line script; it reverses client-publishing's D5, so it is the
-  owner's decision.
 - (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
   have no case at their own seam; a planted bug in each passes.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
@@ -490,7 +486,7 @@ moves it into its own `Later` and deletes it here.
   never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
-  (`apps/api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
+  (`application/http-api/chat.http.ts`) does not carry: its `text` has only the pattern and
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
   (a pattern with a non-whitespace character), or accept the round trip.
@@ -504,14 +500,6 @@ moves it into its own `Later` and deletes it here.
   that must stay above the worker's timeout as either changes. The owner refused a rule by age for
   a Run the api leaves queued (`reply-run` above); this entry, for the worker's start, is the
   owner's (2026-11-21).
-- (2026-11-22) `completeRun` and `failRun` (`application/chat/domain/run.model.ts`) take their
-  record first, so each `RunService.move` through them wraps them in a lambda,
-  `runs.move(run, (run) => failRun(run, cause))` (three calls in `reply-chat.service.ts`, one in
-  `ask-chat.service.ts`). Effect's `dual` (`repos/effect/packages/effect/src/Function.ts`) would
-  let them be called data-last too, `runs.move(run, failRun(cause))`, at the cost of an
-  overloaded signature per transition and a change of `effect-style.md`'s line that a model's
-  transition stays plain and takes a lambda, which
-  [A Run's guarded moves](decisions.md#a-runs-guarded-moves) also records. Undecided by the owner.
 - (2026-11-22) `make link-check` passes a relative link whose `#anchor` names no heading: lychee
   runs without `--include-fragments`, so it checks the file alone. An agent's wrong anchor stayed
   green on 2026-11-22, and a probe link to `decisions.md#no-such-heading` passed. The pinned
@@ -542,6 +530,62 @@ moves it into its own `Later` and deletes it here.
   `docker rm -fv`. Unexplained: the orphan Ryuk did not reap. Ways out to weigh: count the dangling
   volumes again after a week of resets and e2e runs before acting; a tmpfs for the test
   database's data (`withTmpFs`), so even an unreaped run leaves no Postgres volume.
+
+### From `model-members`
+
+- (2026-11-25) The Biome override of a module's `services/` (`.misc/lint/biome.base.json`) still
+  admits `@app-template/packages/schema`, and its message says the import is "for the codecs and
+  the id generator", while [models.md](../../.claude/rules/models.md) has a service code its rows
+  through `RowCodec` alone. A service that calls `decodeWith` again passes `make lint`;
+  none does today. Left on the owner's word: no guard before the harm is seen. The package cannot
+  leave that override's exceptions, as every service imports `RowCodec` from it. Ways out to
+  weigh: admit of the package only the name `RowCodec`, with an `importNamePattern` as the
+  override admits only `Transaction` of `@app-template/packages/db`, and fix the message, once a
+  service has slipped; or leave it to the rule.
+- (2026-11-25) `kernel/aws/__e2e__/queue.sender.e2e.ts` keeps its `sampleQueue` as a separate
+  definition object, the form the job classes left for a `queue` static. It is a package test
+  with no job class, so it was left. Way out: a job class of its own in the test, if the two
+  forms come to confuse a reader.
+- (2026-11-25) The README picture's `<Model>Service` row (`.misc/readme/build.py`) names an
+  update's first parameter `to`, while `ChatService.update` calls it `fields`. Older than the
+  ticket, noticed in its review. Way out: rename it in the picture and rebuild.
+- (2026-11-25) The api's and the worker's lifecycle log layer is built beside the server layer by
+  `Layer.merge`, which builds both concurrently (`apps/api/layer.ts:48-53`,
+  `apps/worker/layer.ts:29-35`), so "api started" or "worker started" can be logged before the
+  server listens, or when binding the port fails. Claimed by a review, not reproduced. Way out:
+  order the log after the server in both processes.
+
+### From `pure-models`
+
+- (2026-11-25) No check reads what a bundle holds: a server import that reaches the browser
+  through a package the `apps/web/**` override admits (`packages/ui` importing `packages/db`),
+  or a service, the kernel or Drizzle that reaches the API contract's bundle past the domain's
+  and the contracts' overrides, passes `make check`. Left on the owner's word: "It will be task
+  of web framework". Way out: the bundler of `web-app` (7) checks both.
+- (2026-11-26) The web takes the API contract as the generated client, never as code: the
+  contract shared with the browser (`HttpApiClient.make(Api)`, `sideEffects: false`, a values
+  file) was left to `web-app` (7) on the owner's yes. Way out: that ticket weighs it against the
+  generated client.
+- (2026-11-26) `<name>SetColumns` copy by hand the fields a model's update variant writes
+  (`kernel/data/chat/run.entity.ts`, `runSetColumns`): a field added to one side alone is not
+  refused. Way out: derive the list from the table's columns, or compare the two in a test.
+- (2026-11-26) A job is sent after its writes' commit (`AskChatService`,
+  `application/chat/services/ask-chat.service.ts`), so a process that dies between the two
+  leaves a queued Run no worker hears of. Way out: an outbox row written in the same
+  transaction and sent by a poller.
+- (2026-11-26) "Use cases above the modules" (`decisions.md`) names a hook-service pattern no
+  code uses. Way out: show it by an example or cut the line.
+- (2026-11-26) A domain's source may import test support through the `#testing/<module>/*` alias:
+  the `application/*/domain/**` override refuses the `/testing` entries by their package path
+  alone (`.misc/lint/biome.base.json`). Claimed by a review, not probed. Way out: refuse the
+  alias in that override, with a red probe.
+- (2026-11-26) The Grit plugin that refuses `use`, `useSync` and a combinator over a service
+  (`.misc/lint/biome-effect.grit`) knows a service by its capitalised name, so a read through a
+  lower-case alias or `this.use` passes. Left as no code does either. Way out: a pattern for
+  each, once one appears.
+- (2026-11-26) `GET /chats` and `GET /chats/:chatId/messages` return the whole list
+  (`application/http-api/chat.http.ts`): no pagination. A matter of scale, left until the lists
+  grow. Way out: cursor pagination with `web-app` (7).
 
 ## Ideas to weigh
 
@@ -651,7 +695,7 @@ For a future ticket on durable workflows.
 
 No ticket yet; `chat-core` decided that today's user later merges into an account.
 
-- **Today.** `identity`'s `UserService` issues 32 random bytes as a base64url secret in an
+- **Today.** `identity`'s `IdentityService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
   through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
 - **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,

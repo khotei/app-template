@@ -83,11 +83,15 @@ const apiError = (
     { status, headers },
   )
 
-const reply = (history: ReadonlyArray<Message>) =>
-  MessageAssistant.use((assistant) => assistant.reply(history))
+const reply = Effect.fnUntraced(function* (history: ReadonlyArray<Message>) {
+  const assistant = yield* MessageAssistant
+  return yield* assistant.reply(history)
+})
 
-const proposeTitle = (text: string) =>
-  ChatAssistant.use((assistant) => assistant.proposeTitle(text))
+const proposeTitle = Effect.fnUntraced(function* (text: string) {
+  const assistant = yield* ChatAssistant
+  return yield* assistant.proposeTitle(text)
+})
 
 const hi = [userMessageAt(1, 'Hi')]
 

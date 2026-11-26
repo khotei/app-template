@@ -6,11 +6,6 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 
-export const maxTitleLength = 120
-
-/** What a `text` column stores: Postgres refuses U+0000 in it. */
-export const textPattern = /^[^\0]*$/u
-
 export const chats = snakeCase.table(
   'chats',
   {
@@ -25,7 +20,7 @@ export const chats = snakeCase.table(
   (table) => [
     check(
       'chats_title_check',
-      sql`${table.title} = btrim(${table.title}) and char_length(${table.title}) between 1 and ${maxTitleLength}`,
+      sql`${table.title} = btrim(${table.title}) and ${table.title} <> ''`,
     ),
     index('chats_user_id_created_at_index').on(table.userId, table.createdAt.desc().nullsFirst()),
     // The target of `messages_chat_id_user_id_fk` and `runs_chat_id_user_id_fk`.

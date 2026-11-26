@@ -27,6 +27,10 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A write returns `void` and dies where it misses a row it names: the caller checked the rule, so
   a miss is a lost race. An object store's writes are idempotent and never die on a missing
   object; a write that measures what it stores returns the measure.
+- A write is one statement and opens no transaction: rows that commit together, one table's
+  each, are a write per table that the service commits through `Transaction`'s `run`
+  ([layering.md](layering.md#writes-and-sends-in-services-and-use-cases)), the one way to open a
+  transaction ([decision](../../docs/knowledge/decisions.md#one-way-to-open-a-transaction)).
 - One shape per entity: a related entity is a field the same relational query fills, one level
   deep as the neighbour's `<Name>Columns`, and never becomes a second type
   (`<Name>EntityWith<Thing>`); an option never changes the return type. A model's insert and
@@ -65,4 +69,4 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 
 A value another table implies is a column the transactions that change it move, not derived on
 each read; one a model function derives from the one row its read already nests stays derived
-([decision](../../docs/knowledge/decisions.md#status-from-the-newest-run)).
+([decision](../../docs/knowledge/decisions.md#state-from-the-newest-run)).

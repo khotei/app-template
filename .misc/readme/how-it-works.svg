@@ -94,20 +94,20 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="626" y="638" text-anchor="middle" xml:space="preserve"><tspan class="code">failed</tspan></text>
 <polyline points="192,540 291,540" class="ln"/>
 <polygon points="300,540 290,545 290,535" class="hd"/>
-<rect x="208.84" y="520.1" width="74.32" height="16.1" class="lbg"/>
-<text x="246" y="532" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">startRun</tspan></text>
+<rect x="187.49" y="520.1" width="117.02" height="16.1" class="lbg"/>
+<text x="246" y="532" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">RunMove.start</tspan></text>
 <polyline points="432,540 551,540" class="ln"/>
 <polygon points="560,540 550,545 550,535" class="hd"/>
-<rect x="446.03" y="520.1" width="99.94" height="16.1" class="lbg"/>
-<text x="496" y="532" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">completeRun</tspan></text>
+<rect x="424.68" y="520.1" width="142.64" height="16.1" class="lbg"/>
+<text x="496" y="532" class="m" text-anchor="middle" xml:space="preserve"><tspan class="code">RunMove.complete</tspan></text>
 <polyline points="366,560 366,632 551,632" class="ln"/>
 <polygon points="560,632 550,637 550,627" class="hd"/>
-<rect x="375" y="612.1" width="166.646" height="16.1" class="lbg"/>
-<text x="378" y="624" class="m" xml:space="preserve"><tspan class="code">failRun</tspan>: any other end</text>
+<rect x="375" y="612.1" width="209.346" height="16.1" class="lbg"/>
+<text x="378" y="624" class="m" xml:space="preserve"><tspan class="code">RunMove.fail</tspan>: any other end</text>
 <polyline points="126,560 126,676 626,676 626,661" class="ln"/>
 <polygon points="626,652 631,662 621,662" class="hd"/>
-<rect x="135" y="669.1" width="222.952" height="16.1" class="lbg"/>
-<text x="138" y="681" class="m" xml:space="preserve"><tspan class="code">failRun</tspan>: SQS refused the send</text>
+<rect x="135" y="669.1" width="265.652" height="16.1" class="lbg"/>
+<text x="138" y="681" class="m" xml:space="preserve"><tspan class="code">RunMove.fail</tspan>: SQS refused the send</text>
 <polyline points="692,632 732,632 732,716 30,716 30,540 51,540" class="ln dash"/>
 <polygon points="60,540 50,545 50,535" class="hd"/>
 <rect x="136.481" y="709.1" width="479.038" height="16.1" class="lbg"/>

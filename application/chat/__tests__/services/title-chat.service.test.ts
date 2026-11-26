@@ -6,8 +6,7 @@ import type { ChatEntitySet, ChatEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatNotFoundError, ChatTitle } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
 import { TitleChatService } from '#chat/services/title-chat.service'
 import { assistantMessageAt, chat, chatId, firstMessage } from '#testing/chat/chat.test-fixture'
@@ -23,7 +22,8 @@ describe('TitleChatService', () => {
     const { logs, layer: logger } = recordLogs()
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     return Effect.gen(function* () {
-      yield* TitleChatService.use((titleChat) => titleChat.title(chatId))
+      const titleChat = yield* TitleChatService
+      yield* titleChat.title(chatId)
 
       assert.deepStrictEqual(updates, [
         [
@@ -59,9 +59,8 @@ describe('TitleChatService', () => {
   it.effect('title fails a chat with no message as gone, without asking', () => {
     const assistant = recordChatAssistant(Effect.succeed(ChatTitle.make('Lisbon weekend')))
     return Effect.gen(function* () {
-      const error = yield* TitleChatService.use((titleChat) => titleChat.title(chatId)).pipe(
-        Effect.flip,
-      )
+      const titleChat = yield* TitleChatService
+      const error = yield* titleChat.title(chatId).pipe(Effect.flip)
 
       assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chatId }))
       assertEquals(yield* assistant.texts, [])

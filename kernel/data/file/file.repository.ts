@@ -56,7 +56,9 @@ export class FileRepository extends Context.Service<
     readonly delete: (where: FileEntityWhere) => Effect.Effect<void>
   }
 >()('@app-template/kernel/data/file/FileRepository', {
-  make: S3Bucket.useSync((bucket) => {
+  make: Effect.gen(function* () {
+    const bucket = yield* S3Bucket
+
     // Signing sends no request, so a missing file costs only its read.
     const signUrl = (id: string) => bucket.url(buildFileKey(id), urlLifetime)
 

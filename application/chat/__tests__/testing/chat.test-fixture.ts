@@ -1,6 +1,6 @@
 import { DateTime } from 'effect'
 
-import { UserId } from '@app-template/application/identity'
+import { UserId } from '@app-template/application/user'
 import { epoch } from '@app-template/packages/testing'
 
 import { Chat } from '#chat/domain/chat.model'

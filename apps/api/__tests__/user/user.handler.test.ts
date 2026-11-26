@@ -16,7 +16,11 @@ const readUserSecretCookie = (response: HttpClientResponse.HttpClientResponse) =
   Cookies.get(response.cookies, 'user_secret')
 
 /** A `UserRepository` that finds no user and takes every new one. */
-const newcomer = { selectOne: () => Effect.succeedNone, insert: () => Effect.void }
+const newcomer = {
+  selectOne: () => Effect.succeedNone,
+  insert: () => Effect.void,
+  insertCredential: () => Effect.void,
+}
 
 describe('users', () => {
   it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
@@ -33,17 +37,18 @@ describe('users', () => {
   )
 
   it.effect(
-    'POST /users with the cookie of a known user returns them and refreshes the cookie',
+    'POST /users with the cookie of a known user returns their id and creation time and refreshes the cookie',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
 
-        const [user, response] = yield* api.users.recognise({
-          responseMode: 'decoded-and-response',
-        })
+        const [, response] = yield* api.users.recognise({ responseMode: 'decoded-and-response' })
 
         const cookie = readUserSecretCookie(response).pipe(Option.getOrThrow)
-        assert.strictEqual(user.id, owner)
+        assert.strictEqual(
+          yield* response.text,
+          `{"id":"${owner}","createdAt":"1970-01-01T00:00:00.000Z"}`,
+        )
         assert.strictEqual(
           cookie.value,
           Cookies.get(ownerCookie, 'user_secret').pipe(Option.getOrThrow).value,
