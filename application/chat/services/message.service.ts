@@ -1,6 +1,6 @@
-import { Context, Effect, Layer, type Types, UndefinedOr } from 'effect'
+import { Context, Effect, Layer, type Types } from 'effect'
 
-import { encodeWhere, MessageRepository } from '@app-template/kernel/data'
+import { encodeWhere, MessageRepository, type WhereRange } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 
 import { Message, MessageNotFoundError } from '#chat/domain/message.model'
@@ -8,10 +8,10 @@ import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
-/** A chat's messages, those after the message `afterId` names when given. */
+/** A chat's messages, those of the range of ids `id` names when given. */
 export type MessageManyWhere = {
   readonly chatId: Message['chatId']
-  readonly afterId?: Message['id']
+  readonly id?: WhereRange<Message['id']>
 }
 
 export class MessageService extends Context.Service<
@@ -46,11 +46,7 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      ({ chatId, afterId }: MessageManyWhere) =>
-        messages.selectMany({
-          ...encodeWhere({ chatId }),
-          ...UndefinedOr.map(afterId, (id) => ({ id: { gt: id } })),
-        }),
+      (where: MessageManyWhere) => messages.selectMany(encodeWhere(where)),
       Effect.flatMap(RowCodec.decodeMany(Message)),
     )
 

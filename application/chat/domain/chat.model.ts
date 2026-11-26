@@ -19,12 +19,12 @@ export const ChatTitle = Schema.String.check(
 export type ChatTitle = typeof ChatTitle.Type
 
 /**
- * What a chat keeps of its context once cut: the last message a reply no longer sends, and the
- * summary of the messages up to it.
+ * What a chat keeps of its context once cut: the latest summary of the messages a reply no
+ * longer sends, and the message its replies send from.
  */
 export const ChatAssistantContext = Schema.Struct({
-  summaryLastMessageId: MessageId,
-  summary: Schema.String,
+  latestSummary: Schema.String,
+  startMessageId: MessageId,
 })
 export type ChatAssistantContext = typeof ChatAssistantContext.Type
 

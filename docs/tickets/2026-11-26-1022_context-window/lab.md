@@ -110,6 +110,10 @@ none.
   leaves the context uncut, with a warning, and the chat's next reply tries the cut again. This
   takes back the [D:ai] line above, "a summary that fails does not hold the cut back": a chat
   whose summary kept failing is never cut (Later).
+- [N:ai] The owner's "rename context: latestSummary startMessageId â€¦ id: {from, to} -> gte lte",
+  in L4.8: the chat stores the first message its replies send again, beside the latest summary,
+  and `encodeWhere` turns a range into its bounds, so `messages.getMany` takes
+  `id: { from }` and writes no condition itself.
 
 ### Output
 
@@ -131,7 +135,7 @@ context with the summary it holds", "summarise asks the reply's language model â
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
 - [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
-  (`summaryLastMessageId`, `summary`), written by a cut in the reply's transaction; a value nothing reads (a
+  (`latestSummary`, `startMessageId`), written by a cut after the reply's commit; a value nothing reads (a
   total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
@@ -141,8 +145,8 @@ context with the summary it holds", "summarise asks the reply's language model â
   cut context opens with is the domain's.
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;
   a rename and a cut that land in the same milliseconds may lose one of the two.
-- [D] (the owner's) A where's field that names no column (`afterId`) is a condition its service's
-  method writes itself; no marker class stands for an operator.
+- [D] (the owner's) A where's range is a plain object, `{ from, to }`, which `encodeWhere` turns
+  into `{ gte, lte }`; no marker class stands for an operator and no method writes one.
 - [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
 - [D] A chat with no tail within the lower share is cut to its newest user message: a chat never
   cut breaks for good once past the model's window.

@@ -68,7 +68,6 @@ describe('ChatContextTokenizer.compact', () => {
 })
 
 describe('ChatContextTokenizer.withContext', () => {
-  const aPhoto = assistantMessageAt(2, 'A photo.')
   const ofWhat = userMessageAt(3, 'Of what?')
 
   it('sends the messages of an uncut chat as they are', () => {
@@ -76,7 +75,7 @@ describe('ChatContextTokenizer.withContext', () => {
   })
 
   it("opens a cut chat's messages with the summary its context holds", () => {
-    const context = { summaryLastMessageId: aPhoto.id, summary: 'They spoke of a photo.' }
+    const context = { latestSummary: 'They spoke of a photo.', startMessageId: ofWhat.id }
 
     assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
       {

@@ -30,4 +30,11 @@ describe('encodeWhere', () => {
     assert.deepStrictEqual(filter, { id: 'a', status: { in: ['placed', 'paid'] } })
     assert.notStrictEqual(filter.status.in, statuses)
   })
+
+  it('turns a range into its bounds, each included, one left out when absent', () => {
+    assert.deepStrictEqual(encodeWhere({ id: { from: 'a', to: 'c' }, at: { from: 1 } }), {
+      id: { gte: 'a', lte: 'c' },
+      at: { gte: 1 },
+    })
+  })
 })

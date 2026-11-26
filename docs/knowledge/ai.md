@@ -45,19 +45,19 @@ graph LR
 
 ## The context and its cut
 
-A chat's context is what its reply sends the language model: the chat's messages after the last
-one its summary holds (`messages.getMany` with `afterId`), opened by that summary, which
-`ChatContextTokenizer.withContext` puts first. The assistants take that list ready and only
-encode it. The history, every message of the chat, stays in the database and in the chat's list.
-After each reply, once it is committed, `ReplyChatService` asks `ChatContextPolicy.isOverLimit`
-whether the context is due a cut:
+A chat's context is what its reply sends the language model: the chat's messages from the start the
+chat stores (`messages.getMany` with `id: { from }`), opened by the latest summary of those before
+it, which `ChatContextTokenizer.withContext` puts first. The assistants take that list ready and
+only encode it. The history, every message of the chat, stays in the database and in the chat's
+list. After each reply, once it is committed, `ReplyChatService` asks
+`ChatContextPolicy.isOverLimit` whether the context is due a cut:
 
 - while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
   context stays as it is, and the chat is not written;
 - past that, `ChatContextTokenizer.compact` keeps the messages from the oldest user message whose
   tail holds at most 0.3 of the limit, the tokens taken as spread over the messages like their
-  characters; the rest are summarised, and the summary is stored on the chat with the last
-  message it holds (`chats.context`: `summaryLastMessageId`, `summary`).
+  characters; the rest are summarised, and the summary is stored on the chat with the first
+  message kept (`chats.context`: `latestSummary`, `startMessageId`).
 
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case
@@ -68,7 +68,7 @@ A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks t
 language model, under a system prompt of its own, for a summary of the messages the cut leaves
 out, the summary of an earlier cut among them, and the cut context opens with it as a user
 message. The call follows the reply's commit, as it is long and one that ends badly must cost no
-reply; the summary and its last message are one write, so two replies of one chat that cut at
+reply; the summary and the start are one write, so two replies of one chat that cut at
 once each store a whole pair. A cut context always holds a summary: one that fails is logged as
 a warning and leaves the context as it was, for the chat's next reply to cut.
 

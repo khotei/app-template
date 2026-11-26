@@ -154,7 +154,7 @@ describe('ChatService', () => {
   it.live('update writes a context with the title the chat was read with', () => {
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     const titled = new Chat({ ...chat, title: Option.some(trip) })
-    const cut = { summaryLastMessageId: firstMessage.id, summary: 'A summary.' }
+    const cut = { latestSummary: 'A summary.', startMessageId: firstMessage.id }
     return Effect.gen(function* () {
       const service = yield* ChatService
 
@@ -172,7 +172,7 @@ describe('ChatService', () => {
           {
             id: chat.id,
             title: trip,
-            context: { summaryLastMessageId: firstMessage.id, summary: 'A summary.' },
+            context: { latestSummary: 'A summary.', startMessageId: firstMessage.id },
             updatedAt: DateTime.toDateUtc(updated.updatedAt),
           },
           { id: chat.id, userId: owner },

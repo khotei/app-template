@@ -50,7 +50,7 @@ export class ChatContextTokenizer {
   }
 
   /**
-   * `messages`, the chat's after those `context` summarises, as they are sent: opened by a user's
+   * `messages`, the chat's from where `context` starts, as they are sent: opened by a user's
    * message that holds the context's summary. The messages themselves while the chat holds no
    * context.
    */
@@ -60,7 +60,7 @@ export class ChatContextTokenizer {
   ): ReadonlyArray<ContextMessage> =>
     Option.match(context, {
       onNone: () => messages,
-      onSome: ({ summary }) =>
-        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${summary}` }),
+      onSome: ({ latestSummary }) =>
+        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${latestSummary}` }),
     })
 }

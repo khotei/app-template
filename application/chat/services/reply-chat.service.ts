@@ -55,14 +55,16 @@ export class ReplyChatService extends Context.Service<
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
       const chat = yield* chats.getOne({ id: started.chatId, userId: started.userId })
-      const sent = yield* messages.getMany({
+      const history = yield* messages.getMany({
         chatId: chat.id,
         ...Option.match(chat.context, {
           onNone: () => ({}),
-          onSome: ({ summaryLastMessageId }) => ({ afterId: summaryLastMessageId }),
+          onSome: ({ startMessageId }) => ({ id: { from: startMessageId } }),
         }),
       })
-      const generated = yield* assistant.reply(ChatContextTokenizer.withContext(chat.context, sent))
+      const generated = yield* assistant.reply(
+        ChatContextTokenizer.withContext(chat.context, history),
+      )
       const message = yield* messages.create({
         ...Struct.pick(started, ['chatId', 'userId']),
         text: generated.text,
@@ -72,13 +74,13 @@ export class ReplyChatService extends Context.Service<
 
       return {
         chat,
-        sent: Arr.append(sent, message),
+        sent: Arr.append(history, message),
         tokensSize: ChatContextTokenizer.tokensSize(generated.usage),
       }
     }, transaction.run)
 
     // Cuts a context over its limit, once the reply is committed: the summary's call is long, and
-    // one that ends badly must cost no reply. The summary and its last message are one write, so
+    // one that ends badly must cost no reply. The summary and the context's start are one write, so
     // a summary that fails leaves the context uncut, for the chat's next reply to cut.
     const cutOverLimit = Effect.fnUntraced(
       function* ({
@@ -95,14 +97,14 @@ export class ReplyChatService extends Context.Service<
 
         const kept = ChatContextTokenizer.compact(sent, { tokensSize, tokensLimit })
         const left = Arr.dropRight(sent, kept.length)
-        const last = Arr.last(left)
-        if (Option.isNone(last)) return
+        const start = Arr.head(kept)
+        if (Arr.isReadonlyArrayEmpty(left) || Option.isNone(start)) return
 
-        const summary = yield* assistant.summarise(
+        const latestSummary = yield* assistant.summarise(
           ChatContextTokenizer.withContext(chat.context, left),
         )
         yield* chats.update(
-          { context: Option.some({ summaryLastMessageId: last.value.id, summary }) },
+          { context: Option.some({ latestSummary, startMessageId: start.value.id }) },
           { id: chat.id, userId: chat.userId },
         )
       },
