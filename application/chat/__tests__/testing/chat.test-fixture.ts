@@ -1,9 +1,9 @@
-import { DateTime } from 'effect'
+import { DateTime, Option, Struct } from 'effect'
 
 import { UserId } from '@app-template/application/user'
 import { epoch } from '@app-template/packages/testing'
 
-import { Chat } from '#chat/domain/chat.model'
+import { Chat, type ChatUsage } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
@@ -73,4 +73,10 @@ export const runUsage: RunUsage = {
   outputTokens: 5,
   cacheReadTokens: 100,
   cacheWriteTokens: 20,
+}
+
+/** The usage of a chat after one reply of `runUsage`, its context whole. */
+export const chatUsage: ChatUsage = {
+  total: Struct.omit(runUsage, ['model']),
+  context: { tokensSize: 135, startMessageId: Option.none() },
 }

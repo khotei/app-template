@@ -1,5 +1,5 @@
-import { Context, Effect, Layer, type Types } from 'effect'
-import type { SetOptional, SetRequired } from 'type-fest'
+import { Context, Effect, Layer, Struct, type Types } from 'effect'
+import type { RequireAtLeastOne, SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/user'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
@@ -15,6 +15,9 @@ export type ChatWhere = Types.Simplify<
   SetOptional<Pick<Chat, 'id' | 'userId' | 'title'>, 'userId' | 'title'>
 >
 
+/** The fields an update may set: a user's rename the title, a reply the usage. */
+export type ChatUpdate = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'usage'>>>
+
 export class ChatService extends Context.Service<
   ChatService,
   {
@@ -25,9 +28,9 @@ export class ChatService extends Context.Service<
     readonly getOne: (
       where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
+    /** Sets `fields` alone on the chat `where` finds and moves its `updatedAt`. */
     readonly update: (
-      fields: typeof Chat.jsonUpdate.Type,
+      fields: ChatUpdate,
       where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the chat of the user `where` names, with its messages and Runs; another's is not found. */
@@ -62,15 +65,21 @@ export class ChatService extends Context.Service<
     )
 
     const update = Effect.fn('ChatService.update')(function* (
-      fields: typeof Chat.jsonUpdate.Type,
+      fields: ChatUpdate,
       where: ChatWhere,
     ) {
       const chat = yield* getOne(where)
-      const { set, row } = yield* RowCodec.makeUpdate(Chat)({ id: chat.id, ...fields })
+      const { set, row } = yield* RowCodec.makeUpdate(Chat)({
+        ...Struct.pick(chat, ['id', 'title', 'usage']),
+        ...fields,
+      })
 
-      // Only the update variant's fields, under the `where` again: a change landing after the
-      // read is kept.
-      yield* chats.update(row, encodeWhere(where))
+      // Only the columns `fields` names, under the `where` again: a rename leaves the usage a
+      // reply wrote since the read, and a reply the title.
+      yield* chats.update(
+        Struct.pick(row, ['id', 'updatedAt', ...Struct.keys(fields)]),
+        encodeWhere(where),
+      )
       return new Chat({ ...chat, ...set })
     })
 

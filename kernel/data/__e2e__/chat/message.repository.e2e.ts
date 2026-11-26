@@ -77,6 +77,7 @@ const insertOwnedChats = (chatIds: ReadonlyArray<string>) =>
           id,
           userId,
           title: null,
+          usage: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
         }),

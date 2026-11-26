@@ -59,6 +59,10 @@ The owner's, 2026-11-26, in their words, each answering a draft shown in the ses
 - "findStart -> findContext and return ChatContext"; "size -> tokensSize"; "window ->
   tokensLimit"; "answered.usage.promptTokens + answered.usage.outputTokens this also should be
   business rule"; "Others seems like ok"; "seems like ok! go ahead".
+- "what if we will store usages on Chat? ... like total usages and current usages"; "like set chat
+  json usages {total: totalUsages, context: contextUsageees, contextMessageStartId}"; "yes", to
+  one column `chats.usage` with `total` and `context { tokensSize, startMessageId }`, written in
+  the reply's transaction.
 
 What they settled, as the last draft stood:
 
@@ -73,15 +77,21 @@ What they settled, as the last draft stood:
   characters.
 - `ContextChatService`: `getOne(where)`, the chat's messages from its stored start, and
   `update(where, context)`, which stores where the context starts.
-- `ReplyChatService` orders them: it reads the context, replies, and after the reply's commit
-  finds the next context and stores it; a failure there is logged and the Run stays done.
-- The start is `chats.context_start_message_id`; the limit is the setting
+- `ReplyChatService` orders them in the reply's transaction: it reads the context, replies, finds
+  the next context and stores it with the chat's usage.
+- A chat holds `usage` (`chats.usage`, jsonb, none until its first reply): `total`, the counts of
+  its replies added up, and `context`, the tokens of the last prompt and reply (`tokensSize`) and
+  the context's start (`startMessageId`). A Run keeps its own usage.
+- The limit is the setting
   `LLM_REPLY_CONTEXT_TOKENS_LIMIT`; once a chat has a start, the request opens with a fixed note
   that earlier messages are not shown.
 
 ### Notes
 
 - [DO] "seems like ok! go ahead".
+- [N:ai] A chat had one updatable column, and an update wrote every field of the update variant,
+  a missing one as its default: with `usage` beside `title`, a rename would have reset the usage.
+  `ChatService.update` now hands the repository the named columns alone (L3.3).
 - [Q:ai] The owner asked what happens when a user asks about messages no longer in the context:
   the model does not see them. Settled as the note in this step and a summary as L4.
 
@@ -104,6 +114,3 @@ What they settled, as the last draft stood:
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
 - A chat whose newest user message alone is longer than 0.3 of the limit is not cut:
   `findContext` finds none — `application/chat/domain/chat-context-state.ts:26` — open
-- A chat's total usage as a column the reply's transaction moves, asked by the owner ("what if we
-  will store usages on Chat? ... like total usages and current usages"): the current one stays
-  derived from the chat's newest Run; the total waits for a reader, the wire line above — L3 — open
