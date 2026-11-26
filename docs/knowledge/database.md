@@ -162,7 +162,8 @@ settles it.
 
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
 values alone: a branded id, an `Option` for a field that may be null (`{ id, title: Option.none() }`
-is a chat still untitled), a list for one of several (`status: activeRunStatuses`). It is one plain
+is a chat still untitled), a list for one of several (`status: activeRunStatuses`), an `AtLeast`
+for a column at or past a value (`id: new AtLeast(startMessageId)`). It is one plain
 type whose key is a required field, and so is the owner on a type only a call on a user's behalf
 takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, the first member of
 `RunWhere`); a narrowing a caller may leave out is an absent key, never an `Option` nor an
@@ -170,7 +171,8 @@ takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, the fi
 one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
 and the title job's alike. What a service hands a repository is Drizzle's filter object, which
 `encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
-none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, any other value stays
+none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, an `AtLeast`
+`{ gte: … }`, any other value stays
 itself (`chats.selectOne(encodeWhere(where))`). Every field of the value becomes a condition, so a
 caller writes its where as a literal of the type's fields, which the compiler checks, and never
 hands a record whole. `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere`

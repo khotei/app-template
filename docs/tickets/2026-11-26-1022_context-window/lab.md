@@ -102,3 +102,8 @@ What they settled, as the last draft stood:
 - With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts and
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
+- A chat whose newest user message alone is longer than 0.3 of the limit is not cut:
+  `findContext` finds none — `application/chat/domain/chat-context-state.ts:26` — open
+- A chat's total usage as a column the reply's transaction moves, asked by the owner ("what if we
+  will store usages on Chat? ... like total usages and current usages"): the current one stays
+  derived from the chat's newest Run; the total waits for a reader, the wire line above — L3 — open
