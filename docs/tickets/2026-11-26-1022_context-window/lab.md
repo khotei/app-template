@@ -21,7 +21,7 @@ facts, its out-of-scope list and its open questions stand
 |---|---|---|---|---|
 | L1 | A Run that is done holds its reply's usage and the model that answered · visible: `make test-unit`; after a reply under `make dev`, `select usage from runs` shows the counts | minimal | build | done |
 | L2 | The prompt of a chat's next reply starts with the prompt of its last one · visible: a test that fails when the system prompt or an earlier message's encoding changes between two replies | minimal | build | done |
-| L3 | A chat's context, what its reply sends the model, is cut once its last prompt and reply pass 0.8 of the tokens limit, down to 0.3, from a user message; its start is stored and a fixed note tells the model that earlier messages are not shown · visible: a chat past the upper share sends a context that starts later, and its list still shows every message | minimal | build | in progress |
+| L3 | A chat's context, what its reply sends the model, is cut once its last prompt and reply pass 0.8 of the tokens limit, down to 0.3, from a user message; its start is stored and a fixed note tells the model that earlier messages are not shown · visible: a chat past the upper share sends a context that starts later, and its list still shows every message | minimal | build | done |
 | L4 | A cut keeps a summary of what it left out, stored and sent in place of the note · visible: after a cut, the next request opens with the summary | minimal | build | todo |
 | L5 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | todo |
 | L6 | Later: the items of the open list the owner picks | hard | build | todo |
@@ -47,73 +47,9 @@ processes; a header that differs between two requests.
 
 ## L3 — A chat's context is cut and its start stored
 
-### Shape
-
-The owner's, 2026-11-26, in their words, each answering a draft shown in the session:
-
-- "I think this should one more service which will be injected"; "we should set it after response
-  (in workder-reply service)".
-- "maybe better call it ChatAssistantContext or something like that? At the end we get context for
-  ai, and then set context. Maybe we need domain class which will calc it and then
-  getContext({...}) setContext(ChatContext.calc)".
-- "findStart -> findContext and return ChatContext"; "size -> tokensSize"; "window ->
-  tokensLimit"; "answered.usage.promptTokens + answered.usage.outputTokens this also should be
-  business rule"; "Others seems like ok"; "seems like ok! go ahead".
-- "what if we will store usages on Chat? ... like total usages and current usages"; "like set chat
-  json usages {total: totalUsages, context: contextUsageees, contextMessageStartId}"; "yes", to
-  one column `chats.usage` with `total` and `context { tokensSize, startMessageId }`, written in
-  the reply's transaction.
-
-What they settled, as the last draft stood:
-
-- Words: the history is every finished message of a chat; the context is what a reply sends the
-  model, the messages from a stored start.
-- `ChatContext` (`chat-context.model.ts`): `startMessageId`, none for the chat's first message,
-  and `messages`.
-- `ChatContextState` (`chat-context-state.ts`): `tokensSize(usage)`, a prompt's tokens and its
-  reply's together; `findContext(context, tokensSize, tokensLimit)`, the context the next reply
-  sends, none while `tokensSize` fits 0.8 of `tokensLimit`, else from the oldest user message
-  whose tail holds at most 0.3 of it, the tokens taken as spread over the messages like their
-  characters.
-- `ContextChatService`: `getOne(where)`, the chat's messages from its stored start, and
-  `update(where, context)`, which stores where the context starts.
-- `ReplyChatService` orders them in the reply's transaction: it reads the context, replies, finds
-  the next context and stores it with the chat's usage.
-- A chat holds `usage` (`chats.usage`, jsonb, none until its first reply): `total`, the counts of
-  its replies added up, and `context`, the tokens of the last prompt and reply (`tokensSize`) and
-  the context's start (`startMessageId`). A Run keeps its own usage.
-- The limit is the setting
-  `LLM_REPLY_CONTEXT_TOKENS_LIMIT`; once a chat has a start, the request opens with a fixed note
-  that earlier messages are not shown.
-
-### Notes
-
-- [DO] "seems like ok! go ahead".
-- [N:ai] A chat had one updatable column, and an update wrote every field of the update variant,
-  a missing one as its default: with `usage` beside `title`, a rename would have reset the usage.
-  `ChatService.update` now hands the repository the named columns alone (L3.3).
-- [Q:ai] The owner asked what happens when a user asks about messages no longer in the context:
-  the model does not see them. Settled as the note in this step and a summary as L4.
-- [D:ai] `ContextChatService.update(where, { context, usage })` takes the reply's usage beside
-  the next context, and `ChatUsageState.add` is the rule it applies; the Shape named
-  `update(where, context)` before the chat's usage was settled. Without it the flow would read
-  the chat's usage itself to add to it.
-- [D:ai] The limit is a field of `MessageAssistant`, `contextTokensLimit`, read from the setting
-  beside its model, so every double of the assistant gives one. Without it `ReplyChatService`
-  reads a setting of the kernel and each of its tests provides a config.
-- [N:ai] Review of L3 (Intent, Hunt, Rules). Fixed: a chat with no tail within 0.3 of the limit
-  was never cut and broke for good once past the model's window, shown by the review's probe
-  (L3.8, the cut now starts at the newest user's message); a chat not found is handled once, in
-  the tail of the reply's answer, and a case sends two replies over a store that holds to the id
-  bound, the second prompting from the start the first stored, seen red with the bound removed
-  (L3.9). Rejected: other names for `findContext` and `tokensSize`, the owner's words, and for
-  `add`, which says its act; a variant in place of `ChatUpdate`, as no variant requires one of
-  two fields; a commit apart for the fix of `ChatService.update`, which no test shows red before
-  the column exists.
-
 ### Output
 
-Proposed: a reply reads its chat's context, the messages from the start the chat's usage holds,
+A reply reads its chat's context, the messages from the start the chat's usage holds,
 and in its transaction stores the chat's usage (`chats.usage`: the total of its replies, and the
 context's `tokensSize` and `startMessageId`). Once a reply's prompt and text pass 0.8 of
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the context is cut to the oldest user message whose tail holds
@@ -129,6 +65,16 @@ the chat's messages from the start the cut stored"; `make test-e2e`, the journey
   to `done` by a check; it is read and written whole.
 - [D] The usage stays off the wire until a client reads it.
 - [D] A response with a count or the model's name missing fails the reply as an `LlmError`.
+- [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
+  what a reply sends the model, the messages from a stored start.
+- [D] (the owner's) A chat holds its usage as one jsonb column, `total` and `context`
+  (`tokensSize`, `startMessageId`), written in the reply's transaction; a Run keeps its own.
+- [D] (the owner's) The cut is a rule of the domain (`ChatContextState`), read and stored through
+  `ContextChatService`, and found after the reply, so a context's start holds between two cuts.
+- [D] `ContextChatService.update` takes the reply's usage beside the next context, and the limit
+  is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
+- [D] A chat with no tail within the lower share is cut to its newest user message: a chat never
+  cut breaks for good once past the model's window.
 
 ## Later
 
