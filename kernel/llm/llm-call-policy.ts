@@ -3,11 +3,33 @@ import type { AiError, Response } from 'effect/ai'
 
 import { LlmError } from '#kernel/llm/llm.error'
 
-const isFinished = ({ finishReason }: { readonly finishReason: Response.FinishReason }) =>
-  finishReason === 'stop'
+/** What `askModel` reads of an answer: how it ended and what its output counted. */
+type Answer = {
+  readonly finishReason: Response.FinishReason
+  readonly usage: Response.Usage
+}
 
-const toUnfinishedError = ({ finishReason }: { readonly finishReason: Response.FinishReason }) =>
-  new LlmError({ cause: `the model stopped with finish reason ${finishReason}` })
+const isFinished = ({ finishReason }: Answer) => finishReason === 'stop'
+
+/**
+ * Which limit cut an answer of finish reason `length`, in the provider's words. The provider's
+ * package maps both to `length` and keeps neither, so it is read from the output's tokens: an
+ * answer cut at the request's `max_tokens` counts that many, one cut by the window fewer.
+ */
+const lengthLimitOf = (outputTokens: number, maxTokens: number) =>
+  outputTokens >= maxTokens ? 'max_tokens' : 'model_context_window_exceeded'
+
+const toUnfinishedError =
+  (maxTokens: number) =>
+  ({ finishReason, usage }: Answer) => {
+    const outputTokens = usage.outputTokens.total ?? 0
+    const limit =
+      finishReason === 'length'
+        ? `, at ${lengthLimitOf(outputTokens, maxTokens)} after ${outputTokens} output tokens`
+        : ''
+
+    return new LlmError({ cause: `the model stopped with finish reason ${finishReason}${limit}` })
+  }
 
 const toLlmError = ({ message }: AiError.AiError) => new LlmError({ cause: message })
 
@@ -26,16 +48,17 @@ const retrySchedule = Schedule.exponential('1 second').pipe(
 )
 
 /**
- * `request` asked again while the provider marks its failure retryable, then its failure, or an
- * answer the language model did not finish, as an `LlmError`. Checked after the call's retries, an unfinished
- * answer is not asked again: resent with the same prompt and limits, it would most likely end
- * the same way.
+ * `request`, sent with `maxTokens` as its output's limit, asked again while the provider marks
+ * its failure retryable, then its failure, or an answer the language model did not finish, as an
+ * `LlmError`; one cut for its length names the limit that cut it. Checked after the call's
+ * retries, an unfinished answer is not asked again: resent with the same prompt and limits, it
+ * would most likely end the same way.
  */
-export const askModel = <A extends { readonly finishReason: Response.FinishReason }>(
-  request: Effect.Effect<A, AiError.AiError>,
-): Effect.Effect<A, LlmError> =>
-  request.pipe(
-    Effect.retry({ times: 2, while: isWorthRetrying, schedule: retrySchedule }),
-    Effect.mapError(toLlmError),
-    Effect.filterOrFail(isFinished, toUnfinishedError),
-  )
+export const askModel =
+  ({ maxTokens }: { readonly maxTokens: number }) =>
+  <A extends Answer>(request: Effect.Effect<A, AiError.AiError>): Effect.Effect<A, LlmError> =>
+    request.pipe(
+      Effect.retry({ times: 2, while: isWorthRetrying, schedule: retrySchedule }),
+      Effect.mapError(toLlmError),
+      Effect.filterOrFail(isFinished, toUnfinishedError(maxTokens)),
+    )

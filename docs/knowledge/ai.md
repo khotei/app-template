@@ -111,7 +111,7 @@ job is never retried ([aws.md › Queues](aws.md#queues)).
 | an `AiError` whose `isRetryable` holds (5xx, 529, a rate limit, a transport error, a title that fails its schema) and whose `retryAfter` is at most 30 s | twice, 1 s then 2 s apart, never before `retryAfter` |
 | a rate limit asking a longer wait, such as a daily token limit | no |
 | any other `AiError` (401/403, 400/404/422, an overlong prompt, no credit) | no |
-| an answer that finished any other way than `stop` (`content-filter` for Anthropic's `refusal`, `length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `LlmError`, its partial text dropped |
+| an answer that finished any other way than `stop` (`content-filter` for Anthropic's `refusal`, `length` at `max_tokens` or the model's context window, `unknown` for a stop reason the package does not map), or a blank reply | no: `LlmError`, its partial text dropped |
 
 The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
 error, for operators: the use cases log it, a failed Run keeps it as its failure's `cause`, and
@@ -124,6 +124,13 @@ once, even when its text reads whole. A title cut at `max_tokens` inside its JSO
 prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
 it is asked again as a malformed answer and ends as `LlmError`, a refusal too. The
 title's use case logs either and leaves the chat untitled.
+
+An answer cut for its length names the limit that cut it: `… finish reason length, at
+max_tokens after 16000 output tokens`, or `at model_context_window_exceeded after …`. The
+package maps both of Anthropic's stop reasons to `length` and keeps neither, so `askModel`, given
+its request's `max_tokens`, reads the limit from the output's tokens: an answer that counts
+`max_tokens` of them was cut there, one that counts fewer by the window. The count stands beside
+the name, for an operator to check the reading.
 
 ## Prompt caching
 
