@@ -15,7 +15,7 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
 - A function takes the smallest whole value that holds what it reads (the nested record, not its
   holder) and nothing another argument holds; an options object is destructured where it is taken.
 - A builder exists for a rule of its own, never to call `new <Model>(…)` alone, as a default is the
-  schema's (`withConstructorDefault`); it spreads what it copies as one `Pick` and sets its own.
+  schema's (`withConstructorDefault`); a create copies a record's fields as one `Struct.pick`.
 
 ## Control flow
 
