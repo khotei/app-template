@@ -22,5 +22,7 @@ export class ChatState {
     Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStates[status] })
 
   /** True while no ask has reached the chat: every user message starts a Run, so none is newest. */
-  static readonly isNew = (newestRun: Option.Option<unknown>): boolean => Option.isNone(newestRun)
+  static readonly isNew = (
+    newestRun: Option.Option<Types.Simplify<Pick<Run, 'status'>>>,
+  ): boolean => Option.isNone(newestRun)
 }
