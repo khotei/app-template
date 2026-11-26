@@ -49,7 +49,7 @@ graph LR
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | paused: attachments removed, to be rethought ([docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md)) |
 | 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | paused: attachments removed, to be rethought |
-| 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
+| 20 | [`context-window`](#20-context-window) | `feat` | 6 | in progress: [docs/tickets/2026-11-26-1022_context-window/](../tickets/2026-11-26-1022_context-window/lab.md) |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 | 23 | `modular-monolith` | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | `attachment-storage-failures` | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
