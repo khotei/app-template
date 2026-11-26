@@ -7,9 +7,6 @@ import type { LlmError } from '@app-template/kernel/llm/error'
 
 import { ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
 
-/** The output's limit of a title's request. */
-const titleMaxTokens = 1_000
-
 const titleInstruction = `Write a title of at most ${maxTitleLength} characters, in the language of the next message, for a chat that opens with it.`
 
 /** A bare `String`: `Schema.Trim` would send the language model its `expected` text as a description. */
@@ -33,7 +30,7 @@ export class ChatAssistant extends Context.Service<
       model: titleModel,
       config: {
         system: titleInstruction,
-        max_tokens: titleMaxTokens,
+        max_tokens: 1_000,
         output_config: { effort: 'low' },
         thinking: { type: 'disabled' },
       },
@@ -41,7 +38,7 @@ export class ChatAssistant extends Context.Service<
 
     const proposeTitle = Effect.fn('ChatAssistant.proposeTitle')(
       (text: string) => model.generateObject({ prompt: text, schema: TitleObject }),
-      askModel({ maxTokens: titleMaxTokens }),
+      askModel,
       Effect.map(({ value }) => value.title),
     )
 

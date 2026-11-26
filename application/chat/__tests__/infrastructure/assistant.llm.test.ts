@@ -53,12 +53,8 @@ function recordAnthropic(respond: () => Response) {
   }
 }
 
-/** A Messages API response whose one text block is `text`, its output counted `outputTokens`. */
-const message = (
-  text: string,
-  stopReason: Generated.BetaStopReason = 'end_turn',
-  outputTokens = 5,
-) =>
+/** A Messages API response whose one text block is `text`. */
+const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn') =>
   Response.json({
     id: 'msg_test',
     type: 'message',
@@ -72,7 +68,7 @@ const message = (
       cache_creation_input_tokens: 20,
       cache_read_input_tokens: 100,
       input_tokens: 10,
-      output_tokens: outputTokens,
+      output_tokens: 5,
       service_tier: null,
     },
   })
@@ -235,18 +231,11 @@ describe('MessageAssistant and ChatAssistant', () => {
       cause: 'content-filter',
     },
     {
-      name: "reply on an answer cut at the request's max_tokens",
+      name: 'reply on an answer cut at max_tokens',
       ask: reply(hi),
-      answer: () => message('Hel', 'max_tokens', 16_000),
+      answer: () => message('Hel', 'max_tokens'),
       sentAt: [0],
-      cause: 'finish reason length, at max_tokens after 16000 output tokens',
-    },
-    {
-      name: "reply on an answer cut by the model's context window, under max_tokens",
-      ask: reply(hi),
-      answer: () => message('Hel', 'model_context_window_exceeded', 9120),
-      sentAt: [0],
-      cause: 'finish reason length, at model_context_window_exceeded after 9120 output tokens',
+      cause: 'length',
     },
     {
       name: 'reply on an answer stopped for a reason the package does not map',

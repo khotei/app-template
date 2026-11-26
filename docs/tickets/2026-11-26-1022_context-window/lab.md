@@ -23,7 +23,7 @@ facts, its out-of-scope list and its open questions stand
 | L2 | The prompt of a chat's next reply starts with the prompt of its last one · visible: a test that fails when the system prompt or an earlier message's encoding changes between two replies | minimal | build | done |
 | L3 | A chat's context, what its reply sends the model, is cut once its last prompt and reply pass 0.8 of the tokens limit, down to 0.3, from a user message; its start is stored and a fixed note tells the model that earlier messages are not shown · visible: a chat past the upper share sends a context that starts later, and its list still shows every message | minimal | build | done |
 | L4 | A cut keeps a summary of what it left out, stored and sent in place of the note · visible: after a cut, the next request opens with the summary | minimal | build | done |
-| L5 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | done |
+| L5 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | dropped |
 | L6 | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — A done Run holds its usage and model
@@ -85,25 +85,14 @@ Built in thirty rounds, L4.3 to L4.30 on the owner's reviews of PR #61 and words
 terminal. Not run: a reply, a cut and a summary on the provider's API; a read of a cut chat's
 messages from Postgres with the reply's Run.
 
-## L5 — A reply cut for its length names its limit
-
-### Output
-
-A Run whose reply was cut for its length keeps which limit cut it in its failure's text:
-`the model stopped with finish reason length, at max_tokens after 16000 output tokens`, or
-`at model_context_window_exceeded after …`. `askModel` takes its request's `max_tokens` and
-reads the limit from the output's tokens, as the provider's package keeps no stop reason. The
-wire is unchanged. See it: `make test-unit`, "reply on an answer cut at the request's
-max_tokens" and "reply on an answer cut by the model's context window, under max_tokens". Not
-run: either limit on the provider's API.
-
 ## Knowledge
 
 - [D] (the owner's "ok", 2026-11-26) A Run's usage is one jsonb column shaped as `failure`, tied
   to `done` by a check; it is read and written whole.
 - [D] The usage stays off the wire until a client reads it.
-- [D] (the owner's "ok") The limit that cut an answer is inferred from its output's tokens, in
-  place of a second read of the response's body for its stop reason.
+- [D] (the owner's) L5 is dropped: a request is sent as it is, and a failure the provider or
+  its package returns fails the Run with its own text; the limit that cut an answer is not
+  inferred from its output's tokens.
 - [D] A response with a count or the model's name missing fails the reply as an `LlmError`.
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
@@ -161,9 +150,5 @@ run: either limit on the provider's API.
 - `ChatContextService.compact` called on a context whose split drops none stores a summary of
   the messages it keeps, so the next reply sends both; its one caller asks the policy first —
   `application/chat/services/chat-context.service.ts:76` — open
-- The limit that cut a reply is read from its output's tokens, equal to `max_tokens` or fewer,
-  not from the provider's stop reason, which the package drops; a window that cuts an answer at
-  exactly `max_tokens` output tokens reads as `max_tokens` —
-  `kernel/llm/llm-call-policy.ts:19` — open
 - The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of
   a service composed over a model's — `.claude/rules/naming.md` — open

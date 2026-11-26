@@ -21,10 +21,6 @@ import { LlmError } from '@app-template/kernel/llm/error'
 import { type ContextMessage, Message } from '#chat/domain/message.model'
 import { RunUsage } from '#chat/domain/run.model'
 
-/** The output's limit of a reply's request, and of a summary's, which asks for 1000 words. */
-const replyMaxTokens = 16_000
-const summaryMaxTokens = 8_000
-
 /** Fixed for every request: a date or user data here would break the cached prefix. */
 const systemPrompt = [
   'You are the assistant of a chat app. Answer the last user message, using the whole conversation as context.',
@@ -79,18 +75,14 @@ export class MessageAssistant extends Context.Service<
     const { replyModel, replyContextTokensLimit } = yield* llmModels
     const model = yield* AnthropicLanguageModel.make({
       model: replyModel,
-      config: {
-        system: systemPrompt,
-        max_tokens: replyMaxTokens,
-        cache_control: { type: 'ephemeral' },
-      },
+      config: { system: systemPrompt, max_tokens: 16_000, cache_control: { type: 'ephemeral' } },
     })
 
     // Decoded after the call's retries, a blank reply is not asked again: it would most likely recur.
     const reply = Effect.fn('MessageAssistant.reply')(
       (messages: ReadonlyArray<ContextMessage>) =>
         model.generateText({ prompt: Arr.map(messages, buildPromptMessage) }),
-      askModel({ maxTokens: replyMaxTokens }),
+      askModel,
       // The usage as the provider counted it; a count or the name it left out fails the decode.
       Effect.map(({ text, usage, content }) => ({
         text,
@@ -114,7 +106,7 @@ export class MessageAssistant extends Context.Service<
     // The reply's model, as what a cut leaves out fits the window its context fitted.
     const summaryModel = yield* AnthropicLanguageModel.make({
       model: replyModel,
-      config: { system: summaryPrompt, max_tokens: summaryMaxTokens },
+      config: { system: summaryPrompt, max_tokens: 8_000 },
     })
 
     const summarise = Effect.fn('MessageAssistant.summarise')(
@@ -122,7 +114,7 @@ export class MessageAssistant extends Context.Service<
         summaryModel.generateText({
           prompt: pipe(messages, Arr.map(buildPromptMessage), Arr.append(summaryRequest)),
         }),
-      askModel({ maxTokens: summaryMaxTokens }),
+      askModel,
       Effect.map(({ text }) => text),
       Effect.filterOrFail(
         flow(Str.trim, Str.isNonEmpty),
