@@ -51,7 +51,7 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   field becomes a condition, so a caller writes a where as a literal of its type's fields, never
   a record whole. No method writes a Drizzle operator, copies a field, picks a where's fields or
   tests which it holds. A read by either of two keys, as its repository's `Keyed` names them,
-  takes a where per key. A field that names no column (a bound, `fromId`) is the one condition
+  takes a where per key. A field that names no column (a bound, `afterId`) is the one condition
   its method writes itself, beside `encodeWhere` of the rest. The types and the alias of a
   relational query:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).

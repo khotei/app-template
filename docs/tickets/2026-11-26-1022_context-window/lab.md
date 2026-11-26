@@ -50,7 +50,7 @@ processes; a header that differs between two requests.
 ### Output
 
 A reply reads its chat's context, the messages from the start the chat holds
-(`chats.context`: `startMessageId`, null until a cut). Once a reply's prompt and text pass 0.8 of
+(`chats.context`, null until a cut). Once a reply's prompt and text pass 0.8 of
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
 (`ChatContextTokenizer.compact`) to the oldest user message whose tail holds at most 0.3 of it,
 or to the newest user message, and its start stored; a cut context opens with a fixed note. The chat's list still shows every message. See it: `make test-unit`, "reply after a
@@ -100,9 +100,11 @@ none.
 - [N:ai] The owner's review of PR #61, nine comments, each answered in its thread, applied in
   L4.3: `ChatContextState` is `ChatContextPolicy` and `ChatContextTokenizer`; `ChatContext` and
   `ContextChatService` are gone; the assistants take ready messages; `messages.getMany` takes
-  `fromId`, and `AtLeast` is gone; `ChatUpdate` is gone and an update writes the row whole.
+  `afterId`, and `AtLeast` is gone; `ChatUpdate` is gone and an update writes the row whole.
   A second review, three comments, in L4.4: `compact` returns the messages a cut keeps, the
   first its new start; `build` is `withContext`; what a chat stores is `ChatAssistantContext`.
+  Then the owner's "summaryLastMessageId summary", in L4.5: the chat stores the last message
+  its summary holds, where it stored the first a reply sends, and a reply reads those after it.
 
 ### Output
 
@@ -124,7 +126,7 @@ context with the summary it holds", "summarise asks the reply's language model â
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
 - [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
-  (`startMessageId`), written by a cut in the reply's transaction; a value nothing reads (a
+  (`summaryLastMessageId`, `summary`), written by a cut in the reply's transaction; a value nothing reads (a
   total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
@@ -134,7 +136,7 @@ context with the summary it holds", "summarise asks the reply's language model â
   cut context opens with is the domain's.
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;
   a rename and a cut that land in the same milliseconds may lose one of the two.
-- [D] (the owner's) A where's field that names no column (`fromId`) is a condition its service's
+- [D] (the owner's) A where's field that names no column (`afterId`) is a condition its service's
   method writes itself; no marker class stands for an operator.
 - [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
 - [D] A chat with no tail within the lower share is cut to its newest user message: a chat never

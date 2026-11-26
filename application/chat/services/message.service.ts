@@ -8,10 +8,10 @@ import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 /** A message by id in its chat, of the user `userId` names, so none reads another's. */
 export type MessageWhere = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
-/** A chat's messages, from the message `fromId` names on when given. */
+/** A chat's messages, those after the message `afterId` names when given. */
 export type MessageManyWhere = {
   readonly chatId: Message['chatId']
-  readonly fromId?: Message['id']
+  readonly afterId?: Message['id']
 }
 
 export class MessageService extends Context.Service<
@@ -46,10 +46,10 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      ({ chatId, fromId }: MessageManyWhere) =>
+      ({ chatId, afterId }: MessageManyWhere) =>
         messages.selectMany({
           ...encodeWhere({ chatId }),
-          ...UndefinedOr.map(fromId, (id) => ({ id: { gte: id } })),
+          ...UndefinedOr.map(afterId, (id) => ({ id: { gt: id } })),
         }),
       Effect.flatMap(RowCodec.decodeMany(Message)),
     )

@@ -363,7 +363,7 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    "reply whose prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the chat's context, with a summary of the messages before it",
+    "reply whose prompt and text pass 0.8 of the assistant's tokens limit stores a summary of the messages the cut leaves out, and the last of them",
     () => {
       // 135 tokens of a limit of 150: the context is cut to a third of its 505 characters.
       const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
@@ -377,7 +377,7 @@ describe('ReplyChatService', () => {
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
-          [{ startMessageId: short.id, summary: 'A summary.' }],
+          [{ summaryLastMessageId: longReply.id, summary: 'A summary.' }],
         )
         assertEquals(yield* assistant.summarised, [[long, longReply]])
       }).pipe(
@@ -397,6 +397,7 @@ describe('ReplyChatService', () => {
   it.effect(
     'reply whose summary fails still cuts the context, asked with the summary it had and keeping it, with a warning, the Run done',
     () => {
+      const before = assistantMessageAt(0, 'Earlier.')
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = assistantMessageAt(2, 'x'.repeat(100))
       const assistant = recordMessageAssistant(Effect.succeed(sure), {
@@ -412,7 +413,7 @@ describe('ReplyChatService', () => {
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
-          [{ startMessageId: short.id, summary: 'Before.' }],
+          [{ summaryLastMessageId: longReply.id, summary: 'Before.' }],
         )
         assert.deepStrictEqual(yield* assistant.summarised, [
           [
@@ -438,7 +439,10 @@ describe('ReplyChatService', () => {
               history: [long, longReply, short],
               asked: new Chat({
                 ...chat,
-                context: Option.some({ startMessageId: long.id, summary: Option.some('Before.') }),
+                context: Option.some({
+                  summaryLastMessageId: before.id,
+                  summary: Option.some('Before.'),
+                }),
               }),
             }),
             { messageAssistant: assistant.layer },
@@ -483,7 +487,7 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    "reply after a cut prompts with the chat's messages from the start the cut stored",
+    "reply after a cut prompts with the summary and the chat's messages after those it holds",
     () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
       const writes = noWrites()
@@ -511,7 +515,7 @@ describe('ReplyChatService', () => {
             pipe(
               history,
               Arr.filter((message) =>
-                Predicate.hasProperty(id, 'gte') ? message.id >= String(id.gte) : true,
+                Predicate.hasProperty(id, 'gt') ? message.id > String(id.gt) : true,
               ),
               Effect.forEach((message) => encodeWith(Message)(message)),
             ),

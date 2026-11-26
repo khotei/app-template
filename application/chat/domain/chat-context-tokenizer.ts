@@ -26,7 +26,8 @@ export class ChatContextTokenizer {
   /**
    * `messages`, a context of `tokensSize`, compacted for the next reply: those from the oldest
    * user's whose tail holds at most `keepShare` of `tokensLimit`, or from the newest user's when
-   * no tail fits; its first is where the context now starts. All of them when nothing can go.
+   * no tail fits; those before its first are what a summary takes. All of them when nothing can
+   * go.
    */
   static readonly compact = <M extends Types.Simplify<Pick<Message, 'author' | 'text'>>>(
     messages: ReadonlyArray<M>,
@@ -50,7 +51,7 @@ export class ChatContextTokenizer {
   }
 
   /**
-   * `messages`, the chat's from where `context` starts, as they are sent: opened by a user's
+   * `messages`, the chat's after those `context` summarises, as they are sent: opened by a user's
    * message that holds the context's summary, or a note that earlier messages are not shown when
    * it has none. The messages themselves while the chat holds no context.
    */

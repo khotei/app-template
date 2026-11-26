@@ -107,7 +107,7 @@ describe('MessageRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect("selectMany bounded by an id reads the chat's messages at or past it", () =>
+  it.effect("selectMany bounded by an id reads the chat's messages after it", () =>
     Effect.gen(function* () {
       const messages = yield* MessageRepository
       const chatId = '0192d4e0-7b3a-7c00-8000-000000000042'
@@ -117,9 +117,9 @@ describe('MessageRepository', () => {
       yield* insertOwnedChats([chatId])
       yield* Effect.forEach([first, second, third], (each) => messages.insert(each))
 
-      const tail = yield* messages.selectMany({ chatId, id: { gte: second.id } })
+      const tail = yield* messages.selectMany({ chatId, id: { gt: second.id } })
 
-      assertSchemaEquals(Messages, tail, [second, third])
+      assertSchemaEquals(Messages, tail, [third])
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 

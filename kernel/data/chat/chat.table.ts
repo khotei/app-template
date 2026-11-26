@@ -8,11 +8,11 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 import { users } from '#kernel/data/user/user.table'
 
 /**
- * Where a cut left a chat's context, as the column `context` holds it: the first message a reply
- * sends, and the summary of those before it.
+ * What a chat keeps of its context once cut, as the column `context` holds it: the last message
+ * a reply no longer sends, and the summary of the messages up to it.
  */
 export const ChatAssistantContext = Schema.Struct({
-  startMessageId: Schema.String,
+  summaryLastMessageId: Schema.String,
   summary: Schema.NullOr(Schema.String),
 })
 export type ChatAssistantContext = typeof ChatAssistantContext.Type
