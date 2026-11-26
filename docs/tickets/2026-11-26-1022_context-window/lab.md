@@ -150,5 +150,9 @@ messages from Postgres with the reply's Run.
 - `ChatContextService.compact` called on a context whose split drops none stores a summary of
   the messages it keeps, so the next reply sends both; its one caller asks the policy first —
   `application/chat/services/chat-context.service.ts:76` — open
+- A chat that passes the model's window fails its Run as any other failure, and its user is
+  not told to open a new chat. A message is at most 20 000 characters by the api's contract
+  alone, so only a summary that fails after many replies, or a limit set over the model's
+  window, reaches it — `application/http-api/chat.http.ts:62` — open
 - The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of
   a service composed over a model's — `.claude/rules/naming.md` — open
