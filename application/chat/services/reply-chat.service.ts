@@ -14,7 +14,7 @@ import {
 } from '#chat/domain/run.model'
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { type AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
 import { ChatContextService } from '#chat/services/chat-context.service'
 import { MessageService } from '#chat/services/message.service'
@@ -56,8 +56,8 @@ export class ReplyChatService extends Context.Service<
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
       const scope = Struct.pick(started, ['chatId', 'userId'])
-      const history = yield* contexts.getMessages(scope)
-      const generated = yield* assistant.reply(history)
+      const context = yield* contexts.getMessages(scope)
+      const generated = yield* assistant.reply(context)
       const message = yield* messages.create({
         ...scope,
         text: generated.text,
@@ -65,24 +65,23 @@ export class ReplyChatService extends Context.Service<
       })
       yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
 
-      return {
-        ...scope,
-        sent: Arr.append(history, message),
-        tokensSize: ChatContextTokenizer.tokensSize(generated.usage),
-      }
+      return generated
     }, transaction.run)
 
     // Cuts a context over its limit, once the reply is committed: the summary's call is long, and
     // one that ends badly must cost no reply. The summary and the context's start are one write, so
     // a summary that fails leaves the context uncut, for the chat's next reply to cut.
     const cutOverLimit = Effect.fnUntraced(
-      function* ({ chatId, userId, sent, tokensSize }: Effect.Success<ReturnType<typeof answer>>) {
+      function* ({ chatId, userId }: Run, { usage }: AssistantReply) {
+        const tokensSize = ChatContextTokenizer.tokensSize(usage)
         const tokensLimit = assistant.contextTokensLimit
         if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
-        // What is left opens with the summary the context held, so the new one carries it over.
-        const kept = ChatContextTokenizer.compact({ messages: sent, tokensSize }, tokensLimit)
-        const left = Arr.dropRight(sent, kept.length)
+        // Read again, the reply now among them; what is left opens with the summary the context
+        // held, so the new one carries it over.
+        const context = yield* contexts.getMessages({ chatId, userId })
+        const kept = ChatContextTokenizer.compact({ messages: context, tokensSize }, tokensLimit)
+        const left = Arr.dropRight(context, kept.length)
         const start = Arr.head(kept).pipe(Option.filter(Schema.is(Message)))
         if (Arr.isReadonlyArrayEmpty(left) || Option.isNone(start)) return
 
@@ -111,11 +110,11 @@ export class ReplyChatService extends Context.Service<
         )
         const started = yield* runs.update(queued, yield* RunMove.start(queued))
 
-        const replied = yield* Effect.interruptible(answer(started)).pipe(
+        const generated = yield* Effect.interruptible(answer(started)).pipe(
           Effect.onError(failUnanswered(started)),
         )
 
-        yield* Effect.interruptible(cutOverLimit(replied))
+        yield* Effect.interruptible(cutOverLimit(started, generated))
       },
       // A Run's chat is there while the Run is, so a chat not found is a defect.
       Effect.catchTag('ChatNotFoundError', Effect.die),

@@ -123,6 +123,9 @@ none.
   ChatContextService.getMessages({chatId, userId})" with "add this too … withContext", in L4.12:
   the service reads a chat's context as a reply sends it, the summary's message first, and a cut
   compacts that list, so what it leaves out already opens with the summary before.
+  Then "return just generated … Refactor&Simplify reply", in L4.15: the answer returns the
+  generated reply alone, and a cut over the limit reads the context again, the reply among its
+  messages by then. Unshown by a unit test: its store's read does not hold the reply written.
 
 ### Output
 
