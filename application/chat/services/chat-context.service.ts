@@ -44,38 +44,44 @@ export class ChatContextService extends Context.Service<
     const messages = yield* MessageService
     const assistant = yield* MessageAssistant
 
-    const getMessages = Effect.fn('ChatContextService.getMessages')(function* ({
-      chatId,
-      userId,
-    }: ChatContextWhere) {
-      const chat = yield* chats.getOne({ id: chatId, userId })
-
-      return yield* messages.getMany({
-        chatId: chat.id,
-        ...Option.match(chat.context, {
+    // The messages a reply of `chat` sends: all of an uncut chat, those from its context's start.
+    const getContextMessages = ({ id, context }: Chat) =>
+      messages.getMany({
+        chatId: id,
+        ...Option.match(context, {
           onNone: () => ({}),
           onSome: ({ startMessageId }) => ({ id: { from: startMessageId } }),
         }),
       })
-    })
+
+    const getMessages = Effect.fn('ChatContextService.getMessages')(
+      ({ chatId, userId }: ChatContextWhere) => chats.getOne({ id: chatId, userId }),
+      Effect.flatMap(getContextMessages),
+    )
 
     const getSummary = Effect.fn('ChatContextService.getSummary')(
       ({ chatId, userId }: ChatContextWhere) => chats.getOne({ id: chatId, userId }),
       Effect.map(({ context }) => Option.map(context, ({ latestSummary }) => latestSummary)),
     )
 
-    const compact = Effect.fn('ChatContextService.compact')(function* (where: ChatContextWhere) {
-      const context = yield* getMessages(where)
+    const compact = Effect.fn('ChatContextService.compact')(function* ({
+      chatId,
+      userId,
+    }: ChatContextWhere) {
+      const chat = yield* chats.getOne({ id: chatId, userId })
+      const context = yield* getContextMessages(chat)
       const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
       if (Option.isNone(cut)) return
 
       // The summary the context held goes with what is left, so the new one carries it over.
       const { left, startMessageId } = cut.value
-      const summary = yield* getSummary(where)
-      const latestSummary = yield* assistant.summarise(left, summary)
+      const latestSummary = yield* assistant.summarise(
+        left,
+        Option.map(chat.context, (held) => held.latestSummary),
+      )
       yield* chats.update(
         { context: Option.some({ latestSummary, startMessageId }) },
-        { id: where.chatId, userId: where.userId },
+        { id: chatId, userId },
       )
     })
 

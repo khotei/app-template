@@ -140,9 +140,9 @@ messages from Postgres with the reply's Run.
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A chat whose summary fails after every reply is never cut, and breaks for good once past its
-  model's window — `application/chat/services/chat-context.service.ts:75` — open
-- A reply reads its chat's row twice, and a cut twice more, as `getMessages` and `getSummary`
-  each read it — `application/chat/services/chat-context.service.ts:47` — open
+  model's window — `application/chat/services/chat-context.service.ts:77` — open
+- A reply reads its chat's row twice, as `getMessages` and `getSummary` each read it; a cut
+  reads it once — `application/chat/services/chat-context.service.ts:57` — open
 - `ChatContextService.compact` cuts a context under its limit too when called on one: the check
   is its caller's — `application/chat/services/reply-chat.service.ts:92` — open
 - The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of
