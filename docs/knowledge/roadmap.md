@@ -327,8 +327,9 @@ moves it into its own `Later` and deletes it here.
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
   `retry`): a send SQS refuses fails the Run, and a client's abort leaves it sent
   ([decision](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries)), but no handler runs in
-  a dead process. Ways out to weigh: a ledger of jobs, a sweep of active
-  Runs. The owner refused a rule by a Run's age.
+  a dead process. Ways out to weigh: a ledger of jobs, an outbox row sent by a poller, a sweep of
+  active Runs; [Jobs as queue messages](decisions.md#jobs-as-queue-messages) rejects a table of
+  jobs. The owner refused a rule by a Run's age.
 - (2026-11-13) Two asks or two retries of one chat that arrive within the few milliseconds between
   the check and the insert (two tabs, a client that asks again) both pass their check
   (`ChatPolicy.ensureNotBusy`, `RunPolicy.ensureRetryable`); the active Run's index refuses the
@@ -353,10 +354,11 @@ moves it into its own `Later` and deletes it here.
   query that reads the chat with its messages, or the two reads in one `REPEATABLE READ`
   transaction: `Transaction` opens with a plain `BEGIN`, so Postgres's default `READ COMMITTED`
   gives each statement its own snapshot.
-- (2026-11-13) No e2e runs a worker's lost race of a completion
-  (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.reply`): its
-  unit case mocks the Run's refused write, and `TransactionTest` takes nothing back. Way out: an
-  e2e of the completion's race.
+- (2026-11-13) No e2e runs a worker's lost race of a completion against a rival that settles the
+  Run first, where the update matches no row
+  (`application/chat/services/reply-chat.service.ts`, `ReplyChatService.reply`); an e2e holds the
+  case Postgres refuses, its reply taken back (`apps/e2e/api/chat.e2e.ts`). Way out: an e2e of
+  the rival's settlement.
 - (2026-11-13) Errors without context: `RunNotRetryableError` not why,
   `ChatBusyError` not the Run in work, the assistant's errors only `error.message`
   (`toLlmError` in `kernel/llm/llm-call-policy.ts`); `IdentityUnknownError`
@@ -381,44 +383,30 @@ moves it into its own `Later` and deletes it here.
 
 ### From the design audit of 2026-11-19
 
-- (2026-11-19, verified) The reply job's exit handler (`reply-chat.service.ts`)
-  cannot take `Effect.onError`, whose cleanup may not fail; `Effect.onExitFilter` over
-  `Exit.filterCause` can, in 3 lines in place of 8.
 - (2026-11-19, verified) The replays' anchors: tags for the four commits they start from that
   `main` lacks.
 - (2026-11-19, verified) Biome admits `kernel/data` in use-case and handler sources, so only review
   keeps a repository out; split the use cases' override from their suites and add one for the apps.
 - (2026-11-19, verified) `FileRepository.selectMany` and `FileEntity`'s metadata have no reader;
   with attachments removed, the redesign of `shared-files` (16) decides whether they stay.
-- (2026-11-19, verified) `ChatService.create` and the untitled-chat `where` (`chat.repository.ts`)
-  have no case at their own seam; a planted bug in each passes.
 - (2026-11-19, verified) The rules make a wrap a static on the class it wraps, so adding one edits
   that class; a wrap in a file of its own, `<model>-<variant>.service.ts`, and one author per
   composition fact.
 - (2026-11-19, verified) The `reviewer` and `researcher` agents' model defaults contradict the lab
   skill and every spawn overrides them; delete the defaults. The implementer's `tdd` precedence
   stays unproven.
-- (2026-11-19) The toolkit edit L2.22 of `one-flow` (agents, the lab skill, `stops.md`) landed
-  without replays; R4 and R5 are the ones it can move, should the owner ask for a run.
-- (2026-11-19) One `ChatServices` layer for chat's services, which both apps list (found by the
-  last audit, not verified).
 - (2026-11-19) The CI Claude review runs once per PR, is documented, and drops its boilerplate
   (found by the audit, not verified).
-- (2026-11-19) Unused exports, a dead branch and small readability fixes in the source (found by the
-  audit, not verified).
 - (2026-11-19) The Design pass reads the rules `make review-rules` prints; `stops.md` question 5
   goes (found by the audit, not verified).
-- (2026-11-19) Small doc fixes: duplicate pointers, dates in decisions, a lost verb, extension entries
-  (found by the audit, not verified).
 - (2026-11-19) The e2e provisioner drops its guard against reruns that never happen (found by the
   audit, not verified).
-- (2026-11-19) A list write that names no row should pass, so the callers' guards against it can
-  go (found by the audit, not verified).
 - (2026-11-19) The imports plugin drops six loader forms no file uses (found by the audit, not
   verified).
-- (2026-11-19) The kernel's AWS and language-model clients use the libraries' `layerConfig`, as
-  `PgClientFromConfig` does; one rule bullet says who closes what (found by the audit, not
-  verified).
+- (2026-11-19) The kernel's language-model client uses the library's `layerConfig`, as
+  `PgClientFromConfig` does (`kernel/llm/llm.client.ts` maps the config and unwraps a layer);
+  the AWS clients' packages export none. One rule bullet says who closes what (found by the
+  audit, not verified).
 - (2026-11-19) `/lab` is model-invocable again; `CLAUDE.md`, `sdd.md` and the README stop restating
   it (found by the audit, not verified).
 - (2026-11-19) A micro's PR follows the `Later` rule (found by the audit, not verified).
@@ -426,28 +414,25 @@ moves it into its own `Later` and deletes it here.
   labs (found by the audit, not verified).
 - (2026-11-19) Scope the pattern-only rule to instruction files (the owner's call) (found by the
   audit, not verified).
-- (2026-11-19) Delete tests of the framework and cases a lower seam already owns (found by the last
-  audit, not verified).
-- (2026-11-19) Drop the 11 parameter annotations that restate a repository's Shape (found by the
+- (2026-11-19) Drop the 5 parameter annotations left that restate a repository's Shape
+  (`kernel/data/user/user.repository.ts`, `kernel/data/file/file.repository.ts`; found by the
   audit, not verified).
 - (2026-11-19) `review-brief` stops citing the owner's private style file and Russian literals
   (found by the audit, not verified).
-- (2026-11-19) `Status` takes the Run statuses from their table; Run predicates and types in the Run
-  model (found by the audit, not verified).
 - (2026-11-19) `"sideEffects": false` weighed against its decision's 27 KB clause (found by the last
   audit, not verified).
 - (2026-11-19) Tables of effects drop the type scaffolding `effect-style.md` forces (found by the
   audit, not verified).
-- (2026-11-19) Trim test leftovers: dead sleeps, duplicate cases, one-caller support, change
-  detectors (found by the audit, not verified).
-- (2026-11-19) Toolkit housekeeping: Makefile defaults, a stale template field, wording,
-  `worktree.sh` (found by the audit, not verified).
-- (2026-11-19) Drop the `RETURNING` read-back of a known id (found by the audit, not verified).
+- (2026-11-19) Toolkit housekeeping: Makefile defaults (found by the audit, not verified).
+- (2026-11-19) Drop the `RETURNING` read-back of a known id where nothing reads it: an update
+  and a delete return `{ id }` to tell a row they missed (found by the audit, not verified).
 - (2026-11-19) Record mocked calls with `vi.fn` in place of 38 hand-written arrays (found by the
   audit, not verified).
 - (2026-11-21) vitest is held at 5.1.0 (the `tools` catalog in `package.json`): 5.1.1's forks
   pool forks a watchdog and calls `child.channel?.unref()`, which Bun 1.4.4 and 1.4.5 lack, so
   every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
+  Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
+  word.
 - (2026-11-21) A service that holds its own transaction and sends its jobs after it
   (`AskChatService.ask`) cannot join a caller's transaction: wrapped in an outer
   `transaction.run`, its transaction becomes a savepoint (`makeWithTransaction` "uses savepoints
@@ -461,16 +446,6 @@ moves it into its own `Later` and deletes it here.
   "its writes in a helper beside them" of
   [Composition: wrap or compose](decisions.md#composition-wrap-or-compose); the service taking the
   attachments, refused today, as a module's services import no other module.
-  Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
-  word.
-- (2026-11-22) `repos/` was refreshed by a plain commit, not by `make vendor-effect` and
-  `make vendor-drizzle`, so no commit of the refresh holds the lines their next `git subtree pull`
-  reads. PR #39's squash body records `repos/effect` and the squash body of the PR that adds
-  this sentence records `repos/drizzle` (`git-subtree-split:
-  f163324decffcc67b47c6f3dda43ca7bb5aaec49`, tag `v1.0.0-rc.6`); one body holds one prefix's
-  pair, as `git subtree` keeps the last split line of a commit (`find_latest_squash`). Before
-  that merge `make vendor-drizzle` stops with `fatal: can't squash-merge: 'repos/drizzle' was
-  never added.`
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
   (`application/http-api/chat.http.ts`) does not carry: its `text` has only the pattern and
@@ -556,12 +531,6 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-26) `<name>SetColumns` copy by hand the fields a model's update variant writes
   (`kernel/data/chat/run.entity.ts`, `runSetColumns`): a field added to one side alone is not
   refused. Way out: derive the list from the table's columns, or compare the two in a test.
-- (2026-11-26) A job is sent after its writes' commit (`AskChatService`,
-  `application/chat/services/ask-chat.service.ts`), so a process that dies between the two
-  leaves a queued Run no worker hears of. Way out: an outbox row written in the same
-  transaction and sent by a poller.
-- (2026-11-26) "Use cases above the modules" (`decisions.md`) names a hook-service pattern no
-  code uses. Way out: show it by an example or cut the line.
 - (2026-11-26) A domain's source may import test support through the `#testing/<module>/*` alias:
   the `application/*/domain/**` override refuses the `/testing` entries by their package path
   alone (`.misc/lint/biome.base.json`). Claimed by a review, not probed. Way out: refuse the
