@@ -1,7 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, Cause, DateTime, Effect, Exit, Option } from 'effect'
 
-import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
+import {
+  activeRunStatuses as indexedRunStatuses,
+  type RunEntitySelectWhere,
+  type RunEntitySet,
+  type RunEntityWhere,
+} from '@app-template/kernel/data'
 import { encodeWith, RowCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
@@ -71,6 +76,13 @@ function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
 }
 
 describe('RunService', () => {
+  // The model and the table each declare the active statuses and no call hands one to the other,
+  // so no type compares them: diverged, the busy rule lets through an ask the partial unique
+  // index refuses, or the index stores two active Runs of a chat.
+  it('holds as active the statuses the partial unique index holds', () => {
+    assert.sameMembers([...activeRunStatuses], [...indexedRunStatuses])
+  })
+
   it.effect.each(moves)(
     'update by $name writes the $to Run under the status it was read in',
     ({ from, to, move }) => {

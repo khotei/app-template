@@ -1124,7 +1124,7 @@ table's; a service, which imports both, holds the two in step.
 - **Guarded by:** `make typecheck` at the service that codes the row, where the repository takes
   and returns the table's row: an enum's value or a required field of a JSON column's shape
   changed on one side fails there; the active statuses, which only the index's predicate reads,
-  by one line in `run.service.ts`, `<the domain's list> satisfies typeof <the kernel's>`; the
+  by a case of `run.service.test.ts` that compares the domain's list with the kernel's; the
   data layer's e2e check the table's side ([tooling.md › Tests](tooling.md#tests));
   `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
