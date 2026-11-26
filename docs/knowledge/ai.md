@@ -73,11 +73,16 @@ it summarises the messages that remain and keeps them, so its one caller asks th
 A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks the reply's
 language model, under a system prompt of its own, for a summary of the messages the cut leaves
 out, the summary of an earlier cut put first among them, and the cut context opens with it as a
-user message. Only then the reply's transaction stores the answer and ends the Run `done`, so a Run
-is done only with its chat's context cut; the chat stays busy meanwhile, so no message of the user
-arrives during the call. The summary and the start are one write, so two replies of one chat that
-cut at once each store a whole pair. A cut context always holds a summary: one that fails fails
-the Run as a failed answer does, no reply stored and the context left as it was.
+user message. Those messages go as one user message, a transcript in `<conversation>`, each in a
+`<message author="…">`, with the request to summarise it after: sent as turns, with the request
+one more user turn, `@effect/ai-anthropic` folded the request into a last user message, and the
+model took it for the user's words.
+
+Only then the reply's transaction stores the answer and ends the Run `done`, so a Run is done
+only with its chat's context cut; the chat stays busy meanwhile, so no message of the user arrives
+during the call. The summary and the start are one write, so two replies of one chat that cut at
+once each store a whole pair. A cut context always holds a summary: one that fails fails the Run
+as a failed answer does, no reply stored and the context left as it was.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite

@@ -7,7 +7,6 @@ import {
   identity,
   Layer,
   Option,
-  pipe,
   Schema,
   SchemaTransformation,
   String as Str,
@@ -39,10 +38,22 @@ const summaryPrompt = [
   'Write in the language of the conversation, as plain prose, addressing no one, in at most 1000 words.',
 ].join('\n')
 
-const summaryRequest = buildPromptMessage({
-  author: 'user',
-  text: 'Summarise the conversation above.',
-})
+// One user message: the conversation as a transcript, apart from the request, so neither a
+// folded user message nor the model reads the request as the user's words.
+const buildSummaryRequest = (messages: ReadonlyArray<ContextMessage>) =>
+  buildPromptMessage({
+    author: 'user',
+    text: [
+      '<conversation>',
+      ...Arr.map(
+        messages,
+        ({ author, text }) => `<message author="${author}">\n${text}\n</message>`,
+      ),
+      '</conversation>',
+      '',
+      'Summarise the conversation above.',
+    ].join('\n'),
+  })
 
 /**
  * What a reply's call returns. Decoding drops the U+0000 a message's `text` refuses, as a reply
@@ -67,7 +78,7 @@ export class MessageAssistant extends Context.Service<
     readonly reply: (
       messages: ReadonlyArray<ContextMessage>,
     ) => Effect.Effect<AssistantReply, LlmError>
-    /** A summary of `messages`, sent as they are, for a context that leaves them out. */
+    /** A summary of `messages`, sent as one transcript, for a context that leaves them out. */
     readonly summarise: (messages: ReadonlyArray<ContextMessage>) => Effect.Effect<string, LlmError>
   }
 >()('@app-template/application/chat/infrastructure/MessageAssistant', {
@@ -111,9 +122,7 @@ export class MessageAssistant extends Context.Service<
 
     const summarise = Effect.fn('MessageAssistant.summarise')(
       (messages: ReadonlyArray<ContextMessage>) =>
-        summaryModel.generateText({
-          prompt: pipe(messages, Arr.map(buildPromptMessage), Arr.append(summaryRequest)),
-        }),
+        summaryModel.generateText({ prompt: [buildSummaryRequest(messages)] }),
       askModel,
       Effect.map(({ text }) => text),
       Effect.filterOrFail(

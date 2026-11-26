@@ -158,7 +158,7 @@ describe('MessageAssistant and ChatAssistant', () => {
   })
 
   it.effect(
-    "summarise asks the reply's language model, under the summary's system prompt, with the messages and the request to summarise them, and returns its text",
+    "summarise asks the reply's language model, under the summary's system prompt, with one user message of the messages' transcript and the request to summarise it, and returns its text",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('They spoke of a cat.'))
       return Effect.gen(function* () {
@@ -173,12 +173,25 @@ describe('MessageAssistant and ChatAssistant', () => {
         assert.strictEqual(body?.model, 'claude-sonnet-5-5')
         assert.include(body?.system, 'You summarise the earlier part of a conversation')
         assert.deepStrictEqual(body?.messages, [
-          { role: 'user', content: [{ type: 'text', text: 'Of what?', cache_control: null }] },
-          { role: 'assistant', content: [{ type: 'text', text: 'A cat.' }] },
           {
             role: 'user',
             content: [
-              { type: 'text', text: 'Summarise the conversation above.', cache_control: null },
+              {
+                type: 'text',
+                text: [
+                  '<conversation>',
+                  '<message author="user">',
+                  'Of what?',
+                  '</message>',
+                  '<message author="assistant">',
+                  'A cat.',
+                  '</message>',
+                  '</conversation>',
+                  '',
+                  'Summarise the conversation above.',
+                ].join('\n'),
+                cache_control: null,
+              },
             ],
           },
         ])
