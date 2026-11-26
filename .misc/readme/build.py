@@ -554,7 +554,8 @@ def patterns():
     f = Fig("patterns", "Patterns the code repeats",
             "Six shapes from chat: a guarded move, a rule keyed by a table, the writes in one "
             "transaction with the sends after it, errors handled once at a flow's end, "
-            "acquireUseRelease around the answer, and real services over mocked repositories.")
+            "a method uninterruptible but for its answer, and real services over mocked "
+            "repositories.")
     f.text(28, 42, "Patterns the code repeats", "h")
     tw, gap = 444, 16
     xs = [28, 28 + tw + gap]
@@ -565,7 +566,7 @@ def patterns():
             "const { row } =",
             "  yield* RowCodec.makeUpdate(Run)(to)",
             "runs.update(row, encodeWhere(",
-            "  Struct.pick(from, ['id', 'status'])))",
+            "  { id: from.id, status: from.status }))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),
         ("A rule keyed by a table", [
             "const moveRunRules = {",
@@ -575,10 +576,9 @@ def patterns():
             "} as const satisfies Record<RunStatus, …>",
         ], "a new status fails typecheck until its row exists"),
         ("The writes in one transaction, sends after it", [
-            "const run = yield* messages",
-            "  .create({ chatId: chat.id, text, … })",
-            "  .pipe(Effect.flatMap(runs.create),",
-            "    transaction.run)",
+            "const createMessageRun = Effect.fnUntraced(",
+            "  function* (chat, text) { … }, transaction.run)",
+            "const run = yield* createMessageRun(chat, text)",
             "if (ChatState.isNew(chat.run))",
             "  yield* queue.sendTitleChat(chat)",
             "return yield* askReply(run)",
@@ -590,15 +590,18 @@ def patterns():
             "    'LlmError'], logFailed),",
             "  Effect.onErrorIf(Cause.hasInterrupts, log))",
         ], "the main path reads as if nothing fails"),
-        ("Start whole, answer, fail what was started", [
-            "Effect.acquireUseRelease(",
-            "  Effect.gen(function* start() { … }),",
-            "  Effect.fnUntraced(function* answer(started) {",
-            "    … }),",
-            "  function failUnanswered(started, answered) {",
-            "    … },",
-            ")",
-        ], "`start` → `generating`, `answer` → `done`, `failUnanswered` → `failed` on any other end; each step named where it runs"),
+        ("Uninterruptible but for the answer", [
+            "Effect.fn('ReplyChatService.reply')(",
+            "  function* (userMessageId) {",
+            "    …",
+            "    const started = yield* runs.update(queued,",
+            "      yield* RunMove.start(queued))",
+            "    yield* Effect.interruptible(answer(started))",
+            "      .pipe(Effect.onError(",
+            "        failUnanswered(started)))",
+            "  },",
+            "  Effect.uninterruptible)",
+        ], "an interrupt waits for the Run to start; the answer alone can stop, and `failUnanswered` fails the Run it started"),
         ("Real services over mocked leaves", [
             "Layer.mock(ChatRepository, chats),",
             "Layer.mock(MessageRepository, messages),",
