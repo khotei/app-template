@@ -1,11 +1,10 @@
-import { Array as Arr, Cause, Context, Effect, Layer, Option, Struct } from 'effect'
+import { Array as Arr, Cause, Context, Effect, Layer, Option, Schema, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { Chat } from '#chat/domain/chat.model'
 import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
-import type { Message } from '#chat/domain/message.model'
+import { Message } from '#chat/domain/message.model'
 import type { MessageId } from '#chat/domain/message.util'
 import {
   activeRunStatuses,
@@ -17,6 +16,7 @@ import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
+import { ChatContextService } from '#chat/services/chat-context.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
@@ -40,6 +40,7 @@ export class ReplyChatService extends Context.Service<
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatService
+    const contexts = yield* ChatContextService
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
@@ -54,26 +55,18 @@ export class ReplyChatService extends Context.Service<
     // One transaction, open across the model's call: the reply is written first, as the Run names
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
-      const chat = yield* chats.getOne({ id: started.chatId, userId: started.userId })
-      const history = yield* messages.getMany({
-        chatId: chat.id,
-        ...Option.match(chat.context, {
-          onNone: () => ({}),
-          onSome: ({ startMessageId }) => ({ id: { from: startMessageId } }),
-        }),
-      })
-      const generated = yield* assistant.reply(
-        ChatContextTokenizer.withContext(chat.context, history),
-      )
+      const where = Struct.pick(started, ['chatId', 'userId'])
+      const history = yield* contexts.getMessages(where)
+      const generated = yield* assistant.reply(history)
       const message = yield* messages.create({
-        ...Struct.pick(started, ['chatId', 'userId']),
+        ...where,
         text: generated.text,
         author: 'assistant',
       })
       yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
 
       return {
-        chat,
+        ...where,
         sent: Arr.append(history, message),
         tokensSize: ChatContextTokenizer.tokensSize(generated.usage),
       }
@@ -83,29 +76,20 @@ export class ReplyChatService extends Context.Service<
     // one that ends badly must cost no reply. The summary and the context's start are one write, so
     // a summary that fails leaves the context uncut, for the chat's next reply to cut.
     const cutOverLimit = Effect.fnUntraced(
-      function* ({
-        chat,
-        sent,
-        tokensSize,
-      }: {
-        readonly chat: Chat
-        readonly sent: ReadonlyArray<Message>
-        readonly tokensSize: number
-      }) {
+      function* ({ chatId, userId, sent, tokensSize }: Effect.Success<ReturnType<typeof answer>>) {
         const tokensLimit = assistant.contextTokensLimit
         if (!ChatContextPolicy.isOverLimit(tokensSize, tokensLimit)) return
 
+        // What is left opens with the summary the context held, so the new one carries it over.
         const kept = ChatContextTokenizer.compact({ messages: sent, tokensSize }, tokensLimit)
         const left = Arr.dropRight(sent, kept.length)
-        const start = Arr.head(kept)
+        const start = Arr.head(kept).pipe(Option.filter(Schema.is(Message)))
         if (Arr.isReadonlyArrayEmpty(left) || Option.isNone(start)) return
 
-        const latestSummary = yield* assistant.summarise(
-          ChatContextTokenizer.withContext(chat.context, left),
-        )
+        const latestSummary = yield* assistant.summarise(left)
         yield* chats.update(
           { context: Option.some({ latestSummary, startMessageId: start.value.id }) },
-          { id: chat.id, userId: chat.userId },
+          { id: chatId, userId },
         )
       },
       Effect.tapErrorTag('LlmError', (error) =>
@@ -143,6 +127,11 @@ export class ReplyChatService extends Context.Service<
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)
   static readonly layer = this.layerNoDeps.pipe(
-    Layer.provide([ChatService.layer, MessageService.layer, RunService.layer]),
+    Layer.provide([
+      ChatService.layer,
+      ChatContextService.layer,
+      MessageService.layer,
+      RunService.layer,
+    ]),
   )
 }

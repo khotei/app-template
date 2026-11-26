@@ -119,6 +119,10 @@ none.
   Then, on the owner's "yes", in L4.10: `AssistantReply` is declared in
   `message-assistant.llm.ts`, beside the call that returns it, and the decision
   "The language model in the kernel" says so.
+  Then "compact … {messages, tokensSize}, tokenLimit", in L4.11, and "Create new service
+  ChatContextService.getMessages({chatId, userId})" with "add this too … withContext", in L4.12:
+  the service reads a chat's context as a reply sends it, the summary's message first, and a cut
+  compacts that list, so what it leaves out already opens with the summary before.
 
 ### Output
 
@@ -144,8 +148,8 @@ context with the summary it holds", "summarise asks the reply's language model �
   total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
-  starts and what it sends. `ReplyChatService` composes them over `ChatService` and
-  `MessageService`; no class and no service of a context stands between.
+  starts and what it sends. `ChatContextService.getMessages` reads a context as a reply sends it, and
+  `ReplyChatService` cuts it; no class of a context stands between.
 - [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
   cut context opens with is the domain's.
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;

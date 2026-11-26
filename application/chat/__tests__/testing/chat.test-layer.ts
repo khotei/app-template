@@ -9,6 +9,7 @@ import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { ChatService } from '#chat/services/chat.service'
+import { ChatContextService } from '#chat/services/chat-context.service'
 import { MessageService } from '#chat/services/message.service'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import { RunService } from '#chat/services/run.service'
@@ -50,6 +51,7 @@ export const layerChatTest = (
     ReplyChatService.layer,
     TitleChatService.layer,
     ChatService.layer,
+    ChatContextService.layer,
     MessageService.layer,
     RunService.layer,
   ).pipe(

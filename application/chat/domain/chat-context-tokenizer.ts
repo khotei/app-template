@@ -54,12 +54,12 @@ export class ChatContextTokenizer {
    * message that holds the context's summary. The messages themselves while the chat holds no
    * context.
    */
-  static readonly withContext = (
+  static readonly withContext = <M extends ContextMessage>(
     context: Option.Option<ChatAssistantContext>,
-    messages: ReadonlyArray<ContextMessage>,
-  ): ReadonlyArray<ContextMessage> =>
+    messages: ReadonlyArray<M>,
+  ): ReadonlyArray<M | ContextMessage> =>
     Option.match(context, {
-      onNone: () => messages,
+      onNone: (): ReadonlyArray<M | ContextMessage> => messages,
       onSome: ({ latestSummary }) =>
         Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${latestSummary}` }),
     })
