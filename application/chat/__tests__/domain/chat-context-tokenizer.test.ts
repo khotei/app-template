@@ -35,16 +35,23 @@ const sized = (messages: ReadonlyArray<Message>, tokens: number) =>
       : message,
   )
 
-describe('ChatContextTokenizer.cut', () => {
+/** The split of `messages`, its halves as plain lists, which an expected one is built of. */
+const splitOf = (
+  messages: ReadonlyArray<Message>,
+  tokensLimit: number,
+): Option.Option<{
+  readonly toCompact: ReadonlyArray<Message>
+  readonly remain: ReadonlyArray<Message>
+}> => ChatContextTokenizer.splitToCompact(messages, tokensLimit)
+
+/** `messages` split before the message at `index`, as a context that starts there is split. */
+const splitAt = (messages: ReadonlyArray<Message>, index: number) =>
+  Option.some({ toCompact: Arr.take(messages, index), remain: Arr.drop(messages, index) })
+
+describe('ChatContextTokenizer.splitToCompact', () => {
   it("leaves out the messages before the oldest user's whose tail holds at most 0.3 of the limit", () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
-    assert.deepStrictEqual(
-      ChatContextTokenizer.cut(sized(even, 900), 1000),
-      Option.some({
-        earlierMessages: Arr.take(even, 4),
-        startMessageId: Arr.getUnsafe(even, 4).id,
-      }),
-    )
+    assert.deepStrictEqual(splitOf(sized(even, 900), 1000), splitAt(sized(even, 900), 4))
   })
 
   it("starts at a user's message, though an assistant's before it opens a tail that fits", () => {
@@ -58,13 +65,7 @@ describe('ChatContextTokenizer.cut', () => {
     ]
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
-    assert.deepStrictEqual(
-      ChatContextTokenizer.cut(sized(messages, 900), 1000),
-      Option.some({
-        earlierMessages: Arr.take(messages, 4),
-        startMessageId: Arr.getUnsafe(messages, 4).id,
-      }),
-    )
+    assert.deepStrictEqual(splitOf(sized(messages, 900), 1000), splitAt(sized(messages, 900), 4))
   })
 
   it("starts at the newest user's message when no user's message opens a tail that fits", () => {
@@ -76,22 +77,22 @@ describe('ChatContextTokenizer.cut', () => {
     ]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.cut(sized(messages, 9000), 10_000),
-      Option.some({
-        earlierMessages: Arr.take(messages, 2),
-        startMessageId: Arr.getUnsafe(messages, 2).id,
-      }),
+      splitOf(sized(messages, 9000), 10_000),
+      splitAt(sized(messages, 9000), 2),
     )
   })
 
-  it("cuts nothing when the newest user's message is the first, as nothing can go", () => {
+  it("is none when the newest user's message is the first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
 
-    assert.deepStrictEqual(ChatContextTokenizer.cut(sized(messages, 900), 1000), Option.none())
+    assert.deepStrictEqual(
+      ChatContextTokenizer.splitToCompact(sized(messages, 900), 1000),
+      Option.none(),
+    )
   })
 
-  it('cuts nothing when no Run with a usage wrote the last message', () => {
-    assert.deepStrictEqual(ChatContextTokenizer.cut(even, 1000), Option.none())
+  it('is none when no Run with a usage wrote the last message', () => {
+    assert.deepStrictEqual(ChatContextTokenizer.splitToCompact(even, 1000), Option.none())
   })
 })
 
@@ -103,7 +104,7 @@ describe('ChatContextTokenizer.withContext', () => {
   })
 
   it("opens a cut chat's messages with the summary its context holds", () => {
-    const context = { summary: 'They spoke of a photo.', startMessageId: ofWhat.id }
+    const context = { compacted: 'They spoke of a photo.', headMessageId: ofWhat.id }
 
     assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
       {

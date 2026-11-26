@@ -1,8 +1,7 @@
 import { Array as Arr, Number as Num, Option, pipe, type Types } from 'effect'
 
-import type { ChatAssistantContext } from '#chat/domain/chat.model'
+import type { ChatContext } from '#chat/domain/chat.model'
 import type { ContextMessage, Message } from '#chat/domain/message.model'
-import type { MessageId } from '#chat/domain/message.util'
 
 /** A cut leaves this share of the limit, so the next cut is many replies away. */
 const keepShare = 0.3
@@ -31,18 +30,17 @@ export class ChatContextTokenizer {
     )
 
   /**
-   * What a cut of the context `messages` leaves out and where it starts after, the context's size
-   * read from its last message, the reply's: kept are the messages from the oldest user's whose
-   * tail holds at most `keepShare` of `tokensLimit`, or from the newest user's when no tail fits;
-   * `earlierMessages` are those before it, for a summary. None when nothing can go, or no size
-   * is read.
+   * The context `messages` split for its compaction, its size read from its last message, the
+   * reply's: `remain` are the messages from the oldest user's whose tail holds at most
+   * `keepShare` of `tokensLimit`, or from the newest user's when no tail fits; `toCompact` are
+   * those before it, for a summary. None when nothing can go, or no size is read.
    */
-  static readonly cut = (
+  static readonly splitToCompact = (
     messages: ReadonlyArray<Message>,
     tokensLimit: number,
   ): Option.Option<{
-    readonly earlierMessages: ReadonlyArray<Message>
-    readonly startMessageId: MessageId
+    readonly toCompact: ReadonlyArray<Message>
+    readonly remain: Arr.NonEmptyReadonlyArray<Message>
   }> => {
     const tokensSize = pipe(
       Arr.last(messages),
@@ -61,15 +59,11 @@ export class ChatContextTokenizer {
       // No tail fits: the newest user's message, the least a reply needs.
       Option.orElse(() => Arr.findLastIndex(messages, ({ author }) => author === 'user')),
       Option.filter((start) => start > 0),
-      Option.flatMap((start) =>
-        pipe(
-          Arr.get(messages, start),
-          Option.map(({ id }) => ({
-            earlierMessages: Arr.take(messages, start),
-            startMessageId: id,
-          })),
-        ),
+      Option.map((start) => Arr.splitAt(messages, start)),
+      Option.filter((halves): halves is [Array<Message>, Arr.NonEmptyArray<Message>] =>
+        Arr.isArrayNonEmpty(halves[1]),
       ),
+      Option.map(([toCompact, remain]) => ({ toCompact, remain })),
     )
   }
 
@@ -79,12 +73,12 @@ export class ChatContextTokenizer {
    * context.
    */
   static readonly withContext = <M extends ContextMessage>(
-    context: Option.Option<ChatAssistantContext>,
+    context: Option.Option<ChatContext>,
     messages: ReadonlyArray<M>,
   ): ReadonlyArray<M | ContextMessage> =>
     Option.match(context, {
       onNone: (): ReadonlyArray<M | ContextMessage> => messages,
-      onSome: ({ summary }) =>
-        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${summary}` }),
+      onSome: ({ compacted }) =>
+        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${compacted}` }),
     })
 }

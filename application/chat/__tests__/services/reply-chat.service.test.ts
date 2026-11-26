@@ -376,7 +376,7 @@ describe('ReplyChatService', () => {
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
-          [{ summary: 'A summary.', startMessageId: short.id }],
+          [{ compacted: 'A summary.', headMessageId: short.id }],
         )
         assertEquals(yield* assistant.summarised, [[long, longReply]])
       }).pipe(
@@ -434,7 +434,7 @@ describe('ReplyChatService', () => {
               history: [long, longReply, short],
               asked: new Chat({
                 ...chat,
-                context: Option.some({ summary: 'Before.', startMessageId: long.id }),
+                context: Option.some({ compacted: 'Before.', headMessageId: long.id }),
               }),
             }),
             { messageAssistant: assistant.layer },

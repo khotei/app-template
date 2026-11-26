@@ -31,7 +31,7 @@ const summaryLead = 'Earlier messages of this conversation are not shown to you.
 
 const cut = new Chat({
   ...chat,
-  context: Option.some({ summary: 'A summary.', startMessageId: firstMessage.id }),
+  context: Option.some({ compacted: 'A summary.', headMessageId: firstMessage.id }),
 })
 
 /** A store that holds `asked` and `stored`, keeping each chat write. */
@@ -122,7 +122,7 @@ describe('ChatContextService', () => {
         ])
         assert.deepStrictEqual(
           store.writes.map(({ context }) => context),
-          [{ summary: 'A newer summary.', startMessageId: short.id }],
+          [{ compacted: 'A newer summary.', headMessageId: short.id }],
         )
       }).pipe(Effect.provide(layerChatTest(store.mocks, { messageAssistant: assistant.layer })))
     },

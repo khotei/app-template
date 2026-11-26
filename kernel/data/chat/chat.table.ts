@@ -8,14 +8,14 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 import { users } from '#kernel/data/user/user.table'
 
 /**
- * What a chat keeps of its context once cut, as the column `context` holds it: the latest
- * summary of the messages a reply no longer sends, and the message its replies send from.
+ * What a chat keeps of its context once compacted, as the column `context` holds it: the
+ * latest summary of the messages a reply no longer sends, and the message its replies send from.
  */
-export const ChatAssistantContext = Schema.Struct({
-  summary: Schema.String,
-  startMessageId: Schema.String,
+export const ChatContext = Schema.Struct({
+  compacted: Schema.String,
+  headMessageId: Schema.String,
 })
-export type ChatAssistantContext = typeof ChatAssistantContext.Type
+export type ChatContext = typeof ChatContext.Type
 
 export const chats = snakeCase.table(
   'chats',
@@ -26,7 +26,7 @@ export const chats = snakeCase.table(
       .references(() => users.id),
     title: text(),
     /** Null until the chat's context is cut. */
-    context: jsonb().$type<ChatAssistantContext>(),
+    context: jsonb().$type<ChatContext>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -42,5 +42,5 @@ export const chats = snakeCase.table(
 )
 
 /** The columns of a chat, which its entity extends. */
-export const ChatColumns = createSelectSchema(chats, { context: () => ChatAssistantContext })
+export const ChatColumns = createSelectSchema(chats, { context: () => ChatContext })
 export type ChatColumns = typeof ChatColumns.Type

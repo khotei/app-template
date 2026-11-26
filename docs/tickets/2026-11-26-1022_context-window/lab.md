@@ -52,7 +52,7 @@ processes; a header that differs between two requests.
 A reply reads its chat's context, the messages from the start the chat holds
 (`chats.context`, null until a cut). Once a reply's prompt and text pass 0.8 of
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
-(`ChatContextTokenizer.cut`) to the oldest user message whose tail holds at most 0.3 of it,
+(`ChatContextTokenizer.splitToCompact`) to the oldest user message whose tail holds at most 0.3 of it,
 or to the newest user message, and its start stored. The chat's list still shows every
 message. See it: `make test-unit`, "getMessages reads the context of the user's chat: a cut chat, those from
 the start its context stores, opened by its summary"; `make test-e2e`, the repository reads a chat's
@@ -71,9 +71,9 @@ two statics, `isOversized` and `cut`, where one `findContext` held both; the cha
 A cut keeps a summary of what it leaves out. After a reply is committed, `ReplyChatService`
 reads the context's size from the reply's Run and asks `ChatContextPolicy.isOverLimit`; past
 0.8 of the limit it calls `ChatContextService.compact`, which reads the context again, takes
-from `ChatContextTokenizer.cut` the messages left out and the first kept, asks
+from `ChatContextTokenizer.splitToCompact` the messages to compact and those that remain, asks
 `MessageAssistant.summarise` for a summary of those left out, opened by the summary before, and
-stores both (`chats.context`: `summary`, `startMessageId`). The next reply reads the
+stores it with the first that remains (`chats.context`: `compacted`, `headMessageId`). The next reply reads the
 messages from that start, opened by the summary (`ChatContextService.getMessages`). A summary that
 fails leaves the context uncut, with a warning, for the chat's next reply. See it:
 `make test-unit`, "compact summarises the messages a cut leaves out, with the summary the
@@ -81,7 +81,7 @@ context had, and stores the summary with the first message kept", "reply after a
 with the summary and the chat's messages from the start it stored"; under `make dev` with a low limit,
 `select context from chats`.
 
-Built in twenty-five rounds, L4.3 to L4.25 on the owner's reviews of PR #61 and words in the
+Built in twenty-eight rounds, L4.3 to L4.28 on the owner's reviews of PR #61 and words in the
 terminal. Not run: a reply, a cut and a summary on the provider's API; a read of a cut chat's
 messages from Postgres with the reply's Run.
 
@@ -94,7 +94,7 @@ messages from Postgres with the reply's Run.
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
 - [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
-  (`summary`, `startMessageId`), written by a cut after the reply's commit; a value
+  (`compacted`, `headMessageId`), written by a cut after the reply's commit; a value
   nothing reads (a total of the replies' counts, the context's size) is not stored, a Run's
   usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,

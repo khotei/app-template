@@ -1,4 +1,4 @@
-import { Context, Effect, Layer, Option, type Types } from 'effect'
+import { Array as Arr, Context, Effect, Layer, Option, type Types } from 'effect'
 
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
@@ -19,17 +19,17 @@ export class ChatContextService extends Context.Service<
   {
     /**
      * The context of the chat `where` names, as a reply sends it: every message of an uncut
-     * chat; of a cut one, those from the start its context stores, opened by a message that holds
-     * its latest summary.
+     * chat; of a compacted one, those from the head its context stores, opened by a message that
+     * holds what it compacted.
      */
     readonly getMessages: (
       where: ChatContextWhere,
     ) => Effect.Effect<ReadonlyArray<Message | ContextMessage>, ChatNotFoundError>
     /**
      * Compacts the context of the chat `where` names, read after the reply that left it over its
-     * limit: the messages the cut leaves out are summarised, and the summary is stored with the
-     * context's new start. A summary that fails is the assistant's failure, the context left as
-     * it was.
+     * limit: the messages its compaction leaves out are summarised, and the summary is stored
+     * with the context's new head. A summary that fails is the assistant's failure, the context
+     * left as it was.
      */
     readonly compact: (
       where: ChatContextWhere,
@@ -41,13 +41,13 @@ export class ChatContextService extends Context.Service<
     const messages = yield* MessageService
     const assistant = yield* MessageAssistant
 
-    // The messages a reply of `chat` sends: all of an uncut chat, those from its context's start.
+    // The messages a reply of `chat` sends: all of an uncompacted chat, those from its context's head.
     const getMessagesInContext = ({ id, context }: Chat) =>
       messages.getMany({
         chatId: id,
         ...Option.match(context, {
           onNone: () => ({}),
-          onSome: ({ startMessageId }) => ({ id: { from: startMessageId } }),
+          onSome: ({ headMessageId }) => ({ id: { from: headMessageId } }),
         }),
       })
 
@@ -66,17 +66,20 @@ export class ChatContextService extends Context.Service<
       userId,
     }: ChatContextWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
-      const context = yield* getMessagesInContext(chat)
-      const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
-      if (Option.isNone(cut)) return
+      const contextMessages = yield* getMessagesInContext(chat)
+      const split = ChatContextTokenizer.splitToCompact(
+        contextMessages,
+        assistant.contextTokensLimit,
+      )
+      if (Option.isNone(split)) return
 
-      // The earlier messages open with the summary the context held, so the new one carries it over.
-      const { earlierMessages, startMessageId } = cut.value
-      const summary = yield* assistant.summarise(
-        ChatContextTokenizer.withContext(chat.context, earlierMessages),
+      // The messages to compact open with what the context held compacted, so it is carried over.
+      const { toCompact, remain } = split.value
+      const compacted = yield* assistant.summarise(
+        ChatContextTokenizer.withContext(chat.context, toCompact),
       )
       yield* chats.update(
-        { context: Option.some({ summary, startMessageId }) },
+        { context: Option.some({ compacted, headMessageId: Arr.headNonEmpty(remain).id }) },
         { id: chatId, userId },
       )
     })

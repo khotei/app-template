@@ -57,11 +57,11 @@ the reply:
 - while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
   context stays as it is, and the chat is not written;
 - past that, it calls `ChatContextService.compact`: the chat and its messages are read again,
-  the reply last among them, its Run's usage the context's size, and `ChatContextTokenizer.cut` keeps
-  the messages from the oldest user message whose tail holds at most 0.3 of the limit, the
-  tokens taken as spread over the messages like their characters; the rest are summarised, and
-  the summary is stored on the chat with the first message kept (`chats.context`:
-  `summary`, `startMessageId`).
+  the reply last among them, its Run's usage the context's size, and
+  `ChatContextTokenizer.splitToCompact` keeps the messages from the oldest user message whose
+  tail holds at most 0.3 of the limit, the tokens taken as spread over the messages like their
+  characters; the rest are summarised, and the summary is stored on the chat with the first
+  message kept (`chats.context`: `compacted`, `headMessageId`).
 
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case
