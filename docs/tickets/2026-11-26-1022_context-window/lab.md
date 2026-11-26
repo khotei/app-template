@@ -20,10 +20,11 @@ facts, its out-of-scope list and its open questions stand
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | A Run that is done holds its reply's usage and the model that answered · visible: `make test-unit`; after a reply under `make dev`, `select usage from runs` shows the counts | minimal | build | done |
-| L2 | The prompt of a chat's next reply starts with the prompt of its last one · visible: a test that fails when the system prompt or an earlier message's encoding changes between two replies | minimal | build | in progress |
-| L3 | The history sent is cut when the last prompt and its reply pass a share of the window, down to a lower share, from a user message; the start is stored · visible: a chat past the upper share sends a history that starts later, and its list still shows every message | minimal | build | todo |
-| L4 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | todo |
-| L5 | Later: the items of the open list the owner picks | hard | build | todo |
+| L2 | The prompt of a chat's next reply starts with the prompt of its last one · visible: a test that fails when the system prompt or an earlier message's encoding changes between two replies | minimal | build | done |
+| L3 | A chat's context, what its reply sends the model, is cut once its last prompt and reply pass 0.8 of the tokens limit, down to 0.3, from a user message; its start is stored and a fixed note tells the model that earlier messages are not shown · visible: a chat past the upper share sends a context that starts later, and its list still shows every message | minimal | build | in progress |
+| L4 | A cut keeps a summary of what it left out, stored and sent in place of the note · visible: after a cut, the next request opens with the summary | minimal | build | todo |
+| L5 | A reply that fails for its length names the limit that ended it in the Run's failure text · visible: a test over `max_tokens` and `model_context_window_exceeded` | minimal | build | todo |
+| L6 | Later: the items of the open list the owner picks | hard | build | todo |
 
 ## L1 — A done Run holds its usage and model
 
@@ -37,35 +38,54 @@ under `make dev`, after a reply, `select usage from runs`.
 
 ## L2 — The next prompt starts with the last one
 
+### Output
+
+`make test-unit` holds a case, "reply sends a chat's next request, at a later time, equal to the
+last one but for the messages it adds, the cache asked for", that fails when a chat's next request
+no longer starts with its last one. Not caught: a system prompt that differs between two
+processes; a header that differs between two requests.
+
+## L3 — A chat's context is cut and its start stored
+
 ### Shape
 
-<The owner's. Until it is written, the draft below in Notes stands for it.>
+The owner's, 2026-11-26, in their words, each answering a draft shown in the session:
+
+- "I think this should one more service which will be injected"; "we should set it after response
+  (in workder-reply service)".
+- "maybe better call it ChatAssistantContext or something like that? At the end we get context for
+  ai, and then set context. Maybe we need domain class which will calc it and then
+  getContext({...}) setContext(ChatContext.calc)".
+- "findStart -> findContext and return ChatContext"; "size -> tokensSize"; "window ->
+  tokensLimit"; "answered.usage.promptTokens + answered.usage.outputTokens this also should be
+  business rule"; "Others seems like ok"; "seems like ok! go ahead".
+
+What they settled, as the last draft stood:
+
+- Words: the history is every finished message of a chat; the context is what a reply sends the
+  model, the messages from a stored start.
+- `ChatContext` (`chat-context.model.ts`): `startMessageId`, none for the chat's first message,
+  and `messages`.
+- `ChatContextState` (`chat-context-state.ts`): `tokensSize(usage)`, a prompt's tokens and its
+  reply's together; `findContext(context, tokensSize, tokensLimit)`, the context the next reply
+  sends, none while `tokensSize` fits 0.8 of `tokensLimit`, else from the oldest user message
+  whose tail holds at most 0.3 of it, the tokens taken as spread over the messages like their
+  characters.
+- `ContextChatService`: `getOne(where)`, the chat's messages from its stored start, and
+  `update(where, context)`, which stores where the context starts.
+- `ReplyChatService` orders them: it reads the context, replies, and after the reply's commit
+  finds the next context and stores it; a failure there is logged and the Run stays done.
+- The start is `chats.context_start_message_id`; the limit is the setting
+  `LLM_REPLY_CONTEXT_TOKENS_LIMIT`; once a chat has a start, the request opens with a fixed note
+  that earlier messages are not shown.
 
 ### Notes
 
-- [DO] The owner's "ok" to "Начинаю L2 (тест на неизменность кэшируемого префикса между двумя
-  ответами одного чата)?".
-- [D:ai] The check is one case of `assistant.llm.test.ts`, through `MessageAssistant.reply` over
-  the recorded HTTP client: two replies of one chat, the second's history the first's with a reply
-  and a new user message; the second request, its messages cut to the first's count, equals the
-  first whole (model, system prompt, limits, cache setting, messages). No code changes: the reply
-  already sends a stable prefix. Without it: nothing fails when a change marks the newest message
-  or puts a per-request value in the prompt, and every reply then pays a cache write.
-- [N:ai] Seen red on a probe: the newest message's text given a suffix made the case fail on
-  `"What is this? (newest)"` against `"What is this?"`; the probe is reverted.
-- [N:ai] Review of L2 (Intent, Rules; no Hunt, the range holds a test alone). Fixed as L2.2: the
-  clock moves a minute between the two replies, so a time in the prompt fails the case (seen red
-  on a probe, `"now 0"` against `"now 60000"`); the compared prefix holds an assistant's message;
-  the case asserts the request's `cache_control`; its name says that every field is compared.
-- [N:ai] Not caught: a system prompt that differs between two processes (a value read when the
-  layer is built), as both requests of the case come from one layer; a header that differs
-  between two requests, as the bodies alone are compared and the reply sets none.
+- [DO] "seems like ok! go ahead".
+- [Q:ai] The owner asked what happens when a user asks about messages no longer in the context:
+  the model does not see them. Settled as the note in this step and a summary as L4.
 
 ### Output
-
-Proposed: `make test-unit` holds a case, "reply sends a chat's next request, at a later time,
-equal to the last one but for the messages it adds, the cache asked for", that fails when a
-chat's next request no longer starts with its last one.
 
 ## Knowledge
 
