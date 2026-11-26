@@ -23,7 +23,7 @@ export type ChatTitle = typeof ChatTitle.Type
  * longer sends, and the message its replies send from.
  */
 export const ChatAssistantContext = Schema.Struct({
-  latestSummary: Schema.String,
+  summary: Schema.String,
   startMessageId: MessageId,
 })
 export type ChatAssistantContext = typeof ChatAssistantContext.Type

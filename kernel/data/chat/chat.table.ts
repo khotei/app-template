@@ -12,7 +12,7 @@ import { users } from '#kernel/data/user/user.table'
  * summary of the messages a reply no longer sends, and the message its replies send from.
  */
 export const ChatAssistantContext = Schema.Struct({
-  latestSummary: Schema.String,
+  summary: Schema.String,
   startMessageId: Schema.String,
 })
 export type ChatAssistantContext = typeof ChatAssistantContext.Type

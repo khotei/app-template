@@ -61,7 +61,7 @@ the reply:
   the messages from the oldest user message whose tail holds at most 0.3 of the limit, the
   tokens taken as spread over the messages like their characters; the rest are summarised, and
   the summary is stored on the chat with the first message kept (`chats.context`:
-  `latestSummary`, `startMessageId`).
+  `summary`, `startMessageId`).
 
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case

@@ -73,7 +73,7 @@ reads the context's size from the reply's Run and asks `ChatContextPolicy.isOver
 0.8 of the limit it calls `ChatContextService.compact`, which reads the context again, takes
 from `ChatContextTokenizer.cut` the messages left out and the first kept, asks
 `MessageAssistant.summarise` for a summary of those left out, opened by the summary before, and
-stores both (`chats.context`: `latestSummary`, `startMessageId`). The next reply reads the
+stores both (`chats.context`: `summary`, `startMessageId`). The next reply reads the
 messages from that start, opened by the summary (`ChatContextService.getMessages`). A summary that
 fails leaves the context uncut, with a warning, for the chat's next reply. See it:
 `make test-unit`, "compact summarises the messages a cut leaves out, with the summary the
@@ -94,7 +94,7 @@ messages from Postgres with the reply's Run.
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
 - [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
-  (`latestSummary`, `startMessageId`), written by a cut after the reply's commit; a value
+  (`summary`, `startMessageId`), written by a cut after the reply's commit; a value
   nothing reads (a total of the replies' counts, the context's size) is not stored, a Run's
   usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,

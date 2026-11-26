@@ -34,13 +34,14 @@ export class ChatContextTokenizer {
    * What a cut of the context `messages` leaves out and where it starts after, the context's size
    * read from its last message, the reply's: kept are the messages from the oldest user's whose
    * tail holds at most `keepShare` of `tokensLimit`, or from the newest user's when no tail fits;
-   * `left` are those before it, for a summary. None when nothing can go, or no size is read.
+   * `earlierMessages` are those before it, for a summary. None when nothing can go, or no size
+   * is read.
    */
   static readonly cut = (
     messages: ReadonlyArray<Message>,
     tokensLimit: number,
   ): Option.Option<{
-    readonly left: ReadonlyArray<Message>
+    readonly earlierMessages: ReadonlyArray<Message>
     readonly startMessageId: MessageId
   }> => {
     const tokensSize = pipe(
@@ -63,7 +64,10 @@ export class ChatContextTokenizer {
       Option.flatMap((start) =>
         pipe(
           Arr.get(messages, start),
-          Option.map(({ id }) => ({ left: Arr.take(messages, start), startMessageId: id })),
+          Option.map(({ id }) => ({
+            earlierMessages: Arr.take(messages, start),
+            startMessageId: id,
+          })),
         ),
       ),
     )
@@ -80,7 +84,7 @@ export class ChatContextTokenizer {
   ): ReadonlyArray<M | ContextMessage> =>
     Option.match(context, {
       onNone: (): ReadonlyArray<M | ContextMessage> => messages,
-      onSome: ({ latestSummary }) =>
-        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${latestSummary}` }),
+      onSome: ({ summary }) =>
+        Arr.prepend(messages, { author: 'user', text: `${summaryLead}\n\n${summary}` }),
     })
 }

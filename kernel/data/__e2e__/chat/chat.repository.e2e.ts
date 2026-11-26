@@ -279,7 +279,7 @@ describe('ChatRepository', () => {
       const gus = '0192d4e0-7b3a-7c00-8000-000000000016'
       const stored = chat('0192d4e0-7b3a-7c00-8000-000000000039', gus)
       const context = {
-        latestSummary: 'They spoke of a photo.',
+        summary: 'They spoke of a photo.',
         startMessageId: '0192d4e0-7b3a-7c00-8000-00000000003a',
       }
       yield* insertUser(gus)

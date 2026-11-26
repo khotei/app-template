@@ -40,7 +40,10 @@ describe('ChatContextTokenizer.cut', () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
     assert.deepStrictEqual(
       ChatContextTokenizer.cut(sized(even, 900), 1000),
-      Option.some({ left: Arr.take(even, 4), startMessageId: Arr.getUnsafe(even, 4).id }),
+      Option.some({
+        earlierMessages: Arr.take(even, 4),
+        startMessageId: Arr.getUnsafe(even, 4).id,
+      }),
     )
   })
 
@@ -57,7 +60,10 @@ describe('ChatContextTokenizer.cut', () => {
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
     assert.deepStrictEqual(
       ChatContextTokenizer.cut(sized(messages, 900), 1000),
-      Option.some({ left: Arr.take(messages, 4), startMessageId: Arr.getUnsafe(messages, 4).id }),
+      Option.some({
+        earlierMessages: Arr.take(messages, 4),
+        startMessageId: Arr.getUnsafe(messages, 4).id,
+      }),
     )
   })
 
@@ -71,7 +77,10 @@ describe('ChatContextTokenizer.cut', () => {
 
     assert.deepStrictEqual(
       ChatContextTokenizer.cut(sized(messages, 9000), 10_000),
-      Option.some({ left: Arr.take(messages, 2), startMessageId: Arr.getUnsafe(messages, 2).id }),
+      Option.some({
+        earlierMessages: Arr.take(messages, 2),
+        startMessageId: Arr.getUnsafe(messages, 2).id,
+      }),
     )
   })
 
@@ -94,7 +103,7 @@ describe('ChatContextTokenizer.withContext', () => {
   })
 
   it("opens a cut chat's messages with the summary its context holds", () => {
-    const context = { latestSummary: 'They spoke of a photo.', startMessageId: ofWhat.id }
+    const context = { summary: 'They spoke of a photo.', startMessageId: ofWhat.id }
 
     assert.deepStrictEqual(ChatContextTokenizer.withContext(Option.some(context), [ofWhat]), [
       {

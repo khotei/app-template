@@ -66,17 +66,17 @@ export class ChatContextService extends Context.Service<
       userId,
     }: ChatContextWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
-      const stored = yield* getMessagesInContext(chat)
-      const cut = ChatContextTokenizer.cut(stored, assistant.contextTokensLimit)
+      const context = yield* getMessagesInContext(chat)
+      const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
       if (Option.isNone(cut)) return
 
-      // What is left opens with the summary the context held, so the new one carries it over.
-      const { left, startMessageId } = cut.value
-      const latestSummary = yield* assistant.summarise(
-        ChatContextTokenizer.withContext(chat.context, left),
+      // The earlier messages open with the summary the context held, so the new one carries it over.
+      const { earlierMessages, startMessageId } = cut.value
+      const summary = yield* assistant.summarise(
+        ChatContextTokenizer.withContext(chat.context, earlierMessages),
       )
       yield* chats.update(
-        { context: Option.some({ latestSummary, startMessageId }) },
+        { context: Option.some({ summary, startMessageId }) },
         { id: chatId, userId },
       )
     })
