@@ -1,7 +1,8 @@
 language js
 
-// The Effect style a type-blind reader can see. Grit has no types, so a service is a capitalised
-// name, and effect's modules are named as the code imports them (`Array as Arr`, `String as Str`).
+// The Effect style a type-blind reader can see. Grit has no types, so a service is a name each of
+// whose segments is capitalised (`HttpClient.HttpClient`, not `Clock.currentTimeMillis`), and
+// effect's modules are named as the code imports them (`Array as Arr`, `String as Str`).
 // A call pattern with a trailing $... stands alone, never as a later branch of an `or` sharing one
 // `where`, where it misses calls. Every regex group is non-capturing, as a capture group aborts the
 // plugin on the whole file.
@@ -61,9 +62,34 @@ pattern module_call() {
 
 or {
   `$callee($subject, $_, $...)` as $call where {
-    $callee <: r"Effect\.(?:flatMap|map)",
-    $subject <: r"[A-Z][A-Za-z0-9_.]*",
-    register_diagnostic(span=$call, message="a service is reached by <Service>.use((s) => s.<method>(…)), or useSync for a plain value, never Effect.flatMap or Effect.map over it (effect-style.md › Composition)")
+    $callee <: r"Effect\.(?:flatMap|map|andThen|tap)",
+    $subject <: r"[A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*",
+    register_diagnostic(span=$call, message="a service is read with yield* in a generator, never by an Effect combinator over it (effect-style.md › Composition)")
+  },
+  `$subject.pipe($step, $...)` as $call where {
+    $subject <: r"[A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*",
+    $step <: r"(?s)Effect\.(?:flatMap|map|andThen|tap)\(.*",
+    register_diagnostic(span=$call, message="a service is read with yield* in a generator, never by an Effect combinator piped on it (effect-style.md › Composition)")
+  },
+  // Effect's modules export a `use` that reads no service (`HttpRouter.use`, `Pool.use`,
+  // `Scope.use`), which stays.
+  or {
+    `$service.$accessor($...)`,
+    `$service.$accessor<$_>($...)`
+  } as $call where {
+    $accessor <: r"use(?:Sync)?",
+    $service <: r"[A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*",
+    not $service <: r"(?:HttpRouter|Pool|Scope)",
+    register_diagnostic(span=$call, message="a service is read with yield* in a generator, never through its use or useSync (effect-style.md › Composition)")
+  },
+  // An optional call names use and useSync, as a metavariable after `?.` fails to compile.
+  or {
+    `$service?.use($...)`,
+    `$service?.useSync($...)`
+  } as $call where {
+    $service <: r"[A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*",
+    not $service <: r"(?:HttpRouter|Pool|Scope)",
+    register_diagnostic(span=$call, message="a service is read with yield* in a generator, never through its use or useSync (effect-style.md › Composition)")
   },
   or {
     `$value === undefined`,

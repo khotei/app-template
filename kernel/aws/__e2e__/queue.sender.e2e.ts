@@ -23,9 +23,13 @@ const sampleQueue = {
   schema: SampleMessage,
 } satisfies QueueDefinition<typeof SampleMessage>
 
-const send = QueueSender.use((sender) =>
-  sender.send(sampleQueue, new SampleMessage({ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' })),
-)
+const send = Effect.gen(function* () {
+  const sender = yield* QueueSender
+  return yield* sender.send(
+    sampleQueue,
+    new SampleMessage({ chatId: '0192d4e0-7b3a-7c00-8000-000000000030' }),
+  )
+})
 
 const queueUrl = Effect.gen(function* () {
   const { stage } = yield* awsConfig

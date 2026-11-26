@@ -4,15 +4,19 @@ import { HttpBody, HttpClient } from 'effect/http'
 
 import {
   Chat,
+  ChatBusyError,
   ChatNotFoundError,
   Message,
   MessageNotFoundError,
   Run,
   RunNotFoundError,
+  RunNotRetryableError,
 } from '@app-template/application/chat'
 import { chat, firstMessage, owner, queuedRun } from '@app-template/application/chat/testing'
-import { UserUnknownError } from '@app-template/application/identity'
+import { RequestInvalidError } from '@app-template/application/http-api'
+import { IdentityUnknownError } from '@app-template/application/identity'
 import type {
+  ChatEntitySelectWhere,
   MessageColumns,
   MessageEntityWhere,
   RunEntitySelectWhere,
@@ -20,7 +24,6 @@ import type {
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
-import { RequestInvalidError } from '#api/shared/api-security'
 import {
   ApiClient,
   type ApiRepositoryMocks,
@@ -50,13 +53,16 @@ const refusedRun = new Run({
 
 const failedChat = new Chat({ ...chat, run: Option.some(refusedRun) })
 
-const getJson = (url: string) =>
-  HttpClient.HttpClient.use((http) => http.get(url)).pipe(
-    Effect.flatMap((response) => response.json),
-  )
+const busyChat = new Chat({ ...chat, run: Option.some(queuedRun) })
+
+const getJson = Effect.fnUntraced(function* (url: string) {
+  const http = yield* HttpClient.HttpClient
+  const response = yield* http.get(url)
+  return yield* response.json
+})
 
 describe('chats', () => {
-  it.effect('GET /chats without a cookie is 401 UserUnknownError', () =>
+  it.effect('GET /chats without a cookie is 401 IdentityUnknownError', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
       const http = yield* HttpClient.HttpClient
@@ -65,8 +71,8 @@ describe('chats', () => {
       const error = yield* api.chats.list().pipe(Effect.flip)
 
       assert.strictEqual(response.status, 401)
-      assert.deepStrictEqual(yield* response.json, { _tag: 'UserUnknownError' })
-      assertSchemaEquals(UserUnknownError, error, new UserUnknownError())
+      assert.deepStrictEqual(yield* response.json, { _tag: 'IdentityUnknownError' })
+      assertSchemaEquals(IdentityUnknownError, error, new IdentityUnknownError())
     }).pipe(Effect.provide(layerApiTest({ users: { selectOne: () => Effect.succeedNone } }))),
   )
 
@@ -150,6 +156,42 @@ describe('chats', () => {
     ),
   )
 
+  it.effect('POST /chats/:chatId/messages on a busy chat is 409 ChatBusyError', () =>
+    Effect.gen(function* () {
+      const http = yield* HttpClient.HttpClient
+
+      const response = yield* http.post(`/chats/${chat.id}/messages`, {
+        body: HttpBody.jsonUnsafe(hello),
+      })
+
+      assert.strictEqual(response.status, 409)
+      assertSchemaEquals(
+        ChatBusyError,
+        yield* response.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(ChatBusyError))),
+        new ChatBusyError({ id: chat.id }),
+      )
+    }).pipe(Effect.provide(asOwner({ chats: { selectOne: reads.chat(busyChat) } }))),
+  )
+
+  it.effect(
+    'POST /chats/:chatId/runs while the newest Run is in work is 409 RunNotRetryableError',
+    () =>
+      Effect.gen(function* () {
+        const http = yield* HttpClient.HttpClient
+
+        const response = yield* http.post(`/chats/${chat.id}/runs`)
+
+        assert.strictEqual(response.status, 409)
+        assertSchemaEquals(
+          RunNotRetryableError,
+          yield* response.json.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(RunNotRetryableError)),
+          ),
+          new RunNotRetryableError(),
+        )
+      }).pipe(Effect.provide(asOwner({ chats: { selectOne: reads.chat(busyChat) } }))),
+  )
+
   it.effect('GET /chats/:chatId/messages lists a message with its failed Run', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
@@ -175,6 +217,31 @@ describe('chats', () => {
         }),
       ),
     ),
+  )
+
+  it.effect(
+    'GET /chats/:chatId/messages reads the chat for the signed-in user, then its messages',
+    () => {
+      const wheres: Array<ChatEntitySelectWhere | MessageEntityWhere> = []
+      const record = (where: ChatEntitySelectWhere | MessageEntityWhere) =>
+        Effect.sync(() => {
+          wheres.push(where)
+        })
+      return Effect.gen(function* () {
+        const api = yield* ApiClient
+
+        yield* api.chats.listMessages({ params: { chatId: chat.id } })
+
+        assert.deepStrictEqual(wheres, [{ id: chat.id, userId: owner }, { chatId: chat.id }])
+      }).pipe(
+        Effect.provide(
+          asOwner({
+            chats: { selectOne: (where) => record(where).pipe(Effect.andThen(reads.chat(chat))) },
+            messages: { selectMany: (where) => record(where).pipe(Effect.as([])) },
+          }),
+        ),
+      )
+    },
   )
 
   it.effect('a title or a text holding U+0000 is 400 before the store is asked', () =>
@@ -227,23 +294,22 @@ describe('chats', () => {
           wheres.push(where)
         }).pipe(Effect.as(Option.none()))
       return Effect.gen(function* () {
-        const api = yield* ApiClient
+        const http = yield* HttpClient.HttpClient
 
-        const message = yield* api.chats
-          .getMessage({ params: { chatId: chat.id, messageId: firstMessage.id } })
-          .pipe(Effect.flip)
-        const run = yield* api.chats
-          .getRun({ params: { chatId: chat.id, runId: queuedRun.id } })
-          .pipe(Effect.flip)
+        const message = yield* http.get(`/chats/${chat.id}/messages/${firstMessage.id}`)
+        const run = yield* http.get(`/chats/${chat.id}/runs/${queuedRun.id}`)
 
+        assert.deepStrictEqual([message.status, run.status], [404, 404])
         assertSchemaEquals(
           MessageNotFoundError,
-          message,
+          yield* message.json.pipe(
+            Effect.flatMap(Schema.decodeUnknownEffect(MessageNotFoundError)),
+          ),
           new MessageNotFoundError({ id: firstMessage.id }),
         )
         assertSchemaEquals(
           RunNotFoundError,
-          run,
+          yield* run.json.pipe(Effect.flatMap(Schema.decodeUnknownEffect(RunNotFoundError))),
           new RunNotFoundError({ where: { id: queuedRun.id } }),
         )
         assert.deepStrictEqual(wheres, [
@@ -258,7 +324,7 @@ describe('chats', () => {
     },
   )
 
-  it.effect('a failed Run reaches the wire by its status alone, never its failure', () =>
+  it.effect('a failed Run reaches the wire by its status alone, its chat by its state', () =>
     Effect.gen(function* () {
       const [wire, chatWire] = yield* Effect.forEach(
         [`/chats/${chat.id}/runs/${refusedRun.id}`, `/chats/${chat.id}`],
@@ -267,7 +333,8 @@ describe('chats', () => {
 
       assert.deepInclude(wire, { status: 'failed', assistantMessageId: null })
       assert.notProperty(wire, 'failure')
-      assert.deepInclude(chatWire, { status: 'failed' })
+      assert.deepInclude(chatWire, { state: 'failed' })
+      assert.notProperty(chatWire, 'status')
       assert.notProperty(chatWire, 'run')
     }).pipe(
       Effect.provide(

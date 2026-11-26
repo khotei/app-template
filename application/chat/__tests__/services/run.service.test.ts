@@ -1,42 +1,40 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Cause, Effect, Option, Struct } from 'effect'
+import { Array as Arr, Cause, DateTime, Effect, Exit, Option } from 'effect'
 
-import type { RunEntitySelectWhere, RunEntitySet, RunEntityWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
-import { assertSchemaEquals } from '@app-template/packages/testing'
-
-import { RunNotFoundError, RunStatusInvalidError } from '#chat/domain/run.error'
 import {
-  activeRunStatuses,
-  completeRun,
-  failRun,
-  Run,
-  type RunStatus,
-  startRun,
-} from '#chat/domain/run.model'
+  activeRunStatuses as indexedRunStatuses,
+  type RunEntitySelectWhere,
+  type RunEntitySet,
+  type RunEntityWhere,
+} from '@app-template/kernel/data'
+import { encodeWith, RowCodec } from '@app-template/packages/schema'
+import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
+
+import { activeRunStatuses, Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
+import { RunMove } from '#chat/domain/run-move'
 import { RunService, type RunWhere } from '#chat/services/run.service'
 import { assistantMessageAt, queuedRun } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
-/** Each transition, the status it leaves from and the status it writes. */
+/** Each move, the status it leaves from and the status it writes. */
 const moves: ReadonlyArray<{
   readonly name: string
   readonly from: RunStatus
   readonly to: RunStatus
-  readonly transition: (run: Run) => Effect.Effect<Run>
+  readonly move: (run: Run) => Effect.Effect<Run>
 }> = [
-  { name: 'startRun', from: 'queued', to: 'generating', transition: startRun },
+  { name: 'start', from: 'queued', to: 'generating', move: RunMove.start },
   {
-    name: 'completeRun',
+    name: 'complete',
     from: 'generating',
     to: 'done',
-    transition: (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id),
+    move: (run) => RunMove.complete(run, assistantMessageAt(1, 'Sure.').id),
   },
   {
-    name: 'failRun',
+    name: 'fail',
     from: 'queued',
     to: 'failed',
-    transition: (run) => failRun(run, Cause.fail('SQS is unavailable')),
+    move: (run) => RunMove.fail(run, Cause.fail('SQS is unavailable')),
   },
 ]
 
@@ -78,15 +76,22 @@ function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
 }
 
 describe('RunService', () => {
+  // The model and the table each declare the active statuses and no call hands one to the other,
+  // so no type compares them: diverged, the busy rule lets through an ask the partial unique
+  // index refuses, or the index stores two active Runs of a chat.
+  it('holds as active the statuses the partial unique index holds', () => {
+    assert.sameMembers([...activeRunStatuses], [...indexedRunStatuses])
+  })
+
   it.effect.each(moves)(
-    'move by $name writes the $to Run under the status it was read in',
-    ({ from, to, transition }) => {
+    'update by $name writes the $to Run under the status it was read in',
+    ({ from, to, move }) => {
       const run = new Run({ ...queuedRun, status: from })
       const { updates, layer } = recordUpdates()
       return Effect.gen(function* () {
         const service = yield* RunService
 
-        const moved = yield* service.move(run, transition)
+        const moved = yield* service.update(run, yield* move(run))
 
         assert.strictEqual(moved.status, to)
         assert.deepStrictEqual(
@@ -97,7 +102,7 @@ describe('RunService', () => {
     },
   )
 
-  it.effect('move of a Run moved since it was read dies on the guard in the write', () => {
+  it.effect('update of a Run moved since it was read dies on the guard in the write', () => {
     const wheres: Array<RunEntityWhere> = []
     const layer = layerChatTest({
       runs: {
@@ -109,9 +114,10 @@ describe('RunService', () => {
     })
     return Effect.gen(function* () {
       const service = yield* RunService
+      const started = yield* RunMove.start(queuedRun)
 
       const defect = yield* service
-        .move(queuedRun, startRun)
+        .update(queuedRun, started)
         .pipe(Effect.catchDefect(Effect.succeed))
 
       assert.strictEqual(defect, 'no run was updated')
@@ -119,27 +125,22 @@ describe('RunService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect(
-    'move by a transition the model refuses dies with RunStatusInvalidError, unwritten',
-    () => {
-      const { updates, layer } = recordUpdates()
-      return Effect.gen(function* () {
-        const service = yield* RunService
+  it.effect('update writes a Run as read with its updatedAt moved to now', () => {
+    const { updates, layer } = recordUpdates()
+    return Effect.gen(function* () {
+      const service = yield* RunService
+      const read = new Run({ ...queuedRun, updatedAt: DateTime.makeUnsafe('2026-11-09T00:00Z') })
+      const failed = yield* RunMove.fail(read, Cause.fail('529 overloaded'))
 
-        const defect = yield* service
-          .move(queuedRun, (run) => completeRun(run, assistantMessageAt(1, 'Sure.').id))
-          .pipe(Effect.catchDefect(Effect.succeed))
+      const moved = yield* service.update(read, failed)
 
-        assert.instanceOf(defect, RunStatusInvalidError)
-        assert.deepStrictEqual(Struct.pick(defect, ['id', 'from', 'to']), {
-          id: queuedRun.id,
-          from: 'queued',
-          to: 'done',
-        })
-        assert.deepStrictEqual(updates, [])
-      }).pipe(Effect.provide(layer))
-    },
-  )
+      assert.deepStrictEqual(moved.updatedAt, epoch)
+      assert.deepStrictEqual(
+        Arr.map(updates, ([set]) => [set.status, set.failure, set.updatedAt]),
+        [['failed', Option.getOrThrow(failed.failure), DateTime.toDateUtc(epoch)]],
+      )
+    }).pipe(Effect.provide(layer))
+  })
 
   it.effect.each(reads)(
     "getOne by $name reads the Run under its where's filter",
@@ -176,5 +177,22 @@ describe('RunService', () => {
         assertSchemaEquals(RunNotFoundError, error, new RunNotFoundError({ where: key }))
       }).pipe(Effect.provide(layer))
     },
+  )
+})
+
+describe("a Run's update, as its service codes it", () => {
+  it.effect('keeps its status, failure and reply typed, and dies on another type', () =>
+    Effect.gen(function* () {
+      const update = RowCodec.makeUpdate(Run)
+
+      // @ts-expect-error a status is one of a Run's
+      const lost = yield* update({ ...queuedRun, status: 'lost' }).pipe(Effect.exit)
+      // @ts-expect-error a failure is an Option of a RunFailure
+      const failed = yield* update({ ...queuedRun, failure: 'down' }).pipe(Effect.exit)
+      // @ts-expect-error a reply is an Option of a MessageId
+      const reply = yield* update({ ...queuedRun, assistantMessageId: 'x' }).pipe(Effect.exit)
+
+      assert.deepStrictEqual(Arr.map([lost, failed, reply], Exit.hasDies), [true, true, true])
+    }),
   )
 })

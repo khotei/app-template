@@ -9,7 +9,10 @@ const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply fail
  * but a defect, which the queue's consumer logs.
  */
 export const replyToMessage = Effect.fn('replyToMessage')(
-  (job: ReplyToMessage) => ReplyChatService.use((replies) => replies.reply(job.messageId)),
+  function* (job: ReplyToMessage) {
+    const replies = yield* ReplyChatService
+    return yield* replies.reply(job.messageId)
+  },
   Effect.catchTag('RunNotFoundError', () =>
     Effect.logInfo('reply skipped: its Run is done, failed or gone'),
   ),

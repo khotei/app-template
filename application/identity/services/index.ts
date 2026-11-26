@@ -1,1 +1,1 @@
-export * from '#identity/services/user.service'
+export * from '#identity/services/identity.service'

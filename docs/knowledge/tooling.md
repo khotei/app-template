@@ -67,9 +67,9 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
   alone reads keeps the alias and no entry. Suites compose these barrels instead of copying them.
   A unit test mocks each repository it calls with `Layer.mock`, in the test; the fake
   `FileRepositoryTest` lives in `kernel/data/__tests__/testing/`, and a module's fakes of its
-  ports and infrastructure services in that module's. The shared `packages/testing` holds
-  only the support several parts use; a package's own (its Postgres or MiniStack clients) lives
-  in that package, as a kernel part's does.
+  leaves ([which](../../application/CLAUDE.md)) in that module's. The shared `packages/testing`
+  holds only the support several parts use; a package's own (its Postgres or MiniStack clients)
+  lives in that package, as a kernel part's does.
 - **What a test may import.** A unit test imports its workspace's source and the `/testing` of
   the parts its workspace declares; an e2e suite also their `/testing/e2e`; a unit test never
   imports e2e support. The `apps/e2e` test app holds e2e alone, the suites through the api in
@@ -80,20 +80,19 @@ Which suite runs where:
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its ports and infrastructure services (`@app-template/application/<module>/testing`), `TransactionTest` |
+| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its leaves (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistants over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
 | apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants |
-| assembled | `apps/e2e/api/`: the journey and the use cases' races and rollbacks, each a request to the api | both app layers in one runtime (`StandTest`) |
+| assembled | `apps/e2e/api/`: the journey and the races and rollbacks of a service's or use case's transaction, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
   `.entity.e2e.ts` sit in `kernel/data/__e2e__/<store>/` on `DbTest`; `flipSqlError`, which reads
   the `SqlError` of a refused statement, comes from `@app-template/packages/db/testing/e2e`. What
   they check: [database.md › Tests](database.md#tests). A limit, a pattern or an enum's values
-  is declared once, in its table, and a model that holds it imports it. The data layer's e2e
-  refuse a limit plus one by its constant and accept the limit itself, and accept a pattern's
-  extreme value.
+  is declared in its table, and a model that holds it declares its own. The data layer's e2e
+  accept a check's extreme value and refuse what is just past it.
 - **One root `vitest.config.ts`, two projects,** chosen by `--project`: `unit` runs
   `__tests__/**/*.test.ts`; `e2e` runs `__e2e__/**/*.e2e.ts` and the test app's
   `apps/e2e/**/*.e2e.ts`, on Docker, and alone has the `globalSetup`. Each project lists the
@@ -109,8 +108,8 @@ Which suite runs where:
   `make up`, and two trees run them side by side.
 - **The journey, in the `apps/e2e` test app.** `StandTest`, in the test app's support, runs the
   api's and the worker's layers in the test's runtime over a `PgClientTest` database, an
-  `AwsTest` stage and the chat module's scripted assistants ([ai.md](ai.md)). The use cases'
-  races share its stand, and each rollback takes a stand of its own, since it alters the schema
+  `AwsTest` stage and the chat module's scripted assistants ([ai.md](ai.md)). The races share
+  its stand, and each rollback takes a stand of its own, since it alters the schema
   to make Postgres refuse a write. The journey proves the wiring; every rule keeps its lower
   seam.
 - **Concurrent within a file.** Both projects set `sequence: { concurrent: true }`; since every
@@ -121,6 +120,13 @@ Which suite runs where:
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its
   neighbours' time. `PgClientTest` gives its pool the live clock in any case: the pool reads
   `Clock` once when it is built, and a `TestClock` there stalls every statement.
+- **An interrupt.** A flow that runs `Effect.uninterruptible`, whole or but for one step, has a
+  case that interrupts it at a chosen point: a mocked leaf holds its call on a `Deferred`
+  (`holdCall`), the test forks the method, waits for the call and interrupts the fiber.
+  `Fiber.interrupt` waits for its fiber to end, so where the held call runs uninterruptible, the
+  test forks the interrupt with `{ startImmediately: true }`, releases the call and joins it: an
+  interrupt not forked there hangs on the held call. The test then asserts what the flow wrote,
+  and the jobs it sent where it sends any.
 - **A plainer test, not a helper.** Test support is code to maintain that hides what a test
   checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
@@ -282,8 +288,7 @@ its package symlink and checks its sources either way.
 Code the browser imports is a package, a folder of `packages/`, never a workspace of its own,
 since the web declares no workspace of the app but `packages`
 ([decisions.md › The API contract in the api](decisions.md#the-api-contract-in-the-api)): the
-package joins the `apps/web/**` override's allowed imports and `browserPackages` in
-`apps/web/package.json`, which `make bundle-check` reads, so it imports only `effect` and the
+package joins the `apps/web/**` override's allowed imports, so it imports only `effect` and the
 browser's other packages; a new module, kernel part or other package adds nothing there
 ([decisions.md › Guards are configuration](decisions.md#guards-are-configuration)).
 

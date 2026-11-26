@@ -1,16 +1,7 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option, Schema } from 'effect'
+import { Equal, Option, Schema } from 'effect'
 
-import { assertSchemaEquals } from '@app-template/packages/testing'
-
-import { ChatBusyError } from '#chat/domain/chat.error'
-import {
-  buildChatStatus,
-  Chat,
-  ChatTitle,
-  ensureChatNotBusy,
-  isNewChat,
-} from '#chat/domain/chat.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
 import { Run, type RunStatus } from '#chat/domain/run.model'
 import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
@@ -18,51 +9,11 @@ const runAt = (status: RunStatus) => Option.some(new Run({ ...queuedRun, status 
 
 const chatAt = (status: RunStatus) => new Chat({ ...chat, run: runAt(status) })
 
-describe('buildChatStatus', () => {
-  it('reads a chat no ask has reached as idle', () => {
-    assert.strictEqual(buildChatStatus(Option.none()), 'idle')
+describe('Chat', () => {
+  it('compares by its fields alone', () => {
+    assert.isTrue(Equal.equals(chatAt('done'), chatAt('done')))
+    assert.sameMembers(Object.keys(chat), Object.keys(Chat.fields))
   })
-
-  it.each([
-    { status: 'queued', chatStatus: 'queued' },
-    { status: 'generating', chatStatus: 'queued' },
-    { status: 'done', chatStatus: 'idle' },
-    { status: 'failed', chatStatus: 'failed' },
-  ] as const)(
-    'reads a chat whose newest Run is $status as $chatStatus',
-    ({ status, chatStatus }) => {
-      assert.strictEqual(buildChatStatus(runAt(status)), chatStatus)
-    },
-  )
-})
-
-describe('isNewChat', () => {
-  it('reads a chat no ask has reached as new', () => {
-    assert.isTrue(isNewChat(chat))
-  })
-
-  it('reads a chat with a Run as not new', () => {
-    assert.isFalse(isNewChat(chatAt('done')))
-  })
-})
-
-describe('ensureChatNotBusy', () => {
-  it.effect('takes a chat no ask has reached', () => ensureChatNotBusy(Option.none()))
-
-  it.effect.each([{ status: 'done' }, { status: 'failed' }] as const)(
-    'takes a chat whose newest Run is $status',
-    ({ status }) => ensureChatNotBusy(runAt(status)),
-  )
-
-  it.effect.each([{ status: 'queued' }, { status: 'generating' }] as const)(
-    'refuses a chat whose newest Run is $status with ChatBusyError',
-    ({ status }) =>
-      Effect.gen(function* () {
-        const error = yield* ensureChatNotBusy(runAt(status)).pipe(Effect.flip)
-
-        assertSchemaEquals(ChatBusyError, error, new ChatBusyError({ id: chat.id }))
-      }),
-  )
 })
 
 describe('ChatTitle', () => {

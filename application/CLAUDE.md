@@ -11,17 +11,26 @@ may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-
   (`.claude/rules/models.md`). An adapter in `infrastructure/` does the
   I/O, over the clients the process provides (`HttpClient`) and the settings of
   `@app-template/kernel/config`, never `Bun.env`.
-- **A module's `domain/` is pure:** it imports `effect`, another module's contract,
-  `@app-template/packages/schema` (the id schema), the data layer's values (a table's limit,
-  pattern, enum values or JSON column's shape, never a table, entity or repository), no other
-  workspace, no Bun API and no Node built-in. Ports live only in `.port.ts` files and domain
-  services only in `services/`, never beside a model.
+- **A module's `domain/` is pure:** it imports `effect`, another module's contract and
+  `@app-template/packages/schema` (the id schema), and no other workspace, Bun API or Node
+  built-in. It never imports the kernel: a value its table declares too (a limit, an enum's
+  values) the model declares again. Ports live only in `.port.ts` files and domain services only
+  in `services/`, never beside a model.
   Decision: [A module's layers](../docs/knowledge/decisions.md#a-modules-layers).
-- **Each service in a module's `infrastructure/` has one fake** in its module's test
-  support (a port would too), for every workspace's unit tests:
+- **An infrastructure service a test stands in for, a leaf (a port's adapter, a client-backed
+  service), has one fake** in its module's test support, for every workspace's unit tests; a
+  service built over a leaf runs real over the leaf's fake:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **A module's `infrastructure/` holds what connects to the environment**
   ([decision](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a
   service its module calls there, keeps its client and prompts inside, so callers never see them.
-- A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and each job's
-  `send<Job>`; no adapter wraps the worker.
+- A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and its
+  `<Model>Queue`, which holds each job's `send<Job>`; no adapter wraps the worker.
+- **`http-api/` is the API contract,** which the api implements. A group takes the domain's schemas
+  as they are (ids, checks, models, errors), through the modules' contracts alone: an error's status
+  is on its class (`{ httpApiStatus: 404 }`, the third argument of `Schema.TaggedError`), an
+  endpoint or a middleware lists the bare class, and a model goes on the wire only as its
+  `<Model>.json`, never the class, so what the model keeps off the wire (a sensitive or select-only
+  field) stays off, with `.mapFields(…)` where the wire adds or swaps a field, named by an
+  `identifier` (`Api<Model>`). Decision:
+  [The API contract in the api](../docs/knowledge/decisions.md#the-api-contract-in-the-api).

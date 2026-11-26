@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { DateTime, Effect, Exit, Layer, Option, Schema, Struct } from 'effect'
 
-import type { UserId } from '@app-template/application/identity'
+import type { UserId } from '@app-template/application/user'
 import {
   type ChatColumns,
   type ChatEntitySelectWhere,
@@ -10,14 +10,14 @@ import {
   type ChatEntityWhere,
   ChatRepository,
 } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
+import { encodeWith, RowCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { Chat, ChatNotFoundError, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
+import { Run } from '#chat/domain/run.model'
 import { ChatService } from '#chat/services/chat.service'
-import { chat, owner, unknownChatId } from '#testing/chat/chat.test-fixture'
+import { chat, owner, queuedRun, unknownChatId } from '#testing/chat/chat.test-fixture'
 
 /** The service over a repository that implements only the methods the case gives; any other dies. */
 const chatServiceOver = ({
@@ -237,5 +237,45 @@ describe('ChatService', () => {
 
         assertSchemaEquals(ChatNotFoundError, missing, new ChatNotFoundError({ id: unknownChatId }))
       }).pipe(Effect.provide(chatServiceOver({ chats: { selectOne: () => Effect.succeedNone } }))),
+  )
+})
+
+describe("a Chat's rows, as its service codes them", () => {
+  it.effect('a row without one of its columns fails to compile, and its read dies', () =>
+    Effect.gen(function* () {
+      const { createdAt: _, ...drifted } = yield* encodeWith(Chat)(chat)
+
+      // @ts-expect-error a row without createdAt is no Chat's
+      const decoded = RowCodec.decodeOne(Chat)(Option.some(drifted))
+      const defect = yield* decoded.pipe(Effect.catchDefect(Effect.succeed))
+
+      assert.isTrue(Schema.isSchemaError(defect))
+    }),
+  )
+
+  it.effect("a Run's row fails to compile as a chat's", () =>
+    Effect.gen(function* () {
+      const fields = Struct.pick(queuedRun, ['chatId', 'userId', 'userMessageId'])
+      const { row } = yield* RowCodec.makeInsert(Run)(fields)
+
+      // @ts-expect-error a Run's row is no chat's
+      const chatRow: ChatColumns = row
+
+      assert.notProperty(chatRow, 'title')
+    }),
+  )
+
+  it.effect('an update keeps the title typed and refuses the owner, written once', () =>
+    Effect.gen(function* () {
+      const update = RowCodec.makeUpdate(Chat)
+
+      // @ts-expect-error a title is an Option of a ChatTitle
+      const untitled = yield* update({ id: chat.id, title: 'Trip' }).pipe(Effect.exit)
+      // @ts-expect-error userId is written once, by the insert
+      const { row } = yield* update({ id: chat.id, userId: owner })
+
+      assert.isTrue(Exit.hasDies(untitled))
+      assert.notProperty(row, 'userId')
+    }),
   )
 })

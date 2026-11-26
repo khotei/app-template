@@ -101,7 +101,7 @@ changes it.
 | Folder | What it holds |
 |---|---|
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
-| `application/` | the behaviour: the modules `chat` and `identity`, and every use case in `application/use-cases` |
+| `application/` | the behaviour: the modules `chat`, `user` and `identity`, and every use case in `application/use-cases` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
 | `packages/` | generic tools that know no app: database, S3 and queue clients, the AWS inventory's types, the codecs and the id schema (`schema`), UI, test helpers |
 | `deployment/` | the Pulumi program of the local stand: MiniStack with the database, the bucket, the queues and the worker's Lambda mappings inside it, and the telemetry backend, from resource code an AWS stack can call |
@@ -215,9 +215,9 @@ Each addition has a checklist, written from the data outward and test first:
 - a dependency or a workspace: [tooling.md › Dependencies](docs/knowledge/tooling.md#dependencies).
 
 <img src=".misc/readme/patterns.svg"
-  alt="Six shapes from chat: a guarded move through RunService.move, a rule keyed by a table, the
+  alt="Six shapes from chat: a guarded move through RunService.update, a rule keyed by a table, the
   writes in one transaction with the sends after it, errors handled once at a flow's end,
-  Effect.acquireUseRelease around the answer, and Layer.mock of the repositories in unit
+  a method uninterruptible but for its answer, and Layer.mock of the repositories in unit
   suites"
   width="830">
 

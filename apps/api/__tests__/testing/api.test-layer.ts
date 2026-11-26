@@ -4,6 +4,7 @@ import { Cookies, HttpClient } from 'effect/http'
 import { HttpApiClient } from 'effect/http-api'
 
 import { owner } from '@app-template/application/chat/testing'
+import { Api } from '@app-template/application/http-api'
 import {
   ChatRepository,
   MessageRepository,
@@ -14,7 +15,6 @@ import { TransactionTest } from '@app-template/packages/db/testing'
 import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
 
-import { Api } from '#api/api'
 import { ApiHttp } from '#api/layer'
 
 /** The whole api process, clients and all, for the e2e journey that runs it beside the worker. */
@@ -41,11 +41,13 @@ export const layerApiClient = (baseUrl = '', cookies = Cookies.empty) =>
     Layer.provideMerge(
       Layer.effect(
         HttpClient.HttpClient,
-        Clock.currentTimeMillis.pipe(
-          Effect.map((now) => Cookies.mergeIntoArray([], testServerUrl, cookies, now)),
-          Effect.flatMap(Ref.make),
-          Effect.flatMap((jar) => HttpClient.HttpClient.useSync(HttpClient.withCookiesRef(jar))),
-        ),
+        Effect.gen(function* () {
+          const http = yield* HttpClient.HttpClient
+
+          const now = yield* Clock.currentTimeMillis
+          const jar = yield* Ref.make(Cookies.mergeIntoArray([], testServerUrl, cookies, now))
+          return HttpClient.withCookiesRef(http, jar)
+        }),
       ),
     ),
   )
@@ -60,7 +62,9 @@ export class StrangerApiClient extends Context.Service<
   ): Layer.Layer<StrangerApiClient, never, HttpClient.HttpClient> =>
     Layer.effect(
       this,
-      ApiClient.useSync((api) => api),
+      Effect.gen(function* () {
+        return yield* ApiClient
+      }),
     ).pipe(Layer.provide(layerApiClient(baseUrl)))
 }
 

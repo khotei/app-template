@@ -1,12 +1,16 @@
 import { Array as Arr, Effect, Option } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { ChatService, MessageService, RunService } from '@app-template/application/chat'
-import { askChat, listMessages, retryRun } from '@app-template/application/use-cases'
+import {
+  AskChatService,
+  ChatService,
+  MessageService,
+  RunService,
+} from '@app-template/application/chat'
+import { Api } from '@app-template/application/http-api'
+import { Identity } from '@app-template/application/identity'
 
-import { Api } from '#api/api'
 import { buildApiChat } from '#api/chat/chat.mapper'
-import { CurrentUser } from '#api/shared/api-security'
 
 export const ChatHandler = HttpApiBuilder.group(
   Api,
@@ -15,60 +19,62 @@ export const ChatHandler = HttpApiBuilder.group(
     const chatService = yield* ChatService
     const messageService = yield* MessageService
     const runService = yield* RunService
+    const askService = yield* AskChatService
 
     return handlers.handleAll({
       create: Effect.fn('ChatHandler.create')(function* () {
-        const user = yield* CurrentUser
-        return yield* chatService.create(user.id)
+        const identity = yield* Identity
+        return yield* chatService.create(identity.userId)
       }, Effect.map(buildApiChat)),
       list: Effect.fn('ChatHandler.list')(
         function* () {
-          const user = yield* CurrentUser
-          return yield* chatService.list(user.id)
+          const identity = yield* Identity
+          return yield* chatService.list(identity.userId)
         },
         Effect.map(Arr.map(buildApiChat)),
       ),
       get: Effect.fn('ChatHandler.get')(function* ({ params }) {
-        const user = yield* CurrentUser
-        return yield* chatService.getOne({ id: params.chatId, userId: user.id })
+        const identity = yield* Identity
+        return yield* chatService.getOne({ id: params.chatId, userId: identity.userId })
       }, Effect.map(buildApiChat)),
       rename: Effect.fn('ChatHandler.rename')(function* ({ params, payload }) {
-        const user = yield* CurrentUser
+        const identity = yield* Identity
         return yield* chatService.update(
           { title: Option.some(payload.title) },
-          { id: params.chatId, userId: user.id },
+          { id: params.chatId, userId: identity.userId },
         )
       }, Effect.map(buildApiChat)),
       delete: Effect.fn('ChatHandler.delete')(function* ({ params }) {
-        const user = yield* CurrentUser
-        yield* chatService.delete({ id: params.chatId, userId: user.id })
+        const identity = yield* Identity
+        yield* chatService.delete({ id: params.chatId, userId: identity.userId })
       }),
       listMessages: Effect.fn('ChatHandler.listMessages')(function* ({ params }) {
-        const user = yield* CurrentUser
-        return yield* listMessages(user.id, params.chatId)
+        const identity = yield* Identity
+        yield* chatService.getOne({ id: params.chatId, userId: identity.userId })
+        return yield* messageService.getMany({ chatId: params.chatId })
       }),
       ask: Effect.fn('ChatHandler.ask')(function* ({ params, payload }) {
-        const user = yield* CurrentUser
-        return yield* askChat(user.id, params.chatId, payload.text)
+        const identity = yield* Identity
+        return yield* askService.ask({ id: params.chatId, userId: identity.userId }, payload.text)
       }),
       retryRun: Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
-        const user = yield* CurrentUser
-        return yield* retryRun(user.id, params.chatId)
+        const identity = yield* Identity
+        return yield* askService.retry({ id: params.chatId, userId: identity.userId })
       }),
       getMessage: Effect.fn('ChatHandler.getMessage')(function* ({ params }) {
-        const user = yield* CurrentUser
+        const identity = yield* Identity
         return yield* messageService.getOne({
           id: params.messageId,
           chatId: params.chatId,
-          userId: user.id,
+          userId: identity.userId,
         })
       }),
       getRun: Effect.fn('ChatHandler.getRun')(function* ({ params }) {
-        const user = yield* CurrentUser
+        const identity = yield* Identity
         return yield* runService.getOne({
           id: params.runId,
           chatId: params.chatId,
-          userId: user.id,
+          userId: identity.userId,
         })
       }),
     })

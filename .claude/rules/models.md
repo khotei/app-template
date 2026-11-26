@@ -35,15 +35,43 @@ export class Order extends Model.Class<Order>('Order')({
   whether or not the model is updated today. One no client may see is `Model.Sensitive`.
 - **A record another table holds, read with the model,** is a field of the select variant alone
   (`Model.FieldOnly(['select'])`, defaulted so a new record builds without it): no write encodes
-  it, no json variant carries it, and the api adds its wire shape (`apps/CLAUDE.md`).
-- **A service builds a write through its variant,** `<Model>.insert.makeEffect(…)` or
-  `<Model>.update.makeEffect(…)`, encodes that variant for the repository and returns
-  `new <Model>(…)` over what it built; never `new <Model>(…)` with an id or a time made by hand
-  (`DateTime.now`, a generator of its own).
+  it, no json variant carries it, and the API contract adds its wire shape
+  (`application/CLAUDE.md`).
+- **A model holds no member:** its rules are statics of a class per kind beside it, one file each
+  (`order-policy.ts`): `<Model>Policy` the checks (`ensure<Rule>`, failing or passing, writing
+  nothing, `Effect.fnUntraced`, no span), `<Model>Move` the status moves (`<verb>`, returning the
+  record's next state, `Effect.fn('<Model>Move.<verb>')`), `<Model>State` what the record's
+  values say of it (`build`, `is<Value>`). A model imports no group.
+- **A static calls another by its class's name,** never `this`, so one passed as a value runs
+  (`Effect.flatMap(<Group>.<rule>)`).
+- **A rule is typed over the fields it reads,** never the class, so a plain struct (a variant,
+  another module's shape, a spread) passes: a check or a value takes a `Pick` of its fields, a
+  check that returns it generic, a move `<Model>Fields`
+  ([why](../../docs/knowledge/decisions.md#rules-as-pure-functions)).
+```ts
+export type OrderFields = Schema.Struct.Type<typeof Order.fields>     // in order.model.ts
+export class OrderMove {                                              // order-move.ts
+  static readonly ship = Effect.fn('OrderMove.ship')((order: OrderFields) => …) // a new Order
+}
+```
+- **A service codes its rows through `RowCodec` of `@app-template/packages/schema` alone,** its
+  statics taking the model: `decodeOne`/`decodeMany` a read's rows, `makeInsert`/`makeUpdate` a
+  write, the variant's `makeEffect` and its encode in one call; never `encodeWith` or
+  `decodeWith` at the call, nor a codec static on the model. It hands `row` to the repository and
+  returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an id or a time made by hand
+  (`DateTime.now`, a generator of its own). `makeUpdate` drops the keys the update variant renews
+  (`updatedAt`), so the variant moves them to now whether the caller passes fields or a record as
+  read ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
+```ts
+const { set, row } = yield* RowCodec.makeInsert(Order)({ customerId })
+const found = yield* orders
+  .selectOne(encodeWhere(where))
+  .pipe(Effect.flatMap(RowCodec.decodeOne(Order)))
+```
 - **An update passes every field it must keep:** a default on an updatable field fills it when
   left out, and the write then resets the column.
 
 ```diff
 - yield* Order.update.makeEffect({ id: order.id, note })        // `status` defaults to 'placed'
-+ yield* Order.update.makeEffect(Struct.omit(shipped, ['updatedAt']))   // whole, the time moved
++ yield* RowCodec.makeUpdate(Order)(shipped)                     // whole, the time moved
 ```

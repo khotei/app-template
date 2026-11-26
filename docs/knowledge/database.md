@@ -35,15 +35,16 @@ the entities derived from them.
   the table exports (`runStatuses = ['queued', …] as const`, then
   `pgEnum('run_status', runStatuses)`), and a check declares its own pattern or limit
   beside the table (`credentials_hash_check` the lower-case hex SHA-256 a credential's hash is;
-  `chats_title_check` the length `ChatTitle` caps), so a row written by hand cannot hold
-  what the domain rejects. A model that holds the value imports it from the table and checks the
-  same rule on its side, so a change to the value changes both; a value no model holds, such as
-  the hash its service computes, has the check alone. drizzle-kit inlines the values
+  `chats_title_check` a trimmed, non-empty title), so a row written by hand cannot hold
+  what the domain rejects. A model that holds the value declares it again on its side and checks
+  the same rule there, never importing the table's
+  ([Checks kept in the tables](decisions.md#checks-kept-in-the-tables)); a value no model holds,
+  such as the hash its service computes, has the check alone. drizzle-kit inlines the values
   into the DDL, so a changed literal, pattern or limit changes the schema, and
   `make migration-check` fails until a migration exists.
 - **A check is a backstop, never stricter than the brand.** It may let through what the brand
-  refuses, never the reverse: `chats_title_check` trims spaces only and counts code points, where
-  `ChatTitle` trims every whitespace and counts UTF-16 units. Checks are named
+  refuses, never the reverse: `chats_title_check` trims spaces only and caps no length, where
+  `ChatTitle` trims every whitespace and caps the length, a rule of the domain alone. Checks are named
   `<table>_<column>_check`, indexes `<table>_<columns>_index` and partial indexes
   `<table>_<columns>_<predicate>_index` (`runs_chat_id_active_index`).
 - **A rule across rows is a partial unique index.** `runs_chat_id_active_index` allows one
@@ -93,26 +94,28 @@ A model is the codec of its own row: a `Model.Class` that declares each stored v
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
 (`Model.DateTimeInsertFromDate`, `Model.DateTimeUpdateFromDate`), so its encoded side is its
 entity and its type side is what the rules read. No mapper sits between them: a service codes a
-row with `encodeWith` and `decodeWith` from `@app-template/packages/schema`, given the model or
-one of its variants. A read decodes the entity with the model in the read's shape, whose nested
-models decode their own rows. A write builds and encodes a variant: `insert` makes the id and
-both times, `update` holds only the fields an update may set and moves `updatedAt`, and neither
-holds a nested record, which is a field of the select variant alone
+row through the statics of `RowCodec` (`@app-template/packages/schema`), which take the model: a
+read's through `decodeOne` or `decodeMany`, a write's through `makeInsert` or `makeUpdate` over
+its variant ([models.md](../../.claude/rules/models.md)). A read decodes the entity with the
+model in the read's shape, whose nested models decode their own rows. A write builds and encodes a variant:
+`insert` makes the id and both times, `update` holds only the fields an update may set and moves
+`updatedAt`, and neither holds a nested record, which is a field of the select variant alone
 ([Models with variants](decisions.md#models-with-variants)):
 
 ```ts
-const fields = yield* Chat.insert.makeEffect({ userId })
-const row = yield* encodeWith(Chat.insert)(fields)
-const found = yield* chats.selectOne(where).pipe(Effect.flatMap(decodeWith(Schema.Option(Chat))))
+const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
+const found = yield* chats
+  .selectOne(encodeWhere(where))
+  .pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
 - A model's encoded side is the row of its one store. A second stored form of a model brings
   back a mapper of its own, which lays the model's schemas over that store's columns.
-- A service writes a model encoded through `encodeWith` into the row the repository's `insert`
+- A service writes a model encoded through `RowCodec.makeInsert` into the row the repository's `insert`
   takes, the table's full row, so a column the model lacks fails typecheck at that insert; a
   read drops it. A value already in the data layer's types (brands, literals) is passed as is:
-  `UserRepository.insert` takes the credential with no codec and writes
-  `{ hash, kind, userId }`, the user's id from the user it was given.
+  `UserRepository.insertCredential` takes the credential's row `{ hash, kind, userId }` with no
+  codec, `IdentityService` setting `userId` from the user's row.
 - A `jsonb` column carries its shape's type (`jsonb().$type<RunFailure>()`),
   declared as a schema beside the table, so the row Drizzle returns fits the entity.
 
@@ -139,22 +142,23 @@ never a condition built on the `chats` constant.
 
 ## Repositories
 
-A repository is a `Layer` over `Db` and `SqlClient` in its entity's `.repository.ts` (names:
+A repository is a `Layer` over `Db` in its entity's `.repository.ts` (names:
 [naming.md › Symbols](../../.claude/rules/naming.md#symbols)). The data layer's, in
 `kernel/data/<store>/`, `FileRepository` over the bucket's objects among them
 ([aws.md › Files](aws.md#files)), speak entities: they take a table's row (an
 object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhere` and return
 `<Name>Entity`. A module's service calls one directly, with no port in front, and codes its rows
-through its models (`UserService` over `UserRepository`). A method that writes several tables
-runs them in one `sql.withTransaction`, passed to `Effect.fn` as a pipeable:
-`UserRepository.insert` writes the user and its credential, or neither. `SqlClient` is the
-`PgClient` that `Db.layer` takes from the context (`PgClientFromConfig` in the processes, `DbTest`
-in the e2e), so the transaction runs on the connection `Db` uses. Every method ends with
-`orDieWithSqlError` from `@app-template/packages/db`.
+through its models (`IdentityService` over `UserRepository`). Rows of several tables that commit
+together are a method each, which their service commits in one transaction
+([Transactions](#transactions)), as `IdentityService` does a user and its credential
+([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `orDieWithSqlError`
+from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
 their codecs: a write encodes the model into the row, the set takes its fields from that row,
-and a read decodes the entities into models; a mapping failure dies.
+and a read decodes the entities into models; a mapping failure, a value a variant refuses
+included, dies as a `Schema.SchemaError`, whose message is the issue's text, so no service
+settles it.
 
 A `where` has two forms, one on each side of a service. What a caller hands a service is model
 values alone: a branded id, an `Option` for a field that may be null (`{ id, title: Option.none() }`
@@ -216,23 +220,22 @@ touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the writ
 whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `AskChatService.ask` takes the chat
-  read with its newest Run and refuses a chat whose Run is active (`ensureChatNotBusy`,
+  active Run in a chat fails on the index and dies. `AskChatService.ask` reads the chat
+  with its newest Run and refuses a chat whose Run is active (`ChatPolicy.ensureNotBusy`,
   `ChatBusyError`, 409);
   of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
-- **Update under a `where`.** `RunRepository.update(set, where)` writes the Run's status, failure
-  and `updatedAt` `WHERE id = … AND status = …`: `RunService.move(run, transition)` moves the
-  Run it is given through the model's transition and writes it through `RunService.update(to,
-  where)`, which stamps it with the current time and passes it, encoded, as the set, with the
-  Run's id under the status it was read in as the `where`, where a read's `RunEntitySelectWhere`
-  takes the id or the user's message under a status; so a write whose expected status another
-  worker has left, or whose Run is gone, changes nothing and dies, in the repository. The reply's
-  tail fails the Run its start wrote, by that write's status, so on a Run settled meanwhile
-  it dies too and leaves the Run as the other writer left it. A Run's completion writes the
-  assistant's message, then moves the Run to `done` naming it, in one transaction, so a lost race
-  keeps no reply.
+- **Update under a `where`.** `RunRepository.update(set, where)` writes the columns of
+  `runSetColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
+  caller read and the Run its move made, stamps the second with the current time and passes it,
+  encoded, as the set, with the first's id under the status it was read in as the `where`, where
+  a read's `RunEntitySelectWhere` takes the id or the user's message under a status; so a write
+  whose expected status another worker has left, or whose Run is gone, changes nothing and dies,
+  in the repository. The reply's tail fails the Run its start wrote, by that write's status, so on
+  a Run settled meanwhile it dies too and leaves the Run as the other writer left it. A Run's
+  completion writes the assistant's message, then moves the Run to `done` naming it, in one
+  transaction, so a lost race keeps no reply.
 - **A message is never changed.** `MessageRepository` has no `update`: a user's message is
   finished when the user asks, an assistant's when its Run writes it. The Run names its reply:
   `runs_assistant_message_id_check` holds that a Run names one exactly when it is `done`, and
@@ -262,11 +265,16 @@ deletes under them again, so a call that names no user fails typecheck and anoth
 ## Transactions
 
 A use case that writes several aggregates commits them together: the `Effect.fn` that holds the
-writes takes the pipeable `(writes) => Transaction.use((transaction) => transaction.run(writes))`
-(`Transaction.layer` wraps `SqlClient.withTransaction`). A service whose writes commit together
-passes `transaction.run` as the last argument of the function that holds them:
-`AskChatService.ask`'s the user's message and its queued Run, `ReplyChatService.reply`'s answer
-the chat's history, the assistant's call and the reply with the Run's `done`, so that transaction,
+writes yields `Transaction` and pipes its `run` on them (`yield* writes.pipe(transaction.run)`;
+`Transaction.layer` wraps `SqlClient.withTransaction` over the `PgClient` that `Db.layer` takes
+from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e, so it runs on the
+connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
+the outer one: it rolls back alone on its own failure and commits with the outer
+([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
+passes `transaction.run` as the last argument of the function that holds them: `IdentityService`'s
+new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
+`ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the
+Run's `done`, so that transaction,
 and the pooled connection it holds, stays open for the language model's call. Every
 repository call inside joins the transaction through the connection `@effect/sql` keeps in the
 fiber's context, so no repository takes a transaction parameter. The guards above decide every
@@ -280,16 +288,16 @@ commit ([The sends](#the-sends)).
 
 A Run has the statuses of `runStatuses` (`kernel/data/chat/run.table.ts`); `queued` and
 `generating` are active, `done` and `failed` end it. Each arrow is the model's transition that
-`RunService.move` writes, and in brackets its caller; every move is written under the status
+`RunService.update` writes, and in brackets its caller; every move is written under the status
 read ([Guards](#guards)).
 
 ```mermaid
 stateDiagram-v2
   [*] --> queued: RunService.create (AskChatService.ask, AskChatService.retry)
-  queued --> generating: startRun (ReplyChatService.reply)
-  queued --> failed: failRun (AskChatService on a refused send)
-  generating --> done: completeRun (ReplyChatService.reply)
-  generating --> failed: failRun (ReplyChatService.reply's tail; its start, on a Run some worker started)
+  queued --> generating: RunMove.start (ReplyChatService.reply)
+  queued --> failed: RunMove.fail (AskChatService on a refused send)
+  generating --> done: RunMove.complete (ReplyChatService.reply)
+  generating --> failed: RunMove.fail (ReplyChatService.reply's tail; its start, on a Run some worker started)
   done --> [*]
   failed --> [*]
 ```
@@ -313,15 +321,15 @@ chat's title) is the one the worker reads
 
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through the
   definition's schema to a JSON string and sends it to the definition's queue;
-  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A use case sends its jobs
-  after its transaction commits, so a delivery always finds the record it names. A transaction
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`
+  sends its jobs after its transaction commits, so a delivery always finds the record it names. A transaction
   that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
   message's and its Run's too. For the reply's, `AskChatService` also fails the Run it sent
-  through `RunService.move` and `failRun`, by its id, with the queue's error's full text as its
-  failure, and the request responds with `202` and that failed Run; the message is stored and
-  shown failed with its retry, `POST /chats/:chatId/runs`. The title's send only logs it. A send
-  that never happens after the commit: [Stuck Runs](#stuck-runs).
+  through `RunService.update` and the Run's `fail`, by its id, with the queue's error's full text
+  as its failure, and the request responds with `202` and that failed Run; the message is stored
+  and shown failed with its retry, `POST /chats/:chatId/runs`. The title's send only logs it. A
+  send that never happens after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 
@@ -366,5 +374,5 @@ unique index) and reads the `SqlError` of a refused statement with `flipSqlError
 [guard](#guards) the database adds, the cascades of its [foreign keys](#schema-and-entity-files)
 included, has its case in a repository suite: a unit test mocks the repository, so it sees none
 ([effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e)). Where each
-suite and its support live and the e2e of a use case's transaction:
+suite and its support live and the e2e of a service's or use case's transaction:
 [tooling.md › Tests](tooling.md#tests).

@@ -45,34 +45,33 @@ const run = (
  * Two chats of one user, the first with the user's message and an assistant's reply, beside a
  * stranger with no chat.
  */
-const insertMessages = Db.use((db) =>
-  db
-    .insert(users)
-    .values([
-      { id: userId, createdAt: new Date(0) },
-      { id: strangerId, createdAt: new Date(0) },
-    ])
-    .pipe(
-      Effect.andThen(
-        db.insert(chats).values([
-          { id: chatId, userId, title: null, createdAt, updatedAt },
-          { id: otherChatId, userId, title: null, createdAt, updatedAt },
-        ]),
-      ),
-      Effect.andThen(
-        db.insert(messages).values([
-          { id: userMessageId, chatId, userId, author: 'user', text: 'Hi', createdAt },
-          { id: replyId, chatId, userId, author: 'assistant', text: 'Hello', createdAt },
-        ]),
-      ),
-    ),
-)
+const insertMessages = Effect.gen(function* () {
+  const db = yield* Db
 
-const insertRun = (row: RunRow) => Db.use((db) => db.insert(runs).values(row))
+  yield* db.insert(users).values([
+    { id: userId, createdAt: new Date(0) },
+    { id: strangerId, createdAt: new Date(0) },
+  ])
+  yield* db.insert(chats).values([
+    { id: chatId, userId, title: null, createdAt, updatedAt },
+    { id: otherChatId, userId, title: null, createdAt, updatedAt },
+  ])
+  yield* db.insert(messages).values([
+    { id: userMessageId, chatId, userId, author: 'user', text: 'Hi', createdAt },
+    { id: replyId, chatId, userId, author: 'assistant', text: 'Hello', createdAt },
+  ])
+})
 
-const selectRuns = Db.use((db) => db.select().from(runs).orderBy(runs.id)).pipe(
-  Effect.flatMap(Schema.decodeEffect(Schema.Array(RunColumns))),
-)
+const insertRun = Effect.fnUntraced(function* (row: RunRow) {
+  const db = yield* Db
+  return yield* db.insert(runs).values(row)
+})
+
+const selectRuns = Effect.gen(function* () {
+  const db = yield* Db
+  const rows = yield* db.select().from(runs).orderBy(runs.id)
+  return yield* Schema.decodeEffect(Schema.Array(RunColumns))(rows)
+})
 
 describe('runs', () => {
   it.effect('reads back a queued Run beside a done one of the same message', () =>

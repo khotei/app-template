@@ -11,10 +11,13 @@ type BucketResource = Resources['buckets'][string]
 type QueueResource = Resources['queues'][string]
 
 // A bucket this account holds already is the one asked for: CreateBucket never updates one.
-const provisionBucket = (stage: string) => (bucket: BucketResource) =>
-  S3Service.use((s3) => s3.createBucket({ Bucket: buildResourceName(stage, bucket.name) })).pipe(
-    Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void),
-  )
+const provisionBucket = (stage: string) =>
+  Effect.fnUntraced(function* (bucket: BucketResource) {
+    const s3 = yield* S3Service
+    return yield* s3
+      .createBucket({ Bucket: buildResourceName(stage, bucket.name) })
+      .pipe(Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void))
+  })
 
 /** The key order is fixed: CreateQueue compares a repeated RedrivePolicy as a string. */
 const buildRedrivePolicy = (deadLetterTargetArn: string, maxReceiveCount: number): string =>

@@ -29,32 +29,53 @@ may import what:
 ### Modules by capability
 
 The behaviour is split by business capability, a module per capability under `application/`:
-`chat` and `identity`.
+`chat`, `user` and `identity`. `user` holds the user's model and its id, which other modules'
+models and the API contract name; `identity` the recognising of a user by its secret, the
+`IdentityUnknownError` its `authenticate` fails with and `Identity`, what a request's credential
+names, which the api's `Auth` provides to the handlers, and it imports `user`, never the
+reverse.
 
-- **Why:** a module owns what changes together. `identity` names the capability, and `user` is
-  reserved in Postgres.
+- **Why:** a module owns what changes together. Who a user is changes apart from how the api
+  recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
+  `user`'s contract, and a second way to sign in changes `identity` alone. An `Identity` is what
+  a request's credential names (today a user's id, later, with OAuth, a token's claims) and a
+  `User` the whole record that extends it, so the two keep two names (the owner's word,
+  2026-11-25).
 - **Sources:** the guide's "a module's mission fits one sentence" and "what always changes
   together belongs in one module"
   ([defining-components](https://software-architecture-guild.com/guide/architecture/boundaries/defining-components/));
-  the ticket's count of the imports.
-- **Rejected:** a module per table: the guide's anemic modules.
-- **Cost:** `chat` is the largest module.
-- **Guarded by:** review; no tool sees a capability.
-- **If reversed:** modules split by table, and a flow over one capability spans several.
+  the ticket's count of the imports; for `user` and `identity`, the owner's yes of 2026-11-25 to
+  option B of issue #48 (`docs/tickets/2026-11-25-1922_pure-models/`).
+- **Rejected:** a module per table: the guide's anemic modules. The user's model in `identity`:
+  `chat`'s models would name an id of the module that holds the secrets and the sign-in. A
+  service in `user` with no write of its own: it would only forward what `identity` asks of
+  the `users` rows.
+- **Cost:** `chat` is the largest module. `user` has no `services/` until it has a write of its
+  own, so `identity`'s `IdentityService` writes the `users` rows, and a user's records have
+  their one owner ([layering.md](../../.claude/rules/layering.md#ports-and-domain-services))
+  outside the user's module.
+- **Guarded by:** review; no tool sees a capability, nor `user` importing `identity`'s contract,
+  which forms no cycle of files ([modules.md](../../.claude/rules/modules.md)).
+- **If reversed:** modules split by table, and a flow over one capability spans several; `user`
+  folded back into `identity`, every reader of the user's id imports `identity` again.
 - **Revisit when:** files come back with a life outside a chat
-  ([Attachments removed](#attachments-removed)); they may take a module of their own.
+  ([Attachments removed](#attachments-removed)); they may take a module of their own. The user
+  gains a write of its own (a profile, an account it merges into): `user` gets a service
+  of its own over the `users` rows, and `identity` calls it.
 
 ### Use cases above the modules
 
 Every use case lives in `application/use-cases`, above the modules: synchronous, one transaction
-whatever modules it touches; no events, facades or reactions between modules. A use case
-composes the modules' services and model rules, holds the transaction, orders the writes against
-a store outside it and enqueues the jobs, and holds nothing else: a rule, a read or a write stays
-in its module's models and services, and a request's rules with the writes of one module that
-commit together sit in a service of that module, the transaction piped on those writes
-(`AskChatService`, [Composition: wrap or compose](#composition-wrap-or-compose),
-[layering.md › Use cases](../../.claude/rules/layering.md#use-cases)). The shape:
-[architecture.md › A use case](architecture.md#a-use-case).
+whatever modules it touches; no events, facades or reactions between modules. A use case is an
+order over modules, holding the transaction their writes share, or a job's end; it composes the
+modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
+module's models and services, and an order over one module's services, a request's checks with
+the writes that commit together and the jobs sent after them, sits in that module's
+`<Verb><Model>Service`, the transaction piped on those writes (`AskChatService`,
+[Composition: wrap or compose](#composition-wrap-or-compose),
+[The chat's jobs in their services](#the-chats-jobs-in-their-services),
+[layering.md](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases)). The
+shape: [architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
   from the request to the last write, debuggable without following an event; one transaction for
@@ -83,9 +104,15 @@ commit together sit in a service of that module, the transaction piped on those 
 
 ### Use cases as functions
 
-A use case, and a job's `send<Job>`, is an `Effect.fn` that yields what it composes, its type
-inferred. The process provides the services it reads: the api in `ApiHttp`, after
-`HttpRouter.serve`, the worker in its layer.
+A use case is an `Effect.fn` that yields what it composes, its type inferred; which flow is one:
+[layering.md › Use cases](../../.claude/rules/layering.md#use-cases). The chat's two,
+`replyToMessage` and `titleChat`, each end a job over one method of a `<Verb><Model>Service`. A
+flow inside the module is that service's, so `AskChatService.ask` and `retry` take
+`{ id, userId }` and read the user's chat themselves, and a read of the user's record before one
+call is its handler's: the list of a chat's messages reads the user's chat
+(`ChatService.getOne`), then lists (`MessageService.getMany`). The process provides the services a
+use case reads: the api in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's
+sends are a service's: [Jobs as queue messages](#jobs-as-queue-messages).
 
 - **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
   errors among it, and closed its services in a layer that each handler group or route provided
@@ -99,42 +126,75 @@ inferred. The process provides the services it reads: the api in `ApiHttp`, afte
 - **Rejected:** the class with its `Shape` inferred from `make`: its layer and provide lists
   stay. The services provided in each handler group: a handler's own requirement is a request's
   (`repos/effect/packages/effect/src/http-api/HttpApiBuilder.ts:222-232`), which the group's
-  provide never reaches, so `tsc` refuses the process.
-- **Cost:** a flow that reads a service its process lacks fails `tsc` at the process's `main.ts`
-  and its tests, not at the flow; a unit test merges its doubles into the layer it provides
-  (`Layer.provideMerge`), since the flow reads them itself; the worker's route test mocks the
-  leaves, not the use cases; a span is the function's name.
+  provide never reaches, so `tsc` refuses the process. A use case per endpoint that reads the
+  user's chat and then makes one call: a pass-through over one read, a unit of no purpose of its
+  own for each such endpoint. The list's owner as a `where` field of its query: a chat that is not
+  the user's, or none, would answer `200` with an empty list in place of `404 ChatNotFoundError`.
+- **Cost:** one endpoint, the list of a chat's messages, whose handler makes two calls, the chat's
+  read and the list. `ask` and `retry` cannot be called with a `Chat` already read: a caller that
+  holds one passes its key and owner, and the service reads it again. A flow that reads a service
+  its process lacks fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit
+  test merges its doubles into the layer it provides (`Layer.provideMerge`), since the flow reads
+  them itself; the worker's route test mocks the leaves, not the use cases; a span is the
+  function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
-  list, a job's failure at `consumeQueue`.
-- **If reversed:** each use case and each `send<Job>` become a `Context.Service` whose layer provides
+  list, a job's failure at `consumeQueue`; `.claude/rules/layering.md › Handlers` and review, a
+  handler composing more than the user's record's read and one call.
+- **If reversed:** each use case becomes a `Context.Service` whose layer provides
   the services it composes, and each handler group and the worker's route provide those layers.
 - **Revisit when:** a use case needs a second implementation, a test double or state of its own.
 
 ### Module contracts
 
 A module other modules need exposes a contract, a folder of the module created with the first module
-that imports it, `application/<module>/contract/`, exported through the module's one entry with the
-rest of the module. A dependency on a module's contract counts as one on the module.
+that imports it, `application/<module>/contract/`, behind an entry of its own,
+`@app-template/application/<module>/contract`. Its `index.ts` exports by name, from the module's
+`domain/` files, what a reader outside the module takes today: its ids, its models with the
+errors their rules fail with, and the group a wire shape reads (`ChatState`); never `export *`,
+which would give out a model's helpers and constants too, nor `domain/index.ts`, which brings the
+rules' other groups and the assistant's output. A module's `domain/` takes another module
+only through that entry; its other layers may take the contract's names through the module's
+entry, which re-exports every layer. A dependency on a module's contract counts as one on the
+module.
 
-- **Why:** `chat` needs a few names of identity and little else; one entry per module is all a
-  caller must know, and the kernel's parts work the same way.
+- **Why:** `chat` needs a few names of `user` and little else; one entry per module is all a
+  caller must know, and the kernel's parts work the same way. The domain is the exception: the
+  module's entry loads its services and, through them, the data layer and Drizzle into whatever
+  imports it, so a model would carry them. `bun build` of chat's entry reads 636 files, 123 of
+  them Drizzle's; of its contract's entry, 74 and none. A domain file imports only `effect`, ids
+  and other models, so a contract over its files loads no more than the domain does, and the
+  models stay where their module's rules and services import them.
 - **Sources:** the guide's "design contracts around use cases, not around internal entity
   models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/));
-  Spring Modulith's named interfaces and Packwerk's public folder (research).
+  Spring Modulith's named interfaces and Packwerk's public folder (research); for the
+  re-exports, the owner's word (2026-11-25).
 - **Rejected:** the contract as its own workspace: the linker refused the rest of the module,
   but a nested workspace needed `exclude` and a reference in its module's `tsconfig.json`, and a
-  second package name for one module. A second entry for the contract: two ways in for one
-  module. A Biome list of the contract's names (`allowImportNames`) or a ban
-  by name (`importNamePattern`): review holds the names instead.
-- **Cost:** the entry opens the module whole, so which of its names another module takes is
-  review's (`modules.md`), not Biome's. A contract imports no workspace but
-  `@app-template/packages/schema`, which knows no app, so its ids are built like the domain's
-  ([Utils apart from models](#utils-apart-from-models)).
+  second package name for one module. The module's entry alone, the domain taking its contract's
+  names from it: a model loads the module's services, the data layer and Drizzle. The contract's
+  entry for every layer: a services' or an app's import of the contract and of a service of one
+  module would need two lines, where the domain alone must not load the services. The models,
+  ids and errors moved from `domain/` into `contract/`: a module's models split across two
+  folders by who may see them, and each of the module's own imports of them renamed. A Biome
+  list of the contract's names (`allowImportNames`) or a ban by name (`importNamePattern`): the
+  contract's index lists its names instead, and `tsc` refuses a name it does not export. Each
+  file re-exported whole (`export *`): every helper and constant beside a model (`isBlank`,
+  `maxTitleLength`) becomes a name others may take, and nothing tells the contract from the
+  domain (the owner's word, 2026-11-25: "we don't want to export everything").
+- **Cost:** two ways in for one module's contract, its entry and the module's. The module's entry
+  opens it whole, so which of its names another module's services take is review's
+  (`modules.md`), not Biome's. A name a new reader needs is a line added to the contract's index
+  first, and that the index lists only names a reader takes is review's. A contract holds no
+  file but its index, so an id lives in its model's `.util` file in `domain/`, as every other
+  util does ([Utils apart from models](#utils-apart-from-models)).
 - **Guarded by:** the rows of a module's layers and of a contract in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules);
-  `.claude/rules/modules.md` refuses a name past the contract, a module importing one above it
-  and a cycle through contracts.
+  [architecture.md › Dependency rules](architecture.md#dependency-rules), the domain's override
+  admitting of `application/` only a contract's entry (`@app-template/application/*/contract`),
+  its tests' a module's test support too, the contract's admitting of its module only `domain/`
+  files, never their index, a policy or a move group (`*-policy`, `*-move`), the entry, the
+  services or the infrastructure; `.claude/rules/modules.md` refuses a name past the contract, a
+  module importing one above it and a cycle through contracts.
 - **If reversed:** a module that imports another's entry reaches its services and
   models, and two modules can depend on each other with no tool noticing.
 - **Revisit when:** a second module needs more of a module than its contract holds: grow the
@@ -153,66 +213,66 @@ definitions with the send of each job, which the chat's ask service (`AskChatSer
 the data layer's repository directly.
 
 - **Why:** `domain/` holds the rules as pure functions over values passed in, so what reads the
-  data cannot sit there. Nothing of it reaches the browser any more
-  ([The API contract in the api](#the-api-contract-in-the-api)), so it takes from the data layer
-  the values its tables declare (a limit, a pattern, an enum's values, a JSON column's shape,
-  which the table already declares as a schema) instead of declaring them again, and keeps its
-  own brands, models and refinements: the vocabulary is the domain's, and the data layer stays
-  free of models ([The data at the centre](#the-data-at-the-centre)). The
+  data cannot sit there; it imports no part of the kernel, whose data layer would bring the
+  backend into every importer of a model, so it declares its values itself, a value its table
+  declares too ([Checks kept in the tables](#checks-kept-in-the-tables)), and keeps its own
+  brands, models and refinements: the vocabulary is the domain's, and the data layer stays free
+  of models ([The data at the centre](#the-data-at-the-centre)). The
   data layer's repository already is the contract a service needs, and a port with an adapter
   over it would repeat its methods; the aliases keep the layer in every import line, so each
-  layer's Biome override matches the others by glob (`#*/services/**`). A handler calls one
-  service method or one use case, and a use case calls services, neither a repository, so each
+  layer's Biome override matches the others by glob (`#*/services/**`). A handler and a use case
+  call services, never a repository ([layering.md](../../.claude/rules/layering.md)), so each
   record has one owner every caller goes through.
 - **Sources:** the guide's "Keep internal layering per module"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   `.claude/rules/layering.md`.
 - **Rejected:** ports in `domain/` with adapters over the data layer: two layers with the same
-  methods. An export per layer (`/chat/domain`): a caller must know the module's inside. The same
+  methods. An export per layer (`/chat/domain`): a caller must know the module's inside; only the
+  contract has one, the part another module may take ([Module contracts](#module-contracts)). The same
   `#domain/*` aliases in every module: inside one workspace they would collide. The domain taking
   the data layer's schemas too: the tables would first declare a brand and a checked column for
   every id and constrained string, and own the domain's vocabulary, against
   [.claude/rules/modules.md › A service rule or a model in the kernel](../../.claude/rules/modules.md#a-service-rule-or-a-model-in-the-kernel).
   A leaf package of shared values for the data layer and the domain: the values would leave
   the tables that check them, and the wire takes them through the domain's schemas.
-  The domain's own copies kept: a value could drift between the two declarations. The queues'
+  The domain taking the tables' values: the backend in every importer of a model. The queues'
   definitions in `services/`: the services' guard would admit `@app-template/kernel/aws` and
   `@app-template/packages/queue`.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
-  repositories; the domain loads the data layer's entry, and its guard admits of it only the names
-  of a value's shape (`<name>Pattern`, a JSON column's `<Name>Failure`), so a value of a new
-  shape widens the guard's pattern; one entry opens the
-  module whole, so another part's ban on a layer matches the names it imports. A layer's override
-  covers its tests, save the services', so what they need passes in its source too. What passes
-  every guard: [architecture.md › Known gaps](architecture.md#known-gaps).
+  repositories; a value both the domain and a table hold is declared twice, held in step at the
+  service that codes the row ([Checks kept in the tables](#checks-kept-in-the-tables)); one entry
+  opens the module whole, so another part's ban on a layer matches the names it imports, but
+  the domain's, which admits only a contract's entry. A layer's override covers its tests, save
+  the services' and the domain's, so what they need passes in its source too. A
+  repository's method opens no transaction, and a service commits rows that span tables:
+  [One way to open a transaction](#one-way-to-open-a-transaction). What passes every guard:
+  [architecture.md › Known gaps](architecture.md#known-gaps).
 - **Guarded by:** one Biome override per layer, matching every module by glob and covering the
-  layer's tests, save the services', whose tests have one of their own, the domain's admitting
-  of the kernel only `@app-template/kernel/data`, and of it only a value's name
-  (`<name>Pattern`, `<name>Statuses`), the services' admitting neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of
-  their infrastructure, and their tests' admitting test support and the queue file
+  layer's tests, save the services' and the domain's, whose tests have one each, the domain's
+  admitting of another module only its contract's entry and refusing every part of the kernel
+  and test support, which its tests' alone admits, the
+  services' admitting of `@app-template/packages/db` only `Transaction`, and neither
+  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of their
+  infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
-  chat's ask service (`ask-chat.service.ts`) its own, which adds `Transaction` alone of
-  `@app-template/packages/db`, `QueueSender` alone of `@app-template/packages/queue` and of the
-  infrastructure the queue file alone, the chat's reply
-  service (`reply-chat.service.ts`) its own, which adds `Transaction` alone and the message's
-  assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its own, which
-  adds the chat's assistant's `.llm` file alone
-  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)):
-  the rows of a module's layers in
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); `make bundle-check`,
-  which reads the web bundle's metafile and refuses the module's package in it;
+  chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
+  file alone, the chat's reply service (`reply-chat.service.ts`) its own, which adds the
+  message's assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its
+  own, which adds the chat's assistant's `.llm` file alone
+  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)): the rows of a
+  module's layers in [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
 - **If reversed:** a port per repository comes back with an adapter each that only delegates; an
-  export per layer brings back the subpaths and a ban per layer by path; a domain without the
-  data layer declares each value again, and a mapper's unit test per value compares the copies.
+  export per layer brings back the subpaths and a ban per layer by path; a domain that imports
+  the data layer's values drops its own copies, and its guard admits the values by name.
 - **Revisit when:** a service needs a store the data layer cannot reach, or the data layer
   brands its ids and constrained strings itself, so the domain could take its schemas too.
 
 ### HTTP outside the modules
 
-The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalidError`) live in
-`apps/api`, outside the modules; the id format's schema (`buildIdSchema`) lives in
+The HTTP groups and the errors only HTTP raises (`RequestInvalidError`) live in
+`application/http-api`, the API contract, beside the modules and outside them, and their handlers
+in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 `packages/schema`, and a model's insert variant generates an id of it
 ([Models with variants](#models-with-variants)).
 
@@ -231,10 +291,14 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
   sibling group: it would sit apart from its handler, and every process that imports the module,
   the worker too, would load the groups and `effect/http-api` (10 modules, 27 KB more in the
   worker's bundle).
-- **Cost:** a module's HTTP shape lives outside the module.
-- **Guarded by:** the `apps/api` row of
-  [architecture.md › Dependency rules](architecture.md#dependency-rules); no module's manifest
-  declares `@app-template/api`, so an import of it fails TS2307.
+- **Cost:** a module's HTTP shape lives outside the module, but for its errors' statuses
+  ([The API contract in the api](#the-api-contract-in-the-api)).
+- **Guarded by:** the `application/http-api` row of
+  [architecture.md › Dependency rules](architecture.md#dependency-rules), whose Biome override
+  admits there only the modules' contracts; a module's `domain/`, whose override admits of
+  `application/` only a contract, never imports it; the overrides of a module's `services/`, its
+  services' tests, its `infrastructure/` and the use cases refuse
+  `@app-template/application/http-api`, so only the apps read it.
 - **If reversed:** a handler inside its module imports the assembled `Api`, which imports the
   module: a cycle `tsc -b` refuses.
 - **Revisit when:** the groups stop being assembled into one `Api`, or a module serves its own
@@ -242,16 +306,26 @@ The HTTP groups, their handlers and the errors only HTTP raises (`RequestInvalid
 
 ### The API contract in the api
 
-The api declares its HTTP surface in its own files, one group per entity beside its handler,
-assembled into one `Api`, over the domain's schemas: ids, payload checks, models and errors are
-the domain's own; every error gets its status where an endpoint or a middleware lists it
-(`HttpApiSchema.status`); a wire shape is its model's json variant (`<Model>.json`), which
+The API contract is `application/http-api`, a part of the `application` workspace behind its own
+entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
+the definitions of its middlewares (`Auth`, which provides identity's `Identity`,
+`SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers, stay in
+`apps/api`. It takes of a module only its models, ids, errors, `Identity` and `ChatState`, the
+group a wire shape reads, through the
+module's contract
+([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
+case, so it loads no service, store or client; it is declared over the
+domain's schemas: ids, payload checks, models and errors are
+the domain's own; an error's status is on its class, the annotation `{ httpApiStatus: <code> }`
+of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
+its model's json variant (`<Model>.json`), which
 leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
-field, named by an `identifier` so the snapshot holds it once, and a mapper adds only what the
-model lacks (`buildApiChat` adds `status`); a model with nothing to leave out goes whole (`User`).
+field, named by an `identifier` so the snapshot holds it once; a field the wire adds is set by
+the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which a handler pipes
+on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`).
 A field no client may see is declared so once, in its model
 ([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
-so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. Its unit test writes
+so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. The api's unit test writes
 `apps/api/openapi.json`; the web reads that file by path and keeps the client
 `@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
 reaches the browser, and the web declares no workspace of the app but `packages`.
@@ -272,24 +346,29 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   (`repos/effect/ai-docs/src/51_http-server/fixtures/api/Users.ts`) and gives an error its
   status both on the domain's class
   (`repos/effect/ai-docs/src/51_http-server/fixtures/domain/UserErrors.ts`) and at an endpoint
-  with `HttpApiSchema.status`; the api takes the second form only. The owner's decision of the
-  design audit (Track B). A run of the derived contract against the twins' snapshot: the same 17
-  operations, statuses and bodies. Departs from the guide's "design contracts around use cases,
-  not around internal entity models"
+  with `HttpApiSchema.status`; the api takes the first form, which `HttpApiBuilder` and `OpenApi`
+  read from the class's annotations when no listing sets one (`resolveHttpApiStatus` in
+  `effect/src/http-api/HttpApiSchema.ts`); moving the statuses there left the snapshot and the
+  web's client as they were under `make api-snapshot`. The owner's decisions of the design audit
+  (Track B) and of the status on the class. A run of the derived contract against the twins'
+  snapshot: the same 17 operations, statuses and bodies. Departs from the guide's "design
+  contracts around use cases, not around internal entity models"
   ([contracts](https://software-architecture-guild.com/guide/architecture/boundaries/contracts/)):
   the wire is the models' encoded side, held by the snapshot test. In the prototype of
   `docs/tickets/2026-11-04-1131_client-publishing/`, renaming a nested domain field on the wire
   broke 8 of 13 handlers without a mapper; here a renamed model field renames the wire field with
   no handler edit, and the api's snapshot test stops it.
 - **Rejected:** the contract as a workspace importing only `effect`: the twins, a test to hold
-  them, guards for a browser that no longer imports it. A status on the domain's class: an HTTP
-  fact in a `domain/` the worker loads too. A status on the class only for an error HTTP alone
-  raises: two forms for one fact. A constant per error with its status: a second name for one
-  class, the alias `.claude/rules/effect-style.md › Composition` refuses. A `pick`
+  them, guards for a browser that no longer imports it. A status per listing
+  (`<Error>.pipe(HttpApiSchema.status(…))` at each endpoint and middleware): it kept HTTP out of
+  `domain/`, but repeated one error's status at every listing (12 listings for 7 errors), each a
+  place to forget it. A status on the class only for an error HTTP alone raises, at the listing
+  for the rest: two forms for one fact. A constant per error with its status: a second name for
+  one class, the alias `.claude/rules/effect-style.md › Composition` refuses. A `pick`
   of the wire's fields: every field listed again. Each wire shape omitting by name what stays
   off (`<Model>.mapFields(Struct.omit([…]))`): every shape that nests the record repeats the
   omission, where the model's field now says it once. A client generated at build time:
-  typecheck, the bundle check and the editor would need a step first. The client held by a
+  typecheck and the editor would need a step first. The client held by a
   vitest file snapshot of the generator's output: 27 lines of test and `@effect/vitest` in the
   web, where the generator's command and `cmp` check the same. Track B had rejected that command,
   as the test called the same service and `bunx` wrote 33 lines apart on a fetched peer `effect`
@@ -299,9 +378,19 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   `DateTime` and error classes. The snapshot in a folder below both apps: the api's test would
   write outside its workspace. A name per endpoint (`OpenApi.Identifier`): an operationId is
   unique across groups, so it repeats its group anyway. A translation per handler, an identity
-  `buildApi<Model>`: `tsc` refuses the drift without them. The failure's cause in the worker's
+  `buildApi<Model>`: `tsc` refuses the drift without them. The field read from the model's
+  getter (`chat.status`), a shape this decision held before: a member on a model that holds none
+  ([Rules as pure functions](#rules-as-pure-functions)), and a wire field resting on the struct
+  encoder reading a getter. The failure's cause in the worker's
   log alone, kept out of the Run's model: lost once the log rolls over, and apart from the Run it
-  belongs to.
+  belongs to. The contract in `apps/api`, each group beside its handler: code no other workspace
+  may import, as apps import no app, and no override held a group to the modules' models, ids and
+  errors. The middlewares' layers beside their definitions: the contract would import
+  `IdentityService` and the api's error mapping. A workspace of its own: a second manifest and
+  package name for files that import only `effect` and the modules' contracts. The modules'
+  entries with a ban by name (`Service`, `Queue`, `Assistant`, `Repository`): it held the names
+  the contract took, not what the entries loaded, so importing the contract loaded every
+  module's services and Drizzle, and a namespace import (`import * as`) passed it.
 - **Cost:** the web's client knows no brands, `DateTime`, `Option` or error classes (ids and
   dates are strings, an absent value `null`, an error a struct with `_tag`), and checks only
   what JSON Schema carries, so it can pass what the api refuses with a `400`: a text measured in
@@ -312,46 +401,76 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   changed for the store changes the wire too, unless the wire shape swaps the field. A field
   added to a model, a secret included, reaches the wire unless the model declares it
   `Model.Sensitive`; the snapshot test stops it until `make api-snapshot` writes it into the
-  diff, and only review of that diff refuses it. An error's status is spelled at each listing
-  (13 for 7 errors), and a listing without `HttpApiSchema.status` responds with `500`, which likewise
-  only review of the snapshot diff refuses. A user's own group goes in `api.ts`'s first
-  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `CurrentUser` fails
+  diff, and only review of that diff refuses it. A domain error names a transport status
+  (`httpApiStatus`), a fact of HTTP in a `domain/` the worker loads too, though as a plain key
+  it imports nothing of `effect/http-api`; an error has one status across every endpoint that
+  lists it, so an endpoint that needs another status needs another class; and a class without
+  the key, or with it misspelled (`httpApiStatsu`), which `tsc` passes as `Annotations` takes
+  any key (a wrong value's type fails `TS2769`), responds with `500`: past `make api-snapshot`,
+  only a handler test that asserts that class's status stops it. A user's
+  own group goes in `api.ts`'s first
+  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `Identity` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`UserEncoded`) and the wire shapes' identifiers (`ApiChat`), and a class returned through more
-  than one schema, the bare class and each `.pipe(HttpApiSchema.status(…))` counting as one, gets
-  a numbered component (`<Class>Encoded_2`), which a wire shape's `identifier` avoids (`ApiRun`
-  for the Run's three). Two checked-in files move with every
+  (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema
+  returned in more than one form, the bare one and each `.pipe(HttpApiSchema.status(…))`
+  counting as one, gets a numbered component (`<Class>Encoded_2`), which a wire shape's
+  `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move with every
   wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
   pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive` field, a message's
   wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
   stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
   variant, or a new listing of an error with a cause, would carry it, which only review of the
-  snapshot diff holds.
-- **Guarded by:** `HttpApiBuilder` and `CurrentUser` under `tsc` (a field the wire adds that the
-  model lacks fails `TS2322` at each handler that returns it, and a group past
-  `.middleware(Auth)` whose handler reads `CurrentUser`, `TS377004`); the api's snapshot test;
+  snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
+  handler that returns the model without it fails `tsc`. A name a group needs of a module is a
+  line in that module's contract first. `bun build application/http-api/index.ts --target bun
+  --metafile` lists 103 input files in its metafile, none of a service, an infrastructure, the
+  kernel, `packages/db` or Drizzle; through the modules' entries it read 664, 123 of them
+  Drizzle's. No check repeats that build: a
+  contract that re-exported a service's file would load it again, which the contracts' override
+  refuses and only review of a domain file's imports holds past it; a mechanical check of that
+  bundle is left to the web framework's work (the owner's word, 2026-11-25), and so is one of the
+  browser's: the `apps/web/**` override and the web's manifest, which declares no workspace but
+  `packages`, refuse a direct import of the app, but nothing refuses a server import that
+  reaches the bundle through a package they admit (`packages/ui` importing `packages/db`).
+- **Guarded by:** `HttpApiBuilder` and `Identity` under `tsc` (a field the wire adds that the
+  handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
+  `.middleware(Auth)` whose handler reads `Identity`, `TS377004`); the api's snapshot test,
+  and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
-  `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override;
-  `make bundle-check`.
+  `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override; the
+  `application/http-api/**` override, which admits of the workspaces only
+  a module's contract (`@app-template/application/*/contract`), and `tsc`, which refuses a name
+  the contract does not export (`TS2305`).
 - **If reversed:** a workspace again restates the domain's ids, checks, models and errors with a
-  test to compare them, and the web imports it instead of the generated client.
+  test to compare them, and the web imports it instead of the generated client. The status
+  alone reversed: each error class loses its `httpApiStatus` and every listing pipes
+  `HttpApiSchema.status(…)` again.
 - **Revisit when:** the web needs a brand, a `DateTime`, an `Option` or an error class on its
-  side; a client outside this repository needs the contract as code; a model's row form must
-  differ from what the wire carries; or a client must show a failure's cause.
+  side; a client, the web's included, takes the contract as code (`HttpApiClient.make(Api)`),
+  which needs it to load no service or store; a model's row form must
+  differ from what the wire carries; a client must show a failure's cause; or one error needs
+  two statuses at two endpoints.
 
-### Status owned by chat
+### Each model's own statuses
 
-`Status` belongs to `chat`.
+A Run's statuses are `RunStatus`, a `Schema.Literals` of its own, and a chat's states are
+`ChatState.values`, another; a subset is a `.pick` of its model's list
+(`RunStatus.pick(activeRunStatuses)`), tested with `Schema.is`. No vocabulary is shared.
 
-- **Why:** only the chat and the Run use it.
-- **Sources:** the ticket's survey of its users.
-- **Rejected:** `Status` in a shared place: a vocabulary owned by no module.
-- **Cost:** none today.
-- **Guarded by:** another module reaches chat only through its entry and takes only the names of
-  its contract, which review holds (`modules.md`).
-- **If reversed:** a shared `Status` couples every module that reads it to chat's states.
-- **Revisit when:** a second module's model needs a status.
+- **Why:** the two lists share words, not meanings: a chat's `queued` covers a Run's `queued` and
+  `generating`, so one list let a chat's value be spelled with a Run's word that only a pick
+  refused. A list of its own names what its model can be and nothing else.
+- **Sources:** the lab's Shape of L3 (2026-11-25): "`status.model.ts` (`Status`, `hasStatus`)
+  goes; each side declares its own values".
+- **Rejected:** one `Status` of five values that the chat and the Run each picked from, with a
+  predicate over any subset (`hasStatus`), the shape this decision held before: a vocabulary of
+  no model. The shared list in a place of its own: owned by no module.
+- **Cost:** `queued` and `failed` are spelled in both lists; `ChatState.build` reads a table from
+  each Run status to a chat's state, which a new Run status fails until its row exists.
+- **Guarded by:** the `satisfies Record<RunStatus, …>` of that table in `chat-state.ts`; review.
+- **If reversed:** one `Status` again, each list a pick of it.
+- **Revisit when:** a third model needs the same words for the same meaning.
 
 ### A failed Run keeps its text
 
@@ -423,18 +542,18 @@ plain one; another model's service stays a use case's, save in the last grouping
 logic before a use case, a `<Verb><Model>Service` named for its verb, its main method that verb,
 which use cases share: the chat's services of its jobs
 ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). `AskChatService`, the
-api's, takes a chat as read, checks a request to it (an ask of a busy chat; a retry of a newest
-Run that is not failed, one in work included), stores what the jobs read, the user's message with
-its queued Run in one transaction, or a retry's new Run of the failed Run's message, and sends the
-jobs after the commit; the worker's, one per job, `ReplyChatService` and `TitleChatService`, write
-other models' records of its module. The use cases of a request, an ask and a retry, keep the chat's
-read scoped to the user.
+api's, reads the chat a request names, scoped to the user, checks the request to it (an ask of a
+busy chat; a retry of a newest Run that is not failed, one in work included), stores what the jobs
+read, the user's message with its queued Run in one transaction, or a retry's new Run of the failed
+Run's message, and sends the jobs after the commit; the worker's, one per job, `ReplyChatService`
+and `TitleChatService`, write other models' records of its module.
 
 ```ts
-// the bytes' service reads through the plain one, pipes the model's guard, passes it on, then
+// the bytes' service reads through the plain one, checks the model's guard, passes it on, then
 // removes the bytes once the row is gone
 const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere) {
-  yield* orders.getOne(where).pipe(ensureUnpaid)
+  const order = yield* orders.getOne(where)
+  yield* order.ensureUnpaid()
   yield* orders.delete({ ...where, paidAt: Option.none() })
   yield* files.delete({ id: [where.id] })
 })
@@ -463,7 +582,8 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   ([The Open Closed Principle](https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html));
   Gamma et al., *Design Patterns* (1994): "Favor object composition over class inheritance", and
   the Decorator, also known as Wrapper; `repos/effect/LLMS.md`: "Build focused service layers,
-  then compose them with `Layer.provide` and `Layer.provideMerge`";
+  then compose them with `Layer.provide` and `Layer.provideMerge`", and its services'
+  `layerNoDeps` with a `layer` over it (`repos/effect/ai-docs/src/01_effect/03_services/`);
   `.claude/rules/layering.md › Ports and domain services`; the owner's call in the design audit,
   the request in `AskChatService`; the owner's split of the chat's jobs at the queue, the api's
   half and the worker's (2026-11-21).
@@ -480,66 +600,109 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   that asks composed the request, the title's send and the reply's, and the new chat's rule sat in
   one of them. One service holding the request, the sends and the handling: the needs of two
   processes (the queue's sender, the assistants) in one unit, which each process provides whole.
+  Every dependency of a service left open, the services it is composed over included, each
+  process and test layer providing them below it: every root repeats the services' graph in
+  levels of provides.
 - **Cost:** more units, files and layers, and longer provide lists; Gamma et al. name the price,
   "more objects (if fewer classes)". Whether a change extends a unit's purpose or adds another is
   judgement: review decides it, and the owner settles a dispute. For a model with bytes, two
   services and two layers; a handler of the model takes both; the plain `create` and `delete`
   have one caller, the file service, and `delete` only forwards to the repository with its span:
-  they stay as the records' one owner, which a test that counts callers would delete. Each process
-  provides the plain service once, below the file service, so a wrap of it reaches the file
-  service and the plain service's other holders alike:
-  [effect-services.md › Layers](../../.claude/rules/effect-services.md#layers). A rule over the
+  they stay as the records' one owner, which a test that counts callers would delete. A service
+  composed over others carries them in its `layer`
+  ([effect-services.md › Layers](../../.claude/rules/effect-services.md#layers)), so a wrap or a
+  double of a composed-over service given at a root beside the holder's `layer` does not reach
+  the holder: it must go under the holder's `layerNoDeps`. A rule over the
   reads that one flow applies is piped there, and a flow that forgets the pipe skips it; a rule
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
   so the rule the reader pipes names every absent id at once. The chat's jobs take three services
-  and three Biome overrides, each of one process: `AskChatService`, the api's, admits `Transaction`,
-  `QueueSender` and the queue file, `ReplyChatService`, the worker's, `Transaction` and the
-  message's assistant,
-  and `TitleChatService`, the worker's too, the chat's assistant alone; each takes other models'
+  and three Biome overrides, each of one process: `AskChatService`, the api's, admits the queue
+  file, `ReplyChatService`, the worker's, the message's assistant, and `TitleChatService`, the
+  worker's too, the chat's assistant; each takes other models'
   services, by its file's name.
 - **Guarded by:** review, by `.claude/rules/composition.md`, which `make review-rules` prints for
   every TypeScript diff, and by `layering.md`; `noImportCycles` refuses a unit below that imports
   the one over it. Nothing refuses a fold, nor a service of another model, in a job's service or
-  any other. The ask and reply services' Biome overrides admit of `@app-template/packages/db`
-  only `Transaction`, the title service's none of it, and the ask service's of
-  `@app-template/packages/queue` only `QueueSender`; of the infrastructure the ask service's
+  any other. The three services' Biome overrides admit of `@app-template/packages/db`
+  only `Transaction`, as every service's does; of the infrastructure the ask service's
   admits only the queue file, the reply and title services' only their assistant's `.llm` file;
   the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
-  ask whose Run Postgres refuses keeps no message.
+  ask whose Run Postgres refuses keeps no message. `tsc` refuses a root that leaves a service's
+  dependency unprovided; nothing refuses a wrap given at a root beside a holder's `layer`, which
+  keeps the unwrapped service it carries.
 - **If reversed:** a new purpose edits the unit nearest to it, and each unit's tests gain cases for
   purposes not its own; the file methods fold into one `<Model>Service`, and every holder of the
-  records depends on the byte store.
+  records depends on the byte store. Services that leave their composed-over services open again
+  make each root and test layer provide those below them, a level per depth of the graph.
 - **Revisit when:** a chain of wraps over one unit grows so long that a caller cannot tell from the
   names which unit holds a rule; or two units change together in every change, so they hold one
   purpose, which the owner then merges; or a rule over the reads must reach every reader, so a service
-  named for it takes the pipe.
+  named for it takes the pipe; or the first wrap of a composed-over service, which each root and
+  test that gives it must put under the holder's `layerNoDeps`.
 
 ### Rules as pure functions
 
-A business rule is a pure function in its model's `.model` file, over the values passed in (the
-time, the ids), built from small pieces of one condition or step each; a service, a use case or a
-repository only reads, calls it and writes.
+A business rule is a pure function over the values passed in (the time, the ids), built from small
+pieces of one condition or step each; a service, a use case or a repository only reads, calls it
+and writes. The rules of a model are statics of a class per kind, one file each beside the model
+(`run-policy.ts`): `<Model>Policy` the checks (`RunPolicy.ensureUnstarted`), `<Model>Move` the
+status moves (`RunMove.start`), `<Model>State` what the record's values say of it
+(`RunState.isActive`). The model holds no member and imports no group; a caller names the group
+and passes the record (`RunMove.start(run)`). A rule is typed over what it reads, never over the
+class: a check or a derived value takes a `Pick` of the fields it reads, a check that hands its
+record back is generic over it, and a move takes the model's fields (`RunFields`, the struct type
+of `Run.fields`) and returns `new Run(…)`. A static calls another by its class's name, never
+`this`, so a static passed as a value runs.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
-- **Sources:** `.claude/rules/layering.md › Ports and domain services`.
+  The rule applies to any value of the shape it takes, wherever it comes from (`RunMove.start({
+  ...run })` and `RunState.isActive({ status })` compile), and the model stays a model: its
+  fields, variants and codecs. A group names the kind of a rule at its call, so a reader tells a
+  check from a move by the class alone. `this` in a static is the class only when called on it:
+  passed as a value (`Effect.flatMap(RunPolicy.ensureRetryable)`), it is `undefined`.
+- **Sources:** `.claude/rules/layering.md › Ports and domain services`; the owner's review of the
+  members (2026-11-25): "models should stay model but could injected into methods. Because we
+  could have anywhere chat (any shape) and these methods could be applied as clean functions and
+  business rules"; and of the files (2026-11-25): "ChatGuard -> ensure, ChatStatus ->
+  buildStatus, RunMove -> move rules", named `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`,
+  `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian).
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
-  and the next service that needs it copies it.
-- **Cost:** more small exported names in a model; a combination keeps its name however few its
-  callers ([Composition: wrap or compose](#composition-wrap-or-compose)).
-- **Guarded by:** review, by `layering.md`; nothing mechanical.
-- **If reversed:** the rules move back into the services' bodies, and their tests need layers.
-- **Revisit when:** a model's pieces outgrow one file.
+  and the next service that needs it copies it. The rule's body moved into the class: it would
+  apply to the class's instances alone, never to a variant or another shape. Members over the
+  functions (`run.start()`, a getter `chat.status`), a shape this decision held before: two names
+  per rule, a getter that `Equal.equals` and `Hash` call, and a wire field read from a getter.
+  The rules as plain exported functions in the model's file: a model's file read as rules
+  beside its schemas, and a function's kind only in its name. The function typed over the class
+  (`(run: Run)`): a struct of the same fields would fail to compile once the class has any
+  member. A group file with a suffix of its own (`.policy`): a new row of naming.md for what
+  `<owner>-<what>.ts` names.
+- **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so the domain's
+  override turns it off; a static declared after one that reads it at load is `undefined`, so a
+  group orders its statics. Each rule's signature names the fields it reads, a check that returns
+  its record a type parameter, and a model with moves one exported `<Model>Fields` type; a
+  combination keeps its name however few its callers
+  ([Composition: wrap or compose](#composition-wrap-or-compose)).
+- **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the groups' unit tests,
+  in `__tests__/domain/<group file>.test.ts`, calling the rules with plain structs, which
+  `make typecheck` refuses once a rule is typed over the class, and passing a static as a value
+  (`move: RunMove.start`); the model's test that two records of the same fields are equal.
+- **If reversed:** the groups go and their statics become functions of the model's file, or
+  members of the class; with the rules out of the domain, they move back into the services'
+  bodies, and their tests need layers.
+- **Revisit when:** a group outgrows one file, or a rule needs more than its record.
 
 ### Utils apart from models
 
-A model's file holds its schemas and its rules, each naming a word of the glossary, a refusal or a
-lifecycle move. Beside it, one `<model>.util.ts` per model that needs one holds the model's branded
-id and the pure steps with no domain meaning, generic over their types, that the module's code
-shares, in the file of the model that calls them (`isBlank` in `message.util.ts`); the module's one
-id schema is built by `packages/schema`'s `buildIdSchema`, which every module's ids share. A util
-file imports only `effect`, `packages/schema` and other util files, never a model, so a model takes
-another model's id from its util file and no import cycle forms. A util that would only rename one
+A model's file holds its schemas and the errors its rules fail with; its rules, each naming a word
+of the glossary, a refusal or a lifecycle move, sit in the groups beside it
+([Rules as pure functions](#rules-as-pure-functions)). Beside it too, one `<model>.util.ts` per
+model that needs one holds the model's branded id and the pure steps with no domain meaning,
+generic over their types, that the module's code shares, in the file of the model that calls
+them (`isBlank` in `message.util.ts`); the module's one id schema is built by `packages/schema`'s
+`buildIdSchema`, which every module's ids share. A util file imports only `effect`,
+`packages/schema` and other util files, never a model, so a model takes another model's id from
+its util file and no import cycle forms. A util that would only rename one
 built-in call is not written; the built-in is called.
 
 - **Why:** a reader of a model sees only the rules it states, where `Option` and `Array` plumbing
@@ -562,7 +725,7 @@ built-in call is not written; the built-in is called.
   helper two models share sits in one of them, the one that calls it first, and the other imports
   that util file. A util a second workspace needs moves into a package, and the domain's Biome
   override then admits that package by name, as it admits `@app-template/packages/schema` for
-  `buildIdSchema`, which the contracts' override admits too (`UserId`).
+  `buildIdSchema`.
 - **Guarded by:** review, by `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
   a util that imports a model importing it back; nothing refuses a rule written in a util.
 - **If reversed:** the utils go back into the model files beside the rules they serve, and each
@@ -575,13 +738,22 @@ built-in call is not written; the built-in is called.
 A domain model is a `Model.Class` of `effect/schema` over one field list: the class is the row a
 read decodes, its `insert` and `update` variants what a write encodes, its `json` variant what
 the api serves. The Drizzle tables, the entities and the kernel's repositories stay, and a
-service still codes its rows itself (`encodeWith`, `decodeWith`). The insert variant makes a new
-record's id (`Model.UuidV7Insert`) and both its times, the update variant moves `updatedAt`, a
-field written once by the insert is left out of the update variants, a field no client may see
-out of the json ones (`Model.Sensitive`), and a record another table holds, read with the model,
-is a field of the select variant alone. A service builds a write with
-`<Model>.insert.makeEffect` or `<Model>.update.makeEffect`. A Run carries no messages: it names
-them by id, and a chat and a message hold their Run as that select-only field.
+service still codes its rows, through the statics of `packages/schema`'s `RowCodec`, which take
+the model: a read's rows decode through `RowCodec.decodeOne(Chat)` or `decodeMany`, and a write's
+variant makes its value and encodes its row in one call of `makeInsert` or `makeUpdate`, which
+returns both, `{ set, row }`, and dies on a value the variant refuses as a `Schema.SchemaError`,
+the issue's text its message. `makeUpdate` drops from its input the keys the update variant
+renews, found by Effect's own marker, never by name: a field the select variant holds whose
+update field is `Overrideable`, typed with the `Override` brand (`updatedAt` of a Chat and a Run),
+one rule for the type and the run time, so the variant moves it to now whatever the caller passes,
+fields or a record as read, and keeps any other value the type accepts. A model holds no codec
+static and imports no codec. The insert variant makes a new record's id (`Model.UuidV7Insert`)
+and both its times, the update variant moves `updatedAt`, a field written once by the insert is
+left out of the update variants, a field no client may see out of the json ones
+(`Model.Sensitive`), and a record another table holds, read with the model, is a field of the
+select variant alone. A service builds a write with `RowCodec.makeInsert(<Model>)` or
+`RowCodec.makeUpdate(<Model>)`. A Run carries no messages: it names them by id, and a chat and a
+message hold their Run as that select-only field.
 
 - **Why:** as a `Schema.Class` a model said only what a read returns, so what a write and the
   wire needed sat beside it: a struct of the model's own fields for a write to encode, an id
@@ -592,7 +764,17 @@ them by id, and a chat and a message hold their Run as that select-only field.
   encode, insert.
 - **Sources:** the owner's choice among three versions built on the same models, this one and
   the two of Rejected; `repos/effect/packages/effect/src/schema/Model.ts`; the trial recorded in
-  [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle".
+  [roadmap.md](roadmap.md) under "Effect SQL and `Model.Class` in place of Drizzle"; for the
+  statics, the owner's words (2026-11-25), in order: "let it be static, and apply to all models
+  where it used"; "what if crete single static method of `const set = yield*
+  Chat.update.makeEffect({ id: chat.id, ...fields })` / `const row = yield*
+  encodeWith(Chat.update)(set)` — `Chat.makeUpate` which will combine 2 calls?";
+  "makeUpdateRow(row) / makeInsertRow(row) and where needed auto omit under the
+  hood."; "makeUpdate / makeInsert / apply for all classes", which renamed them; "{ set, row }";
+  and, for the omit on every update, "but this could be changes, so we need everywhere add this";
+  for `RowCodec`, the owner's words (2026-11-25): "Logic which like encode,decode,(make
+  insert,update), maybe we could create classes with static methods wich will accpet args
+  (models, etc) and interanlly abstract it.", then "Group C. Codecs - yes" (translated from Russian).
 - **Rejected:** both built, then closed as PRs #53 and #55. Variants of our own from
   `VariantSchema.make` (select, insert, update), with our own fields for the id, the times, a
   field written once and one only read: the same unstable module underneath, the fields `Model`
@@ -602,7 +784,16 @@ them by id, and a chat and a message hold their Run as that select-only field.
   fields written once included, and nothing in a field's declaration kept it out of an update or
   off the wire. The ids kept on a generator over `SecureRandom` that a service yields in its
   `make`, beside the variants: a test could fix an id, for a generator in every service and an
-  id passed to each insert by hand.
+  id passed to each insert by hand. The codec built at each call
+  (`decodeWith(Schema.Option(<Model>))`, `encodeWith(<Model>.insert)`): the read's shape or the
+  variant spelled again in every call, where `RowCodec` names it once. The codec statics on each
+  model (`<Model>.decodeOne = decodeWith(Schema.Option(this))`): each model imported
+  `packages/schema`'s codecs and held a static per shape its service coded, where a model imports
+  only `effect`, ids and other models. The omit of `updatedAt` by its name (`makeUpdateWith`): a
+  renewed field of another name kept its old value, where the marker finds it. A static per step
+  (`encodeInsert` beside `insert.makeEffect`): two calls at each write for one act. The omit of
+  `updatedAt` in the Run's static alone: a Chat made from a record as read kept its old
+  `updatedAt` in the row, as the Chat's model test showed before the omit.
 - **Cost:** an id no longer comes through the `SecureRandom` service: `Model.UuidV7Insert` reads
   `globalThis.crypto`, so no test layer fixes one, and a test asserts an id's form (`isUuidV7`)
   and builds its expected record with it. Each time is its own read of the clock, so on a live
@@ -612,12 +803,18 @@ them by id, and a chat and a message hold their Run as that select-only field.
   (`repos/effect/MIGRATION.md › Unstable Module System`). A constructor default applies in the
   update variant too: an update that leaves a defaulted field out writes the default over the
   column, so an update passes every field it must keep. A model carries six variants and the app
-  reads four of them (the class, `insert`, `update`, `json`). A service still names its variant
-  at each write and builds the record it returns from what the variant made.
+  reads four of them (the class, `insert`, `update`, `json`). A service still names its model
+  at each read and write and builds the record it returns from what the variant made. A class
+  of statics alone trips Biome's `noStaticOnlyClass`, turned off for `RowCodec`'s file alone. The
+  type finds a renewed key by its brand; a brand leaves the AST as it is, so the run time reads it
+  off the schemas `Overrideable` composes (`schema.to.identifier`): an Effect release that builds
+  `Overrideable` otherwise renews nothing, and `RowCodec`'s test of a record as read fails.
 - **Guarded by:** `tsc` at each service's insert, where the repository takes the table's full
   row ([Entity names](#entity-names)); the services' unit tests, which assert a new id's form
   and each write's row or set; the api's snapshot test and its two assertions that a failure
-  stays off the wire; review, by `.claude/rules/models.md`. Nothing mechanical refuses a
+  stays off the wire; the `@ts-expect-error` pins of `RowCodec`'s and the chat services' tests,
+  where a row of another shape, a field written once and a kept field of another type fail to
+  compile; review, by `.claude/rules/models.md`. Nothing mechanical refuses a
   `new <Model>(…)` with an id or a time made by hand, nor an update that leaves a defaulted field
   out.
 - **If reversed:** the models are `Schema.Class` again: a struct of each model's own fields
@@ -629,109 +826,112 @@ them by id, and a chat and a message hold their Run as that select-only field.
 
 ### A Run's guarded moves
 
-A Run's status moves are the model's plain transitions (`startRun(run)`, `completeRun(run,
-replyId)`, `failRun(run, cause)`, each named for the move it makes, not the status it reaches, as the
-started Run's stored status stays `generating`), each written through `RunService.move(run,
-transition)`: it moves the Run it is given and writes the result under the status that Run was
-read in, so a caller of a move hands over the Run it holds and the transition, never a `where`; a
-transition that takes an argument gets it from a lambda at the call (`(run) => completeRun(run,
-message.id)`). `move` is a method of `RunService` over its `update(to, where)`, the service's
-plain write as `ChatService`'s, which stamps `updatedAt` and writes under a `where` of the Run's
-id and the status it must still hold, both required; a write whose `where` matches no
-Run dies in `RunRepository.update`, which both reach. `failRun` takes the `Cause` that ended the
-work and keeps its full text (`Cause.pretty`). The api fails the Run it stored and sent: a refused
-send's `runs.move(run, (run) => failRun(run, Cause.fail(error)))`, written under `queued`, so a
-Run a worker settled meanwhile, as SQS took the job after all, dies on the write's guard and the
-request responds with `500`; it never reads, fails or returns another Run of the message. The
-worker's `ReplyChatService.reply` starts the Run in one uninterruptible step: it reads the message's
-active Run through `RunService.getOne({ userMessageId, status: activeRunStatuses })`,
-`RunNotFoundError` by the message when it has none, refuses one some worker started through the
-model's `ensureRunUnstarted`, `RunStartedError`, failing that Run as it was read, and writes
-`startRun`. The method is uninterruptible but for the answer, and the answer's tail
-(`Effect.onError`) fails exactly the Run the start wrote, under `generating`, on whatever ends the
-answer, an interrupt included. A move the model's table refuses dies
-with `RunStatusInvalidError`: every caller moves a Run it has just read or moved, so a refusal is a
-bug, and a race dies on the write's guard instead. A reply writes the Run twice, `generating` then
-`done` (or `failed`), and a client polling it sees only `queued`, `generating` and the end.
+A Run's status moves are plain transitions, the statics of `RunMove` (`RunMove.start(run)`,
+`RunMove.complete(run, replyId)`, `RunMove.fail(run, cause)`, each named for the move it makes, not
+the status it reaches, as the started Run's stored status stays `generating`,
+[Rules as pure functions](#rules-as-pure-functions)). Each is written through
+`RunService.update(from, to)`: it writes `to`, the Run the move made, under the id and the status
+of `from`, the Run the caller read or last wrote, so a caller hands over the two Runs it holds,
+never a `where` (`runs.update(run, yield* RunMove.start(run))`). `update` stamps `updatedAt`, and a
+write whose guard matches no Run dies in `RunRepository.update`. `RunMove.fail` takes the `Cause`
+that ended the work and keeps its full text (`Cause.pretty`). The api fails the Run it stored and
+sent: a refused send's `runs.update(run, yield* RunMove.fail(run, Cause.fail(error)))`,
+written under `queued`, so a Run a worker settled meanwhile, as SQS took the job after all, dies on
+the write's guard and the request responds with `500`; it never reads, fails or returns another Run
+of the message. The worker's `ReplyChatService.reply` starts the Run in one uninterruptible step: it
+reads the message's active Run through `RunService.getOne({ userMessageId, status:
+activeRunStatuses })`, `RunNotFoundError` by the message when it has none, refuses one some worker
+started through `RunPolicy.ensureUnstarted(run)`, `RunStartedError`,
+failing that Run as it was read, and writes the start. The method is uninterruptible but for the
+answer, and the answer's tail (`Effect.onError`) fails exactly the Run the start wrote, under
+`generating`, on whatever ends the answer, an interrupt included. A move the model's table refuses
+dies with `RunStatusInvalidError`: every caller moves a Run it has just read or moved, so a refusal
+is a bug, and a race dies on the write's guard instead. A reply writes the Run twice, `generating`
+then `done` (or `failed`), and a client polling it sees only `queued`, `generating` and the end.
 
 - **Why:** the guard on the status read is part of a move's write, so the service that owns the
-  Run's records holds it once, in `move`: a caller of a move can neither forget it nor pair a
-  transition with another Run's guard, while `update` stays the plain write every service has.
-  `move` is a method, not a free function over `RunService`, which would put the service into its
-  callers' requirements. The worker's tail holds the Run its start wrote, so it fails that Run
-  alone: a reply that dies after its Run was failed elsewhere and retried fails no later Run, and a
-  delivery that loses the start to a rival dies before its tail exists, leaving the rival's reply to
-  finish. The failure's text and the rule that a job takes only an unstarted Run are the Run's, so
-  the model holds them and the job's start calls the rule ([The chat's jobs in their
-  services](#the-chats-jobs-in-their-services)). One started status: a status of its own before
-  `generating` lasted one read of the chat's history, and no code branched on it.
+  Run's records holds it once, in `update`: it takes the guard from the Run the caller holds, so a
+  caller can neither forget it nor name a status of its own. The move is the model's and the write
+  the service's plain update, one method for both, and a move that takes an argument
+  (`RunMove.complete(run, replyId)`) needs no lambda at the call. The worker's tail holds the Run
+  its start wrote, so it fails that Run alone: a reply that dies after its Run was failed elsewhere
+  and retried fails no later Run, and a delivery that loses the start to a rival dies before its
+  tail exists, leaving the rival's reply to finish. The failure's text and the rule that a job takes
+  only an unstarted Run are the Run's, so the model holds them and the job's start calls the rule
+  ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). One started status: a
+  status of its own before `generating` lasted one read of the chat's history, and no code branched
+  on it.
 - **Sources:** the owner's call in the design audit (2026-11-21): the moves without a service of
   their own, written by the caller through `RunService`, and the tail failing the Run the body
-  holds; the owner's call of a flexible `update(to, where)` with a helper that moves by a
-  function (2026-11-21), and of a service's `where` in model values alone (2026-11-24);
-  [Composition: wrap or compose](#composition-wrap-or-compose), a guarded
-  write of its records being the unit's own purpose; the owner's call of the message as the worker's
-  one key; the owner's call of one read, `getOne(where)`, and one `RunNotFoundError` carrying the
-  read's key (2026-11-21); the owner's refusal, for the api, of a refused send that fails a later
-  retry's Run (2026-11-21).
-- **Rejected:** `MoveRunService { start, complete, fail, failActive }` over `RunService`, the shape
-  this decision held before: a second service and layer whose one helper held the guard, `start` and
-  `failActive` reading the message's active Run; its tail read the Run again by the message, so a
-  reply that died after its Run was failed and retried failed the retry's Run, and a delivery that
-  lost the start to a rival failed the rival's Run, losing its reply. Each caller writing the guard
-  (`update(moved, { id, status: [run.status] })`): the guard repeated at each site, where one
-  could drop it. `update(moved, { from: run })` or a `move(from, to)` of two Runs: two Runs a
-  caller could mismatch. `RunService.update(run, move)`, the shape this decision held last: the
-  service's one write took a transition, so it wrote under one `where` alone, and the model's
-  transitions that take an argument had to return functions (`completeRun(reply)(run)`). A curried
-  or `dual` transition beside the plain one: two forms of one function for one lambda saved. The
-  tail failing the message's active Run, read again or written by the message
-  (`{ userMessageId, status: active }`): the later Run's failure above, and a write by the
-  message still needs a Run for the transition. The start inside the guarded region, or plain
-  before it: an interrupt between its write and the handler left the Run started until the next
-  delivery. `RunStartedError` failing no Run: a dead worker's Run would stay `generating` and its
-  chat busy for good. The moves as named methods of `RunService` (`start`, `fail`): the plain
-  service would know each transition. The api failing by the message: a refusal that arrives after
-  SQS took the job, a worker failed the Run and the user retried failed the retry's Run, and the
-  request responded with it. The api's refused send on a settled Run returning the Run as the
-  request created it: the write's miss is a defect the code cannot tell from a chat deleted
-  meanwhile, and catching it hides a bug. The job's read and `ensureRunUnstarted` in the use case:
-  a rule's call in a flow. The check folded into `startRun`: a transition of two conditions,
-  against the model's pieces of one each. The refusal as a typed failure: it rode every signature,
-  no caller could raise it, and each one turned it into a defect. A started status for the
-  history's read alone: a status, a move, a method and a write per reply for one query.
-  `RunService.getActive(userMessageId)` beside `getOne`, failing its own `ActiveRunNotFoundError`:
-  `getOne` with one condition fixed, a variation a `where` already takes, and a second not-found
-  for one model. An error with a `reason` per read: no caller tells the reads apart.
+  holds; the owner's call of a service's `where` in model values alone (2026-11-24); the owner's
+  review of the members (2026-11-25): "I think we could set these methos, but instead move we
+  could use simple update function"; [Composition: wrap or compose](#composition-wrap-or-compose),
+  a guarded write of its records being the unit's own purpose; the owner's call of the message as
+  the worker's one key; the owner's call of one read, `getOne(where)`, and one `RunNotFoundError`
+  carrying the read's key (2026-11-21); the owner's refusal, for the api, of a refused send that
+  fails a later retry's Run (2026-11-21).
+- **Rejected:** `MoveRunService { start, complete, fail, failActive }` over `RunService`, a shape
+  this decision held before: a second service and layer whose one helper held the guard, `start`
+  and `failActive` reading the message's active Run; its tail read the Run again by the message,
+  so a reply that died after its Run was failed and retried failed the retry's Run, and a delivery
+  that lost the start to a rival failed the rival's Run, losing its reply. Each caller writing the
+  guard (`update(moved, { id, status: [run.status] })`): the guard repeated at each site, where
+  one could drop it. `RunService.move(run, transition)` over `update(to, where)`, the shape this
+  decision held last: a second method for one write, a `where` a caller of `update` could fill
+  with any status, and a lambda at each transition that takes an argument (`(run) =>
+  RunMove.complete(run, replyId)`). `RunService.update(run, move)`, a shape held before it: the
+  service's one write took a transition, so the model's transitions that take an argument had to
+  return functions (`complete(reply)(run)`). A curried or `dual` transition beside the plain
+  one: two forms of one function for one lambda saved. The tail failing the message's active Run,
+  read again or written by the message (`{ userMessageId, status: active }`): the later Run's
+  failure above, and a write by the message still needs a Run for the transition. The start
+  inside the guarded region, or plain before it: an interrupt between its write and the handler
+  left the Run started until the next delivery. `RunStartedError` failing no Run: a dead worker's
+  Run would stay `generating` and its chat busy for good. The moves as named methods of
+  `RunService` (`start`, `fail`): the plain service would know each transition. The api failing by
+  the message: a refusal that arrives after SQS took the job, a worker failed the Run and the user
+  retried failed the retry's Run, and the request responded with it. The api's refused send on a
+  settled Run returning the Run as the request created it: the write's miss is a defect the code
+  cannot tell from a chat deleted meanwhile, and catching it hides a bug. The job's read and
+  `RunPolicy.ensureUnstarted` in the use case: a rule's call in a flow. The check folded into
+  `RunMove.start`:
+  a transition of two conditions, against the model's pieces of one each. The refusal as a typed
+  failure: it rode every signature, no caller could raise it, and each one turned it into a
+  defect. A started status for the history's read alone: a status, a move, a method and a write
+  per reply for one query. `RunService.getActive(userMessageId)` beside `getOne`, failing its own
+  `ActiveRunNotFoundError`: `getOne` with one condition fixed, a variation a `where` already
+  takes, and a second not-found for one model. An error with a `reason` per read: no caller tells
+  the reads apart.
 - **Cost:** the start's read and write hold off an interrupt, so a shutdown waits for them. The
   start fails a dead worker's Run itself, a second place beside the tail that fails a Run. A Run
   settled or deleted under the reply makes the tail's write die, so an assistant's error on a Run
-  whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not
-  as the use case's warning; a dead worker's Run settled between its read and its failure dies
-  the same way. A transition that takes an argument is a lambda at each call. `update` takes the
-  status of its guard from its caller, so a status move written through it can name another status
-  than the one read: only `move`, the line of `.claude/rules/layering.md` and review hold it. A
-  where that fits both of `RunWhere`'s members compiles, and is read under every field it holds.
-  The api's `404` for a Run carries `where: { id }`, and its schema lists the `userMessageId` key
-  the api never sends. A
-  refused send whose job SQS took after all, once a worker settled the Run, responds with `500`. A
-  later stage the user should see before `generating` (reading a chat's files) adds its status back:
-  one value of `runStatuses`, one row of the moves' table, one move, and a regenerated `init`.
-- **Guarded by:** `RunService`'s unit test: `update` writes under the `where` it is given, each
-  move writes under the status read, a move of a Run moved since dies on the write's guard, a
-  refused move dies and writes nothing, `getOne` that finds no Run fails `RunNotFoundError` with
-  the read's key alone, by `id` or by `userMessageId`, and reads under the filter its `where`
-  names, a user's by `id` or a message's by its statuses; the model's tests of the moves,
-  `failRun`'s full text and `ensureRunUnstarted`;
-  `ReplyChatService`'s: an interrupt while the start reads still starts the Run and then fails it, a
-  reply that dies after its Run was failed elsewhere and retried fails no Run, a delivery losing the
-  start to a rival fails none; `AskChatService`'s, a refused send that fails the Run it stored by
-  its id, reading no Run, and one whose Run a worker settled that dies on the guard; review, by
-  `.claude/rules/layering.md › Ports and domain services`.
-- **If reversed:** `RunService.update` takes the transition again in place of `move`, writing
-  under the status read alone, and the transitions that take an argument return functions; with
-  the moves out of the callers, `MoveRunService` returns over `RunService`, holding the guard, the
-  job's start and `fail`.
+  whose chat was deleted meanwhile ends the job as a defect, which the queue's consumer logs, not as
+  the use case's warning; a dead worker's Run settled between its read and its failure dies the same
+  way. `update` takes two Runs a caller could mismatch: a `to` made from another Run than `from`
+  writes that Run's status, failure and reply onto `from`'s row, and the Run it returns carries
+  `to`'s id; only the call's form (`runs.update(run, yield* RunMove.<move>(run, …))`), the line of
+  `.claude/rules/layering.md` and review hold it. `RunService.update`'s form departs from the other
+  services' `update(to, where)`. A where that fits both of `RunWhere`'s members compiles, and is
+  read under every field it holds. The api's `404` for a Run carries `where: { id }`, and its schema
+  lists the `userMessageId` key the api never sends. A refused send whose job SQS took after all,
+  once a worker settled the Run, responds with `500`. A later stage the user should see before
+  `generating` (reading a chat's files) adds its status back: one value of `runStatuses` and of
+  `RunStatus`, one row of the moves' table, one static of `RunMove`, and a regenerated `init`.
+- **Guarded by:** `RunService`'s unit test: `update` writes each move's Run under the id and the
+  status of the Run it moved from, an update of a Run moved since dies on the write's guard,
+  `getOne` that finds no Run fails `RunNotFoundError` with the read's key alone, by `id` or by
+  `userMessageId`, and reads under the filter its `where` names, a user's by `id` or a message's
+  by its statuses; the groups' tests of the moves, a refused one dying, `RunMove.fail`'s full
+  text, and `RunPolicy.ensureUnstarted`; `ReplyChatService`'s: an interrupt while the start reads
+  still starts the Run and then fails it, a reply that dies after its Run was failed elsewhere and
+  retried fails no Run, a delivery losing the start to a rival fails none; `AskChatService`'s, a
+  refused send that fails the Run it stored by its id, reading no Run, and one whose Run a worker
+  settled that dies on the guard; review, by `.claude/rules/layering.md › Ports and domain
+  services`.
+- **If reversed:** `RunService.move(run, transition)` returns over `update(to, where)`, the
+  callers passing the transition, a lambda where it takes an argument; with the moves out of the
+  callers, `MoveRunService` returns over `RunService`, holding the guard, the job's start and
+  `fail`.
 - **Revisit when:** a move needs a guard other than the status read and the model's rule.
 
 ## The kernel and the data
@@ -840,8 +1040,8 @@ repositories in its own types, one `Db` over every table; it imports only `packa
 its clients from the context. The tables stay in `public` with their foreign keys.
 
 - **Why:** the data is the app's source of truth; one place declares every store, joins and
-  foreign keys included, and every module reads what it needs, its domain the tables' limits,
-  patterns and enum values, each declared once ([A module's layers](#a-modules-layers)).
+  foreign keys included, and every module's services read what they need; the domain declares
+  its own values ([Checks kept in the tables](#checks-kept-in-the-tables)).
 - **Sources:** departs from the guide's "share a physical database, but not each other's tables"
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/))
   and "The service that writes to a table owns that table"
@@ -850,7 +1050,7 @@ its clients from the context. The tables stay in `public` with their foreign key
   boundaries on data the app reads as one. The tables, repositories and models together in the
   kernel: a shared domain, the guide's coupling magnet.
 - **Cost:** most features change `kernel/data`; a table's value is the domain's too, so changing
-  it changes the model's check; two modules may use one repository, so a change of its behaviour
+  it changes the model's declaration; two modules may use one repository, so a change of its behaviour
   reaches both, held by the repository's e2e; a module can be extracted only with its stores
   carved out of the data layer.
 - **Guarded by:** the `kernel/data` row of
@@ -867,10 +1067,12 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `<name>.entity.ts`. An entity is the shape every read returns, so `ChatEntity` and
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
-only, and its callers code its row with the generic `encodeWith` and `decodeWith`, a read through
-the model and a write through its insert or update variant
-([Models with variants](#models-with-variants)), with no mapper per model. A second stored form
-of a model brings back a mapper that lays the model's schemas over that store's columns.
+only, and its service codes its row through `RowCodec`'s statics, which take the model, over
+the generic `encodeWith` and `decodeWith`, a read through the model in the read's shape and a
+write through its insert or update variant ([Models with variants](#models-with-variants)), with
+no mapper per model. A
+second stored form of a model brings back a mapper that lays the model's schemas over that
+store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
@@ -880,13 +1082,13 @@ of a model brings back a mapper that lays the model's schemas over that store's 
 - **Rejected:** a flat entity beside a second one with its Run: a second name for the one
   shape every read returns. The service composing a chat from two repositories: two queries and a
   grouping where one relational read serves. A mapper that lays the model's schemas over the
-  columns (`<Model>FromEntity`): a second list of the model's fields. A mapper that only names
-  the model's codec pair (`encode<Model>`, `decode<Model>`): a pass-through over one generic call,
-  which the deletion test removes.
+  columns (`<Model>FromEntity`): a second list of the model's fields. A mapper beside the model
+  that only names its codec pair (`encode<Model>`, `decode<Model>`): a second unit per model for
+  what `RowCodec` holds once for every model.
 - **Cost:** a store has two files where it had one. A model's declaration says how its row stores
-  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. Each call names
-  its codec: the read's shape at a read (`decodeWith(Schema.Option(<Model>))`), the variant at a
-  write (`encodeWith(<Model>.insert)`, `encodeWith(<Model>.update)`).
+  a value (`null`, a `Date`), and a column the model lacks is dropped by a read. A service names
+  its model at each read and write (`RowCodec.decodeOne(<Model>)`), and a read of another shape
+  adds a static to `RowCodec`, for every model.
 - **Guarded by:** `.claude/rules/naming.md`; the `kernel/data/**` override keeps models out; the
   repository's `insert`, which takes the table's full row, so a column the model lacks or a model
   field its row cannot take fails typecheck at the service's insert.
@@ -898,21 +1100,33 @@ of a model brings back a mapper that lays the model's schemas over that store's 
 ### Checks kept in the tables
 
 The tables keep their checks: the data layer declares the enums' values and the checks' limits
-and patterns, and a model that holds one imports it to check the same rule on its side.
+and patterns for its tables, and a model declares its own for its schemas, never importing the
+table's; a service, which imports both, holds the two in step.
 
 - **Why:** the database stays a guard against any writer, as the partial unique index already
-  is.
+  is. A model that imported the table's value would load the data layer, and with it the
+  backend, into every importer of the model.
 - **Sources:** the guide's "Foreign keys, views, triggers, and logical invariants encode coupling
   between tables"
-  ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/)).
+  ([managing-operational-data](https://software-architecture-guild.com/guide/architecture/boundaries/managing-operational-data/));
+  the owner's words for the values (2026-11-25): "if model will import kernel data this is
+  wrong, it very easy to include backend", settled as the model declaring its values itself and
+  the table its own ("lets for now").
 - **Rejected:** the checks dropped, the rule only in the modules: the database would accept a
-  row the app never writes.
-- **Cost:** a rule lives twice, as a check and as a model's refinement, though each value once;
-  the model's side may add to the check (trimming every whitespace, counting UTF-16 units),
-  never accept less.
-- **Guarded by:** the data layer exports each limit, pattern and enum's values from its table and
-  a model that holds it imports it; the data layer's e2e check the table's side
-  ([tooling.md › Tests](tooling.md#tests)); `make migration-check`.
+  row the app never writes. The model importing the table's value: the data layer in every
+  importer of a model. A leaf package of values both import: the values would leave the tables
+  that check them.
+- **Cost:** a rule lives twice, as a check and as a model's refinement, and each value twice, in
+  the table and in the model; the model's side may add to the check (trimming every whitespace,
+  capping a title's length, which only the domain caps), never accept less. A field a JSON
+  column's shape makes optional on one side alone passes every check, harmless as a decode drops
+  the extra key.
+- **Guarded by:** `make typecheck` at the service that codes the row, where the repository takes
+  and returns the table's row: an enum's value or a required field of a JSON column's shape
+  changed on one side fails there; the active statuses, which only the index's predicate reads,
+  by a case of `run.service.test.ts` that compares the domain's list with the kernel's; the
+  data layer's e2e check the table's side ([tooling.md › Tests](tooling.md#tests));
+  `make migration-check`.
 - **If reversed:** a migration drops a check, and a writer past the services can store a row no
   model decodes.
 - **Revisit when:** a rule cannot be a check, or a model needs a value its table cannot state.
@@ -925,8 +1139,9 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 
 - **Why:** the checks run as pure functions over a plain read, before every write; a lock would
   tie the check to the transaction and hold rows while other work runs.
-- **Sources:** [database.md › Guards](database.md#guards); `.claude/rules/layering.md ›
-  Concurrency`.
+- **Sources:** [database.md › Guards](database.md#guards);
+  [layering.md › Writes and sends, in services and use
+  cases](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases).
 - **Rejected:** a `FOR UPDATE` read before the check: the loser would wait and then get its
   domain error, but the read would carry an option that changes its contract.
 - **Cost:** a loser that read before the winner committed dies with a `500`, not a typed refusal; a
@@ -936,6 +1151,88 @@ that misses the row it names dies, so the loser of a race writes nothing and rol
 - **If reversed:** the reads take `forUpdate` again, and a check whose loser must get a domain
   error waits on the winner's commit.
 - **Revisit when:** a race's `500` reaches users often enough to need its own refusal.
+
+### One way to open a transaction
+
+A transaction opens only through the `Transaction` service of `@app-template/packages/db`, its
+`run` piped on the writes it commits or passed as their function's last argument, and a
+repository's method is one statement that opens none. Rows that commit together, one table's
+each, are a method each, which the service or use case holding them commits in one `run`.
+
+- **Why:** one place decides what commits together, the service or use case that orders the
+  writes, never a repository below it. A caller's transaction and a service's nest: a `run` inside
+  a `run` is a savepoint of the outer one, so a service that commits its rows inside its caller's
+  transaction leaves the caller's whole.
+- **Sources:** Effect SQL's `withTransaction`, which `Transaction.layer` wraps:
+  `makeWithTransaction` "uses savepoints for nested transactions"
+  (`node_modules/.bun/effect@4.1.5/node_modules/effect/src/sql/SqlClient.ts:620-621`, its
+  `SAVEPOINT` at `:339` and `:359`); the cases of `Transaction` that nest a `run` in a `run`
+  (`packages/db/__e2e__/db.client.e2e.ts`); the owner's words "use single transaction" and
+  "allow transaction in services if it doesn't breake upper transactions".
+- **Rejected:** a repository method that opens its own transaction for one record's rows in two
+  tables, as `UserRepository.insert` did for a user and its credential: two ways to open one, and
+  the service could not see or extend what commits together.
+- **Cost:** `UserRepository.insert` is callable without `insertCredential`, so a caller that
+  leaves the second out stores a user with no credential. The traces change shape:
+  `UserRepository.insert` is one statement's span and `UserRepository.insertCredential` a span of
+  its own, both under the `sql.transaction` span the service's `run` opens.
+- **Guarded by:** `IdentityService` being the one caller of the two writes; the api's e2e of a
+  refused credential (`apps/e2e/api/user.e2e.ts`), which keeps no user; the cases of
+  `Transaction` that nest a `run` in a `run`; the services' Biome override, which admits of
+  `@app-template/packages/db` only `Transaction`
+  ([A module's layers](#a-modules-layers)); `.claude/rules/repositories.md`, in review, a
+  repository that opens a transaction.
+- **If reversed:** a repository opens a transaction for the rows it writes together, and a
+  service holding it can neither add a write to them nor see from its own code what commits.
+- **Revisit when:** a record's rows in several tables are written by more than one service, so
+  one caller no longer guards the pair; or a store joins whose writes cannot run inside a Postgres
+  transaction.
+
+### A where's two forms
+
+A repository's `where` is Drizzle's relational filter object with its key required (`Keyed`): a
+relational query takes it as it is, a core-builder statement through `encodeFilter`
+(`packages/db`). A service's `where` is model values alone (a branded id, an `Option`, a list),
+which `encodeWhere` (`kernel/data/data-where.ts`) turns into that object, so no service writes a
+Drizzle operator.
+
+- **Why:** the least code of ours: Drizzle types and renders the filter, and a service's caller
+  speaks the model's values.
+- **Sources:** [database.md › Repositories](database.md#repositories);
+  `.claude/rules/repositories.md › A where's two forms`.
+- **Rejected:** an encoder of our own that builds every where's SQL itself, in place of
+  Drizzle's filter object (PR #58, closed). A pick of a where's fields in
+  every method: a where is written as a literal of its type's fields, which the compiler checks.
+- **Cost:** `encodeFilter` holds one type assertion over `relationsFilterToSQL`, a function of
+  Drizzle's rc line; a record handed whole from a variable compiles and makes every field a
+  condition.
+- **Guarded by:** `Keyed`, which refuses a where that names no key, and
+  `exactOptionalPropertyTypes`, which refuses an `undefined` field, both at typecheck; the
+  repositories' e2e.
+- **If reversed:** each service writes Drizzle's operators, or an encoder of ours builds every
+  where's SQL in place of Drizzle's filter object.
+- **Revisit when:** Drizzle's filter object changes shape, or a service needs a condition model
+  values cannot say (a range, a pattern).
+
+### The owner on a chat's records
+
+`messages.user_id` and `runs.user_id` repeat `chats.user_id`, held equal by one foreign key over
+`(chat_id, user_id)` onto `chats (id, user_id)` on each table, so a read on a user's behalf
+filters the row itself, and the where of a call only a user makes requires the owner in its type.
+
+- **Why:** ownership is a column of the row read: a record of another owner reads as absent, with
+  no relation to its chat and no check after the read.
+- **Sources:** [database.md › Schema and entity files](database.md#schema-and-entity-files).
+- **Rejected:** the owner read through the relation to the chat in every read of a message or a
+  Run.
+- **Cost:** a column and a wider key on two tables; each insert writes the owner, taken from the
+  record it follows (the chat, the failed Run, the Run it started).
+- **Guarded by:** the keys `messages_chat_id_user_id_fk` and `runs_chat_id_user_id_fk`, each with
+  its entity's e2e ("refuses a message of another user than its chat's through the key over
+  both", and a Run's alike); the repositories' e2e read another user's record as none.
+- **If reversed:** the two columns go, and a user's read of a message or a Run filters through
+  its chat.
+- **Revisit when:** a chat is shared between users, so one column no longer names who may read it.
 
 ### Reads in creation order
 
@@ -952,27 +1249,34 @@ alone returns newest first.
 - **If reversed:** each read takes its order from its caller.
 - **Revisit when:** a client needs a chat's contents in an order it chooses.
 
-### Status from the newest Run
+### State from the newest Run
 
-A chat has no status column: the chat model's `buildChatStatus` derives it from the chat's newest
-Run, which every read of a chat nests. Any other value another table implies is a column the
+A chat has no state column: `ChatState.build` derives the chat's state from its newest Run,
+which every read of a chat nests, and the wire carries it as the chat's `state`; a Run keeps its
+stored `status`. Any other value another table implies is a column the
 transactions that change it move (`.claude/rules/repositories.md › What is stored`).
 
-- **Why:** the Run holds the status already; a column would be its second copy, written by each
+- **Why:** the Run's status holds the state already; a column would be its second copy, written by each
   of the Run's moves (its creation, a retry, `generating`, `done`, `failed`) in that
   move's transaction, and one forgotten write lets the two drift. The derived one costs no query,
-  since the read nests the Run: the api and the rules (`ensureChatNotBusy`) take that Run alone,
-  not the chat, and a client derives it the same way from the Run it reads.
+  since the read nests the Run: the rules (`ChatPolicy.ensureNotBusy`) take that Run alone, not
+  the chat, the api's mapper sets the chat's `state` on the wire from it, and a client derives it
+  the same way from the Run it reads. A derived value is a state and a stored one a status
+  ([glossary.md › State](glossary.md#architecture-language)), so the chat's wire field says
+  which it is.
 - **Sources:** the owner's choice, in the Knowledge of
-  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md).
+  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md); for the word, the owner's
+  (2026-11-25): "state, chat and funstions should state instead of status"; "run.status remain".
 - **Rejected:** a `chats.status` column moved by every Run move: a write in each and a drift to
-  keep a value that one row already gives.
-- **Cost:** a query over chats by status joins each chat's newest Run, and a read that needs the
-  status has to nest that Run.
+  keep a value that one row already gives. The chat's wire field kept as `status`, beside the
+  Run's stored `status`: one word for a stored and a derived value.
+- **Cost:** a query over chats by state joins each chat's newest Run, and a read that needs the
+  state has to nest that Run. The rename changed the wire: a client that read a chat's `status`
+  reads `state`.
 - **Guarded by:** review, by `.claude/rules/repositories.md`; nothing mechanical.
 - **If reversed:** a migration adds the column, each Run move writes it in its transaction, and
-  `buildChatStatus` moves from the reads to the writes.
-- **Revisit when:** a read lists or filters chats by status, or reads a chat's status without its
+  `ChatState.build` moves from the reads to the writes.
+- **Revisit when:** a read lists or filters chats by state, or reads a chat's state without its
   Run.
 
 ### Clients from the context
@@ -1057,25 +1361,28 @@ without renaming provisioned resources. No app wires the files today.
 
 A job is a queue message, and no table holds it: the work it hands over keeps its own record
 (the Run, the chat's title), which the worker reads to handle it once, to settle a Run whose worker
-died and to write a failure. `QueueSender.send` encodes the job by its definition; a use case sends
-it after its commit, so every delivery finds its record. Each job goes through its `send<Job>` in
-its module's infrastructure, in the file of its queue's definition, which only sends it and logs a
-send SQS refuses. A job hands its worker one piece of work, as a command message does in
-messaging, and is named as one: `<Verb><Object>` in the glossary's words for the work it hands
+died and to write a failure. `QueueSender.send` encodes the job by its definition; the
+`<Verb><Model>Service` that writes its record sends it after its commit, so every delivery finds
+its record. Each job goes through its `send<Job>`, a
+method of its module's `<Model>Queue` in its module's infrastructure, in the file of its queue's
+definition, which takes `QueueSender` in its `make`, only sends the job and logs a send SQS
+refuses. A job hands its worker one piece of work, as a command message does in messaging,
+and is named as one: `<Verb><Object>` in the glossary's words for the work it hands
 over, never after a method, its queue or one step of the work; its queue, its `send<Job>` and the
 use case that ends it take its name. The chat's two are `ReplyToMessage { messageId }`, on
-`reply-to-message`, sent by `sendReplyToMessage` and ended by `replyToMessage`, and
-`TitleChat { chatId }`, on `title-chat`, sent by `sendTitleChat` and ended by `titleChat`. The
-reply's names the user's message and starts its active Run, which the unique index on a chat's
-active Run keeps to one; what a job that names no one Run costs: [A Run's job on interrupt and on
-two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's names the chat, whose
-first message the worker reads. The reply's send returns its
+`reply-to-message`, sent by `ChatQueue.sendReplyToMessage` and ended by `replyToMessage`, and
+`TitleChat { chatId }`, on `title-chat`, sent by `ChatQueue.sendTitleChat` and ended by
+`titleChat`. The reply's names the user's message and starts its active Run, which the unique
+index on a chat's active Run keeps to one; what a job that names no one Run costs: [A Run's job
+on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's
+names the chat, whose first message the worker reads. The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
-commit and fails the Run through `RunService.move` and the model's `failRun`, with the error's
-full text as its failure; the request responds with `202` and that failed Run. Both methods run
-uninterruptibly, so a client that aborts after the Run's write still leaves the Run sent or
-failed. The title's send only logs it, as its work has no record to settle. Which services a Run
-has and over which: [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
+commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's
+full text as its failure; the request responds with `202` and that failed Run; what a client's
+abort leaves: [A Run's job on interrupt and on two
+deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's send only logs it, as
+its work has no record to settle.
+Which services a Run has and over which: [layering.md › Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
 who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
@@ -1084,12 +1391,15 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   handler can catch, so its Run fails at once and the user sees the failure with its retry. The
   send connects to the environment, so it sits in infrastructure, in its queue's file, as a send
   has no use apart from its queue. Each unit knows only its own: the send its queue,
-  `failRun` the move to `failed`, `RunService` its write, `AskChatService` the pair, a step its two
-  methods share, which lives once there
+  `RunMove.fail` the move to `failed`, `RunService` its write, `AskChatService` the pair, a step
+  its two methods share, which lives once there
   ([Composition: wrap or compose](#composition-wrap-or-compose)), as a use case never calls
-  another. A port for the send would put an interface and a layer in front of one call. A
-  command's name belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun
-  sequence, following the tell style"), here the glossary's, so the job and the service method
+  another. A port for the sends would add a declaration in the domain and an adapter in front of
+  their one implementation. The sends
+  are a service's methods, not functions with `QueueSender` in their requirements, so a caller
+  takes `ChatQueue` in its `make` and no method carries a service in its `R`. A command's name
+  belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun sequence,
+  following the tell style"), here the glossary's, so the job and the service method
   that runs it share a verb because both take the glossary's word, not because one copies the
   other; the class never rides on the wire (the body is its fields, the queue routes it), so its
   name costs no deployed state.
@@ -1103,9 +1413,12 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
   deleted chat's, leaving the reply queued. A stuck Run that a retry may take after an age: a
   rule by time, and a Run that reads queued while it is lost. A callback into the send that
   settles its refusal: infrastructure would decide the refusal's outcome and depend on the Run.
-  The settlement as a `RunService` method: the Run's records would know the queue. A function beside
-  the use cases that both call: a use case calling another. A port the service calls, adapted
-  in infrastructure: an interface and a layer for one call. The settlement
+  The settlement as a `RunService` method: the Run's records would know the queue. Each send a
+  function that reads `QueueSender` itself: its caller took the sender in its `make` only to
+  provide it to each call. A function beside the use cases that both call: a use case calling
+  another. A port the service calls, adapted in infrastructure: a declaration in the domain and an
+  adapter in front of one implementation.
+  The settlement
   copied into each use case that sends the reply: one step in two places, where a fix must land
   in both. A sweep resending unsent work: a schedule and a route of its own, and a reply
   up to a minute late. Retries with a delay per attempt: a failed reply the user waits on through
@@ -1123,14 +1436,15 @@ who does each job's work: [The chat's jobs in their services](#the-chats-jobs-in
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its chat
   busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a client
   reads the failure from the Run's status, not the response's. A domain service now reaches its
-  module's queue file, so the ask service's guard admits that one file of infrastructure, and the
-  sender, which it takes in its `make` and gives its sends; a send inside its transaction would send
+  module's queue file, so the ask service's guard admits that one file of infrastructure, whose
+  `ChatQueue` it takes in its `make`; the sends cost one more service and its layer,
+  `ChatQueue.layer`, which `AskChatService.layer` provides; a send inside its transaction would send
   before the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
   it. A queue's name changes only as a new queue, as SQS renames none: each stack's next `make up`
   replaces it, and what the old one held is lost.
 - **Guarded by:** the `QueueSender` e2e; the unit tests of the sends, of `AskChatService` and of the
   create flow; the ask service's Biome override, which admits of its infrastructure only
-  `#*/infrastructure/*.queue` and of `@app-template/packages/queue` only `QueueSender`; the
+  `#*/infrastructure/*.queue` and nothing of `@app-template/packages/queue`; the
   `infrastructure/` and `use-cases` rows of [architecture.md › Dependency
   rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
@@ -1170,7 +1484,8 @@ refused move's included, is the queue consumer's to log. `ReplyChatService` take
 the message's assistant and the services of the module's other models, for the records the reply
 writes; `TitleChatService` the chat's assistant and those services, as its one write needs no
 transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
-services, for the request and its sends ([Composition: wrap or compose](#composition-wrap-or-compose)).
+services, `ChatService` reading the user's chat each request names, for the request and its sends
+([Composition: wrap or compose](#composition-wrap-or-compose)).
 
 - **Why:** each job's run sits in one service: the rule a job keeps (an unstarted Run only), the
   moves it makes and the handler that fails the Run on what ends the answer, the rule's refusal
@@ -1206,11 +1521,11 @@ services, for the request and its sends ([Composition: wrap or compose](#composi
   service for both jobs, `ReplyChatService { replyMessage, replyTitle }`: temporal cohesion, two
   units under one name, and a Reply that titles, which the glossary's Reply excludes. `askMessage`
   and `askRetryMessage`: "ask a message", and no retry message exists. `askAgain` for the retry: the
-  model's word is retry (`ensureRunRetryable`, `RunNotRetryableError`, `retryRun`). A word or a file
-  suffix for the tier (application service, act, orchestrator): the glossary avoids or holds each,
-  and a suffix's glob would widen each service's override to the others' infrastructure. Each method
-  requiring its assistant or the sender, so the module's test layer built without one and a case
-  provided its own per call: a method's type carried its process's dependency, against Effect's
+  model's word is retry (`RunPolicy.ensureRetryable`, `RunNotRetryableError`, `retryRun`). A word or
+  a file suffix for the tier (application service, act, orchestrator): the glossary avoids or holds
+  each, and a suffix's glob would widen each service's override to the others' infrastructure. Each
+  method requiring its assistant or the sender, so the module's test layer built without one and a
+  case provided its own per call: a method's type carried its process's dependency, against Effect's
   guidance that a service's operations require nothing. For the sender, a provider exported by the
   queue file, an effect returning a function, harder to read than the task; or the sends' context
   read by their type (`Effect.context`), which keeps that type. A `storeReply` beside the answer
@@ -1224,16 +1539,17 @@ services, for the request and its sends ([Composition: wrap or compose](#composi
   the kernel. Each service takes what its process provides, its assistant or the queue's sender,
   once, in its `make`, so each method's type says only its result and errors, and the module's test
   layer builds a double of each, a mock whose calls die, which a case replaces through the layer's
-  argument, never per call. A service holding its own transaction cannot join a caller's
+  argument, never per call. A service's transaction nests in a caller's as a savepoint
+  ([One way to open a transaction](#one-way-to-open-a-transaction)), but the jobs a service sends
+  after its own commit, as `AskChatService` does, go out before the caller's transaction commits
   ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's call,
   so each reply in flight holds one pooled Postgres connection for that call's length: `PgPool`
   opens at most 10 unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the
   kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
   end and its logs in its use case; the reply service's Biome override, which adds to the
-  services' the message's assistant's `.llm` file and of `@app-template/packages/db` only
-  `Transaction`; the title service's, which adds the chat's assistant's `.llm` file alone; the
-  ask service's, which adds the queue file, `Transaction` and `QueueSender` alone.
+  services' the message's assistant's `.llm` file alone; the title service's, which adds the
+  chat's assistant's `.llm` file alone; the ask service's, which adds the queue file alone.
 - **If reversed:** the Run's rule and moves go back into the job's use case, which then fails the
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
@@ -1246,7 +1562,8 @@ What a Run's job accepts when it is cut short or handled twice. `ReplyChatServic
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
 interrupt included: a worker interrupted while the job reads its Run starts it, then fails it, and
 one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
-`ask` and `retry` run uninterruptibly whole, so a client that aborts once the request is handled
+`ask` and `retry` read and check the user's chat interruptibly, so a client that aborts there stops
+the request, then run their writes and sends as one uninterruptible region, so one that aborts later
 still leaves the Run stored with its jobs sent, or failed by a refused send. Two deliveries at the
 same instant both read the Run queued; the loser's guarded `generating` write dies before its tail
 exists, so it fails nothing and the winner's reply stands. A Run settled or deleted under the reply
@@ -1278,13 +1595,14 @@ and a worker settled the Run dies on the write's guard and fails no later Run
   the Run's id: a second delivery found its own Run settled and was skipped, but the reply to a
   message then takes a Run's id, and the method's name and its parameter disagree.
 - **Cost:** a process that dies between the Run's commit and its send leaves the Run queued and its
-  chat busy ([roadmap.md › Later](roadmap.md#later)), and an aborted request still runs to its
-  sends, bounded by the SQS client's timeouts. A failed Run's job delivered again after a retry
-  fails the retry's Run, and the user retries again. A model's error on a Run whose chat was deleted
-  meanwhile ends the job as a defect, not as a warning. An interrupt waits for the start's read and
-  write to end.
-- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send and an ask and a
-  retry interrupted while their Run is stored, and of `ReplyChatService`, one while the assistant
+  chat busy ([roadmap.md › Later](roadmap.md#later)), and a request aborted past its chat's read
+  and check still runs to its sends, bounded by the SQS client's timeouts. A failed Run's job
+  delivered again after a retry fails the retry's Run, and the user retries again. A model's error
+  on a Run whose chat was deleted meanwhile ends the job as a defect, not as a warning. An
+  interrupt waits for the start's read and write to end.
+- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a
+  retry interrupted while their Run is stored and an ask and a retry interrupted while their chat
+  is read, and of `ReplyChatService`, one while the assistant
   answers, one while the job reads its Run, one losing the `generating` write to a rival, one of a
   failed Run's job delivered again after its retry, one that dies after its Run was failed elsewhere
   and retried, and `AskChatService`'s of a refused send whose Run a worker settled, which fails no
@@ -1314,10 +1632,9 @@ regenerates it, and every local database is recreated
 
 ### Guards are configuration
 
-The guards are `exports`, the isolated linker, `tsc -b`, Biome with its GritQL plugin and the
-bundle check, which reads the web build's metafile against the packages the web's manifest lists
-in `browserPackages`; what no configuration expresses are the review rules `.claude/rules/modules.md`
-and, for a handler, `layering.md`, never hand-written test code. Each import rule is held once,
+The guards are `exports`, the isolated linker, `tsc -b` and Biome with its GritQL plugin; what no
+configuration expresses are the review rules `.claude/rules/modules.md` and, for a handler,
+`layering.md`, never hand-written test code. Each import rule is held once,
 by the guard that can see it: the linker and `tsc -b` see a workspace but no part inside a
 folder, since `kernel/`, `packages/` and `application/` are one workspace and one
 `tsconfig.json` project each; `.misc/lint/biome.base.json` has one override per layer, never
@@ -1364,7 +1681,8 @@ what:
 A file imports its own part's files through the workspace's `#…` subpaths, never a relative path,
 and another part only through that part's entry, even inside one workspace. A part of the
 kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
-is one workspace with one export per part, its `index.ts`, and its test support. The apps keep
+is one workspace with one export per part, its `index.ts`, and its test support, and a module with
+a contract one more, the contract's (`@app-template/application/<module>/contract`). The apps keep
 their package names. The forms, with examples:
 [architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
@@ -1379,12 +1697,14 @@ their package names. The forms, with examples:
   pattern tells a layer's own folder from the next. A workspace per part with `paths` aliases
   in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
   tool. A subpath per store or per layer (`/data/<store>`, `/chat/domain`): a caller must know
-  the part's inside. A `tsconfig.json` project per module: its `references` would repeat the
-  Biome overrides, one rule in two places.
+  the part's inside; a module's contract is the one subpath past an entry, the part another
+  module may take, so a domain imports it without the module's services
+  ([Module contracts](#module-contracts)). A `tsconfig.json` project per module: its
+  `references` would repeat the Biome overrides, one rule in two places.
 - **Cost:** every workspace declares its `imports`; one manifest declares every part's
   dependencies, so the linker tells the folders apart but not one part from another; a part's
   one entry opens it whole, so a layer that may take only some of it (the inventory of `/aws`,
-  the stores of `/data`, a module's contract) is held by the names it imports; `application/`
+  the stores of `/data`) is held by the names it imports, and only a module's contract by a path; `application/`
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
   refuses an import between their parts ([Guards are configuration](#guards-are-configuration)
   says what does).

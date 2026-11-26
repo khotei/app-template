@@ -1,12 +1,11 @@
-import { Context, Effect, Layer, Schema, SchemaIssue, type Types } from 'effect'
+import { Context, Effect, Layer, type Types } from 'effect'
 import type { SetOptional, SetRequired } from 'type-fest'
 
-import type { UserId } from '@app-template/application/identity'
+import type { UserId } from '@app-template/application/user'
 import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
+import { RowCodec } from '@app-template/packages/schema'
 
-import { ChatNotFoundError } from '#chat/domain/chat.error'
-import { Chat } from '#chat/domain/chat.model'
+import { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 
 /**
  * A chat by id, narrowed by its owner or by the title it must still hold, none for untitled. A
@@ -41,21 +40,20 @@ export class ChatService extends Context.Service<
     const chats = yield* ChatRepository
 
     const create = Effect.fn('ChatService.create')(function* (userId: UserId) {
-      const fields = yield* Chat.insert.makeEffect({ userId })
-      const row = yield* encodeWith(Chat.insert)(fields)
+      const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
 
       yield* chats.insert(row)
-      return new Chat(fields)
-    }, Effect.orDie)
+      return new Chat(set)
+    })
 
     const list = Effect.fn('ChatService.list')(
-      (userId: UserId) => chats.selectMany({ userId }),
-      Effect.flatMap(decodeWith(Schema.Array(Chat))),
+      (userId: UserId) => chats.selectMany(encodeWhere({ userId })),
+      Effect.flatMap(RowCodec.decodeMany(Chat)),
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
       (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
-      Effect.flatMap(decodeWith(Schema.Option(Chat))),
+      Effect.flatMap(RowCodec.decodeOne(Chat)),
       (found, where) =>
         Effect.flatMap(
           found,
@@ -63,19 +61,18 @@ export class ChatService extends Context.Service<
         ),
     )
 
-    const update = Effect.fn('ChatService.update')(
-      function* (fields: typeof Chat.jsonUpdate.Type, where: ChatWhere) {
-        const chat = yield* getOne(where)
-        const set = yield* Chat.update.makeEffect({ id: chat.id, ...fields })
-        const row = yield* encodeWith(Chat.update)(set)
+    const update = Effect.fn('ChatService.update')(function* (
+      fields: typeof Chat.jsonUpdate.Type,
+      where: ChatWhere,
+    ) {
+      const chat = yield* getOne(where)
+      const { set, row } = yield* RowCodec.makeUpdate(Chat)({ id: chat.id, ...fields })
 
-        // Only the update variant's fields, under the `where` again: a change landing after the
-        // read is kept.
-        yield* chats.update(row, encodeWhere(where))
-        return new Chat({ ...chat, ...set })
-      },
-      Effect.catchIf(SchemaIssue.isIssue, Effect.die),
-    )
+      // Only the update variant's fields, under the `where` again: a change landing after the
+      // read is kept.
+      yield* chats.update(row, encodeWhere(where))
+      return new Chat({ ...chat, ...set })
+    })
 
     const remove = Effect.fn('ChatService.delete')(function* (
       where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
