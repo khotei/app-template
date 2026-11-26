@@ -53,14 +53,19 @@ under `make dev`, after a reply, `select usage from runs`.
   or puts a per-request value in the prompt, and every reply then pays a cache write.
 - [N:ai] Seen red on a probe: the newest message's text given a suffix made the case fail on
   `"What is this? (newest)"` against `"What is this?"`; the probe is reverted.
+- [N:ai] Review of L2 (Intent, Rules; no Hunt, the range holds a test alone). Fixed as L2.2: the
+  clock moves a minute between the two replies, so a time in the prompt fails the case (seen red
+  on a probe, `"now 0"` against `"now 60000"`); the compared prefix holds an assistant's message;
+  the case asserts the request's `cache_control`; its name says that every field is compared.
 - [N:ai] Not caught: a system prompt that differs between two processes (a value read when the
-  layer is built), as both requests of the case come from one layer.
+  layer is built), as both requests of the case come from one layer; a header that differs
+  between two requests, as the bodies alone are compared and the reply sets none.
 
 ### Output
 
-Proposed: `make test-unit` holds a case, "reply sends a chat's next request with the last one's
-model, system prompt and messages at its start", that fails when a chat's next request no longer
-starts with its last one.
+Proposed: `make test-unit` holds a case, "reply sends a chat's next request, at a later time,
+equal to the last one but for the messages it adds, the cache asked for", that fails when a
+chat's next request no longer starts with its last one.
 
 ## Knowledge
 

@@ -127,15 +127,21 @@ describe('MessageAssistant and ChatAssistant', () => {
   )
 
   it.effect(
-    "reply sends a chat's next request with the last one's model, system prompt and messages at its start, so the provider's cache serves them",
+    "reply sends a chat's next request, at a later time, equal to the last one but for the messages it adds, the cache asked for",
     () => {
-      const { bodies, layer } = recordAnthropic(() => message('A photo.'))
-      const asked = [userMessageAt(1, 'What is this?')]
+      const { bodies, layer } = recordAnthropic(() => message('A cat.'))
+      const asked = [
+        userMessageAt(1, 'What is this?'),
+        assistantMessageAt(2, 'A photo.'),
+        userMessageAt(3, 'Of what?'),
+      ]
       return Effect.gen(function* () {
         yield* reply(asked)
-        yield* reply([...asked, assistantMessageAt(2, 'A photo.'), userMessageAt(3, 'Of what?')])
+        yield* TestClock.adjust('1 minute')
+        yield* reply([...asked, assistantMessageAt(4, 'A cat.'), userMessageAt(5, 'Whose?')])
 
         const [last, next] = yield* bodies
+        assert.deepStrictEqual(last?.cache_control, { type: 'ephemeral' })
         assert.deepStrictEqual(Arr.take(next?.messages ?? [], asked.length), last?.messages)
         assert.deepStrictEqual({ ...next, messages: [] }, { ...last, messages: [] })
       }).pipe(Effect.provide(layer))
