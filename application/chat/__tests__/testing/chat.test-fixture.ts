@@ -1,4 +1,4 @@
-import { DateTime } from 'effect'
+import { DateTime, Option } from 'effect'
 
 import { UserId } from '@app-template/application/user'
 import { LlmError } from '@app-template/kernel/llm/error'
@@ -78,5 +78,12 @@ export const runUsage: RunUsage = {
   cacheReadTokens: 100,
   cacheWriteTokens: 20,
 }
+
+/** `message` as read once a Run of `usage` answered it: a user's newest Run, a reply's own. */
+export const answeredBy = (message: Message, usage: RunUsage = runUsage) =>
+  new Message({
+    ...message,
+    run: Option.some(new Run({ ...queuedRun, status: 'done', usage: Option.some(usage) })),
+  })
 
 export const sureReply = new AssistantReply({ text: 'Sure.', usage: runUsage })

@@ -1,10 +1,8 @@
 import { Cause, Context, Effect, Layer, Option, type Types } from 'effect'
 
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
-import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
 import type { ContextMessage, Message } from '#chat/domain/message.model'
-import type { RunUsage } from '#chat/domain/run.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
@@ -12,7 +10,7 @@ import { MessageService } from '#chat/services/message.service'
 /** The chat `chatId` names, of the user `userId` names, so none reads another's context. */
 export type ChatContextWhere = Types.Simplify<Pick<Message, 'chatId'> & Pick<Chat, 'userId'>>
 
-/** Reads a chat's context, what its reply sends the model, and compacts one over its limit. */
+/** Reads a chat's context, what its reply sends the model, and cuts one over its limit. */
 export class ChatContextService extends Context.Service<
   ChatContextService,
   {
@@ -25,15 +23,12 @@ export class ChatContextService extends Context.Service<
       where: ChatContextWhere,
     ) => Effect.Effect<ReadonlyArray<Message | ContextMessage>, ChatNotFoundError>
     /**
-     * Compacts the context of the chat `where` names once the reply of `usage` left it over the
-     * assistant's tokens limit: the messages a cut leaves out are summarised, and the summary is
-     * stored with the context's new start. A summary that fails leaves the context as it was,
-     * with a warning, for the chat's next reply.
+     * Cuts the context of the chat `where` names, read after the reply that left it over its
+     * limit: the messages the cut leaves out are summarised, and the summary is stored with the
+     * context's new start. A summary that fails leaves the context as it was, with a warning,
+     * for the chat's next reply.
      */
-    readonly compact: (
-      where: ChatContextWhere,
-      usage: RunUsage,
-    ) => Effect.Effect<void, ChatNotFoundError>
+    readonly update: (where: ChatContextWhere) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ChatContextService', {
   make: Effect.gen(function* () {
@@ -58,13 +53,10 @@ export class ChatContextService extends Context.Service<
       return ChatContextTokenizer.withContext(chat.context, stored)
     })
 
-    const compact = Effect.fn('ChatContextService.compact')(
-      function* (where: ChatContextWhere, usage: RunUsage) {
-        const tokensLimit = assistant.contextTokensLimit
-        if (!ChatContextPolicy.isOverLimit(usage, tokensLimit)) return
-
+    const update = Effect.fn('ChatContextService.update')(
+      function* (where: ChatContextWhere) {
         const context = yield* getMessages(where)
-        const cut = ChatContextTokenizer.cut({ messages: context, usage }, tokensLimit)
+        const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
         if (Option.isNone(cut)) return
 
         // What is left opens with the summary the context held, so the new one carries it over.
@@ -81,7 +73,7 @@ export class ChatContextService extends Context.Service<
       Effect.catchTag('LlmError', () => Effect.void),
     )
 
-    return { getMessages, compact }
+    return { getMessages, update }
   }),
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)

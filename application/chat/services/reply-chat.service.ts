@@ -1,7 +1,10 @@
-import { type Cause, Context, Effect, Layer, Struct } from 'effect'
+import { type Cause, Context, Effect, Layer, Option, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
+import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
+import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
+import { Message } from '#chat/domain/message.model'
 import type { MessageId } from '#chat/domain/message.util'
 import {
   activeRunStatuses,
@@ -58,9 +61,12 @@ export class ReplyChatService extends Context.Service<
         text: generated.text,
         author: 'assistant',
       })
-      yield* runs.update(started, yield* RunMove.complete(started, message.id, generated.usage))
+      const done = yield* runs.update(
+        started,
+        yield* RunMove.complete(started, message.id, generated.usage),
+      )
 
-      return generated
+      return new Message({ ...message, run: Option.some(done) })
     }, transaction.run)
 
     // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
@@ -76,14 +82,15 @@ export class ReplyChatService extends Context.Service<
         )
         const started = yield* runs.update(queued, yield* RunMove.start(queued))
 
-        const generated = yield* Effect.interruptible(answer(started)).pipe(
+        const message = yield* Effect.interruptible(answer(started)).pipe(
           Effect.onError(failUnanswered(started)),
         )
 
         // After the commit: a summary's call is long, and one that ends badly must cost no reply.
-        yield* Effect.interruptible(
-          contexts.compact(Struct.pick(started, ['chatId', 'userId']), generated.usage),
-        )
+        const tokensSize = ChatContextTokenizer.tokensSize(message)
+        if (!ChatContextPolicy.isOverLimit(tokensSize, assistant.contextTokensLimit)) return
+
+        yield* Effect.interruptible(contexts.update(Struct.pick(message, ['chatId', 'userId'])))
       },
       // A Run's chat is there while the Run is, so a chat not found is a defect.
       Effect.catchTag('ChatNotFoundError', Effect.die),

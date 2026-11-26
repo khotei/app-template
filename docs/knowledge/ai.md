@@ -50,13 +50,14 @@ A chat's context is what its reply sends the language model, read by
 (`messages.getMany` with `id: { from }`), opened by the latest summary of those before it, which
 `ChatContextTokenizer.withContext` puts first. The assistants take that list ready and only
 encode it. The history, every message of the chat, stays in the database and in the chat's list.
-After each reply, once it is committed, `ReplyChatService` calls `ChatContextService.compact`,
-which asks `ChatContextPolicy.isOverLimit` whether the context is due a cut:
+After each reply, once it is committed, `ReplyChatService` asks `ChatContextPolicy.isOverLimit`
+whether the context is due a cut, by the usage of the Run that wrote the reply:
 
 - while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
   context stays as it is, and the chat is not written;
-- past that, the context is read again, the reply among its messages, and
-  `ChatContextTokenizer.cut` keeps the messages from the oldest user message whose
+- past that, it calls `ChatContextService.update`: the context is read again, the reply last
+  among its messages, its Run's usage the context's size, and `ChatContextTokenizer.cut` keeps
+  the messages from the oldest user message whose
   tail holds at most 0.3 of the limit, the tokens taken as spread over the messages like their
   characters; the rest are summarised, and the summary is stored on the chat with the first
   message kept (`chats.context`: `latestSummary`, `startMessageId`).

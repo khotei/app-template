@@ -1,8 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Option } from 'effect'
+import { Array as Arr, Option, Schema } from 'effect'
 
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
-import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
+import { Message } from '#chat/domain/message.model'
+import {
+  answeredBy,
+  assistantMessageAt,
+  runUsage,
+  userMessageAt,
+} from '#testing/chat/chat.test-fixture'
 
 const chars = (length: number) => 'x'.repeat(length)
 
@@ -12,18 +18,28 @@ const even = Arr.makeBy(6, (i) =>
 )
 
 describe('ChatContextTokenizer.tokensSize', () => {
-  it("counts a prompt's tokens with its reply's", () => {
-    assert.strictEqual(ChatContextTokenizer.tokensSize(runUsage), 135)
+  it("counts the prompt's tokens and the reply's of the Run that wrote a message", () => {
+    assert.strictEqual(ChatContextTokenizer.tokensSize(answeredBy(userMessageAt(1, 'Hi'))), 135)
+  })
+
+  it('counts none for a message no done Run wrote', () => {
+    assert.strictEqual(ChatContextTokenizer.tokensSize(userMessageAt(1, 'Hi')), 0)
   })
 })
 
-const usageOf = (promptTokens: number) => ({ promptTokens, outputTokens: 0 })
+/** `messages` as read after a reply whose prompt and text held `tokens`: the last with its Run. */
+const sized = <M>(messages: ReadonlyArray<M | Message>, tokens: number) =>
+  Arr.map(messages, (message, index) =>
+    index === messages.length - 1 && Schema.is(Message)(message)
+      ? answeredBy(message, { ...runUsage, promptTokens: tokens, outputTokens: 0 })
+      : message,
+  )
 
 describe('ChatContextTokenizer.cut', () => {
   it("leaves out the messages before the oldest user's whose tail holds at most 0.3 of the limit", () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
     assert.deepStrictEqual(
-      ChatContextTokenizer.cut({ messages: even, usage: usageOf(900) }, 1000),
+      ChatContextTokenizer.cut(sized(even, 900), 1000),
       Option.some({ left: Arr.take(even, 4), startMessageId: Arr.getUnsafe(even, 4).id }),
     )
   })
@@ -40,7 +56,7 @@ describe('ChatContextTokenizer.cut', () => {
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
     assert.deepStrictEqual(
-      ChatContextTokenizer.cut({ messages, usage: usageOf(900) }, 1000),
+      ChatContextTokenizer.cut(sized(messages, 900), 1000),
       Option.some({ left: Arr.take(messages, 4), startMessageId: Arr.getUnsafe(messages, 4).id }),
     )
   })
@@ -54,7 +70,7 @@ describe('ChatContextTokenizer.cut', () => {
     ]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.cut({ messages, usage: usageOf(9000) }, 10_000),
+      ChatContextTokenizer.cut(sized(messages, 9000), 10_000),
       Option.some({ left: Arr.take(messages, 2), startMessageId: Arr.getUnsafe(messages, 2).id }),
     )
   })
@@ -64,7 +80,7 @@ describe('ChatContextTokenizer.cut', () => {
     const messages = [summary, ...Arr.drop(even, 1)]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.cut({ messages, usage: usageOf(900) }, 1000),
+      ChatContextTokenizer.cut(sized(messages, 900), 1000),
       Option.some({ left: Arr.take(messages, 4), startMessageId: Arr.getUnsafe(even, 4).id }),
     )
   })
@@ -72,10 +88,11 @@ describe('ChatContextTokenizer.cut', () => {
   it("cuts nothing when the newest user's message is the first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
 
-    assert.deepStrictEqual(
-      ChatContextTokenizer.cut({ messages, usage: usageOf(900) }, 1000),
-      Option.none(),
-    )
+    assert.deepStrictEqual(ChatContextTokenizer.cut(sized(messages, 900), 1000), Option.none())
+  })
+
+  it('cuts nothing when no Run with a usage wrote the last message', () => {
+    assert.deepStrictEqual(ChatContextTokenizer.cut(even, 1000), Option.none())
   })
 })
 

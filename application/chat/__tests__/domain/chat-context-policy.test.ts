@@ -10,10 +10,7 @@ describe('ChatContextPolicy.isOverLimit', () => {
   ])(
     'is $over of $tokensSize tokens under a limit of 1000, cut past 0.8 of it',
     ({ tokensSize, over }) => {
-      assert.strictEqual(
-        ChatContextPolicy.isOverLimit({ promptTokens: tokensSize, outputTokens: 0 }, 1000),
-        over,
-      )
+      assert.strictEqual(ChatContextPolicy.isOverLimit(tokensSize, 1000), over)
     },
   )
 })

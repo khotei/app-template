@@ -130,6 +130,13 @@ none.
   `ChatContextPolicy.isOverLimit` and `ChatContextTokenizer.cut`, which returns what a cut
   leaves out and where the context starts after; the reply's flow calls it once. Its cases stay
   in the reply flow's tests, which run it through the real service.
+  Then the owner's sketch ("answer -> message … isOverLimit(tokensSize, tokensLimit) …
+  updateChatContext({chatId, userId})"), in L4.17: the answer returns the reply's message with
+  its done Run; the reply's flow checks the limit and calls `ChatContextService.update` with the
+  chat and the user alone; a cut reads the context's size from the Run read with its last
+  message, so the messages and their size cannot differ. Unshown: no test reads a cut chat's
+  messages back from Postgres with the reply's Run; the repository's e2e shows a reply read
+  with the Run that wrote it.
 
 ### Output
 
@@ -156,8 +163,8 @@ context with the summary it holds", "summarise asks the reply's language model �
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
   starts and what it sends. `ChatContextService` reads a context as a reply sends it (`getMessages`) and
-  compacts one over its limit (`compact`), holding the message's assistant for the summary;
-  `ReplyChatService` calls both. No class of a context stands between.
+  cuts one (`update`), holding the message's assistant for the summary; `ReplyChatService`
+  checks the limit and calls both. No class of a context stands between.
 - [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
   cut context opens with is the domain's.
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;

@@ -32,6 +32,7 @@ import { Run, RunNotFoundError, RunStatus } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
+  answeredBy,
   assistantMessageAt,
   assistantOverloaded,
   chat,
@@ -368,7 +369,7 @@ describe('ReplyChatService', () => {
       const writes = noWrites()
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = assistantMessageAt(2, 'x'.repeat(100))
-      const short = userMessageAt(3, 'x'.repeat(100))
+      const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
         yield* replies.reply(queuedRun.userMessageId)
@@ -403,7 +404,7 @@ describe('ReplyChatService', () => {
       })
       const { logs, layer: logger } = recordLogs()
       const writes = noWrites()
-      const short = userMessageAt(3, 'x'.repeat(100))
+      const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
         yield* replies.reply(queuedRun.userMessageId)
@@ -467,7 +468,7 @@ describe('ReplyChatService', () => {
               history: [
                 userMessageAt(1, 'x'.repeat(300)),
                 assistantMessageAt(2, 'x'.repeat(100)),
-                userMessageAt(3, 'x'.repeat(100)),
+                answeredBy(userMessageAt(3, 'x'.repeat(100))),
               ],
             }),
             { messageAssistant: assistant.layer },
@@ -483,7 +484,7 @@ describe('ReplyChatService', () => {
       const assistant = recordMessageAssistant(Effect.succeed(sure), { contextTokensLimit: 150 })
       const writes = noWrites()
       const runs = storeRuns(writes, queuedRun)
-      const short = userMessageAt(3, 'x'.repeat(100))
+      const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
       const history = [
         userMessageAt(1, 'x'.repeat(300)),
         assistantMessageAt(2, 'x'.repeat(100)),
