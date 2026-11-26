@@ -11,11 +11,11 @@ import { MessageService } from '#chat/services/message.service'
 type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['summarise']>>
 
 /** The chat `chatId` names, of the user `userId` names, so none reads another's context. */
-export type ChatContextWhere = Types.Simplify<Pick<Message, 'chatId'> & Pick<Chat, 'userId'>>
+export type ContextChatWhere = Types.Simplify<Pick<Message, 'chatId'> & Pick<Chat, 'userId'>>
 
 /** Reads a chat's context, what its reply sends the model, and cuts one over its limit. */
-export class ChatContextService extends Context.Service<
-  ChatContextService,
+export class ContextChatService extends Context.Service<
+  ContextChatService,
   {
     /**
      * The context of the chat `where` names, as a reply sends it: every message of an uncut
@@ -23,7 +23,7 @@ export class ChatContextService extends Context.Service<
      * holds what it compacted.
      */
     readonly getMessages: (
-      where: ChatContextWhere,
+      where: ContextChatWhere,
     ) => Effect.Effect<ReadonlyArray<Message | ContextMessage>, ChatNotFoundError>
     /**
      * Compacts the context of the chat `where` names, whatever its size: the messages its split
@@ -32,10 +32,10 @@ export class ChatContextService extends Context.Service<
      * as it was.
      */
     readonly compact: (
-      where: ChatContextWhere,
+      where: ContextChatWhere,
     ) => Effect.Effect<void, ChatNotFoundError | MessageAssistantError>
   }
->()('@app-template/application/chat/services/ChatContextService', {
+>()('@app-template/application/chat/services/ContextChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatService
     const messages = yield* MessageService
@@ -51,20 +51,20 @@ export class ChatContextService extends Context.Service<
         }),
       })
 
-    const getMessages = Effect.fn('ChatContextService.getMessages')(function* ({
+    const getMessages = Effect.fn('ContextChatService.getMessages')(function* ({
       chatId,
       userId,
-    }: ChatContextWhere) {
+    }: ContextChatWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       const stored = yield* getMessagesInContext(chat)
 
       return ChatContextTokenizer.withContext(chat.context, stored)
     })
 
-    const compact = Effect.fn('ChatContextService.compact')(function* ({
+    const compact = Effect.fn('ContextChatService.compact')(function* ({
       chatId,
       userId,
-    }: ChatContextWhere) {
+    }: ContextChatWhere) {
       const chat = yield* chats.getOne({ id: chatId, userId })
       const contextMessages = yield* getMessagesInContext(chat)
       const { dropped, remain } = ChatContextTokenizer.splitToCompact(

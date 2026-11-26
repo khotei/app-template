@@ -70,11 +70,11 @@ two statics, `isOversized` and `cut`, where one `findContext` held both; the cha
 
 A cut keeps a summary of what it leaves out. After a reply is committed, `ReplyChatService`
 reads the context's size from the reply's Run and asks `ChatContextPolicy.isOverLimit`; past
-0.8 of the limit it calls `ChatContextService.compact`, which reads the context again, takes
+0.8 of the limit it calls `ContextChatService.compact`, which reads the context again, takes
 from `ChatContextTokenizer.splitToCompact` the messages dropped and those that remain, asks
 `MessageAssistant.summarise` for a summary of those left out, opened by the summary before, and
 stores it with the first that remains (`chats.context`: `compacted`, `headMessageId`). The next reply reads the
-messages from that start, opened by the summary (`ChatContextService.getMessages`). A summary that
+messages from that start, opened by the summary (`ContextChatService.getMessages`). A summary that
 fails leaves the context uncut, with a warning, for the chat's next reply. See it:
 `make test-unit`, "compact summarises the messages a cut leaves out, with the summary the
 context had, and stores the summary with the first message kept", "reply after a cut prompts
@@ -102,7 +102,7 @@ messages from Postgres with the reply's Run.
   usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
-  and where it starts. `ChatContextService` reads a context as a reply sends it
+  and where it starts. `ContextChatService` reads a context as a reply sends it
   (`getMessages`) and cuts one (`compact`), holding the message's assistant for the summary;
   `ReplyChatService` checks the limit, calls them and settles a failed summary. No class of a
   context stands between.
@@ -146,13 +146,11 @@ messages from Postgres with the reply's Run.
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A chat whose summary fails after every reply is never cut, and breaks for good once past its
-  model's window — `application/chat/services/chat-context.service.ts:75` — open
-- `ChatContextService.compact` called on a context whose split drops none stores a summary of
+  model's window — `application/chat/services/context-chat.service.ts:75` — open
+- `ContextChatService.compact` called on a context whose split drops none stores a summary of
   the messages it keeps, so the next reply sends both; its one caller asks the policy first —
-  `application/chat/services/chat-context.service.ts:76` — open
+  `application/chat/services/context-chat.service.ts:76` — open
 - A chat that passes the model's window fails its Run as any other failure, and its user is
   not told to open a new chat. A message is at most 20 000 characters by the api's contract
   alone, so only a summary that fails after many replies, or a limit set over the model's
   window, reaches it — `application/http-api/chat.http.ts:62` — open
-- The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of
-  a service composed over a model's — `.claude/rules/naming.md` — open

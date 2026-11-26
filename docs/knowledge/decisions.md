@@ -257,7 +257,7 @@ the data layer's repository directly.
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
   file alone, the chat's reply service (`reply-chat.service.ts`) and its context service
-  (`chat-context.service.ts`) theirs, which adds the message's assistant's `.llm` file alone,
+  (`context-chat.service.ts`) theirs, which adds the message's assistant's `.llm` file alone,
   and its title service (`title-chat.service.ts`) its own, which adds the chat's assistant's
   `.llm` file alone
   ([The chat's jobs in their services](#the-chats-jobs-in-their-services)): the rows of a

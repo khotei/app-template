@@ -224,7 +224,7 @@
       "includes": [
         "application/*/services/**",
         "!application/chat/services/ask-chat.service.ts",
-        "!application/chat/services/chat-context.service.ts",
+        "!application/chat/services/context-chat.service.ts",
         "!application/chat/services/reply-chat.service.ts",
         "!application/chat/services/title-chat.service.ts"
       ],
@@ -378,7 +378,7 @@
     },
     {
       "includes": [
-        "application/chat/services/chat-context.service.ts",
+        "application/chat/services/context-chat.service.ts",
         "application/chat/services/reply-chat.service.ts"
       ],
       "linter": {
@@ -398,7 +398,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, and its context service (ChatContextService) import the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, and its context service (ContextChatService) import the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],

@@ -11,7 +11,7 @@ import { encodeWith } from '@app-template/packages/schema'
 
 import { Chat } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
-import { ChatContextService } from '#chat/services/chat-context.service'
+import { ContextChatService } from '#chat/services/context-chat.service'
 import {
   answeredBy,
   assistantMessageAt,
@@ -59,7 +59,7 @@ const long = userMessageAt(1, 'x'.repeat(300))
 const longReply = assistantMessageAt(2, 'x'.repeat(100))
 const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
 
-describe('ChatContextService', () => {
+describe('ContextChatService', () => {
   it.effect.each([
     {
       name: 'an uncut chat, every message',
@@ -77,7 +77,7 @@ describe('ChatContextService', () => {
     const chatWheres: Array<ChatEntitySelectWhere> = []
     const messageWheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
-      const contexts = yield* ChatContextService
+      const contexts = yield* ContextChatService
 
       const found = yield* contexts.getMessages(where)
 
@@ -113,7 +113,7 @@ describe('ChatContextService', () => {
       })
       const store = storing(cut, [long, longReply, short])
       return Effect.gen(function* () {
-        const contexts = yield* ChatContextService
+        const contexts = yield* ContextChatService
 
         yield* contexts.compact(where)
 
@@ -135,7 +135,7 @@ describe('ChatContextService', () => {
     })
     const store = storing(chat, [long, longReply, short])
     return Effect.gen(function* () {
-      const contexts = yield* ChatContextService
+      const contexts = yield* ContextChatService
 
       const error = yield* contexts.compact(where).pipe(Effect.flip)
 
@@ -153,7 +153,7 @@ describe('ChatContextService', () => {
       const answered = answeredBy(longReply)
       const store = storing(chat, [long, answered])
       return Effect.gen(function* () {
-        const contexts = yield* ChatContextService
+        const contexts = yield* ContextChatService
 
         yield* contexts.compact(where)
 
@@ -170,7 +170,7 @@ describe('ChatContextService', () => {
     const assistant = recordMessageAssistant(Effect.succeed(sureReply), { contextTokensLimit: 150 })
     const store = storing(chat, [])
     return Effect.gen(function* () {
-      const contexts = yield* ChatContextService
+      const contexts = yield* ContextChatService
 
       yield* contexts.compact(where)
 

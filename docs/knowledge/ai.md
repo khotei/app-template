@@ -46,7 +46,7 @@ graph LR
 ## The context and its cut
 
 A chat's context is what its reply sends the language model, read by
-`ChatContextService.getMessages`: the chat's messages from the start the chat stores
+`ContextChatService.getMessages`: the chat's messages from the start the chat stores
 (`messages.getMany` with `id: { from }`), opened by the latest summary of those before it, which
 `ChatContextTokenizer.withContext` puts first as a user message. The assistants take that list ready
 and only encode it. The history, every message of the chat, stays in the database and in the chat's
@@ -56,7 +56,7 @@ the reply:
 
 - while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
   context stays as it is, and the chat is not written;
-- past that, it calls `ChatContextService.compact`: the chat and its messages are read again,
+- past that, it calls `ContextChatService.compact`: the chat and its messages are read again,
   the reply last among them, its Run's usage the context's size, and
   `ChatContextTokenizer.splitToCompact` keeps the messages from the oldest whose tail holds at
   most 0.3 of the limit, a user's or the assistant's, the tokens taken as spread over the

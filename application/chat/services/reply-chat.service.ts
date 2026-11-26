@@ -15,7 +15,7 @@ import {
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-import { ChatContextService } from '#chat/services/chat-context.service'
+import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
@@ -38,7 +38,7 @@ export class ReplyChatService extends Context.Service<
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
-    const contexts = yield* ChatContextService
+    const contexts = yield* ContextChatService
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
@@ -109,6 +109,6 @@ export class ReplyChatService extends Context.Service<
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)
   static readonly layer = this.layerNoDeps.pipe(
-    Layer.provide([ChatContextService.layer, MessageService.layer, RunService.layer]),
+    Layer.provide([ContextChatService.layer, MessageService.layer, RunService.layer]),
   )
 }
