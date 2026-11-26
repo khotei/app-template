@@ -54,8 +54,8 @@ A reply reads its chat's context, the messages from the start the chat holds
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
 (`ChatContextTokenizer.cut`) to the oldest user message whose tail holds at most 0.3 of it,
 or to the newest user message, and its start stored. The chat's list still shows every
-message. See it: `make test-unit`, "getMessages reads the messages of the user's chat: a cut
-chat, those from the start its context stores"; `make test-e2e`, the repository reads a chat's
+message. See it: `make test-unit`, "getOne reads the context of the user's chat: a cut chat, those from the
+start its context stores and its latest summary"; `make test-e2e`, the repository reads a chat's
 messages between two ids and writes a chat's context; under `make dev` with a low limit,
 `select context from chats`. The fixed note a cut context opened with is gone since L4, whose
 cut always holds a summary.
@@ -100,8 +100,8 @@ messages from Postgres with the reply's Run.
   usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
-  and where it starts. `ChatContextService` reads a context's messages and its summary
-  (`getMessages`, `getSummary`) and cuts one (`compact`), holding the message's assistant for the summary;
+  and where it starts. `ChatContextService` reads a context, its messages with its summary
+  (`getOne`), and cuts one (`compact`), holding the message's assistant for the summary;
   `ReplyChatService` checks the limit, calls them and settles a failed summary. No class of a
   context stands between.
 - [D] (the owner's, "move in infra") An assistant takes a chat's messages and, apart, the summary
@@ -140,9 +140,7 @@ messages from Postgres with the reply's Run.
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A chat whose summary fails after every reply is never cut, and breaks for good once past its
-  model's window — `application/chat/services/chat-context.service.ts:77` — open
-- A reply reads its chat's row twice, as `getMessages` and `getSummary` each read it; a cut
-  reads it once — `application/chat/services/chat-context.service.ts:57` — open
+  model's window — `application/chat/services/chat-context.service.ts:74` — open
 - `ChatContextService.compact` cuts a context under its limit too when called on one: the check
   is its caller's — `application/chat/services/reply-chat.service.ts:92` — open
 - The service is named `ChatContextService`, where `naming.md` asks `<Aspect><Model>Service` of

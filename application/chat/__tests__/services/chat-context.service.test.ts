@@ -59,21 +59,28 @@ const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))
 
 describe('ChatContextService', () => {
   it.effect.each([
-    { name: 'an uncut chat, every message', asked: chat, read: { chatId: chat.id } },
     {
-      name: 'a cut chat, those from the start its context stores',
+      name: 'an uncut chat, every message and no summary',
+      asked: chat,
+      read: { chatId: chat.id },
+      summary: Option.none<string>(),
+    },
+    {
+      name: 'a cut chat, those from the start its context stores and its latest summary',
       asked: cut,
       read: { chatId: chat.id, id: { gte: firstMessage.id } },
+      summary: Option.some('A summary.'),
     },
-  ])("getMessages reads the messages of the user's chat: $name", ({ asked, read }) => {
+  ])("getOne reads the context of the user's chat: $name", ({ asked, read, summary }) => {
     const chatWheres: Array<ChatEntitySelectWhere> = []
     const messageWheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {
       const contexts = yield* ChatContextService
 
-      const found = yield* contexts.getMessages(where)
+      const found = yield* contexts.getOne(where)
 
-      assertEquals(found, [firstMessage])
+      assertEquals(found.messages, [firstMessage])
+      assert.deepStrictEqual(found.summary, summary)
       assert.deepStrictEqual(chatWheres, [{ id: chat.id, userId: owner }])
       assert.deepStrictEqual(messageWheres, [read])
     }).pipe(
@@ -95,17 +102,6 @@ describe('ChatContextService', () => {
       ),
     )
   })
-
-  it.effect.each([
-    { name: 'none of an uncut chat', asked: chat, summary: Option.none<string>() },
-    { name: 'the latest of a cut chat', asked: cut, summary: Option.some('A summary.') },
-  ])('getSummary reads $name', ({ asked, summary }) =>
-    Effect.gen(function* () {
-      const contexts = yield* ChatContextService
-
-      assert.deepStrictEqual(yield* contexts.getSummary(where), summary)
-    }).pipe(Effect.provide(layerChatTest(storing(asked, []).mocks))),
-  )
 
   it.effect(
     'compact summarises the messages a cut leaves out, with the summary the context had, and stores the summary with the first message kept',

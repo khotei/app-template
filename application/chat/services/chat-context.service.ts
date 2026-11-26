@@ -18,16 +18,17 @@ export class ChatContextService extends Context.Service<
   ChatContextService,
   {
     /**
-     * The messages of the context of the chat `where` names, in creation order: every message of
-     * an uncut chat, those from the start its context stores of a cut one.
+     * The context of the chat `where` names: its messages in creation order, every one of an
+     * uncut chat, those from the start its context stores of a cut one, with the latest summary
+     * of the messages left out, none for an uncut chat.
      */
-    readonly getMessages: (
-      where: ChatContextWhere,
-    ) => Effect.Effect<ReadonlyArray<Message>, ChatNotFoundError>
-    /** The latest summary of the messages its context leaves out, none for an uncut chat. */
-    readonly getSummary: (
-      where: ChatContextWhere,
-    ) => Effect.Effect<Option.Option<string>, ChatNotFoundError>
+    readonly getOne: (where: ChatContextWhere) => Effect.Effect<
+      {
+        readonly summary: Option.Option<string>
+        readonly messages: ReadonlyArray<Message>
+      },
+      ChatNotFoundError
+    >
     /**
      * Compacts the context of the chat `where` names, read after the reply that left it over its
      * limit: the messages the cut leaves out are summarised, and the summary is stored with the
@@ -44,48 +45,40 @@ export class ChatContextService extends Context.Service<
     const messages = yield* MessageService
     const assistant = yield* MessageAssistant
 
-    // The messages a reply of `chat` sends: all of an uncut chat, those from its context's start.
-    const getContextMessages = ({ id, context }: Chat) =>
-      messages.getMany({
-        chatId: id,
-        ...Option.match(context, {
+    const getOne = Effect.fn('ChatContextService.getOne')(function* ({
+      chatId,
+      userId,
+    }: ChatContextWhere) {
+      const chat = yield* chats.getOne({ id: chatId, userId })
+      const stored = yield* messages.getMany({
+        chatId: chat.id,
+        ...Option.match(chat.context, {
           onNone: () => ({}),
           onSome: ({ startMessageId }) => ({ id: { from: startMessageId } }),
         }),
       })
 
-    const getMessages = Effect.fn('ChatContextService.getMessages')(
-      ({ chatId, userId }: ChatContextWhere) => chats.getOne({ id: chatId, userId }),
-      Effect.flatMap(getContextMessages),
-    )
+      return {
+        summary: Option.map(chat.context, ({ latestSummary }) => latestSummary),
+        messages: stored,
+      }
+    })
 
-    const getSummary = Effect.fn('ChatContextService.getSummary')(
-      ({ chatId, userId }: ChatContextWhere) => chats.getOne({ id: chatId, userId }),
-      Effect.map(({ context }) => Option.map(context, ({ latestSummary }) => latestSummary)),
-    )
-
-    const compact = Effect.fn('ChatContextService.compact')(function* ({
-      chatId,
-      userId,
-    }: ChatContextWhere) {
-      const chat = yield* chats.getOne({ id: chatId, userId })
-      const context = yield* getContextMessages(chat)
-      const cut = ChatContextTokenizer.cut(context, assistant.contextTokensLimit)
+    const compact = Effect.fn('ChatContextService.compact')(function* (where: ChatContextWhere) {
+      const context = yield* getOne(where)
+      const cut = ChatContextTokenizer.cut(context.messages, assistant.contextTokensLimit)
       if (Option.isNone(cut)) return
 
       // The summary the context held goes with what is left, so the new one carries it over.
       const { left, startMessageId } = cut.value
-      const latestSummary = yield* assistant.summarise(
-        left,
-        Option.map(chat.context, (held) => held.latestSummary),
-      )
+      const latestSummary = yield* assistant.summarise(left, context.summary)
       yield* chats.update(
         { context: Option.some({ latestSummary, startMessageId }) },
-        { id: chatId, userId },
+        { id: where.chatId, userId: where.userId },
       )
     })
 
-    return { getMessages, getSummary, compact }
+    return { getOne, compact }
   }),
 }) {
   static readonly layerNoDeps = Layer.effect(this, this.make)

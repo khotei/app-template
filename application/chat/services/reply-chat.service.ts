@@ -54,9 +54,8 @@ export class ReplyChatService extends Context.Service<
     // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
       const scope = Struct.pick(started, ['chatId', 'userId'])
-      const context = yield* contexts.getMessages(scope)
-      const summary = yield* contexts.getSummary(scope)
-      const generated = yield* assistant.reply(context, summary)
+      const context = yield* contexts.getOne(scope)
+      const generated = yield* assistant.reply(context.messages, context.summary)
       const message = yield* messages.create({
         ...scope,
         text: generated.text,
