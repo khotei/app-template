@@ -1470,8 +1470,9 @@ api:    AskChatService.ask ──new chat──▶ TitleChat ──────�
 
 `ReplyChatService.reply` does the reply's job's work, given the user's message the job names: its
 start moves that message's active Run to `generating` if unstarted, in one uninterruptible step,
-then the chat's history, the assistant's reply, and the assistant's message with the Run's `done` in
-one transaction that stays open across the assistant's call; one tail fails the Run the start wrote
+then the chat's context, the assistant's reply, the cut of a context over its limit, and the
+assistant's message with the Run's `done` in one transaction that stays open across the
+assistant's calls; one tail fails the Run the start wrote
 on whatever ends the answer. A Run some worker started fails `RunStartedError`, whose text says its
 worker stopped, and the start fails it with it; a message with no active Run fails
 `RunNotFoundError`, unwritten.
@@ -1546,8 +1547,9 @@ services, `ChatService` reading the user's chat each request names, for the requ
   argument, never per call. A service's transaction nests in a caller's as a savepoint
   ([One way to open a transaction](#one-way-to-open-a-transaction)), but the jobs a service sends
   after its own commit, as `AskChatService` does, go out before the caller's transaction commits
-  ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's call,
-  so each reply in flight holds one pooled Postgres connection for that call's length: `PgPool`
+  ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's calls,
+  the reply's and a summary's when the context is cut, so each reply in flight holds one pooled
+  Postgres connection for their length: `PgPool`
   opens at most 10 unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the
   kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's

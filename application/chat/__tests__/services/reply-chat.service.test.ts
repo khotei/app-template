@@ -44,7 +44,11 @@ import {
   sureReply as sure,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
-import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
+import {
+  type ChatRepositoryMocks,
+  layerChatTest,
+  layerTransactionAround,
+} from '#testing/chat/chat.test-layer'
 import { holdCall } from '#testing/chat/chat.test-util'
 import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fake'
 
@@ -389,6 +393,46 @@ describe('ReplyChatService', () => {
               history: [long, longReply, short],
             }),
             { messageAssistant: assistant.layer, chatContextTokensLimit: 150 },
+          ),
+        ),
+      )
+    },
+  )
+
+  it.effect(
+    "reply opens one transaction before its context is cut and closes it with the cut, the reply and its Run's end written",
+    () => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
+      const writes = noWrites()
+      const written: Array<ReadonlyArray<number>> = []
+      const count = Effect.sync(() => {
+        written.push([writes.chats.length, writes.messages.length])
+      })
+      return Effect.gen(function* () {
+        const replies = yield* ReplyChatService
+        yield* replies.reply(queuedRun.userMessageId)
+
+        assert.deepStrictEqual(written, [
+          [0, 0],
+          [1, 1],
+        ])
+        assert.deepStrictEqual(moves(writes), ['queued → generating', 'generating → done'])
+      }).pipe(
+        Effect.provide(
+          layerChatTest(
+            replyingTo(writes, {
+              runs: storeRuns(writes, queuedRun),
+              history: [
+                userMessageAt(1, 'x'.repeat(300)),
+                answeredBy(assistantMessageAt(2, 'x'.repeat(100))),
+                userMessageAt(3, 'x'.repeat(100)),
+              ],
+            }),
+            {
+              messageAssistant: assistant.layer,
+              chatContextTokensLimit: 150,
+              transaction: layerTransactionAround(count),
+            },
           ),
         ),
       )

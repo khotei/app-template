@@ -2,7 +2,7 @@ import { ConfigProvider, Layer } from 'effect'
 
 import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
 import type { Transaction } from '@app-template/packages/db'
-import { TransactionTest } from '@app-template/packages/db/testing'
+import { layerTransactionAround, TransactionTest } from '@app-template/packages/db/testing'
 import { QueueSender } from '@app-template/packages/queue'
 
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
@@ -14,6 +14,12 @@ import { MessageService } from '#chat/services/message.service'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import { RunService } from '#chat/services/run.service'
 import { TitleChatService } from '#chat/services/title-chat.service'
+
+/**
+ * For a case that reads what a transaction holds: a service's test reaches the package's test
+ * support through this file.
+ */
+export { layerTransactionAround }
 
 /** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ChatRepositoryMocks {

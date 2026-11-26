@@ -78,11 +78,12 @@ user message. Those messages go as one user message, a transcript in `<conversat
 one more user turn, `@effect/ai-anthropic` folded the request into a last user message, and the
 model took it for the user's words.
 
-Only then the reply's transaction stores the answer and ends the Run `done`, so a Run is done
-only with its chat's context cut; the chat stays busy meanwhile, so no message of the user arrives
-during the call. The summary and the start are one write, so two replies of one chat that cut at
-once each store a whole pair. A cut context always holds a summary: one that fails fails the Run
-as a failed answer does, no reply stored and the context left as it was.
+Only then the answer is stored and the Run ends `done`, so a Run is done only with its chat's
+context cut; the chat stays busy meanwhile, so no message of the user arrives during the call. One
+transaction holds the answer, the cut and the store, so the cut context and the reply are written
+together or not at all. The summary and the start are one write, so two replies of one chat that
+cut at once each store a whole pair. A cut context always holds a summary: one that fails fails
+the Run as a failed answer does, no reply stored and the context left as it was.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite

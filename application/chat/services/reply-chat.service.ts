@@ -67,8 +67,8 @@ export class ReplyChatService extends Context.Service<
         yield* contexts.compact(Struct.pick(started, ['chatId', 'userId']))
       })
 
-    // One transaction: the reply first, as the Run names it; a Run another worker settled
-    // meanwhile dies on its update, taking the reply back.
+    // The reply first, as the Run names it; a Run another worker settled meanwhile dies on its
+    // update, and the transaction takes the reply and the cut back.
     const complete = (started: Run) =>
       Effect.fnUntraced(function* ({ text, usage }: AssistantReply) {
         const message = yield* messages.create({
@@ -77,8 +77,10 @@ export class ReplyChatService extends Context.Service<
           author: 'assistant',
         })
         yield* runs.update(started, yield* RunMove.complete(started, message.id, usage))
-      }, transaction.run)
+      })
 
+    // One transaction, open across the model's calls, holds the answer, its cut and its store: the
+    // cut context and the reply are written together or not at all.
     // Uninterruptible but for the answer, its cut and its store: an interrupt that lands while the
     // Run starts waits for them, so the Run it started is always there to fail and never stays
     // `generating`; they are interruptible, so the worker can still stop during the model's calls.
@@ -94,6 +96,7 @@ export class ReplyChatService extends Context.Service<
         yield* answer(started).pipe(
           Effect.tap(compactOverLimit(started)),
           Effect.flatMap(complete(started)),
+          transaction.run,
           Effect.interruptible,
           Effect.onError(failUnanswered(started)),
         )

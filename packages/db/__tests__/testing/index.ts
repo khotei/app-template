@@ -1,1 +1,1 @@
-export { TransactionTest } from '#testing/db/transaction.test-fake'
+export { layerTransactionAround, TransactionTest } from '#testing/db/transaction.test-fake'

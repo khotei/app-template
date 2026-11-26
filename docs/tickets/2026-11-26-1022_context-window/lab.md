@@ -132,9 +132,14 @@ messages from Postgres with the reply's Run.
   summary, a user message; the split returns both halves whatever the size, and `compact`
   summarises those that remain when none is dropped, so a compaction asked for always writes.
 - [D] (the owner's, 2026-11-26) A compaction runs inside the reply's Run, after the answer and
-  before the reply's transaction: a Run is done only with its chat's context cut, a summary that
+  before the reply is stored: a Run is done only with its chat's context cut, a summary that
   fails fails the Run and no reply is stored, and the chat stays busy, so no message arrives
   during it. Replaced: the cut after the reply's commit, a failed summary logged as a warning.
+- [D] (the owner's "yes", L6.9) One transaction holds the answer, the cut and the store, as the
+  decision "The chat's jobs in their services" says of the answer: the cut context and the reply
+  are written together or not at all, at the cost of a connection held across a summary's call
+  too. Replaced: L6.2's transaction around the store alone, which left a cut with no reply when
+  the store died.
 
 ## Later
 
