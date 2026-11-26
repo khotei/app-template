@@ -24,8 +24,8 @@ Where each kind of test and its support live, and what a test may import:
 
 - A unit test runs the real services and use cases over a `Layer.mock(<Name>Repository, { … })` of
   each repository, giving only the methods its flow may call (any other dies with
-  `UnimplementedError`), and over the leaves the module's test layer takes, each
-  `Layer.mock(<Leaf>, {})` and the transaction its own test layer until a case passes its fake. It
+  `UnimplementedError`), and over the leaves a case may double, each defaulting to
+  `Layer.mock(<Leaf>, {})`, the transaction to its own test layer, until a case passes a fake. It
   starts no container and asserts the row or the `set` and `where` a write was handed, never a read
   back. A use case's unit test checks the order of its steps and the jobs it sends, not the rules.
 - Mock a leaf only, a repository or a leaf service (an assistant, the queue's sender): a layer
@@ -35,7 +35,7 @@ Where each kind of test and its support live, and what a test may import:
   ([database.md › Tests](../../docs/knowledge/database.md#tests)).
 - An e2e test proves an adapter on the e2e run's containers, or a flow through the api, never a call
   of the use case. Atomicity: the database refuses one write (a constraint the test adds) and no row
-  and no job is kept. A race sends its requests with `Effect.all(…, { concurrency: 'unbounded' })`
+  and no job is kept. A race sends rival requests with `Effect.all(…, { concurrency: 'unbounded' })`
   and asserts an outcome that holds whichever wins; a probe that removes the guard turns it red.
 - An app's layer in a test's runtime ends in `Layer.fresh`
   (`repos/effect/migration/layer-memoization.md`): it then shares no layer with the test's own,
