@@ -119,7 +119,7 @@ messages from Postgres with the reply's Run.
   into `{ gte, lte }`; no marker class stands for an operator and no method writes one.
 - [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
 - [D] (the owner's, "if id exists there should be summary") A cut context always holds a summary:
-  one that fails leaves the context uncut, where an earlier round cut it all the same.
+  one that fails leaves the context as it was and, since L6.2, fails the Run.
 - [D] (the owner's) A cut reads the context's size from the Run read with the last message a
   done Run wrote, the previous reply's, so the messages and their size are one value.
 - [D] (the owner's "yes") `AssistantReply` is declared beside the call that returns it, in the
@@ -141,13 +141,14 @@ messages from Postgres with the reply's Run.
   turns them into 0 today — `application/chat/__tests__/infrastructure/assistant.llm.test.ts:68` — open
 - With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts and
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
-  `application/chat/infrastructure/message-assistant.llm.ts:120` — open
+  `application/chat/infrastructure/message-assistant.llm.ts:101` — open
 - A chat whose last message holds more than 0.3 of the limit is cut to that message alone, and
-  stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:55` — open
+  stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:66` — open
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
-  `application/chat/infrastructure/message-assistant.llm.ts:144` — open
-- A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
-  only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
+  `application/chat/infrastructure/message-assistant.llm.ts:125` — open
+- A reply and its summary that together outlast the worker's 600 s are killed, no reply stored,
+  and the redelivery fails the Run; reachable only with a limit near the model's window —
+  `kernel/aws/resources/resources.ts:7` — open
 - `ContextChatService.compact` called on a context whose split drops none stores a summary of
   the messages it keeps, so the next reply sends both; its one caller asks the policy first —
   `application/chat/services/context-chat.service.ts:76` — open
@@ -158,3 +159,7 @@ messages from Postgres with the reply's Run.
 - A summary that fails discards a reply already generated and paid for, and a chat whose summary
   fails on every try stops answering at 0.8 of its limit —
   `application/chat/services/reply-chat.service.ts:93` — open
+- A first answer over the limit compacts a context no done Run sized: the split drops none, the
+  question alone is summarised and the next reply compacts again; unreachable while a message
+  holds at most 20 000 characters and a reply 16 000 tokens —
+  `application/chat/domain/chat-context-tokenizer.ts:51` — open

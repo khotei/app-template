@@ -32,7 +32,7 @@ export const logLevel = Config.LogLevel('LOG_LEVEL').pipe(Config.withDefault('In
 export const anthropicApiKey = Config.Redacted('ANTHROPIC_API_KEY')
 
 /**
- * The models that answer replies and titles, and the tokens a reply's context may hold: at most
+ * The models that answer replies and titles, and the tokens a chat's context may hold: at most
  * the reply model's context window, lower to cut a chat's context sooner.
  */
 export const llmModels = Config.all({

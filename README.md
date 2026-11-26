@@ -56,7 +56,7 @@ make dev     # runs make migrate, then api, worker and web together; needs make 
 ```
 
 `.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the language models
-in `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, and the tokens a reply's context may hold in
+in `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, and the tokens a chat's context may hold in
 `LLM_CHAT_CONTEXT_TOKENS_LIMIT`. An empty or missing one stops the worker at start with a
 `ConfigError` naming it; the api and the web read none of them.
 
