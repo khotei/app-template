@@ -1200,7 +1200,8 @@ Drizzle operator.
   speaks the model's values.
 - **Sources:** [database.md › Repositories](database.md#repositories);
   `.claude/rules/repositories.md › A where's two forms`.
-- **Rejected:** one generic encoder of our own (PR #58, closed). A pick of a where's fields in
+- **Rejected:** an encoder of our own that builds every where's SQL itself, in place of
+  Drizzle's filter object (PR #58, closed). A pick of a where's fields in
   every method: a where is written as a literal of its type's fields, which the compiler checks.
 - **Cost:** `encodeFilter` holds one type assertion over `relationsFilterToSQL`, a function of
   Drizzle's rc line; a record handed whole from a variable compiles and makes every field a
@@ -1208,8 +1209,8 @@ Drizzle operator.
 - **Guarded by:** `Keyed`, which refuses a where that names no key, and
   `exactOptionalPropertyTypes`, which refuses an `undefined` field, both at typecheck; the
   repositories' e2e.
-- **If reversed:** each service writes Drizzle's operators, or one encoder of ours maps every
-  where.
+- **If reversed:** each service writes Drizzle's operators, or an encoder of ours builds every
+  where's SQL in place of Drizzle's filter object.
 - **Revisit when:** Drizzle's filter object changes shape, or a service needs a condition model
   values cannot say (a range, a pattern).
 

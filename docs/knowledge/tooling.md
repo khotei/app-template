@@ -120,11 +120,13 @@ Which suite runs where:
   one `TestClock` for its whole block, so under concurrency one test's `adjust` would move its
   neighbours' time. `PgClientTest` gives its pool the live clock in any case: the pool reads
   `Clock` once when it is built, and a `TestClock` there stalls every statement.
-- **An interrupt.** A flow that runs `Effect.uninterruptible` has a case that interrupts it at a
-  chosen point: a mocked leaf holds its call on a `Deferred` (`holdCall`), the test forks the
-  method, waits for the call, forks `Fiber.interrupt` with `{ startImmediately: true }`, releases
-  the call and joins. `Fiber.interrupt` waits for its fiber to end, so an interrupt not forked
-  hangs on the held call. The test then asserts the writes and the jobs sent.
+- **An interrupt.** A flow that runs `Effect.uninterruptible`, whole or but for one step, has a
+  case that interrupts it at a chosen point: a mocked leaf holds its call on a `Deferred`
+  (`holdCall`), the test forks the method, waits for the call and interrupts the fiber.
+  `Fiber.interrupt` waits for its fiber to end, so where the held call runs uninterruptible, the
+  test forks the interrupt with `{ startImmediately: true }`, releases the call and joins it: an
+  interrupt not forked there hangs on the held call. The test then asserts what the flow wrote,
+  and the jobs it sent where it sends any.
 - **A plainer test, not a helper.** Test support is code to maintain that hides what a test
   checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
