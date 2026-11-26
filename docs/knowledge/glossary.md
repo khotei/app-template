@@ -37,7 +37,7 @@ _Avoid_: Current user, principal, login, session, Auth (the api's middleware, `A
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
 has an active Run, the user cannot ask it again. Once its context is cut it holds where the
-context starts.
+context starts and a summary of the messages before.
 _Avoid_: Conversation, thread, dialogue, session (an agent's session in the toolkit)
 
 **History**:
@@ -48,9 +48,9 @@ _Avoid_: Context (below), log, transcript
 **Context**:
 What a chat's reply sends the language model: the chat's messages from a stored start, which a
 cut moves to a later user message once the last prompt and its reply pass a share of the tokens
-limit, opened by the summary the cut wrote of the messages before it. In code `ChatContext`; the
-model's context window is written whole. Not Effect's `Context` module (`Context.Service`), which
-every service file imports.
+limit, opened by the summary the cut wrote of the messages before it, or by a note when it has
+none. In code `ChatContext`; the model's context window is written whole. Not Effect's `Context`
+module (`Context.Service`), which every service file imports.
 _Avoid_: History (above), window (the model's), prompt
 
 **Message**:

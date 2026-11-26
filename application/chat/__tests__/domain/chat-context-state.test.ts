@@ -37,7 +37,7 @@ describe('ChatContextState.cut', () => {
   it('cuts a context to the messages that hold at most 0.3 of the limit', () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
     assert.deepStrictEqual(
-      ChatContextState.cut(whole, 900, 1000),
+      ChatContextState.cut(whole, { tokensSize: 900, tokensLimit: 1000 }),
       new ChatContext({
         startMessageId: Option.some(userMessageAt(5, chars(100)).id),
         messages: Arr.takeRight(even, 2),
@@ -56,7 +56,10 @@ describe('ChatContextState.cut', () => {
     ]
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
-    const cut = ChatContextState.cut(new ChatContext({ ...whole, messages }), 900, 1000)
+    const cut = ChatContextState.cut(new ChatContext({ ...whole, messages }), {
+      tokensSize: 900,
+      tokensLimit: 1000,
+    })
 
     assert.deepStrictEqual(cut.startMessageId, Option.some(userMessageAt(5, chars(100)).id))
   })
@@ -70,7 +73,10 @@ describe('ChatContextState.cut', () => {
     ]
 
     assert.deepStrictEqual(
-      ChatContextState.cut(new ChatContext({ ...whole, messages }), 9000, 10_000),
+      ChatContextState.cut(new ChatContext({ ...whole, messages }), {
+        tokensSize: 9000,
+        tokensLimit: 10_000,
+      }),
       new ChatContext({
         startMessageId: Option.some(userMessageAt(3, chars(500)).id),
         messages: Arr.takeRight(messages, 2),
@@ -81,14 +87,20 @@ describe('ChatContextState.cut', () => {
   it('keeps the summary the context had', () => {
     const context = new ChatContext({ ...whole, summary: Option.some('Before.') })
 
-    assert.deepStrictEqual(ChatContextState.cut(context, 900, 1000).summary, context.summary)
+    assert.deepStrictEqual(
+      ChatContextState.cut(context, { tokensSize: 900, tokensLimit: 1000 }).summary,
+      context.summary,
+    )
   })
 
   it("leaves a context whose newest user's message is its first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
     const context = new ChatContext({ ...whole, messages })
 
-    assert.strictEqual(ChatContextState.cut(context, 900, 1000), context)
+    assert.strictEqual(
+      ChatContextState.cut(context, { tokensSize: 900, tokensLimit: 1000 }),
+      context,
+    )
   })
 })
 
@@ -101,7 +113,10 @@ describe('ChatContextState.leftOut', () => {
     })
 
     assert.deepStrictEqual(
-      ChatContextState.leftOut(context, ChatContextState.cut(context, 900, 1000)),
+      ChatContextState.leftOut(
+        context,
+        ChatContextState.cut(context, { tokensSize: 900, tokensLimit: 1000 }),
+      ),
       new ChatContext({ ...context, messages: Arr.take(even, 4) }),
     )
   })

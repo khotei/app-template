@@ -11,7 +11,7 @@ import { MessageService } from '#chat/services/message.service'
 export type ContextWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
 
 /** Where a context starts and the summary of what came before, which is all of it a chat keeps. */
-type ContextStart = Types.Simplify<Pick<ChatContext, 'startMessageId' | 'summary'>>
+type ContextCut = Types.Simplify<Pick<ChatContext, 'startMessageId' | 'summary'>>
 
 /** A chat's context: what its reply sends the model, and where the chat keeps it. */
 export class ContextChatService extends Context.Service<
@@ -22,7 +22,7 @@ export class ContextChatService extends Context.Service<
     /** Stores where `context` starts and its summary, for the chat's next replies to read. */
     readonly update: (
       where: ContextWhere,
-      context: ContextStart,
+      context: ContextCut,
     ) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ContextChatService', {
@@ -46,7 +46,7 @@ export class ContextChatService extends Context.Service<
     })
 
     const update = Effect.fn('ContextChatService.update')(
-      (where: ContextWhere, { startMessageId, summary }: ContextStart) =>
+      (where: ContextWhere, { startMessageId, summary }: ContextCut) =>
         chats.update(
           { context: Option.map(startMessageId, (id) => ({ startMessageId: id, summary })) },
           where,

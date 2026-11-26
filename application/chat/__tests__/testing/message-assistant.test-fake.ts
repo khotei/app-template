@@ -1,13 +1,10 @@
 import { Array as Arr, Effect, Layer, Ref } from 'effect'
 
-import { LlmError } from '@app-template/kernel/llm/error'
+import type { LlmError } from '@app-template/kernel/llm/error'
 
 import type { AssistantReply } from '#chat/domain/assistant.model'
 import type { ChatContext } from '#chat/domain/chat-context.model'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-
-/** What an assistant's call fails with when its provider is overloaded. */
-export const assistantOverloaded = new LlmError({ cause: '529 overloaded' })
 
 /**
  * A `MessageAssistant` returning `reply` for every reply and `summary` for every summary, keeping

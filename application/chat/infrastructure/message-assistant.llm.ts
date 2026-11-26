@@ -43,7 +43,7 @@ const cutNote = buildUserMessage('Earlier messages of this conversation are not 
 /** Opens a cut context with its summary, which changes only at a cut, as the prefix is cached. */
 const buildSummaryMessage = (summary: string) =>
   buildUserMessage(
-    `Summary of the earlier messages of this conversation, which are not shown to you:\n\n${summary}`,
+    `Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\n${summary}`,
   )
 
 const buildPrompt = ({ startMessageId, summary, messages }: ChatContext) => {
@@ -55,12 +55,10 @@ const buildPrompt = ({ startMessageId, summary, messages }: ChatContext) => {
 const summaryPrompt = [
   'You summarise the earlier part of a conversation between a user and the assistant of a chat app, for that assistant to keep answering from once those messages are no longer shown to it.',
   'Keep what a later answer may need: facts, names, numbers, decisions, what the user asked for and prefers, and questions left open. A summary that opens the conversation is part of it: carry over what still matters.',
-  'Write in the language of the conversation, as plain prose, addressing no one.',
+  'Write in the language of the conversation, as plain prose, addressing no one, in at most 1000 words.',
 ].join('\n')
 
 const summaryRequest = buildUserMessage('Summarise the conversation above.')
-
-const isWritten = flow(Str.trim, Str.isNonEmpty)
 
 export class MessageAssistant extends Context.Service<
   MessageAssistant,
@@ -107,7 +105,7 @@ export class MessageAssistant extends Context.Service<
     // The reply's model, as what a cut leaves out fits the window its context fitted.
     const summaryModel = yield* AnthropicLanguageModel.make({
       model: replyModel,
-      config: { system: summaryPrompt, max_tokens: 4_000 },
+      config: { system: summaryPrompt, max_tokens: 8_000 },
     })
 
     const summarise = Effect.fn('MessageAssistant.summarise')(
@@ -117,7 +115,10 @@ export class MessageAssistant extends Context.Service<
         }),
       askModel,
       Effect.map(({ text }) => text),
-      Effect.filterOrFail(isWritten, () => new LlmError({ cause: 'a blank summary' })),
+      Effect.filterOrFail(
+        flow(Str.trim, Str.isNonEmpty),
+        () => new LlmError({ cause: 'a blank summary' }),
+      ),
     )
 
     return { contextTokensLimit: replyContextTokensLimit, reply, summarise }

@@ -47,7 +47,7 @@ graph LR
 
 A chat's context is what its reply sends the language model: the chat's messages from a stored
 start, `ContextChatService.getOne`. The history, every message of the chat, stays in the database
-and in the chat's list. After each reply, in the reply's transaction, `ReplyChatService` asks
+and in the chat's list. After each reply, once it is committed, `ReplyChatService` asks
 `ChatContextState.isOversized` whether the context is due a cut:
 
 - while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
@@ -64,11 +64,12 @@ newest user message, the least a reply needs.
 A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks the reply's
 language model, under a system prompt of its own, for a summary of the messages before the new
 start, the summary of an earlier cut among them, and the cut context opens with it as a user
-message. The call runs in the reply's transaction, so the start and the summary are stored as
-one, and the reply of a turn that cuts appears only once the summary is written. A summary that
-fails is logged as a warning and never holds the cut back, as a context never cut outgrows its
-language model: the context keeps the summary it had, and one that has none opens with a fixed
-note that earlier messages are not shown, so the language model says so instead of guessing.
+message. The call follows the reply's commit, as it is long and one that ends badly must cost no
+reply; the start and the summary are one write, so two replies of one chat that cut at once each
+store a whole pair. A summary that fails is logged as a warning and never holds the cut back, as
+a context never cut outgrows its language model: the context keeps the summary it had, and one
+that has none opens with a fixed note that earlier messages are not shown, so the language model
+says so instead of guessing.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite
@@ -79,7 +80,7 @@ covers these steps.
 | Purpose | Settings | Sent |
 |---|---|---|
 | reply | `LLM_REPLY_MODEL`, `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (kept by the worker, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
-| summary | `LLM_REPLY_MODEL` | `max_tokens` 4 000; no cache; effort and thinking left to the language model's default |
+| summary | `LLM_REPLY_MODEL` | `max_tokens` 8 000, the prompt asking for at most 1000 words; no cache; effort and thinking left to the language model's default |
 | title | `LLM_TITLE_MODEL` | `max_tokens` 1 000, `output_config.effort: 'low'`, `thinking: { type: 'disabled' }`; no cache |
 
 - **The title's language model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects

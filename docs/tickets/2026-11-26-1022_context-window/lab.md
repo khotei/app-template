@@ -81,22 +81,33 @@ none.
   cut": the context is cut and keeps the summary it had, with a warning. A chat whose summary
   kept failing would never be cut, and would break for good once past its model's window, the
   defect L3's review found in another form.
+- [D:ai] The call follows the reply's commit, where the draft had it in the reply's transaction
+  (the review's finding, below).
 - [D:ai] The note of L3 stays, for a cut context that holds no summary; the draft dropped it.
 - [D:ai] `summarise` is a method of `MessageAssistant`, not an assistant of its own: it shares
   the reply's model and writes the message the reply's prompt reads back.
-- [N:ai] The call runs inside the reply's transaction: an interrupt or a defect during it takes
-  the reply back, as one during the reply's own call does.
+- [N:ai] Review of L3.11 and L4.1 (Intent, Hunt, Rules). Fixed in L4.2: the summary's call ran
+  in the reply's transaction, the draft's first fork, so a handling past the worker's 600 s lost
+  a finished reply (claimed; a unit test cannot show a rollback, as its transaction takes nothing
+  back). The cut now follows the reply's commit: with the chat's total gone its context has one
+  writer, a cut, and each write is a whole pair. Also: a summary longer than its `max_tokens`
+  failed whole, so the prompt states a length and the bound is 8 000; the message a summary
+  opens with says it may leave messages out, true of one a failed second summary kept; the
+  warning is logged on a failure alone; a case starts from a chat that holds a summary;
+  `cut` takes its two sizes as one object; `ChatContextStart` is `ChatContextCut`, as it holds
+  the summary too. Rejected: a `Pick` for `cut`, which returns its context whole; a verb for
+  `leftOut`, named as `tokensSize` is; the two commits' bodies, already pushed.
 
 ### Output
 
-Proposed: a cut asks the reply's language model for a summary of the messages it leaves out, the
-summary of an earlier cut among them, and stores it beside the context's start
-(`chats.context.summary`); the next request opens with it, in place of the note. A summary that
-fails leaves the cut in place with the summary it had. See it: `make test-unit`, "reply whose
-prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the chat's
-context, with a summary of the messages before it", "reply opens the request of a cut context
-with the summary it holds", "summarise asks the reply's language model …"; under `make dev` with
-a low limit, `select context from chats`.
+Proposed: a cut, found once the reply is committed, asks the reply's language model for a summary
+of the messages it leaves out, the summary of an earlier cut among them, and stores it beside the
+context's start (`chats.context.summary`); the next request opens with it, in place of the note.
+A summary that fails leaves the cut in place with the summary it had. See it: `make test-unit`,
+"reply whose prompt and text pass 0.8 of the assistant's tokens limit stores a later start of the
+chat's context, with a summary of the messages before it", "reply opens the request of a cut
+context with the summary it holds", "summarise asks the reply's language model …"; under
+`make dev` with a low limit, `select context from chats`.
 
 ## Knowledge
 
@@ -126,9 +137,12 @@ a low limit, `select context from chats`.
 - A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
   message alone, and stays past 0.3 — `application/chat/domain/chat-context-state.ts:40` — open
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
-  `application/chat/infrastructure/message-assistant.llm.ts:113` — open
-- A turn that cuts shows its reply only once the summary is written, and a worker stopped during
-  the summary's call loses the reply; a summary asked for after the commit would need a guard on
-  the chat's context — `application/chat/services/reply-chat.service.ts:80` — open
+  `application/chat/infrastructure/message-assistant.llm.ts:111` — open
+- A worker stopped during a summary's call logs "reply failed", though its Run is done; the cut
+  is found again after the chat's next reply —
+  `application/chat/services/reply-chat.service.ts:112` — open
+- A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
+  only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A second cut whose summary fails keeps the first cut's summary, which says nothing of the
-  messages that cut left out — `application/chat/services/reply-chat.service.ts:83` — open
+  messages that cut left out, as its opening line allows —
+  `application/chat/services/reply-chat.service.ts:89` — open

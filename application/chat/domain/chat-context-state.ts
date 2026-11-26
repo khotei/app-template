@@ -29,8 +29,7 @@ export class ChatContextState {
    */
   static readonly cut = (
     context: ChatContext,
-    tokensSize: number,
-    tokensLimit: number,
+    { tokensSize, tokensLimit }: { readonly tokensSize: number; readonly tokensLimit: number },
   ): ChatContext => {
     const { messages } = context
     const chars = Arr.map(messages, ({ text }) => text.length)

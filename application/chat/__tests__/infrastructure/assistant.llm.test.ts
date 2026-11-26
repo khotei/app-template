@@ -201,7 +201,7 @@ describe('MessageAssistant and ChatAssistant', () => {
           content: [
             {
               type: 'text',
-              text: 'Summary of the earlier messages of this conversation, which are not shown to you:\n\nThey spoke of a photo.',
+              text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nThey spoke of a photo.',
               cache_control: null,
             },
             { type: 'text', text: 'Of what?', cache_control: null },
@@ -235,7 +235,7 @@ describe('MessageAssistant and ChatAssistant', () => {
             content: [
               {
                 type: 'text',
-                text: 'Summary of the earlier messages of this conversation, which are not shown to you:\n\nThey spoke of a photo.',
+                text: 'Earlier messages of this conversation are not shown to you. A summary of them, which may leave some out:\n\nThey spoke of a photo.',
                 cache_control: null,
               },
               { type: 'text', text: 'Of what?', cache_control: null },

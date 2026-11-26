@@ -35,6 +35,7 @@ import { RunId } from '#chat/domain/run.util'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import {
   assistantMessageAt,
+  assistantOverloaded,
   chat,
   chatId,
   firstMessage,
@@ -45,10 +46,7 @@ import {
 } from '#testing/chat/chat.test-fixture'
 import { type ChatRepositoryMocks, layerChatTest } from '#testing/chat/chat.test-layer'
 import { holdCall } from '#testing/chat/chat.test-util'
-import {
-  assistantOverloaded,
-  recordMessageAssistant,
-} from '#testing/chat/message-assistant.test-fake'
+import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fake'
 
 const at = (millis: number) => DateTime.makeUnsafe(millis)
 
@@ -162,20 +160,22 @@ function storeRuns(writes: Writes, ...runs: ReadonlyArray<Run>) {
   }
 }
 
-/** The reads of `chat` holding `history`, over `runs`, every message and chat write kept in `writes`. */
+/** The reads of `asked`, `chat` unless a case gives one, holding `history`, over `runs`, every message and chat write kept in `writes`. */
 const replyingTo = (
   writes: Writes,
   {
     runs,
     history = [firstMessage],
+    asked = chat,
   }: {
     readonly runs: Pick<ReturnType<typeof storeRuns>, 'selectOne' | 'update'>
     readonly history?: ReadonlyArray<Message>
+    readonly asked?: Chat
   },
 ): ChatRepositoryMocks => ({
   runs: { selectOne: runs.selectOne, update: runs.update },
   chats: {
-    selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
+    selectOne: () => encodeWith(Chat)(asked).pipe(Effect.map(Option.some)),
     update: (set) =>
       Effect.sync(() => {
         writes.chats.push(set)
@@ -398,8 +398,11 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    'reply whose summary fails still cuts the context, its summary left as it was, with a warning, the Run done',
+    'reply whose summary fails still cuts the context, asked with the summary it had and keeping it, with a warning, the Run done',
     () => {
+      const long = userMessageAt(1, 'x'.repeat(300))
+      const longReply = assistantMessageAt(2, 'x'.repeat(100))
+      const before = { startMessageId: Option.some(long.id), summary: Option.some('Before.') }
       const assistant = recordMessageAssistant(Effect.succeed(sure), {
         contextTokensLimit: 150,
         summary: Effect.fail(assistantOverloaded),
@@ -413,8 +416,11 @@ describe('ReplyChatService', () => {
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
-          [{ startMessageId: short.id, summary: null }],
+          [{ startMessageId: short.id, summary: 'Before.' }],
         )
+        assertEquals(yield* assistant.summarised, [
+          new ChatContext({ ...before, messages: [long, longReply] }),
+        ])
         assert.deepStrictEqual(moves(writes).at(-1), 'generating → done')
         assert.deepStrictEqual(
           Arr.map(logs, (line) => Arr.take(line, 2)),
@@ -426,16 +432,49 @@ describe('ReplyChatService', () => {
           layerChatTest(
             replyingTo(writes, {
               runs: storeRuns(writes, queuedRun),
-              history: [
-                userMessageAt(1, 'x'.repeat(300)),
-                assistantMessageAt(2, 'x'.repeat(100)),
-                short,
-              ],
+              history: [long, longReply, short],
+              asked: new Chat({
+                ...chat,
+                context: Option.some({ startMessageId: long.id, summary: before.summary }),
+              }),
             }),
             { messageAssistant: assistant.layer },
           ),
           logger,
         ]),
+      )
+    },
+  )
+
+  it.effect(
+    'reply whose summary dies keeps its reply and its Run done, as the cut follows their commit',
+    () => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure), {
+        contextTokensLimit: 150,
+        summary: Effect.die('provider exploded'),
+      })
+      const writes = noWrites()
+      return Effect.gen(function* () {
+        const replies = yield* ReplyChatService
+        const exit = yield* replies.reply(queuedRun.userMessageId).pipe(Effect.exit)
+
+        assert.isTrue(Exit.hasDies(exit))
+        assert.deepStrictEqual(moves(writes), ['queued → generating', 'generating → done'])
+        assert.deepStrictEqual(writes.chats, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest(
+            replyingTo(writes, {
+              runs: storeRuns(writes, queuedRun),
+              history: [
+                userMessageAt(1, 'x'.repeat(300)),
+                assistantMessageAt(2, 'x'.repeat(100)),
+                userMessageAt(3, 'x'.repeat(100)),
+              ],
+            }),
+            { messageAssistant: assistant.layer },
+          ),
+        ),
       )
     },
   )

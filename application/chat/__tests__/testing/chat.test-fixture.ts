@@ -1,6 +1,7 @@
 import { DateTime } from 'effect'
 
 import { UserId } from '@app-template/application/user'
+import { LlmError } from '@app-template/kernel/llm/error'
 import { epoch } from '@app-template/packages/testing'
 
 import { Chat } from '#chat/domain/chat.model'
@@ -9,6 +10,8 @@ import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
 import { Run, type RunUsage } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
+
+export const assistantOverloaded = new LlmError({ cause: '529 overloaded' })
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
