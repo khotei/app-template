@@ -59,8 +59,8 @@ reply's usage to the chat's (`chats.usage`: `total`, and `context` with its `tok
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case
 of the assistants' suite holds. A cut context opens with a fixed note that earlier messages are
-not shown, so the language model says so instead of guessing. A chat whose newest user message
-alone is longer than 0.3 of the limit is not cut.
+not shown, so the language model says so instead of guessing. When no tail fits 0.3 of the limit,
+the context starts at the newest user message, the least a reply needs.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite

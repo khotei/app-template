@@ -62,7 +62,28 @@ describe('ChatContextState.findContext', () => {
     )
   })
 
-  it("finds none when no user's message opens a tail that fits", () => {
+  it("starts at the newest user's message when no user's message opens a tail that fits", () => {
+    const messages = [
+      userMessageAt(1, chars(2000)),
+      assistantMessageAt(2, chars(20_000)),
+      userMessageAt(3, chars(500)),
+      assistantMessageAt(4, chars(12_000)),
+    ]
+
+    const found = ChatContextState.findContext({ messages }, 9000, 10_000)
+
+    assert.deepStrictEqual(
+      found,
+      Option.some(
+        new ChatContext({
+          startMessageId: Option.some(userMessageAt(3, chars(500)).id),
+          messages: Arr.takeRight(messages, 2),
+        }),
+      ),
+    )
+  })
+
+  it("finds none when the newest user's message is the context's first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
 
     assert.deepStrictEqual(ChatContextState.findContext({ messages }, 900, 1000), Option.none())

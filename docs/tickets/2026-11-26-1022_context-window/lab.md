@@ -112,5 +112,5 @@ What they settled, as the last draft stood:
 - With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts and
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
-- A chat whose newest user message alone is longer than 0.3 of the limit is not cut:
-  `findContext` finds none — `application/chat/domain/chat-context-state.ts:26` — open
+- A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
+  message alone, and stays past 0.3 — `application/chat/domain/chat-context-state.ts:40` — open

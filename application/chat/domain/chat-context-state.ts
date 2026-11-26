@@ -20,8 +20,8 @@ export class ChatContextState {
   /**
    * The context cut for the next reply: its messages from the oldest user's whose tail holds at
    * most `keepShare` of `tokensLimit`, the tokens taken as spread over the messages like their
-   * characters. None while `tokensSize` fits `cutShare` of `tokensLimit`, and when no user's
-   * message opens a tail that fits.
+   * characters, or from the newest user's when no tail fits. None while `tokensSize` fits
+   * `cutShare` of `tokensLimit`, and when the cut would leave every message in.
    */
   static readonly findContext = (
     { messages }: Types.Simplify<Pick<ChatContext, 'messages'>>,
@@ -38,6 +38,9 @@ export class ChatContextState {
     return pipe(
       Arr.zip(messages, tails),
       Arr.findFirstIndex(([{ author }, tail]) => author === 'user' && tail <= keptChars),
+      // No tail fits: the newest user's message, the least a reply needs, unless it is the first.
+      Option.orElse(() => Arr.findLastIndex(messages, ({ author }) => author === 'user')),
+      Option.filter((start) => start > 0),
       Option.map(
         (start) =>
           new ChatContext({
