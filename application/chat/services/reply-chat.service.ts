@@ -1,10 +1,9 @@
-import { Cause, Context, Effect, Layer, Option, Struct } from 'effect'
+import { type Cause, Context, Effect, Layer, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
 import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
-import { Message } from '#chat/domain/message.model'
 import type { MessageId } from '#chat/domain/message.util'
 import {
   activeRunStatuses,
@@ -14,7 +13,7 @@ import {
 } from '#chat/domain/run.model'
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { type AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
@@ -28,9 +27,10 @@ export class ReplyChatService extends Context.Service<
   {
     /**
      * Replies to the user's message `userMessageId` through its active Run, which ends `done`
-     * with the assistant's message, or `failed` with the full text of what ended it, an interrupt
-     * and `RunStartedError`, for a Run some worker started, included. A message with no active
-     * Run fails `RunNotFoundError`, unwritten.
+     * with the assistant's message, its chat's context cut first when the reply passes its limit,
+     * or `failed` with the full text of what ended it, no reply stored: a summary that fails, an
+     * interrupt and `RunStartedError`, for a Run some worker started, included. A message with no
+     * active Run fails `RunNotFoundError`, unwritten.
      */
     readonly reply: (
       userMessageId: MessageId,
@@ -50,29 +50,36 @@ export class ReplyChatService extends Context.Service<
         return yield* runs.update(run, yield* RunMove.fail(run, cause))
       })
 
-    // One transaction, open across the model's call: the reply is written first, as the Run names
-    // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
     const answer = Effect.fnUntraced(function* (started: Run) {
-      const scope = Struct.pick(started, ['chatId', 'userId'])
-      const context = yield* contexts.getMessages(scope)
-      const generated = yield* assistant.reply(context)
-      const message = yield* messages.create({
-        ...scope,
-        text: generated.text,
-        author: 'assistant',
+      const context = yield* contexts.getMessages(Struct.pick(started, ['chatId', 'userId']))
+
+      return yield* assistant.reply(context)
+    })
+
+    // Before the reply is stored: a Run is done only with its chat's context cut.
+    const compactOverLimit = (started: Run) =>
+      Effect.fnUntraced(function* ({ usage }: AssistantReply) {
+        const tokensSize = ChatContextTokenizer.usageTokensSize(usage)
+        if (!ChatContextPolicy.isOverLimit(tokensSize, assistant.contextTokensLimit)) return
+
+        yield* contexts.compact(Struct.pick(started, ['chatId', 'userId']))
       })
-      const done = yield* runs.update(
-        started,
-        yield* RunMove.complete(started, message.id, generated.usage),
-      )
 
-      return new Message({ ...message, run: Option.some(done) })
-    }, transaction.run)
+    // One transaction: the reply first, as the Run names it; a Run another worker settled
+    // meanwhile dies on its update, taking the reply back.
+    const complete = (started: Run) =>
+      Effect.fnUntraced(function* ({ text, usage }: AssistantReply) {
+        const message = yield* messages.create({
+          ...Struct.pick(started, ['chatId', 'userId']),
+          text,
+          author: 'assistant',
+        })
+        yield* runs.update(started, yield* RunMove.complete(started, message.id, usage))
+      }, transaction.run)
 
-    // Uninterruptible but for the answer: an interrupt that lands while the Run starts waits for
-    // the answer, so the Run it started is always there to fail and never stays `generating`; the
-    // answer is interruptible, so the worker can still stop during the model's call, and so is the
-    // cut after it, whose Run is done by then.
+    // Uninterruptible but for the answer, its cut and its store: an interrupt that lands while the
+    // Run starts waits for them, so the Run it started is always there to fail and never stays
+    // `generating`; they are interruptible, so the worker can still stop during the model's calls.
     const reply = Effect.fn('ReplyChatService.reply')(
       function* (userMessageId: MessageId) {
         const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
@@ -82,21 +89,11 @@ export class ReplyChatService extends Context.Service<
         )
         const started = yield* runs.update(queued, yield* RunMove.start(queued))
 
-        const reply = yield* Effect.interruptible(answer(started)).pipe(
+        yield* answer(started).pipe(
+          Effect.tap(compactOverLimit(started)),
+          Effect.flatMap(complete(started)),
+          Effect.interruptible,
           Effect.onError(failUnanswered(started)),
-        )
-
-        // After the commit: a summary's call is long, and one that ends badly must cost no reply.
-        const tokensSize = ChatContextTokenizer.tokensSize(reply)
-        if (!ChatContextPolicy.isOverLimit(tokensSize, assistant.contextTokensLimit)) return
-        // A summary that fails costs no reply: the context stays, for the chat's next reply to cut.
-        yield* Effect.interruptible(
-          contexts.compact(Struct.pick(reply, ['chatId', 'userId'])),
-        ).pipe(
-          Effect.tapErrorTag('LlmError', (error) =>
-            Effect.logWarning('context not cut', Cause.fail(error)),
-          ),
-          Effect.catchTag('LlmError', () => Effect.void),
         )
       },
       // A Run's chat is there while the Run is, so a chat not found is a defect.

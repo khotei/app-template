@@ -17,6 +17,12 @@ const even = Arr.makeBy(6, (i) =>
   i % 2 === 0 ? userMessageAt(i + 1, chars(100)) : assistantMessageAt(i + 1, chars(100)),
 )
 
+describe('ChatContextTokenizer.usageTokensSize', () => {
+  it("counts a usage's prompt tokens and its output's", () => {
+    assert.strictEqual(ChatContextTokenizer.usageTokensSize(runUsage), 135)
+  })
+})
+
 describe('ChatContextTokenizer.tokensSize', () => {
   it("counts the prompt's tokens and the reply's of the Run that wrote a message", () => {
     assert.strictEqual(ChatContextTokenizer.tokensSize(answeredBy(userMessageAt(1, 'Hi'))), 135)
@@ -108,7 +114,17 @@ describe('ChatContextTokenizer.splitToCompact', () => {
     )
   })
 
-  it('drops none when no Run with a usage wrote the last message', () => {
+  it('reads the size from the last message a done Run wrote, a later one holding none', () => {
+    // As a compaction reads them: the last reply with its Run, then the question not yet answered.
+    const messages = [...sized(Arr.take(even, 5), 900), ...Arr.drop(even, 5)]
+
+    assert.deepStrictEqual(
+      ChatContextTokenizer.splitToCompact(messages, 1000),
+      splitAt(messages, 4),
+    )
+  })
+
+  it('drops none when no Run with a usage wrote a message', () => {
     assert.deepStrictEqual(ChatContextTokenizer.splitToCompact(even, 1000), splitAt(even, 0))
   })
 

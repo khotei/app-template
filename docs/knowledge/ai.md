@@ -50,18 +50,18 @@ A chat's context is what its reply sends the language model, read by
 (`messages.getMany` with `id: { from }`), opened by the latest summary of those before it, which
 `ChatContextTokenizer.withContext` puts first as a user message. The assistants take that list ready
 and only encode it. The history, every message of the chat, stays in the database and in the chat's
-list. After each reply, once it is committed, `ReplyChatService` asks
-`ChatContextPolicy.isOverLimit` whether the context is due a cut, by the usage of the Run that wrote
-the reply:
+list. Inside each reply's Run, after the answer and before it is stored, `ReplyChatService` asks
+`ChatContextPolicy.isOverLimit` whether the context is due a cut, by the answer's usage:
 
-- while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
+- while the prompt's tokens and the answer's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
   context stays as it is, and the chat is not written;
-- past that, it calls `ContextChatService.compact`: the chat and its messages are read again,
-  the reply last among them, its Run's usage the context's size, and
-  `ChatContextTokenizer.splitToCompact` keeps the messages from the oldest whose tail holds at
-  most 0.3 of the limit, a user's or the assistant's, the tokens taken as spread over the
-  messages like their characters; the rest are summarised, and the summary is stored on the chat
-  with the first message kept (`chats.context`: `compacted`, `headMessageId`).
+- past that, it calls `ContextChatService.compact`: the chat and its messages are read again, the
+  user's question last among them, and `ChatContextTokenizer.splitToCompact` takes the usage of
+  the last message a done Run wrote, the previous reply, as the context's size, and keeps the
+  messages from the oldest whose tail holds at most 0.3 of the limit, a user's or the
+  assistant's, the tokens taken as spread over the messages like their characters; the rest are
+  summarised, and the summary is stored on the chat with the first message kept
+  (`chats.context`: `compacted`, `headMessageId`).
 
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case
@@ -73,10 +73,11 @@ it summarises the messages that remain and keeps them, so its one caller asks th
 A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks the reply's
 language model, under a system prompt of its own, for a summary of the messages the cut leaves
 out, the summary of an earlier cut put first among them, and the cut context opens with it as a
-user message. The call follows the reply's commit, as it is long and one that ends badly must cost no
-reply; the summary and the start are one write, so two replies of one chat that cut at
-once each store a whole pair. A cut context always holds a summary: one that fails is logged as
-a warning and leaves the context as it was, for the chat's next reply to cut.
+user message. Only then the reply's transaction stores the answer and ends the Run `done`, so a Run
+is done only with its chat's context cut; the chat stays busy meanwhile, so no message of the user
+arrives during the call. The summary and the start are one write, so two replies of one chat that
+cut at once each store a whole pair. A cut context always holds a summary: one that fails fails
+the Run as a failed answer does, no reply stored and the context left as it was.
 
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite

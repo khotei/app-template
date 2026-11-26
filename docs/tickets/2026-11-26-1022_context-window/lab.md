@@ -68,14 +68,16 @@ two statics, `isOversized` and `cut`, where one `findContext` held both; the cha
 
 ### Output
 
-A cut keeps a summary of what it leaves out. After a reply is committed, `ReplyChatService`
-reads the context's size from the reply's Run and asks `ChatContextPolicy.isOverLimit`; past
+A cut keeps a summary of what it leaves out. Inside a reply's Run, after the answer and before it
+is stored, `ReplyChatService` reads the context's size from the answer's usage and asks
+`ChatContextPolicy.isOverLimit`; past
 0.8 of the limit it calls `ContextChatService.compact`, which reads the context again, takes
 from `ChatContextTokenizer.splitToCompact` the messages dropped and those that remain, asks
 `MessageAssistant.summarise` for a summary of those left out, opened by the summary before, and
 stores it with the first that remains (`chats.context`: `compacted`, `headMessageId`). The next reply reads the
-messages from that start, opened by the summary (`ContextChatService.getMessages`). A summary that
-fails leaves the context uncut, with a warning, for the chat's next reply. See it:
+messages from that start, opened by the summary (`ContextChatService.getMessages`). Only then the
+reply is stored and its Run done; a summary that fails fails the Run, no reply stored and the
+context left as it was (L6.2). See it:
 `make test-unit`, "compact summarises the messages a cut leaves out, with the summary the
 context had, and stores the summary with the first message kept", "reply after a cut prompts
 with the summary and the chat's messages from the start it stored"; under `make dev` with a low limit,
@@ -97,14 +99,14 @@ messages from Postgres with the reply's Run.
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
 - [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
-  (`compacted`, `headMessageId`), written by a cut after the reply's commit; a value
+  (`compacted`, `headMessageId`), written by a cut before the reply is stored; a value
   nothing reads (a total of the replies' counts, the context's size) is not stored, a Run's
   usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
   and where it starts. `ContextChatService` reads a context as a reply sends it
   (`getMessages`) and cuts one (`compact`), holding the message's assistant for the summary;
-  `ReplyChatService` checks the limit, calls them and settles a failed summary. No class of a
+  `ReplyChatService` checks the limit and calls them. No class of a
   context stands between.
 - [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
   cut context opens with is the domain's (`ChatContextTokenizer.withContext`), and
@@ -118,8 +120,8 @@ messages from Postgres with the reply's Run.
 - [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
 - [D] (the owner's, "if id exists there should be summary") A cut context always holds a summary:
   one that fails leaves the context uncut, where an earlier round cut it all the same.
-- [D] (the owner's) A cut reads the context's size from the Run read with its last message, the
-  reply's, so the messages and their size are one value.
+- [D] (the owner's) A cut reads the context's size from the Run read with the last message a
+  done Run wrote, the previous reply's, so the messages and their size are one value.
 - [D] (the owner's "yes") `AssistantReply` is declared beside the call that returns it, in the
   assistant's file; the decision "The language model in the kernel" says so.
 - [D] A chat with no tail within the lower share is cut to its last message: a chat never
@@ -127,6 +129,10 @@ messages from Postgres with the reply's Run.
 - [D] (the owner's) A context's head is any message, as a compacted context opens with its
   summary, a user message; the split returns both halves whatever the size, and `compact`
   summarises those that remain when none is dropped, so a compaction asked for always writes.
+- [D] (the owner's, 2026-11-26) A compaction runs inside the reply's Run, after the answer and
+  before the reply's transaction: a Run is done only with its chat's context cut, a summary that
+  fails fails the Run and no reply is stored, and the chat stays busy, so no message arrives
+  during it. Replaced: the cut after the reply's commit, a failed summary logged as a warning.
 
 ## Later
 
@@ -140,13 +146,8 @@ messages from Postgres with the reply's Run.
   stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:55` — open
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
   `application/chat/infrastructure/message-assistant.llm.ts:144` — open
-- A worker stopped during a summary's call logs "reply failed", though its Run is done; the cut
-  is found again after the chat's next reply —
-  `application/chat/services/reply-chat.service.ts:95` — open
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
-- A chat whose summary fails after every reply is never cut, and breaks for good once past its
-  model's window — `application/chat/services/context-chat.service.ts:75` — open
 - `ContextChatService.compact` called on a context whose split drops none stores a summary of
   the messages it keeps, so the next reply sends both; its one caller asks the policy first —
   `application/chat/services/context-chat.service.ts:76` — open
@@ -154,3 +155,6 @@ messages from Postgres with the reply's Run.
   not told to open a new chat. A message is at most 20 000 characters by the api's contract
   alone, so only a summary that fails after many replies, or a limit set over the model's
   window, reaches it — `application/http-api/chat.http.ts:62` — open
+- A summary that fails discards a reply already generated and paid for, and a chat whose summary
+  fails on every try stops answering at 0.8 of its limit —
+  `application/chat/services/reply-chat.service.ts:93` — open
