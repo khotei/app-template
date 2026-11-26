@@ -57,6 +57,7 @@ graph LR
 | 26 | `domain-from-data` | `refactor` | 10 | done: [docs/tickets/2026-11-06-1005_domain-from-data/](../tickets/2026-11-06-1005_domain-from-data/plan.md) |
 | 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
 | 30 | `effect-4-1` | `chore` | PR #39 | done, in the design audit's PR #39 |
+| 31 | `pure-models` | `refactor` | 30 | done: [docs/tickets/2026-11-25-1922_pure-models/](../tickets/2026-11-25-1922_pure-models/lab.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -561,6 +562,30 @@ moves it into its own `Later` and deletes it here.
   or a service, the kernel or Drizzle that reaches the API contract's bundle past the domain's
   and the contracts' overrides, passes `make check`. Left on the owner's word: "It will be task
   of web framework". Way out: the bundler of `web-app` (7) checks both.
+- (2026-11-26) The web takes the API contract as the generated client, never as code: the
+  contract shared with the browser (`HttpApiClient.make(Api)`, `sideEffects: false`, a values
+  file) was left to `web-app` (7) on the owner's yes. Way out: that ticket weighs it against the
+  generated client.
+- (2026-11-26) `<name>SetColumns` copy by hand the fields a model's update variant writes
+  (`kernel/data/chat/run.entity.ts`, `runSetColumns`): a field added to one side alone is not
+  refused. Way out: derive the list from the table's columns, or compare the two in a test.
+- (2026-11-26) A job is sent after its writes' commit (`AskChatService`,
+  `application/chat/services/ask-chat.service.ts`), so a process that dies between the two
+  leaves a queued Run no worker hears of. Way out: an outbox row written in the same
+  transaction and sent by a poller.
+- (2026-11-26) "Use cases above the modules" (`decisions.md`) names a hook-service pattern no
+  code uses. Way out: show it by an example or cut the line.
+- (2026-11-26) A domain's source may import test support through the `#testing/<module>/*` alias:
+  the `application/*/domain/**` override refuses the `/testing` entries by their package path
+  alone (`.misc/lint/biome.base.json`). Claimed by a review, not probed. Way out: refuse the
+  alias in that override, with a red probe.
+- (2026-11-26) The Grit plugin that refuses `use`, `useSync` and a combinator over a service
+  (`.misc/lint/biome-effect.grit`) knows a service by its capitalised name, so a read through a
+  lower-case alias or `this.use` passes. Left as no code does either. Way out: a pattern for
+  each, once one appears.
+- (2026-11-26) `GET /chats` and `GET /chats/:chatId/messages` return the whole list
+  (`application/http-api/chat.http.ts`): no pagination. A matter of scale, left until the lists
+  grow. Way out: cursor pagination with `web-app` (7).
 
 ## Ideas to weigh
 
