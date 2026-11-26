@@ -52,7 +52,7 @@ processes; a header that differs between two requests.
 A reply reads its chat's context, the messages from the start the chat holds
 (`chats.context`, null until a cut). Once a reply's prompt and text pass 0.8 of
 `LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextPolicy.isOverLimit`), the context is cut
-(`ChatContextTokenizer.compact`) to the oldest user message whose tail holds at most 0.3 of it,
+(`ChatContextTokenizer.cut`) to the oldest user message whose tail holds at most 0.3 of it,
 or to the newest user message, and its start stored; a cut context opens with a fixed note. The chat's list still shows every message. See it: `make test-unit`, "reply after a
 cut prompts with the chat's messages from the start the cut stored"; `make test-e2e`, the
 repository reads a chat's messages from an id and writes a chat's context; under `make dev` with
@@ -126,6 +126,10 @@ none.
   Then "return just generated … Refactor&Simplify reply", in L4.15: the answer returns the
   generated reply alone, and a cut over the limit reads the context again, the reply among its
   messages by then. Unshown by a unit test: its store's read does not hold the reply written.
+  Then the owner's "ok" to a draft, in L4.16: the cut is `ChatContextService.compact`, over
+  `ChatContextPolicy.isOverLimit` and `ChatContextTokenizer.cut`, which returns what a cut
+  leaves out and where the context starts after; the reply's flow calls it once. Its cases stay
+  in the reply flow's tests, which run it through the real service.
 
 ### Output
 
@@ -151,8 +155,9 @@ context with the summary it holds", "summarise asks the reply's language model �
   total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
 - [D] (the owner's, PR #61's review) The cut is two rule groups of the domain: `ChatContextPolicy`,
   when a context is over its limit, and `ChatContextTokenizer`, how it is counted, where it
-  starts and what it sends. `ChatContextService.getMessages` reads a context as a reply sends it, and
-  `ReplyChatService` cuts it; no class of a context stands between.
+  starts and what it sends. `ChatContextService` reads a context as a reply sends it (`getMessages`) and
+  compacts one over its limit (`compact`), holding the message's assistant for the summary;
+  `ReplyChatService` calls both. No class of a context stands between.
 - [D] (the owner's) An assistant takes the messages ready to send and only encodes them; what a
   cut context opens with is the domain's.
 - [D] (the owner's) `ChatService.update` writes the update variant whole, as before the column;
@@ -172,13 +177,13 @@ context with the summary it holds", "summarise asks the reply's language model �
   `Arr.findFirst` keeps the model asked, not the one that answered; the app sends none —
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
 - A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
-  message alone, and stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:44` — open
+  message alone, and stays past 0.3 — `application/chat/domain/chat-context-tokenizer.ts:55` — open
 - The tokens of a summary's call are stored nowhere: a Run's usage holds its reply's alone —
   `application/chat/infrastructure/message-assistant.llm.ts:96` — open
 - A worker stopped during a summary's call logs "reply failed", though its Run is done; the cut
   is found again after the chat's next reply —
-  `application/chat/services/reply-chat.service.ts:132` — open
+  `application/chat/services/reply-chat.service.ts:85` — open
 - A summary that outlasts the worker's 600 s is never stored, so its chat is not cut; reachable
   only with a limit near the model's window — `kernel/aws/resources/resources.ts:3` — open
 - A chat whose summary fails after every reply is never cut, and breaks for good once past its
-  model's window — `application/chat/services/reply-chat.service.ts:101` — open
+  model's window — `application/chat/services/chat-context.service.ts:72` — open

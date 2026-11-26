@@ -224,6 +224,7 @@
       "includes": [
         "application/*/services/**",
         "!application/chat/services/ask-chat.service.ts",
+        "!application/chat/services/chat-context.service.ts",
         "!application/chat/services/reply-chat.service.ts",
         "!application/chat/services/title-chat.service.ts"
       ],
@@ -376,7 +377,10 @@
       }
     },
     {
-      "includes": ["application/chat/services/reply-chat.service.ts"],
+      "includes": [
+        "application/chat/services/chat-context.service.ts",
+        "application/chat/services/reply-chat.service.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -394,7 +398,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, imports the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's reply service (ReplyChatService), the worker's work on the reply's job, and its context service (ChatContextService) import the workspaces a module's services do and, of @app-template/packages/db, the transaction: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
@@ -412,7 +416,7 @@
                       "#*/infrastructure/**",
                       "!#chat/infrastructure/message-assistant.llm"
                     ],
-                    "message": "the chat's reply service reaches its module's infrastructure only through a port and the message's assistant, which replies (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's reply service and its context service reach their module's infrastructure only through a port and the message's assistant, which replies and summarises (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": [

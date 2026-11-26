@@ -17,12 +17,14 @@ describe('ChatContextTokenizer.tokensSize', () => {
   })
 })
 
-describe('ChatContextTokenizer.compact', () => {
-  it("keeps the messages from the oldest user's whose tail holds at most 0.3 of the limit", () => {
+const usageOf = (promptTokens: number) => ({ promptTokens, outputTokens: 0 })
+
+describe('ChatContextTokenizer.cut', () => {
+  it("leaves out the messages before the oldest user's whose tail holds at most 0.3 of the limit", () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact({ messages: even, tokensSize: 900 }, 1000),
-      Arr.takeRight(even, 2),
+      ChatContextTokenizer.cut({ messages: even, usage: usageOf(900) }, 1000),
+      Option.some({ left: Arr.take(even, 4), startMessageId: Arr.getUnsafe(even, 4).id }),
     )
   })
 
@@ -38,8 +40,8 @@ describe('ChatContextTokenizer.compact', () => {
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact({ messages, tokensSize: 900 }, 1000),
-      Arr.takeRight(messages, 2),
+      ChatContextTokenizer.cut({ messages, usage: usageOf(900) }, 1000),
+      Option.some({ left: Arr.take(messages, 4), startMessageId: Arr.getUnsafe(messages, 4).id }),
     )
   })
 
@@ -52,17 +54,27 @@ describe('ChatContextTokenizer.compact', () => {
     ]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact({ messages, tokensSize: 9000 }, 10_000),
-      Arr.takeRight(messages, 2),
+      ChatContextTokenizer.cut({ messages, usage: usageOf(9000) }, 10_000),
+      Option.some({ left: Arr.take(messages, 2), startMessageId: Arr.getUnsafe(messages, 2).id }),
     )
   })
 
-  it("keeps every message when the newest user's is the first, as nothing can go", () => {
+  it('leaves out the message that holds an earlier summary with those after it', () => {
+    const summary = { author: 'user' as const, text: chars(100) }
+    const messages = [summary, ...Arr.drop(even, 1)]
+
+    assert.deepStrictEqual(
+      ChatContextTokenizer.cut({ messages, usage: usageOf(900) }, 1000),
+      Option.some({ left: Arr.take(messages, 4), startMessageId: Arr.getUnsafe(even, 4).id }),
+    )
+  })
+
+  it("cuts nothing when the newest user's message is the first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
 
     assert.deepStrictEqual(
-      ChatContextTokenizer.compact({ messages, tokensSize: 900 }, 1000),
-      messages,
+      ChatContextTokenizer.cut({ messages, usage: usageOf(900) }, 1000),
+      Option.none(),
     )
   })
 })
