@@ -36,8 +36,8 @@ _Avoid_: Current user, principal, login, session, Auth (the api's middleware, `A
 
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
-has an active Run, the user cannot ask it again. Once a reply has ended it holds its usage: the
-counts of its replies added up, and where its context stands.
+has an active Run, the user cannot ask it again. Once its context is cut it holds where the
+context starts.
 _Avoid_: Conversation, thread, dialogue, session (an agent's session in the toolkit)
 
 **History**:

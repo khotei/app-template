@@ -2,7 +2,7 @@
   "type": "base",
   "version": "10",
   "dialect": "postgres",
-  "id": "7abb47fb-d2ad-4007-b5c8-5dd7e36827d9",
+  "id": "6598da1e-81f8-4013-b91a-67734a3877ec",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -488,7 +488,7 @@
     {
       "schema": "public",
       "table": "chats",
-      "name": "usage",
+      "name": "context",
       "type": "jsonb",
       "typeSchema": null,
       "notNull": false,

@@ -20,26 +20,28 @@ describe('ChatContextState.tokensSize', () => {
   })
 })
 
-describe('ChatContextState.findContext', () => {
-  it.each([{ tokensSize: 0 }, { tokensSize: 800 }])(
-    'finds none while $tokensSize tokens fit 0.8 of a limit of 1000',
-    ({ tokensSize }) => {
-      assert.deepStrictEqual(ChatContextState.findContext(whole, tokensSize, 1000), Option.none())
+describe('ChatContextState.isOversized', () => {
+  it.each([
+    { tokensSize: 0, oversized: false },
+    { tokensSize: 800, oversized: false },
+    { tokensSize: 801, oversized: true },
+  ])(
+    'is $oversized of $tokensSize tokens under a limit of 1000, cut past 0.8 of it',
+    ({ tokensSize, oversized }) => {
+      assert.strictEqual(ChatContextState.isOversized(tokensSize, 1000), oversized)
     },
   )
+})
 
-  it('cuts a context past 0.8 of the limit to the messages that hold at most 0.3 of it', () => {
+describe('ChatContextState.cut', () => {
+  it('cuts a context to the messages that hold at most 0.3 of the limit', () => {
     // 900 tokens over 600 characters: 300 tokens are 200 characters, the last two messages.
-    const found = ChatContextState.findContext(whole, 900, 1000)
-
     assert.deepStrictEqual(
-      found,
-      Option.some(
-        new ChatContext({
-          startMessageId: Option.some(userMessageAt(5, chars(100)).id),
-          messages: Arr.takeRight(even, 2),
-        }),
-      ),
+      ChatContextState.cut(whole, 900, 1000),
+      new ChatContext({
+        startMessageId: Option.some(userMessageAt(5, chars(100)).id),
+        messages: Arr.takeRight(even, 2),
+      }),
     )
   })
 
@@ -54,12 +56,9 @@ describe('ChatContextState.findContext', () => {
     ]
 
     // 900 tokens over 900 characters: 300 characters fit, the last three messages.
-    const found = ChatContextState.findContext({ messages }, 900, 1000)
+    const cut = ChatContextState.cut(new ChatContext({ ...whole, messages }), 900, 1000)
 
-    assert.deepStrictEqual(
-      Option.map(found, (context) => context.startMessageId),
-      Option.some(Option.some(userMessageAt(5, chars(100)).id)),
-    )
+    assert.deepStrictEqual(cut.startMessageId, Option.some(userMessageAt(5, chars(100)).id))
   })
 
   it("starts at the newest user's message when no user's message opens a tail that fits", () => {
@@ -70,22 +69,19 @@ describe('ChatContextState.findContext', () => {
       assistantMessageAt(4, chars(12_000)),
     ]
 
-    const found = ChatContextState.findContext({ messages }, 9000, 10_000)
-
     assert.deepStrictEqual(
-      found,
-      Option.some(
-        new ChatContext({
-          startMessageId: Option.some(userMessageAt(3, chars(500)).id),
-          messages: Arr.takeRight(messages, 2),
-        }),
-      ),
+      ChatContextState.cut(new ChatContext({ ...whole, messages }), 9000, 10_000),
+      new ChatContext({
+        startMessageId: Option.some(userMessageAt(3, chars(500)).id),
+        messages: Arr.takeRight(messages, 2),
+      }),
     )
   })
 
-  it("finds none when the newest user's message is the context's first, as nothing can go", () => {
+  it("leaves a context whose newest user's message is its first, as nothing can go", () => {
     const messages = [userMessageAt(1, chars(100)), assistantMessageAt(2, chars(100))]
+    const context = new ChatContext({ ...whole, messages })
 
-    assert.deepStrictEqual(ChatContextState.findContext({ messages }, 900, 1000), Option.none())
+    assert.strictEqual(ChatContextState.cut(context, 900, 1000), context)
   })
 })

@@ -10,7 +10,6 @@ import {
   Predicate,
   pipe,
   Schema,
-  Struct,
   UndefinedOr,
 } from 'effect'
 import { Model } from 'effect/schema'
@@ -261,15 +260,7 @@ describe('ReplyChatService', () => {
           yield* encodeWith(Run.update)({ ...done, updatedAt: Model.Override(done.updatedAt) }),
           { id: queuedRun.id, status: 'generating' },
         ])
-        assert.deepStrictEqual(
-          Arr.map(writes.chats, ({ usage }) => usage),
-          [
-            {
-              total: Struct.omit(runUsage, ['model']),
-              context: { tokensSize: 135, startMessageId: null },
-            },
-          ],
-        )
+        assert.deepStrictEqual(writes.chats, [])
         assert.deepStrictEqual(logs, [])
       }).pipe(
         Effect.provide([
@@ -383,8 +374,8 @@ describe('ReplyChatService', () => {
         yield* replies.reply(queuedRun.userMessageId)
 
         assert.deepStrictEqual(
-          Arr.map(writes.chats, ({ usage }) => usage?.context),
-          [{ tokensSize: 135, startMessageId: short.id }],
+          Arr.map(writes.chats, ({ context }) => context),
+          [{ startMessageId: short.id }],
         )
       }).pipe(
         Effect.provide(

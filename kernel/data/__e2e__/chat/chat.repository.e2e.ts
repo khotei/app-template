@@ -27,7 +27,7 @@ const chat = (id: string, userId: string): ChatEntity => ({
   id,
   userId,
   title: null,
-  usage: null,
+  context: null,
   createdAt,
   updatedAt: createdAt,
   run: null,
@@ -273,25 +273,22 @@ describe('ChatRepository', () => {
     }).pipe(Effect.provide(RepositoriesTest)),
   )
 
-  it.effect('update writes a usage and selectOne reads it back, the title kept', () =>
+  it.effect('update writes a context and selectOne reads it back, the title kept', () =>
     Effect.gen(function* () {
       const chats = yield* ChatRepository
       const gus = '0192d4e0-7b3a-7c00-8000-000000000016'
       const stored = chat('0192d4e0-7b3a-7c00-8000-000000000039', gus)
-      const usage = {
-        total: { promptTokens: 130, outputTokens: 5, cacheReadTokens: 100, cacheWriteTokens: 20 },
-        context: { tokensSize: 135, startMessageId: '0192d4e0-7b3a-7c00-8000-00000000003a' },
-      }
+      const context = { startMessageId: '0192d4e0-7b3a-7c00-8000-00000000003a' }
       yield* insertUser(gus)
       yield* chats.insert(stored)
       yield* chats.update({ title: 'Trip' }, { id: stored.id })
 
-      yield* chats.update({ usage }, { id: stored.id })
+      yield* chats.update({ context }, { id: stored.id })
 
       assertSchemaEquals(
         SelectedChat,
         yield* chats.selectOne({ id: stored.id }),
-        Option.some({ ...stored, title: 'Trip', usage }),
+        Option.some({ ...stored, title: 'Trip', context }),
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )

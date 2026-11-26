@@ -49,15 +49,19 @@ processes; a header that differs between two requests.
 
 ### Output
 
-A reply reads its chat's context, the messages from the start the chat's usage holds,
-and in its transaction stores the chat's usage (`chats.usage`: the total of its replies, and the
-context's `tokensSize` and `startMessageId`). Once a reply's prompt and text pass 0.8 of
-`LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the context is cut to the oldest user message whose tail holds
-at most 0.3 of it, or to the newest user message; a cut context opens with a fixed note. The
-chat's list still shows every message. See it: `make test-unit`, "reply after a cut prompts with
-the chat's messages from the start the cut stored"; `make test-e2e`, the journey reads
-`chats.usage` after a reply and the repository reads a chat's messages from an id; under
-`make dev` with a low limit, `select usage from chats`.
+A reply reads its chat's context, the messages from the start the chat holds
+(`chats.context`: `startMessageId`, null until a cut). Once a reply's prompt and text pass 0.8 of
+`LLM_REPLY_CONTEXT_TOKENS_LIMIT` (`ChatContextState.isOversized`), the context is cut
+(`ChatContextState.cut`) to the oldest user message whose tail holds at most 0.3 of it, or to the
+newest user message, and its start stored in the reply's transaction; a cut context opens with a
+fixed note. The chat's list still shows every message. See it: `make test-unit`, "reply after a
+cut prompts with the chat's messages from the start the cut stored"; `make test-e2e`, the
+repository reads a chat's messages from an id and writes a chat's context; under `make dev` with
+a low limit, `select context from chats`.
+
+After the close, on the owner's word ("ok apply", 2026-11-26): the rule's check and its cut are
+two statics, `isOversized` and `cut`, where one `findContext` held both; the chat's total and
+`tokensSize`, which nothing read, are gone, a Run's usage holding the counts.
 
 ## Knowledge
 
@@ -67,12 +71,12 @@ the chat's messages from the start the cut stored"; `make test-e2e`, the journey
 - [D] A response with a count or the model's name missing fails the reply as an `LlmError`.
 - [D] (the owner's, 2026-11-26) The history is every finished message of a chat; the context is
   what a reply sends the model, the messages from a stored start.
-- [D] (the owner's) A chat holds its usage as one jsonb column, `total` and `context`
-  (`tokensSize`, `startMessageId`), written in the reply's transaction; a Run keeps its own.
+- [D] (the owner's) A chat holds where its context starts as one jsonb column, `context`
+  (`startMessageId`), written by a cut in the reply's transaction; a value nothing reads (a
+  total of the replies' counts, the context's size) is not stored, a Run's usage holding them.
 - [D] (the owner's) The cut is a rule of the domain (`ChatContextState`), read and stored through
   `ContextChatService`, and found after the reply, so a context's start holds between two cuts.
-- [D] `ContextChatService.update` takes the reply's usage beside the next context, and the limit
-  is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
+- [D] The limit is `MessageAssistant.contextTokensLimit`, so a reply's flow reads no setting.
 - [D] A chat with no tail within the lower share is cut to its newest user message: a chat never
   cut breaks for good once past the model's window.
 
@@ -86,8 +90,3 @@ the chat's messages from the start the cut stored"; `make test-e2e`, the journey
   `application/chat/infrastructure/message-assistant.llm.ts:47` — open
 - A chat whose newest user message and its reply hold more than 0.3 of the limit is cut to that
   message alone, and stays past 0.3 — `application/chat/domain/chat-context-state.ts:40` — open
-- A chat's total counts its stored replies alone: an attempt the call's policy asked again, or a
-  blank reply the decode refused, is billed and counted nowhere —
-  `application/chat/infrastructure/message-assistant.llm.ts:55` — open
-- A chat's `updatedAt`, which the wire holds, now moves on every reply, as the reply writes the
-  chat's usage — `application/chat/services/context-chat.service.ts:52` — open

@@ -47,14 +47,14 @@ graph LR
 
 A chat's context is what its reply sends the language model: the chat's messages from a stored
 start, `ContextChatService.getOne`. The history, every message of the chat, stays in the database
-and in the chat's list. After each reply, in the reply's transaction, `ReplyChatService` adds the
-reply's usage to the chat's (`chats.usage`: `total`, and `context` with its `tokensSize` and
-`startMessageId`) and asks `ChatContextState.findContext` for the next context:
+and in the chat's list. After each reply, in the reply's transaction, `ReplyChatService` asks
+`ChatContextState.isOversized` whether the context is due a cut:
 
 - while the last prompt's tokens and its reply's fit 0.8 of `LLM_REPLY_CONTEXT_TOKENS_LIMIT`, the
-  context stays as it is;
-- past that, it starts at the oldest user message whose tail holds at most 0.3 of the limit, the
-  tokens taken as spread over the messages like their characters, and that start is stored.
+  context stays as it is, and the chat is not written;
+- past that, `ChatContextState.cut` starts it at the oldest user message whose tail holds at most
+  0.3 of the limit, the tokens taken as spread over the messages like their characters, and that
+  start is stored on the chat (`chats.context`: `startMessageId`).
 
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case

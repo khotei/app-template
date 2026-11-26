@@ -1,6 +1,6 @@
 import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
-import { Effect, Option, Struct } from 'effect'
+import { Effect, Option } from 'effect'
 
 import type { ChatEntitySet, ChatEntityWhere, MessageEntityWhere } from '@app-template/kernel/data'
 import { encodeWith } from '@app-template/packages/schema'
@@ -9,26 +9,16 @@ import { Chat } from '#chat/domain/chat.model'
 import { ChatContext } from '#chat/domain/chat-context.model'
 import { Message } from '#chat/domain/message.model'
 import { ContextChatService } from '#chat/services/context-chat.service'
-import {
-  assistantMessageAt,
-  chat,
-  chatUsage,
-  owner,
-  runUsage,
-  userMessageAt,
-} from '#testing/chat/chat.test-fixture'
+import { assistantMessageAt, chat, owner, userMessageAt } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
 const ofWhat = userMessageAt(3, 'Of what?')
 const aCat = assistantMessageAt(4, 'A cat.')
 
-/** `chat` after a reply, its context cut to start at `ofWhat`. */
+/** `chat`, its context cut to start at `ofWhat`. */
 const cut = new Chat({
   ...chat,
-  usage: Option.some({
-    ...chatUsage,
-    context: { tokensSize: 135, startMessageId: Option.some(ofWhat.id) },
-  }),
+  context: Option.some({ startMessageId: ofWhat.id }),
 })
 
 const where = { id: chat.id, userId: owner }
@@ -73,7 +63,7 @@ describe('ContextChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect("getOne reads a cut chat's messages from the start its usage holds", () => {
+  it.effect("getOne reads a cut chat's messages from the start it holds", () => {
     const { reads, layer } = storeContext(cut, [ofWhat, aCat])
     return Effect.gen(function* () {
       const contexts = yield* ContextChatService
@@ -88,24 +78,19 @@ describe('ContextChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.live("update adds the reply's usage to the chat's and stores where the context starts", () => {
+  it.live('update stores where the context starts', () => {
     const { writes, layer } = storeContext(chat, [])
     return Effect.gen(function* () {
       const contexts = yield* ContextChatService
 
-      yield* contexts.update(where, {
-        context: new ChatContext({ startMessageId: Option.some(ofWhat.id), messages: [ofWhat] }),
-        usage: runUsage,
-      })
+      yield* contexts.update(
+        where,
+        new ChatContext({ startMessageId: Option.some(ofWhat.id), messages: [ofWhat] }),
+      )
 
       assert.deepStrictEqual(
-        writes.map(([set]) => set.usage),
-        [
-          {
-            total: Struct.omit(runUsage, ['model']),
-            context: { tokensSize: 135, startMessageId: ofWhat.id },
-          },
-        ],
+        writes.map(([set]) => set.context),
+        [{ startMessageId: ofWhat.id }],
       )
     }).pipe(Effect.provide(layer))
   })

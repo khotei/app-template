@@ -5,7 +5,7 @@ CREATE TABLE "chats" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
 	"user_id" uuid NOT NULL,
 	"title" text,
-	"usage" jsonb,
+	"context" jsonb,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "chats_id_user_id_unique" UNIQUE("id","user_id"),

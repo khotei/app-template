@@ -37,11 +37,6 @@ const selectMessages = Effect.fnUntraced(function* (chatId: ChatId) {
   return yield* sql`select id, author from messages where chat_id = ${chatId}`
 })
 
-const selectChatUsage = Effect.fnUntraced(function* (chatId: ChatId) {
-  const sql = yield* SqlClient.SqlClient
-  return yield* sql`select usage from chats where id = ${chatId}`
-})
-
 describe('the journey over both app layers', { concurrent: false }, () => {
   layer(StandTest, { timeout: '60 seconds', excludeTestServices: true })((it) => {
     it.effect("a user's message is answered and titled by the worker", () =>
@@ -67,20 +62,6 @@ describe('the journey over both app layers', { concurrent: false }, () => {
         })
         assert.deepStrictEqual(titled.title, Option.some<string>(scriptedAnswers.title))
         assert.strictEqual(titled.state, 'idle')
-        // The title's write and the reply's meet on one row: each keeps the other's column.
-        assert.deepStrictEqual(yield* selectChatUsage(chat.id), [
-          {
-            usage: {
-              total: {
-                promptTokens: 130,
-                outputTokens: 5,
-                cacheReadTokens: 100,
-                cacheWriteTokens: 20,
-              },
-              context: { tokensSize: 135, startMessageId: null },
-            },
-          },
-        ])
       }),
     )
 

@@ -15,8 +15,8 @@ export type ChatWhere = Types.Simplify<
   SetOptional<Pick<Chat, 'id' | 'userId' | 'title'>, 'userId' | 'title'>
 >
 
-/** The fields an update may set: a user's rename the title, a reply the usage. */
-export type ChatUpdate = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'usage'>>>
+/** The fields an update may set: a user's rename the title, a cut the context. */
+export type ChatUpdate = Types.Simplify<RequireAtLeastOne<Pick<Chat, 'title' | 'context'>>>
 
 export class ChatService extends Context.Service<
   ChatService,
@@ -70,11 +70,11 @@ export class ChatService extends Context.Service<
     ) {
       const chat = yield* getOne(where)
       const { set, row } = yield* RowCodec.makeUpdate(Chat)({
-        ...Struct.pick(chat, ['id', 'title', 'usage']),
+        ...Struct.pick(chat, ['id', 'title', 'context']),
         ...fields,
       })
 
-      // Only the columns `fields` names, under the `where` again: a rename leaves the usage a
+      // Only the columns `fields` names, under the `where` again: a rename leaves the context a
       // reply wrote since the read, and a reply the title.
       yield* chats.update(
         Struct.pick(row, ['id', 'updatedAt', ...Struct.keys(fields)]),

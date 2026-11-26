@@ -19,10 +19,9 @@ import { Run } from '#chat/domain/run.model'
 import { ChatService } from '#chat/services/chat.service'
 import {
   chat,
-  chatUsage,
+  firstMessage,
   owner,
   queuedRun,
-  runUsage,
   unknownChatId,
 } from '#testing/chat/chat.test-fixture'
 
@@ -88,7 +87,7 @@ describe('ChatService', () => {
             id: created.id,
             userId: owner,
             title: null,
-            usage: null,
+            context: null,
             createdAt: DateTime.toDateUtc(epoch),
             updatedAt: DateTime.toDateUtc(epoch),
           },
@@ -147,29 +146,27 @@ describe('ChatService', () => {
     },
   )
 
-  it.live('update writes a usage alone, leaving the title out of what it sets', () => {
+  it.live('update writes a context alone, leaving the title out of what it sets', () => {
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
     const titled = new Chat({ ...chat, title: Option.some(trip) })
+    const cut = { startMessageId: firstMessage.id }
     return Effect.gen(function* () {
       const service = yield* ChatService
 
       const updated = yield* service.update(
-        { usage: Option.some(chatUsage) },
+        { context: Option.some(cut) },
         { id: chat.id, userId: owner },
       )
 
       assertEquals(
         updated,
-        new Chat({ ...titled, usage: Option.some(chatUsage), updatedAt: updated.updatedAt }),
+        new Chat({ ...titled, context: Option.some(cut), updatedAt: updated.updatedAt }),
       )
       assert.deepStrictEqual(updates, [
         [
           {
             id: chat.id,
-            usage: {
-              total: Struct.omit(runUsage, ['model']),
-              context: { tokensSize: 135, startMessageId: null },
-            },
+            context: cut,
             updatedAt: DateTime.toDateUtc(updated.updatedAt),
           },
           { id: chat.id, userId: owner },

@@ -7,25 +7,9 @@ import { createdAt, id, updatedAt } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 
-const tokens = {
-  promptTokens: Schema.Int,
-  outputTokens: Schema.Int,
-  cacheReadTokens: Schema.Int,
-  cacheWriteTokens: Schema.Int,
-}
-
-/** What a chat's replies cost together and where its context stands, as the column `usage` holds it. */
-export const ChatUsage = Schema.Struct({
-  /** The counts of every reply of the chat, added up. */
-  total: Schema.Struct(tokens),
-  context: Schema.Struct({
-    /** The tokens of the last prompt and its reply. */
-    tokensSize: Schema.Int,
-    /** The first message a reply sends, null for the chat's first. */
-    startMessageId: Schema.NullOr(Schema.String),
-  }),
-})
-export type ChatUsage = typeof ChatUsage.Type
+/** Where a cut left a chat's context, as the column `context` holds it: the first message a reply sends. */
+export const ChatContextStart = Schema.Struct({ startMessageId: Schema.String })
+export type ChatContextStart = typeof ChatContextStart.Type
 
 export const chats = snakeCase.table(
   'chats',
@@ -35,8 +19,8 @@ export const chats = snakeCase.table(
       .notNull()
       .references(() => users.id),
     title: text(),
-    /** Null until the chat's first reply. */
-    usage: jsonb().$type<ChatUsage>(),
+    /** Null until the chat's context is cut. */
+    context: jsonb().$type<ChatContextStart>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -52,5 +36,5 @@ export const chats = snakeCase.table(
 )
 
 /** The columns of a chat, which its entity extends. */
-export const ChatColumns = createSelectSchema(chats, { usage: () => ChatUsage })
+export const ChatColumns = createSelectSchema(chats, { context: () => ChatContextStart })
 export type ChatColumns = typeof ChatColumns.Type

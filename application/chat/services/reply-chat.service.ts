@@ -1,4 +1,4 @@
-import { Array as Arr, type Cause, Context, Effect, Layer, Option, Struct } from 'effect'
+import { Array as Arr, type Cause, Context, Effect, Layer, Struct } from 'effect'
 
 import { Transaction } from '@app-template/packages/db'
 
@@ -50,8 +50,8 @@ export class ReplyChatService extends Context.Service<
       })
 
     // One transaction, open across the model's call: the reply is written first, as the Run names
-    // it, and a Run another worker settled meanwhile dies on its update, taking the reply and the
-    // chat's usage back. A Run's chat is there while the Run is, so a chat not found is a defect.
+    // it, and a Run another worker settled meanwhile dies on its update, taking the reply back.
+    // A Run's chat is there while the Run is, so a chat not found is a defect.
     const answer = Effect.fnUntraced(
       function* (started: Run) {
         const chat = { id: started.chatId, userId: started.userId }
@@ -68,12 +68,13 @@ export class ReplyChatService extends Context.Service<
           ...context,
           messages: Arr.append(context.messages, message),
         })
-        const next = ChatContextState.findContext(
-          replied,
-          ChatContextState.tokensSize(generated.usage),
-          assistant.contextTokensLimit,
-        ).pipe(Option.getOrElse(() => replied))
-        yield* contexts.update(chat, { context: next, usage: generated.usage })
+        const tokensSize = ChatContextState.tokensSize(generated.usage)
+        if (ChatContextState.isOversized(tokensSize, assistant.contextTokensLimit)) {
+          yield* contexts.update(
+            chat,
+            ChatContextState.cut(replied, tokensSize, assistant.contextTokensLimit),
+          )
+        }
       },
       Effect.catchTag('ChatNotFoundError', Effect.die),
       transaction.run,

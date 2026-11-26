@@ -4,13 +4,14 @@ import { AtLeast } from '@app-template/kernel/data'
 
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContext } from '#chat/domain/chat-context.model'
-import { ChatUsageState } from '#chat/domain/chat-usage-state'
-import type { RunUsage } from '#chat/domain/run.model'
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 
 /** The chat whose context is read or stored, of the user `userId` names. */
 export type ContextWhere = Types.Simplify<Pick<Chat, 'id' | 'userId'>>
+
+/** Where a context starts, which is all of it a chat keeps. */
+type ContextStart = Types.Simplify<Pick<ChatContext, 'startMessageId'>>
 
 /** A chat's context: what its reply sends the model, and where the chat keeps it. */
 export class ContextChatService extends Context.Service<
@@ -18,13 +19,10 @@ export class ContextChatService extends Context.Service<
   {
     /** The chat's context as its next reply sends it: its messages from the start it holds. */
     readonly getOne: (where: ContextWhere) => Effect.Effect<ChatContext, ChatNotFoundError>
-    /**
-     * Stores the chat's usage after a reply: the reply's `usage` added to it, its context
-     * starting where `context` does, for the next replies to read from.
-     */
+    /** Stores where `context` starts, for the chat's next replies to read from. */
     readonly update: (
       where: ContextWhere,
-      reply: { readonly context: ChatContext; readonly usage: RunUsage },
+      context: ContextStart,
     ) => Effect.Effect<void, ChatNotFoundError>
   }
 >()('@app-template/application/chat/services/ContextChatService', {
@@ -34,7 +32,7 @@ export class ContextChatService extends Context.Service<
 
     const getOne = Effect.fn('ContextChatService.getOne')(function* (where: ContextWhere) {
       const chat = yield* chats.getOne(where)
-      const startMessageId = Option.flatMap(chat.usage, ({ context }) => context.startMessageId)
+      const startMessageId = Option.map(chat.context, (context) => context.startMessageId)
       const sent = yield* messages.getMany({
         chatId: chat.id,
         ...Option.match(startMessageId, {
@@ -46,17 +44,13 @@ export class ContextChatService extends Context.Service<
       return new ChatContext({ startMessageId, messages: sent })
     })
 
-    const update = Effect.fn('ContextChatService.update')(function* (
-      where: ContextWhere,
-      { context, usage }: { readonly context: ChatContext; readonly usage: RunUsage },
-    ) {
-      const chat = yield* chats.getOne(where)
-
-      yield* chats.update(
-        { usage: Option.some(ChatUsageState.add(chat.usage, usage, context)) },
-        where,
-      )
-    })
+    const update = Effect.fn('ContextChatService.update')(
+      (where: ContextWhere, { startMessageId }: ContextStart) =>
+        chats.update(
+          { context: Option.map(startMessageId, (id) => ({ startMessageId: id })) },
+          where,
+        ),
+    )
 
     return { getOne, update }
   }),

@@ -1,11 +1,11 @@
-import { Effect, Schema, Struct } from 'effect'
+import { Effect, Schema } from 'effect'
 import { Model } from 'effect/schema'
 
 import { UserId } from '@app-template/application/user/contract'
 
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId, textPattern } from '#chat/domain/message.util'
-import { Run, RunUsage } from '#chat/domain/run.model'
+import { Run } from '#chat/domain/run.model'
 
 export const maxTitleLength = 120
 
@@ -18,19 +18,9 @@ export const ChatTitle = Schema.String.check(
 ).pipe(Schema.brand('ChatTitle'))
 export type ChatTitle = typeof ChatTitle.Type
 
-/**
- * What a chat's stored replies cost together, and where its context stands: the tokens of its
- * last prompt and reply, counted before a cut that reply led to, and the first message a reply
- * sends, none for the chat's first.
- */
-export const ChatUsage = Schema.Struct({
-  total: Schema.Struct(Struct.omit(RunUsage.fields, ['model'])),
-  context: Schema.Struct({
-    tokensSize: Schema.Int,
-    startMessageId: Schema.OptionFromNullOr(MessageId),
-  }),
-})
-export type ChatUsage = typeof ChatUsage.Type
+/** Where a cut left a chat's context: the first message a reply sends. */
+export const ChatContextStart = Schema.Struct({ startMessageId: MessageId })
+export type ChatContextStart = typeof ChatContextStart.Type
 
 export class ChatNotFoundError extends Schema.TaggedError<ChatNotFoundError>()(
   'ChatNotFoundError',
@@ -45,15 +35,15 @@ export class ChatBusyError extends Schema.TaggedError<ChatBusyError>()(
 ) {}
 
 /**
- * A chat as `chats` holds it, read with its newest Run: an update writes its title or usage, and
- * `updatedAt`; no json variant holds `usage`.
+ * A chat as `chats` holds it, read with its newest Run: an update writes its title or context,
+ * and `updatedAt`; no json variant holds `context`.
  */
 export class Chat extends Model.Class<Chat>('Chat')({
   id: Model.UuidV7Insert(ChatId),
   userId: UserId.pipe(Model.FieldExcept(['update', 'jsonUpdate'])),
   title: Schema.OptionFromNullOr(ChatTitle).pipe(Schema.withConstructorDefault(Effect.succeedNone)),
-  /** None until the chat's first reply. */
-  usage: Schema.OptionFromNullOr(ChatUsage).pipe(
+  /** None until the chat's context is cut: a reply then sends every message. */
+  context: Schema.OptionFromNullOr(ChatContextStart).pipe(
     Schema.withConstructorDefault(Effect.succeedNone),
     Model.Sensitive,
   ),

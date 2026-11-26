@@ -17,19 +17,22 @@ export class ChatContextState {
   }: Types.Simplify<Pick<RunUsage, 'promptTokens' | 'outputTokens'>>): number =>
     promptTokens + outputTokens
 
+  /** Whether a context of `tokensSize` is due a cut: past `cutShare` of `tokensLimit`. */
+  static readonly isOversized = (tokensSize: number, tokensLimit: number): boolean =>
+    tokensSize > cutShare * tokensLimit
+
   /**
    * The context cut for the next reply: its messages from the oldest user's whose tail holds at
    * most `keepShare` of `tokensLimit`, the tokens taken as spread over the messages like their
-   * characters, or from the newest user's when no tail fits. None while `tokensSize` fits
-   * `cutShare` of `tokensLimit`, and when the cut would leave every message in.
+   * characters, or from the newest user's when no tail fits. The context itself when no user's
+   * message past the first starts one.
    */
-  static readonly findContext = (
-    { messages }: Types.Simplify<Pick<ChatContext, 'messages'>>,
+  static readonly cut = (
+    context: ChatContext,
     tokensSize: number,
     tokensLimit: number,
-  ): Option.Option<ChatContext> => {
-    if (tokensSize <= cutShare * tokensLimit) return Option.none()
-
+  ): ChatContext => {
+    const { messages } = context
     const chars = Arr.map(messages, ({ text }) => text.length)
     const keptChars = (Num.sumAll(chars) * keepShare * tokensLimit) / tokensSize
     // tails[i]: the characters of messages[i] and of every message after it.
@@ -41,8 +44,9 @@ export class ChatContextState {
       // No tail fits: the newest user's message, the least a reply needs, unless it is the first.
       Option.orElse(() => Arr.findLastIndex(messages, ({ author }) => author === 'user')),
       Option.filter((start) => start > 0),
-      Option.map(
-        (start) =>
+      Option.match({
+        onNone: () => context,
+        onSome: (start) =>
           new ChatContext({
             startMessageId: pipe(
               messages,
@@ -51,7 +55,7 @@ export class ChatContextState {
             ),
             messages: Arr.drop(messages, start),
           }),
-      ),
+      }),
     )
   }
 }
