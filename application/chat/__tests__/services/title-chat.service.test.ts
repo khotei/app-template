@@ -27,7 +27,12 @@ describe('TitleChatService', () => {
 
       assert.deepStrictEqual(updates, [
         [
-          { id: chatId, title: lisbonWeekend, updatedAt: DateTime.toDateUtc(epoch) },
+          {
+            id: chatId,
+            title: lisbonWeekend,
+            context: null,
+            updatedAt: DateTime.toDateUtc(epoch),
+          },
           { id: chatId, title: { isNull: true } },
         ],
       ])

@@ -49,6 +49,28 @@ describe('MessageService', () => {
     }).pipe(Effect.provide(layerChatTest({ messages: { selectOne: () => Effect.succeedNone } }))),
   )
 
+  it.effect("getMany reads the chat's messages from the one its where names", () => {
+    const wheres: Array<MessageEntityWhere> = []
+    return Effect.gen(function* () {
+      const service = yield* MessageService
+
+      yield* service.getMany({ chatId: chat.id, id: { from: firstMessage.id } })
+
+      assert.deepStrictEqual(wheres, [{ chatId: chat.id, id: { gte: firstMessage.id } }])
+    }).pipe(
+      Effect.provide(
+        layerChatTest({
+          messages: {
+            selectMany: (read) =>
+              Effect.sync(() => {
+                wheres.push(read)
+              }).pipe(Effect.as([])),
+          },
+        }),
+      ),
+    )
+  })
+
   it.effect("getMany reads the chat's messages by the chat of its where", () => {
     const wheres: Array<MessageEntityWhere> = []
     return Effect.gen(function* () {

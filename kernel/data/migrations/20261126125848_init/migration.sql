@@ -5,6 +5,7 @@ CREATE TABLE "chats" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7(),
 	"user_id" uuid NOT NULL,
 	"title" text,
+	"context" jsonb,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "chats_id_user_id_unique" UNIQUE("id","user_id"),
@@ -29,10 +30,12 @@ CREATE TABLE "runs" (
 	"status" "run_status" NOT NULL,
 	"failure" jsonb,
 	"assistant_message_id" uuid CONSTRAINT "runs_assistant_message_id_unique" UNIQUE,
+	"usage" jsonb,
 	"created_at" timestamp with time zone NOT NULL,
 	"updated_at" timestamp with time zone NOT NULL,
 	CONSTRAINT "runs_failure_check" CHECK (("status" = 'failed') = ("failure" is not null)),
-	CONSTRAINT "runs_assistant_message_id_check" CHECK (("status" = 'done') = ("assistant_message_id" is not null))
+	CONSTRAINT "runs_assistant_message_id_check" CHECK (("status" = 'done') = ("assistant_message_id" is not null)),
+	CONSTRAINT "runs_usage_check" CHECK (("status" = 'done') = ("usage" is not null))
 );
 --> statement-breakpoint
 CREATE TABLE "credentials" (

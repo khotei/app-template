@@ -43,11 +43,13 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - A repository's `where` is Drizzle's filter object over its table, its key required (`Keyed`). A
   relational query (`db.query.<table>`) takes it as it is; a core-builder statement (`update`,
   `delete`, a plain `select`) takes `encodeFilter(<table>, where)`, the one function over it.
-- A service's `where` is model values alone, one plain type: a branded id, an `Option`, a list.
+- A service's `where` is model values alone, one plain type: a branded id, an `Option`, a list,
+  a range; a field a caller asks any of the three ways is `WhereValue<T>`.
   Its key, and the owner on a type only a user's calls take, are required fields; a narrowing the
   caller may leave out is an absent key, `key?: T` ([effect.md › Schemas](effect.md#schemas)).
 - A method hands its repository `encodeWhere(where)`, the one function over a service's where: an
-  `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, any other value itself. Every
+  `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, a range `{ from, to }` its
+  bounds (`{ gte, lte }`, either left out), any other value itself. Every
   field becomes a condition, so a caller writes a where as a literal of its type's fields, never
   a record whole. No method writes a Drizzle operator, copies a field, picks a where's fields or
   tests which it holds. A read by either of two keys, as its repository's `Keyed` names them,

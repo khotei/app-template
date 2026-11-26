@@ -25,9 +25,12 @@ export class ChatService extends Context.Service<
     readonly getOne: (
       where: Types.Simplify<SetRequired<ChatWhere, 'userId'>>,
     ) => Effect.Effect<Chat, ChatNotFoundError>
-    /** Sets `fields` on the chat `where` finds and moves its `updatedAt`. */
+    /**
+     * Sets `fields` alone, a user's rename the title, a cut the context, on the chat `where`
+     * finds and moves its `updatedAt`.
+     */
     readonly update: (
-      fields: typeof Chat.jsonUpdate.Type,
+      fields: Partial<Pick<Chat, 'title' | 'context'>>,
       where: ChatWhere,
     ) => Effect.Effect<Chat, ChatNotFoundError>
     /** Removes the chat of the user `where` names, with its messages and Runs; another's is not found. */
@@ -62,14 +65,13 @@ export class ChatService extends Context.Service<
     )
 
     const update = Effect.fn('ChatService.update')(function* (
-      fields: typeof Chat.jsonUpdate.Type,
+      fields: Partial<Pick<Chat, 'title' | 'context'>>,
       where: ChatWhere,
     ) {
       const chat = yield* getOne(where)
-      const { set, row } = yield* RowCodec.makeUpdate(Chat)({ id: chat.id, ...fields })
+      const { set, row } = yield* RowCodec.makeUpdate(Chat)({ ...chat, ...fields })
 
-      // Only the update variant's fields, under the `where` again: a change landing after the
-      // read is kept.
+      // Only the update variant's fields, under the `where` again.
       yield* chats.update(row, encodeWhere(where))
       return new Chat({ ...chat, ...set })
     })

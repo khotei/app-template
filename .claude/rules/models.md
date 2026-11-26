@@ -39,9 +39,10 @@ export class Order extends Model.Class<Order>('Order')({
   (`application/CLAUDE.md`).
 - **A model holds no member:** its rules are statics of a class per kind beside it, one file each
   (`order-policy.ts`): `<Model>Policy` the checks (`ensure<Rule>`, failing or passing, writing
-  nothing, `Effect.fnUntraced`, no span), `<Model>Move` the status moves (`<verb>`, returning the
-  record's next state, `Effect.fn('<Model>Move.<verb>')`), `<Model>State` what the record's
-  values say of it (`build`, `is<Value>`). A model imports no group.
+  nothing, `Effect.fnUntraced`, no span; `is<Rule>` where a flow only branches on it),
+  `<Model>Move` the status moves (`<verb>`, returning the record's next state,
+  `Effect.fn('<Model>Move.<verb>')`), `<Model>State` what the record's values say of it (`build`,
+  `is<Value>`). A model imports no group.
 - **A static calls another by its class's name,** never `this`, so one passed as a value runs
   (`Effect.flatMap(<Group>.<rule>)`).
 - **A rule is typed over the fields it reads,** never the class, so a plain struct (a variant,

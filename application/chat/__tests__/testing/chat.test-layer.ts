@@ -1,18 +1,25 @@
-import { Layer } from 'effect'
+import { ConfigProvider, Layer } from 'effect'
 
 import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
 import type { Transaction } from '@app-template/packages/db'
-import { TransactionTest } from '@app-template/packages/db/testing'
+import { layerTransactionAround, TransactionTest } from '@app-template/packages/db/testing'
 import { QueueSender } from '@app-template/packages/queue'
 
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { ChatService } from '#chat/services/chat.service'
+import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { ReplyChatService } from '#chat/services/reply-chat.service'
 import { RunService } from '#chat/services/run.service'
 import { TitleChatService } from '#chat/services/title-chat.service'
+
+/**
+ * For a case that reads what a transaction holds: a service's test reaches the package's test
+ * support through this file.
+ */
+export { layerTransactionAround }
 
 /** What each repository returns in a case, as `Layer.mock` takes it; a method left out dies. */
 export interface ChatRepositoryMocks {
@@ -30,6 +37,8 @@ export interface ChatLeaves {
   readonly messageAssistant?: Layer.Layer<MessageAssistant>
   readonly chatAssistant?: Layer.Layer<ChatAssistant>
   readonly transaction?: Layer.Layer<Transaction>
+  /** The setting's value: none of a case's contexts reaches it unless the case sets it. */
+  readonly chatContextTokensLimit?: number
 }
 
 /**
@@ -43,6 +52,7 @@ export const layerChatTest = (
     messageAssistant = Layer.mock(MessageAssistant, {}),
     chatAssistant = Layer.mock(ChatAssistant, {}),
     transaction = TransactionTest,
+    chatContextTokensLimit = 1_000_000,
   }: ChatLeaves = {},
 ) =>
   Layer.mergeAll(
@@ -50,6 +60,7 @@ export const layerChatTest = (
     ReplyChatService.layer,
     TitleChatService.layer,
     ChatService.layer,
+    ContextChatService.layer,
     MessageService.layer,
     RunService.layer,
   ).pipe(
@@ -62,6 +73,11 @@ export const layerChatTest = (
         messageAssistant,
         chatAssistant,
         transaction,
+      ),
+    ),
+    Layer.provide(
+      ConfigProvider.layer(
+        ConfigProvider.fromUnknown({ LLM_CHAT_CONTEXT_TOKENS_LIMIT: chatContextTokensLimit }),
       ),
     ),
   )

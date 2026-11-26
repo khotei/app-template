@@ -86,7 +86,9 @@ When no lab holds the change, size it once and say which in one line; the owner'
    move each into its step's Notes with its `path:line`, and delete the comment.
 5. **Before a Shape or a design** this move drafts, settles or builds on (a `[DO]`, `step`,
    `implement`, a micro's plan), read [stops.md](stops.md) whole and ask its questions aloud; one
-   that fails becomes a `[Q:ai]`.
+   that fails becomes a `[Q:ai]`. Search `docs/knowledge/decisions.md` for the flow or unit it
+   changes: a decision it reverses is named to the owner, with what the reversal costs, before
+   the code is shown.
 6. **The move**, below. After each write to `lab.md`, one chat line says what it wrote.
 
 ## The file

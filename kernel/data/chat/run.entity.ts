@@ -21,6 +21,7 @@ export const runSetColumns = [
   'status',
   'failure',
   'assistantMessageId',
+  'usage',
   'updatedAt',
 ] as const satisfies ReadonlyArray<keyof RunColumns>
 

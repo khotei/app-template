@@ -2,8 +2,9 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Array as Arr, Effect, Exit, Fiber, Option } from 'effect'
 
-import { Message, ReplyToMessage, Run } from '@app-template/application/chat'
+import { Chat, Message, ReplyToMessage, Run } from '@app-template/application/chat'
 import {
+  chat,
   firstMessage,
   holdCall,
   layerChatTest,
@@ -20,6 +21,8 @@ import { replyToMessage } from '#use-cases/chat/reply-to-message.use-case'
 const reply = replyToMessage(new ReplyToMessage({ messageId: queuedRun.userMessageId }))
 
 const readRun = (run: Run) => () => encodeWith(Run)(run).pipe(Effect.map(Option.some))
+
+const readChat = () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some))
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
 
@@ -43,7 +46,7 @@ describe('replyToMessage', () => {
           ['generating', 'failed'],
         )
         assert.include(updates.at(-1)?.failure?.cause, error.cause)
-        assert.strictEqual((yield* assistant.histories).length, 1)
+        assert.strictEqual((yield* assistant.contexts).length, 1)
         assert.deepStrictEqual(levels(logs), [['Warn', 'reply failed']])
         assert.strictEqual(logs[0]?.[2], error)
       }).pipe(
@@ -58,6 +61,7 @@ describe('replyToMessage', () => {
                   }),
               },
               // No `insert`: a reply written would die on it.
+              chats: { selectOne: readChat },
               messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
             },
             { messageAssistant: assistant.layer },
@@ -88,6 +92,7 @@ describe('replyToMessage', () => {
                 update: (set) =>
                   set.status === 'failed' ? Effect.die('no run was updated') : Effect.void,
               },
+              chats: { selectOne: readChat },
               messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
             },
             { messageAssistant: recordMessageAssistant(Effect.fail(refused)).layer },
@@ -104,7 +109,7 @@ describe('replyToMessage', () => {
     return Effect.gen(function* () {
       yield* reply
 
-      assertEquals(yield* assistant.histories, [])
+      assertEquals(yield* assistant.contexts, [])
       assert.deepStrictEqual(logs, [
         ['Info', 'reply skipped: its Run is done, failed or gone', queuedRun.userMessageId],
       ])
@@ -134,7 +139,7 @@ describe('replyToMessage', () => {
         updates.at(-1)?.failure?.cause,
         'the worker that started the Run stopped before it ended',
       )
-      assertEquals(yield* assistant.histories, [])
+      assertEquals(yield* assistant.contexts, [])
       assert.deepStrictEqual(levels(logs), [['Warn', 'reply failed']])
       assert.propertyVal(logs[0]?.[2], '_tag', 'RunStartedError')
     }).pipe(
@@ -194,6 +199,7 @@ describe('replyToMessage', () => {
         layerChatTest(
           {
             runs: { selectOne: readRun(queuedRun), update: () => Effect.void },
+            chats: { selectOne: readChat },
             messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
           },
           { messageAssistant: assistant.layer },

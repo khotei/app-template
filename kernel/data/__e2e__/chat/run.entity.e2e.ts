@@ -21,12 +21,22 @@ const userMessageId = '0192d4e0-7b3a-7c00-8000-000000000092'
 const otherChatId = '0192d4e0-7b3a-7c00-8000-00000000009a'
 const replyId = '0192d4e0-7b3a-7c00-8000-00000000009b'
 
+const usage = {
+  model: 'claude-sonnet-5-5',
+  promptTokens: 130,
+  outputTokens: 5,
+  cacheReadTokens: 100,
+  cacheWriteTokens: 20,
+} as const
+
 type RunRow = RunColumns
 
 const run = (
   id: string,
   fields: Types.Simplify<
-    Partial<Pick<RunRow, 'chatId' | 'userId' | 'status' | 'failure' | 'assistantMessageId'>>
+    Partial<
+      Pick<RunRow, 'chatId' | 'userId' | 'status' | 'failure' | 'assistantMessageId' | 'usage'>
+    >
   > = {},
 ): RunRow => ({
   id,
@@ -36,6 +46,7 @@ const run = (
   status: 'queued',
   failure: null,
   assistantMessageId: null,
+  usage: null,
   createdAt,
   updatedAt,
   ...fields,
@@ -79,6 +90,7 @@ describe('runs', () => {
       const done = run('0192d4e0-7b3a-7c00-8000-000000000093', {
         status: 'done',
         assistantMessageId: replyId,
+        usage,
       })
       const queued = run('0192d4e0-7b3a-7c00-8000-000000000094')
 
@@ -107,13 +119,23 @@ describe('runs', () => {
   it.effect.each([
     {
       name: 'a done Run without its reply',
-      row: { status: 'done' },
+      row: { status: 'done', usage },
       check: 'runs_assistant_message_id_check',
     },
     {
       name: 'a queued Run naming a reply',
       row: { assistantMessageId: replyId },
       check: 'runs_assistant_message_id_check',
+    },
+    {
+      name: 'a done Run without its usage',
+      row: { status: 'done', assistantMessageId: replyId },
+      check: 'runs_usage_check',
+    },
+    {
+      name: 'a queued Run holding a usage',
+      row: { usage },
+      check: 'runs_usage_check',
     },
     {
       name: 'a failed Run without its failure',
@@ -132,7 +154,7 @@ describe('runs', () => {
 
   it.effect('refuses a second Run naming the same reply', () =>
     Effect.gen(function* () {
-      const done = { status: 'done', assistantMessageId: replyId } as const
+      const done = { status: 'done', assistantMessageId: replyId, usage } as const
       yield* insertMessages
       yield* insertRun(run('0192d4e0-7b3a-7c00-8000-000000000098', done))
       const error = yield* flipSqlError(
@@ -192,6 +214,7 @@ describe('runs', () => {
           run('0192d4e0-7b3a-7c00-8000-00000000009e', {
             status: 'done',
             assistantMessageId: '0192d4e0-7b3a-7c00-8000-0000000000a0',
+            usage,
           }),
         ),
       )

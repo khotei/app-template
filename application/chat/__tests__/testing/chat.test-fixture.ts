@@ -1,14 +1,18 @@
-import { DateTime } from 'effect'
+import { DateTime, Option } from 'effect'
 
 import { UserId } from '@app-template/application/user'
+import { LlmError } from '@app-template/kernel/llm/error'
 import { epoch } from '@app-template/packages/testing'
 
 import { Chat } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 import { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
-import { Run } from '#chat/domain/run.model'
+import { Run, type RunUsage } from '#chat/domain/run.model'
 import { RunId } from '#chat/domain/run.util'
+import { AssistantReply } from '#chat/infrastructure/message-assistant.llm'
+
+export const assistantOverloaded = new LlmError({ cause: '529 overloaded' })
 
 export const chatId = ChatId.make('0192d4e0-7b3a-7c00-8000-000000000020')
 export const messageId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000030')
@@ -65,3 +69,21 @@ export const queuedRun = new Run({
   createdAt: epoch,
   updatedAt: epoch,
 })
+
+/** A reply's usage whose prompt the cache served in part. */
+export const runUsage: RunUsage = {
+  model: 'claude-sonnet-5-5',
+  promptTokens: 130,
+  outputTokens: 5,
+  cacheReadTokens: 100,
+  cacheWriteTokens: 20,
+}
+
+/** `message` as read once a Run of `usage` answered it: a user's newest Run, a reply's own. */
+export const answeredBy = (message: Message, usage: RunUsage = runUsage) =>
+  new Message({
+    ...message,
+    run: Option.some(new Run({ ...queuedRun, status: 'done', usage: Option.some(usage) })),
+  })
+
+export const sureReply = new AssistantReply({ text: 'Sure.', usage: runUsage })

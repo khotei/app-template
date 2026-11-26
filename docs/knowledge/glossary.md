@@ -36,8 +36,22 @@ _Avoid_: Current user, principal, login, session, Auth (the api's middleware, `A
 
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
-has an active Run, the user cannot ask it again.
+has an active Run, the user cannot ask it again. Once its context is cut it holds where the
+context starts and a summary of the messages before.
 _Avoid_: Conversation, thread, dialogue, session (an agent's session in the toolkit)
+
+**History**:
+Every finished message of a chat, oldest first, as the database holds them and the chat's list
+shows them.
+_Avoid_: Context (below), log, transcript
+
+**Context**:
+What a chat's reply sends the language model: the chat's messages from a stored head, which a
+cut moves to a later message once the last prompt and its reply pass a share of the tokens
+limit, opened by the summary the cut wrote of the messages before it. Its rules are
+`ChatContextPolicy` and `ChatContextTokenizer`; the model's context window is written whole. Not
+Effect's `Context` module (`Context.Service`), which every service file imports.
+_Avoid_: History (above), window (the model's), prompt
 
 **Message**:
 What the user or the assistant says once in a chat: finished text, and no status. A user's
@@ -56,8 +70,10 @@ act, asking for an answer. Never a job put on its queue, which is a send.
 _Avoid_: Send (a job's, below), submit, post
 
 **Run**:
-The work of answering one user message: its status and its failure. An ask creates one, queued;
-the worker starts it (`generating`) and, once it is done, writes the assistant's message.
+The work of answering one user message: its status, its failure and, once done, its usage (the
+model that answered, the tokens of the prompt and of the reply, and how many of the prompt's the
+cache served and stored). An ask creates one, queued; the worker starts it (`generating`) and,
+once it is done, writes the assistant's message.
 Capitalised in prose; in code `Run`, and `run` or `runs` for a value or the table. Not the verb
 *run* (Effect's `run*`, `Transaction`'s `run`, a test that runs), which never takes a Run as its
 object; *a run* as a noun only qualified (a test run, a dry run).

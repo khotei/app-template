@@ -38,17 +38,29 @@ const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, worker
     WORKER_PORT: workerPort,
     NODE_ENV: 'test',
     LOG_LEVEL: 'Warn',
+    LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
   })
 })
 
 /** What the worker's assistants answer every reply and title in the stand. */
 export const scriptedAnswers = {
-  reply: new AssistantReply({ text: 'The scripted assistant answering the whole reply at once.' }),
+  reply: new AssistantReply({
+    text: 'The scripted assistant answering the whole reply at once.',
+    usage: {
+      model: 'claude-sonnet-5-5',
+      promptTokens: 130,
+      outputTokens: 5,
+      cacheReadTokens: 100,
+      cacheWriteTokens: 20,
+    },
+  }),
   title: ChatTitle.make('Scripted chat title'),
 }
 
 const AssistantsTest = Layer.mergeAll(
-  Layer.mock(MessageAssistant, { reply: () => Effect.succeed(scriptedAnswers.reply) }),
+  Layer.mock(MessageAssistant, {
+    reply: () => Effect.succeed(scriptedAnswers.reply),
+  }),
   Layer.mock(ChatAssistant, { proposeTitle: () => Effect.succeed(scriptedAnswers.title) }),
 )
 

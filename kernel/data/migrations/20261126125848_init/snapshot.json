@@ -2,7 +2,7 @@
   "type": "base",
   "version": "10",
   "dialect": "postgres",
-  "id": "1e19fcef-1b06-4499-921f-bc9768f9ec38",
+  "id": "e73bac85-d841-48bc-bd91-158bb3e5fec1",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -488,6 +488,19 @@
     {
       "schema": "public",
       "table": "chats",
+      "name": "context",
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "chats",
       "name": "created_at",
       "type": "timestamp with time zone",
       "typeSchema": null,
@@ -672,6 +685,19 @@
       "table": "runs",
       "name": "assistant_message_id",
       "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "runs",
+      "name": "usage",
+      "type": "jsonb",
       "typeSchema": null,
       "notNull": false,
       "dimensions": 0,
@@ -1084,6 +1110,13 @@
       "table": "runs",
       "name": "runs_assistant_message_id_check",
       "value": "(\"status\" = 'done') = (\"assistant_message_id\" is not null)",
+      "entityType": "checks"
+    },
+    {
+      "schema": "public",
+      "table": "runs",
+      "name": "runs_usage_check",
+      "value": "(\"status\" = 'done') = (\"usage\" is not null)",
       "entityType": "checks"
     },
     {

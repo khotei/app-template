@@ -8,12 +8,11 @@ import { TestClock } from 'effect/testing'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import type { LlmError } from '@app-template/kernel/llm/error'
 
-import { AssistantReply } from '#chat/domain/assistant.model'
 import { ChatTitle } from '#chat/domain/chat.model'
-import type { Message } from '#chat/domain/message.model'
+import type { ContextMessage } from '#chat/domain/message.model'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
-import { assistantMessageAt, userMessageAt } from '#testing/chat/chat.test-fixture'
+import { AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
 
@@ -65,8 +64,8 @@ const message = (text: string, stopReason: Generated.BetaStopReason = 'end_turn'
     stop_sequence: null,
     usage: {
       cache_creation: null,
-      cache_creation_input_tokens: null,
-      cache_read_input_tokens: null,
+      cache_creation_input_tokens: 20,
+      cache_read_input_tokens: 100,
       input_tokens: 10,
       output_tokens: 5,
       service_tier: null,
@@ -83,9 +82,9 @@ const apiError = (
     { status, headers },
   )
 
-const reply = Effect.fnUntraced(function* (history: ReadonlyArray<Message>) {
+const reply = Effect.fnUntraced(function* (messages: ReadonlyArray<ContextMessage>) {
   const assistant = yield* MessageAssistant
-  return yield* assistant.reply(history)
+  return yield* assistant.reply(messages)
 })
 
 const proposeTitle = Effect.fnUntraced(function* (text: string) {
@@ -99,7 +98,7 @@ const lisbon = 'Plan a weekend in Lisbon'
 
 describe('MessageAssistant and ChatAssistant', () => {
   it.effect(
-    "reply asks the reply's language model with the system prompt and each message as its text, and returns the language model's text",
+    "reply asks the reply's language model with the system prompt and each message as its text, and returns the language model's text, its name and the usage, the prompt's tokens counted with the cached ones",
     () => {
       const { bodies, layer } = recordAnthropic(() => message('Hello'))
       return Effect.gen(function* () {
@@ -115,10 +114,92 @@ describe('MessageAssistant and ChatAssistant', () => {
           { role: 'user', content: [{ type: 'text', text: 'What is this?', cache_control: null }] },
           { role: 'assistant', content: [{ type: 'text', text: 'A photo.' }] },
         ])
-        assertEquals(answer, new AssistantReply({ text: 'Hello' }))
+        assertEquals(
+          answer,
+          new AssistantReply({
+            text: 'Hello',
+            usage: runUsage,
+          }),
+        )
       }).pipe(Effect.provide(layer))
     },
   )
+
+  it.effect(
+    "reply sends a chat's next request, at a later time, equal to the last one but for the messages it adds, the cache asked for",
+    () => {
+      const { bodies, layer } = recordAnthropic(() => message('A cat.'))
+      const asked = [
+        userMessageAt(1, 'What is this?'),
+        assistantMessageAt(2, 'A photo.'),
+        userMessageAt(3, 'Of what?'),
+      ]
+      return Effect.gen(function* () {
+        yield* reply(asked)
+        yield* TestClock.adjust('1 minute')
+        yield* reply([...asked, assistantMessageAt(4, 'A cat.'), userMessageAt(5, 'Whose?')])
+
+        const [last, next] = yield* bodies
+        assert.deepStrictEqual(last?.cache_control, { type: 'ephemeral' })
+        assert.deepStrictEqual(Arr.take(next?.messages ?? [], asked.length), last?.messages)
+        assert.deepStrictEqual({ ...next, messages: [] }, { ...last, messages: [] })
+      }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect(
+    "summarise asks the reply's language model, under the summary's system prompt, with one user message of the messages' transcript and the request to summarise it, and returns its text",
+    () => {
+      const { bodies, layer } = recordAnthropic(() => message('They spoke of a cat.'))
+      return Effect.gen(function* () {
+        const assistant = yield* MessageAssistant
+
+        const summary = yield* assistant.summarise([
+          userMessageAt(3, 'Of what?'),
+          assistantMessageAt(4, 'A cat.'),
+        ])
+
+        const [body] = yield* bodies
+        assert.strictEqual(body?.model, 'claude-sonnet-5-5')
+        assert.include(body?.system, 'You summarise the earlier part of a conversation')
+        assert.deepStrictEqual(body?.messages, [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: [
+                  '<conversation>',
+                  '<message author="user">',
+                  'Of what?',
+                  '</message>',
+                  '<message author="assistant">',
+                  'A cat.',
+                  '</message>',
+                  '</conversation>',
+                  '',
+                  'Summarise the conversation above.',
+                ].join('\n'),
+                cache_control: null,
+              },
+            ],
+          },
+        ])
+        assert.strictEqual(summary, 'They spoke of a cat.')
+      }).pipe(Effect.provide(layer))
+    },
+  )
+
+  it.effect('summarise fails LlmError on a blank summary', () => {
+    const { layer } = recordAnthropic(() => message('  '))
+    return Effect.gen(function* () {
+      const assistant = yield* MessageAssistant
+
+      const error = yield* assistant.summarise(hi).pipe(Effect.flip)
+
+      assert.strictEqual(error._tag, 'LlmError')
+    }).pipe(Effect.provide(layer))
+  })
 
   it.effect(
     "proposeTitle asks the title's language model with the title instruction and the opening message, and returns the title trimmed",

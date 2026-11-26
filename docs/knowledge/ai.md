@@ -30,10 +30,11 @@ graph LR
 1. Each language model sends its fixed prompt as the request's `system`, set in its `config`: the
    system prompt for a reply, the title instruction for a title. A prompt that asks the language
    model to show its reasoning invites a refusal.
-2. `MessageAssistant.reply` calls `generateText` on the reply's language model with the chat's messages:
-   each message, the user's and the assistant's, as its text. A failed Run leaves no reply, so two
+2. `MessageAssistant.reply` calls `generateText` on the reply's language model with the chat's
+   context ([below](#the-context-and-its-cut)): each message, the user's and the assistant's, as
+   its text. A failed Run leaves no reply, so two
    user messages may follow each other: `@effect/ai-anthropic` folds them into one, and the
-   Messages API takes either shape. The text is decoded as the domain's `AssistantReply`, which
+   Messages API takes either shape. The text is decoded as the assistant's own `AssistantReply`, which
    drops U+0000 (a text column refuses it), then fails a blank reply by the message's own check.
    Nothing streams: the answer arrives whole.
 3. `ChatAssistant.proposeTitle` calls `generateObject` on the title's language model with the opening
@@ -42,15 +43,58 @@ graph LR
    language and the 120-character bound; the decode of the JSON answer trims the title and
    enforces the bound.
 
+## The context and its cut
+
+A chat's context is what its reply sends the language model, read by
+`ContextChatService.getMessages`: the chat's messages from the start the chat stores
+(`messages.getMany` with `id: { from }`), opened by the latest summary of those before it, which
+`ChatContextTokenizer.withContext` puts first as a user message. The assistants take that list ready
+and only encode it. The history, every message of the chat, stays in the database and in the chat's
+list. Inside each reply's Run, after the answer and before it is stored, `ReplyChatService` asks
+`ChatContextPolicy.isOverLimit` whether the context is due a cut, by the answer's usage:
+
+- while the prompt's tokens and the answer's fit 0.8 of `LLM_CHAT_CONTEXT_TOKENS_LIMIT`, the
+  context stays as it is, and the chat is not written;
+- past that, it calls `ContextChatService.compact`: the chat and its messages are read again, the
+  user's question last among them, and `ChatContextTokenizer.splitToCompact` takes the usage of
+  the last message a done Run wrote, the previous reply, as the context's size, and keeps the
+  messages from the oldest whose tail holds at most 0.3 of the limit, a user's or the
+  assistant's, the tokens taken as spread over the messages like their characters; the rest are
+  summarised, and the summary is stored on the chat with the first message kept
+  (`chats.context`: `compacted`, `headMessageId`).
+
+The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
+the cache once, and between two cuts a chat's next request starts with its last one, which a case
+of the assistants' suite holds. When no tail fits 0.3 of the limit, the last message alone is
+kept. A compacted context opens with its summary, a user message, so its first stored message
+may be the assistant's. `compact` asks no policy: called on a context whose split drops nothing,
+it summarises the messages that remain and keeps them, so its one caller asks the policy first.
+
+A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks the reply's
+language model, under a system prompt of its own, for a summary of the messages the cut leaves
+out, the summary of an earlier cut put first among them, and the cut context opens with it as a
+user message. Those messages go as one user message, a transcript in `<conversation>`, each in a
+`<message author="…">`, with the request to summarise it after: sent as turns, with the request
+one more user turn, `@effect/ai-anthropic` folded the request into a last user message, and the
+model took it for the user's words.
+
+Only then the answer is stored and the Run ends `done`, so a Run is done only with its chat's
+context cut; the chat stays busy meanwhile, so no message of the user arrives during the call. One
+transaction holds the answer, the cut and the store, so the cut context and the reply are written
+together or not at all. The summary and the start are one write, so two replies of one chat that
+cut at once each store a whole pair. A cut context always holds a summary: one that fails fails
+the Run as a failed answer does, no reply stored and the context left as it was.
+
 The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
 and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite
 covers these steps.
 
 ## Request settings per purpose
 
-| Purpose | Model setting | Sent |
+| Purpose | Settings | Sent |
 |---|---|---|
-| reply | `LLM_REPLY_MODEL` | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
+| reply | `LLM_REPLY_MODEL`, `LLM_CHAT_CONTEXT_TOKENS_LIMIT` (read by the services that check and cut a context, never sent) | `max_tokens` 16 000, top-level `cache_control: { type: 'ephemeral' }`; effort and thinking left to the language model's default |
+| summary | `LLM_REPLY_MODEL` | `max_tokens` 8 000, the prompt asking for fixed headings (the user, standing instructions, facts and decisions, what is open, the assistant's voice, the course so far) in at most 600 words; no cache; effort and thinking left to the language model's default |
 | title | `LLM_TITLE_MODEL` | `max_tokens` 1 000, `output_config.effort: 'low'`, `thinking: { type: 'disabled' }`; no cache |
 
 - **The title's language model must accept `thinking: { type: 'disabled' }`.** Sonnet 5.5 rejects

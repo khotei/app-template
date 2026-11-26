@@ -14,6 +14,7 @@ const chat = {
   id: '0192d4e0-7b3a-7c00-8000-000000000061',
   userId,
   title: null,
+  context: null,
   createdAt: new Date('2026-10-18T00:00:00.123Z'),
   updatedAt: new Date('2026-10-18T00:00:01.456Z'),
 } satisfies typeof chats.$inferInsert

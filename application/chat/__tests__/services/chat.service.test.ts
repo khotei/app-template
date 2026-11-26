@@ -17,7 +17,13 @@ import { Chat, ChatNotFoundError, ChatTitle } from '#chat/domain/chat.model'
 import type { ChatId } from '#chat/domain/chat.util'
 import { Run } from '#chat/domain/run.model'
 import { ChatService } from '#chat/services/chat.service'
-import { chat, owner, queuedRun, unknownChatId } from '#testing/chat/chat.test-fixture'
+import {
+  chat,
+  firstMessage,
+  owner,
+  queuedRun,
+  unknownChatId,
+} from '#testing/chat/chat.test-fixture'
 
 /** The service over a repository that implements only the methods the case gives; any other dies. */
 const chatServiceOver = ({
@@ -81,6 +87,7 @@ describe('ChatService', () => {
             id: created.id,
             userId: owner,
             title: null,
+            context: null,
             createdAt: DateTime.toDateUtc(epoch),
             updatedAt: DateTime.toDateUtc(epoch),
           },
@@ -119,7 +126,12 @@ describe('ChatService', () => {
         )
         assert.deepStrictEqual(updates, [
           [
-            { id: chat.id, title: trip, updatedAt: DateTime.toDateUtc(updated.updatedAt) },
+            {
+              id: chat.id,
+              title: trip,
+              context: null,
+              updatedAt: DateTime.toDateUtc(updated.updatedAt),
+            },
             { id: chat.id, userId: owner },
           ],
         ])
@@ -138,6 +150,48 @@ describe('ChatService', () => {
       )
     },
   )
+
+  it.live('update writes a context with the title the chat was read with', () => {
+    const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
+    const titled = new Chat({ ...chat, title: Option.some(trip) })
+    const cut = { compacted: 'A summary.', headMessageId: firstMessage.id }
+    return Effect.gen(function* () {
+      const service = yield* ChatService
+
+      const updated = yield* service.update(
+        { context: Option.some(cut) },
+        { id: chat.id, userId: owner },
+      )
+
+      assertEquals(
+        updated,
+        new Chat({ ...titled, context: Option.some(cut), updatedAt: updated.updatedAt }),
+      )
+      assert.deepStrictEqual(updates, [
+        [
+          {
+            id: chat.id,
+            title: trip,
+            context: { compacted: 'A summary.', headMessageId: firstMessage.id },
+            updatedAt: DateTime.toDateUtc(updated.updatedAt),
+          },
+          { id: chat.id, userId: owner },
+        ],
+      ])
+    }).pipe(
+      Effect.provide(
+        chatServiceOver({
+          chats: {
+            selectOne: selectsOne(titled),
+            update: (...update) =>
+              Effect.sync(() => {
+                updates.push(update)
+              }),
+          },
+        }),
+      ),
+    )
+  })
 
   it.effect.each(titleWheres)(
     'update where the title is $name reads and writes only while the chat holds it',

@@ -22,7 +22,7 @@ export type ChatEntityWhere = Keyed<TableFilter<typeof chats>, ChatColumns, 'id'
 export type ChatEntitySelectWhere = Keyed<FilterOf<'chats'>, ChatColumns, 'id' | 'userId'>
 
 /** The columns an update may write. */
-export const chatSetColumns = ['title', 'updatedAt'] as const satisfies ReadonlyArray<
+export const chatSetColumns = ['title', 'context', 'updatedAt'] as const satisfies ReadonlyArray<
   keyof ChatColumns
 >
 

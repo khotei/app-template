@@ -10,7 +10,7 @@ import {
   RunStatusInvalidError,
 } from '#chat/domain/run.model'
 import { RunMove } from '#chat/domain/run-move'
-import { queuedRun } from '#testing/chat/chat.test-fixture'
+import { queuedRun, runUsage } from '#testing/chat/chat.test-fixture'
 
 const replyId = MessageId.make('0192d4e0-7b3a-7c00-8000-000000000004')
 
@@ -24,7 +24,7 @@ const moves: ReadonlyArray<{
 }> = [
   // The move passed as a value, as a caller's combinator takes it.
   { to: 'generating', from: ['queued'], move: RunMove.start },
-  { to: 'done', from: ['generating'], move: (run) => RunMove.complete(run, replyId) },
+  { to: 'done', from: ['generating'], move: (run) => RunMove.complete(run, replyId, runUsage) },
   {
     to: 'failed',
     from: activeRunStatuses,
@@ -76,11 +76,12 @@ describe('RunMove.fail', () => {
 })
 
 describe('RunMove.complete', () => {
-  it.effect('names the reply it settled with', () =>
+  it.effect('names the reply it settled with and holds its usage', () =>
     Effect.gen(function* () {
-      const done = yield* RunMove.complete(runAt('generating'), replyId)
+      const done = yield* RunMove.complete(runAt('generating'), replyId, runUsage)
 
       assert.deepStrictEqual(done.assistantMessageId, Option.some(replyId))
+      assert.deepStrictEqual(done.usage, Option.some(runUsage))
     }),
   )
 })
@@ -88,7 +89,7 @@ describe('RunMove.complete', () => {
 it.effect('a move takes a spread Run and returns a Run', () =>
   Effect.gen(function* () {
     const started = yield* RunMove.start({ ...queuedRun })
-    const done = yield* RunMove.complete({ ...started }, replyId)
+    const done = yield* RunMove.complete({ ...started }, replyId, runUsage)
 
     assert.instanceOf(started, Run)
     assert.deepStrictEqual([started.status, done.status], ['generating', 'done'])

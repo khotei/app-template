@@ -43,7 +43,11 @@ describe('POST /events', () => {
       ]),
       Layer.provide(
         ConfigProvider.layer(
-          ConfigProvider.fromUnknown({ AWS_REGION: 'us-east-1', STAGE: 'test' }),
+          ConfigProvider.fromUnknown({
+            AWS_REGION: 'us-east-1',
+            STAGE: 'test',
+            LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
+          }),
         ),
       ),
     )

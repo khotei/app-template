@@ -36,7 +36,9 @@ type RunRow = RunColumns
 
 const run = (
   id: string,
-  fields: Types.Simplify<Partial<Pick<RunRow, 'status' | 'failure' | 'assistantMessageId'>>> = {},
+  fields: Types.Simplify<
+    Partial<Pick<RunRow, 'status' | 'failure' | 'assistantMessageId' | 'usage'>>
+  > = {},
 ): RunRow => ({
   id,
   chatId,
@@ -45,6 +47,7 @@ const run = (
   status: 'queued',
   failure: null,
   assistantMessageId: null,
+  usage: null,
   createdAt,
   updatedAt,
   ...fields,
@@ -151,7 +154,17 @@ describe('RunRepository', () => {
       yield* runs.insert(queued)
 
       yield* messages.insert(reply)
-      const done = { status: 'done', assistantMessageId: reply.id } as const
+      const done = {
+        status: 'done',
+        assistantMessageId: reply.id,
+        usage: {
+          model: 'claude-sonnet-5-5',
+          promptTokens: 130,
+          outputTokens: 5,
+          cacheReadTokens: 100,
+          cacheWriteTokens: 20,
+        },
+      } as const
       yield* runs.update(done, { id: queued.id, status: 'queued' })
 
       assertSchemaEquals(

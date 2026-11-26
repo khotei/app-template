@@ -49,7 +49,7 @@ graph LR
 | 16 | [`shared-files`](#16-shared-files) | `feat` | 15, 23 | paused: attachments removed, to be rethought ([docs/tickets/2026-11-16-1401_shared-files/](../tickets/2026-11-16-1401_shared-files/lab.md)) |
 | 17 | `docs-diet` | `docs` | 15 | done, as `lean-instructions`: [docs/tickets/2026-11-02-1820_lean-instructions/](../tickets/2026-11-02-1820_lean-instructions/feature.md) |
 | 18 | [`assistant-files`](#18-assistant-files) | `feat` | 6, 23 | paused: attachments removed, to be rethought |
-| 20 | [`context-window`](#20-context-window) | `feat` | 6 | planned |
+| 20 | `context-window` | `feat` | 6 | done: [docs/tickets/2026-11-26-1022_context-window/](../tickets/2026-11-26-1022_context-window/lab.md) |
 | 21 | [`bedrock-provider`](#21-bedrock-provider) | `feat` | 6, 9 | planned |
 | 23 | `modular-monolith` | `refactor` | 15 | done: [docs/tickets/2026-10-31-0926_modular-monolith/](../tickets/2026-10-31-0926_modular-monolith/feature.md) |
 | 24 | `attachment-storage-failures` | `fix` | 23 | done: [docs/tickets/2026-11-06-0947_attachment-storage-failures/](../tickets/2026-11-06-0947_attachment-storage-failures/plan.md) |
@@ -270,19 +270,6 @@ left.
   Code Interpreter.
 - **To weigh.** [Ideas to weigh › Smaller fits](#smaller-fits): `Zip`, `Xml` and `workers` to
   turn Office files into text on our side.
-- **Status.** Planned.
-
-### 20. `context-window`
-
-- **Goal.** A long chat keeps answering: the history sent to the model is trimmed to the model's
-  context window instead of failing every reply once it outgrows it.
-- **Scope.** Dropping the oldest messages whole, never splitting one, always keeping the system
-  prompt and the newest user message; failing when even that does not fit (a failed Run
-  carries no reason on the wire, so telling the user why is a contract change); counting tokens of attachments.
-- **Facts (2026-10-29).** `effect/ai` `Tokenizer.truncate` drops the oldest messages whole but
-  does not protect the system message; no provider package implements `Tokenizer`, so counting
-  is ours (a heuristic or Anthropic's token-counting endpoint). An overlong prompt is a 400
-  `InvalidRequestError` with no special mapping.
 - **Status.** Planned.
 
 ### 21. `bedrock-provider`
@@ -586,6 +573,37 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-26) `GET /chats` and `GET /chats/:chatId/messages` return the whole list
   (`application/http-api/chat.http.ts`): no pagination. A matter of scale, left until the lists
   grow. Way out: cursor pagination with `web-app` (7).
+
+### From `context-window`
+
+- (2026-11-26) A Run's usage stays off the wire, and the tokens of a summary's call are stored
+  nowhere, a Run's usage holding its reply's alone. Way out: once the chat shows a cost, a usage
+  on the wire that counts the summary's call.
+- (2026-11-26) A chat that passes the model's window fails its Run as any other failure, and its
+  user is not told to open a new chat; a summary that fails discards a reply already generated,
+  and a chat whose summary fails on every try stops answering at 0.8 of its limit. A message is
+  at most 20 000 characters by the api's contract alone
+  (`application/http-api/chat.http.ts`). Way out: a failed Run's reason on the wire, and the
+  chat's message for a context that can grow no more.
+- (2026-11-26) A reply and its summary that together outlast the worker's 600 s
+  (`kernel/aws/resources/resources.ts`) are killed, no reply stored, and the redelivery fails
+  the Run; the reply's transaction holds a pooled connection for both calls. Reachable only with
+  a limit near the model's window. Way out: the summary in a job of its own, with the cut applied
+  before the chat's next reply.
+- (2026-11-26) With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts
+  and `MessageAssistant.reply` keeps the model asked, not the one that answered; the app sends
+  none. Way out: read the last part once `fallbacks` is set.
+- (2026-11-26) A message's text goes into a summary's transcript unescaped
+  (`application/chat/infrastructure/message-assistant.llm.ts`), so one holding `</message>`
+  reads as a turn of its own; it reaches the summary of its user's chat alone. Claimed by a
+  review, not run. Way out: a delimiter a text cannot hold.
+- (2026-11-26) A first answer over the limit compacts a context no done Run has sized, so the
+  split drops none and the question alone is summarised. Unreachable while a message holds at
+  most 20 000 characters and a reply 16 000 tokens. Way out: size the split from the answer's
+  usage.
+- (2026-11-26) A summary's headings are English in a chat of any language, and the assistant's
+  form of address is whatever the summary settled on, as the reply's system prompt names none.
+  Seen in a run on the provider's API. Way out: a form of address in the reply's system prompt.
 
 ## Ideas to weigh
 

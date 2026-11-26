@@ -27,6 +27,7 @@ const chat = (id: string, userId: string): ChatEntity => ({
   id,
   userId,
   title: null,
+  context: null,
   createdAt,
   updatedAt: createdAt,
   run: null,
@@ -57,6 +58,7 @@ const run = (
     status,
     failure: status === 'failed' ? { cause: '529 overloaded' } : null,
     assistantMessageId: null,
+    usage: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
   }) satisfies RunColumns
@@ -267,6 +269,29 @@ describe('ChatRepository', () => {
         SelectedChat,
         yield* chats.selectOne({ id: stored.id }),
         Option.some({ ...stored, title: 'Trip', updatedAt: touchedAt }),
+      )
+    }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
+  it.effect('update writes a context and selectOne reads it back, the title kept', () =>
+    Effect.gen(function* () {
+      const chats = yield* ChatRepository
+      const gus = '0192d4e0-7b3a-7c00-8000-000000000016'
+      const stored = chat('0192d4e0-7b3a-7c00-8000-000000000039', gus)
+      const context = {
+        compacted: 'They spoke of a photo.',
+        headMessageId: '0192d4e0-7b3a-7c00-8000-00000000003a',
+      }
+      yield* insertUser(gus)
+      yield* chats.insert(stored)
+      yield* chats.update({ title: 'Trip' }, { id: stored.id })
+
+      yield* chats.update({ context }, { id: stored.id })
+
+      assertSchemaEquals(
+        SelectedChat,
+        yield* chats.selectOne({ id: stored.id }),
+        Option.some({ ...stored, title: 'Trip', context }),
       )
     }).pipe(Effect.provide(RepositoriesTest)),
   )

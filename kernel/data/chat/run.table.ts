@@ -25,6 +25,18 @@ export const RunFailure = Schema.Struct({
 })
 export type RunFailure = typeof RunFailure.Type
 
+/** What a Run's reply cost, as the column `usage` holds it. */
+export const RunUsage = Schema.Struct({
+  /** The model that answered. */
+  model: Schema.String,
+  /** The prompt's tokens: the uncached, the cache-read and the cache-write ones together. */
+  promptTokens: Schema.Int,
+  outputTokens: Schema.Int,
+  cacheReadTokens: Schema.Int,
+  cacheWriteTokens: Schema.Int,
+})
+export type RunUsage = typeof RunUsage.Type
+
 export const runStatuses = ['queued', 'generating', 'done', 'failed'] as const
 
 export const runStatus = pgEnum('run_status', runStatuses)
@@ -41,6 +53,7 @@ export const runs = snakeCase.table(
     failure: jsonb().$type<RunFailure>(),
     /** The assistant's message the Run wrote, once it is done. */
     assistantMessageId: uuid().references(() => messages.id, { onDelete: 'cascade' }),
+    usage: jsonb().$type<RunUsage>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -50,6 +63,7 @@ export const runs = snakeCase.table(
       'runs_assistant_message_id_check',
       sql`(${table.status} = 'done') = (${table.assistantMessageId} is not null)`,
     ),
+    check('runs_usage_check', sql`(${table.status} = 'done') = (${table.usage} is not null)`),
     // A reply belongs to one Run.
     unique('runs_assistant_message_id_unique').on(table.assistantMessageId),
     // One key over both columns, so `user_id` can only name the owner of `chat_id`.
@@ -77,6 +91,7 @@ export const activeRunStatuses = ['queued', 'generating'] as const
 /** The shapes of the `jsonb` columns, which `createSelectSchema` cannot read from the table. */
 const runJsonColumns = {
   failure: () => RunFailure,
+  usage: () => RunUsage,
 }
 
 /** The columns of a Run: what its reads return and the entities of its neighbours nest. */

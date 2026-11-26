@@ -55,6 +55,7 @@ const run = (
       } as const
     )[status],
     assistantMessageId: null,
+    usage: null,
     createdAt: at(seconds),
     updatedAt: at(seconds),
   }) satisfies RunColumns
@@ -76,6 +77,7 @@ const insertOwnedChats = (chatIds: ReadonlyArray<string>) =>
           id,
           userId,
           title: null,
+          context: null,
           createdAt: new Date(0),
           updatedAt: new Date(0),
         }),
@@ -103,6 +105,28 @@ describe('MessageRepository', () => {
 
       assertSchemaEquals(Messages, yield* messages.selectMany({ chatId }), [question, followUp])
     }).pipe(Effect.provide(RepositoriesTest)),
+  )
+
+  it.effect(
+    "selectMany bounded by two ids reads the chat's messages from the first to the second",
+    () =>
+      Effect.gen(function* () {
+        const messages = yield* MessageRepository
+        const chatId = '0192d4e0-7b3a-7c00-8000-000000000042'
+        const first = userMessage('0192d4e0-7b3a-7c00-8000-000000000053', { chatId })
+        const second = userMessage('0192d4e0-7b3a-7c00-8000-000000000054', { chatId, seconds: 1 })
+        const third = userMessage('0192d4e0-7b3a-7c00-8000-000000000055', { chatId, seconds: 2 })
+        yield* insertOwnedChats([chatId])
+        const fourth = userMessage('0192d4e0-7b3a-7c00-8000-000000000056', { chatId, seconds: 3 })
+        yield* Effect.forEach([first, second, third, fourth], (each) => messages.insert(each))
+
+        const middle = yield* messages.selectMany({
+          chatId,
+          id: { gte: second.id, lte: third.id },
+        })
+
+        assertSchemaEquals(Messages, middle, [second, third])
+      }).pipe(Effect.provide(RepositoriesTest)),
   )
 
   it.effect("selectOne reads another chat's message or another user's as none", () =>
@@ -156,7 +180,18 @@ describe('MessageRepository', () => {
         } satisfies MessageEntity
         const failed = run('0192d4e0-7b3a-7c00-8000-000000000070', question, { status: 'failed' })
         const retry = run('0192d4e0-7b3a-7c00-8000-000000000071', question, { seconds: 1 })
-        const done = { ...retry, status: 'done', assistantMessageId: reply.id } as const
+        const done = {
+          ...retry,
+          status: 'done',
+          assistantMessageId: reply.id,
+          usage: {
+            model: 'claude-sonnet-5-5',
+            promptTokens: 130,
+            outputTokens: 5,
+            cacheReadTokens: 100,
+            cacheWriteTokens: 20,
+          },
+        } as const
         yield* insertOwnedChats([chatId])
         yield* messages.insert(question)
         yield* Effect.forEach([failed, retry], runs.insert)

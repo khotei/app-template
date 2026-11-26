@@ -256,9 +256,10 @@ the data layer's repository directly.
   infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
-  file alone, the chat's reply service (`reply-chat.service.ts`) its own, which adds the
-  message's assistant's `.llm` file alone, and its title service (`title-chat.service.ts`) its
-  own, which adds the chat's assistant's `.llm` file alone
+  file alone, the chat's reply service (`reply-chat.service.ts`) and its context service
+  (`context-chat.service.ts`) theirs, which adds the message's assistant's `.llm` file alone,
+  and its title service (`title-chat.service.ts`) its own, which adds the chat's assistant's
+  `.llm` file alone
   ([The chat's jobs in their services](#the-chats-jobs-in-their-services)): the rows of a
   module's layers in [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
@@ -974,10 +975,11 @@ no app.
 error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/error`, that loads no
 client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
 model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
-next message from its history, `ChatAssistant` the chat's title from its opening text. Each
+next message from its context, `ChatAssistant` the chat's title from its opening text. Each
 builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
 `LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
-`LlmError`. The domain keeps only what they take and return (`Message`, `AssistantReply`),
+`LlmError`. The domain keeps only what they take (`Message`); what one returns is declared beside it
+(`AssistantReply`, the title's schema),
 and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in front of the
 services. A use case, or the chat's worker service of a job, yields the assistant it
@@ -1468,8 +1470,9 @@ api:    AskChatService.ask ──new chat──▶ TitleChat ──────�
 
 `ReplyChatService.reply` does the reply's job's work, given the user's message the job names: its
 start moves that message's active Run to `generating` if unstarted, in one uninterruptible step,
-then the chat's history, the assistant's reply, and the assistant's message with the Run's `done` in
-one transaction that stays open across the assistant's call; one tail fails the Run the start wrote
+then the chat's context, the assistant's reply, the cut of a context over its limit, and the
+assistant's message with the Run's `done` in one transaction that stays open across the
+assistant's calls; one tail fails the Run the start wrote
 on whatever ends the answer. A Run some worker started fails `RunStartedError`, whose text says its
 worker stopped, and the start fails it with it; a message with no active Run fails
 `RunNotFoundError`, unwritten.
@@ -1482,7 +1485,9 @@ assistant's error, which the Run already holds, logging each end once with its c
 included; the title's skips a chat gone or titled and logs the assistant's error; a defect, a
 refused move's included, is the queue consumer's to log. `ReplyChatService` takes `Transaction`,
 the message's assistant and the services of the module's other models, for the records the reply
-writes; `TitleChatService` the chat's assistant and those services, as its one write needs no
+writes, and reads from the config the tokens limit of a chat's context, as `ContextChatService`
+does, each where it uses it, so no instance carries a setting;
+`TitleChatService` the chat's assistant and those services, as its one write needs no
 transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
 services, `ChatService` reading the user's chat each request names, for the request and its sends
 ([Composition: wrap or compose](#composition-wrap-or-compose)).
@@ -1542,8 +1547,9 @@ services, `ChatService` reading the user's chat each request names, for the requ
   argument, never per call. A service's transaction nests in a caller's as a savepoint
   ([One way to open a transaction](#one-way-to-open-a-transaction)), but the jobs a service sends
   after its own commit, as `AskChatService` does, go out before the caller's transaction commits
-  ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's call,
-  so each reply in flight holds one pooled Postgres connection for that call's length: `PgPool`
+  ([roadmap.md › Later](roadmap.md#later)). The reply's transaction stays open for the model's calls,
+  the reply's and a summary's when the context is cut, so each reply in flight holds one pooled
+  Postgres connection for their length: `PgPool`
   opens at most 10 unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the
   kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
