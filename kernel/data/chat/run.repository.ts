@@ -6,7 +6,7 @@ import {
   type RunEntitySelectWhere,
   type RunEntitySet,
   type RunEntityWhere,
-  runSetColumns,
+  RunRow,
 } from '#kernel/data/chat/run.entity'
 import { type RunColumns, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
@@ -33,7 +33,7 @@ export class RunRepository extends Context.Service<
         (set, where) =>
           db
             .update(runs)
-            .set(Struct.pick(set, runSetColumns))
+            .set(Struct.pick(set, RunRow.setColumns))
             .where(DbFilter.encode(runs, where))
             .returning({ id: runs.id }),
         Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),

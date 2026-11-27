@@ -68,7 +68,7 @@ export class OrderMove {                                              // order-m
 ```ts
 const { set, row } = yield* RowCodec.makeInsert(Order)({ customerId })
 const found = yield* orders
-  .selectOne(encodeWhere(where))
+  .selectOne(ServiceWhere.encode(where))
   .pipe(Effect.flatMap(RowCodec.decodeOne(Order)))
 ```
 - **An update passes every field it must keep:** a default on an updatable field fills it when

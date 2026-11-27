@@ -1,6 +1,6 @@
-import type { Stream } from 'effect'
+import { Option, type Stream } from 'effect'
 
-export const buildFileKey = (id: string): string => `attachments/${id}`
+import type { ObjectHead } from '@app-template/packages/aws/s3'
 
 export interface FileEntity {
   readonly id: string
@@ -24,4 +24,20 @@ export interface FileEntityWhere {
 
 export interface FileEntityDownloadWhere {
   readonly id: string
+}
+
+/** What `FileRepository` builds its requests from: a file's object key and its entity. */
+export class FileObject {
+  static readonly buildKey = (id: string): string => `attachments/${id}`
+
+  /** `insert` always writes the name, so an object without one is a defect. */
+  static readonly buildEntity = (
+    { contentType, fileName }: ObjectHead,
+    { id, url }: { readonly id: string; readonly url: URL },
+  ): FileEntity => ({
+    id,
+    mediaType: contentType,
+    fileName: Option.getOrThrowWith(fileName, () => new Error(`file ${id} has no name`)),
+    url,
+  })
 }

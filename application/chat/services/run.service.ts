@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
-import { encodeWhere, RunRepository } from '@app-template/kernel/data'
+import { RunRepository, ServiceWhere } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 
 import { Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
@@ -43,7 +43,7 @@ export class RunService extends Context.Service<
     })
 
     const getOne = Effect.fn('RunService.getOne')(
-      (where: RunWhere) => runs.selectOne(encodeWhere(where)),
+      (where: RunWhere) => runs.selectOne(ServiceWhere.encode(where)),
       Effect.flatMap(RowCodec.decodeOne(Run)),
       // The error's schema keeps the key of `where` alone, dropping what narrowed it.
       (found, where) =>
@@ -56,7 +56,7 @@ export class RunService extends Context.Service<
     const update = Effect.fn('RunService.update')(function* (from: Run, to: Run) {
       const { set, row } = yield* RowCodec.makeUpdate(Run)(to)
 
-      yield* runs.update(row, encodeWhere({ id: from.id, status: from.status }))
+      yield* runs.update(row, ServiceWhere.encode({ id: from.id, status: from.status }))
       return new Run({ ...to, ...set })
     })
 

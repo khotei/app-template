@@ -87,7 +87,7 @@ export const ChatEntity = Schema.Struct({
 
 Where a read's shape is not the entity's, the entity file holds the function from the one to the
 other: a message's Run comes from two relations, the newest that answers a user's message and
-the one that wrote an assistant's, so `buildMessageEntity` keeps the one its author has and the
+the one that wrote an assistant's, so `MessageRow.buildEntity` keeps the one its author has and the
 repository maps every read through it.
 
 A model is the codec of its own row: a `Model.Class` that declares each stored value as its row
@@ -105,7 +105,7 @@ model in the read's shape, whose nested models decode their own rows. A write bu
 ```ts
 const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
 const found = yield* chats
-  .selectOne(encodeWhere(where))
+  .selectOne(ServiceWhere.encode(where))
   .pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
@@ -128,14 +128,15 @@ states it with `orderBy`. A relational query returns nested rows typed as the en
 repository returns them as they are:
 
 ```ts
-const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: newestFirst } } })
+const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: RowOrder.newestFirst } } })
 // rows: [{ id, userId, …, run: { id, chatId, status, … } | null }]
 ```
 
 A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
 in one relational query, and never a nested `with`: `Chat.run` and `Message.run` are model
 fields another table holds, read and never written by their own writes. A `one` relation over
-many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: newestFirst } }`, since a
+many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: RowOrder.newestFirst } }`,
+since a
 relation holds no order and renders `limit 1`. A relational query
 aliases its table, so its `where` is the filter object, which the query renders on that alias,
 never a condition built on the `chats` constant.
@@ -169,12 +170,13 @@ takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, each m
 `undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's
 one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
 and the title's alike. What a service hands a repository is Drizzle's filter object, which
-`encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
-none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a range (`WhereRange`,
-`{ from, to }`) its bounds `{ gte, lte }` with either left out, any other value stays itself
-(`chats.selectOne(encodeWhere(where))`); a field a caller asks any of those three ways is typed
-`WhereValue<T>`. Every field of the value becomes a condition, so a caller writes its where as a
-literal of the type's fields, which the compiler checks, and never hands a record whole.
+`ServiceWhere.encode(where)` of `@app-template/kernel/data` makes of any service's where: an
+`Option` of none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a range
+(`WhereRange`, `{ from, to }`) its bounds `{ gte, lte }` with either left out, any other value
+stays itself (`chats.selectOne(ServiceWhere.encode(where))`); a field a caller asks any of those
+three ways is typed `WhereValue<T>`. Every field of the value becomes a condition, so a caller
+writes its where as a literal of the type's fields, which the compiler checks, and never hands a
+record whole.
 `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere` does, so `RunWhere` is a
 union of one member per key, the api's by the id and owner or the worker's by the message, its
 chat, its owner and statuses. So Drizzle's operators appear in that one function, never in a
@@ -197,10 +199,10 @@ A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>
 whose key is required, so no write compiles that names no row (`ChatEntityWhere`,
 `RunEntityWhere`); a read that also finds rows by another field takes its own
 `<Name>EntitySelectWhere` (a user's chats by `userId`, a Run by its user message).
-The entity file lists the columns an update may write once, as `<name>SetColumns`, typed by the
+The entity file lists the columns an update may write once, as `<Name>Row.setColumns`, typed by the
 table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
 fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
-repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
+repository writes `Struct.pick(set, <Name>Row.setColumns)`, so a whole entity passed as a set writes
 only those columns; a column the set leaves out is not written, and a set that holds an
 `undefined` does not compile.
 A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
@@ -230,7 +232,7 @@ whose `NoSuchElementError` the method's `DbQuery.orDie` turns into the defect):
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the columns of
-  `runSetColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
+  `RunRow.setColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
   caller read and the Run its move made, stamps the second with the current time and passes it,
   encoded, as the set, with the first's id under the status it was read in as the `where`, where
   a read's `RunEntitySelectWhere` takes the id or the user's message under a status; so a write

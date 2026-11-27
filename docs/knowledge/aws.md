@@ -116,8 +116,8 @@ stage is new on every e2e run.
 ## Files
 
 `FileRepository`, in the data layer, stores a file's bytes in the `attachments` bucket under
-`attachments/<id>` (`buildFileKey`): it holds only the keys, which its entity file declares, and
-the headers; the upload itself is `S3Bucket` in `packages/aws/s3`, taken from the context.
+`attachments/<id>` (`FileObject.buildKey`): it holds only the keys, which its entity file
+declares, and the headers; the upload itself is `S3Bucket` in `packages/aws/s3`, taken from the context.
 `S3BucketFromConfig`, among the kernel's AWS clients, binds it to the stage's bucket. No app
 provides either today: no module stores bytes since attachments were removed
 ([decisions.md › Attachments removed](decisions.md#attachments-removed)), and the bucket keeps

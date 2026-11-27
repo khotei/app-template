@@ -204,7 +204,7 @@ left.
 - **Paused (2026-11-19).** The owner removed attachments from every ring, to be rethought
   ([decisions.md › Attachments removed](decisions.md#attachments-removed)); the lab's L1 and L2
   built on them. The redesign starts from the generic core that stayed: `FileRepository` and
-  `buildFileKey` in `kernel/data/file`, the kernel's S3 clients and the `attachments` bucket. Its
+  `FileObject` in `kernel/data/file`, the kernel's S3 clients and the `attachments` bucket. Its
   first questions: the words for a file and its link, the module that owns them, and the bucket's
   name and key prefix, which still say `attachments`.
 - **Inherits from `architecture-audit` (2026-10-27).** A file lives as long as its owner needs it:
@@ -570,8 +570,8 @@ moves it into its own `Later` and deletes it here.
   contract shared with the browser (`HttpApiClient.make(Api)`, `sideEffects: false`, a values
   file) was left to `web-app` (7) on the owner's yes. Way out: that ticket weighs it against the
   generated client.
-- (2026-11-26) `<name>SetColumns` copy by hand the fields a model's update variant writes
-  (`kernel/data/chat/run.entity.ts`, `runSetColumns`): a field added to one side alone is not
+- (2026-11-26) `<Name>Row.setColumns` copy by hand the fields a model's update variant writes
+  (`kernel/data/chat/run.entity.ts`, `RunRow.setColumns`): a field added to one side alone is not
   refused. Way out: derive the list from the table's columns, or compare the two in a test.
 - (2026-11-26) A domain's source may import test support through the `#testing/<module>/*` alias:
   the `application/*/domain/**` override refuses the `/testing` entries by their package path

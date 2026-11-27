@@ -7,14 +7,11 @@ import {
   type ChatEntitySelectWhere,
   type ChatEntitySet,
   type ChatEntityWhere,
-  chatSetColumns,
+  ChatRow,
 } from '#kernel/data/chat/chat.entity'
 import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
-import { newestFirst } from '#kernel/data/chat/run.entity'
+import { RowOrder } from '#kernel/data/data-order'
 import { Db } from '#kernel/data/db.client'
-
-/** Every read nests the chat's newest Run. */
-const withNewestRun = { run: { orderBy: newestFirst } } as const
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -43,7 +40,7 @@ export class ChatRepository extends Context.Service<
         (set, where) =>
           db
             .update(chats)
-            .set(Struct.pick(set, chatSetColumns))
+            .set(Struct.pick(set, ChatRow.setColumns))
             .where(DbFilter.encode(chats, where))
             .returning({ id: chats.id }),
         Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
@@ -51,7 +48,7 @@ export class ChatRepository extends Context.Service<
         DbQuery.orDie,
       ),
       selectOne: Effect.fn('ChatRepository.selectOne')(
-        (where) => db.query.chats.findFirst({ where, with: withNewestRun }),
+        (where) => db.query.chats.findFirst({ where, with: ChatRow.withNewestRun }),
         Effect.map(Option.fromUndefinedOr),
         DbQuery.orDie,
       ),
@@ -59,8 +56,8 @@ export class ChatRepository extends Context.Service<
         (where) =>
           db.query.chats.findMany({
             where,
-            with: withNewestRun,
-            orderBy: newestFirst,
+            with: ChatRow.withNewestRun,
+            orderBy: RowOrder.newestFirst,
           }),
         DbQuery.orDie,
       ),

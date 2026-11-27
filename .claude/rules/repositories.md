@@ -37,10 +37,11 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   update variants, which a write encodes ([models.md](models.md)), are no second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read.
-- What a repository builds its statements from (the columns an update writes, a read's order and
-  nesting, an entity built from a read) are statics of `<Name>Row` in the entity's file
-  (`OrderRow.newestFirst`; `<Name>Object` over an object store); a table, a `pgEnum` and
-  `<Name>Columns` stay exports, as drizzle-kit reads a module's exports alone.
+- What a repository builds its statements from (the columns an update writes, a read's nesting,
+  an entity built from a read) are statics of `<Name>Row` in the entity's file
+  (`OrderRow.setColumns`; `<Name>Object` over an object store), the orders every table shares
+  `RowOrder`'s; a table, a `pgEnum` and `<Name>Columns` stay exports, as drizzle-kit reads a
+  module's exports alone.
 
 ## A where's two forms
 
@@ -51,13 +52,13 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   a range; a field a caller asks any of the three ways is `WhereValue<T>`.
   Its key, and the owner on a type only a user's calls take, are required fields; a narrowing the
   caller may leave out is an absent key, `key?: T` ([effect.md › Schemas](effect.md#schemas)).
-- A method hands its repository `encodeWhere(where)`, the one function over a service's where: an
-  `Option` of none is `{ isNull: true }`, a list `{ in: […] }`, a range `{ from, to }` its
-  bounds (`{ gte, lte }`, either left out), any other value itself. Every
-  field becomes a condition, so a caller writes a where as a literal of its type's fields, never
-  a record whole. No method writes a Drizzle operator, copies a field, picks a where's fields or
-  tests which it holds. A read by either of two keys, as its repository's `Keyed` names them,
-  takes a where per key. The types and the alias of a relational query:
+- A method hands its repository `ServiceWhere.encode(where)`, the service form's encoder as
+  `DbFilter.encode` is the repository form's: an `Option` of none is `{ isNull: true }`, a list
+  `{ in: […] }`, a range `{ from, to }` its bounds (`{ gte, lte }`, either left out), any other
+  value itself. Every field becomes a condition, so a caller writes a where as a literal of its
+  type's fields, never a record whole. No method writes a Drizzle operator, copies a field, picks
+  a where's fields or tests which it holds. A read by either of two keys, as its repository's
+  `Keyed` names them, takes a where per key. The types and the alias of a relational query:
   [database.md › Repositories](../../docs/knowledge/database.md#repositories).
 
 ```diff
@@ -66,7 +67,7 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - orders.getMany({ customerId, status: Option.fromUndefinedOr(query.status) })  // a null column
 + orders.getMany({ customerId, ...(query.status === undefined ? {} : { status: query.status }) })
 - repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
-+ repository.selectOne(encodeWhere(where))
++ repository.selectOne(ServiceWhere.encode(where))
 - orders.getOne(order)                                      // every field of the record a condition
 + orders.getOne({ id: order.id, customerId: order.customerId })
 ```

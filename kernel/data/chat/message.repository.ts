@@ -3,20 +3,16 @@ import { Array as Arr, Context, Effect, flow, Layer, Option } from 'effect'
 import { DbQuery } from '@app-template/packages/db'
 
 import {
-  buildMessageEntity,
-  inCreationOrder,
   type MessageEntity,
   type MessageEntityWhere,
+  MessageRow,
 } from '#kernel/data/chat/message.entity'
 import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
-import { newestFirst } from '#kernel/data/chat/run.entity'
+import { RowOrder } from '#kernel/data/data-order'
 import { Db } from '#kernel/data/db.client'
 
-/** Every read is in creation order and nests the Runs `buildMessageEntity` picks from. */
-const read = {
-  orderBy: inCreationOrder,
-  with: { newestRun: { orderBy: newestFirst }, replyOf: true },
-} as const
+/** Every read is in creation order. */
+const read = { orderBy: RowOrder.inCreationOrder, with: MessageRow.withRuns } as const
 
 export class MessageRepository extends Context.Service<
   MessageRepository,
@@ -38,12 +34,12 @@ export class MessageRepository extends Context.Service<
       ),
       selectOne: Effect.fn('MessageRepository.selectOne')(
         (where) => db.query.messages.findFirst({ where, ...read }),
-        Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity))),
+        Effect.map(flow(Option.fromUndefinedOr, Option.map(MessageRow.buildEntity))),
         DbQuery.orDie,
       ),
       selectMany: Effect.fn('MessageRepository.selectMany')(
         (where) => db.query.messages.findMany({ where, ...read }),
-        Effect.map(Arr.map(buildMessageEntity)),
+        Effect.map(Arr.map(MessageRow.buildEntity)),
         DbQuery.orDie,
       ),
     }

@@ -41,10 +41,13 @@ const encodeWhereValue = Struct.lambda<EncodeWhereValue>((value) =>
   ),
 )
 
-/**
- * `where`, a service's model values, as the filter object a repository takes: an `Option` of none
- * is a column that is null, a list any of its values, a `WhereRange` the values between its bounds,
- * any other value itself.
- */
-export const encodeWhere = <Where extends object>(where: Where) =>
-  Struct.map(where, encodeWhereValue)
+/** A service's `where`, model values alone, which its repository takes as Drizzle's filter object. */
+export class ServiceWhere {
+  /**
+   * `where` as the filter object a repository takes: an `Option` of none is a column that is
+   * null, a list any of its values, a `WhereRange` the values between its bounds, any other value
+   * itself.
+   */
+  static readonly encode = <Where extends object>(where: Where) =>
+    Struct.map(where, encodeWhereValue)
+}

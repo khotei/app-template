@@ -2,7 +2,7 @@ import { Context, Effect, Layer, type Types } from 'effect'
 import type { SetOptional, SetRequired } from 'type-fest'
 
 import type { UserId } from '@app-template/application/user'
-import { ChatRepository, encodeWhere } from '@app-template/kernel/data'
+import { ChatRepository, ServiceWhere } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 
 import { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
@@ -50,12 +50,12 @@ export class ChatService extends Context.Service<
     })
 
     const list = Effect.fn('ChatService.list')(
-      (userId: UserId) => chats.selectMany(encodeWhere({ userId })),
+      (userId: UserId) => chats.selectMany(ServiceWhere.encode({ userId })),
       Effect.flatMap(RowCodec.decodeMany(Chat)),
     )
 
     const getOne = Effect.fn('ChatService.getOne')(
-      (where: ChatWhere) => chats.selectOne(encodeWhere(where)),
+      (where: ChatWhere) => chats.selectOne(ServiceWhere.encode(where)),
       Effect.flatMap(RowCodec.decodeOne(Chat)),
       (found, where) =>
         Effect.flatMap(
@@ -72,7 +72,7 @@ export class ChatService extends Context.Service<
       const { set, row } = yield* RowCodec.makeUpdate(Chat)({ ...chat, ...fields })
 
       // Only the update variant's fields, under the `where` again.
-      yield* chats.update(row, encodeWhere(where))
+      yield* chats.update(row, ServiceWhere.encode(where))
       return new Chat({ ...chat, ...set })
     })
 
@@ -82,7 +82,7 @@ export class ChatService extends Context.Service<
       yield* getOne(where)
 
       // Under the owner again; the cascade takes the messages and the Runs, by their key to the chat.
-      yield* chats.delete(encodeWhere(where))
+      yield* chats.delete(ServiceWhere.encode(where))
     })
 
     return { create, list, getOne, update, delete: remove }

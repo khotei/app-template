@@ -1224,8 +1224,9 @@ each, are a method each, which the service or use case holding them commits in o
 A repository's `where` is Drizzle's relational filter object with its key required (`Keyed`): a
 relational query takes it as it is, a core-builder statement through `DbFilter.encode`
 (`packages/db`). A service's `where` is model values alone (a branded id, an `Option`, a list),
-which `encodeWhere` (`kernel/data/data-where.ts`) turns into that object, so no service writes a
-Drizzle operator.
+which `ServiceWhere.encode` (`kernel/data/data-where.ts`) turns into that object, so no service
+writes a Drizzle operator. Each form's encoder is a static named for the form, a pair a reader
+follows from a service's where to the SQL: `ServiceWhere.encode`, then `DbFilter.encode`.
 
 - **Why:** the least code of ours: Drizzle types and renders the filter, and a service's caller
   speaks the model's values.
@@ -1364,7 +1365,7 @@ The app holds no attachments: a message is its text alone. Removed in every ring
 errors and two services, the reply's file parts, `Chat.attachments` and `Message.attachments`, and
 the data layer's `attachments` table with its entity, repository and relations, gone from the one
 `init` migration. What stays is the generic core they were built on: `FileEntity`, `FileRepository`
-and `buildFileKey` in `kernel/data/file`, its `FileRepositoryTest` fake; the kernel's AWS clients
+and `FileObject` in `kernel/data/file`, its `FileRepositoryTest` fake; the kernel's AWS clients
 with `S3BucketFromConfig`; the bucket in `kernel/aws/resources`, its provisioning in
 `deployment/aws/storage.ts` and MiniStack; `packages/aws` with its `s3`. The bucket keeps its
 name `attachments` and the key prefix `attachments/`, so a redesign starts from a store that works
