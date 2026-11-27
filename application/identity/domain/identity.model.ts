@@ -14,4 +14,4 @@ export class IdentityUnknownError extends Schema.TaggedError<IdentityUnknownErro
 /** The 32 random bytes a user signs in with, as base64url; only its hash is stored. */
 export type UserSecret = Redacted.Redacted<string>
 
-export const secretBytes = 32
+export const randomBytesPerSecret = 32

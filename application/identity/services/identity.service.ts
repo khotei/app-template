@@ -12,9 +12,12 @@ import {
 import { Transaction } from '@app-template/packages/db'
 import { RowCodec } from '@app-template/packages/schema'
 
-import { IdentityUnknownError, secretBytes, type UserSecret } from '#identity/domain/identity.model'
-
-const encoder = new TextEncoder()
+import {
+  IdentityUnknownError,
+  randomBytesPerSecret,
+  type UserSecret,
+} from '#identity/domain/identity.model'
+import { UserSecretBytes } from '#identity/domain/user-secret-bytes'
 
 export class IdentityService extends Context.Service<
   IdentityService,
@@ -36,7 +39,7 @@ export class IdentityService extends Context.Service<
     const transaction = yield* Transaction
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
-      const hash = yield* digest.digestHex(Digest.sha256, encoder.encode(Redacted.value(secret)))
+      const hash = yield* digest.digestHex(Digest.sha256, UserSecretBytes.build(secret))
       return { kind: 'secret', hash } as const
     })
 
@@ -57,7 +60,7 @@ export class IdentityService extends Context.Service<
     }, transaction.run)
 
     const register = Effect.fnUntraced(function* () {
-      const bytes = yield* random.randomBytes(secretBytes)
+      const bytes = yield* random.randomBytes(randomBytesPerSecret)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
       const { set, row } = yield* RowCodec.makeInsert(User)({})
