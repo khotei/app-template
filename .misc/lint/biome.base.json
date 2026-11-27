@@ -124,7 +124,7 @@
       }
     },
     {
-      "includes": ["application/*/domain/**", "packages/**", "kernel/data/**", "kernel/llm/**"],
+      "includes": ["application/*/domain/**", "packages/**", "kernel/**"],
       "linter": {
         "rules": {
           "complexity": {

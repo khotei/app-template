@@ -703,8 +703,8 @@ data layer's an entity's `<Name>Row`; a function alone in its meaning stays a fu
   member. A group file with a suffix of its own (`.policy`): a new row of naming.md for what
   `<owner>-<what>.ts` names.
 - **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so one
-  override turns it off for the domain, `packages/`, `kernel/data` and `kernel/llm`, and a
-  static-only class anywhere else stays refused; a static declared after one that reads it at
+  override turns it off for the domain, `packages/` and `kernel/`, and a static-only class
+  anywhere else stays refused; a static declared after one that reads it at
   load is `undefined`, so a group orders its statics. Each rule's signature names the fields it
   reads, a check that returns its record a type parameter, and a model with moves one exported
   `<Model>Fields` type; a combination keeps its name however few its callers
