@@ -1,11 +1,10 @@
-import { type Cause, Context, Effect, Layer, Struct } from 'effect'
+import { type Cause, Context, Effect, Layer, Struct, type Types } from 'effect'
 
 import { chatContextConfig } from '@app-template/kernel/config'
 import { Transaction } from '@app-template/packages/db'
 
 import { ChatContextPolicy } from '#chat/domain/chat-context-policy'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
-import type { MessageId } from '#chat/domain/message.util'
 import {
   activeRunStatuses,
   type Run,
@@ -19,6 +18,12 @@ import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
 
+/**
+ * The user message a reply answers, by its id, in the chat `chatId` names, of the user `userId`
+ * names.
+ */
+export type ReplyChatWhere = Types.Simplify<Pick<Run, 'userMessageId' | 'chatId' | 'userId'>>
+
 /** The assistant's failures, named through it, as a service imports no part of the kernel that calls out. */
 type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['reply']>>
 
@@ -27,14 +32,14 @@ export class ReplyChatService extends Context.Service<
   ReplyChatService,
   {
     /**
-     * Replies to the user's message `userMessageId` through its active Run, which ends `done`
+     * Replies to the user's message `where` names through its active Run, which ends `done`
      * with the assistant's message, its chat's context cut first when the reply passes its limit,
      * or `failed` with the full text of what ended it, no reply stored: a summary that fails, an
      * interrupt and `RunStartedError`, for a Run some worker started, included. A message with no
-     * active Run fails `RunNotFoundError`, unwritten.
+     * active Run in that chat of that user fails `RunNotFoundError`, unwritten.
      */
     readonly reply: (
-      userMessageId: MessageId,
+      where: ReplyChatWhere,
     ) => Effect.Effect<void, RunNotFoundError | RunStartedError | MessageAssistantError>
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
@@ -85,8 +90,8 @@ export class ReplyChatService extends Context.Service<
     // Run starts waits for them, so the Run it started is always there to fail and never stays
     // `generating`; they are interruptible, so the worker can still stop during the model's calls.
     const reply = Effect.fn('ReplyChatService.reply')(
-      function* (userMessageId: MessageId) {
-        const active = yield* runs.getOne({ userMessageId, status: activeRunStatuses })
+      function* (where: ReplyChatWhere) {
+        const active = yield* runs.getOne({ ...where, status: activeRunStatuses })
         // A Run some worker started was left by a worker that died, so it fails as it is read.
         const queued = yield* RunPolicy.ensureUnstarted(active).pipe(
           Effect.onError(failUnanswered(active)),

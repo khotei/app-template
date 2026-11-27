@@ -10,11 +10,13 @@ import {
   Predicate,
   pipe,
   Schema,
+  Struct,
   UndefinedOr,
 } from 'effect'
 import { Model } from 'effect/schema'
 import { TestClock } from 'effect/testing'
 
+import { UserId } from '@app-template/application/user'
 import type {
   ChatEntitySet,
   MessageColumns,
@@ -42,6 +44,7 @@ import {
   queuedRun,
   runUsage,
   sureReply as sure,
+  unknownChatId,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import {
@@ -69,6 +72,8 @@ const lastRun = new Run({
   updatedAt: andNow.createdAt,
 })
 
+const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
+
 const elsewhereReply = assistantMessageAt(5, 'Done elsewhere.')
 
 const doneElsewhere = new Run({
@@ -91,13 +96,15 @@ const failedElsewhere = new Run({
 const retried = new Run({ ...queuedRun, id: RunId.make('0192d4e0-7b3a-7c00-8000-000000000032') })
 
 /**
- * The filters the services send, the only ones this store understands: a key, and a status or
- * those of `in`. The repository's `where` takes every filter Drizzle has, so the store decodes
+ * The filters the services send, the only ones this store understands: a key, its chat and user,
+ * and a status or those of `in`. The repository's `where` takes every filter Drizzle has, so the store decodes
  * the one it is handed and dies on any other.
  */
 const RunFilter = Schema.Struct({
   id: Schema.optionalKey(Schema.String),
   userMessageId: Schema.optionalKey(Schema.String),
+  chatId: Schema.optionalKey(Schema.String),
+  userId: Schema.optionalKey(Schema.String),
   status: Schema.optionalKey(
     Schema.Union([RunStatus, Schema.Struct({ in: Schema.Array(RunStatus) })]),
   ),
@@ -112,10 +119,16 @@ const holds = <A>(condition: A | undefined, value: A) =>
 
 /** Whether `run` holds where `where` holds, as the store filters. */
 const holdsWhere =
-  (where: RunFilter): Predicate.Predicate<Pick<RunColumns, 'id' | 'userMessageId' | 'status'>> =>
+  (
+    where: RunFilter,
+  ): Predicate.Predicate<
+    Pick<RunColumns, 'id' | 'userMessageId' | 'chatId' | 'userId' | 'status'>
+  > =>
   (run) =>
     holds(where.id, run.id) &&
     holds(where.userMessageId, run.userMessageId) &&
+    holds(where.chatId, run.chatId) &&
+    holds(where.userId, run.userId) &&
     UndefinedOr.match(where.status, {
       onUndefined: () => true,
       onDefined: (status) =>
@@ -208,9 +221,12 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
+/** What the job of `run` names: its user message, chat and user. */
+const jobOf = (run: Run) => Struct.pick(run, ['userMessageId', 'chatId', 'userId'])
+
 const reply = Effect.gen(function* () {
   const replies = yield* ReplyChatService
-  return yield* replies.reply(queuedRun.userMessageId)
+  return yield* replies.reply(jobOf(queuedRun))
 })
 
 describe('ReplyChatService', () => {
@@ -376,7 +392,7 @@ describe('ReplyChatService', () => {
       const short = userMessageAt(3, 'x'.repeat(100))
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        yield* replies.reply(queuedRun.userMessageId)
+        yield* replies.reply(jobOf(queuedRun))
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
@@ -410,7 +426,7 @@ describe('ReplyChatService', () => {
       })
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        yield* replies.reply(queuedRun.userMessageId)
+        yield* replies.reply(jobOf(queuedRun))
 
         assert.deepStrictEqual(written, [
           [0, 0],
@@ -450,7 +466,7 @@ describe('ReplyChatService', () => {
       const writes = noWrites()
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        const error = yield* replies.reply(queuedRun.userMessageId).pipe(Effect.flip)
+        const error = yield* replies.reply(jobOf(queuedRun)).pipe(Effect.flip)
 
         assert.strictEqual(error, assistantOverloaded)
         assert.deepStrictEqual(yield* assistant.summarised, [
@@ -492,7 +508,7 @@ describe('ReplyChatService', () => {
     const writes = noWrites()
     return Effect.gen(function* () {
       const replies = yield* ReplyChatService
-      const exit = yield* replies.reply(queuedRun.userMessageId).pipe(Effect.exit)
+      const exit = yield* replies.reply(jobOf(queuedRun)).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assert.deepStrictEqual(moves(writes), ['queued → generating', 'generating → failed'])
@@ -553,10 +569,10 @@ describe('ReplyChatService', () => {
       }
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        yield* replies.reply(queuedRun.userMessageId)
+        yield* replies.reply(jobOf(queuedRun))
         yield* runs.settle(queuedRun)
 
-        yield* replies.reply(queuedRun.userMessageId)
+        yield* replies.reply(jobOf(queuedRun))
 
         assert.deepStrictEqual(yield* assistant.contexts, [
           history,
@@ -581,7 +597,7 @@ describe('ReplyChatService', () => {
     const writes = noWrites()
     return Effect.gen(function* () {
       const replies = yield* ReplyChatService
-      yield* replies.reply(lastRun.userMessageId)
+      yield* replies.reply(jobOf(lastRun))
 
       assertEquals(yield* assistant.contexts, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(
@@ -658,11 +674,9 @@ describe('ReplyChatService', () => {
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
 
-        const again = yield* replies
-          .reply(queuedRun.userMessageId)
-          .pipe(Effect.exit, Effect.forkChild)
+        const again = yield* replies.reply(jobOf(queuedRun)).pipe(Effect.exit, Effect.forkChild)
         yield* held.reached
-        const own = yield* replies.reply(retried.userMessageId).pipe(Effect.flip)
+        const own = yield* replies.reply(jobOf(retried)).pipe(Effect.flip)
         yield* held.release
         const againExit = yield* Fiber.join(again)
 
@@ -734,6 +748,35 @@ describe('ReplyChatService', () => {
         // No `update`: a write would die on it.
         Effect.provide(
           layerChatTest({ runs: { selectOne } }, { messageAssistant: assistant.layer }),
+        ),
+      )
+    },
+  )
+
+  it.effect.each([
+    { name: "another user's", job: { ...jobOf(queuedRun), userId: stranger } },
+    { name: "another chat's", job: { ...jobOf(queuedRun), chatId: unknownChatId } },
+  ])(
+    "reply to an active Run's message under $name id fails RunNotFoundError, writing nothing and asking no assistant",
+    ({ job }) => {
+      const assistant = recordMessageAssistant(Effect.succeed(sure))
+      const writes = noWrites()
+      return Effect.gen(function* () {
+        const replies = yield* ReplyChatService
+        const error = yield* replies.reply(job).pipe(Effect.flip)
+
+        assertSchemaEquals(
+          RunNotFoundError,
+          error,
+          new RunNotFoundError({ where: { userMessageId: queuedRun.userMessageId } }),
+        )
+        assert.deepStrictEqual(writes, noWrites())
+        assertEquals(yield* assistant.contexts, [])
+      }).pipe(
+        Effect.provide(
+          layerChatTest(replyingTo(writes, { runs: storeRuns(writes, queuedRun) }), {
+            messageAssistant: assistant.layer,
+          }),
         ),
       )
     },

@@ -28,7 +28,13 @@ import { recordLogs } from '@app-template/packages/testing'
 
 import { replyToMessage, titleChat } from '#worker/chat/chat.handler'
 
-const reply = replyToMessage(new ReplyToMessage({ messageId: queuedRun.userMessageId }))
+const reply = replyToMessage(
+  new ReplyToMessage({
+    messageId: queuedRun.userMessageId,
+    chatId: queuedRun.chatId,
+    userId: queuedRun.userId,
+  }),
+)
 
 const readRun = (run: Run) => () => encodeWith(Run)(run).pipe(Effect.map(Option.some))
 
@@ -113,15 +119,21 @@ describe('replyToMessage', () => {
     },
   )
 
-  it.effect("reply skips a message with no active Run, logged under the message's id", () => {
+  it.effect("reply skips a message with no active Run, logged under the job's ids", () => {
     const assistant = recordMessageAssistant(Effect.never)
-    const { logs, layer: logger } = recordLogs('messageId')
+    const { logs, layer: logger } = recordLogs('messageId', 'chatId', 'userId')
     return Effect.gen(function* () {
       yield* reply
 
       assertEquals(yield* assistant.contexts, [])
       assert.deepStrictEqual(logs, [
-        ['Info', 'reply skipped: its Run is done, failed or gone', queuedRun.userMessageId],
+        [
+          'Info',
+          'reply skipped: its Run is done, failed or gone',
+          queuedRun.userMessageId,
+          chatId,
+          owner,
+        ],
       ])
     }).pipe(
       Effect.provide([

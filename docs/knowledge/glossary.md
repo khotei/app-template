@@ -104,8 +104,8 @@ pending, streaming
 
 **Active Run**:
 A Run that is not yet terminal (`queued` or `generating`). A chat has at most one. A read of a
-user message's active Run that finds none (its Run done, failed or gone with its chat) fails
-`RunNotFoundError` by that message.
+user message's active Run, in its chat and of its user, that finds none (its Run done, failed or
+gone with its chat) fails `RunNotFoundError` by that message.
 _Avoid_: Pending run, current reply
 
 **Chat state**:
@@ -352,8 +352,9 @@ The words of the work the api hands to the worker. The queues, the stand and its
 **Job**:
 A queue message that hands one handler in the worker one piece of work, a command, shaped by its
 queue definition and named `<Verb><Object>` in this glossary's words for that work
-(`ReplyToMessage`, which names the user's message whose active Run the worker starts). Unheard,
-its work stays undone, so its sender settles a refused send. Not a CI job (a workflow's `jobs:`).
+(`ReplyToMessage`, which names the user's message, its chat and its user, whose active Run the
+worker starts). Unheard, its work stays undone, so its sender settles a refused send. Not a CI
+job (a workflow's `jobs:`).
 _Avoid_: Task, message (the chat's word)
 
 **Event**:

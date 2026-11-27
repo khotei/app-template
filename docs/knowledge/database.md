@@ -164,7 +164,7 @@ A `where` has two forms, one on each side of a service. What a caller hands a se
 values alone: a branded id, an `Option` for a field that may be null (`{ id, title: Option.none() }`
 is a chat still untitled), a list for one of several (`status: activeRunStatuses`). It is one plain
 type whose key is a required field, and so is the owner on a type only a call on a user's behalf
-takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, the first member of
+takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, each member of
 `RunWhere`); a narrowing a caller may leave out is an absent key, never an `Option` nor an
 `undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's
 one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
@@ -176,11 +176,12 @@ none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a ra
 `WhereValue<T>`. Every field of the value becomes a condition, so a caller writes its where as a
 literal of the type's fields, which the compiler checks, and never hands a record whole.
 `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere` does, so `RunWhere` is a
-union of one member per key, the api's by the id and owner or the worker's by the message and
-statuses. So Drizzle's operators appear in that one function, never in a service, a handler or a use
-case. Neither an `undefined` field, which `exactOptionalPropertyTypes` ([tooling.md ›
-TypeScript](tooling.md#typescript)) refuses at `make typecheck`, nor an empty where has a rule:
-Drizzle throws on the first, and the repository's key refuses the second.
+union of one member per key, the api's by the id and owner or the worker's by the message, its
+chat, its owner and statuses. So Drizzle's operators appear in that one function, never in a
+service, a handler or a use case. Neither an `undefined` field, which
+`exactOptionalPropertyTypes` ([tooling.md › TypeScript](tooling.md#typescript)) refuses at
+`make typecheck`, nor an empty where has a rule: Drizzle throws on the first, and the repository's
+key refuses the second.
 
 A read that nests a relation or filters on one is a relational query (`db.query.<table>.findFirst`
 and `findMany`); a read of one table with neither goes through the core builder

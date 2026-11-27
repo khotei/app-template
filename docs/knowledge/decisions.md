@@ -853,9 +853,9 @@ sent: a refused send's `runs.update(run, yield* RunMove.fail(run, Cause.fail(err
 written under `queued`, so a Run a worker settled meanwhile, as SQS took the job after all, dies on
 the write's guard and the request responds with `500`; it never reads, fails or returns another Run
 of the message. The worker's `ReplyChatService.reply` starts the Run in one uninterruptible step: it
-reads the message's active Run through `RunService.getOne({ userMessageId, status:
-activeRunStatuses })`, `RunNotFoundError` by the message when it has none, refuses one some worker
-started through `RunPolicy.ensureUnstarted(run)`, `RunStartedError`,
+reads the message's active Run through `RunService.getOne({ userMessageId, chatId, userId,
+status: activeRunStatuses })`, `RunNotFoundError` by the message when it has none, refuses one some
+worker started through `RunPolicy.ensureUnstarted(run)`, `RunStartedError`,
 failing that Run as it was read, and writes the start. The method is uninterruptible but for the
 answer, and the answer's tail (`Effect.onError`) fails exactly the Run the start wrote, under
 `generating`, on whatever ends the answer, an interrupt included. A move the model's table refuses
@@ -1390,12 +1390,14 @@ ends it take its name. An event states a fact its sender's commit made true, as 
 does in messaging, for a list of listeners, none required: named `<Object><PastVerb>`, its queue and
 its `send<Event>` take its name, and each listener is named for its own work. Unheard, does the
 system break, and does the sender settle a refused send? Yes to either makes it a job. The chat's
-job is `ReplyToMessage { messageId }`, on `reply-to-message`, sent by `ChatQueue.sendReplyToMessage`
-and ended by `ChatHandler.replyToMessage`; its event is `FirstMessageCreated { id, chatId, userId
-}`, ids alone, on `first-message-created`, sent by `ChatQueue.sendFirstMessageCreated` and listened
-to by `ChatHandler.titleChat`. The reply's names the user's message and starts its active Run, which
-the unique index on a chat's active Run keeps to one; what a job that names no one Run costs: [A
-Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The
+job is `ReplyToMessage { messageId, chatId, userId }`, on `reply-to-message`, sent by
+`ChatQueue.sendReplyToMessage` and ended by `ChatHandler.replyToMessage`; its event is
+`FirstMessageCreated { id, chatId, userId }`, ids alone, on `first-message-created`, sent by
+`ChatQueue.sendFirstMessageCreated` and listened to by `ChatHandler.titleChat`. The reply's names the
+user's message with its chat and user and starts its active Run, read by all three, so a job naming
+another chat's or user's ids finds none; the unique index on a chat's active Run keeps it to one;
+what a job that names no one Run costs: [A Run's job on interrupt and on two
+deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The
 event names a new chat's first message, which the title reads. The reply's send returns its
 `QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
 commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's full
@@ -1440,9 +1442,11 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   call that a queue's message runs several handlers, a defect only logged, with no dead-letter
   for it, and any retry inside the process (2026-11-27); the owner's call that a new chat's first
   message goes out as the event `FirstMessageCreated`, of ids alone, which the title listens to,
-  and the reply stays a command (2026-11-27); the owner's call that a record whose handler died
-  stays acknowledged: "let's leave it for later. Maybe for this we could retry in effect style
-  without sqs retry." (2026-11-27).
+  and the reply stays a command (2026-11-27); the owner's call that the reply's job carries its
+  message's chat and user, by which the reply reads its Run, as the title's event does
+  (2026-11-27); the owner's call that a record whose handler died stays acknowledged: "let's
+  leave it for later. Maybe for this we could retry in effect style without sqs retry."
+  (2026-11-27).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
@@ -1515,11 +1519,11 @@ api:    AskChatService.ask ──new chat──▶ FirstMessageCreated ─▶ Ch
         AskChatService.retry ─askReply─▶ (the same)
 ```
 
-`ReplyChatService.reply` does the reply's job's work, given the user's message the job names: its
-start moves that message's active Run to `generating` if unstarted, in one uninterruptible step,
-then the chat's context, the assistant's reply, the cut of a context over its limit, and the
-assistant's message with the Run's `done` in one transaction that stays open across the
-assistant's calls; one tail fails the Run the start wrote
+`ReplyChatService.reply` does the reply's job's work, given the user's message, its chat and its
+user the job names: its start moves that message's active Run to `generating` if unstarted, in
+one uninterruptible step, then the chat's context, the assistant's reply, the cut of a context over
+its limit, and the assistant's message with the Run's `done` in one transaction that stays open
+across the assistant's calls; one tail fails the Run the start wrote
 on whatever ends the answer. A Run some worker started fails `RunStartedError`, whose text says its
 worker stopped, and the start fails it with it; a message with no active Run fails
 `RunNotFoundError`, unwritten.

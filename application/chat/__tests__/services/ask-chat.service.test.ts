@@ -110,7 +110,11 @@ const answeredChat = withNewest(doneRun)
 
 const replyJob = (run: Run) => ({
   queue: 'reply-to-message',
-  message: new ReplyToMessage({ messageId: run.userMessageId }),
+  message: new ReplyToMessage({
+    messageId: run.userMessageId,
+    chatId: run.chatId,
+    userId: run.userId,
+  }),
 })
 
 /** The owner's chat each case asks or retries in; the store's read decides what it holds. */
