@@ -10,7 +10,7 @@ import {
   type ChatEntityWhere,
   ChatRepository,
 } from '@app-template/kernel/data'
-import { encodeWith, RowCodec } from '@app-template/packages/schema'
+import { RowCodec, SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { Chat, ChatNotFoundError, ChatTitle } from '#chat/domain/chat.model'
@@ -33,7 +33,8 @@ const chatServiceOver = ({
 }) => ChatService.layer.pipe(Layer.provide(Layer.mock(ChatRepository, chats)))
 
 /** A `selectOne` that returns `found` as its row. */
-const selectsOne = (found: Chat) => () => encodeWith(Chat)(found).pipe(Effect.map(Option.some))
+const selectsOne = (found: Chat) => () =>
+  SchemaCodec.encode(Chat)(found).pipe(Effect.map(Option.some))
 
 const trip = ChatTitle.make('Trip')
 
@@ -244,7 +245,7 @@ describe('ChatService', () => {
               Effect.sync(() => {
                 wheres.push(where)
               }).pipe(
-                Effect.andThen(encodeWith(Chat)(chat)),
+                Effect.andThen(SchemaCodec.encode(Chat)(chat)),
                 Effect.map((row) => [row]),
               ),
           },
@@ -297,7 +298,7 @@ describe('ChatService', () => {
 describe("a Chat's rows, as its service codes them", () => {
   it.effect('a row without one of its columns fails to compile, and its read dies', () =>
     Effect.gen(function* () {
-      const { createdAt: _, ...drifted } = yield* encodeWith(Chat)(chat)
+      const { createdAt: _, ...drifted } = yield* SchemaCodec.encode(Chat)(chat)
 
       // @ts-expect-error a row without createdAt is no Chat's
       const decoded = RowCodec.decodeOne(Chat)(Option.some(drifted))

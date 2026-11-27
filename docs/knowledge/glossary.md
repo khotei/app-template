@@ -380,7 +380,7 @@ its user, and which the title hears). Not the chat's creation, which stores no m
 _Avoid_: Started, first message created
 
 **Queue message**:
-A message on a queue as `packages/queue` sends and consumes it: a body its definition's schema
+A message on a queue as `packages/aws/queue` sends and consumes it: a body its definition's schema
 encodes, with the sender's `traceparent`. Every job and event is one; SQS's own names stay
 (`MessageBody`, `messageId`, `messageAttributes`), and a log names its id `queueMessageId`.
 _Avoid_: Message (the chat's word), envelope

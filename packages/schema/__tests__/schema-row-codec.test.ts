@@ -4,7 +4,7 @@ import { Model } from 'effect/schema'
 
 import { epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { encodeWith } from '#schema/schema-codec'
+import { SchemaCodec } from '#schema/schema-codec'
 import { buildIdSchema } from '#schema/schema-id'
 import { RowCodec } from '#schema/schema-row-codec'
 
@@ -39,7 +39,7 @@ const order = new Order({
 describe('RowCodec.decodeOne and decodeMany', () => {
   it.effect('decode the rows a read returns into the model', () =>
     Effect.gen(function* () {
-      const row = yield* encodeWith(Order)(order)
+      const row = yield* SchemaCodec.encode(Order)(order)
 
       const one = yield* RowCodec.decodeOne(Order)(Option.some(row))
       const none = yield* RowCodec.decodeOne(Order)(Option.none())
@@ -54,7 +54,7 @@ describe('RowCodec.decodeOne and decodeMany', () => {
 
   it.effect('refuse a row of another shape at compile time, and die on it', () =>
     Effect.gen(function* () {
-      const { createdAt: _, ...drifted } = yield* encodeWith(Order)(order)
+      const { createdAt: _, ...drifted } = yield* SchemaCodec.encode(Order)(order)
 
       // @ts-expect-error a row without createdAt is no Order's
       const decoded = RowCodec.decodeOne(Order)(Option.some(drifted))

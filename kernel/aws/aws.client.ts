@@ -3,8 +3,8 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { type Config, Effect, Layer, Option } from 'effect'
 
 import { type AwsConfig, awsConfig } from '@app-template/kernel/config'
-import { QueueSender } from '@app-template/packages/queue'
-import { S3Bucket } from '@app-template/packages/s3'
+import { QueueSender } from '@app-template/packages/aws/queue'
+import { S3Bucket } from '@app-template/packages/aws/s3'
 
 import { resources } from '#kernel/aws/resources/resources'
 import { buildResourceName } from '#kernel/aws/resources/resources-naming'

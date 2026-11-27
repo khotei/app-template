@@ -4,7 +4,7 @@ import { DateTime, Effect, Option } from 'effect'
 
 import { UserId } from '@app-template/application/user'
 import type { ChatEntitySet, ChatEntityWhere, MessageEntityWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
 import { Chat, ChatTitle } from '#chat/domain/chat.model'
@@ -49,10 +49,13 @@ describe('TitleChatService', () => {
               selectOne: (where) =>
                 Effect.sync(() => {
                   reads.push(where)
-                }).pipe(Effect.andThen(encodeWith(Message)(firstMessage)), Effect.map(Option.some)),
+                }).pipe(
+                  Effect.andThen(SchemaCodec.encode(Message)(firstMessage)),
+                  Effect.map(Option.some),
+                ),
             },
             chats: {
-              selectOne: () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some)),
+              selectOne: () => SchemaCodec.encode(Chat)(chat).pipe(Effect.map(Option.some)),
               update: (...update) =>
                 Effect.sync(() => {
                   updates.push(update)

@@ -23,7 +23,7 @@ import {
 } from '@app-template/application/chat/testing'
 import type { RunEntitySet } from '@app-template/kernel/data'
 import { LlmError } from '@app-template/kernel/llm/model'
-import { encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { recordLogs } from '@app-template/packages/testing'
 
 import { replyToMessage, titleChat } from '#worker/chat/chat.handler'
@@ -36,9 +36,9 @@ const reply = replyToMessage(
   }),
 )
 
-const readRun = (run: Run) => () => encodeWith(Run)(run).pipe(Effect.map(Option.some))
+const readRun = (run: Run) => () => SchemaCodec.encode(Run)(run).pipe(Effect.map(Option.some))
 
-const readChat = () => encodeWith(Chat)(chat).pipe(Effect.map(Option.some))
+const readChat = () => SchemaCodec.encode(Chat)(chat).pipe(Effect.map(Option.some))
 
 const generating = new Run({ ...queuedRun, status: 'generating' })
 
@@ -78,7 +78,9 @@ describe('replyToMessage', () => {
               },
               // No `insert`: a reply written would die on it.
               chats: { selectOne: readChat },
-              messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+              messages: {
+                selectMany: () => Effect.all([SchemaCodec.encode(Message)(firstMessage)]),
+              },
             },
             { messageAssistant: assistant.layer },
           ),
@@ -109,7 +111,9 @@ describe('replyToMessage', () => {
                   set.status === 'failed' ? Effect.die('no run was updated') : Effect.void,
               },
               chats: { selectOne: readChat },
-              messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+              messages: {
+                selectMany: () => Effect.all([SchemaCodec.encode(Message)(firstMessage)]),
+              },
             },
             { messageAssistant: recordMessageAssistant(Effect.fail(refused)).layer },
           ),
@@ -222,7 +226,7 @@ describe('replyToMessage', () => {
           {
             runs: { selectOne: readRun(queuedRun), update: () => Effect.void },
             chats: { selectOne: readChat },
-            messages: { selectMany: () => Effect.all([encodeWith(Message)(firstMessage)]) },
+            messages: { selectMany: () => Effect.all([SchemaCodec.encode(Message)(firstMessage)]) },
           },
           { messageAssistant: assistant.layer },
         ),
@@ -233,7 +237,8 @@ describe('replyToMessage', () => {
 })
 
 /** A message read that finds `firstMessage`. */
-const selectsFirstMessage = () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some))
+const selectsFirstMessage = () =>
+  SchemaCodec.encode(Message)(firstMessage).pipe(Effect.map(Option.some))
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 

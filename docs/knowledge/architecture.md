@@ -147,6 +147,7 @@ import { buildApiChat } from '#api/chat/chat.mapper'          // this part
 - **`@app-template/<folder>`** reaches another part through its workspace's `exports`, each
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
+  a package's sub-entry by its own (`@app-template/packages/aws/queue`, `/aws/s3`),
   a module by its own (`@app-template/application/<module>` →
   `application/<module>/index.ts`, every layer), a module's contract by its folder
   (`@app-template/application/<module>/contract`), each with its test support's entries
@@ -177,10 +178,10 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
-| database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns, `Keyed`, `encodeFilter` |
+| database tools any app could use | `packages/db/` | `Transaction`, `createDb`, `DbColumn` (the shared columns), `Keyed`, `DbFilter`, `DbQuery` (a query's failure as its `SqlError`) |
 | a service's where as its repository's filter | `kernel/data/data-where.ts` | `encodeWhere` |
-| the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
-| codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
+| the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/aws/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
+| codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `SchemaCodec`, `RowCodec`, `buildIdSchema` |
 | HTTP group | `application/http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`) |
 | a resource's wire shapes | `application/http-api/chat/api-chat.model.ts`, `request/api-request.model.ts` | `ApiChat` (`Chat.json.mapFields(…)`), `ApiRun`, `ApiMessage`; `RequestIssue`, `RequestInvalidError` |
 | the API contract: the groups assembled, the middlewares' definitions with the keys they provide; its snapshot | `application/http-api/api.ts`, `identity/identity.middleware.ts`, `request/request.middleware.ts`; `apps/api/openapi.json` | `Api`; `IdentityMiddleware`, which provides identity's `IdentityClaims` under the key `Identity`; `SchemaErrors` |

@@ -3,7 +3,8 @@
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
 created and tested. The code: the kernel's `aws` part (the inventory, the naming rule, the apps'
 S3 and SQS clients and, in its e2e support, the provisioner), `packages/aws` (the inventory's
-types and the dead-letter naming rule) and `deployment/` (the Pulumi program of the local stand
+types, the dead-letter naming rule and two sub-entries, `queue` and `s3`, the clients over SQS
+and S3) and `deployment/` (the Pulumi program of the local stand
 and the resource code it runs); the e2e support, [tooling.md › Tests](tooling.md#tests).
 
 ## The local stand-in
@@ -116,7 +117,7 @@ stage is new on every e2e run.
 
 `FileRepository`, in the data layer, stores a file's bytes in the `attachments` bucket under
 `attachments/<id>` (`buildFileKey`): it holds only the keys, which its entity file declares, and
-the headers; the upload itself is `S3Bucket` in `packages/s3`, taken from the context.
+the headers; the upload itself is `S3Bucket` in `packages/aws/s3`, taken from the context.
 `S3BucketFromConfig`, among the kernel's AWS clients, binds it to the stage's bucket. No app
 provides either today: no module stores bytes since attachments were removed
 ([decisions.md › Attachments removed](decisions.md#attachments-removed)), and the bucket keeps
@@ -139,8 +140,8 @@ gone.
 
 ## Queues
 
-`QueueSender` and `consumeQueue` (`packages/queue`) are the two sides of SQS: the first encodes a
-message by its definition's schema ([database.md › The sends](database.md#the-sends)), the second
+`QueueSender` and `consumeQueue` (`packages/aws/queue`) are the two sides of SQS: the first encodes
+a message by its definition's schema ([database.md › The sends](database.md#the-sends)), the second
 decodes each body by it. A definition's queue is `buildResourceName(STAGE, definition.name)`.
 
 - **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,

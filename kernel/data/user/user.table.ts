@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, pgEnum, snakeCase, text, uuid } from 'drizzle-orm/pg-core'
 
-import { createdAt, id } from '@app-template/packages/db'
+import { DbColumn } from '@app-template/packages/db'
 
 /**
  * A check reads its source as SQL, so it uses only syntax that JavaScript and Postgres regular
@@ -10,7 +10,10 @@ import { createdAt, id } from '@app-template/packages/db'
  */
 const secretHashPattern = /^[0-9a-f]{64}$/
 
-export const users = snakeCase.table('users', { id: id(), createdAt: createdAt() })
+export const users = snakeCase.table('users', {
+  id: DbColumn.id(),
+  createdAt: DbColumn.createdAt(),
+})
 
 export const credentialKinds = ['secret'] as const
 

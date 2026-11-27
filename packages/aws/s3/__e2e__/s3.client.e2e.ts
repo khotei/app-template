@@ -5,7 +5,7 @@ import { Array as Arr, Bytes, Deferred, Effect, Fiber, Layer, Option, Stream } f
 import { generateStage, S3ClientTest } from '@app-template/packages/aws/testing/e2e'
 import { breakAfter, StreamBrokenError } from '@app-template/packages/testing'
 
-import { S3Bucket } from '#s3/s3.client'
+import { S3Bucket } from '#aws/s3/s3.client'
 
 const mebibyte = 1024 * 1024
 const partSize = 5 * mebibyte

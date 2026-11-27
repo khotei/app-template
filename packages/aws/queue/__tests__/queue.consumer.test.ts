@@ -3,14 +3,14 @@ import { Array as Arr, Context, Deferred, Effect, Order, Record as Rec, Ref, Sch
 
 import { recordLogs } from '@app-template/packages/testing'
 
-import { consumeQueue, SqsEvent } from '#queue/queue.consumer'
+import { consumeQueue, SqsEvent } from '#aws/queue/queue.consumer'
 
 class Replies extends Context.Service<Replies, { readonly label: string }>()(
-  '@app-template/packages/queue/Replies',
+  '@app-template/packages/aws/queue/Replies',
 ) {}
 
 class Titles extends Context.Service<Titles, { readonly label: string }>()(
-  '@app-template/packages/queue/Titles',
+  '@app-template/packages/aws/queue/Titles',
 ) {}
 
 const pingQueue = { name: 'pings', schema: Schema.Struct({ ping: Schema.String }) }

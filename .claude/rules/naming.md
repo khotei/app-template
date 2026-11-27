@@ -26,8 +26,8 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.use-case` | `<verb>-<object>.use-case.ts`: one use case | `application/use-cases/<module>/` |
 | `.queue` · `.llm` | `<model>.queue.ts`: the queues' definitions, jobs, events and `<Model>Queue`, their sends · `<model>-assistant.llm.ts`: one assistant per output asked of a language model | `infrastructure/` |
 | `.table` · `.entity` · `.repository` | a table with any it alone owns (drizzle-kit reads `*/*.table.ts`) · `<Name>Entity` and its verbs' types · one store's access | `kernel/data/<store>/` |
-| `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
-| `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each message | `packages/queue` |
+| `.client` | a client of one external system, or the layer that builds it | a package or its sub-entry, an app, `kernel/data`, a kernel part |
+| `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each message | `packages/aws/queue` |
 | `.http` | a resource's `HttpApiGroup` | `application/http-api/<resource>/` |
 | `.middleware` | `<name>.middleware.ts`: the definitions of the API contract's middlewares and the keys they provide | `application/http-api/<resource>/` |
 | `.mapper` | a model's wire shape, where it differs | `apps/api/<resource>/` |

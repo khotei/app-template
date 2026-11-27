@@ -3,7 +3,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 import { buildResourceName, type QueueName } from '@app-template/kernel/aws'
 import { awsConfig } from '@app-template/kernel/config'
-import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
+import { buildQueueName, SqsEvent } from '@app-template/packages/aws/queue'
 
 import { ChatHandler } from '#worker/chat/chat.handler'
 

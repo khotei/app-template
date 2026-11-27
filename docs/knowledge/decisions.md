@@ -256,7 +256,7 @@ the data layer's repository directly.
   the tables that check them, and the wire takes them through the domain's schemas.
   The domain taking the tables' values: the backend in every importer of a model. The queues'
   definitions in `services/`: the services' guard would admit `@app-template/kernel/aws` and
-  `@app-template/packages/queue`.
+  `@app-template/packages/aws/queue`.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
   repositories; a value both the domain and a table hold is declared twice, held in step at the
   service that codes the row ([Checks kept in the tables](#checks-kept-in-the-tables)); one entry
@@ -271,7 +271,7 @@ the data layer's repository directly.
   admitting of another module only its contract's entry and refusing every part of the kernel
   and test support, which its tests' alone admits, the
   services' admitting of `@app-template/packages/db` only `Transaction`, and neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of their
+  `@app-template/kernel/aws` nor `@app-template/packages/aws/queue` nor test support, nor any of their
   infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose events the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
@@ -811,9 +811,10 @@ message hold their Run as that select-only field.
   off the wire. The ids kept on a generator over `SecureRandom` that a service yields in its
   `make`, beside the variants: a test could fix an id, for a generator in every service and an
   id passed to each insert by hand. The codec built at each call
-  (`decodeWith(Schema.Option(<Model>))`, `encodeWith(<Model>.insert)`): the read's shape or the
+  (`SchemaCodec.decode(Schema.Option(<Model>))`, `SchemaCodec.encode(<Model>.insert)`): the read's
+  shape or the
   variant spelled again in every call, where `RowCodec` names it once. The codec statics on each
-  model (`<Model>.decodeOne = decodeWith(Schema.Option(this))`): each model imported
+  model (`<Model>.decodeOne = SchemaCodec.decode(Schema.Option(this))`): each model imported
   `packages/schema`'s codecs and held a static per shape its service coded, where a model imports
   only `effect`, ids and other models. The omit of `updatedAt` by its name (`makeUpdateWith`): a
   renewed field of another name kept its old value, where the marker finds it. A static per step
@@ -976,10 +977,11 @@ no app.
   smell"
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/),
   [styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/)).
-- **Rejected:** a package per kernel part: a manifest per part for one app's tools. `packages/aws`
-  moved whole: the inventory, its naming rule and the provisioner moved to `kernel/aws`; the
-  inventory's types and the dead-letter naming rule stay, imported by the kernel and by
-  `deployment/aws/`.
+- **Rejected:** a package per kernel part: a manifest per part for one app's tools. The AWS
+  inventory, its naming rule and the provisioner in `packages/aws`: they are this app's, so they
+  sit in `kernel/aws`; `packages/aws` holds the inventory's types and the dead-letter naming
+  rule, imported by the kernel and by `deployment/aws/`, and the SQS and S3 clients as its
+  sub-entries `queue` and `s3`.
 - **Cost:** one manifest declares every client's dependency, so the linker no longer stops a
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take
@@ -1098,11 +1100,10 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
 only, and its service codes its row through `RowCodec`'s statics, which take the model, over
-the generic `encodeWith` and `decodeWith`, a read through the model in the read's shape and a
-write through its insert or update variant ([Models with variants](#models-with-variants)), with
-no mapper per model. A
-second stored form of a model brings back a mapper that lays the model's schemas over that
-store's columns.
+the generic `SchemaCodec.encode` and `SchemaCodec.decode`, a read through the model in the
+read's shape and a write through its insert or update variant
+([Models with variants](#models-with-variants)), with no mapper per model. A second stored
+form of a model brings back a mapper that lays the model's schemas over that store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
@@ -1197,7 +1198,7 @@ each, are a method each, which the service or use case holding them commits in o
   `makeWithTransaction` "uses savepoints for nested transactions"
   (`node_modules/.bun/effect@4.1.5/node_modules/effect/src/sql/SqlClient.ts:620-621`, its
   `SAVEPOINT` at `:339` and `:359`); the cases of `Transaction` that nest a `run` in a `run`
-  (`packages/db/__e2e__/db.client.e2e.ts`); the owner's words "use single transaction" and
+  (`packages/db/__e2e__/db-transaction.e2e.ts`); the owner's words "use single transaction" and
   "allow transaction in services if it doesn't breake upper transactions".
 - **Rejected:** a repository method that opens its own transaction for one record's rows in two
   tables, as `UserRepository.insert` did for a user and its credential: two ways to open one, and
@@ -1221,7 +1222,7 @@ each, are a method each, which the service or use case holding them commits in o
 ### A where's two forms
 
 A repository's `where` is Drizzle's relational filter object with its key required (`Keyed`): a
-relational query takes it as it is, a core-builder statement through `encodeFilter`
+relational query takes it as it is, a core-builder statement through `DbFilter.encode`
 (`packages/db`). A service's `where` is model values alone (a branded id, an `Option`, a list),
 which `encodeWhere` (`kernel/data/data-where.ts`) turns into that object, so no service writes a
 Drizzle operator.
@@ -1233,7 +1234,7 @@ Drizzle operator.
 - **Rejected:** an encoder of our own that builds every where's SQL itself, in place of
   Drizzle's filter object (PR #58, closed). A pick of a where's fields in
   every method: a where is written as a literal of its type's fields, which the compiler checks.
-- **Cost:** `encodeFilter` holds one type assertion over `relationsFilterToSQL`, a function of
+- **Cost:** `DbFilter.encode` holds one type assertion over `relationsFilterToSQL`, a function of
   Drizzle's rc line; a record handed whole from a variable compiles and makes every field a
   condition.
 - **Guarded by:** `Keyed`, which refuses a where that names no key, and
@@ -1365,7 +1366,7 @@ the data layer's `attachments` table with its entity, repository and relations, 
 `init` migration. What stays is the generic core they were built on: `FileEntity`, `FileRepository`
 and `buildFileKey` in `kernel/data/file`, its `FileRepositoryTest` fake; the kernel's AWS clients
 with `S3BucketFromConfig`; the bucket in `kernel/aws/resources`, its provisioning in
-`deployment/aws/storage.ts` and MiniStack; `packages/s3` and `packages/aws`. The bucket keeps its
+`deployment/aws/storage.ts` and MiniStack; `packages/aws` with its `s3`. The bucket keeps its
 name `attachments` and the key prefix `attachments/`, so a redesign starts from a store that works
 without renaming provisioned resources. No app wires the files today.
 
@@ -1446,7 +1447,7 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   that runs it share a verb because both take the glossary's word, not because one copies the
   other; the class never rides on the wire (the body is its fields, the queue routes it), so its
   name costs no deployed state. A handler's defect is a bug, which recurs on each delivery, or a
-  passing store error, as every repository dies on one (`orDieWithSqlError`); returning its record
+  passing store error, as every repository dies on one (`DbQuery.orDie`); returning its record
   would run every other handler of the queue again and dead-letter a bug's record after the same
   failure three times, so it is acknowledged, and a retry a handler's work needs runs inside the
   handler. A
@@ -1516,7 +1517,7 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
 - **Guarded by:** the `QueueSender` e2e; `consumeQueue`'s unit tests; the unit tests of the
   sends, of `AskChatService` and of the create flow; the ask service's Biome override, which
   admits of its infrastructure only
-  `#*/infrastructure/*.queue` and nothing of `@app-template/packages/queue`; the
+  `#*/infrastructure/*.queue` and nothing of `@app-template/packages/aws/queue`; the
   `infrastructure/` and `use-cases` rows of [architecture.md › Dependency
   rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
@@ -1767,8 +1768,10 @@ what:
 A file imports its own part's files through the workspace's `#…` subpaths, never a relative path,
 and another part only through that part's entry, even inside one workspace. A part of the
 kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
-is one workspace with one export per part, its `index.ts`, and its test support, and a module with
-a contract one more, the contract's (`@app-template/application/<module>/contract`). The apps keep
+is one workspace with one export per part, its `index.ts`, and its test support, a module with
+a contract one more, the contract's (`@app-template/application/<module>/contract`), and a package
+with sub-entries one per sub-entry, a folder with its own `index.ts`
+(`@app-template/packages/aws/queue`). The apps keep
 their package names. The forms, with examples:
 [architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
@@ -1778,14 +1781,19 @@ their package names. The forms, with examples:
   workspace's files.
 - **Sources:** `.claude/rules/naming.md`; npm names allow one `/` after the scope, so a folder's
   path is a subpath of its folder's workspace; `tsc -b`'s TS6059 and TS6307 on a path into an
-  unreferenced project.
+  unreferenced project; the owner's shape for the packages (issue #80, 2026-11-27): the queue
+  and the bucket clients as sub-entries of `packages/aws`.
 - **Rejected:** relative paths inside a layer only: one more rule for a reader to apply, and no
   pattern tells a layer's own folder from the next. A workspace per part with `paths` aliases
   in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
   tool. A subpath per store or per layer (`/data/<store>`, `/chat/domain`): a caller must know
-  the part's inside; a module's contract is the one subpath past an entry, the part another
-  module may take, so a domain imports it without the module's services
-  ([Module contracts](#module-contracts)). A `tsconfig.json` project per module: its
+  the part's inside. Two subpaths pass an entry: a module's contract, the part another module
+  may take, so a domain imports it without the module's services
+  ([Module contracts](#module-contracts)); and a package's sub-entry, a client of its own whose
+  callers take it without the package's others (the worker's queue loads no S3 client), while
+  the clients over one provider share its package. A package per client (a queue's, a
+  bucket's): the provider's clients and its inventory's types in three packages, each
+  needing the others' names. A `tsconfig.json` project per module: its
   `references` would repeat the Biome overrides, one rule in two places.
 - **Cost:** every workspace declares its `imports`; one manifest declares every part's
   dependencies, so the linker tells the folders apart but not one part from another; a part's
@@ -1793,7 +1801,10 @@ their package names. The forms, with examples:
   the stores of `/data`) is held by the names it imports, and only a module's contract by a path; `application/`
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
   refuses an import between their parts ([Guards are configuration](#guards-are-configuration)
-  says what does).
+  says what does). `biome-imports.grit` names a part by the folder after the last `packages/`,
+  so a package's sub-entries are one part to it: a file of `aws/queue` reaches `aws/s3`'s files
+  by `#aws/s3/…`, which review alone refuses, and an override that admits `packages/*` names
+  `packages/aws/*` beside it.
 - **Guarded by:** `biome-imports.grit` and the overrides' `importNamePattern`, in the forms
   [architecture.md › Boundary guards](architecture.md#boundary-guards) lists.
 - **If reversed:** a folder splits into a workspace per part, each with its manifest, and the

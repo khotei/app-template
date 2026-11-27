@@ -1,6 +1,6 @@
 import { Array as Arr, Context, Effect, flow, Layer, Option } from 'effect'
 
-import { orDieWithSqlError } from '@app-template/packages/db'
+import { DbQuery } from '@app-template/packages/db'
 
 import {
   buildMessageEntity,
@@ -34,17 +34,17 @@ export class MessageRepository extends Context.Service<
     return {
       insert: Effect.fn('MessageRepository.insert')(
         (message) => db.insert(messages).values(message),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       selectOne: Effect.fn('MessageRepository.selectOne')(
         (where) => db.query.messages.findFirst({ where, ...read }),
         Effect.map(flow(Option.fromUndefinedOr, Option.map(buildMessageEntity))),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       selectMany: Effect.fn('MessageRepository.selectMany')(
         (where) => db.query.messages.findMany({ where, ...read }),
         Effect.map(Arr.map(buildMessageEntity)),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
     }
   }),

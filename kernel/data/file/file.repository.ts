@@ -1,6 +1,6 @@
 import { Array as Arr, Context, Duration, Effect, Layer, Option, pipe } from 'effect'
 
-import { type ObjectHead, S3Bucket } from '@app-template/packages/s3'
+import { type ObjectHead, S3Bucket } from '@app-template/packages/aws/s3'
 
 import {
   buildFileKey,

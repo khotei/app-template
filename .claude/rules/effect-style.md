@@ -53,7 +53,7 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
   is point-free (`flow(…)`, or an arrow whose body is one `.pipe`), never at the cost of a cast, an
   annotation or a lost `E` or `R`; one that opens on a service is a generator.
 - A composable function takes its subject last and alone, options first and curried
-  (`pipe(message, encodeWith(codec))`), when its partial call reads as a whole step
+  (`pipe(message, SchemaCodec.encode(codec))`), when its partial call reads as a whole step
   (`Effect.tap(Arr.match({ … }))`); a move stays plain, its record first (`OrderMove.ship(order,
   carrier)`); a lambda only adds an argument or a name; `dual` only for both ways.
 - Helpers that differ only by a step inside one frame (a predicate, a mapper) are one function

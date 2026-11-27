@@ -151,7 +151,7 @@ object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhe
 through its models (`IdentityService` over `UserRepository`). Rows of several tables that commit
 together are a method each, which their service commits in one transaction
 ([Transactions](#transactions)), as `IdentityService` does a user and its credential
-([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `orDieWithSqlError`
+([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `DbQuery.orDie`
 from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
@@ -207,7 +207,7 @@ A `where` type is the table's filter with its key required, `Keyed<TableFilter<t
 <Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
 `FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
 keys names both, and its `where` must hold one. A relational query takes it as it
-is, and a core-builder statement as `encodeFilter(<table>, where)`, which renders the same
+is, and a core-builder statement as `DbFilter.encode(<table>, where)`, which renders the same
 object as that statement's condition. There a filter that names nothing matches no row
 (`` sql`false` ``), so no write goes without its `WHERE`; the key each `where` type requires
 keeps a read from one.
@@ -220,7 +220,7 @@ A rule that two writers could break between a read and a write is held by the da
 statement that writes. The caller checks the rule first, so a write the guard refuses only lost
 a race: every repository's `insert`, `update` and `delete` dies when Postgres refuses it or it
 touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the write's `RETURNING`,
-whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
+whose `NoSuchElementError` the method's `DbQuery.orDie` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
   active Run in a chat fails on the index and dies. `askChat` reads the chat with its
@@ -254,7 +254,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   refusal, then writes only the changed fields under the same `where`, so a row another writer
   changed in between is missed and the write dies. A repository's `update(set, where)` takes a
   set that is `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck, and a
-  `where` of a key and any field the row must still hold, rendered by `encodeFilter`
+  `where` of a key and any field the row must still hold, rendered by `DbFilter.encode`
   (above). The worked case is a chat's rename: the title renames `where` `title` is still
   `none`, so a rename landing between its read and its write wins, and the title's handling dies
   and fails.
@@ -273,7 +273,7 @@ writes yields `Transaction` and pipes its `run` on them (`yield* writes.pipe(tra
 from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e, so it runs on the
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
-([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
+([its e2e](../../packages/db/__e2e__/db-transaction.e2e.ts)). A service whose writes commit together
 passes `transaction.run` as the last argument of the function that holds them, or pipes it on them
 inside a longer flow: `IdentityService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
@@ -324,7 +324,7 @@ A job or an event is a queue message, and no table holds it: the record of its w
 chat's title) is the one the worker reads
 ([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
-- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through
+- **`QueueSender.send(definition, message)`** (`packages/aws/queue`) encodes the queue message through
   the definition's schema to a JSON string and sends it to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`,
   or the use case over it, sends its events after the commit of what they read, so a delivery

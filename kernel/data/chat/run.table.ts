@@ -13,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
-import { createdAt, id, updatedAt } from '@app-template/packages/db'
+import { DbColumn } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 import { messages } from '#kernel/data/chat/message.table'
@@ -44,7 +44,7 @@ export const runStatus = pgEnum('run_status', runStatuses)
 export const runs = snakeCase.table(
   'runs',
   {
-    id: id(),
+    id: DbColumn.id(),
     chatId: uuid().notNull(),
     /** The owner of the Run's chat, held by `runs_chat_id_user_id_fk`. */
     userId: uuid().notNull(),
@@ -54,8 +54,8 @@ export const runs = snakeCase.table(
     /** The assistant's message the Run wrote, once it is done. */
     assistantMessageId: uuid().references(() => messages.id, { onDelete: 'cascade' }),
     usage: jsonb().$type<RunUsage>(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: DbColumn.createdAt(),
+    updatedAt: DbColumn.updatedAt(),
   },
   (table) => [
     check('runs_failure_check', sql`(${table.status} = 'failed') = (${table.failure} is not null)`),

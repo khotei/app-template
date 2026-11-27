@@ -11,8 +11,8 @@ import {
   RunRepository,
   UserRepository,
 } from '@app-template/kernel/data'
+import { recordMessages } from '@app-template/packages/aws/queue/testing'
 import { TransactionTest } from '@app-template/packages/db/testing'
-import { recordMessages } from '@app-template/packages/queue/testing'
 import { epoch } from '@app-template/packages/testing'
 
 import { ApiHttp } from '#api/layer'

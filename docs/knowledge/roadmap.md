@@ -317,7 +317,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-27) A store unavailable under a reply's handling leaves its Run active for good, its
   chat refusing every ask: the handler can neither run nor write the Run's failure
   (`failUnanswered` in `application/chat/services/reply-chat.service.ts`), and the worker
-  acknowledges a record whose handler died (`consumeQueue`, `packages/queue/queue.consumer.ts`).
+  acknowledges a record whose handler died (`consumeQueue`, `packages/aws/queue/queue.consumer.ts`).
   Left on the owner's word. Ways out to weigh: a retry of the failure's write inside the process,
   the owner's; a sweep of active Runs ([database.md › Stuck Runs](database.md#stuck-runs)).
 - (2026-11-27) A chat's newness is judged on a read before the write (`ChatState.isNew` in
@@ -335,7 +335,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-27) A dead-letter queue now fills only from a record whose process died three times
   under it (`kernel/aws/resources/resources.ts`), and nothing reads one: weigh dropping the
   queues against a consumer of them.
-- (2026-11-27) `consumeQueue` (`packages/queue/queue.consumer.ts`): no test that an interrupt of
+- (2026-11-27) `consumeQueue` (`packages/aws/queue/queue.consumer.ts`): no test that an interrupt of
   the worker ends the handling with no response, which a probe showed; the `process <queue>`
   span ends successful when a handler died, its own span alone failing; a handler that interrupts
   itself is acknowledged.
@@ -540,7 +540,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-25) The Biome override of a module's `services/` (`.misc/lint/biome.base.json`) still
   admits all of `@app-template/packages/schema`, "for the codecs" as its message says, while
   [models.md](../../.claude/rules/models.md) has a service code its rows through `RowCodec` alone.
-  A service that calls `decodeWith` again passes `make lint`; none does today. Left on the
+  A service that calls `SchemaCodec.decode` again passes `make lint`; none does today. Left on the
   owner's word: no guard before the harm is seen. The package cannot leave that override's
   exceptions, as every service imports `RowCodec` from it. Ways out to weigh: admit of the
   package only the name `RowCodec`, with an `importNamePattern` as the override admits only
@@ -661,7 +661,7 @@ For `aws-deployment` (9), and the decision
 [Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
-  the jobs in a Postgres table and replaces our queue: `packages/queue` (`consumeQueue`,
+  the jobs in a Postgres table and replaces our queue: `packages/aws/queue` (`consumeQueue`,
   `QueueSender` over SQS), the jobs' sends beside the queues' definitions, and the SQS
   queues, their dead letters and the worker's event source mapping in `deployment/`.
 - **What Postgres would bring.**
@@ -808,7 +808,7 @@ stays the idea here.
 - **What the trial found.** A table's row is declared three times: the Drizzle table
   (`kernel/data/chat/run.table.ts`), the entity beside it (`run.entity.ts`: the nested read, the
   `where` types, the columns an update may write) and the domain model
-  (`application/chat/domain/run.model.ts`), with `encodeWith` and `decodeWith` between
+  (`application/chat/domain/run.model.ts`), with `SchemaCodec.encode` and `.decode` between
   them in every service. Most of what a version on Effect alone removed sat on those seams, not
   in Drizzle's queries.
 - **The two versions to build and compare,** each on Message and Run first, each proved by the

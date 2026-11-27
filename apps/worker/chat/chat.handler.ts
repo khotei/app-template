@@ -8,7 +8,7 @@ import {
   UserMessageCreated,
 } from '@app-template/application/chat'
 import type { QueueName } from '@app-template/kernel/aws'
-import { consumeQueue, type SqsEvent } from '@app-template/packages/queue'
+import { consumeQueue, type SqsEvent } from '@app-template/packages/aws/queue'
 
 const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply failed', cause)
 

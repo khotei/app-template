@@ -9,8 +9,8 @@ import type {
   RunEntitySet,
   RunEntityWhere,
 } from '@app-template/kernel/data'
-import { recordMessages } from '@app-template/packages/queue/testing'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
+import { recordMessages } from '@app-template/packages/aws/queue/testing'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
@@ -82,7 +82,7 @@ function recordUpdates(queue: Required<ChatLeaves>['queue'], mocks: ChatReposito
 
 /** The chat read of `read`, whatever the where. */
 const reading = (read: Chat): ChatRepositoryMocks => ({
-  chats: { selectOne: () => encodeWith(Chat)(read).pipe(Effect.map(Option.some)) },
+  chats: { selectOne: () => SchemaCodec.encode(Chat)(read).pipe(Effect.map(Option.some)) },
 })
 
 const withNewest = (newest: Run) => new Chat({ ...chat, run: Option.some(newest) })
@@ -134,7 +134,9 @@ describe('AskChatService', () => {
       return Effect.gen(function* () {
         const asked = yield* ask('Plan a weekend in Lisbon')
 
-        const userMessage = yield* decodeWith(Message.insert)(Arr.getUnsafe(inserts.messages, 0))
+        const userMessage = yield* SchemaCodec.decode(Message.insert)(
+          Arr.getUnsafe(inserts.messages, 0),
+        )
         const run = Option.getOrThrow(asked.run)
         const sentAt = userMessage.createdAt
         assert.isTrue(DateTime.isGreaterThan(sentAt, epoch))
@@ -155,7 +157,7 @@ describe('AskChatService', () => {
           }),
         )
         assert.deepStrictEqual(inserts.messages, [
-          yield* encodeWith(Message.insert)({
+          yield* SchemaCodec.encode(Message.insert)({
             author: 'user',
             id: userMessage.id,
             chatId: chat.id,
@@ -164,7 +166,7 @@ describe('AskChatService', () => {
             createdAt: sentAt,
           }),
         ])
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(run)])
+        assert.deepStrictEqual(inserts.runs, [yield* SchemaCodec.encode(Run)(run)])
         assertEquals(yield* events.sent, [
           { queue: 'user-message-created', message: new UserMessageCreated(idsOf(run)) },
         ])
@@ -360,7 +362,7 @@ describe('AskChatService', () => {
             updatedAt: retried.createdAt,
           }),
         )
-        assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(retried)])
+        assert.deepStrictEqual(inserts.runs, [yield* SchemaCodec.encode(Run)(retried)])
         assert.deepStrictEqual(inserts.messages, [])
         assertEquals(yield* events.sent, [
           { queue: 'message-retried', message: new MessageRetried(idsOf(retried)) },
@@ -451,7 +453,7 @@ describe('AskChatService', () => {
               chats: {
                 selectOne: () =>
                   held.hold.pipe(
-                    Effect.andThen(encodeWith(Chat)(withNewest(failedRun))),
+                    Effect.andThen(SchemaCodec.encode(Chat)(withNewest(failedRun))),
                     Effect.map(Option.some),
                   ),
               },

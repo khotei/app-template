@@ -2,8 +2,8 @@ import { assert, describe, it } from '@effect/vitest'
 import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer } from 'effect'
 
-import { QueueError, QueueSender } from '@app-template/packages/queue'
-import { recordMessages } from '@app-template/packages/queue/testing'
+import { QueueError, QueueSender } from '@app-template/packages/aws/queue'
+import { recordMessages } from '@app-template/packages/aws/queue/testing'
 import { recordLogs } from '@app-template/packages/testing'
 
 import {

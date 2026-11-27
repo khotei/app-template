@@ -7,7 +7,7 @@ import type {
   ChatEntitySet,
   MessageEntityWhere,
 } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 
 import { Chat } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
@@ -41,14 +41,14 @@ const storing = (asked: Chat, stored: ReadonlyArray<Message>) => {
     writes,
     mocks: {
       chats: {
-        selectOne: () => encodeWith(Chat)(asked).pipe(Effect.map(Option.some)),
+        selectOne: () => SchemaCodec.encode(Chat)(asked).pipe(Effect.map(Option.some)),
         update: (set: Partial<ChatEntitySet>) =>
           Effect.sync(() => {
             writes.push(set)
           }),
       },
       messages: {
-        selectMany: () => Effect.forEach(stored, (message) => encodeWith(Message)(message)),
+        selectMany: () => Effect.forEach(stored, (message) => SchemaCodec.encode(Message)(message)),
       },
     },
   }
@@ -91,13 +91,16 @@ describe('ContextChatService', () => {
             selectOne: (read) =>
               Effect.sync(() => {
                 chatWheres.push(read)
-              }).pipe(Effect.andThen(encodeWith(Chat)(asked)), Effect.map(Option.some)),
+              }).pipe(Effect.andThen(SchemaCodec.encode(Chat)(asked)), Effect.map(Option.some)),
           },
           messages: {
             selectMany: (read) =>
               Effect.sync(() => {
                 messageWheres.push(read)
-              }).pipe(Effect.andThen(encodeWith(Message)(firstMessage)), Effect.map(Array.of)),
+              }).pipe(
+                Effect.andThen(SchemaCodec.encode(Message)(firstMessage)),
+                Effect.map(Array.of),
+              ),
           },
         }),
       ),

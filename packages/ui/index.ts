@@ -1,3 +1,1 @@
-export const joinClassNames = (
-  ...names: ReadonlyArray<string | false | null | undefined>
-): string => names.filter(Boolean).join(' ')
+export { joinClassNames } from '#ui/ui-class-names'

@@ -11,7 +11,7 @@ import { TestClock } from 'effect/testing'
 
 import { recordLogs } from '@app-template/packages/testing'
 
-import { retryWhileUnreachable } from '#db/db-migrate'
+import { retryWhileUnreachable } from '#kernel/postgres/postgres-retry'
 
 const refusals = {
   'a closed TCP port': new ConnectionError({

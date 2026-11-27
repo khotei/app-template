@@ -3,7 +3,7 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { Array as Arr, Effect, Exit, Layer, Schema, UndefinedOr } from 'effect'
 
 import { awsConfig } from '@app-template/kernel/config'
-import { type QueueDefinition, QueueError, QueueSender } from '@app-template/packages/queue'
+import { type QueueDefinition, QueueError, QueueSender } from '@app-template/packages/aws/queue'
 
 import { QueueSenderOfStage } from '#kernel/aws/aws.client'
 import { resources } from '#kernel/aws/resources/resources'

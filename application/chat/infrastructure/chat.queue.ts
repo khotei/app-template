@@ -2,7 +2,11 @@ import { Cause, Context, Effect, Layer, Schema, Struct, type Types } from 'effec
 
 import { UserId } from '@app-template/application/user'
 import { resources } from '@app-template/kernel/aws'
-import { type QueueDefinition, type QueueError, QueueSender } from '@app-template/packages/queue'
+import {
+  type QueueDefinition,
+  type QueueError,
+  QueueSender,
+} from '@app-template/packages/aws/queue'
 
 import { ChatId } from '#chat/domain/chat.util'
 import type { Message } from '#chat/domain/message.model'

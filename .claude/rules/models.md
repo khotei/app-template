@@ -59,9 +59,9 @@ export class OrderMove {                                              // order-m
 ```
 - **A service codes its rows through `RowCodec` of `@app-template/packages/schema` alone,** its
   statics taking the model: `decodeOne`/`decodeMany` a read's rows, `makeInsert`/`makeUpdate` a
-  write, the variant's `makeEffect` and its encode in one call; never `encodeWith` or
-  `decodeWith` at the call, nor a codec static on the model. It hands `row` to the repository and
-  returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an id or a time made by hand
+  write, the variant's `makeEffect` and its encode in one call; never `SchemaCodec`'s `encode`
+  or `decode` at the call, nor a codec static on the model. It hands `row` to the repository
+  and returns `new <Model>(…)` over `set`; never `new <Model>(…)` with an id or a time made by hand
   (`DateTime.now`, a generator of its own). `makeUpdate` drops the keys the update variant renews
   (`updatedAt`), so the variant moves them to now whether the caller passes fields or a record as
   read ([decision](../../docs/knowledge/decisions.md#models-with-variants)).
