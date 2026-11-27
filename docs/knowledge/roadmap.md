@@ -344,6 +344,12 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-27) `.claude/rules/layering.md` › Handlers gives a handler's span as
   `'<Group>Handler.<endpoint|job>'`, which does not name a listener; `aws.md` › Queues does not
   point to the store-outage cost that Jobs as queue messages states.
+- (2026-11-27) A chat already titled still costs one assistant call when `ChatInitialized` is
+  delivered again or late: `TitleChatService.title` reads the message and asks
+  `assistant.proposeTitle` (`application/chat/services/title-chat.service.ts:34`) before the
+  update guarded by `title: Option.none()` refuses the titled chat, which the worker logs as
+  `title skipped: chat deleted or titled`. Left: found while grouping the data layer, out of its
+  scope. Way out to weigh: read the chat untitled before the assistant's call.
 
 ### From `lambda-processes`
 
