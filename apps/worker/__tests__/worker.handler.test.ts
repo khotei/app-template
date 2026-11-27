@@ -1,6 +1,6 @@
 import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
-import { ConfigProvider, Effect, Layer, Option } from 'effect'
+import { Array as Arr, ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
 import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
@@ -12,6 +12,7 @@ import {
   RunRepository,
 } from '@app-template/kernel/data'
 import { TransactionTest } from '@app-template/packages/db/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { WorkerHttp } from '#worker/layer'
 
@@ -25,7 +26,8 @@ const buildRecord = (queue: string, body: unknown) => ({
 describe('POST /events', () => {
   it.effect('runs a batch on the handler of the queue it came from', () => {
     const reads: Array<MessageEntityWhere> = []
-    // Only the title's first read returns: any other store call dies.
+    const { logs, layer: logger } = recordLogs()
+    // Only the title's first read returns: any other store call dies, which the consumer logs.
     const events = WorkerHttp.pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
       Layer.provide([
@@ -50,6 +52,7 @@ describe('POST /events', () => {
           }),
         ),
       ),
+      Layer.provide(logger),
     )
     return Effect.gen(function* () {
       const record = buildRecord('app-template-test-first-message-created', {
@@ -64,8 +67,8 @@ describe('POST /events', () => {
       )
 
       assert.strictEqual(response.status, 200)
-      assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
       assert.deepStrictEqual(reads, [{ id: firstMessage.id, chatId, userId: owner }])
+      assert.isFalse(Arr.some(logs, ([, message]) => message === 'queue message failed'))
     }).pipe(Effect.provide(events))
   })
 })

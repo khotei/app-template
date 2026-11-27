@@ -1426,9 +1426,11 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   following the tell style"), here the glossary's, so the job and the service method
   that runs it share a verb because both take the glossary's word, not because one copies the
   other; the class never rides on the wire (the body is its fields, the queue routes it), so its
-  name costs no deployed state. A defect is a bug that recurs on each delivery, so returning its
-  record would run every other handler of the queue again for nothing and dead-letter the record
-  after the same failure three times; a retry a handler's work needs runs inside the handler. A
+  name costs no deployed state. A handler's defect is a bug, which recurs on each delivery, or a
+  passing store error, as every repository dies on one (`orDieWithSqlError`); returning its record
+  would run every other handler of the queue again and dead-letter a bug's record after the same
+  failure three times, so it is acknowledged, and a retry a handler's work needs runs inside the
+  handler. A
   handler that ends alone lets two modules handle one message each its own way.
 - **Sources:** reply-run's review of what each reader of `jobs` used it for, in
   [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2); the design audit's
@@ -1437,7 +1439,9 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   call that a queue's message runs several handlers, a defect only logged, with no dead-letter
   for it, and any retry inside the process (2026-11-27); the owner's call that a new chat's first
   message goes out as the event `FirstMessageCreated`, of ids alone, which the title listens to,
-  and the reply stays a command (2026-11-27).
+  and the reply stays a command (2026-11-27); the owner's call that a record whose handler died
+  stays acknowledged: "let's leave it for later. Maybe for this we could retry in effect style
+  without sqs retry." (2026-11-27).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
@@ -1464,8 +1468,9 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   sender settles a refused send by failing the Run, so it is a job; and a retry is not that fact.
   The title listening to every user message's event: the new chat's rule would move to the worker or
   ride as a flag. The title's job `TitleChat`: the sender would name the work its fact starts. A
-  record whose handler died returned in `batchItemFailures`: SQS's retry of a bug, which runs every
-  handler of the queue again and fills the dead-letter queue with what no one reads.
+  record whose handler died returned in `batchItemFailures`: SQS's retry of every death, a bug's as
+  a passing store error's, which runs every handler of the queue again and fills the dead-letter
+  queue with what no one reads; the owner left a retry inside the process for later.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its chat
   busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a client
   reads the failure from the Run's status, not the response's. A domain service now reaches its
@@ -1476,7 +1481,10 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   it. A queue's name changes only as a new queue, as SQS renames none: each stack's next `make up`
   replaces it, and what the old one held is lost. A handler's defect leaves its work as the
   handler's tail left it, seen only in the log, and no redrive brings its record back; the
-  dead-letter queue fills only from a process that died under a record.
+  dead-letter queue fills only from a process that died under a record. Every repository dies on a
+  store error, so while the store is unavailable a reply's handler can neither run nor write the
+  Run's failure: its record is acknowledged and the Run stays active, its chat refusing every ask,
+  until the Run is repaired by hand.
 - **Guarded by:** the `QueueSender` e2e; `consumeQueue`'s unit tests; the unit tests of the
   sends, of `AskChatService` and of the create flow; the ask service's Biome override, which
   admits of its infrastructure only
@@ -1484,7 +1492,9 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   `infrastructure/` and `use-cases` rows of [architecture.md › Dependency
   rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
-- **Revisit when:** the logs show replies stuck by a process that died before its send.
+- **Revisit when:** the logs show replies stuck by a process that died before its send, or by a
+  store error under a reply's handling; the open way out of the second is a retry of the failure's
+  write inside the process.
 
 ### The chat's jobs in their services
 

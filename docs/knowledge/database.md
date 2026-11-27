@@ -309,12 +309,12 @@ stateDiagram-v2
 A Run that no worker settles stays active and its chat `queued`, so every next ask of the chat
 fails `ChatBusyError`. A worker that dies (a killed process, the function's timeout) is settled
 by the next delivery, up to the queue's visibility timeout later, which finds the Run started,
-and fails it; a store failing
-the `failed` write, a process that dies between the commit and the send, a handler that dies
-before it starts the Run, as the worker acknowledges its job, or a job whose every delivery kills
-its process, leaves it so, and nothing consumes
-the dead-letter queue ([aws.md › Queues](aws.md#queues)). No sweep over active Runs exists: by
-age alone it could not tell a dead Run from one waiting in a backlog.
+and fails it. A store unavailable under a handling leaves it so: every repository dies on a store
+error, so the handler can neither start the Run nor write its `failed`, and the worker
+acknowledges its record. So do a process that dies between the commit and the send and a job
+whose every delivery kills its process, and nothing consumes the dead-letter queue
+([aws.md › Queues](aws.md#queues)). Such a Run stays active until it is repaired by hand. No sweep
+over active Runs exists: by age alone it could not tell a dead Run from one waiting in a backlog.
 
 ## The sends
 
