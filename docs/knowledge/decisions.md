@@ -1014,8 +1014,8 @@ out, and `proposeTitle`, the chat's title from its opening text. Its `make` buil
 output with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` (the reply's and the summary's)
 or `LLM_TITLE_MODEL`, each with its request settings; every method pipes `LlmCall.ask` and fails
 with its `LlmError`. The prompts are the statics of a class of their own, `ChatAssistantPrompt`,
-as a service's `make` cannot read a static of its own class. The domain keeps only what the
-assistant takes (`Message`); what a method returns is declared beside it (`AssistantReply`, the
+as a service's `make` cannot read a static of its own class: the class sits in its own base
+expression, which `tsc` refuses (TS2506). The domain keeps only what the assistant takes (`Message`); what a method returns is declared beside it (`AssistantReply`, the
 title's schema),
 and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in front of the
