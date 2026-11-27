@@ -23,14 +23,17 @@ before using it, and read this page again after an upgrade.
 ```mermaid
 graph LR
   M["ChatAssistant.reply<br/>generateText"] --> R["LlmCall.ask<br/>retries · finish reason · errors"]
+  S["ChatAssistant.summarise<br/>generateText"] --> R
   T["ChatAssistant.proposeTitle<br/>generateObject"] --> R
   R --> A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
 
-1. Each language model sends its fixed prompt as the request's `system`, set in its `config`: the
-   system prompt for a reply, the title instruction for a title. A prompt that asks the language
-   model to show its reasoning invites a refusal.
+1. Each language model sends its fixed prompt, a static of `ChatAssistantPrompt`, as the
+   request's `system`, set in its `config`: for a reply, the assistant's role and how it answers;
+   for a summary, what to keep of the conversation and under which headings
+   ([below](#the-context-and-its-cut)); for a title, its length and language. A prompt that asks
+   the language model to show its reasoning invites a refusal.
 2. `ChatAssistant.reply` calls `generateText` on the reply's language model with the chat's
    context ([below](#the-context-and-its-cut)): each message, the user's and the assistant's, as
    its text. A failed Run leaves no reply, so two
