@@ -324,6 +324,13 @@ moves it into its own `Later` and deletes it here.
   precedes a first one's whole reply sends a second `ChatInitialized`, of the second message,
   which titles the chat if the first title is not written yet. Left: the window is a whole reply
   wide on one side and a read wide on the other. Way out: judge newness inside the transaction.
+- (2026-11-27) A new chat's `ChatInitialized` is lost for good when `AskChatService.ask` dies
+  after its commit: SQS refuses `UserMessageCreated` to the client but took it, and the worker
+  started the Run, so the refusal's guarded `failed` write dies; or a store error on that write.
+  `askChat` (`application/use-cases/chat/ask-chat.use-case.ts`) then dies before the chat's send,
+  the reply is stored, and the chat is never titled, as every later ask reads a Run. Before
+  `askChat`, the title's event went before the reply's. Ways out to weigh: send `ChatInitialized`
+  before the ask's send, or on the ask's death too.
 - (2026-11-27) A dead-letter queue now fills only from a record whose process died three times
   under it (`kernel/aws/resources/resources.ts`), and nothing reads one: weigh dropping the
   queues against a consumer of them.

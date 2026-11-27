@@ -326,16 +326,16 @@ chat's title) is the one the worker reads
 
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through
   the definition's schema to a JSON string and sends it to the definition's queue;
-  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`
-  sends its jobs and events after its transaction commits, so a delivery always finds the record it
-  names. A transaction that fails keeps no row and responds with `500`.
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`,
+  or the use case over it, sends its events after the commit of what they read, so a delivery
+  always finds the record it names. A transaction that fails keeps no row and responds with `500`.
 - **A send SQS refuses** is logged with its event's ids: its chat's, its user's and its message's.
   For the reply's two, `UserMessageCreated` and `MessageRetried`, `AskChatService` also fails the
-  Run it sent through `RunService.update` and the Run's `fail`, by
-  its id, with the queue's error's full text as its failure, and the request responds with `202` and
-  that failed Run; the message is stored and shown failed with its retry,
-  `POST /chats/:chatId/runs`. `ChatInitialized`'s send only logs it. A send that never happens
-  after the commit: [Stuck Runs](#stuck-runs).
+  Run it sent through `RunService.update` and the Run's `fail`, by its id, with the queue's error's
+  full text as its failure, and the request responds with `202` and that failed Run, a retry's
+  alone, an ask's inside its message; the message is stored and shown failed with its retry, `POST
+  /chats/:chatId/runs`. `ChatInitialized`'s send only logs it. A send that never happens after the
+  commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 

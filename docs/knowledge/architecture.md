@@ -92,7 +92,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
   `#<module>/infrastructure/*` but, in the chat's ask service, its `<model>.queue` file, whose
-  jobs and events the services' tests read too, and, in its reply and title services, each its assistant's
+  events the services' tests read too, and, in its reply and title services, each its assistant's
   `.llm` file, and
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
   through a port its `domain/` declares, the sends of that queue file's `<Model>Queue`, or, in the worker's
@@ -214,7 +214,10 @@ modules it touches: an order over modules, holding the transaction their writes 
 the modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
 module's models and services, and an order over one module's services, with their transaction and
 their sends, is that module's `<Verb><Model>Service` ([composition.md › Where a change
-goes](../../.claude/rules/composition.md#where-a-change-goes)). When a flow becomes one and how it
+goes](../../.claude/rules/composition.md#where-a-change-goes)), save the owner's `askChat`, which
+adds an entry's own steps to one service's call: the read of the chat `AskChatService.ask` takes,
+and the event a new chat raises ([Use cases above the
+modules](decisions.md#use-cases-above-the-modules)). When a flow becomes one and how it
 orders its writes: [.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
 modules has the same shape as one that does not:
 

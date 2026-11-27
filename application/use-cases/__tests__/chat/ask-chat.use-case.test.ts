@@ -82,7 +82,7 @@ describe('askChat', () => {
   })
 
   it.effect(
-    "a new chat's ask whose sends SQS refuses goes on to its chat's event, and returns the message with its failed Run",
+    "a new chat's ask whose user message's send SQS refuses still tries its chat's event, and returns the message",
     () => {
       let tried = 0
       const refusing = layerRefusingQueueTest(
@@ -93,10 +93,7 @@ describe('askChat', () => {
       return Effect.gen(function* () {
         const asked = yield* askChat(inChat, 'Plan a weekend in Lisbon')
 
-        assert.deepStrictEqual(
-          [tried, Option.map(asked.run, ({ status }) => status)],
-          [2, Option.some('failed')],
-        )
+        assert.deepStrictEqual([tried, asked.text], [2, 'Plan a weekend in Lisbon'])
       }).pipe(
         Effect.provide(
           layerChatTest(

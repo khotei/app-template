@@ -13,12 +13,12 @@ const { userMessageCreated, chatInitialized, messageRetried } = resources.queues
 /** The user's message an event names, by its id, chat and user. */
 type EventMessage = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
 
-/** Ids alone, never the message's text: no listener reads it from the event. */
-const messageFields = { chatId: ChatId, userId: UserId, messageId: MessageId }
+/** The three events' fields: ids alone, never the message's text, which no listener reads. */
+const eventFields = { chatId: ChatId, userId: UserId, messageId: MessageId }
 
 /** The user's message `messageId` was stored in the chat `chatId`, of the user `userId`. */
 export class UserMessageCreated extends Schema.Class<UserMessageCreated>('UserMessageCreated')(
-  messageFields,
+  eventFields,
 ) {
   static readonly queue = {
     name: userMessageCreated.name,
@@ -27,9 +27,7 @@ export class UserMessageCreated extends Schema.Class<UserMessageCreated>('UserMe
 }
 
 /** The chat `chatId`, of the user `userId`, got its first user message, `messageId`. */
-export class ChatInitialized extends Schema.Class<ChatInitialized>('ChatInitialized')(
-  messageFields,
-) {
+export class ChatInitialized extends Schema.Class<ChatInitialized>('ChatInitialized')(eventFields) {
   static readonly queue = {
     name: chatInitialized.name,
     schema: this,
@@ -37,15 +35,15 @@ export class ChatInitialized extends Schema.Class<ChatInitialized>('ChatInitiali
 }
 
 /** The user retried the reply to their message `messageId`, in the chat `chatId`, of `userId`. */
-export class MessageRetried extends Schema.Class<MessageRetried>('MessageRetried')(messageFields) {
+export class MessageRetried extends Schema.Class<MessageRetried>('MessageRetried')(eventFields) {
   static readonly queue = {
     name: messageRetried.name,
     schema: this,
   } satisfies QueueDefinition<typeof MessageRetried>
 }
 
-/** An event's fields, which its send's logs carry too. */
-const eventOf = (message: EventMessage) => ({
+/** An event's fields for the message, which its send's logs carry too. */
+const buildEventFields = (message: EventMessage) => ({
   ...Struct.pick(message, ['chatId', 'userId']),
   messageId: message.id,
 })
@@ -76,25 +74,25 @@ export class ChatQueue extends Context.Service<
 
     const sendUserMessageCreated = Effect.fn('ChatQueue.sendUserMessageCreated')(
       (message: EventMessage) =>
-        queue.send(UserMessageCreated.queue, new UserMessageCreated(eventOf(message))),
+        queue.send(UserMessageCreated.queue, new UserMessageCreated(buildEventFields(message))),
       Effect.tapError((error) =>
         Effect.logError("user message's event not queued", Cause.fail(error)),
       ),
-      (sent, message) => Effect.annotateLogs(sent, eventOf(message)),
+      (sent, message) => Effect.annotateLogs(sent, buildEventFields(message)),
     )
 
     const sendMessageRetried = Effect.fn('ChatQueue.sendMessageRetried')(
       (message: EventMessage) =>
-        queue.send(MessageRetried.queue, new MessageRetried(eventOf(message))),
+        queue.send(MessageRetried.queue, new MessageRetried(buildEventFields(message))),
       Effect.tapError((error) => Effect.logError("retry's event not queued", Cause.fail(error))),
-      (sent, message) => Effect.annotateLogs(sent, eventOf(message)),
+      (sent, message) => Effect.annotateLogs(sent, buildEventFields(message)),
     )
 
     const sendChatInitialized = Effect.fn('ChatQueue.sendChatInitialized')(
       (message: EventMessage) =>
-        queue.send(ChatInitialized.queue, new ChatInitialized(eventOf(message))),
+        queue.send(ChatInitialized.queue, new ChatInitialized(buildEventFields(message))),
       Effect.ignore({ log: 'Error', message: "chat's initialization event not queued" }),
-      (sent, message) => Effect.annotateLogs(sent, eventOf(message)),
+      (sent, message) => Effect.annotateLogs(sent, buildEventFields(message)),
     )
 
     return { sendUserMessageCreated, sendMessageRetried, sendChatInitialized }

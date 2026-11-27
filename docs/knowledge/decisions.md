@@ -273,7 +273,7 @@ the data layer's repository directly.
   services' admitting of `@app-template/packages/db` only `Transaction`, and neither
   `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of their
   infrastructure, and their tests' admitting test support and the queue file
-  (`#*/infrastructure/*.queue`), whose jobs the ask service's tests read; the
+  (`#*/infrastructure/*.queue`), whose events the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
   file alone, the chat's reply service (`reply-chat.service.ts`) and its context service
   (`context-chat.service.ts`) theirs, which adds the message's assistant's `.llm` file alone,
@@ -561,13 +561,14 @@ with the record, checking the rule a delete needs and passing its guard into the
 service sees only the services of its own model below it and reaches the records only through the
 plain one; another model's service stays a use case's, save in the last grouping of a module's
 logic before a handler or use case, a `<Verb><Model>Service` named for its verb, its main method
-that verb, which they share: the chat's services of its jobs
+that verb, which they share: the chat's services of its events
 ([The chat's jobs in their services](#the-chats-jobs-in-their-services)). `AskChatService`, the
-api's, reads the chat a request names, scoped to the user, checks the request to it (an ask of a
-busy chat; a retry of a newest Run that is not failed, one in work included), stores what the jobs
-read, the user's message with its queued Run in one transaction, or a retry's new Run of the failed
-Run's message, and sends the jobs after the commit; the worker's, one per job, `ReplyChatService`
-and `TitleChatService`, write other models' records of its module.
+api's, checks a request to the user's chat, which `askChat` reads for an ask and `retry` reads
+itself (an ask of a busy chat; a retry of a newest Run that is not failed, one in work included),
+stores what the events read, the user's message with its queued Run in one transaction, or a
+retry's new Run of the failed Run's message, and sends the reply's events after the commit; the
+worker's, one per event's work, `ReplyChatService` and `TitleChatService`, write other models'
+records of its module.
 
 ```ts
 // the bytes' service reads through the plain one, checks the model's guard, passes it on, then
@@ -1675,7 +1676,10 @@ fails no later Run ([A Run's guarded moves](#a-runs-guarded-moves)).
   read and check and on to its sends, bounded by the SQS client's timeouts. A failed Run's event
   delivered again after a retry fails the retry's Run, and the user retries again. A model's error
   on a Run whose chat was deleted meanwhile ends the handling as a defect, not as a warning. An
-  interrupt waits for the start's read and write to end.
+  interrupt waits for the start's read and write to end. A new chat whose ask dies after its commit
+  (a refused send's Run that a worker settled meanwhile, as SQS took the event after all, or a store
+  error on the failure's write) never sends `ChatInitialized`, which `askChat` sends after the ask,
+  and stays untitled, as every later ask reads a Run ([roadmap.md › Later](roadmap.md#later)).
 - **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a retry
   interrupted while their Run is stored and a retry interrupted while its chat is read, and of
   `askChat`, a new chat's ask interrupted while its chat is read and while its Run is stored, and of
