@@ -1016,8 +1016,10 @@ client.
   service mapping `AiError` with its own `mapError`: the retry and finish-reason policy copied per
   service. A `packages/` workspace for the policy: a tool for every app for some 40 lines of this
   app's policy.
-- **Cost:** the use cases' guard admits `@app-template/kernel/llm/error`, for names matching
-  `Llm…Error` only, so a use case names a kernel error; the domain's admits none. A use case
+- **Cost:** the worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
+  nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard for a future
+  use case, covers no file today; it admits `@app-template/kernel/llm/error`, for names matching
+  `Llm…Error` only, so a use case may name a kernel error; the domain's admits none. A use case
   that names one imports a class whose file names the provider's package, so loading it loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
   adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the `application`

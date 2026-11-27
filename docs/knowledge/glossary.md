@@ -133,9 +133,10 @@ word has the senses its entry gives; the `_Avoid_` lists name the synonyms the s
 do not.
 
 **Part**:
-A folder other code reaches only through its entry: a module, the use cases, a folder of the
-kernel (`kernel/<part>`) or a package. It reaches its own files through `#<part>/…`, the kernel's
-through `#kernel/<part>/…`, and its test support through `#testing/<part>/…`.
+A folder other code reaches only through its entry: a module, the use cases once one exists, a
+folder of the kernel (`kernel/<part>`) or a package. It reaches its own files through
+`#<part>/…`, the kernel's through `#kernel/<part>/…`, and its test support through
+`#testing/<part>/…`.
 _Avoid_: Unit (the code a change composes, below), slice, component
 
 **Entry**:
@@ -184,8 +185,9 @@ _Avoid_: Persistence layer, DAL, repository layer, shared domain
 
 **Application**:
 The ring of the behaviour, under `application/`: the modules and, above them, the use cases that
-compose them. It holds every business rule; the data layer stores what it decides, the boundary
-connects it to the world, and the apps run it. Not the whole template, which is *the template*.
+compose them, once one exists. It holds every business rule; the data layer stores what it
+decides, the boundary connects it to the world, and the apps run it. Not the whole template,
+which is *the template*.
 _Avoid_: Application layer, app (a process under `apps/`), business layer
 
 **Module**:

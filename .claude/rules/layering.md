@@ -59,7 +59,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   over modules), never for a read of the user's record before one call or for a job's end alone.
 - An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
-- It holds only its flow: the order of the calls, the transaction, what it skips and logs. It
+- It holds only its flow over modules: the order of the calls and their transaction. It
   reads and writes through domain services, never a repository: a read, a write or a rule no
   service offers goes to the service or model it belongs to, and a step two use cases share lives
   once, as a service's method; a use case holds no rule of its own and never calls another
@@ -69,12 +69,12 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 ## Handlers
 
 - A handler decodes the input, calls one domain service method or one use case, before it at most
-  the read of the record it acts in for the user (`<Model>Service.getOne` with the owner), returns
-  the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with the domain's
-  errors as they are. It composes nothing else, holds no rule and imports no repository or data
-  layer, which only the process's `layer.ts` provides.
-- A job is handled once, unretried: its `<Verb><Model>Service` ends its work on any outcome but
-  success, an interrupt included, and work a dead handling left started; its handler ends the job
-  in one tail, what it skips and logs, where an api one fails ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
-- A handler is `Effect.fn('<Group>Handler.<endpoint|job>')`, an api one returning a constant a plain
-  function, no span; an effectful group or router builder `Effect.fnUntraced` ([why](effect-services.md#functions)).
+  the read of the record it acts in for the user (`<Model>Service.getOne` with the owner); an api
+  one returns the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with
+  the domain's errors as they are. It composes nothing else, holds no rule and imports no
+  repository or data layer, which only the process's `layer.ts` provides.
+- A job is handled once, unretried. The worker's `<Verb><Model>Service` ends its work on any
+  outcome but success, an interrupt included, and work a dead handling left started. The job's
+  handler ends the job in one tail: what it skips and logs ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+- A handler is `Effect.fn('<Group>Handler.<endpoint|job>')`; an api handler that returns a constant
+  is a plain function with no span; an effectful group or router builder is `Effect.fnUntraced` ([why](effect-services.md#functions)).

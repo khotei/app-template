@@ -337,7 +337,7 @@ def infrastructure():
     # row 2: make dev
     r2, h2 = 214, 96
     f.box(28, r2, 150, "bnd", "`apps/web` :3001", ["health panel", "proxies `/api/*`"], h=h2)
-    f.box(240, r2, 230, "bnd", "`apps/api` :3000", ["routes, use cases", "and the ask's sends"], h=h2)
+    f.box(240, r2, 230, "bnd", "`apps/api` :3000", ["routes, handlers", "and the ask's sends"], h=h2)
     f.box(600, r2, 230, "bnd", "`apps/worker` :3002", ["`POST /events`", "runs each job's handler"], h=h2)
     # arrows between rows 1 and 2
     f.arrow([(103, r1 + h1), (103, r2)])
