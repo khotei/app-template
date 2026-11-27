@@ -180,9 +180,9 @@ _Avoid_: Database (for the bucket), storage, persistence
 **Entity**:
 A record as the data layer reads and writes it, derived from its table in the data layer's own
 types (`ChatEntity`, with its `Where` and `Set`): the one shape every read of its store
-returns, nesting a neighbour's `<Name>Columns` one level deep. Where a read's shape differs, a
-static of a group in the entity file builds the entity from the read. Never a model; it is a
-model's encoded side, which the model decodes.
+returns, nesting a neighbour's `<Name>Columns` one level deep. Where a read's shape differs, the
+entity is built from the read in the entity file, or in its repository's file when that
+repository alone builds it. Never a model; it is a model's encoded side, which the model decodes.
 _Avoid_: Model, row type, record class, DTO
 
 **Data layer**:
