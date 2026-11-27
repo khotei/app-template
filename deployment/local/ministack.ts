@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 import * as docker from '@pulumi/docker'
 import { Option } from 'effect'
 
-import { buildResourceName } from '@app-template/kernel/aws'
+import { ResourceName } from '@app-template/kernel/aws'
 import { ministackImage } from '@app-template/kernel/config'
 
 import { settings } from '#deployment/local/settings'
@@ -29,7 +29,7 @@ const remoteImage = new docker.RemoteImage('ministack-image', {
 export const ministack = new docker.Container(
   'ministack',
   {
-    name: buildResourceName(stage, 'ministack'),
+    name: ResourceName.build(stage, 'ministack'),
     image: remoteImage.imageId,
     ports: [{ internal: internalPort, external: port }],
     envs: [

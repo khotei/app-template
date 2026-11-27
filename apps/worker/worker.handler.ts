@@ -1,7 +1,7 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-import { buildResourceName, type QueueName } from '@app-template/kernel/aws'
+import { type QueueName, ResourceName } from '@app-template/kernel/aws'
 import { awsConfig } from '@app-template/kernel/config'
 import { buildQueueName, SqsEvent } from '@app-template/packages/aws/queue'
 
@@ -21,7 +21,7 @@ const routes = { ...ChatHandler } satisfies Record<
 export const WorkerHandler = HttpRouter.use(
   Effect.fnUntraced(function* (router) {
     const { stage } = yield* awsConfig
-    const consumers = Record.mapKeys(routes, (name) => buildResourceName(stage, name))
+    const consumers = Record.mapKeys(routes, (name) => ResourceName.build(stage, name))
 
     yield* router.add(
       'POST',

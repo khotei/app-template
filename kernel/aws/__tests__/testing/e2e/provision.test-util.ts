@@ -3,9 +3,9 @@ import { S3Service } from '@effect-aws/client-s3'
 import { SQSService } from '@effect-aws/client-sqs'
 import { Effect, pipe, Record as Rec } from 'effect'
 
-import { buildDeadLetterName, type Resources } from '@app-template/packages/aws'
+import type { Resources } from '@app-template/packages/aws'
 
-import { buildResourceName } from '#kernel/aws/resources/resources-naming'
+import { ResourceName } from '#kernel/aws/resources/resources-naming'
 
 type BucketResource = Resources['buckets'][string]
 type QueueResource = Resources['queues'][string]
@@ -15,7 +15,7 @@ const provisionBucket = (stage: string) =>
   Effect.fnUntraced(function* (bucket: BucketResource) {
     const s3 = yield* S3Service
     return yield* s3
-      .createBucket({ Bucket: buildResourceName(stage, bucket.name) })
+      .createBucket({ Bucket: ResourceName.build(stage, bucket.name) })
       .pipe(Effect.catchTag('BucketAlreadyOwnedByYou', () => Effect.void))
   })
 
@@ -26,9 +26,9 @@ const buildRedrivePolicy = (deadLetterTargetArn: string, maxReceiveCount: number
 const provisionQueuePair = (stage: string) =>
   Effect.fnUntraced(function* (queue: QueueResource) {
     const sqs = yield* SQSService
-    const name = buildResourceName(stage, queue.name)
+    const name = ResourceName.build(stage, queue.name)
 
-    const deadLetter = yield* sqs.createQueue({ QueueName: buildDeadLetterName(name) })
+    const deadLetter = yield* sqs.createQueue({ QueueName: ResourceName.buildDeadLetter(name) })
     const { Attributes } = yield* sqs.getQueueAttributes({
       QueueUrl: deadLetter.QueueUrl,
       AttributeNames: ['QueueArn'],
@@ -65,7 +65,9 @@ const mapQueue = (stage: string, functionName: string) =>
     const sqs = yield* SQSService
     const lambda = yield* LambdaService
 
-    const { QueueUrl } = yield* sqs.getQueueUrl({ QueueName: buildResourceName(stage, queue.name) })
+    const { QueueUrl } = yield* sqs.getQueueUrl({
+      QueueName: ResourceName.build(stage, queue.name),
+    })
     const { Attributes } = yield* sqs.getQueueAttributes({ QueueUrl, AttributeNames: ['QueueArn'] })
     yield* lambda.createEventSourceMapping({
       EventSourceArn: yield* Effect.fromNullishOr(Attributes?.QueueArn),
@@ -84,7 +86,7 @@ export const provisionWorker = Effect.fn('provisionWorker')(function* (
   { stage, proxyUrl }: { readonly stage: string; readonly proxyUrl: string },
 ) {
   const lambda = yield* LambdaService
-  const functionName = buildResourceName(stage, worker.name)
+  const functionName = ResourceName.build(stage, worker.name)
 
   yield* lambda.createFunction({
     FunctionName: functionName,
@@ -99,7 +101,7 @@ export const provisionWorker = Effect.fn('provisionWorker')(function* (
   yield* pipe(queues, Rec.values, Effect.forEach(mapQueue(stage, functionName), { discard: true }))
 })
 
-/** The whole inventory named for `stage` by `buildResourceName`: the buckets and the queues. */
+/** The whole inventory named for `stage` by `ResourceName.build`: the buckets and the queues. */
 export const provision = Effect.fn('provision')(({ buckets, queues }: Resources, stage: string) =>
   Effect.all([provisionBuckets(buckets, stage), provisionQueues(queues, stage)], {
     discard: true,

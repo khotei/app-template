@@ -1,11 +1,11 @@
 # AWS
 
 How the app reaches S3 and SQS, locally and on AWS, and how the resources it needs are described,
-created and tested. The code: the kernel's `aws` part (the inventory, the naming rule, the apps'
-S3 and SQS clients and, in its e2e support, the provisioner), `packages/aws` (the inventory's
-types, the dead-letter naming rule and two sub-entries, `queue` and `s3`, the clients over SQS
-and S3) and `deployment/` (the Pulumi program of the local stand
-and the resource code it runs); the e2e support, [tooling.md › Tests](tooling.md#tests).
+created and tested. The code: the kernel's `aws` part (the inventory, the naming rule with the
+dead-letter suffix, the apps' S3 and SQS clients and, in its e2e support, the provisioner),
+`packages/aws` (the inventory's types and two sub-entries, `queue` and `s3`, the clients over SQS
+and S3) and `deployment/` (the Pulumi program of the local stand and the resource code it runs);
+the e2e support, [tooling.md › Tests](tooling.md#tests).
 
 ## The local stand-in
 
@@ -80,18 +80,18 @@ path-style addressing; without one, the SDK's own endpoints.
 
 `kernel/aws/resources/resources.ts` lists every bucket and queue, and the worker's function, as
 plain data, keyed by an identifier and carrying its logical `name`. Physical names are
-`buildResourceName(stage, name)`: `app-template-<stage>-<name>`, so `local`, every e2e test and
+`ResourceName.build(stage, name)`: `app-template-<stage>-<name>`, so `local`, every e2e test and
 every AWS stage hold their own set.
 
 | Resource | Carries | Provisioned as |
 |---|---|---|
 | a bucket | its `lifecycle` days | the bucket and its lifecycle rule, which aborts incomplete multipart uploads. |
-| a queue | `maxReceiveCount`, `visibilityTimeoutSeconds` | its dead-letter queue first, named by `buildDeadLetterName` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `infrastructure/` reads its `name` from here, so the two cannot disagree. |
+| a queue | `maxReceiveCount`, `visibilityTimeoutSeconds` | its dead-letter queue first, named by `ResourceName.buildDeadLetter` from the physical name (`app-template-<stage>-<name>-dlq`), then the queue with a `RedrivePolicy` to it. A queue definition in a module's `infrastructure/` reads its `name` from here, so the two cannot disagree. |
 
 `make up` creates the inventory through Pulumi, with the resource code of `deployment/aws/`; the
 e2e tests create each test's stage with `provision(resources, stage)` from the e2e support of
 `kernel/aws`, in milliseconds and without the Pulumi CLI: the provisioner names each resource by
-`buildResourceName`. It creates the buckets and the queues, without the lifecycle rules
+`ResourceName.build`. It creates the buckets and the queues, without the lifecycle rules
 (MiniStack never runs them), and is idempotent: `CreateBucket` on a bucket the account holds and
 `CreateQueue` on an identical queue both succeed. `CreateQueue` compares a repeated
 `RedrivePolicy` as a string, so its JSON is built with a fixed key order. A queue whose
@@ -142,7 +142,7 @@ gone.
 
 `QueueSender` and `consumeQueue` (`packages/aws/queue`) are the two sides of SQS: the first encodes
 a message by its definition's schema ([database.md › The sends](database.md#the-sends)), the second
-decodes each body by it. A definition's queue is `buildResourceName(STAGE, definition.name)`.
+decodes each body by it. A definition's queue is `ResourceName.build(STAGE, definition.name)`.
 
 - **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,
   with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch

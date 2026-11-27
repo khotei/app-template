@@ -980,10 +980,10 @@ no app.
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/),
   [styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/)).
 - **Rejected:** a package per kernel part: a manifest per part for one app's tools. The AWS
-  inventory, its naming rule and the provisioner in `packages/aws`: they are this app's, so they
-  sit in `kernel/aws`; `packages/aws` holds the inventory's types and the dead-letter naming
-  rule, imported by the kernel and by `deployment/aws/`, and the SQS and S3 clients as its
-  sub-entries `queue` and `s3`.
+  inventory, its naming rule with the dead-letter suffix, and the provisioner in `packages/aws`:
+  a name and its suffix are this app's (`kernel/CLAUDE.md`), so they sit in `kernel/aws`
+  (`ResourceName`), imported by the apps and by `deployment/`; `packages/aws` holds the
+  inventory's types and the SQS and S3 clients as its sub-entries `queue` and `s3`.
 - **Cost:** one manifest declares every client's dependency, so the linker no longer stops a
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take

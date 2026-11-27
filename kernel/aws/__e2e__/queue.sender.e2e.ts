@@ -7,7 +7,7 @@ import { type QueueDefinition, QueueError, QueueSender } from '@app-template/pac
 
 import { QueueSenderOfStage } from '#kernel/aws/aws.client'
 import { resources } from '#kernel/aws/resources/resources'
-import { buildResourceName } from '#kernel/aws/resources/resources-naming'
+import { ResourceName } from '#kernel/aws/resources/resources-naming'
 import { AwsTest } from '#testing/aws/e2e/aws.test-layer'
 
 const QueueSenderTest = QueueSenderOfStage.pipe(Layer.provideMerge(AwsTest))
@@ -36,7 +36,7 @@ const queueUrl = Effect.gen(function* () {
   const sqs = yield* SQSService
 
   return yield* sqs
-    .getQueueUrl({ QueueName: buildResourceName(stage, sampleQueue.name) })
+    .getQueueUrl({ QueueName: ResourceName.build(stage, sampleQueue.name) })
     .pipe(Effect.flatMap(({ QueueUrl }) => Effect.fromNullishOr(QueueUrl)))
 })
 
@@ -84,7 +84,7 @@ describe('QueueSender', { concurrent: false }, () => {
       yield* sqs.deleteQueue({ QueueUrl: url })
 
       const refused = yield* Effect.flip(send)
-      yield* sqs.createQueue({ QueueName: buildResourceName(stage, sampleQueue.name) })
+      yield* sqs.createQueue({ QueueName: ResourceName.build(stage, sampleQueue.name) })
       const resent = yield* Effect.exit(send)
 
       assert.instanceOf(refused, QueueError)

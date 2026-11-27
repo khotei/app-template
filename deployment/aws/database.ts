@@ -1,6 +1,6 @@
 import * as aws from '@pulumi/aws'
 
-import { buildResourceName } from '@app-template/kernel/aws'
+import { ResourceName } from '@app-template/kernel/aws'
 
 import { buildTags } from '#deployment/shared/tags'
 
@@ -15,7 +15,7 @@ export const createDatabase = (provider: aws.Provider, settings: DatabaseSetting
   new aws.rds.Instance(
     'database',
     {
-      identifier: buildResourceName(settings.stage, 'database'),
+      identifier: ResourceName.build(settings.stage, 'database'),
       engine: 'postgres',
       engineVersion: '18',
       instanceClass: 'db.t4g.micro',

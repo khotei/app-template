@@ -1,6 +1,6 @@
 import * as docker from '@pulumi/docker'
 
-import { buildResourceName } from '@app-template/kernel/aws'
+import { ResourceName } from '@app-template/kernel/aws'
 import { telemetryImage } from '@app-template/kernel/config'
 
 import { settings } from '#deployment/local/settings'
@@ -18,7 +18,7 @@ const remoteImage = new docker.RemoteImage('telemetry-image', {
 export const telemetry = new docker.Container(
   'telemetry',
   {
-    name: buildResourceName(settings.aws.stage, 'telemetry'),
+    name: ResourceName.build(settings.aws.stage, 'telemetry'),
     image: remoteImage.imageId,
     ports: [
       { internal: grafanaInternalPort, external: grafanaPort },
