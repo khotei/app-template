@@ -91,8 +91,8 @@ A new Run of the message a failed Run answered, which the user asks for (`POST
 /chats/:chatId/runs`, `AskChatService.retry`), its event `MessageRetried`; only a chat's newest
 Run, once failed, can be retried (`RunPolicy.ensureRetryable`, `RunNotRetryableError`). Not a
 call repeated after its failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which
-is written with the call it repeats (*the model call's retries*, `retryWhileUnreachable`) and
-never alone.
+is written with the call it repeats (*the model call's retries*,
+`PostgresConnection.retryWhileUnreachable`) and never alone.
 _Avoid_: Rerun, resend, regenerate
 
 **Reply**:

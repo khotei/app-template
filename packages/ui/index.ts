@@ -1,1 +1,1 @@
-export { joinClassNames } from '#ui/ui-class-names'
+export { ClassName } from '#ui/ui-class-name'

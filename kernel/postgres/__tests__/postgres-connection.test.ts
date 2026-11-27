@@ -11,7 +11,7 @@ import { TestClock } from 'effect/testing'
 
 import { recordLogs } from '@app-template/packages/testing'
 
-import { retryWhileUnreachable } from '#kernel/postgres/postgres-retry'
+import { PostgresConnection } from '#kernel/postgres/postgres-connection'
 
 const refusals = {
   'a closed TCP port': new ConnectionError({
@@ -36,13 +36,13 @@ function refuseConnections(reason: SqlErrorReason, times: number) {
 
 const retryingLine = ['Info', 'database not reachable yet, retrying']
 
-describe('retryWhileUnreachable', () => {
+describe('PostgresConnection.retryWhileUnreachable', () => {
   it.effect.each(Object.entries(refusals))('retries %s until the database responds', ([, reason]) =>
     Effect.gen(function* () {
       const { logs, layer: recordedLogs } = recordLogs()
       const { connect, attempts } = refuseConnections(reason, 3)
 
-      const fiber = yield* retryWhileUnreachable(connect).pipe(
+      const fiber = yield* PostgresConnection.retryWhileUnreachable(connect).pipe(
         Effect.provide(recordedLogs),
         Effect.forkChild,
       )
@@ -60,7 +60,7 @@ describe('retryWhileUnreachable', () => {
       const { logs, layer: recordedLogs } = recordLogs()
       const { connect, attempts } = refuseConnections(refusals['a closed TCP port'], Infinity)
 
-      const fiber = yield* retryWhileUnreachable(connect).pipe(
+      const fiber = yield* PostgresConnection.retryWhileUnreachable(connect).pipe(
         Effect.flip,
         Effect.provide(recordedLogs),
         Effect.forkChild,
@@ -84,7 +84,7 @@ describe('retryWhileUnreachable', () => {
         Infinity,
       )
 
-      const error = yield* retryWhileUnreachable(connect).pipe(Effect.flip)
+      const error = yield* PostgresConnection.retryWhileUnreachable(connect).pipe(Effect.flip)
 
       assert.strictEqual(error.reason._tag, 'AuthenticationError')
       assert.strictEqual(attempts(), 1)
