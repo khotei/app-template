@@ -2,7 +2,7 @@ import { Duration, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
 import { Api, IdentityMiddleware, RequestIdentity } from '@app-template/application/http-api'
-import { Identity, IdentityService } from '@app-template/application/identity'
+import { IdentityService } from '@app-template/application/identity'
 import { nodeEnv } from '@app-template/kernel/config'
 
 const cookieMaxAge = Duration.days(365)
@@ -17,7 +17,7 @@ export const IdentityHandler = HttpApiBuilder.group(
     return handlers.handleAll({
       recognise: Effect.fn('IdentityHandler.recognise')(function* () {
         const presented = yield* HttpApiBuilder.securityDecode(IdentityMiddleware.security.cookie)
-        const { user, secret } = yield* identityService.recognise(presented)
+        const { identity, secret } = yield* identityService.recognise(presented)
 
         yield* HttpApiBuilder.securitySetCookie(IdentityMiddleware.security.cookie, secret, {
           httpOnly: true,
@@ -25,7 +25,7 @@ export const IdentityHandler = HttpApiBuilder.group(
           maxAge: cookieMaxAge,
           secure: env === 'production',
         })
-        return new Identity({ userId: user.id })
+        return identity
       }),
       get: Effect.fn('IdentityHandler.get')(function* () {
         return yield* RequestIdentity

@@ -31,9 +31,9 @@ What a request's credential names: today a user's id (`Identity`, `{ userId }`, 
 identity module), later a token's claims; the api's `IdentityMiddleware` provides it to the
 handlers under the key `RequestIdentity` of the API contract; `POST /identity` responds with it,
 and `GET /identity` reads it. Not the `User`, the user's whole record, which extends it. The
-`identity` module recognises a user by their user secret: `IdentityService.recognise` returns the
-user a known secret names, or a new user with a new secret; `authenticate` fails
-`IdentityUnknownError` on a secret it does not know.
+`identity` module recognises a user by their user secret: `IdentityService.recognise` answers the
+identity of the user a known secret names, or of a new user with a new secret; `authenticate`
+answers the identity or fails `IdentityUnknownError` on a secret it does not know.
 _Avoid_: Current user, principal, login, session, auth (the api's middleware is
 `IdentityMiddleware`)
 
