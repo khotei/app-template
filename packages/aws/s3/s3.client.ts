@@ -32,8 +32,8 @@ export interface ObjectHead {
   readonly fileName: Option.Option<string>
 }
 
-/** An object's headers: what `put` writes of its options and what a read decodes of them. */
-class ObjectHeader {
+/** An object's metadata: what `put` writes of its options and what a read decodes of them. */
+class ObjectMetadata {
   static readonly buildInlineDisposition = (fileName: string) => {
     const encoded = encodeURIComponent(fileName).replace(
       /[!'()*]/g,
@@ -46,7 +46,7 @@ class ObjectHeader {
 
   static readonly buildInlineFileName = (disposition: string | undefined): Option.Option<string> =>
     Option.fromNullishOr(disposition).pipe(
-      Option.flatMap(Str.match(ObjectHeader.inlineFileName)),
+      Option.flatMap(Str.match(ObjectMetadata.inlineFileName)),
       Option.flatMap(Arr.get(1)),
       Option.map(decodeURIComponent),
     )
@@ -62,7 +62,7 @@ class ObjectHeader {
       Effect.map(
         (contentType): ObjectHead => ({
           contentType,
-          fileName: ObjectHeader.buildInlineFileName(ContentDisposition),
+          fileName: ObjectMetadata.buildInlineFileName(ContentDisposition),
         }),
       ),
     )
@@ -70,7 +70,7 @@ class ObjectHeader {
   static readonly build = ({ contentType, fileName }: PutOptions) => ({
     ContentType: contentType,
     ContentDisposition: Option.fromNullishOr(fileName).pipe(
-      Option.map(ObjectHeader.buildInlineDisposition),
+      Option.map(ObjectMetadata.buildInlineDisposition),
       Option.getOrUndefined,
     ),
   })
@@ -180,7 +180,7 @@ export class S3Bucket extends Context.Service<
 
     function createUpload(key: string, options: PutOptions) {
       const ref = buildObjectRef(key)
-      const headers = ObjectHeader.build(options)
+      const headers = ObjectMetadata.build(options)
 
       const openUpload = Effect.acquireRelease(
         s3
@@ -256,7 +256,7 @@ export class S3Bucket extends Context.Service<
     const download = Effect.fn('S3Bucket.download')(
       (key: string) => s3.getObject(buildObjectRef(key)),
       Effect.flatMap((object) =>
-        Effect.all({ head: ObjectHeader.decode(object), blob: readBody(object) }),
+        Effect.all({ head: ObjectMetadata.decode(object), blob: readBody(object) }),
       ),
       Effect.asSome,
       Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
@@ -265,7 +265,7 @@ export class S3Bucket extends Context.Service<
 
     const head = Effect.fn('S3Bucket.head')(
       (key: string) => s3.headObject(buildObjectRef(key)),
-      Effect.flatMap(ObjectHeader.decode),
+      Effect.flatMap(ObjectMetadata.decode),
       Effect.asSome,
       Effect.catchTag('NotFound', () => Effect.succeedNone),
       Effect.orDie,
