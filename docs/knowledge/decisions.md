@@ -677,7 +677,10 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
 functions of one meaning are statics of one class named for it the same way (`RowCodec`); the
 data layer's, each a group named for what it serves: an entity's statements (`<Name>Statement`),
 an object store's keys (`<Name>Object`), the orders every table shares and a service's `where`.
-A function alone in its meaning stays a function.
+Every exported function of a package or kernel part that is not a service is such a static, a
+group of one member included, so each call reads `<Group>.<verb>`; a private helper of one flow
+stays module-level beside it, test support stays functions, and a `Layer` constant keeps its
+`<Service><Variant>` name.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
@@ -693,7 +696,9 @@ A function alone in its meaning stays a function.
   buildStatus, RunMove -> move rules", named `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`,
   `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian);
   for the data layer and the packages (issues #79 and #80, 2026-11-27): "we should have group
-  logic into classes with static methods and fields. Group it by meaning".
+  logic into classes with static methods and fields. Group it by meaning"; and the owner's
+  decision on this change's review (2026-11-27): a lone function too becomes a static of a small
+  class, so every call that is no service's reads `<Group>.<verb>`.
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it. The rule's body moved into the class: it would
   apply to the class's instances alone, never to a variant or another shape. Members over the
