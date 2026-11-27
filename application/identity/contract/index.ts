@@ -1,2 +1,1 @@
-export { Identity } from '#identity/domain/identity'
-export { IdentityUnknownError } from '#identity/domain/identity.model'
+export { IdentityClaims, IdentityUnknownError } from '#identity/domain/identity.model'

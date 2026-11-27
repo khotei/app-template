@@ -15,7 +15,7 @@ import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
 import { askModel } from '@app-template/kernel/llm'
-import { LlmError } from '@app-template/kernel/llm/error'
+import { LlmError } from '@app-template/kernel/llm/model'
 
 import { type ContextMessage, Message } from '#chat/domain/message.model'
 import { RunUsage } from '#chat/domain/run.model'

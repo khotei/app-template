@@ -3,7 +3,7 @@ import { Context, Effect, Layer, Schema, SchemaTransformation } from 'effect'
 
 import { llmModels } from '@app-template/kernel/config'
 import { askModel } from '@app-template/kernel/llm'
-import type { LlmError } from '@app-template/kernel/llm/error'
+import type { LlmError } from '@app-template/kernel/llm/model'
 
 import { ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
 

@@ -41,9 +41,9 @@ export type RunNotFoundErrorEncoded = { readonly "_tag": "RunNotFoundError", rea
 
 export const RunNotFoundErrorEncoded = Schema.Struct({ "_tag": Schema.Literal("RunNotFoundError"), "where": Schema.Union([Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) }), Schema.Struct({ "userMessageId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) })]) }).annotate({ "identifier": "RunNotFoundErrorEncoded" })
 
-export type ApiUser = { readonly "id": string, readonly "createdAt": string }
+export type ApiIdentity = { readonly "userId": string }
 
-export const ApiUser = Schema.Struct({ "id": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })), "createdAt": Schema.String }).annotate({ "title": "User.json", "identifier": "ApiUser" })
+export const ApiIdentity = Schema.Struct({ "userId": Schema.String.annotate({ "format": "uuid" }).check(Schema.isPattern(new globalThis.RegExp("^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$", "u")).annotate({ "expected": "a string matching the RegExp ^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$" })) }).annotate({ "identifier": "ApiIdentity" })
 
 export type ChatsList200 = globalThis.ReadonlyArray<ApiChat>
 
@@ -249,13 +249,25 @@ export type HealthGet400 = RequestInvalidErrorEncoded
 
 export const HealthGet400 = RequestInvalidErrorEncoded
 
-export type UsersRecognise201 = ApiUser
+export type IdentityGet200 = ApiIdentity
 
-export const UsersRecognise201 = ApiUser
+export const IdentityGet200 = ApiIdentity
 
-export type UsersRecognise400 = RequestInvalidErrorEncoded
+export type IdentityGet400 = RequestInvalidErrorEncoded
 
-export const UsersRecognise400 = RequestInvalidErrorEncoded
+export const IdentityGet400 = RequestInvalidErrorEncoded
+
+export type IdentityGet401 = IdentityUnknownErrorEncoded
+
+export const IdentityGet401 = IdentityUnknownErrorEncoded
+
+export type IdentityRecognise201 = ApiIdentity
+
+export const IdentityRecognise201 = ApiIdentity
+
+export type IdentityRecognise400 = RequestInvalidErrorEncoded
+
+export const IdentityRecognise400 = RequestInvalidErrorEncoded
 
 export const CookieSecurity = HttpApiSecurity.apiKey({ key: "user_secret", in: "cookie" })
 
@@ -297,12 +309,15 @@ class HealthGroup extends HttpApiGroup.make("health")
   .add(HttpApiEndpoint.get("healthGet", "/health", { success: HealthGet200, error: HealthGet400.pipe(HttpApiSchema.status(400)) })
       .annotate(OpenApi.Identifier, "health.get")) {}
 
-class UsersGroup extends HttpApiGroup.make("users")
-  .add(HttpApiEndpoint.post("usersRecognise", "/users", { success: UsersRecognise201.pipe(HttpApiSchema.status(201)), error: UsersRecognise400.pipe(HttpApiSchema.status(400)) })
-      .annotate(OpenApi.Identifier, "users.recognise")) {}
+class IdentityGroup extends HttpApiGroup.make("identity")
+  .add(HttpApiEndpoint.get("identityGet", "/identity", { success: IdentityGet200, error: [IdentityGet400.pipe(HttpApiSchema.status(400)), IdentityGet401.pipe(HttpApiSchema.status(401))] })
+      .middleware(CookieSecurityMiddleware)
+      .annotate(OpenApi.Identifier, "identity.get"), 
+    HttpApiEndpoint.post("identityRecognise", "/identity", { success: IdentityRecognise201.pipe(HttpApiSchema.status(201)), error: IdentityRecognise400.pipe(HttpApiSchema.status(400)) })
+      .annotate(OpenApi.Identifier, "identity.recognise")) {}
 
 export class Api extends HttpApi.make("Api")
   .annotate(OpenApi.Title, "Api")
   .annotate(OpenApi.Version, "0.0.1")
-  .add(ChatsGroup, HealthGroup, UsersGroup) {}
+  .add(ChatsGroup, HealthGroup, IdentityGroup) {}
 

@@ -1,35 +1,20 @@
-import { Schema, Struct } from 'effect'
+import { Schema } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import {
-  Chat,
   ChatBusyError,
   ChatId,
   ChatNotFoundError,
-  ChatState,
   ChatTitle,
   Message,
   MessageId,
   MessageNotFoundError,
-  Run,
   RunId,
   RunNotFoundError,
   RunNotRetryableError,
 } from '@app-template/application/chat/contract'
 
-/** A chat with the state its newest Run gives it, in place of that Run. */
-export const ApiChat = Chat.json
-  .mapFields(Struct.assign({ state: ChatState.values }))
-  .annotate({ identifier: 'ApiChat' })
-export type ApiChat = typeof ApiChat.Type
-
-// The json variants leave a Run's `failure` off: the provider's or SQS's text, which can hold
-// request ids, key hints or the prompt, stays in the row.
-const ApiRun = Run.json.annotate({ identifier: 'ApiRun' })
-
-const ApiMessage = Message.json
-  .mapFields(Struct.assign({ run: Schema.OptionFromNullOr(ApiRun) }))
-  .annotate({ identifier: 'ApiMessage' })
+import { ApiChat, ApiMessage, ApiRun } from '#http-api/chat/api-chat.model'
 
 const chatPath = { chatId: ChatId }
 

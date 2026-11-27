@@ -87,7 +87,8 @@ left.
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The web's cookie is the user cookie the api's `Auth` reads to provide `Identity`.
+  The web's cookie is the user cookie the api's `IdentityMiddleware` reads to provide the request's
+  `IdentityClaims` under `Identity`.
 - **What the browser's bundle holds** is this ticket's to check, on the new bundler: `make check`
   reads no bundle, and only the `apps/web/**` override and the web's manifest hold the browser's
   imports (the owner's word, 2026-11-25:
@@ -483,7 +484,7 @@ moves it into its own `Later` and deletes it here.
   attachments, refused today, as a module's services import no other module.
 - (2026-11-21) The non-blank check of a message's text is a `Schema.makeFilter` on
   a message's `text`, which the OpenAPI document of `POST /chats/:chatId/messages`
-  (`application/http-api/chat.http.ts`) does not carry: its `text` has only the pattern and
+  (`application/http-api/chat/chat.http.ts`) does not carry: its `text` has only the pattern and
   `maxLength`, so the web's generated client accepts a blank text the api responds to with
   400 `RequestInvalidError`. Ways out to weigh: a check the JSON Schema expresses
   (a pattern with a non-whitespace character), or accept the round trip.
@@ -575,7 +576,7 @@ moves it into its own `Later` and deletes it here.
   lower-case alias or `this.use` passes. Left as no code does either. Way out: a pattern for
   each, once one appears.
 - (2026-11-26) `GET /chats` and `GET /chats/:chatId/messages` return the whole list
-  (`application/http-api/chat.http.ts`): no pagination. A matter of scale, left until the lists
+  (`application/http-api/chat/chat.http.ts`): no pagination. A matter of scale, left until the lists
   grow. Way out: cursor pagination with `web-app` (7).
 
 ### From `context-window`
@@ -587,7 +588,7 @@ moves it into its own `Later` and deletes it here.
   user is not told to open a new chat; a summary that fails discards a reply already generated,
   and a chat whose summary fails on every try stops answering at 0.8 of its limit. A message is
   at most 20 000 characters by the api's contract alone
-  (`application/http-api/chat.http.ts`). Way out: a failed Run's reason on the wire, and the
+  (`application/http-api/chat/chat.http.ts`). Way out: a failed Run's reason on the wire, and the
   chat's message for a context that can grow no more.
 - (2026-11-26) A reply and its summary that together outlast the worker's 600 s
   (`kernel/aws/resources/resources.ts`) are killed, no reply stored, and the redelivery fails
@@ -719,7 +720,7 @@ No ticket yet; `chat-core` decided that today's user later merges into an accoun
 
 - **Today.** `identity`'s `IdentityService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
-  through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
+  through `IdentityMiddleware`. A session is revoked by deleting its row. No JWT exists.
 - **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,
   `@stability unstable`, on Web Crypto through the new `effect/crypto`, no third-party
   dependency. `Jwt.sign` and `Jwt.verify` decode claims with a `Schema`; `Jwt.verifyWithKeySet`

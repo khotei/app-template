@@ -6,6 +6,19 @@ import { ApiClient } from '@app-template/api/testing'
 
 import { StandTest } from '#testing/stand.test-layer'
 
+describe('identity, through the api', () => {
+  it.live('get answers the identity recognise gave', () =>
+    Effect.gen(function* () {
+      const api = yield* ApiClient
+
+      const recognised = yield* api.identity.recognise()
+      const answered = yield* api.identity.get()
+
+      assert.strictEqual(answered.userId, recognised.userId)
+    }).pipe(Effect.provide(StandTest)),
+  )
+})
+
 // The case alters the schema to make Postgres refuse a write, so it takes a stand of its own.
 describe('a write Postgres refuses, through the api', () => {
   it.live('a recognise whose credential is refused stores no user', () =>
@@ -17,7 +30,7 @@ describe('a write Postgres refuses, through the api', () => {
         .unsafe(`ALTER TABLE credentials ADD CONSTRAINT refuse_credential CHECK (kind <> 'secret')`)
         .pipe(Effect.orDie)
 
-      const status = yield* api.users.recognise().pipe(
+      const status = yield* api.identity.recognise().pipe(
         Effect.as(201),
         Effect.catchTag('HttpClientError', (error) => Effect.succeed(error.response?.status)),
       )

@@ -12,21 +12,27 @@ import {
 import { Transaction } from '@app-template/packages/db'
 import { RowCodec } from '@app-template/packages/schema'
 
-import { IdentityUnknownError, secretBytes, type UserSecret } from '#identity/domain/identity.model'
-
-const encoder = new TextEncoder()
+import {
+  IdentityClaims,
+  IdentityUnknownError,
+  randomBytesPerSecret,
+  type UserSecret,
+} from '#identity/domain/identity.model'
+import { UserSecretBytes } from '#identity/domain/user-secret-bytes'
 
 export class IdentityService extends Context.Service<
   IdentityService,
   {
     /**
-     * Recognises the user a valid secret names; any other secret registers a new user with a new
-     * secret.
+     * The claims of the user a valid secret names, with that secret; any other secret registers a
+     * new user and answers its claims with a new secret.
      */
     readonly recognise: (
       secret: UserSecret,
-    ) => Effect.Effect<{ readonly user: User; readonly secret: UserSecret }>
-    readonly authenticate: (secret: UserSecret) => Effect.Effect<User, IdentityUnknownError>
+    ) => Effect.Effect<{ readonly claims: IdentityClaims; readonly secret: UserSecret }>
+    readonly authenticate: (
+      secret: UserSecret,
+    ) => Effect.Effect<IdentityClaims, IdentityUnknownError>
   }
 >()('@app-template/application/identity/services/IdentityService', {
   make: Effect.gen(function* () {
@@ -36,7 +42,7 @@ export class IdentityService extends Context.Service<
     const transaction = yield* Transaction
 
     const hashSecret = Effect.fnUntraced(function* (secret: UserSecret) {
-      const hash = yield* digest.digestHex(Digest.sha256, encoder.encode(Redacted.value(secret)))
+      const hash = yield* digest.digestHex(Digest.sha256, UserSecretBytes.build(secret))
       return { kind: 'secret', hash } as const
     })
 
@@ -45,6 +51,7 @@ export class IdentityService extends Context.Service<
       Effect.flatMap((credentials) => users.selectOne(encodeWhere({ credentials }))),
       Effect.flatMap(RowCodec.decodeOne(User)),
       Effect.flatMap(Effect.fromOption(() => new IdentityUnknownError())),
+      Effect.map((user) => new IdentityClaims({ userId: user.id })),
     )
 
     // The user and its credential commit together: a user is never stored without its secret.
@@ -57,19 +64,19 @@ export class IdentityService extends Context.Service<
     }, transaction.run)
 
     const register = Effect.fnUntraced(function* () {
-      const bytes = yield* random.randomBytes(secretBytes)
+      const bytes = yield* random.randomBytes(randomBytesPerSecret)
       const fresh = Redacted.make(Base64Url.encode(bytes))
 
       const { set, row } = yield* RowCodec.makeInsert(User)({})
       const credential = yield* hashSecret(fresh)
       yield* createUser(row, credential)
-      return { user: new User(set), secret: fresh }
+      return { claims: new IdentityClaims({ userId: set.id }), secret: fresh }
     })
 
     const recognise = Effect.fn('IdentityService.recognise')(
       function* (secret: UserSecret) {
-        const user = yield* authenticate(secret)
-        return { user, secret }
+        const claims = yield* authenticate(secret)
+        return { claims, secret }
       },
       Effect.catchTag('IdentityUnknownError', () => register()),
     )

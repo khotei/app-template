@@ -27,12 +27,18 @@ AWS's `secretAccessKey`), which keeps its tool's name.
 _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not the secret)
 
 **Identity**:
-What a request's credential names: today a user's id (`Identity`, `{ userId }`), later a token's
-claims; the api's `Auth` provides it to the handlers. Not the `User`, the user's whole record,
-which extends it. The `identity` module recognises a user by their user secret:
-`IdentityService.recognise` returns the user a known secret names, or a new user with a new
-secret; `authenticate` fails `IdentityUnknownError` on a secret it does not know.
-_Avoid_: Current user, principal, login, session, Auth (the api's middleware, `Auth`)
+Who a request's credential says its sender is, in two names. `IdentityClaims` is the value, a
+schema of the identity module (`{ userId }`): what the credential claims, today a user's id, later
+a token's claims; `IdentityService` answers it, `POST /identity` responds with it and
+`GET /identity` reads it. `Identity` is the API contract's key under which `IdentityMiddleware`
+provides the request's claims to the handlers (`yield* Identity`). Not the `User`, the user's whole
+record, which extends the claims. The `identity` module recognises a user by their user secret:
+`IdentityService.recognise` answers the claims of the user a known secret names, or of a new user
+with a new secret; `authenticate` answers the claims or fails `IdentityUnknownError` on a secret
+it does not know.
+_Avoid_: Current user, principal, login, session, auth (the api's middleware is
+`IdentityMiddleware`), `RequestIdentity` (reads as a request for an identity), payload (a record's
+stored bytes, or a request's body)
 
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
@@ -236,11 +242,13 @@ user. Each model of it has its own domain services: `<Model>Service` and those c
 _Avoid_: Entity group, root, aggregate root
 
 **Model**:
-The `Model.Class` of a domain concept as its module sees it, with its pure operations (`Chat`,
-`Message`). Its encoded side is the row of its one store (`null`, a `Date`); the rules read its
-type side only. Its variants are the shapes one field list gives each use: the class what a read
-decodes, `insert` and `update` what a write encodes, `json` what the api serves; a record read
-with it from another table is a field of the class alone (`Chat.run: Option<Run>`). Not
+The class of a domain concept as its module sees it, with its pure operations (`Chat`,
+`Message`): a stored record's is a `Model.Class`, one no store holds a `Schema.Class`
+(`IdentityClaims`). A stored model's encoded side is the row of its one store (`null`, a `Date`); the
+rules read its type side only. Its variants are the shapes one field list gives each use: the
+class what a read decodes, `insert` and `update` what a write encodes, `json` what the api
+serves; a record read with it from another table is a field of the class alone
+(`Chat.run: Option<Run>`). Not
 the language model, which keeps both words in prose and is `LanguageModel` or `llm…` in code
 (`LlmError`, `llmModels`).
 _Avoid_: Entity, DTO, row

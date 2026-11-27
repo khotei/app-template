@@ -1,5 +1,4 @@
 import { assert, describe, it } from '@effect/vitest'
-import { assertEquals } from '@effect/vitest/utils'
 import { DateTime, Effect, Option, Redacted, Result } from 'effect'
 import { Base64Url, Hex } from 'effect/encoding'
 
@@ -7,7 +6,11 @@ import { UserId } from '@app-template/application/user'
 import type { UserEntityWhere } from '@app-template/kernel/data'
 import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/testing'
 
-import { IdentityUnknownError, type UserSecret } from '#identity/domain/identity.model'
+import {
+  IdentityClaims,
+  IdentityUnknownError,
+  type UserSecret,
+} from '#identity/domain/identity.model'
 import { IdentityService } from '#identity/services/identity.service'
 import { layerIdentityTest } from '#testing/identity/identity.test-layer'
 
@@ -25,33 +28,36 @@ const hashWithWebCrypto = (secret: UserSecret) =>
   ).pipe(Effect.map((digest) => Hex.encode(new Uint8Array(digest))))
 
 describe('IdentityService', () => {
-  it.effect('authenticate reads the user by the hex SHA-256 of the secret', () => {
-    const wheres: Array<UserEntityWhere> = []
-    return Effect.gen(function* () {
-      const service = yield* IdentityService
+  it.effect(
+    'authenticate reads the user by the hex SHA-256 of the secret and answers its claims',
+    () => {
+      const wheres: Array<UserEntityWhere> = []
+      return Effect.gen(function* () {
+        const service = yield* IdentityService
 
-      const user = yield* service.authenticate(unknownSecret)
+        const claims = yield* service.authenticate(unknownSecret)
 
-      const hash = yield* hashWithWebCrypto(unknownSecret)
-      assert.deepStrictEqual(wheres, [{ credentials: { kind: 'secret', hash } }])
-      assert.strictEqual(user.id, storedUser.id)
-    }).pipe(
-      Effect.provide(
-        layerIdentityTest({
-          selectOne: (where) =>
-            Effect.sync(() => wheres.push(where)).pipe(Effect.as(Option.some(storedUser))),
-        }),
-      ),
-    )
-  })
+        const hash = yield* hashWithWebCrypto(unknownSecret)
+        assert.deepStrictEqual(wheres, [{ credentials: { kind: 'secret', hash } }])
+        assert.deepStrictEqual(claims, new IdentityClaims({ userId: storedUser.id }))
+      }).pipe(
+        Effect.provide(
+          layerIdentityTest({
+            selectOne: (where) =>
+              Effect.sync(() => wheres.push(where)).pipe(Effect.as(Option.some(storedUser))),
+          }),
+        ),
+      )
+    },
+  )
 
-  it.effect('recognise of a stored user returns it and the secret, inserting none', () =>
+  it.effect('recognise of a stored user answers its claims and the secret, inserting none', () =>
     Effect.gen(function* () {
       const service = yield* IdentityService
 
-      const { user, secret } = yield* service.recognise(unknownSecret)
+      const { claims, secret } = yield* service.recognise(unknownSecret)
 
-      assert.strictEqual(user.id, storedUser.id)
+      assert.deepStrictEqual(claims, new IdentityClaims({ userId: storedUser.id }))
       assert.strictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
     }).pipe(
       Effect.provide(
@@ -61,25 +67,25 @@ describe('IdentityService', () => {
   )
 
   it.effect(
-    'recognise of an unknown secret creates a user with a UUIDv7 id at the clock time and a new secret, storing only its hex SHA-256',
+    'recognise of an unknown secret creates a user with a UUIDv7 id at the clock time and answers its claims and a new secret, storing only its hex SHA-256',
     () => {
       const writes: Array<readonly [string, unknown]> = []
       return Effect.gen(function* () {
         const service = yield* IdentityService
 
-        const { user, secret } = yield* service.recognise(unknownSecret)
+        const { claims, secret } = yield* service.recognise(unknownSecret)
 
         const hash = yield* hashWithWebCrypto(secret)
-        assert.isTrue(isUuidV7(user.id))
-        assertEquals(user.createdAt, epoch)
+        assert.instanceOf(claims, IdentityClaims)
+        assert.isTrue(isUuidV7(claims.userId))
         assert.notStrictEqual(Redacted.value(secret), Redacted.value(unknownSecret))
         assert.deepStrictEqual(
           Result.map(Base64Url.decode(Redacted.value(secret)), (bytes) => bytes.length),
           Result.succeed(32),
         )
         assert.deepStrictEqual(writes, [
-          ['insert', { id: user.id, createdAt: DateTime.toDateUtc(epoch) }],
-          ['insertCredential', { kind: 'secret', hash, userId: user.id }],
+          ['insert', { id: claims.userId, createdAt: DateTime.toDateUtc(epoch) }],
+          ['insertCredential', { kind: 'secret', hash, userId: claims.userId }],
         ])
       }).pipe(
         Effect.provide(

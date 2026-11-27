@@ -19,9 +19,8 @@ keep theirs. What each role holds and may import, with this app's files of each:
 
 | Suffix | Holds | Where |
 |---|---|---|
-| `.model` | a concept's schemas and the errors its rules fail with, a file per value they act on; its rules in `<model>-<kind>.ts`, one group each ([models.md](models.md)) | `domain/` |
+| `.model` | a concept's schemas and the errors its rules fail with, a file per value they act on; its rules in `<model>-<kind>.ts`, one group each ([models.md](models.md)) · `api-<resource>.model.ts`: a resource's wire shapes · the errors a kernel part fails with | `domain/` · `application/http-api/<resource>/` · a kernel part, behind an entry of its own |
 | `.util` | `<model>.util.ts`: the model's branded id and the utils its module shares, importing only `effect`, `packages/schema` and other utils | `domain/` |
-| `.error` | the errors a kernel part fails with; a module's live in its models' `.model` files | a kernel part, behind an entry of its own |
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
 | `.service` | `<model>.service.ts`, `<aspect>-<model>.service.ts` composed over it, `<operation>.service.ts` for one of no model | `services/`; a package's or kernel part's takes its role's (`.client`, `.sender`) |
 | `.use-case` | `<verb>-<object>.use-case.ts`: one use case | `application/use-cases/<module>/` |
@@ -29,7 +28,8 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.table` · `.entity` · `.repository` | a table with any it alone owns (drizzle-kit reads `*/*.table.ts`) · `<Name>Entity` and its verbs' types · one store's access | `kernel/data/<store>/` |
 | `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
 | `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each message | `packages/queue` |
-| `.http` | a resource's `HttpApiGroup` with its wire shapes | `application/http-api/` |
+| `.http` | a resource's `HttpApiGroup` | `application/http-api/<resource>/` |
+| `.middleware` | `<name>.middleware.ts`: the definitions of the API contract's middlewares and the keys they provide | `application/http-api/<resource>/` |
 | `.mapper` | a model's wire shape, where it differs | `apps/api/<resource>/` |
 | `.handler` | a resource's handlers, of its endpoints, its jobs or the events it listens to; the worker's route | `apps/api/<resource>/`, `apps/worker/<resource>/`; the route `apps/worker/` |
 | `.layer` | the layers of services another workspace declares (the API contract's middlewares), each `<Service>Layer` | an app |

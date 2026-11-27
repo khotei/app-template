@@ -1,7 +1,7 @@
 import { DateTime, Option } from 'effect'
 
 import { UserId } from '@app-template/application/user'
-import { LlmError } from '@app-template/kernel/llm/error'
+import { LlmError } from '@app-template/kernel/llm/model'
 import { epoch } from '@app-template/packages/testing'
 
 import { Chat } from '#chat/domain/chat.model'

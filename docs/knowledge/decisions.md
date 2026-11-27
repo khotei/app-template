@@ -31,14 +31,14 @@ may import what:
 The behaviour is split by business capability, a module per capability under `application/`:
 `chat`, `user` and `identity`. `user` holds the user's model and its id, which other modules'
 models and the API contract name; `identity` the recognising of a user by its secret, the
-`IdentityUnknownError` its `authenticate` fails with and `Identity`, what a request's credential
-names, which the api's `Auth` provides to the handlers, and it imports `user`, never the
-reverse.
+`IdentityUnknownError` its `authenticate` fails with and `IdentityClaims`, what a request's
+credential claims, which the api's `IdentityMiddleware` provides to the handlers under the API
+contract's key `Identity`, and it imports `user`, never the reverse.
 
 - **Why:** a module owns what changes together. Who a user is changes apart from how the api
   recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
-  `user`'s contract, and a second way to sign in changes `identity` alone. An `Identity` is what
-  a request's credential names (today a user's id, later, with OAuth, a token's claims) and a
+  `user`'s contract, and a second way to sign in changes `identity` alone. `IdentityClaims` are
+  what a request's credential claims (today a user's id, later, with OAuth, a token's claims) and a
   `User` the whole record that extends it, so the two keep two names (the owner's word,
   2026-11-25).
 - **Sources:** the guide's "a module's mission fits one sentence" and "what always changes
@@ -327,28 +327,27 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 ### The API contract in the api
 
 The API contract is `application/http-api`, a part of the `application` workspace behind its own
-entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
-the definitions of its middlewares (`Auth`, which provides identity's `Identity`,
-`SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers, stay in
-`apps/api`. It takes of a module only its models, ids, errors, `Identity` and `ChatState`, the
-group a wire shape reads, through the
-module's contract
-([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
-case, so it loads no service, store or client; it is declared over the
-domain's schemas: ids, payload checks, models and errors are
-the domain's own; an error's status is on its class, the annotation `{ httpApiStatus: <code> }`
-of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
-its model's json variant (`<Model>.json`), which
-leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
-field, named by an `identifier` so the snapshot holds it once; a field the wire adds is set by
-the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which a handler pipes
-on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`).
-A field no client may see is declared so once, in its model
-([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
-so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. The api's unit test writes
-`apps/api/openapi.json`; the web reads that file by path and keeps the client
-`@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
-reaches the browser, and the web declares no workspace of the app but `packages`.
+entry, `@app-template/application/http-api`: a folder per resource, as the api's handlers have,
+holding its group (`<resource>.http.ts`), its wire shapes apart (`api-<resource>.model.ts`) and any
+middleware of its own, the request's errors with their middleware in `request/`; the groups
+assembled into one `Api`, and the definitions of its middlewares with the keys they provide
+(`<name>.middleware.ts`: `IdentityMiddleware`, which provides identity's `IdentityClaims` under the
+key `Identity`, `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers,
+stay in `apps/api`. It takes of a module only its models, ids, errors and `ChatState`, the group a
+wire shape reads, through the module's contract ([Module contracts](#module-contracts)), never its
+entry, and no kernel part, package or use case, so it loads no service, store or client; it is
+declared over the domain's schemas: ids, payload checks, models and errors are the domain's own; an
+error's status is on its class, the annotation `{ httpApiStatus: <code> }` of `Schema.TaggedError`,
+and an endpoint or a middleware lists the bare class; a wire shape is its model's json variant
+(`<Model>.json`), which leaves out what the model keeps off the wire, with `.mapFields(…)` where the
+wire adds or swaps a field, named by an `identifier` so the snapshot holds it once; a field the wire
+adds is set by the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which a
+handler pipes on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`). A field no
+client may see is declared so once, in its model ([Models with variants](#models-with-variants)): a
+failed Run's `failure` is `Model.Sensitive`, so it stays in its row, off the wire of `ApiRun` and
+`ApiMessage`. The api's unit test writes `apps/api/openapi.json`; the web reads that file by path
+and keeps the client `@effect/openapi-generator`'s command writes from it, checked in. Nothing of
+`application/` reaches the browser, and the web declares no workspace of the app but `packages`.
 
 - **Why:** a contract of its own declared each id, constrained string, status list and error a
   second time (23 twins of the domain's, 5 ids among them, with the tables' limits, patterns
@@ -427,35 +426,35 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   lists it, so an endpoint that needs another status needs another class; and a class without
   the key, or with it misspelled (`httpApiStatsu`), which `tsc` passes as `Annotations` takes
   any key (a wrong value's type fails `TS2769`), responds with `500`: past `make api-snapshot`,
-  only a handler test that asserts that class's status stops it. A user's
-  own group goes in `api.ts`'s first
-  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `Identity` fails
-  `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
-  (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema
-  returned in more than one form, the bare one and each `.pipe(HttpApiSchema.status(…))`
-  counting as one, gets a numbered component (`<Class>Encoded_2`), which a wire shape's
-  `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move with every
-  wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive` field, a message's
-  wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
-  stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
-  variant, or a new listing of an error with a cause, would carry it, which only review of the
-  snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
-  handler that returns the model without it fails `tsc`. A name a group needs of a module is a
+  only a handler test that asserts that class's status stops it. A group whose every endpoint
+  needs a user goes in `api.ts`'s first `.add(…)`, before `.middleware(IdentityMiddleware)`, and one
+  that needs it on some endpoints puts the middleware on those: past it, only a handler that reads
+  `Identity` fails `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow
+  the domain's classes (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`),
+  and a schema returned in more than one form, the bare one and each
+  `.pipe(HttpApiSchema.status(…))` counting as one, gets a numbered component (`<Class>Encoded_2`),
+  which a wire shape's `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move
+  with every wire change, and the web keeps a generator, with its command's peer
+  `@effect/platform-node` pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive`
+  field, a message's wire shape that nests `ApiRun` in place of its select-only Run, and two
+  assertions that it stays off (`listMessages`, `getRun`); a new shape built over the Run itself,
+  not its json variant, or a new listing of an error with a cause, would carry it, which only review
+  of the snapshot diff holds. A wire field the mapper sets is a function per model that has one, and
+  a handler that returns the model without it fails `tsc`. A name a group needs of a module is a
   line in that module's contract first. `bun build application/http-api/index.ts --target bun
   --metafile` lists 103 input files in its metafile, none of a service, an infrastructure, the
-  kernel, `packages/db` or Drizzle; through the modules' entries it read 664, 123 of them
-  Drizzle's. No check repeats that build: a
-  contract that re-exported a service's file would load it again, which the contracts' override
-  refuses and only review of a domain file's imports holds past it; a mechanical check of that
-  bundle is left to the web framework's work (the owner's word, 2026-11-25), and so is one of the
-  browser's: the `apps/web/**` override and the web's manifest, which declares no workspace but
-  `packages`, refuse a direct import of the app, but nothing refuses a server import that
-  reaches the bundle through a package they admit (`packages/ui` importing `packages/db`).
+  kernel, `packages/db` or Drizzle; through the modules' entries it read 664, 123 of them Drizzle's.
+  No check repeats that build: a contract that re-exported a service's file would load it again,
+  which the contracts' override refuses and only review of a domain file's imports holds past it; a
+  mechanical check of that bundle is left to the web framework's work (the owner's word,
+  2026-11-25), and so is one of the browser's: the `apps/web/**` override and the web's manifest,
+  which declares no workspace but `packages`, refuse a direct import of the app, but nothing refuses
+  a server import that reaches the bundle through a package they admit (`packages/ui` importing
+  `packages/db`).
 - **Guarded by:** `HttpApiBuilder` and `Identity` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
-  `.middleware(Auth)` whose handler reads `Identity`, `TS377004`); the api's snapshot test,
-  and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
+  `.middleware(IdentityMiddleware)` whose handler reads `Identity`, `TS377004`); the api's
+  snapshot test, and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
   `packages` alone, so an import of the app fails `TS2307`; the `apps/web/**` override; the
@@ -993,7 +992,7 @@ no app.
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
 `askModel` (the retries, the failure mapping and the finish-reason check), with its one final
-error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/error`, that loads no
+error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/model`, that loads no
 client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
 model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
 next message from its context, `ChatAssistant` the chat's title from its opening text. Each
@@ -1037,7 +1036,7 @@ client.
   app's policy.
 - **Cost:** the worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
   nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard, covers
-  `askChat`; it admits `@app-template/kernel/llm/error`, for names matching
+  `askChat`; it admits `@app-template/kernel/llm/model`, for names matching
   `Llm…Error` only, so a use case may name a kernel error; the domain's admits none. A use case
   that names one imports a class whose file names the provider's package, so loading it loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
@@ -1047,7 +1046,7 @@ client.
   the model.
 - **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
   `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
-  domain and the use cases take of `kernel/llm` only `/error`'s errors, by name; no service but
+  domain and the use cases take of `kernel/llm` only `/model`'s errors, by name; no service but
   `ReplyChatService` and `TitleChatService` import an `.llm` file, each its own, so only they or a
   use case reach the assistants);
   the assistants' suite over a recording client.
@@ -1202,7 +1201,7 @@ each, are a method each, which the service or use case holding them commits in o
   `UserRepository.insert` is one statement's span and `UserRepository.insertCredential` a span of
   its own, both under the `sql.transaction` span the service's `run` opens.
 - **Guarded by:** `IdentityService` being the one caller of the two writes; the api's e2e of a
-  refused credential (`apps/e2e/api/user.e2e.ts`), which keeps no user; the cases of
+  refused credential (`apps/e2e/api/identity.e2e.ts`), which keeps no user; the cases of
   `Transaction` that nest a `run` in a `run`; the services' Biome override, which admits of
   `@app-template/packages/db` only `Transaction`
   ([A module's layers](#a-modules-layers)); `.claude/rules/repositories.md`, in review, a

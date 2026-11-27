@@ -6,8 +6,9 @@ paths:
 
 # Models: one field list, a variant per use
 
-A domain model is a `Model.Class` of `effect/schema`: the class is what a read decodes,
-`<Model>.insert` and `<Model>.update` what a write encodes, `<Model>.json` what the api serves.
+A domain model of a stored record is a `Model.Class` of `effect/schema` (one no store holds, a
+`Schema.Class`): the class is what a read decodes, `<Model>.insert` and `<Model>.update` what a
+write encodes, `<Model>.json` what the api serves.
 `Model` and `VariantSchema` are `@stability unstable`: at an Effect upgrade, check each name used
 against the vendored module ([effect.md](effect.md)).
 Decision: [Models with variants](../../docs/knowledge/decisions.md#models-with-variants).
@@ -42,7 +43,8 @@ export class Order extends Model.Class<Order>('Order')({
   nothing, `Effect.fnUntraced`, no span; `is<Rule>` where a flow only branches on it),
   `<Model>Move` the status moves (`<verb>`, returning the record's next state,
   `Effect.fn('<Model>Move.<verb>')`), `<Model>State` what the record's values say of it (`build`,
-  `is<Value>`). A model imports no group.
+  `is<Value>`), `<Model><Value>` a value built from the model's for one use (`build`,
+  `OrderLabel.build(order)`). A model imports no group.
 - **A static calls another by its class's name,** never `this`, so one passed as a value runs
   (`Effect.flatMap(<Group>.<rule>)`).
 - **A rule is typed over the fields it reads,** never the class, so a plain struct (a variant,

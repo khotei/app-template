@@ -1,14 +1,19 @@
 import { HttpApi } from 'effect/http-api'
 
-import { Auth, SchemaErrors } from '#http-api/api-security'
-import { ChatHttp } from '#http-api/chat.http'
-import { HealthHttp } from '#http-api/health.http'
-import { UserHttp } from '#http-api/user.http'
+import { ChatHttp } from '#http-api/chat/chat.http'
+import { HealthHttp } from '#http-api/health/health.http'
+import { IdentityHttp } from '#http-api/identity/identity.http'
+import { IdentityMiddleware } from '#http-api/identity/identity.middleware'
+import { SchemaErrors } from '#http-api/request/request.middleware'
 
-/** A middleware reaches only the groups added before it: an authed group joins the first `add`. */
+/**
+ * A middleware reaches only the groups added before it: a group whose every endpoint needs the
+ * identity joins the first `add`; one that needs it on some endpoints puts
+ * `.middleware(IdentityMiddleware)` on those.
+ */
 export class Api extends HttpApi.make('app-template')
   .add(ChatHttp)
-  .middleware(Auth)
-  .add(HealthHttp, UserHttp)
+  .middleware(IdentityMiddleware)
+  .add(HealthHttp, IdentityHttp)
   .middleware(SchemaErrors)
   .annotate(HttpApi.ParseOptions, { errors: 'all' }) {}

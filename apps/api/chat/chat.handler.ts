@@ -7,8 +7,7 @@ import {
   MessageService,
   RunService,
 } from '@app-template/application/chat'
-import { Api } from '@app-template/application/http-api'
-import { Identity } from '@app-template/application/identity'
+import { Api, Identity } from '@app-template/application/http-api'
 import { askChat } from '@app-template/application/use-cases'
 
 import { buildApiChat } from '#api/chat/chat.mapper'
