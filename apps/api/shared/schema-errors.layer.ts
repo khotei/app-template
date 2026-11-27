@@ -1,30 +1,7 @@
-import { Array as Arr, Effect, Layer, Predicate, SchemaIssue } from 'effect'
+import { Array as Arr, Effect, Predicate, SchemaIssue } from 'effect'
 import { type HttpApiError, HttpApiMiddleware } from 'effect/http-api'
 
-import {
-  Auth,
-  RequestIdentity,
-  RequestInvalidError,
-  SchemaErrors,
-} from '@app-template/application/http-api'
-import { Identity, IdentityService } from '@app-template/application/identity'
-
-export const AuthLayer = Layer.effect(
-  Auth,
-  Effect.gen(function* () {
-    const identityService = yield* IdentityService
-    return Auth.of({
-      cookie: (httpEffect, { credential }) =>
-        Effect.provideServiceEffect(
-          httpEffect,
-          RequestIdentity,
-          identityService
-            .authenticate(credential)
-            .pipe(Effect.map((user) => new Identity({ userId: user.id }))),
-        ),
-    })
-  }),
-)
+import { RequestInvalidError, SchemaErrors } from '@app-template/application/http-api'
 
 /** Request parts become a `400`; a response that fails to encode stays the built-in `500`. */
 const isRequestPart = {

@@ -80,7 +80,7 @@ create the resources inside MiniStack.
 A whole chat from the shell, with the cookie kept in a jar:
 
 ```sh
-curl -s -c jar -X POST localhost:3000/users
+curl -s -c jar -X POST localhost:3000/identity
 curl -s -b jar -X POST localhost:3000/chats
 curl -s -b jar -X POST localhost:3000/chats/<chatId>/messages \
   -H 'content-type: application/json' -d '{"text":"Hello"}'

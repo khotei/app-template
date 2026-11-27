@@ -87,7 +87,7 @@ left.
   the client polls until the message is terminal and shows its text at once. The
   SSE tail is this ticket's to decide, if it still earns its place. Assistant attachments and
   placeholders moved to `assistant-files` (18).
-  The web's cookie is the user cookie the api's `Auth` reads to provide `Identity`.
+  The web's cookie is the user cookie the api's `IdentityMiddleware` reads to provide `Identity`.
 - **What the browser's bundle holds** is this ticket's to check, on the new bundler: `make check`
   reads no bundle, and only the `apps/web/**` override and the web's manifest hold the browser's
   imports (the owner's word, 2026-11-25:
@@ -719,7 +719,7 @@ No ticket yet; `chat-core` decided that today's user later merges into an accoun
 
 - **Today.** `identity`'s `IdentityService` issues 32 random bytes as a base64url secret in an
   `HttpOnly` cookie, stores only its SHA-256, and resolves the user by that hash on every request
-  through the `Auth` middleware. A session is revoked by deleting its row. No JWT exists.
+  through `IdentityMiddleware`. A session is revoked by deleting its row. No JWT exists.
 - **What Jose is.** `effect/jose`, from `effect@4.1.1` and in the catalog's `4.1.5`,
   `@stability unstable`, on Web Crypto through the new `effect/crypto`, no third-party
   dependency. `Jwt.sign` and `Jwt.verify` decode claims with a `Schema`; `Jwt.verifyWithKeySet`

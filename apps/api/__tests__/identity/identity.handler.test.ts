@@ -22,12 +22,12 @@ const newcomer = {
   insertCredential: () => Effect.void,
 }
 
-describe('users', () => {
-  it.effect('POST /users is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
+describe('identity', () => {
+  it.effect('POST /identity is 201 with an HttpOnly, Lax, one-year cookie and no Secure', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
 
-      const [, response] = yield* api.users.recognise({ responseMode: 'decoded-and-response' })
+      const [, response] = yield* api.identity.recognise({ responseMode: 'decoded-and-response' })
 
       const cookie = readUserSecretCookie(response).pipe(Option.getOrThrow)
       assert.strictEqual(response.status, 201)
@@ -37,18 +37,15 @@ describe('users', () => {
   )
 
   it.effect(
-    'POST /users with the cookie of a known user returns their id and creation time and refreshes the cookie',
+    'POST /identity with the cookie of a known user returns their identity and refreshes the cookie',
     () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
 
-        const [, response] = yield* api.users.recognise({ responseMode: 'decoded-and-response' })
+        const [, response] = yield* api.identity.recognise({ responseMode: 'decoded-and-response' })
 
         const cookie = readUserSecretCookie(response).pipe(Option.getOrThrow)
-        assert.strictEqual(
-          yield* response.text,
-          `{"id":"${owner}","createdAt":"1970-01-01T00:00:00.000Z"}`,
-        )
+        assert.strictEqual(yield* response.text, `{"userId":"${owner}"}`)
         assert.strictEqual(
           cookie.value,
           Cookies.get(ownerCookie, 'user_secret').pipe(Option.getOrThrow).value,
@@ -61,7 +58,9 @@ describe('users', () => {
     Effect.gen(function* () {
       const forger = yield* ApiClient
 
-      const [, response] = yield* forger.users.recognise({ responseMode: 'decoded-and-response' })
+      const [, response] = yield* forger.identity.recognise({
+        responseMode: 'decoded-and-response',
+      })
 
       assert.notStrictEqual(readUserSecretCookie(response).pipe(Option.getOrThrow).value, 'forged')
     }).pipe(

@@ -183,8 +183,8 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
 | HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`) |
 | a resource's wire shapes | `application/http-api/api-chat.model.ts`, `api-request.model.ts` | `ApiChat` (`Chat.json.mapFields(…)`), `ApiRun`, `ApiMessage`; `RequestIssue`, `RequestInvalidError` |
-| the API contract: the groups assembled, the middlewares' definitions with the keys they provide; its snapshot | `application/http-api/api.ts`, `identity.middleware.ts`, `request.middleware.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity` as `RequestIdentity`; `SchemaErrors` |
-| a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
+| the API contract: the groups assembled, the middlewares' definitions with the keys they provide; its snapshot | `application/http-api/api.ts`, `identity.middleware.ts`, `request.middleware.ts`; `apps/api/openapi.json` | `Api`; `IdentityMiddleware`, which provides identity's `Identity` as `RequestIdentity`; `SchemaErrors` |
+| a middleware's layer, for a definition the contract holds | `apps/api/identity/identity.layer.ts`, `apps/api/shared/schema-errors.layer.ts` | `IdentityMiddlewareLayer`, `SchemaErrorsLayer` |
 | use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
@@ -310,8 +310,8 @@ imports need.
    differs from the model, in `api-<entity>.model.ts` beside it
    ([application/CLAUDE.md](../../application/CLAUDE.md)), added to `Api`
    in `application/http-api/api.ts`, in the first `.add(…)` when it needs a user, else in the
-   second, since `.middleware(Auth)` reaches only the groups added before it; its handler in
-   `apps/api/<entity>/<entity>.handler.ts`, with a mapper in
+   second, since `.middleware(IdentityMiddleware)` reaches only the groups added before it; its
+   handler in `apps/api/<entity>/<entity>.handler.ts`, with a mapper in
    `apps/api/<entity>/<entity>.mapper.ts` only where the wire adds a field, which the handler
    pipes on what it returns, the handler added to `ApiRoutes`; then `make api-snapshot`. Test only
    what HTTP adds, on the api test layer; a new module's journey case goes in a file of its own on

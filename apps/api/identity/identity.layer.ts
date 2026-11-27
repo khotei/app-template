@@ -1,0 +1,21 @@
+import { Effect, Layer } from 'effect'
+
+import { IdentityMiddleware, RequestIdentity } from '@app-template/application/http-api'
+import { Identity, IdentityService } from '@app-template/application/identity'
+
+export const IdentityMiddlewareLayer = Layer.effect(
+  IdentityMiddleware,
+  Effect.gen(function* () {
+    const identityService = yield* IdentityService
+    return IdentityMiddleware.of({
+      cookie: (httpEffect, { credential }) =>
+        Effect.provideServiceEffect(
+          httpEffect,
+          RequestIdentity,
+          identityService
+            .authenticate(credential)
+            .pipe(Effect.map((user) => new Identity({ userId: user.id }))),
+        ),
+    })
+  }),
+)

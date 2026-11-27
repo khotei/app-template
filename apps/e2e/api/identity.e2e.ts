@@ -17,7 +17,7 @@ describe('a write Postgres refuses, through the api', () => {
         .unsafe(`ALTER TABLE credentials ADD CONSTRAINT refuse_credential CHECK (kind <> 'secret')`)
         .pipe(Effect.orDie)
 
-      const status = yield* api.users.recognise().pipe(
+      const status = yield* api.identity.recognise().pipe(
         Effect.as(201),
         Effect.catchTag('HttpClientError', (error) => Effect.succeed(error.response?.status)),
       )

@@ -21,12 +21,13 @@ import { Transaction } from '@app-template/packages/db'
 
 import { ChatHandler } from '#api/chat/chat.handler'
 import { HealthHandler } from '#api/health/health.handler'
-import { AuthLayer, SchemaErrorsLayer } from '#api/shared/api-security.layer'
-import { UserHandler } from '#api/user/user.handler'
+import { IdentityHandler } from '#api/identity/identity.handler'
+import { IdentityMiddlewareLayer } from '#api/identity/identity.layer'
+import { SchemaErrorsLayer } from '#api/shared/schema-errors.layer'
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
-  Layer.provide([HealthHandler, UserHandler, ChatHandler]),
-  Layer.provide([AuthLayer, SchemaErrorsLayer]),
+  Layer.provide([HealthHandler, IdentityHandler, ChatHandler]),
+  Layer.provide([IdentityMiddlewareLayer, SchemaErrorsLayer]),
 )
 
 // After `serve`, which makes what a handler reads per request its own requirement. Each handler

@@ -748,21 +748,21 @@
         }
       }
     },
-    "/users": {
+    "/identity": {
       "post": {
         "tags": [
-          "users"
+          "identity"
         ],
-        "operationId": "users.recognise",
+        "operationId": "identity.recognise",
         "parameters": [],
         "security": [],
         "responses": {
           "201": {
-            "description": "ApiUser",
+            "description": "ApiIdentity",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiUser"
+                  "$ref": "#/components/schemas/ApiIdentity"
                 }
               }
             }
@@ -830,24 +830,19 @@
         ],
         "additionalProperties": false
       },
-      "ApiUser": {
+      "ApiIdentity": {
         "type": "object",
         "properties": {
-          "id": {
+          "userId": {
             "type": "string",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|[fF]{8}-[fF]{4}-[fF]{4}-[fF]{4}-[fF]{12})$",
             "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string"
           }
         },
         "required": [
-          "id",
-          "createdAt"
+          "userId"
         ],
-        "additionalProperties": false,
-        "title": "User.json"
+        "additionalProperties": false
       },
       "IdentityUnknownErrorEncoded": {
         "type": "object",
@@ -1182,7 +1177,7 @@
       "name": "health"
     },
     {
-      "name": "users"
+      "name": "identity"
     }
   ]
 }

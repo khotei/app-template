@@ -42,7 +42,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
     it.effect("a user's message is answered and titled by the worker", () =>
       Effect.gen(function* () {
         const api = yield* ApiClient
-        yield* api.users.recognise()
+        yield* api.identity.recognise()
         const chat = yield* api.chats.create()
 
         const asked = yield* api.chats.ask({
@@ -71,7 +71,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
-          yield* api.users.recognise()
+          yield* api.identity.recognise()
           const chat = yield* api.chats.create()
           const asked = yield* api.chats.ask({
             params: { chatId: chat.id },
@@ -100,7 +100,7 @@ describe('the journey over both app layers', { concurrent: false }, () => {
       () =>
         Effect.gen(function* () {
           const api = yield* ApiClient
-          yield* api.users.recognise()
+          yield* api.identity.recognise()
           const chat = yield* api.chats.create()
           // The loser reads the winner's active Run (ChatBusyError) or, having read none, dies on
           // the index on the active Run, which the api responds to with a bare 500: both roll it back whole.
@@ -133,8 +133,8 @@ describe('the journey over both app layers', { concurrent: false }, () => {
       Effect.gen(function* () {
         const api = yield* ApiClient
         const stranger = yield* StrangerApiClient
-        yield* api.users.recognise()
-        yield* stranger.users.recognise()
+        yield* api.identity.recognise()
+        yield* stranger.identity.recognise()
         const chat = yield* api.chats.create()
 
         const refused = yield* stranger.chats
@@ -154,7 +154,7 @@ describe('a write Postgres refuses, through the api', () => {
     Effect.gen(function* () {
       const api = yield* ApiClient
       const client = yield* SqlClient.SqlClient
-      yield* api.users.recognise()
+      yield* api.identity.recognise()
       const chat = yield* api.chats.create()
       const created = yield* api.chats.get({ params: { chatId: chat.id } })
       // The Run is the last write of an ask; all the others precede it.
@@ -186,7 +186,7 @@ describe('a write Postgres refuses, through the api', () => {
       Effect.gen(function* () {
         const api = yield* ApiClient
         const client = yield* SqlClient.SqlClient
-        yield* api.users.recognise()
+        yield* api.identity.recognise()
         const chat = yield* api.chats.create()
         // The Run's move to `done` is the last write of a completion, after its reply.
         yield* client
@@ -215,7 +215,7 @@ describe('a write Postgres refuses, through the api', () => {
       Effect.gen(function* () {
         const api = yield* ApiClient
         const client = yield* SqlClient.SqlClient
-        yield* api.users.recognise()
+        yield* api.identity.recognise()
         const chat = yield* api.chats.create()
         yield* client
           .unsafe(`ALTER TABLE messages ADD CONSTRAINT refuse_reply CHECK (author <> 'assistant')`)
@@ -250,7 +250,7 @@ describe('a write Postgres refuses, through the api', () => {
     Effect.gen(function* () {
       const api = yield* ApiClient
       const client = yield* SqlClient.SqlClient
-      yield* api.users.recognise()
+      yield* api.identity.recognise()
       const chat = yield* api.chats.create()
       const asked = yield* api.chats.ask({
         params: { chatId: chat.id },
