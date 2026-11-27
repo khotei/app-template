@@ -1389,28 +1389,30 @@ method, its queue or one step of the work; its queue, its `send<Job>` and the wo
 ends it take its name. An event states a fact its sender's commit made true, as an event message
 does in messaging, for a list of listeners, none required: named `<Object><PastVerb>`, its queue and
 its `send<Event>` take its name, and each listener is named for its own work. Unheard, does the
-system break, and does the sender settle a refused send? Yes to either makes it a job. The chat's
-job is `ReplyToMessage { messageId, chatId, userId }`, on `reply-to-message`, sent by
-`ChatQueue.sendReplyToMessage` and ended by `ChatHandler.replyToMessage`; its event is
-`FirstMessageCreated { id, chatId, userId }`, ids alone, on `first-message-created`, sent by
-`ChatQueue.sendFirstMessageCreated` and listened to by `ChatHandler.titleChat`. The reply's names the
-user's message with its chat and user and starts its active Run, read by all three, so a job naming
-another chat's or user's ids finds none; the unique index on a chat's active Run keeps it to one;
-what a job that names no one Run costs: [A Run's job on interrupt and on two
-deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The
-event names a new chat's first message, which the title reads. The reply's send returns its
-`QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
-commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's full
-text as its failure; the request responds with `202` and that failed Run; what a client's abort
-leaves: [A Run's job on interrupt and on two
-deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The event's send only logs it, as its
-sender settles nothing. Which services a Run has and over which: [layering.md › Ports and domain
-services](../../.claude/rules/layering.md#ports-and-domain-services); who does the work of each job
-and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
-route lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one
-message concurrently, each under its own exit: one that dies is logged (`queue message failed`) and
-leaves the others running, and every record the worker saw to its end is acknowledged; what a
-redelivery then runs: [aws.md › Queues](aws.md#queues).
+system break, and does the sender settle a refused send? Yes to either makes it a job, save the
+reply's two events below, which the owner made events. The chat's queue messages are three events,
+each `{ chatId, userId, messageId }`, ids alone: `UserMessageCreated`, on `user-message-created`,
+sent by `ChatQueue.sendUserMessageCreated` for each user message an ask stores, and
+`MessageRetried`, on `message-retried`, sent by `ChatQueue.sendMessageRetried` for a retry, both
+heard by `ChatHandler.replyToMessage`; and `ChatInitialized`, on `chat-initialized`, sent by
+`ChatQueue.sendChatInitialized` when a chat gets its first user message and heard by
+`ChatHandler.titleChat`. The reply reads the user's message with its chat and user and starts its
+active Run, read by all three, so an event naming another chat's or user's ids finds none; the
+unique index on a chat's active Run keeps it to one; what an event that names no one Run costs: [A
+Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The
+title reads the first message `ChatInitialized` names. The reply's two sends return their
+`QueueError`, and `AskChatService`, the api's half, sends `UserMessageCreated` from `ask` and
+`MessageRetried` from `retry` after their commit and fails the Run through `RunService.update` and
+the Run's `fail`, with the error's full text as its failure; the request responds with `202` and
+that failed Run; what a client's abort leaves: [A Run's job on interrupt and on two
+deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). `ChatInitialized`'s send only logs its
+refusal, as its sender settles nothing. Which services a Run has and over which: [layering.md ›
+Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services); who does the
+work of each job and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
+The worker's route lists a queue's handlers, and `consumeQueue` runs each on every message of it,
+all of one message concurrently, each under its own exit: one that dies is logged (`queue message
+failed`) and leaves the others running, and every record the worker saw to its end is acknowledged;
+what a redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -1426,7 +1428,7 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   are a service's methods, not functions with `QueueSender` in their requirements, so a caller
   takes `ChatQueue` in its `make` and no method carries a service in its `R`. A command's name
   belongs to its receiver's vocabulary of the work (NServiceBus: "verb-noun sequence,
-  following the tell style"), here the glossary's, so the job and the service method
+  following the tell style"), here the glossary's, so a job and the service method
   that runs it share a verb because both take the glossary's word, not because one copies the
   other; the class never rides on the wire (the body is its fields, the queue routes it), so its
   name costs no deployed state. A handler's defect is a bug, which recurs on each delivery, or a
@@ -1435,18 +1437,19 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   failure three times, so it is acknowledged, and a retry a handler's work needs runs inside the
   handler. A
   handler that ends alone lets two modules handle one message each its own way.
-- **Sources:** reply-run's review of what each reader of `jobs` used it for, in
-  [the reply-run lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2); the design audit's
-  research on naming a queue's message (EIP's Command, Document and Event Messages, NServiceBus,
-  MassTransit, the job frameworks) and the owner's call of the names (2026-11-21); the owner's
-  call that a queue's message runs several handlers, a defect only logged, with no dead-letter
-  for it, and any retry inside the process (2026-11-27); the owner's call that a new chat's first
-  message goes out as the event `FirstMessageCreated`, of ids alone, which the title listens to,
-  and the reply stays a command (2026-11-27); the owner's call that the reply's job carries its
-  message's chat and user, by which the reply reads its Run, as the title's event does
-  (2026-11-27); the owner's call that a record whose handler died stays acknowledged: "let's
-  leave it for later. Maybe for this we could retry in effect style without sqs retry."
-  (2026-11-27).
+- **Sources:** reply-run's review of what each reader of `jobs` used it for, in [the reply-run
+  lab](../tickets/2026-11-09-1206_reply-run/lab.md) (L2); the design audit's research on naming a
+  queue's message (EIP's Command, Document and Event Messages, NServiceBus, MassTransit, the job
+  frameworks) and the owner's call of the names (2026-11-21); the owner's call that a queue's
+  message runs several handlers, a defect only logged, with no dead-letter for it, and any retry
+  inside the process (2026-11-27); the owner's call that the chat's queue messages are three events
+  of ids alone, the reply's job becoming `UserMessageCreated`, a retry sending its own
+  `MessageRetried` and a new chat's first message `ChatInitialized`, named so knowing that
+  "initialized" needs its definition, and that the sender of the reply's two still fails the Run on
+  a refused send (2026-11-27); the owner's call that the reply's message carries its chat and user,
+  by which the reply reads its Run, as the title's does (2026-11-27); the owner's call that a record
+  whose handler died stays acknowledged: "let's leave it for later. Maybe for this we could retry in
+  effect style without sqs retry." (2026-11-27).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
@@ -1468,18 +1471,24 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   `ReplyTitle`): a method's rename would ripple into the class, the send, the handler and the queue,
   and `ReplyMessage` reads as a noun, a message holding a reply. The old `GenerateAssistantMessage`
   and `GenerateChatTitle`: one act under two verbs, `generate` in the job and `reply` in the service
-  that runs it, and a name for one step of the work, the model's call. The reply as an event
-  (`UserMessageCreated`, `RunCreated`): unheard, the Run stays queued and its chat busy, and its
-  sender settles a refused send by failing the Run, so it is a job; and a retry is not that fact.
+  that runs it, and a name for one step of the work, the model's call. The reply as the job
+  `ReplyToMessage`: the owner took the reply's facts as events, at the cost below. One event per
+  ask, `ChatInitialized` heard by both the title and the reply: a listener of every user message
+  would miss a chat's first, and a refused title's event would fail the ask. The message's text
+  in the event: no listener reads it, and it would put the user's text in a second store and in
+  the log of a body that fails to decode, and tie the ask's length limit to SQS's message size.
   The title listening to every user message's event: the new chat's rule would move to the worker or
   ride as a flag. The title's job `TitleChat`: the sender would name the work its fact starts. A
   record whose handler died returned in `batchItemFailures`: SQS's retry of every death, a bug's as
   a passing store error's, which runs every handler of the queue again and fills the dead-letter
   queue with what no one reads; the owner left a retry inside the process for later.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its chat
-  busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a client
-  reads the failure from the Run's status, not the response's. A domain service now reaches its
-  module's queue file, so the ask service's guard admits that one file of infrastructure, whose
+  busy ([roadmap.md › Later](roadmap.md#later)). `UserMessageCreated` and `MessageRetried` are
+  events whose sender depends on their being heard: it fails the Run on a refused send, and with no
+  listener the Run stays queued, which this decision's own test calls a job; a listener added to
+  either hears every user message or retry, beside the reply. A refused send responds with `202`, so
+  a client reads the failure from the Run's status, not the response's. A domain service now reaches
+  its module's queue file, so the ask service's guard admits that one file of infrastructure, whose
   `ChatQueue` it takes in its `make`; the sends cost one more service and its layer,
   `ChatQueue.layer`, which `AskChatService.layer` provides; a send inside its transaction would send
   before the commit, which no check refuses: the rule in `.claude/rules/layering.md` and review hold
@@ -1504,41 +1513,40 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
 ### The chat's jobs in their services
 
 A chat's queue messages are split at the queue: `AskChatService`, in the api, stores a request and
-sends its job and event after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and
+sends its events after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and
 the worker does each one's work in a service of its own. Each is the last grouping of the module's
-logic before the worker's handler of the job or the event: its class is named for its verb and its
+logic before the worker's handler of the event: its class is named for its verb and its
 main method repeats that verb, any other method named for its own act in the model's words. The two
-sides meet by one grammar: the api sends the job `<Verb><Object>`, through a private step
-`ask<Verb>` when two flows send it, and the worker's `<Verb><Model>Service.<verb>` does that work;
-an event's listener and its service are named for their own work (`ChatHandler.titleChat`,
-`TitleChatService.title`).
+sides meet by one grammar: an event's listener and its service are named for their own work
+(`ChatHandler.replyToMessage`, `ReplyChatService.reply`; `ChatHandler.titleChat`,
+`TitleChatService.title`); a job, where one exists, is `<Verb><Object>`, and the worker's
+`<Verb><Model>Service.<verb>` does that work.
 
 ```text
-api:    AskChatService.ask ──new chat──▶ FirstMessageCreated ─▶ ChatHandler.titleChat ──────▶ TitleChatService.title
-                           └─askReply──▶ ReplyToMessage ──────▶ ChatHandler.replyToMessage ─▶ ReplyChatService.reply
-        AskChatService.retry ─askReply─▶ (the same)
+api:    AskChatService.ask ──new chat──▶ ChatInitialized ────▶ ChatHandler.titleChat ──────▶ TitleChatService.title
+                           └───────────▶ UserMessageCreated ─▶ ChatHandler.replyToMessage ─▶ ReplyChatService.reply
+        AskChatService.retry ──────────▶ MessageRetried ─────▶ (the same)
 ```
 
-`ReplyChatService.reply` does the reply's job's work, given the user's message, its chat and its
-user the job names: its start moves that message's active Run to `generating` if unstarted, in
-one uninterruptible step, then the chat's context, the assistant's reply, the cut of a context over
-its limit, and the assistant's message with the Run's `done` in one transaction that stays open
-across the assistant's calls; one tail fails the Run the start wrote
-on whatever ends the answer. A Run some worker started fails `RunStartedError`, whose text says its
-worker stopped, and the start fails it with it; a message with no active Run fails
-`RunNotFoundError`, unwritten.
-`TitleChatService.title` does the title's work, given the ids of the first message the event names:
-that one message, read by its id, chat and user (`MessageService.getOne`), the assistant's title,
-and the title written while that user's chat is untitled, so a rename by the user wins; a message
-not found fails `MessageNotFoundError`, and a chat found titled or gone when `ChatService.update`
-reads it `ChatNotFoundError`. Each handler in the worker, `ChatHandler.<work>`, ends its work in one
-tail: the reply's skips a Run settled or gone, ends on a started Run and on the assistant's error,
-which the Run already holds, logging each end once with its cause, an interrupt included; the
-title's skips a message not found and a chat gone or titled, each under its own log line, and logs
-the assistant's error; a defect, a refused move's included, is the queue consumer's to log.
-`ReplyChatService` takes `Transaction`, the message's assistant and the services of the module's
-other models, for the records the reply writes, and reads from the config the tokens limit of a
-chat's context, as `ContextChatService` does, each where it uses it, so no instance carries a
+`ReplyChatService.reply` does the reply's work, given the user's message, its chat and its user the
+event names: its start moves that message's active Run to `generating` if unstarted, in one
+uninterruptible step, then the chat's context, the assistant's reply, the cut of a context over its
+limit, and the assistant's message with the Run's `done` in one transaction that stays open across
+the assistant's calls; one tail fails the Run the start wrote on whatever ends the answer. A Run
+some worker started fails `RunStartedError`, whose text says its worker stopped, and the start fails
+it with it; a message with no active Run fails `RunNotFoundError`, unwritten.
+`TitleChatService.title` does the title's work, given the ids of the first message `ChatInitialized`
+names: that one message, read by its id, chat and user (`MessageService.getOne`), the assistant's
+title, and the title written while that user's chat is untitled, so a rename by the user wins; a
+message not found fails `MessageNotFoundError`, and a chat found titled or gone when
+`ChatService.update` reads it `ChatNotFoundError`. Each handler in the worker, `ChatHandler.<work>`,
+ends its work in one tail: the reply's skips a Run settled or gone, ends on a started Run and on the
+assistant's error, which the Run already holds, logging each end once with its cause, an interrupt
+included; the title's skips a message not found and a chat gone or titled, each under its own log
+line, and logs the assistant's error; a defect, a refused move's included, is the queue consumer's
+to log. `ReplyChatService` takes `Transaction`, the message's assistant and the services of the
+module's other models, for the records the reply writes, and reads from the config the tokens limit
+of a chat's context, as `ContextChatService` does, each where it uses it, so no instance carries a
 setting; `TitleChatService` the chat's assistant and those services, as its one write needs no
 transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
 services, `ChatService` reading the user's chat each request names, for the request and its sends
@@ -1621,20 +1629,20 @@ services, `ChatService` reading the user's chat each request names, for the requ
 
 What a Run's job accepts when it is cut short or handled twice. `ReplyChatService.reply` starts the
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
-interrupt included: a worker interrupted while the job reads its Run starts it, then fails it, and
+interrupt included: a worker interrupted while the reply reads its Run starts it, then fails it, and
 one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
 `ask` and `retry` run whole, uninterruptible, so a client that aborts still leaves the Run stored
-with its jobs sent, or failed by a refused send. Two deliveries at the
-same instant both read the Run queued; the loser's guarded `generating` write dies before its tail
-exists, so it fails nothing and the winner's reply stands. A Run settled or deleted under the reply
-makes the tail's write die, and the Run stays as the other writer left it. The job names the user's
-message, not a Run, so a delivery starts whichever Run of it is active then: a failed Run's job
-delivered again after the user's retry starts the retry's Run, whose own job then finds it started
-and fails it with `RunStartedError`, and the user retries once more. The tail fails only the Run its
-start wrote, so a reply that dies after its Run was failed and retried fails no later Run; the api
-fails a refused send's Run by that Run too, so a refusal that arrives after SQS took the job anyway
-and a worker settled the Run dies on the write's guard and fails no later Run
-([A Run's guarded moves](#a-runs-guarded-moves)).
+with its events sent, or failed by a refused send. Two deliveries at the same instant both read the
+Run queued; the loser's guarded `generating` write dies before its tail exists, so it fails nothing
+and the winner's reply stands. A Run settled or deleted under the reply makes the tail's write die,
+and the Run stays as the other writer left it. The reply's events name the user's message, not a
+Run, so a delivery starts whichever Run of it is active then: a failed Run's event delivered again
+after the user's retry starts the retry's Run, whose own event then finds it started and fails it
+with `RunStartedError`, and the user retries once more. The tail fails only the Run its start wrote,
+so a reply that dies after its Run was failed and retried fails no later Run; the api fails a
+refused send's Run by that Run too, so a refusal that arrives after SQS took the event anyway and a
+worker settled the Run dies on the write's guard and fails no later Run ([A Run's guarded
+moves](#a-runs-guarded-moves)).
 
 - **Why:** the start runs whole and the handler sits on all that follows it, so no failure or
   interrupt of the reply leaves the Run started for the next delivery, and the reply reads as if
@@ -1656,17 +1664,17 @@ and a worker settled the Run dies on the write's guard and fails no later Run
   message then takes a Run's id, and the method's name and its parameter disagree.
 - **Cost:** a process that dies between the Run's commit and its send leaves the Run queued and its
   chat busy ([roadmap.md › Later](roadmap.md#later)), and an aborted request still runs its chat's
-  read and check and on to its sends, bounded by the SQS client's timeouts. A failed Run's job
+  read and check and on to its sends, bounded by the SQS client's timeouts. A failed Run's event
   delivered again after a retry fails the retry's Run, and the user retries again. A model's error
-  on a Run whose chat was deleted meanwhile ends the job as a defect, not as a warning. An
+  on a Run whose chat was deleted meanwhile ends the handling as a defect, not as a warning. An
   interrupt waits for the start's read and write to end.
 - **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a
   retry interrupted while their Run is stored and an ask and a retry interrupted while their chat
   is read, and of `ReplyChatService`, one while the assistant
-  answers, one while the job reads its Run, one losing the `generating` write to a rival, one of a
-  failed Run's job delivered again after its retry, one that dies after its Run was failed elsewhere
+  answers, one while the reply reads its Run, one losing the `generating` write to a rival, one of a
+  failed Run's event delivered again after its retry, one that dies after its Run was failed elsewhere
   and retried, and `AskChatService`'s of a refused send whose Run a worker settled, which fails no
-  later Run; the job's handler's test of an interrupt's end and its log.
+  later Run; the reply's handler's test of an interrupt's end and its log.
 - **If reversed:** the handler on the whole function again, failing the message's active Run as
   it stands: a reply that dies late fails a retry's Run, and two deliveries at once lose the reply.
 - **Revisit when:** the logs show retries failed as started, or Runs left queued.

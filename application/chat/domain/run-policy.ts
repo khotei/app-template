@@ -5,7 +5,7 @@ import { RunState } from '#chat/domain/run-state'
 
 /** The checks a Run passes before a move; each fails or hands its Run back. */
 export class RunPolicy {
-  /** A job refuses a Run some worker started (`RunStartedError`): that worker has died. */
+  /** A reply refuses a Run some worker started (`RunStartedError`): that worker has died. */
   static readonly ensureUnstarted = Effect.fnUntraced(function* <
     R extends Types.Simplify<Pick<Run, 'id' | 'status'>>,
   >(run: R) {

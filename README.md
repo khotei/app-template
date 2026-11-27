@@ -9,7 +9,7 @@ the worked example; what a new project inherits is around it:
 - 🏛️ **An architecture that holds.** A Bun, TypeScript and Effect modular monolith: three
   processes (`api`, `worker`, `web`) over one domain, the code cut in three rings, and the build,
   not a reviewer, refusing an import that points the wrong way.
-- 🧱 **A stack wired end to end.** Postgres through Drizzle and jobs in SQS (MiniStack locally),
+- 🧱 **A stack wired end to end.** Postgres through Drizzle and events in SQS (MiniStack locally),
   Pulumi to provision them, a language model behind a service of the module that uses it. An S3
   bucket and the data layer's `FileRepository` over it are provisioned and tested, but no app
   wires them since attachments were removed
@@ -31,14 +31,14 @@ also titles a new chat. The language model is Anthropic's. The browser UI still 
 health panel.
 
 <img src=".misc/readme/how-it-works.svg"
-  alt="One message: the api stores it with its queued Run in one transaction and sends the jobs
+  alt="One message: the api stores it with its queued Run in one transaction and sends its events
   after the commit; the worker moves the Run to generating, then to done with the
   assistant's message, or to failed; a retry is a new Run"
   width="830">
 
 A failed Run keeps the full text of what ended it in its row, and no response carries it.
 
-How the transaction and the jobs work:
+How the transaction and the events work:
 [database.md › The sends](docs/knowledge/database.md#the-sends),
 [aws.md › Queues](docs/knowledge/aws.md#queues).
 
@@ -128,7 +128,7 @@ wrong import fails before a review. The rules a change most often breaks:
 - no rule outside the modules
   ([Use cases above the modules](docs/knowledge/decisions.md#use-cases-above-the-modules));
 - no lock but a write guard ([database.md › Guards](docs/knowledge/database.md#guards));
-- no job sent before the commit of what it reads
+- no event sent before the commit of what it reads
   ([database.md › The sends](docs/knowledge/database.md#the-sends));
 - no service in the browser
   ([architecture.md › Boundary guards](docs/knowledge/architecture.md#boundary-guards)).

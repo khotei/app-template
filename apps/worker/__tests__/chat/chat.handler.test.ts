@@ -4,11 +4,11 @@ import { Array as Arr, Effect, Exit, Fiber, Option } from 'effect'
 
 import {
   Chat,
+  ChatInitialized,
   ChatTitle,
-  FirstMessageCreated,
   Message,
-  ReplyToMessage,
   Run,
+  UserMessageCreated,
 } from '@app-template/application/chat'
 import {
   chat,
@@ -29,7 +29,7 @@ import { recordLogs } from '@app-template/packages/testing'
 import { replyToMessage, titleChat } from '#worker/chat/chat.handler'
 
 const reply = replyToMessage(
-  new ReplyToMessage({
+  new UserMessageCreated({
     messageId: queuedRun.userMessageId,
     chatId: queuedRun.chatId,
     userId: queuedRun.userId,
@@ -119,7 +119,7 @@ describe('replyToMessage', () => {
     },
   )
 
-  it.effect("reply skips a message with no active Run, logged under the job's ids", () => {
+  it.effect("reply skips a message with no active Run, logged under the event's ids", () => {
     const assistant = recordMessageAssistant(Effect.never)
     const { logs, layer: logger } = recordLogs('messageId', 'chatId', 'userId')
     return Effect.gen(function* () {
@@ -129,7 +129,7 @@ describe('replyToMessage', () => {
       assert.deepStrictEqual(logs, [
         [
           'Info',
-          "reply skipped: no active Run for the job's message, chat and user",
+          "reply skipped: no active Run for the event's message, chat and user",
           queuedRun.userMessageId,
           chatId,
           owner,
@@ -237,9 +237,9 @@ const selectsFirstMessage = () => encodeWith(Message)(firstMessage).pipe(Effect.
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
-const firstMessageCreated = new FirstMessageCreated({ id: firstMessage.id, chatId, userId: owner })
+const chatInitialized = new ChatInitialized({ messageId: firstMessage.id, chatId, userId: owner })
 
-const title = titleChat(firstMessageCreated)
+const title = titleChat(chatInitialized)
 
 describe('titleChat', () => {
   it.effect('skips a chat the store finds titled or gone by the rename, and logs it', () => {

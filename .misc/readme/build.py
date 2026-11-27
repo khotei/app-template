@@ -259,7 +259,7 @@ def how_it_works():
         f.box(xs[1], y1, bw, "bnd", "2 · One transaction",
               ["`AskChatService.ask` stores the user's message and its `queued` Run together"], h=126),
         f.box(xs[2], y1, bw, "bnd", "3 · After the commit",
-              ["sends `ReplyToMessage` to SQS, and `FirstMessageCreated` on a chat's first message",
+              ["sends `UserMessageCreated` to SQS, and `ChatInitialized` on a chat's first message",
                "responds `202` with the Run"], h=126),
     ]
     for i in range(2):
@@ -268,7 +268,7 @@ def how_it_works():
     f.text(28, 258, "In the worker, one handling per message", "b", accent="bnd")
     y2 = 296
     f.box(xs[0], y2, bw, "neu", "4 · SQS invokes the worker",
-          ["a Lambda mapping posts each batch to `POST /events`", ("m", "`FirstMessageCreated` goes to `TitleChatService`")], h=140)
+          ["a Lambda mapping posts each batch to `POST /events`", ("m", "`ChatInitialized` goes to `TitleChatService`")], h=140)
     f.box(xs[1], y2, bw, "bnd", "5 · Start, then ask",
           ["`ReplyChatService.reply` moves the Run to `generating`, then asks the language model with the chat's history"], h=140)
     f.box(xs[2], y2, bw, "bnd", "6 · One transaction, or failed",
@@ -356,9 +356,9 @@ def infrastructure():
     f.rect(28, mt, 904, mb - mt, "box k-bg dash")
     f.text(44, mt + 24, "MiniStack container :4566", "b")
     ra = mt + 40
-    hA = 92
+    hA = 101
     f.box(44, ra, 150, "dat", "S3 bucket", ["`attachments`", ("m", "no app wires it")], h=hA, dashed=True)
-    f.box(210, ra, 210, "dat", "SQS queues", ["`reply-to-message`", "`first-message-created`", ], h=hA)
+    f.box(210, ra, 210, "dat", "SQS queues", ["`user-message-created`", "`message-retried`", "`chat-initialized`"], h=hA)
     f.box(440, ra, 200, "dat", "RDS `database`", ["a Postgres container", ("m", "host port 15432")], h=hA)
     f.box(660, ra, 230, "neu", "Lambda `worker`", ["a mapping per queue", ("m", "invokes go to the host")], h=hA)
     # host → MiniStack
@@ -575,15 +575,15 @@ def patterns():
             "} as const satisfies Record<RunStatus, …>",
         ], "a new status fails typecheck until its row exists"),
         ("The writes in one transaction, sends after it", [
-            "const run = yield* Effect.gen(function* () {",
+            "const { message, run } = yield* Effect.gen(…",
             "  … messages.create, then runs.create …",
             "}).pipe(transaction.run)",
             "if (ChatState.isNew(chat.run))",
-            "  yield* queue.sendFirstMessageCreated(run)",
-            "return yield* askReply(run)",
+            "  yield* queue.sendChatInitialized(message)",
+            "yield* queue.sendUserMessageCreated(message)",
         ], "a delivery always finds the Run it names"),
         ("Errors handled once, at the flow's end", [
-            "replies.reply(job.messageId).pipe(",
+            "replies.reply(event.messageId).pipe(",
             "  Effect.catchTag('RunNotFoundError', skip),",
             "  Effect.catchTag(['RunStartedError',",
             "    'LlmError'], logFailed),",

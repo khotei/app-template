@@ -79,19 +79,20 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="733" y="182" class="m" xml:space="preserve">reply, title</text>
 <rect x="28" y="396" width="904" height="172" rx="8" class="box k-bg dash"/>
 <text x="44" y="420" class="b" xml:space="preserve">MiniStack container :4566</text>
-<rect x="44" y="436" width="150" height="92" rx="8" class="box k-dat dash"/>
+<rect x="44" y="436" width="150" height="101" rx="8" class="box k-dat dash"/>
 <text x="56" y="460" class="b a-dat" xml:space="preserve">S3 bucket</text>
 <text x="56" y="480" xml:space="preserve"><tspan class="code">attachments</tspan></text>
 <text x="56" y="499" class="m" xml:space="preserve">no app wires it</text>
-<rect x="210" y="436" width="210" height="92" rx="8" class="box k-dat"/>
+<rect x="210" y="436" width="210" height="101" rx="8" class="box k-dat"/>
 <text x="222" y="460" class="b a-dat" xml:space="preserve">SQS queues</text>
-<text x="222" y="480" xml:space="preserve"><tspan class="code">reply-to-message</tspan></text>
-<text x="222" y="500" xml:space="preserve"><tspan class="code">first-message-created</tspan></text>
-<rect x="440" y="436" width="200" height="92" rx="8" class="box k-dat"/>
+<text x="222" y="480" xml:space="preserve"><tspan class="code">user-message-created</tspan></text>
+<text x="222" y="500" xml:space="preserve"><tspan class="code">message-retried</tspan></text>
+<text x="222" y="520" xml:space="preserve"><tspan class="code">chat-initialized</tspan></text>
+<rect x="440" y="436" width="200" height="101" rx="8" class="box k-dat"/>
 <text x="452" y="460" class="b a-dat" xml:space="preserve">RDS <tspan class="code">database</tspan></text>
 <text x="452" y="480" xml:space="preserve">a Postgres container</text>
 <text x="452" y="499" class="m" xml:space="preserve">host port 15432</text>
-<rect x="660" y="436" width="230" height="92" rx="8" class="box k-neu"/>
+<rect x="660" y="436" width="230" height="101" rx="8" class="box k-neu"/>
 <text x="672" y="460" class="b a-neu" xml:space="preserve">Lambda <tspan class="code">worker</tspan></text>
 <text x="672" y="480" xml:space="preserve">a mapping per queue</text>
 <text x="672" y="499" class="m" xml:space="preserve">invokes go to the host</text>
@@ -115,10 +116,10 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="768" y="352" class="m" xml:space="preserve">each batch to</text>
 <rect x="765" y="359.1" width="108.48" height="16.1" class="lbg"/>
 <text x="768" y="371" class="m" xml:space="preserve"><tspan class="code">POST /events</tspan></text>
-<polyline points="315,528 315,552 775,552 775,537" class="ln"/>
-<polygon points="775,528 780,538 770,538" class="hd"/>
-<rect x="438.201" y="545.1" width="213.598" height="16.1" class="lbg"/>
-<text x="545" y="557" class="m" text-anchor="middle" xml:space="preserve">batches, through the mappings</text>
+<polyline points="315,537 315,561 775,561 775,546" class="ln"/>
+<polygon points="775,537 780,547 770,547" class="hd"/>
+<rect x="438.201" y="554.1" width="213.598" height="16.1" class="lbg"/>
+<text x="545" y="566" class="m" text-anchor="middle" xml:space="preserve">batches, through the mappings</text>
 <rect x="28" y="596" width="904" height="81" rx="8" class="box k-neu"/>
 <text x="40" y="620" class="b a-neu" xml:space="preserve">Pulumi: <tspan class="code">make up</tspan> runs <tspan class="code">deployment/local</tspan></text>
 <text x="40" y="640" xml:space="preserve">creates the MiniStack and telemetry containers, then inside MiniStack the queues with their dead-letter queues, the</text>

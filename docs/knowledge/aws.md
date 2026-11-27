@@ -155,7 +155,7 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   own work on any outcome but success, an interrupt included
   ([database.md › Stuck Runs](database.md#stuck-runs)). A body that does not decode never will, so
   it is logged and acknowledged, unrun.
-- **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker that
+- **Delivery is at-least-once:** the reply fails a Run it finds started, as the worker that
   started it died, so a copy delivered while the first is still handled fails a live Run, a rare
   case accepted; of two delivered at the same instant, the one that loses its start's write dies
   and fails nothing.

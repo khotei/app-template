@@ -313,8 +313,8 @@ fails `ChatBusyError`. A worker that dies (a killed process, the function's time
 by the next delivery, up to the queue's visibility timeout later, which finds the Run started,
 and fails it. A store unavailable under a handling leaves it so: every repository dies on a store
 error, so the handler can neither start the Run nor write its `failed`, and the worker
-acknowledges its record. So do a process that dies between the commit and the send and a job
-whose every delivery kills its process, and nothing consumes the dead-letter queue
+acknowledges its record. So do a process that dies between the commit and the send and a queue
+message whose every delivery kills its process, and nothing consumes the dead-letter queue
 ([aws.md › Queues](aws.md#queues)). Such a Run stays active until it is repaired by hand. No sweep
 over active Runs exists: by age alone it could not tell a dead Run from one waiting in a backlog.
 
@@ -329,13 +329,13 @@ chat's title) is the one the worker reads
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`
   sends its jobs and events after its transaction commits, so a delivery always finds the record it
   names. A transaction that fails keeps no row and responds with `500`.
-- **A send SQS refuses** is logged with its ids: the reply's with its chat's, its user message's and
-  its Run's, the event's with its message's, its chat's and its user's. For the reply's,
-  `AskChatService` also fails the Run it sent through `RunService.update` and the Run's `fail`, by
+- **A send SQS refuses** is logged with its event's ids: its chat's, its user's and its message's.
+  For the reply's two, `UserMessageCreated` and `MessageRetried`, `AskChatService` also fails the
+  Run it sent through `RunService.update` and the Run's `fail`, by
   its id, with the queue's error's full text as its failure, and the request responds with `202` and
   that failed Run; the message is stored and shown failed with its retry,
-  `POST /chats/:chatId/runs`. The event's send only logs it. A send that never happens after the commit:
-  [Stuck Runs](#stuck-runs).
+  `POST /chats/:chatId/runs`. `ChatInitialized`'s send only logs it. A send that never happens
+  after the commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 

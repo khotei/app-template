@@ -55,16 +55,16 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="500" y="217" class="m" xml:space="preserve">a new status fails typecheck until its row exists</text>
 <rect x="28" y="287" width="444" height="188" rx="8" class="box k-neu"/>
 <text x="40" y="311" class="b" xml:space="preserve">The writes in one transaction, sends after it</text>
-<text x="40" y="331" xml:space="preserve"><tspan class="code">const run = yield* Effect.gen(function* () {</tspan></text>
+<text x="40" y="331" xml:space="preserve"><tspan class="code">const { message, run } = yield* Effect.gen(…</tspan></text>
 <text x="40" y="351" xml:space="preserve"><tspan class="code">  … messages.create, then runs.create …</tspan></text>
 <text x="40" y="371" xml:space="preserve"><tspan class="code">}).pipe(transaction.run)</tspan></text>
 <text x="40" y="391" xml:space="preserve"><tspan class="code">if (ChatState.isNew(chat.run))</tspan></text>
-<text x="40" y="411" xml:space="preserve"><tspan class="code">  yield* queue.sendFirstMessageCreated(run)</tspan></text>
-<text x="40" y="431" xml:space="preserve"><tspan class="code">return yield* askReply(run)</tspan></text>
+<text x="40" y="411" xml:space="preserve"><tspan class="code">  yield* queue.sendChatInitialized(message)</tspan></text>
+<text x="40" y="431" xml:space="preserve"><tspan class="code">yield* queue.sendUserMessageCreated(message)</tspan></text>
 <text x="40" y="458" class="m" xml:space="preserve">a delivery always finds the Run it names</text>
 <rect x="488" y="287" width="444" height="188" rx="8" class="box k-neu"/>
 <text x="500" y="311" class="b" xml:space="preserve">Errors handled once, at the flow's end</text>
-<text x="500" y="331" xml:space="preserve"><tspan class="code">replies.reply(job.messageId).pipe(</tspan></text>
+<text x="500" y="331" xml:space="preserve"><tspan class="code">replies.reply(event.messageId).pipe(</tspan></text>
 <text x="500" y="351" xml:space="preserve"><tspan class="code">  Effect.catchTag('RunNotFoundError', skip),</tspan></text>
 <text x="500" y="371" xml:space="preserve"><tspan class="code">  Effect.catchTag(['RunStartedError',</tspan></text>
 <text x="500" y="391" xml:space="preserve"><tspan class="code">    'LlmError'], logFailed),</tspan></text>

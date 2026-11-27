@@ -19,14 +19,14 @@ export type AskChatWhere = Types.Simplify<SetRequired<Pick<ChatWhere, 'id' | 'us
 
 /**
  * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
- * sends its jobs and events.
+ * sends its events.
  */
 export class AskChatService extends Context.Service<
   AskChatService,
   {
     /**
      * Asks the user's chat `where` names for a reply to `text`: stores the message with its queued
-     * Run, then sends a new chat's first message's event and the reply's job; returns the Run sent,
+     * Run, then sends a new chat's initialization and the message's events; returns the Run sent,
      * or failed with the full text of SQS's refusal. Another user's chat is not found.
      */
     readonly ask: (
@@ -35,7 +35,7 @@ export class AskChatService extends Context.Service<
     ) => Effect.Effect<Run, ChatNotFoundError | ChatBusyError>
     /**
      * Retries the failed newest Run of the user's chat `where` names: stores a new queued Run of
-     * its user message, then sends the reply's job as `ask` does.
+     * its user message, then sends the retry's event, its refusal failing the Run as `ask`'s does.
      */
     readonly retry: (
       where: AskChatWhere,
@@ -49,48 +49,48 @@ export class AskChatService extends Context.Service<
     const transaction = yield* Transaction
     const queue = yield* ChatQueue
 
-    // After the commit of `run`, so every delivery finds it; SQS's refusal fails that Run alone,
-    // by its id: one a worker settled meanwhile, as SQS took the job after all, dies on the
+    // Piped on the send of the event the reply listens to, after the commit of `run`, so every
+    // delivery finds it: unheard, the Run would stay queued, so SQS's refusal fails that Run alone,
+    // by its id; one a worker settled meanwhile, as SQS took the event after all, dies on the
     // write's guard.
-    const askReply = Effect.fnUntraced(
-      function* (run: Run) {
-        yield* queue.sendReplyToMessage(run)
-        return run
-      },
-      (sent, run) =>
-        Effect.catch(
-          sent,
-          Effect.fnUntraced(function* (error) {
-            return yield* runs.update(run, yield* RunMove.fail(run, Cause.fail(error)))
-          }),
-        ),
-    )
+    const failRunOnRefusal =
+      (run: Run) =>
+      <E>(sent: Effect.Effect<void, E>) =>
+        sent.pipe(
+          Effect.as(run),
+          Effect.catch(
+            Effect.fnUntraced(function* (error) {
+              return yield* runs.update(run, yield* RunMove.fail(run, Cause.fail(error)))
+            }),
+          ),
+        )
 
     // Uninterruptible whole: a client's abort after the Run commits would leave it queued with no
-    // job, its chat busy and its retry refused.
+    // event, its chat busy and its retry refused.
     const ask = Effect.fn('AskChatService.ask')(function* (where: AskChatWhere, text: string) {
       const chat = yield* chats.getOne({ id: where.id, userId: where.userId })
       yield* ChatPolicy.ensureNotBusy(chat.run)
 
       // The message and its Run commit together, and alone: a Run that loses the race keeps no
       // message, and a send inside the transaction could be delivered before its Run commits.
-      const run = yield* Effect.gen(function* () {
+      const { message, run } = yield* Effect.gen(function* () {
         const message = yield* messages.create({
           chatId: chat.id,
           userId: chat.userId,
           text,
           author: 'user',
         })
-        return yield* runs.create({
+        const run = yield* runs.create({
           ...Struct.pick(message, ['chatId', 'userId']),
           userMessageId: message.id,
         })
+        return { message, run }
       }).pipe(transaction.run)
 
-      // A chat no ask has reached yet gets its first message's event once; the event's send never
-      // fails, so the sends go in either order.
-      if (ChatState.isNew(chat.run)) yield* queue.sendFirstMessageCreated(run)
-      return yield* askReply(run)
+      // A chat no ask has reached yet gets its initialization's event once; that send never fails,
+      // so the sends go in either order.
+      if (ChatState.isNew(chat.run)) yield* queue.sendChatInitialized(message)
+      return yield* queue.sendUserMessageCreated(message).pipe(failRunOnRefusal(run))
     }, Effect.uninterruptible)
 
     const retry = Effect.fn('AskChatService.retry')(function* (where: AskChatWhere) {
@@ -98,7 +98,12 @@ export class AskChatService extends Context.Service<
       const failed = yield* RunPolicy.ensureRetryable(chat.run)
 
       const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
-      return yield* askReply(run)
+      return yield* queue
+        .sendMessageRetried({
+          ...Struct.pick(failed, ['chatId', 'userId']),
+          id: failed.userMessageId,
+        })
+        .pipe(failRunOnRefusal(run))
     }, Effect.uninterruptible)
 
     return { ask, retry }
