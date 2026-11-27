@@ -102,7 +102,7 @@ changes it.
 | Folder | What it holds |
 |---|---|
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
-| `application/` | the behaviour: the modules `chat`, `user` and `identity`, and every use case in `application/use-cases` |
+| `application/` | the behaviour: the modules `chat`, `user` and `identity`, and above them a use case for a flow over modules, in `application/use-cases/<module>/` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
 | `packages/` | generic tools that know no app: database, S3 and queue clients, the AWS inventory's types, the codecs and the id schema (`schema`), UI, test helpers |
 | `deployment/` | the Pulumi program of the local stand: MiniStack with the database, the bucket, the queues and the worker's Lambda mappings inside it, and the telemetry backend, from resource code an AWS stack can call |
@@ -136,7 +136,7 @@ wrong import fails before a review. The rules a change most often breaks:
 From a model's rules up to a handler, each kind of code is built on the ones before it:
 
 <img src=".misc/readme/module-design.svg"
-  alt="The cut of chat: handler, use case, Verb-Model service, Model service over the data
+  alt="The cut of chat: handler, Verb-Model service, Model service over the data
   layer's repositories, and the models' rules and moves; beside it, where a change goes:
   edit, wrap, compose or a Verb-Model service"
   width="830">

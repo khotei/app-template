@@ -216,7 +216,7 @@ _Avoid_: DTO layer, SDK, wire schemas, shared domain
 
 **Use case**:
 One scenario that composes domain services and model rules over modules, their writes in one
-transaction, or ends a job; what a handler calls when a flow is more than one service method and
+transaction; what a handler calls when a flow is more than one service method and
 no one service owns it ([which flow](../../.claude/rules/layering.md#use-cases)). It holds only its
 flow, the order of the calls, the transaction, what it skips and logs; each module's rules, records
 and jobs stay in its models and services, and an order over one module's services is that
@@ -309,7 +309,7 @@ _Avoid_: Implementation, provider, DAO, store
 The owner of one model's rules, or of one operation that belongs to no model: every write a rule
 guards goes through it. A model starts with `<Model>Service` over its repository; a purpose past it
 is a service composed over it, named for what it adds (`File<Model>Service`). The last grouping
-of a module's logic before a use case is a `<Verb><Model>Service` (`AskChatService`,
+of a module's logic before a handler or use case is a `<Verb><Model>Service` (`AskChatService`,
 `ReplyChatService`, `TitleChatService`): its role in
 [layering.md](../../.claude/rules/layering.md#ports-and-domain-services), its form in
 [naming.md](../../.claude/rules/naming.md#symbols).
@@ -325,7 +325,8 @@ _Avoid_: Layering (an Effect `Layer` is the wiring, not the unit), inheritance, 
 
 **Handler**:
 The function that serves one request or one job in an app: an HTTP group's (`<Name>Handler`) or
-the worker's route to a queue's use case. Not a Lambda's `handler` setting, AWS's field.
+a job's in the worker (`<Name>Handler.<job>`), which ends the job in one tail. Not a Lambda's
+`handler` setting, AWS's field.
 _Avoid_: Controller, consumer (the function that runs a queue's handler), processor, endpoint
 
 **Kernel**:
@@ -364,7 +365,7 @@ carries the current trace. A send SQS refuses is logged, and fails the job's Run
 _Avoid_: Publish, enqueue, dispatch, ask (the user's act)
 
 **Handling**:
-The worker's work on one delivery: the queue's use case under the consumer's span. A Run is the
+The worker's work on one delivery: the queue's handler under the consumer's span. A Run is the
 work of answering, whichever handling does it.
 _Avoid_: Run (the domain's), execution, processing
 

@@ -30,7 +30,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
 | `.sender` · `.consumer` | the queue's send · its run of a handler per job | `packages/queue` |
 | `.http` | a resource's `HttpApiGroup` with its wire shapes | `application/http-api/` |
-| `.mapper` · `.handler` | a model's wire shape, where it differs · a resource's handlers, or the worker's route | `apps/api/<resource>/`; `apps/worker/` |
+| `.mapper` · `.handler` | a model's wire shape, where it differs · a resource's handlers, of its endpoints or its jobs, or the worker's route | `apps/api/<resource>/`; `apps/worker/<resource>/`, the route `apps/worker/` |
 | `.layer` | the layers of services another workspace declares (the API contract's middlewares), each `<Service>Layer` | an app |
 | `.test` · `.e2e` | a unit test · a test on the e2e run's containers, each named for its source | `__tests__/` · `__e2e__/`, `apps/e2e` |
 | `.test-fixture` · `.test-util` | sample values, plain data · a helper, building no layer and doubling nothing | `__tests__/testing/` |
@@ -40,8 +40,8 @@ keep theirs. What each role holds and may import, with this app's files of each:
 
 - Types are `PascalCase` `<Name><Role>`: `<Model><Problem>Error`, a port's `<Port><Problem>Error`,
   `<Model>Service` (`<Aspect><Model>Service` composed over it) or, for one operation of no model,
-  that operation; the last grouping before a use case is `<Verb><Model>Service`, its main method
-  `<verb>`, the verb it names, any other named for its own act in the model's words.
+  that operation; the last grouping before a handler or use case is `<Verb><Model>Service`, its
+  main method `<verb>`, the verb it names, any other named for its own act in the model's words.
 - A domain service's method types an object it takes from its model: new or changed fields are a
   variant (`typeof Order.jsonCreate.Type`, `typeof Order.jsonUpdate.Type`), a where the model's one
   `<Model>Where`, which a method narrows in place (`SetRequired<OrderWhere, 'customerId'>`, a
@@ -64,7 +64,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
   - `select<One|Many>` / `insert` / `update` / `delete`: a repository's; `update` never creates.
 - A job is named `<Verb><Object>` in the glossary's words for the work it asks of its worker
   (`ShipOrder`), never after a method, its queue or one step of the work; its queue
-  (`ship-order`), its `send<Job>` and the use case that ends it (`shipOrder`) take that name.
+  (`ship-order`), its `send<Job>` and the handler that ends it (`shipOrder`) take that name.
 - Other constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant
   is `PascalCase`, `<Service><Variant>` for a service declared elsewhere.
 - A test-only layer ends in `Test`: a fake `<Service>Test`, a model's real services over fakes
