@@ -1,4 +1,4 @@
-export { createDb } from '#db/db.client'
+export { DbClient } from '#db/db.client'
 export { DbColumn } from '#db/db-column'
 export { DbFilter, type Keyed } from '#db/db-filter'
 export { migrateDatabase } from '#db/db-migrate'

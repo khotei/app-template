@@ -14,10 +14,12 @@ const EffectLoggerDebug = Layer.succeed(PgDrizzle.EffectLogger, {
   logQuery: (query, params) => Effect.logDebug('sql').pipe(Effect.annotateLogs({ query, params })),
 })
 
-/** Creates a Drizzle database over `relations` on the `PgClient` in the context. */
-export const createDb = <TRelations extends AnyRelations>(
-  relations: TRelations,
-): Effect.Effect<PgDrizzle.EffectPgDatabase<TRelations>, never, PgClient.PgClient> =>
-  PgDrizzle.make({ relations }).pipe(
-    Effect.provide(Layer.merge(PgDrizzle.DefaultServices, EffectLoggerDebug)),
-  )
+export class DbClient {
+  /** Creates a Drizzle database over `relations` on the `PgClient` in the context. */
+  static readonly create = <TRelations extends AnyRelations>(
+    relations: TRelations,
+  ): Effect.Effect<PgDrizzle.EffectPgDatabase<TRelations>, never, PgClient.PgClient> =>
+    PgDrizzle.make({ relations }).pipe(
+      Effect.provide(Layer.merge(PgDrizzle.DefaultServices, EffectLoggerDebug)),
+    )
+}

@@ -2,10 +2,10 @@
 
 How the app stores its records in Postgres: where the tables are declared, how a row becomes a
 domain model, how the schema changes, and how tests get a database. The code:
-`@app-template/packages/db`, which knows no table (the client factory `createDb`, `Transaction`,
+`@app-template/packages/db`, which knows no table (the client factory `DbClient.create`, `Transaction`,
 the shared columns and the query helpers); the kernel's `postgres` part (`PgClientFromConfig`
 and the migrate program); the data layer, `kernel/data/` (the client `Db`, made by
-`createDb(relations)` over the `PgClient` in the context, the tables, their entities, the
+`DbClient.create(relations)` over the `PgClient` in the context, the tables, their entities, the
 migrations and the repositories over them); and a module's models, each the codec of its own
 row. Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an
 `Effect`, never a promise.

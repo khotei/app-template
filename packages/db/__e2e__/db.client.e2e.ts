@@ -6,7 +6,7 @@ import { Context, Effect, Layer, type LogLevel, References } from 'effect'
 
 import { recordLogs } from '@app-template/packages/testing'
 
-import { createDb } from '#db/db.client'
+import { DbClient } from '#db/db.client'
 import { PgClientTest } from '#testing/db/e2e/postgres.test-layer'
 
 const probes = pgTable('probes', { id: integer().primaryKey() })
@@ -15,7 +15,7 @@ const relations = defineRelations({ probes })
 
 class Db extends Context.Service<Db, PgDrizzle.EffectPgDatabase<typeof relations>>()(
   '@app-template/packages/db/__e2e__/Db',
-  { make: createDb(relations) },
+  { make: DbClient.create(relations) },
 ) {
   static readonly layer = Layer.effect(this, this.make)
 }
@@ -28,7 +28,7 @@ const greet = Effect.gen(function* () {
   )
 })
 
-describe('createDb', () => {
+describe('DbClient.create', () => {
   it.effect.each<{ level: LogLevel.LogLevel; expected: ReadonlyArray<ReadonlyArray<unknown>> }>([
     {
       level: 'Debug',
