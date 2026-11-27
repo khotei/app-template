@@ -354,7 +354,7 @@ A queue message that hands one handler in the worker one piece of work, a comman
 queue definition and named `<Verb><Object>` in this glossary's words for that work
 (`ReplyToMessage`, which names the user's message whose active Run the worker starts). Unheard,
 its work stays undone, so its sender settles a refused send. Not a CI job (a workflow's `jobs:`).
-_Avoid_: Task, command, message (the chat's word)
+_Avoid_: Task, message (the chat's word)
 
 **Event**:
 A queue message that states a fact a module's commit made true, named `<Object><PastVerb>`

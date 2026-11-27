@@ -1376,34 +1376,35 @@ without renaming provisioned resources. No app wires the files today.
 
 ### Jobs as queue messages
 
-A job, like an event, is a queue message, and no table holds it: the work it hands over keeps its
-own record (the Run, the chat's title), which the worker reads to handle it once, to settle a Run
-whose worker died and to write a failure. `QueueSender.send` encodes the job by its definition; the
-`<Verb><Model>Service` that writes its record sends it after its commit, so every delivery finds its
-record. Each job goes through its `send<Job>`, a method of its module's `<Model>Queue` in its
-module's infrastructure, in the file of its queue's definition, which takes `QueueSender` in its
-`make`, only sends the job and logs a send SQS refuses. A job hands its worker one piece of work, as
-a command message does in messaging, and is named as one: `<Verb><Object>` in the glossary's words
-for the work it hands over, never after a method, its queue or one step of the work; its queue, its
-`send<Job>` and the worker's handler that ends it take its name. An event states a fact its sender's
-commit made true, as an event message does in messaging, for a list of listeners, none required:
-named `<Object><PastVerb>`, its queue and its `send<Event>` take its name, and each listener is
-named for its own work. Unheard, does the system break, and does the sender settle a refused send?
-Yes to either makes it a job. The chat's job is `ReplyToMessage { messageId }`, on
-`reply-to-message`, sent by `ChatQueue.sendReplyToMessage` and ended by
-`ChatHandler.replyToMessage`; its event is `FirstMessageCreated { id, chatId, userId }`, ids alone,
-on `first-message-created`, sent by `ChatQueue.sendFirstMessageCreated` and listened to by
-`ChatHandler.titleChat`. The reply's names the user's message and starts its active Run, which the
-unique index on a chat's active Run keeps to one; what a job that names no one Run costs: [A Run's
-job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The event
-names a new chat's first message, which the title reads. The reply's send returns its `QueueError`,
-and `AskChatService`, the api's half, sends it from both its methods after their commit and fails
-the Run through `RunService.update` and the Run's `fail`, with the error's full text as its failure;
-the request responds with `202` and that failed Run; what a client's abort leaves: [A Run's job on
-interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The event's send
-only logs it, as its sender settles nothing. Which services a Run has and over which: [layering.md ›
-Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services); who does each
-job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
+A job is a queue message, and no table holds it: the work it hands over keeps its own record, the
+Run, which the worker reads to handle it once, to settle a Run whose worker died and to write a
+failure. An event is a queue message too, and each listener's work keeps its own record (the chat's
+title). `QueueSender.send` encodes the job by its definition; the `<Verb><Model>Service` that writes
+its record sends it after its commit, so every delivery finds its record. Each job goes through its
+`send<Job>`, a method of its module's `<Model>Queue` in its module's infrastructure, in the file of
+its queue's definition, which takes `QueueSender` in its `make`, only sends the job and logs a send
+SQS refuses. A job hands its worker one piece of work, as a command message does in messaging, and
+is named as one: `<Verb><Object>` in the glossary's words for the work it hands over, never after a
+method, its queue or one step of the work; its queue, its `send<Job>` and the worker's handler that
+ends it take its name. An event states a fact its sender's commit made true, as an event message
+does in messaging, for a list of listeners, none required: named `<Object><PastVerb>`, its queue and
+its `send<Event>` take its name, and each listener is named for its own work. Unheard, does the
+system break, and does the sender settle a refused send? Yes to either makes it a job. The chat's
+job is `ReplyToMessage { messageId }`, on `reply-to-message`, sent by `ChatQueue.sendReplyToMessage`
+and ended by `ChatHandler.replyToMessage`; its event is `FirstMessageCreated { id, chatId, userId
+}`, ids alone, on `first-message-created`, sent by `ChatQueue.sendFirstMessageCreated` and listened
+to by `ChatHandler.titleChat`. The reply's names the user's message and starts its active Run, which
+the unique index on a chat's active Run keeps to one; what a job that names no one Run costs: [A
+Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The
+event names a new chat's first message, which the title reads. The reply's send returns its
+`QueueError`, and `AskChatService`, the api's half, sends it from both its methods after their
+commit and fails the Run through `RunService.update` and the Run's `fail`, with the error's full
+text as its failure; the request responds with `202` and that failed Run; what a client's abort
+leaves: [A Run's job on interrupt and on two
+deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The event's send only logs it, as its
+sender settles nothing. Which services a Run has and over which: [layering.md › Ports and domain
+services](../../.claude/rules/layering.md#ports-and-domain-services); who does the work of each job
+and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
 route lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one
 message concurrently, each under its own exit: one that dies is logged (`queue message failed`) and
 leaves the others running, and every record the worker saw to its end is acknowledged; what a
@@ -1498,14 +1499,15 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 ### The chat's jobs in their services
 
-A chat's jobs are split at the queue: `AskChatService`, in the api, stores a request and sends its
-job and event after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and the worker
-does each one's work in a service of its own. Each is the last grouping of the module's logic before
-the worker's handler of the job: its class is named for its verb and its main method repeats that
-verb, any other method named for its own act in the model's words. The two sides meet by one
-grammar: the api sends the job `<Verb><Object>`, through a private step `ask<Verb>` when two flows
-send it, and the worker's `<Verb><Model>Service.<verb>` does that work; an event's listener and its
-service are named for their own work (`ChatHandler.titleChat`, `TitleChatService.title`).
+A chat's queue messages are split at the queue: `AskChatService`, in the api, stores a request and
+sends its job and event after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and
+the worker does each one's work in a service of its own. Each is the last grouping of the module's
+logic before the worker's handler of the job or the event: its class is named for its verb and its
+main method repeats that verb, any other method named for its own act in the model's words. The two
+sides meet by one grammar: the api sends the job `<Verb><Object>`, through a private step
+`ask<Verb>` when two flows send it, and the worker's `<Verb><Model>Service.<verb>` does that work;
+an event's listener and its service are named for their own work (`ChatHandler.titleChat`,
+`TitleChatService.title`).
 
 ```text
 api:    AskChatService.ask ──new chat──▶ FirstMessageCreated ─▶ ChatHandler.titleChat ──────▶ TitleChatService.title

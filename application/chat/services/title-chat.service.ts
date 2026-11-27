@@ -13,8 +13,9 @@ export class TitleChatService extends Context.Service<
   TitleChatService,
   {
     /**
-     * Titles the user's chat from the message `where` names while the chat is untitled; a chat
-     * titled or gone, its message with it, fails `ChatNotFoundError`.
+     * Titles the user's chat from its first message, which `where` names by its id, chat and user
+     * as the event does, while the chat is untitled; a chat titled or gone, its message with it,
+     * fails `ChatNotFoundError`.
      */
     readonly title: (
       where: MessageWhere,

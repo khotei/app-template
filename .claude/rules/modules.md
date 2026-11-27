@@ -62,7 +62,7 @@ case, never repeated. The test: if the owner changes the rule, must this module 
 one rule, call it. No: two rules that only look alike, each kept by its module.
 Decision: [Records open, rules called](../../docs/knowledge/decisions.md#records-open-rules-called).
 
-## A reaction sent as a job, or an ordered flow as events
+## A reaction is an event, an ordered flow a use case
 
 A module's reaction to another module's fact listens to an event the fact's module sends after its
 commit; a job carries work its sender asks for and settles (a slow call, a retry), never a
