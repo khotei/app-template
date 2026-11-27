@@ -452,7 +452,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "the chat's title service (TitleChatService), the worker's work on the title's job, imports the workspaces a module's services do: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "message": "the chat's title service (TitleChatService), the worker's title of a new chat, imports the workspaces a module's services do: no use case, no kernel part but the data layer's stores, no @effect/* package (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": ["@app-template/packages/db"],

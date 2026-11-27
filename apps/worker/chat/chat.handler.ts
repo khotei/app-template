@@ -31,13 +31,13 @@ export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
 )
 
 /**
- * Titles the chat of the event's first message; a chat gone or titled meanwhile, or an assistant
- * error, is logged and skipped.
+ * Titles the user's chat from the event's first message; a chat gone, its message with it, or
+ * titled meanwhile, or an assistant error, is logged and skipped.
  */
 export const titleChat = Effect.fn('ChatHandler.titleChat')(
   function* (event: FirstMessageCreated) {
     const titles = yield* TitleChatService
-    return yield* titles.title(event.chatId)
+    return yield* titles.title({ id: event.id, chatId: event.chatId, userId: event.userId })
   },
   Effect.catchTags({
     LlmError: (error) =>

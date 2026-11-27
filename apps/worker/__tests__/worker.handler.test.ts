@@ -1,6 +1,6 @@
 import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
 import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
@@ -30,10 +30,10 @@ describe('POST /events', () => {
       Layer.provideMerge(BunHttpServer.layerTest),
       Layer.provide([
         Layer.mock(MessageRepository, {
-          selectMany: (where) =>
+          selectOne: (where) =>
             Effect.sync(() => {
               reads.push(where)
-            }).pipe(Effect.as([])),
+            }).pipe(Effect.as(Option.none())),
         }),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
@@ -65,7 +65,7 @@ describe('POST /events', () => {
 
       assert.strictEqual(response.status, 200)
       assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
-      assert.deepStrictEqual(reads, [{ chatId }])
+      assert.deepStrictEqual(reads, [{ id: firstMessage.id, chatId, userId: owner }])
     }).pipe(Effect.provide(events))
   })
 })

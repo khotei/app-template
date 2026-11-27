@@ -220,9 +220,8 @@ describe('replyToMessage', () => {
   })
 })
 
-/** A message read that returns the chat's messages as `firstMessage` alone. */
-const selectsFirstMessage = () =>
-  Effect.forEach([firstMessage], (message) => encodeWith(Message)(message))
+/** A message read that finds `firstMessage`. */
+const selectsFirstMessage = () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some))
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
@@ -242,7 +241,7 @@ describe('titleChat', () => {
       Effect.provide([
         layerChatTest(
           {
-            messages: { selectMany: selectsFirstMessage },
+            messages: { selectOne: selectsFirstMessage },
             chats: { selectOne: () => Effect.succeedNone },
           },
           { chatAssistant: assistant.layer },
@@ -252,7 +251,7 @@ describe('titleChat', () => {
     )
   })
 
-  it.effect('logs a chat gone when it holds no message, without asking', () => {
+  it.effect('logs a chat gone when its message is gone, without asking', () => {
     const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
@@ -263,7 +262,7 @@ describe('titleChat', () => {
     }).pipe(
       Effect.provide([
         layerChatTest(
-          { messages: { selectMany: () => Effect.succeed([]) } },
+          { messages: { selectOne: () => Effect.succeedNone } },
           { chatAssistant: assistant.layer },
         ),
         logger,
@@ -284,7 +283,7 @@ describe('titleChat', () => {
     }).pipe(
       Effect.provide([
         layerChatTest(
-          { messages: { selectMany: selectsFirstMessage } },
+          { messages: { selectOne: selectsFirstMessage } },
           { chatAssistant: assistant.layer },
         ),
         logger,

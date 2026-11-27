@@ -1511,14 +1511,15 @@ assistant's calls; one tail fails the Run the start wrote
 on whatever ends the answer. A Run some worker started fails `RunStartedError`, whose text says its
 worker stopped, and the start fails it with it; a message with no active Run fails
 `RunNotFoundError`, unwritten.
-`TitleChatService.title` does the title's job's work, given the chat the job names: the chat's
-first message, the assistant's
-title, and the title written while the chat is untitled, so a rename by the user wins; a chat with
-no message fails `ChatNotFoundError`, as a message leaves only with its chat. Each job's handler in
-the worker, `ChatHandler.<job>`, ends the job in one tail: the reply's skips a Run settled or gone,
-ends on a started Run and on the assistant's error, which the Run already holds, logging each end
-once with its cause, an interrupt included; the title's skips a chat gone or titled and logs the
-assistant's error; a defect, a refused move's included, is the queue consumer's to log.
+`TitleChatService.title` does the title's work, given the ids of the first message the event
+names: that one message, read by its id, chat and user (`MessageService.getOne`), the assistant's
+title, and the title written while that user's chat is untitled, so a rename by the user wins; a
+message gone fails `ChatNotFoundError`, as a message leaves only with its chat, and so does a chat
+titled or gone at the write. Each handler in the worker, `ChatHandler.<work>`, ends its work in one
+tail: the reply's skips a Run settled or gone, ends on a started Run and on the assistant's error,
+which the Run already holds, logging each end once with its cause, an interrupt included; the
+title's skips a chat gone or titled and logs the assistant's error; a defect, a refused move's
+included, is the queue consumer's to log.
 `ReplyChatService` takes `Transaction`, the message's assistant and the services of the module's
 other models, for the records the reply writes, and reads from the config the tokens limit of a
 chat's context, as `ContextChatService` does, each where it uses it, so no instance carries a
