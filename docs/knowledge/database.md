@@ -274,7 +274,8 @@ from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e,
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
 ([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
-passes `transaction.run` as the last argument of the function that holds them: `IdentityService`'s
+passes `transaction.run` as the last argument of the function that holds them, or pipes it on them
+inside a longer flow: `IdentityService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
 `ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the
 Run's `done`, so that transaction,

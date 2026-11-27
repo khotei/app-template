@@ -470,11 +470,21 @@ describe('AskChatService', () => {
   )
 
   it.effect.each([
-    { name: 'ask', interrupted: ask('Plan a weekend in Lisbon'), read: chat },
-    { name: 'retry', interrupted: retry(), read: withNewest(failedRun) },
+    {
+      name: 'ask',
+      interrupted: ask('Plan a weekend in Lisbon'),
+      read: chat,
+      sent: ['first-message-created', 'reply-to-message'],
+    },
+    {
+      name: 'retry',
+      interrupted: retry(),
+      read: withNewest(failedRun),
+      sent: ['reply-to-message'],
+    },
   ])(
-    '$name interrupted while its chat is read stops before any write or job',
-    ({ interrupted, read }) => {
+    '$name interrupted while its chat is read still stores its Run and sends its jobs',
+    ({ interrupted, read, sent }) => {
       const held = holdCall()
       const inserts = noInserts()
       const jobs = recordMessages()
@@ -487,8 +497,11 @@ describe('AskChatService', () => {
         yield* held.release
         yield* Fiber.join(interrupting)
 
-        assert.deepStrictEqual(inserts, noInserts())
-        assertEquals(yield* jobs.sent, [])
+        assert.strictEqual(inserts.runs.length, 1)
+        assert.deepStrictEqual(
+          Arr.map(yield* jobs.sent, ({ queue }) => queue),
+          sent,
+        )
       }).pipe(
         Effect.provide(
           layerChatTest(

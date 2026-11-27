@@ -1623,9 +1623,8 @@ What a Run's job accepts when it is cut short or handled twice. `ReplyChatServic
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
 interrupt included: a worker interrupted while the job reads its Run starts it, then fails it, and
 one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
-`ask` and `retry` read and check the user's chat interruptibly, so a client that aborts there stops
-the request, then run their writes and sends as one uninterruptible region, so one that aborts later
-still leaves the Run stored with its jobs sent, or failed by a refused send. Two deliveries at the
+`ask` and `retry` run whole, uninterruptible, so a client that aborts still leaves the Run stored
+with its jobs sent, or failed by a refused send. Two deliveries at the
 same instant both read the Run queued; the loser's guarded `generating` write dies before its tail
 exists, so it fails nothing and the winner's reply stands. A Run settled or deleted under the reply
 makes the tail's write die, and the Run stays as the other writer left it. The job names the user's
@@ -1656,8 +1655,8 @@ and a worker settled the Run dies on the write's guard and fails no later Run
   the Run's id: a second delivery found its own Run settled and was skipped, but the reply to a
   message then takes a Run's id, and the method's name and its parameter disagree.
 - **Cost:** a process that dies between the Run's commit and its send leaves the Run queued and its
-  chat busy ([roadmap.md › Later](roadmap.md#later)), and a request aborted past its chat's read
-  and check still runs to its sends, bounded by the SQS client's timeouts. A failed Run's job
+  chat busy ([roadmap.md › Later](roadmap.md#later)), and an aborted request still runs its chat's
+  read and check and on to its sends, bounded by the SQS client's timeouts. A failed Run's job
   delivered again after a retry fails the retry's Run, and the user retries again. A model's error
   on a Run whose chat was deleted meanwhile ends the job as a defect, not as a warning. An
   interrupt waits for the start's read and write to end.

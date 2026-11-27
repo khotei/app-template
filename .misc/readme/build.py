@@ -575,9 +575,9 @@ def patterns():
             "} as const satisfies Record<RunStatus, …>",
         ], "a new status fails typecheck until its row exists"),
         ("The writes in one transaction, sends after it", [
-            "const createMessageRun = Effect.fnUntraced(",
-            "  function* (chat, text) { … }, transaction.run)",
-            "const run = yield* createMessageRun(chat, text)",
+            "const run = yield* Effect.gen(function* () {",
+            "  … messages.create, then runs.create …",
+            "}).pipe(transaction.run)",
             "if (ChatState.isNew(chat.run))",
             "  yield* queue.sendFirstMessageCreated(run)",
             "return yield* askReply(run)",

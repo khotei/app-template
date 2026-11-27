@@ -3,7 +3,7 @@ import type { SetRequired } from 'type-fest'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
+import type { ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatPolicy } from '#chat/domain/chat-policy'
 import { ChatState } from '#chat/domain/chat-state'
 import type { Run, RunNotRetryableError } from '#chat/domain/run.model'
@@ -66,46 +66,40 @@ export class AskChatService extends Context.Service<
         ),
     )
 
-    // The message and its Run commit together: a Run that loses the race keeps no message.
-    const createMessageRun = Effect.fnUntraced(function* (chat: Chat, text: string) {
-      const message = yield* messages.create({
-        chatId: chat.id,
-        userId: chat.userId,
-        text,
-        author: 'user',
-      })
-      return yield* runs.create({
-        ...Struct.pick(message, ['chatId', 'userId']),
-        userMessageId: message.id,
-      })
-    }, transaction.run)
-
+    // Uninterruptible whole: a client's abort after the Run commits would leave it queued with no
+    // job, its chat busy and its retry refused.
     const ask = Effect.fn('AskChatService.ask')(function* (where: AskChatWhere, text: string) {
       const chat = yield* chats.getOne({ id: where.id, userId: where.userId })
       yield* ChatPolicy.ensureNotBusy(chat.run)
 
-      // The writes and the sends are uninterruptible: a client's abort after the Run commits would
-      // leave it queued with no job, its chat busy and its retry refused. The read and the check
-      // above stay interruptible, so an abort there stops the request.
-      return yield* Effect.gen(function* () {
-        const run = yield* createMessageRun(chat, text)
+      // The message and its Run commit together, and alone: a Run that loses the race keeps no
+      // message, and a send inside the transaction could be delivered before its Run commits.
+      const run = yield* Effect.gen(function* () {
+        const message = yield* messages.create({
+          chatId: chat.id,
+          userId: chat.userId,
+          text,
+          author: 'user',
+        })
+        return yield* runs.create({
+          ...Struct.pick(message, ['chatId', 'userId']),
+          userMessageId: message.id,
+        })
+      }).pipe(transaction.run)
 
-        // A chat no ask has reached yet gets its first message's event once; the event's send never
-        // fails, so the sends go in either order.
-        if (ChatState.isNew(chat.run)) yield* queue.sendFirstMessageCreated(run)
-        return yield* askReply(run)
-      }).pipe(Effect.uninterruptible)
-    })
+      // A chat no ask has reached yet gets its first message's event once; the event's send never
+      // fails, so the sends go in either order.
+      if (ChatState.isNew(chat.run)) yield* queue.sendFirstMessageCreated(run)
+      return yield* askReply(run)
+    }, Effect.uninterruptible)
 
     const retry = Effect.fn('AskChatService.retry')(function* (where: AskChatWhere) {
       const chat = yield* chats.getOne({ id: where.id, userId: where.userId })
       const failed = yield* RunPolicy.ensureRetryable(chat.run)
 
-      return yield* Effect.gen(function* () {
-        const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
-        return yield* askReply(run)
-      }).pipe(Effect.uninterruptible)
-    })
+      const run = yield* runs.create(Struct.pick(failed, ['chatId', 'userId', 'userMessageId']))
+      return yield* askReply(run)
+    }, Effect.uninterruptible)
 
     return { ask, retry }
   }),
