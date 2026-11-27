@@ -327,9 +327,9 @@ _Avoid_: Layering (an Effect `Layer` is the wiring, not the unit), inheritance, 
 
 **Handler**:
 The function that serves one request or one job in an app: an HTTP group's (`<Name>Handler`) or
-a job's in the worker (`<Name>Handler.<job>`), which ends the job in one tail. Not a Lambda's
-`handler` setting, AWS's field.
-_Avoid_: Controller, consumer (the function that runs a queue's handler), processor, endpoint
+a job's in the worker (`<Name>Handler.<job>`), which ends the job in one tail; a queue lists its
+handlers, and each runs on every job of it. Not a Lambda's `handler` setting, AWS's field.
+_Avoid_: Controller, consumer (the function that runs a queue's handlers), processor, endpoint
 
 **Kernel**:
 The workspace `kernel/`: the data layer at its centre, and around it the tools of `packages/*`

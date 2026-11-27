@@ -47,8 +47,8 @@ export const titleChat = Effect.fn('ChatHandler.titleChat')(
   (title, job) => Effect.annotateLogs(title, { chatId: job.chatId }),
 )
 
-/** The chat's jobs, each consumed from its queue by its handler, keyed by the queue's name. */
+/** The chat's jobs, each consumed from its queue by its handlers, keyed by the queue's name. */
 export const ChatHandler = {
-  [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, replyToMessage),
-  [TitleChat.queue.name]: consumeQueue(TitleChat.queue, titleChat),
+  [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, [replyToMessage]),
+  [TitleChat.queue.name]: consumeQueue(TitleChat.queue, [titleChat]),
 } satisfies Partial<Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, unknown>>>

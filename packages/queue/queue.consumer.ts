@@ -1,4 +1,4 @@
-import { Array as Arr, Cause, Effect, Exit, Option, Schema } from 'effect'
+import { type Array as Arr, Cause, Effect, Option, Schema } from 'effect'
 import { Headers, HttpTraceContext } from 'effect/http'
 
 import { buildMessageCodec, type QueueDefinition } from '#queue/queue-definition'
@@ -27,17 +27,30 @@ export interface SqsBatchResponse {
 }
 
 /**
- * Runs `handle` on each record's message, decoded by the definition's schema, and returns the
- * records whose handler died: SQS delivers them again until the queue's `maxReceiveCount`
- * dead-letters them. A handler has no error channel, so it settles its work's failure itself.
- * A body that does not decode never will, so it is logged and acknowledged, unrun. Each
- * record runs in a span under the one that sent it, else under the current span.
+ * Runs every handler on each record's message, decoded once by the definition's schema, all of a
+ * record's concurrently, and acknowledges every record: SQS delivers one again only when the
+ * process died under it, and then every handler runs again. A handler has no error channel, so
+ * it ends its work's failure itself; one that dies is logged and leaves the others running, while
+ * an interrupt ends them all and returns no response. A body
+ * that does not decode never will, so it is logged and acknowledged, unrun. Each record runs in a
+ * span under the one that sent it, else under the current span.
  */
 export function consumeQueue<A, I, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
-  handle: (message: A) => Effect.Effect<unknown, never, R>,
+  handlers: Arr.NonEmptyReadonlyArray<(message: A) => Effect.Effect<unknown, never, R>>,
 ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
   const decode = Schema.decodeEffect(buildMessageCodec(definition))
+
+  const handleEach = (message: A) =>
+    Effect.forEach(
+      handlers,
+      (handle) =>
+        handle(message).pipe(
+          Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
+          Effect.exit,
+        ),
+      { concurrency: 'unbounded', discard: true },
+    )
 
   function run(record: SqsRecord) {
     const sender = Option.fromUndefinedOr(record.messageAttributes.traceparent).pipe(
@@ -48,23 +61,18 @@ export function consumeQueue<A, I, R>(
     return decode(record.body).pipe(
       Effect.matchEffect({
         onFailure: (error) => Effect.logError('queue message does not decode', Cause.fail(error)),
-        onSuccess: handle,
+        onSuccess: handleEach,
       }),
-      Effect.tapCause((cause) => Effect.logError('queue message failed', cause)),
       Effect.annotateLogs({ queueMessageId: record.messageId }),
       Effect.withSpan(`process ${definition.name}`, {
         kind: 'consumer',
         parent: Option.getOrUndefined(sender),
       }),
-      Effect.exit,
-      Effect.map((exit) =>
-        Exit.isSuccess(exit) ? Option.none() : Option.some({ itemIdentifier: record.messageId }),
-      ),
     )
   }
 
   return (event) =>
-    Effect.forEach(event.Records, run, { concurrency: 'unbounded' }).pipe(
-      Effect.map((failures) => ({ batchItemFailures: Arr.getSomes(failures) })),
+    Effect.forEach(event.Records, run, { concurrency: 'unbounded', discard: true }).pipe(
+      Effect.as({ batchItemFailures: [] }),
     )
 }

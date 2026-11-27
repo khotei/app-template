@@ -21,22 +21,54 @@ function buildRecord(
 }
 
 describe('consumeQueue', () => {
-  it.effect('runs each decoded message and returns only the record whose handler died', () =>
+  it.effect('runs each decoded message and acknowledges each, one whose handler died too', () =>
     Effect.gen(function* () {
       const seen = yield* Ref.make<ReadonlyArray<string>>([])
       const event: SqsEvent = {
         Records: [buildRecord('a', '{"ping":"ok"}'), buildRecord('b', '{"ping":"boom"}')],
       }
 
-      const response = yield* consumeQueue(pingQueue, ({ ping }) =>
-        Ref.update(seen, Arr.append(ping)).pipe(
-          Effect.andThen(ping === 'boom' ? Effect.die('boom') : Effect.void),
-        ),
-      )(event)
+      const response = yield* consumeQueue(pingQueue, [
+        ({ ping }) =>
+          Ref.update(seen, Arr.append(ping)).pipe(
+            Effect.andThen(ping === 'boom' ? Effect.die('boom') : Effect.void),
+          ),
+      ])(event)
 
-      assert.deepStrictEqual(response, { batchItemFailures: [{ itemIdentifier: 'b' }] })
+      assert.deepStrictEqual(response, { batchItemFailures: [] })
       assert.deepStrictEqual(Arr.sort(yield* Ref.get(seen), Order.String), ['boom', 'ok'])
     }),
+  )
+
+  it.effect('runs every handler on a message', () =>
+    Effect.gen(function* () {
+      const seen = yield* Ref.make<ReadonlyArray<string>>([])
+
+      yield* consumeQueue(pingQueue, [
+        ({ ping }) => Ref.update(seen, Arr.append(`reply ${ping}`)),
+        ({ ping }) => Ref.update(seen, Arr.append(`title ${ping}`)),
+      ])({ Records: [buildRecord('a', '{"ping":"ok"}')] })
+
+      assert.deepStrictEqual(Arr.sort(yield* Ref.get(seen), Order.String), ['reply ok', 'title ok'])
+    }),
+  )
+
+  it.effect(
+    "runs a message's other handlers to their end when one dies, and logs its defect",
+    () => {
+      const { logs, layer: logger } = recordLogs('queueMessageId')
+      return Effect.gen(function* () {
+        const seen = yield* Ref.make<ReadonlyArray<string>>([])
+
+        yield* consumeQueue(pingQueue, [
+          () => Effect.die('boom'),
+          ({ ping }) => Effect.yieldNow.pipe(Effect.andThen(Ref.update(seen, Arr.append(ping)))),
+        ])({ Records: [buildRecord('a', '{"ping":"ok"}')] })
+
+        assert.deepStrictEqual(yield* Ref.get(seen), ['ok'])
+        assert.deepStrictEqual(logs, [['Error', 'queue message failed', 'a']])
+      }).pipe(Effect.provide(logger))
+    },
   )
 
   it.effect("runs a message in its sender's trace, and one sent outside a trace in its own", () =>
@@ -44,12 +76,13 @@ describe('consumeQueue', () => {
       const traceIds = yield* Ref.make<Record<string, string>>({})
       const traceId = '0af7651916cd43dd8448eb211c80319c'
 
-      const response = yield* consumeQueue(pingQueue, ({ ping }) =>
-        Effect.currentSpan.pipe(
-          Effect.orDie,
-          Effect.flatMap((span) => Ref.update(traceIds, Rec.set(ping, span.traceId))),
-        ),
-      )({
+      const response = yield* consumeQueue(pingQueue, [
+        ({ ping }) =>
+          Effect.currentSpan.pipe(
+            Effect.orDie,
+            Effect.flatMap((span) => Ref.update(traceIds, Rec.set(ping, span.traceId))),
+          ),
+      ])({
         Records: [
           buildRecord('a', '{"ping":"traced"}', {
             traceparent: { stringValue: `00-${traceId}-b7ad6b7169203331-01` },
@@ -83,7 +116,7 @@ describe('consumeQueue', () => {
   it.effect('acknowledges a body that does not decode, unrun, and logs its decode error', () => {
     const { logs, layer: logger } = recordLogs('queueMessageId')
     return Effect.gen(function* () {
-      const response = yield* consumeQueue(pingQueue, () => Effect.die('handler ran'))({
+      const response = yield* consumeQueue(pingQueue, [() => Effect.die('handler ran')])({
         Records: [buildRecord('a', '{"ping":1}')],
       })
 

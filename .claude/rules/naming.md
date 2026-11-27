@@ -28,7 +28,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.queue` · `.llm` | `<model>.queue.ts`: the queues' definitions, jobs and `<Model>Queue`, their sends · `<model>-assistant.llm.ts`: one assistant per output asked of a language model | `infrastructure/` |
 | `.table` · `.entity` · `.repository` | a table with any it alone owns (drizzle-kit reads `*/*.table.ts`) · `<Name>Entity` and its verbs' types · one store's access | `kernel/data/<store>/` |
 | `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
-| `.sender` · `.consumer` | the queue's send · its run of a handler per job | `packages/queue` |
+| `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each job | `packages/queue` |
 | `.http` | a resource's `HttpApiGroup` with its wire shapes | `application/http-api/` |
 | `.mapper` | a model's wire shape, where it differs | `apps/api/<resource>/` |
 | `.handler` | a resource's handlers, of its endpoints or its jobs; the worker's route | `apps/api/<resource>/`, `apps/worker/<resource>/`; the route `apps/worker/` |

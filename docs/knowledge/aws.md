@@ -159,14 +159,17 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   started it died, so a copy delivered while the first is still handled fails a live Run, a rare
   case accepted; of two delivered at the same instant, the one that loses its start's write dies
   and fails nothing.
-- **Only a defect returns to the queue.** A handler has no error channel: it settles its work's
-  failure itself. A record whose handler dies (a process that dies included) is
-  returned in `batchItemFailures`, or not returned at all; SQS delivers it again once the queue's
-  visibility timeout, the worker function's 600 s, has passed, and after `maxReceiveCount`, 3,
-  redrives it to `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping
-  on a queue that hides a message less than its function's timeout.
-- **Nothing consumes a dead-letter queue.** A Run's worker writes `failed` on any outcome but
-  success; one that no worker settles stays active
+- **Only a dead process returns a record to the queue.** A queue lists its handlers, which run
+  concurrently on each record. A handler has no error channel: it settles its work's failure
+  itself, and one that dies is logged (`queue message failed`) while the others run on. The
+  worker acknowledges every record it saw to its end, so `batchItemFailures` stays empty. A
+  record whose process died is not acknowledged; SQS delivers it again once the queue's
+  visibility timeout, the worker function's 600 s, has passed, and every handler of its queue
+  runs again, so each is safe to run twice; after `maxReceiveCount`, 3, SQS redrives it to
+  `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping on a queue that
+  hides a message less than its function's timeout.
+- **Nothing consumes a dead-letter queue.** It fills only from records a process died under. A
+  Run's worker writes `failed` on any outcome but success; one that no worker settles stays active
   ([database.md › Stuck Runs](database.md#stuck-runs)).
 - **AWS differs in one HTTP status.** MiniStack counts any non-2xx response as a failed invoke; Lambda
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed

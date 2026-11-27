@@ -50,8 +50,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
   on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - Hold no lock in the process: a rule two writers could break is a guard in the write itself,
-  which dies when refused, and a write sets only the fields its writer owns:
-  [database.md › Guards](../../docs/knowledge/database.md#guards).
+  which dies when refused, and a write sets only the fields its writer owns: [database.md › Guards](../../docs/knowledge/database.md#guards).
 
 ## Use cases
 
@@ -73,8 +72,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   one returns the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with
   the domain's errors as they are. It composes nothing else, holds no rule and imports no
   repository or data layer, which only the process's `layer.ts` provides.
-- A job is handled once, unretried. The worker's `<Verb><Model>Service` ends its work on any
-  outcome but success, an interrupt included, and work a dead handling left started. The job's
-  handler ends the job in one tail: what it skips and logs ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+- A job is handled once, unretried, by each handler its queue lists, and each is safe to run twice:
+  a record a dead process held comes again to all. The worker's `<Verb><Model>Service` ends its
+  work on any outcome but success, an interrupt included, and work a dead handling left started.
+  The job's handler ends the job in one tail: what it skips and logs ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - A handler is `Effect.fn('<Group>Handler.<endpoint|job>')`; an api handler that returns a constant
   is a plain function with no span; an effectful group or router builder is `Effect.fnUntraced` ([why](effect-services.md#functions)).
