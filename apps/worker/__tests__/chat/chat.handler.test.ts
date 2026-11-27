@@ -263,14 +263,14 @@ describe('titleChat', () => {
     )
   })
 
-  it.effect('logs a chat gone when its message is gone, without asking', () => {
+  it.effect('skips a message the store finds none of, without asking, and logs it', () => {
     const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* title
 
       assertEquals(yield* assistant.texts, [])
-      assert.deepStrictEqual(logs, [['Info', 'title skipped: chat deleted or titled']])
+      assert.deepStrictEqual(logs, [['Info', 'title skipped: message not found']])
     }).pipe(
       Effect.provide([
         layerChatTest(

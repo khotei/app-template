@@ -40,7 +40,7 @@ export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
 )
 
 /**
- * Titles the user's chat from the event's first message; a chat gone, its message with it, or
+ * Titles the user's chat from the event's first message; a message not found, a chat gone or
  * titled meanwhile, or an assistant error, is logged and skipped.
  */
 export const titleChat = Effect.fn('ChatHandler.titleChat')(
@@ -51,6 +51,7 @@ export const titleChat = Effect.fn('ChatHandler.titleChat')(
   Effect.catchTags({
     LlmError: (error) =>
       Effect.logWarning('title skipped: the assistant failed', Cause.fail(error)),
+    MessageNotFoundError: () => Effect.logInfo('title skipped: message not found'),
     ChatNotFoundError: () => Effect.logInfo('title skipped: chat deleted or titled'),
   }),
   (title, event) =>

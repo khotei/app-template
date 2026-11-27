@@ -1530,11 +1530,12 @@ worker stopped, and the start fails it with it; a message with no active Run fai
 `TitleChatService.title` does the title's work, given the ids of the first message the event
 names: that one message, read by its id, chat and user (`MessageService.getOne`), the assistant's
 title, and the title written while that user's chat is untitled, so a rename by the user wins; a
-message gone fails `ChatNotFoundError`, as a message leaves only with its chat, and so does a chat
-titled or gone at the write. Each handler in the worker, `ChatHandler.<work>`, ends its work in one
+message not found fails `MessageNotFoundError`, and a chat titled or gone at the write
+`ChatNotFoundError`. Each handler in the worker, `ChatHandler.<work>`, ends its work in one
 tail: the reply's skips a Run settled or gone, ends on a started Run and on the assistant's error,
 which the Run already holds, logging each end once with its cause, an interrupt included; the
-title's skips a chat gone or titled and logs the assistant's error; a defect, a refused move's
+title's skips a message not found and a chat gone or titled, each under its own log line, and logs
+the assistant's error; a defect, a refused move's
 included, is the queue consumer's to log.
 `ReplyChatService` takes `Transaction`, the message's assistant and the services of the module's
 other models, for the records the reply writes, and reads from the config the tokens limit of a

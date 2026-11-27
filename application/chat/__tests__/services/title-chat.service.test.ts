@@ -7,8 +7,8 @@ import type { ChatEntitySet, ChatEntityWhere, MessageEntityWhere } from '@app-te
 import { encodeWith } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch, recordLogs } from '@app-template/packages/testing'
 
-import { Chat, ChatNotFoundError, ChatTitle } from '#chat/domain/chat.model'
-import { Message } from '#chat/domain/message.model'
+import { Chat, ChatTitle } from '#chat/domain/chat.model'
+import { Message, MessageNotFoundError } from '#chat/domain/message.model'
 import { TitleChatService } from '#chat/services/title-chat.service'
 import { chat, chatId, firstMessage, owner } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
@@ -67,7 +67,7 @@ describe('TitleChatService', () => {
   })
 
   it.effect(
-    "title of ids whose message the store finds none of, another user's, fails its chat as gone, without asking",
+    "title of ids whose message the store finds none of, another user's, fails MessageNotFoundError, without asking",
     () => {
       const assistant = recordChatAssistant(Effect.succeed(ChatTitle.make('Lisbon weekend')))
       const reads: Array<MessageEntityWhere> = []
@@ -77,7 +77,11 @@ describe('TitleChatService', () => {
           .title({ id: firstMessage.id, chatId, userId: stranger })
           .pipe(Effect.flip)
 
-        assertSchemaEquals(ChatNotFoundError, error, new ChatNotFoundError({ id: chatId }))
+        assertSchemaEquals(
+          MessageNotFoundError,
+          error,
+          new MessageNotFoundError({ id: firstMessage.id }),
+        )
         assert.deepStrictEqual(reads, [{ id: firstMessage.id, chatId, userId: stranger }])
         assertEquals(yield* assistant.texts, [])
       }).pipe(
