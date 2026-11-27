@@ -6,7 +6,8 @@ import {
   TitleChat,
   TitleChatService,
 } from '@app-template/application/chat'
-import { consumeQueue } from '@app-template/packages/queue'
+import type { QueueName } from '@app-template/kernel/aws'
+import { consumeQueue, type SqsEvent } from '@app-template/packages/queue'
 
 const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply failed', cause)
 
@@ -50,4 +51,4 @@ export const titleChat = Effect.fn('ChatHandler.titleChat')(
 export const ChatHandler = {
   [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, replyToMessage),
   [TitleChat.queue.name]: consumeQueue(TitleChat.queue, titleChat),
-}
+} satisfies Partial<Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, unknown>>>

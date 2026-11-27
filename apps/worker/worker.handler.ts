@@ -1,13 +1,11 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-import { buildResourceName, type resources } from '@app-template/kernel/aws'
+import { buildResourceName, type QueueName } from '@app-template/kernel/aws'
 import { awsConfig } from '@app-template/kernel/config'
 import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
 
 import { ChatHandler } from '#worker/chat/chat.handler'
-
-type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name']
 
 type JobServices = Effect.Services<ReturnType<(typeof ChatHandler)[keyof typeof ChatHandler]>>
 
