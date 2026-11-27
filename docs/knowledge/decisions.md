@@ -1052,8 +1052,8 @@ fake, and the suite builds its layer over a recording client.
   method. A `packages/` workspace for the policy: a tool for every app for some 40 lines of this
   app's policy.
 - **Cost:** every reader of `ChatAssistant` sees all three methods, held together only by their kind
-  (logical cohesion: the chat's calls to a language model), and its one fake scripts each, with a
-  default for those a case leaves out; the guard no longer tells one service's
+  (logical cohesion: the chat's calls to a language model), and its one fake scripts each, one a
+  case leaves out dying on its first call; the guard no longer tells one service's
   assistant from another's, so nothing but review keeps the title service off `reply`. The
   worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
   nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard, covers

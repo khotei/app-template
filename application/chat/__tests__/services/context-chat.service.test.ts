@@ -161,7 +161,7 @@ describe('ContextChatService', () => {
   it.effect(
     'compact of a context whose split drops none summarises those that remain and keeps its head',
     () => {
-      const assistant = recordChatAssistant()
+      const assistant = recordChatAssistant({ summary: Effect.succeed('A summary.') })
       const answered = answeredBy(longReply)
       const store = storing(chat, [long, answered])
       return Effect.gen(function* () {

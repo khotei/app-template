@@ -391,7 +391,10 @@ describe('ReplyChatService', () => {
     "reply whose prompt and text pass 0.8 of the assistant's tokens limit compacts the context before it stores the reply and ends its Run",
     () => {
       // 135 tokens of a limit of 150: the context is cut to a third of its 500 characters.
-      const assistant = recordChatAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordChatAssistant({
+        reply: Effect.succeed(sure),
+        summary: Effect.succeed('A summary.'),
+      })
       const writes = noWrites()
       const long = userMessageAt(1, 'x'.repeat(300))
       const longReply = answeredBy(assistantMessageAt(2, 'x'.repeat(100)))
@@ -424,7 +427,10 @@ describe('ReplyChatService', () => {
   it.effect(
     "reply opens one transaction before its context is cut and closes it with the cut, the reply and its Run's end written",
     () => {
-      const assistant = recordChatAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordChatAssistant({
+        reply: Effect.succeed(sure),
+        summary: Effect.succeed('A summary.'),
+      })
       const writes = noWrites()
       const written: Array<ReadonlyArray<number>> = []
       const count = Effect.sync(() => {
@@ -542,7 +548,10 @@ describe('ReplyChatService', () => {
   it.effect(
     "reply after a cut prompts with the summary and the chat's messages from the start it stored",
     () => {
-      const assistant = recordChatAssistant({ reply: Effect.succeed(sure) })
+      const assistant = recordChatAssistant({
+        reply: Effect.succeed(sure),
+        summary: Effect.succeed('A summary.'),
+      })
       const writes = noWrites()
       const runs = storeRuns(writes, queuedRun)
       const short = answeredBy(userMessageAt(3, 'x'.repeat(100)))

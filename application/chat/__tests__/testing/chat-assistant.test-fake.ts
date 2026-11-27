@@ -1,21 +1,20 @@
-import { Array as Arr, Effect, Layer, Ref } from 'effect'
+import { Array as Arr, Effect, Layer, Ref, UndefinedOr } from 'effect'
 
 import type { LlmError } from '@app-template/kernel/llm/model'
 
-import { ChatTitle } from '#chat/domain/chat.model'
+import type { ChatTitle } from '#chat/domain/chat.model'
 import type { ContextMessage } from '#chat/domain/message.model'
 import { type AssistantReply, ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
-import { sureReply } from '#testing/chat/chat.test-fixture'
 
 /**
  * A `ChatAssistant` returning `reply` for every reply, `summary` for every summary and `title` for
  * every title, keeping the messages it took for a reply or a summary and each text it took for a
- * title.
+ * title; a method whose answer the case leaves out dies on its first call.
  */
 export function recordChatAssistant({
-  reply = Effect.succeed(sureReply),
-  summary = Effect.succeed('A summary.'),
-  title = Effect.succeed(ChatTitle.make('A title')),
+  reply,
+  summary,
+  title,
 }: {
   readonly reply?: Effect.Effect<AssistantReply, LlmError>
   readonly summary?: Effect.Effect<string, LlmError>
@@ -24,11 +23,19 @@ export function recordChatAssistant({
   const contexts = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<ContextMessage>>>([])
   const summarised = Ref.makeUnsafe<ReadonlyArray<ReadonlyArray<ContextMessage>>>([])
   const texts = Ref.makeUnsafe<ReadonlyArray<string>>([])
-  const layer = Layer.succeed(ChatAssistant, {
-    reply: (context) => Ref.update(contexts, Arr.append(context)).pipe(Effect.andThen(reply)),
-    summarise: (context) =>
-      Ref.update(summarised, Arr.append(context)).pipe(Effect.andThen(summary)),
-    proposeTitle: (text) => Ref.update(texts, Arr.append(text)).pipe(Effect.andThen(title)),
+  const layer = Layer.mock(ChatAssistant, {
+    ...UndefinedOr.map(reply, (answer) => ({
+      reply: (context: ReadonlyArray<ContextMessage>) =>
+        Ref.update(contexts, Arr.append(context)).pipe(Effect.andThen(answer)),
+    })),
+    ...UndefinedOr.map(summary, (answer) => ({
+      summarise: (context: ReadonlyArray<ContextMessage>) =>
+        Ref.update(summarised, Arr.append(context)).pipe(Effect.andThen(answer)),
+    })),
+    ...UndefinedOr.map(title, (answer) => ({
+      proposeTitle: (text: string) =>
+        Ref.update(texts, Arr.append(text)).pipe(Effect.andThen(answer)),
+    })),
   })
   return {
     contexts: Ref.get(contexts),
