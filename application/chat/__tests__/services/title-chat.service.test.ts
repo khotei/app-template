@@ -19,7 +19,7 @@ const stranger = UserId.make('0192d4e0-7b3a-7c00-8000-000000000011')
 describe('TitleChatService', () => {
   it.effect("title titles the user's untitled chat from the one message its ids name", () => {
     const lisbonWeekend = ChatTitle.make('Lisbon weekend')
-    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
+    const assistant = recordChatAssistant({ title: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     const reads: Array<MessageEntityWhere> = []
     const updates: Array<readonly [ChatEntitySet, ChatEntityWhere]> = []
@@ -62,7 +62,7 @@ describe('TitleChatService', () => {
                 }),
             },
           },
-          { chatAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),
@@ -72,7 +72,9 @@ describe('TitleChatService', () => {
   it.effect(
     "title of ids whose message the store finds none of, another user's, fails MessageNotFoundError, without asking",
     () => {
-      const assistant = recordChatAssistant(Effect.succeed(ChatTitle.make('Lisbon weekend')))
+      const assistant = recordChatAssistant({
+        title: Effect.succeed(ChatTitle.make('Lisbon weekend')),
+      })
       const reads: Array<MessageEntityWhere> = []
       return Effect.gen(function* () {
         const titleChat = yield* TitleChatService
@@ -98,7 +100,7 @@ describe('TitleChatService', () => {
                   }).pipe(Effect.as(Option.none())),
               },
             },
-            { chatAssistant: assistant.layer },
+            { assistant: assistant.layer },
           ),
         ),
       )

@@ -254,7 +254,7 @@ left.
   had), but the prompt converter in `AnthropicLanguageModel.ts` never emits it and still rejects
   any file media type but images, PDF and text.
 - **Inherits from `modular-monolith` (2026-11-02).** The prompts and the Anthropic calls live in
-  chat's assistants `MessageAssistant` and `ChatAssistant` (`application/chat/infrastructure/`),
+  chat's assistant `ChatAssistant` (`application/chat/infrastructure/`),
   the provider's settings in `kernel/llm`; a produced file is stored through `FileRepository` in
   the data layer, its bytes kept before the row that binds them, since S3 joins no transaction.
   Files outside a chat reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
@@ -514,7 +514,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-22) `ReplyChatService` and `TitleChatService` (`application/chat/services/`) each have
   one method, one implementation, no state across calls and one caller, its job's use case; no
   test replaces them, as the unit suites mock the leaves (the repositories, the queue sender, the
-  assistants). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
+  assistant). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
   services, while its `Effect.fn` guidance and examples support a plain function that yields its
   services; each takes its assistant in its `make`, so its method requires nothing, as "service
   operations should have the `Requirements` parameter set to `never`"
@@ -602,10 +602,10 @@ moves it into its own `Later` and deletes it here.
   a limit near the model's window. Way out: the summary in a job of its own, with the cut applied
   before the chat's next reply.
 - (2026-11-26) With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts
-  and `MessageAssistant.reply` keeps the model asked, not the one that answered; the app sends
+  and `ChatAssistant.reply` keeps the model asked, not the one that answered; the app sends
   none. Way out: read the last part once `fallbacks` is set.
 - (2026-11-26) A message's text goes into a summary's transcript unescaped
-  (`application/chat/infrastructure/message-assistant.llm.ts`), so one holding `</message>`
+  (`application/chat/infrastructure/chat-assistant.llm.ts`), so one holding `</message>`
   reads as a turn of its own; it reaches the summary of its user's chat alone. Claimed by a
   review, not run. Way out: a delimiter a text cannot hold.
 - (2026-11-26) A first answer over the limit compacts a context no done Run has sized, so the

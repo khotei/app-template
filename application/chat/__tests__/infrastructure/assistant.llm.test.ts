@@ -10,8 +10,7 @@ import type { LlmError } from '@app-template/kernel/llm/model'
 
 import { ChatTitle } from '#chat/domain/chat.model'
 import type { ContextMessage } from '#chat/domain/message.model'
-import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
-import { AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { AssistantReply, ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { assistantMessageAt, runUsage, userMessageAt } from '#testing/chat/chat.test-fixture'
 
 type RequestBody = typeof Generated.BetaCreateMessageParams.Encoded
@@ -21,7 +20,7 @@ const readBody = (request: HttpClientRequest.HttpClientRequest): RequestBody =>
     ? JSON.parse(new TextDecoder().decode(request.body.body))
     : assert.fail(`a request body of ${request.body._tag}`)
 
-/** Both assistants over Anthropic's client and an `HttpClient` that keeps each request body and its time, and responds to it by `respond`. */
+/** The chat's assistant over Anthropic's client and an `HttpClient` that keeps each request body and its time, and responds to it by `respond`. */
 function recordAnthropic(respond: () => Response) {
   const requests = Ref.makeUnsafe<
     ReadonlyArray<{ readonly body: RequestBody; readonly at: number }>
@@ -32,7 +31,7 @@ function recordAnthropic(respond: () => Response) {
       Effect.as(HttpClientResponse.fromWeb(request, respond())),
     ),
   )
-  const layer = Layer.mergeAll(MessageAssistant.layer, ChatAssistant.layer).pipe(
+  const layer = ChatAssistant.layer.pipe(
     Layer.provide(AnthropicClientFromConfig),
     Layer.provide([
       Layer.succeed(HttpClient.HttpClient, httpClient),
@@ -83,7 +82,7 @@ const apiError = (
   )
 
 const reply = Effect.fnUntraced(function* (messages: ReadonlyArray<ContextMessage>) {
-  const assistant = yield* MessageAssistant
+  const assistant = yield* ChatAssistant
   return yield* assistant.reply(messages)
 })
 
@@ -96,7 +95,7 @@ const hi = [userMessageAt(1, 'Hi')]
 
 const lisbon = 'Plan a weekend in Lisbon'
 
-describe('MessageAssistant and ChatAssistant', () => {
+describe('ChatAssistant', () => {
   it.effect(
     "reply asks the reply's language model with the system prompt and each message as its text, and returns the language model's text, its name and the usage, the prompt's tokens counted with the cached ones",
     () => {
@@ -152,7 +151,7 @@ describe('MessageAssistant and ChatAssistant', () => {
     () => {
       const { bodies, layer } = recordAnthropic(() => message('They spoke of a cat.'))
       return Effect.gen(function* () {
-        const assistant = yield* MessageAssistant
+        const assistant = yield* ChatAssistant
 
         const summary = yield* assistant.summarise([
           userMessageAt(3, 'Of what?'),
@@ -193,7 +192,7 @@ describe('MessageAssistant and ChatAssistant', () => {
   it.effect('summarise fails LlmError on a blank summary', () => {
     const { layer } = recordAnthropic(() => message('  '))
     return Effect.gen(function* () {
-      const assistant = yield* MessageAssistant
+      const assistant = yield* ChatAssistant
 
       const error = yield* assistant.summarise(hi).pipe(Effect.flip)
 
@@ -221,7 +220,7 @@ describe('MessageAssistant and ChatAssistant', () => {
 
   it.effect.each<{
     name: string
-    ask: Effect.Effect<unknown, LlmError, MessageAssistant | ChatAssistant>
+    ask: Effect.Effect<unknown, LlmError, ChatAssistant>
     answer: () => Response
     sentAt: ReadonlyArray<number>
     cause: string

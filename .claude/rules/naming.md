@@ -24,7 +24,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
 | `.service` | `<model>.service.ts`, `<aspect>-<model>.service.ts` composed over it, `<operation>.service.ts` for one of no model | `services/`; a package's or kernel part's takes its role's (`.client`, `.sender`) |
 | `.use-case` | `<verb>-<object>.use-case.ts`: one use case | `application/use-cases/<module>/` |
-| `.queue` · `.llm` | `<model>.queue.ts`: the queues' definitions, jobs, events and `<Model>Queue`, their sends · `<model>-assistant.llm.ts`: one assistant per output asked of a language model | `infrastructure/` |
+| `.queue` · `.llm` | `<model>.queue.ts`: the queues' definitions, jobs, events and `<Model>Queue`, their sends · `<model>-assistant.llm.ts`: the module's one `<Model>Assistant`, a method per output asked of a language model, its prompts the statics of `<Model>AssistantPrompt` | `infrastructure/` |
 | `.table` · `.entity` · `.repository` | a table with any it alone owns (drizzle-kit reads `*/*.table.ts`) · `<Name>Entity`, its verbs' types and what its repository builds on ([repositories.md](repositories.md#a-deep-repository)) · one store's access | `kernel/data/<store>/` |
 | `.client` | a client of one external system, or the layer that builds it | a package or its sub-entry, an app, `kernel/data`, a kernel part |
 | `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each message | `packages/aws/queue` |

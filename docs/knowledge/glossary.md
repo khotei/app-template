@@ -306,14 +306,14 @@ _Avoid_: Helper, lib, common, shared
 A contract the domain declares for what it needs from outside the process, in the domain's
 words, with no layer of its own, for a need with several implementations or a domain service
 that reaches out; a store's repository is the data layer's, and a service in `infrastructure/`
-with one implementation (the assistants) is its own contract, so neither is a port. Not a TCP
+with one implementation (the assistant) is its own contract, so neither is a port. Not a TCP
 port, which the code names for its process (`apiPort`, `API_PORT`) or by its library
 (`Config.Port`, `url.port`) and prose calls *a TCP port*.
 _Avoid_: Interface, client, gateway, driver, store
 
 **Adapter**:
 An implementation of a port over a client, in a module's `infrastructure/`; none stands
-today, as the assistants are services of their own (`MessageAssistant`, `ChatAssistant`).
+today, as the assistant is a service of its own (`ChatAssistant`).
 _Avoid_: Implementation, provider, DAO, store
 
 **Domain service**:
@@ -403,7 +403,7 @@ The words of the tests and their support; where each kind lives:
 [tooling.md › Tests](tooling.md#tests).
 
 **Unit test**:
-A test over mocks of the repositories and fakes of the other leaves (the assistants, the queue's
+A test over mocks of the repositories and fakes of the other leaves (the assistant, the queue's
 sender, the files), needing no process outside the test runner.
 _Avoid_: Fast test, isolated test, mock test
 
@@ -419,7 +419,7 @@ _Avoid_: Edge, terminal service
 **Fake**:
 The test implementation of a leaf in a `.test-fake.ts`, over a `Ref`, one per service, keeping
 the whole promise of what it stands for (`FileRepositoryTest`); one that also keeps the calls it
-takes is built by `record<Thing>()` and returns `{ <handle>, layer }` (`recordMessageAssistant`).
+takes is built by `record<Thing>()` and returns `{ <handle>, layer }` (`recordChatAssistant`).
 Fowler's *fake*, or his *spy* when it records.
 _Avoid_: Memory layer, stub, in-memory repository, double (for one of these)
 

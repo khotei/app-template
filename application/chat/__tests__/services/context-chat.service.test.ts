@@ -19,11 +19,10 @@ import {
   chat,
   firstMessage,
   owner,
-  sureReply,
   userMessageAt,
 } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
-import { recordMessageAssistant } from '#testing/chat/message-assistant.test-fake'
+import { recordChatAssistant } from '#testing/chat/chat-assistant.test-fake'
 
 const where = { chatId: chat.id, userId: owner }
 
@@ -110,7 +109,7 @@ describe('ContextChatService', () => {
   it.effect(
     'compact summarises the messages a cut leaves out, with the summary the context had, and stores the summary with the first message kept',
     () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sureReply), {
+      const assistant = recordChatAssistant({
         summary: Effect.succeed('A newer summary.'),
       })
       const store = storing(cut, [long, longReply, short])
@@ -129,7 +128,7 @@ describe('ContextChatService', () => {
       }).pipe(
         Effect.provide(
           layerChatTest(store.mocks, {
-            messageAssistant: assistant.layer,
+            assistant: assistant.layer,
             chatContextTokensLimit: 150,
           }),
         ),
@@ -138,7 +137,7 @@ describe('ContextChatService', () => {
   )
 
   it.effect('compact whose summary fails fails as the assistant did and writes no chat', () => {
-    const assistant = recordMessageAssistant(Effect.succeed(sureReply), {
+    const assistant = recordChatAssistant({
       summary: Effect.fail(assistantOverloaded),
     })
     const store = storing(chat, [long, longReply, short])
@@ -152,7 +151,7 @@ describe('ContextChatService', () => {
     }).pipe(
       Effect.provide(
         layerChatTest(store.mocks, {
-          messageAssistant: assistant.layer,
+          assistant: assistant.layer,
           chatContextTokensLimit: 150,
         }),
       ),
@@ -162,7 +161,7 @@ describe('ContextChatService', () => {
   it.effect(
     'compact of a context whose split drops none summarises those that remain and keeps its head',
     () => {
-      const assistant = recordMessageAssistant(Effect.succeed(sureReply))
+      const assistant = recordChatAssistant()
       const answered = answeredBy(longReply)
       const store = storing(chat, [long, answered])
       return Effect.gen(function* () {
@@ -178,7 +177,7 @@ describe('ContextChatService', () => {
       }).pipe(
         Effect.provide(
           layerChatTest(store.mocks, {
-            messageAssistant: assistant.layer,
+            assistant: assistant.layer,
             chatContextTokensLimit: 1000,
           }),
         ),
@@ -187,7 +186,7 @@ describe('ContextChatService', () => {
   )
 
   it.effect('compact of a chat with no message asks for no summary and writes no chat', () => {
-    const assistant = recordMessageAssistant(Effect.succeed(sureReply))
+    const assistant = recordChatAssistant()
     const store = storing(chat, [])
     return Effect.gen(function* () {
       const contexts = yield* ContextChatService
@@ -199,7 +198,7 @@ describe('ContextChatService', () => {
     }).pipe(
       Effect.provide(
         layerChatTest(store.mocks, {
-          messageAssistant: assistant.layer,
+          assistant: assistant.layer,
           chatContextTokensLimit: 150,
         }),
       ),

@@ -3,12 +3,7 @@ import { Effect, Layer } from 'effect'
 import { FetchHttpClient, HttpRouter } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
-import {
-  ChatAssistant,
-  MessageAssistant,
-  ReplyChatService,
-  TitleChatService,
-} from '@app-template/application/chat'
+import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
 import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
@@ -31,7 +26,7 @@ const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
   Layer.effectDiscard,
 )
 
-/** The worker process but its assistants, which the e2e stand scripts. */
+/** The worker process but its assistant, which the e2e stand scripts. */
 export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([PostgresRepositories, Transaction.layer]),
   Layer.provide(Db.layer),
@@ -41,7 +36,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
 )
 
 export const WorkerLayer = WorkerProcess.pipe(
-  Layer.provide([MessageAssistant.layer, ChatAssistant.layer]),
+  Layer.provide(ChatAssistant.layer),
   Layer.provide(AnthropicClientFromConfig),
   Layer.provide(Otlp.layerFromConfig({ resource: { serviceName: 'worker' } })),
   Layer.provide([FetchHttpClient.layer, OtlpSerialization.layerProtobuf]),

@@ -124,7 +124,12 @@
       }
     },
     {
-      "includes": ["application/*/domain/**", "packages/**", "kernel/**"],
+      "includes": [
+        "application/*/domain/**",
+        "application/*/infrastructure/*.llm.ts",
+        "packages/**",
+        "kernel/**"
+      ],
       "linter": {
         "rules": {
           "complexity": {
@@ -413,11 +418,8 @@
                     "message": "of @app-template/kernel/data a module's services take only the stores: the client Db, the relations and the migrations folder are the data layer's own (decisions.md › A module's layers; The data at the centre)"
                   },
                   {
-                    "group": [
-                      "#*/infrastructure/**",
-                      "!#chat/infrastructure/message-assistant.llm"
-                    ],
-                    "message": "the chat's reply service and its context service reach their module's infrastructure only through a port and the message's assistant, which replies and summarises (decisions.md › A module's layers; The chat's jobs in their services)"
+                    "group": ["#*/infrastructure/**", "!#chat/infrastructure/chat-assistant.llm"],
+                    "message": "the chat's reply service and its context service reach their module's infrastructure only through a port and the chat's assistant, which replies and summarises (decisions.md › A module's layers; The chat's jobs in their services)"
                   },
                   {
                     "group": [

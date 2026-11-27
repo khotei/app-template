@@ -69,11 +69,10 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <polygon points="88,508 83,498 93,498" class="hd"/>
 <rect x="93" y="484.1" width="53.9002" height="16.1" class="lbg"/>
 <text x="96" y="496" class="m" xml:space="preserve">applies</text>
-<rect x="478" y="210" width="172" height="101" rx="8" class="box k-bnd"/>
+<rect x="478" y="210" width="172" height="81" rx="8" class="box k-bnd"/>
 <text x="490" y="234" class="b a-bnd" xml:space="preserve"><tspan class="code">infrastructure/</tspan></text>
 <text x="490" y="254" xml:space="preserve"><tspan class="code">chat.queue.ts</tspan></text>
-<text x="490" y="274" xml:space="preserve"><tspan class="code">MessageAssistant</tspan></text>
-<text x="490" y="294" xml:space="preserve"><tspan class="code">ChatAssistant</tspan></text>
+<text x="490" y="274" xml:space="preserve"><tspan class="code">ChatAssistant</tspan></text>
 <polyline points="428,268.5 469,268.5" class="ln"/>
 <polygon points="478,268.5 468,273.5 468,263.5" class="hd"/>
 <rect x="434.88" y="248.6" width="36.24" height="16.1" class="lbg"/>

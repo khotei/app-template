@@ -474,7 +474,7 @@ def module_design():
         f.label(sx + 68, (y0 + y1) / 2 + 5, "calls" if i < 2 else "applies", anchor="start")
     # side boxes
     vy, vh = tops[1]
-    ih = f.box(side_x, vy - 8, side_w, "bnd", "`infrastructure/`", ["`chat.queue.ts`", "`MessageAssistant`", "`ChatAssistant`"])
+    ih = f.box(side_x, vy - 8, side_w, "bnd", "`infrastructure/`", ["`chat.queue.ts`", "`ChatAssistant`"])
     f.arrow([(sx + sw, vy + vh / 2), (side_x, vy + vh / 2)])
     f.label((sx + sw + side_x) / 2, vy + vh / 2 - 8, "calls")
     my, mh = tops[2]

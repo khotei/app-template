@@ -13,7 +13,7 @@ import {
 } from '#chat/domain/run.model'
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
-import { type AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { type AssistantReply, ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { ContextChatService } from '#chat/services/context-chat.service'
 import { MessageService } from '#chat/services/message.service'
 import { RunService } from '#chat/services/run.service'
@@ -25,7 +25,7 @@ import { RunService } from '#chat/services/run.service'
 export type ReplyChatWhere = Types.Simplify<Pick<Run, 'userMessageId' | 'chatId' | 'userId'>>
 
 /** The assistant's failures, named through it, as a service imports no part of the kernel that calls out. */
-type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['reply']>>
+type ChatAssistantError = Effect.Error<ReturnType<ChatAssistant['Service']['reply']>>
 
 /** Replies to a user's message through its active Run. */
 export class ReplyChatService extends Context.Service<
@@ -40,7 +40,7 @@ export class ReplyChatService extends Context.Service<
      */
     readonly reply: (
       where: ReplyChatWhere,
-    ) => Effect.Effect<void, RunNotFoundError | RunStartedError | MessageAssistantError>
+    ) => Effect.Effect<void, RunNotFoundError | RunStartedError | ChatAssistantError>
   }
 >()('@app-template/application/chat/services/ReplyChatService', {
   make: Effect.gen(function* () {
@@ -48,7 +48,7 @@ export class ReplyChatService extends Context.Service<
     const messages = yield* MessageService
     const runs = yield* RunService
     const transaction = yield* Transaction
-    const assistant = yield* MessageAssistant
+    const assistant = yield* ChatAssistant
     const { chatContextTokensLimit } = yield* chatContextConfig
 
     // Fails `run` with what ended its work; a Run settled meanwhile makes that write die.
