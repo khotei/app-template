@@ -67,6 +67,7 @@ describe('POST /events', () => {
       )
 
       assert.strictEqual(response.status, 200)
+      assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
       assert.deepStrictEqual(reads, [{ id: firstMessage.id, chatId, userId: owner }])
       assert.isFalse(Arr.some(logs, ([, message]) => message === 'queue message failed'))
     }).pipe(Effect.provide(events))
