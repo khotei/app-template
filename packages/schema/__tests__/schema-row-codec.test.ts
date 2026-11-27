@@ -5,11 +5,11 @@ import { Model } from 'effect/schema'
 import { epoch, isUuidV7 } from '@app-template/packages/testing'
 
 import { SchemaCodec } from '#schema/schema-codec'
-import { buildIdSchema } from '#schema/schema-id'
+import { SchemaId } from '#schema/schema-id'
 import { RowCodec } from '#schema/schema-row-codec'
 
-const OrderId = buildIdSchema('OrderId')
-const CustomerId = buildIdSchema('CustomerId')
+const OrderId = SchemaId.build('OrderId')
+const CustomerId = SchemaId.build('CustomerId')
 
 class Order extends Model.Class<Order>('Order')({
   id: Model.UuidV7Insert(OrderId),

@@ -292,7 +292,7 @@ the data layer's repository directly.
 
 The HTTP groups and the errors only HTTP raises (`RequestInvalidError`) live in
 `application/http-api`, the API contract, beside the modules and outside them, and their handlers
-in `apps/api`; the id format's schema (`buildIdSchema`) lives in
+in `apps/api`; the id format's schema (`SchemaId.build`) lives in
 `packages/schema`, and a model's insert variant generates an id of it
 ([Models with variants](#models-with-variants)).
 
@@ -726,7 +726,7 @@ of the glossary, a refusal or a lifecycle move, sit in the groups beside it
 model that needs one holds the model's branded id and the pure steps with no domain meaning,
 generic over their types, that the module's code shares, in the file of the model that calls
 them (`isBlank` in `message.util.ts`); the module's one id schema is built by `packages/schema`'s
-`buildIdSchema`, which every module's ids share. A util file imports only `effect`,
+`SchemaId.build`, which every module's ids share. A util file imports only `effect`,
 `packages/schema` and other util files, never a model, so a model takes another model's id from
 its util file and no import cycle forms. A util that would only rename one
 built-in call is not written; the built-in is called.
@@ -751,7 +751,7 @@ built-in call is not written; the built-in is called.
   helper two models share sits in one of them, the one that calls it first, and the other imports
   that util file. A util a second workspace needs moves into a package, and the domain's Biome
   override then admits that package by name, as it admits `@app-template/packages/schema` for
-  `buildIdSchema`.
+  `SchemaId.build`.
 - **Guarded by:** review, by `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
   a util that imports a model importing it back; nothing refuses a rule written in a util.
 - **If reversed:** the utils go back into the model files beside the rules they serve, and each
