@@ -42,7 +42,7 @@ const encodeWhereValue = Struct.lambda<EncodeWhereValue>((value) =>
 )
 
 /** A service's `where`, model values alone, which its repository takes as Drizzle's filter object. */
-export class ServiceWhere {
+export class DbWhere {
   /**
    * `where` as the filter object a repository takes: an `Option` of none is a column that is
    * null, a list any of its values, a `WhereRange` the values between its bounds, any other value

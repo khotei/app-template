@@ -105,7 +105,7 @@ model in the read's shape, whose nested models decode their own rows. A write bu
 ```ts
 const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
 const found = yield* chats
-  .selectOne(ServiceWhere.encode(where))
+  .selectOne(DbWhere.encode(where))
   .pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
@@ -170,10 +170,10 @@ takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, each m
 `undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's
 one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
 and the title's alike. What a service hands a repository is Drizzle's filter object, which
-`ServiceWhere.encode(where)` of `@app-template/kernel/data` makes of any service's where: an
+`DbWhere.encode(where)` of `@app-template/kernel/data` makes of any service's where: an
 `Option` of none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a range
 (`WhereRange`, `{ from, to }`) its bounds `{ gte, lte }` with either left out, any other value
-stays itself (`chats.selectOne(ServiceWhere.encode(where))`); a field a caller asks any of those
+stays itself (`chats.selectOne(DbWhere.encode(where))`); a field a caller asks any of those
 three ways is typed `WhereValue<T>`. Every field of the value becomes a condition, so a caller
 writes its where as a literal of the type's fields, which the compiler checks, and never hands a
 record whole.

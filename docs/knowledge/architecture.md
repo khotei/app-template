@@ -179,7 +179,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `DbClient` (the client's factory), `DbColumn` (the shared columns), `Keyed`, `DbFilter`, `DbQuery` (a query's failure as its `SqlError`) |
-| a service's where as its repository's filter; the orders a read sorts by | `kernel/data/data-where.ts`, `data-entity-order.ts` | `ServiceWhere`, `EntityOrder` |
+| a service's where as its repository's filter; the orders a read sorts by | `kernel/data/data-where.ts`, `data-entity-order.ts` | `DbWhere`, `EntityOrder` |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/aws/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `QueueConsumer.consume` ([aws.md](aws.md)) |
 | codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `SchemaCodec`, `RowCodec`, `SchemaId.build` |
 | HTTP group | `application/http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`) |
