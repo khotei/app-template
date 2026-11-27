@@ -22,7 +22,7 @@ import { type ContextMessage, Message } from '#chat/domain/message.model'
 import { RunUsage } from '#chat/domain/run.model'
 
 /** What the chat's assistant tells a language model: each output's system prompt and its messages. */
-export class ChatAssistantPrompt {
+class ChatAssistantPrompt {
   /** Fixed for every request: a date or user data here would break the cached prefix. */
   static readonly reply = [
     'You are the assistant of a chat app. Answer the last user message, using the whole conversation as context.',
