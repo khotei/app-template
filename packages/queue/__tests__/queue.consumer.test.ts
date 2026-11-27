@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Context, Effect, Order, Record as Rec, Ref, Schema } from 'effect'
+import { Array as Arr, Context, Deferred, Effect, Order, Record as Rec, Ref, Schema } from 'effect'
 
 import { recordLogs } from '@app-template/packages/testing'
 
@@ -68,6 +68,19 @@ describe('consumeQueue', () => {
       Effect.provideService(Replies, { label: 'reply' }),
       Effect.provideService(Titles, { label: 'title' }),
     ),
+  )
+
+  it.effect("runs a message's handlers at once, so one may wait on another", () =>
+    Effect.gen(function* () {
+      const titled = yield* Deferred.make<void>()
+
+      yield* consumeQueue(pingQueue, [
+        () => Deferred.await(titled),
+        () => Deferred.succeed(titled, undefined),
+      ])({ Records: [buildRecord('a', '{"ping":"ok"}')] })
+
+      assert.isTrue(yield* Deferred.isDone(titled))
+    }),
   )
 
   it.effect(
