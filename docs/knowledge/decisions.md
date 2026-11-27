@@ -673,7 +673,9 @@ and passes the record (`RunMove.start(run)`). A rule is typed over what it reads
 class: a check or a derived value takes a `Pick` of the fields it reads, a check that hands its
 record back is generic over it, and a move takes the model's fields (`RunFields`, the struct type
 of `Run.fields`) and returns `new Run(…)`. A static calls another by its class's name, never
-`this`, so a static passed as a value runs.
+`this`, so a static passed as a value runs. Outside the domain, a package's or kernel part's
+functions of one meaning are statics of one class named for it the same way (`RowCodec`), the
+data layer's an entity's `<Name>Row`; a function alone in its meaning stays a function.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
@@ -687,7 +689,9 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
   could have anywhere chat (any shape) and these methods could be applied as clean functions and
   business rules"; and of the files (2026-11-25): "ChatGuard -> ensure, ChatStatus ->
   buildStatus, RunMove -> move rules", named `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`,
-  `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian).
+  `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian);
+  for the data layer and the packages (issues #79 and #80, 2026-11-27): "we should have group
+  logic into classes with static methods and fields. Group it by meaning".
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it. The rule's body moved into the class: it would
   apply to the class's instances alone, never to a variant or another shape. Members over the
@@ -698,11 +702,12 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
   (`(run: Run)`): a struct of the same fields would fail to compile once the class has any
   member. A group file with a suffix of its own (`.policy`): a new row of naming.md for what
   `<owner>-<what>.ts` names.
-- **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so the domain's
-  override turns it off; a static declared after one that reads it at load is `undefined`, so a
-  group orders its statics. Each rule's signature names the fields it reads, a check that returns
-  its record a type parameter, and a model with moves one exported `<Model>Fields` type; a
-  combination keeps its name however few its callers
+- **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so one
+  override turns it off for the domain, `packages/`, `kernel/data` and `kernel/llm`, and a
+  static-only class anywhere else stays refused; a static declared after one that reads it at
+  load is `undefined`, so a group orders its statics. Each rule's signature names the fields it
+  reads, a check that returns its record a type parameter, and a model with moves one exported
+  `<Model>Fields` type; a combination keeps its name however few its callers
   ([Composition: wrap or compose](#composition-wrap-or-compose)).
 - **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the groups' unit tests,
   in `__tests__/domain/<group file>.test.ts`, calling the rules with plain structs, which
@@ -826,7 +831,8 @@ message hold their Run as that select-only field.
   column, so an update passes every field it must keep. A model carries six variants and the app
   reads four of them (the class, `insert`, `update`, `json`). A service still names its model
   at each read and write and builds the record it returns from what the variant made. A class
-  of statics alone trips Biome's `noStaticOnlyClass`, turned off for `RowCodec`'s file alone. The
+  of statics alone trips Biome's `noStaticOnlyClass`, turned off for `packages/`
+  ([Rules as pure functions](#rules-as-pure-functions)). The
   type finds a renewed key by its brand; a brand leaves the AST as it is, so the run time reads it
   off the schemas `Overrideable` composes (`schema.to.identifier`): an Effect release that builds
   `Overrideable` otherwise renews nothing, and `RowCodec`'s test of a record as read fails.

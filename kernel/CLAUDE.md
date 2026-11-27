@@ -8,6 +8,9 @@ in the rings and what it may import:
 [architecture.md › Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
 - A client or tool any app could use goes to `packages/*`; the kernel only configures it.
+- A kernel part groups its functions as a package does
+  ([packages/CLAUDE.md](../packages/CLAUDE.md)); the data layer's groups:
+  [repositories.md](../.claude/rules/repositories.md#a-deep-repository).
 - A function that fixes this app's numbers or names this app's error over a library's API (a
   retry policy, an error mapping) stays in the kernel part of that library; it moves to
   `packages/` only when its numbers are options and its error is the library's own.

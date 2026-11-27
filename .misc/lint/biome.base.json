@@ -124,7 +124,7 @@
       }
     },
     {
-      "includes": ["application/*/domain/**"],
+      "includes": ["application/*/domain/**", "packages/**", "kernel/data/**", "kernel/llm/**"],
       "linter": {
         "rules": {
           "complexity": {
@@ -594,16 +594,6 @@
                 ]
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/schema/schema-row-codec.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noStaticOnlyClass": "off"
           }
         }
       }
