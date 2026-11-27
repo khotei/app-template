@@ -3,6 +3,8 @@ import { Duration, Effect, Option } from 'effect'
 import { Cookies, type HttpClientResponse } from 'effect/http'
 
 import { owner } from '@app-template/application/chat/testing'
+import { IdentityUnknownError } from '@app-template/application/identity'
+import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiClient, layerApiTest, ownerCookie, signedIn } from '#testing/api.test-layer'
 
@@ -69,4 +71,45 @@ describe('identity', () => {
       ),
     ),
   )
+
+  it.effect(
+    'GET /identity with the cookie of a known user is 200 with their identity, setting no cookie',
+    () =>
+      Effect.gen(function* () {
+        const api = yield* ApiClient
+
+        const [, response] = yield* api.identity.get({ responseMode: 'decoded-and-response' })
+
+        assert.strictEqual(response.status, 200)
+        assert.strictEqual(yield* response.text, `{"userId":"${owner}"}`)
+        assert.isTrue(readUserSecretCookie(response).pipe(Option.isNone))
+      }).pipe(Effect.provide(layerApiTest({ users: signedIn }, ownerCookie))),
+  )
+
+  it.effect.each([
+    { name: 'a forged cookie', cookies: Cookies.fromSetCookie('user_secret=forged') },
+    { name: 'no cookie', cookies: Cookies.empty },
+  ])('GET /identity with $name is 401 IdentityUnknownError and stores no user', ({ cookies }) => {
+    const inserts: Array<unknown> = []
+    return Effect.gen(function* () {
+      const api = yield* ApiClient
+
+      const error = yield* api.identity.get().pipe(Effect.flip)
+
+      assertSchemaEquals(IdentityUnknownError, error, new IdentityUnknownError())
+      assert.deepStrictEqual(inserts, [])
+    }).pipe(
+      Effect.provide(
+        layerApiTest(
+          {
+            users: {
+              selectOne: () => Effect.succeedNone,
+              insert: (row) => Effect.sync(() => void inserts.push(row)),
+            },
+          },
+          cookies,
+        ),
+      ),
+    )
+  })
 })

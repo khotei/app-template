@@ -249,6 +249,18 @@ export type HealthGet400 = RequestInvalidErrorEncoded
 
 export const HealthGet400 = RequestInvalidErrorEncoded
 
+export type IdentityGet200 = ApiIdentity
+
+export const IdentityGet200 = ApiIdentity
+
+export type IdentityGet400 = RequestInvalidErrorEncoded
+
+export const IdentityGet400 = RequestInvalidErrorEncoded
+
+export type IdentityGet401 = IdentityUnknownErrorEncoded
+
+export const IdentityGet401 = IdentityUnknownErrorEncoded
+
 export type IdentityRecognise201 = ApiIdentity
 
 export const IdentityRecognise201 = ApiIdentity
@@ -298,7 +310,10 @@ class HealthGroup extends HttpApiGroup.make("health")
       .annotate(OpenApi.Identifier, "health.get")) {}
 
 class IdentityGroup extends HttpApiGroup.make("identity")
-  .add(HttpApiEndpoint.post("identityRecognise", "/identity", { success: IdentityRecognise201.pipe(HttpApiSchema.status(201)), error: IdentityRecognise400.pipe(HttpApiSchema.status(400)) })
+  .add(HttpApiEndpoint.get("identityGet", "/identity", { success: IdentityGet200, error: [IdentityGet400.pipe(HttpApiSchema.status(400)), IdentityGet401.pipe(HttpApiSchema.status(401))] })
+      .middleware(CookieSecurityMiddleware)
+      .annotate(OpenApi.Identifier, "identity.get"), 
+    HttpApiEndpoint.post("identityRecognise", "/identity", { success: IdentityRecognise201.pipe(HttpApiSchema.status(201)), error: IdentityRecognise400.pipe(HttpApiSchema.status(400)) })
       .annotate(OpenApi.Identifier, "identity.recognise")) {}
 
 export class Api extends HttpApi.make("Api")

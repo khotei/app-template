@@ -1,7 +1,7 @@
 import { Duration, Effect } from 'effect'
 import { HttpApiBuilder } from 'effect/http-api'
 
-import { Api, IdentityMiddleware } from '@app-template/application/http-api'
+import { Api, IdentityMiddleware, RequestIdentity } from '@app-template/application/http-api'
 import { Identity, IdentityService } from '@app-template/application/identity'
 import { nodeEnv } from '@app-template/kernel/config'
 
@@ -14,9 +14,8 @@ export const IdentityHandler = HttpApiBuilder.group(
     const identityService = yield* IdentityService
     const env = yield* nodeEnv
 
-    return handlers.handle(
-      'recognise',
-      Effect.fn('IdentityHandler.recognise')(function* () {
+    return handlers.handleAll({
+      recognise: Effect.fn('IdentityHandler.recognise')(function* () {
         const presented = yield* HttpApiBuilder.securityDecode(IdentityMiddleware.security.cookie)
         const { user, secret } = yield* identityService.recognise(presented)
 
@@ -28,6 +27,9 @@ export const IdentityHandler = HttpApiBuilder.group(
         })
         return new Identity({ userId: user.id })
       }),
-    )
+      get: Effect.fn('IdentityHandler.get')(function* () {
+        return yield* RequestIdentity
+      }),
+    })
   }),
 )

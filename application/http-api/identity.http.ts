@@ -1,13 +1,15 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
 import { ApiIdentity } from '#http-api/api-identity.model'
+import { IdentityMiddleware } from '#http-api/identity.middleware'
 
 /**
- * Has no `IdentityMiddleware`: `recognise` reads the cookie itself and responds with an identity
- * whatever it holds.
+ * `IdentityMiddleware` guards `get` alone: `recognise` reads the cookie itself, so it can answer
+ * an unknown or missing secret with a new user, where the middleware would refuse it.
  */
 export class IdentityHttp extends HttpApiGroup.make('identity').add(
   HttpApiEndpoint.post('recognise', '/identity', {
     success: ApiIdentity.pipe(HttpApiSchema.status(201)),
   }),
+  HttpApiEndpoint.get('get', '/identity', { success: ApiIdentity }).middleware(IdentityMiddleware),
 ) {}

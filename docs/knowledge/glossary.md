@@ -29,11 +29,11 @@ _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not th
 **Identity**:
 What a request's credential names: today a user's id (`Identity`, `{ userId }`, a schema of the
 identity module), later a token's claims; the api's `IdentityMiddleware` provides it to the
-handlers under the key `RequestIdentity` of the API contract, and `POST /identity` responds with
-it. Not the `User`, the user's whole record, which extends it. The `identity` module recognises
-a user by their user secret: `IdentityService.recognise` returns the user a known secret names,
-or a new user with a new secret; `authenticate` fails `IdentityUnknownError` on a secret it does
-not know.
+handlers under the key `RequestIdentity` of the API contract; `POST /identity` responds with it,
+and `GET /identity` reads it. Not the `User`, the user's whole record, which extends it. The
+`identity` module recognises a user by their user secret: `IdentityService.recognise` returns the
+user a known secret names, or a new user with a new secret; `authenticate` fails
+`IdentityUnknownError` on a secret it does not know.
 _Avoid_: Current user, principal, login, session, auth (the api's middleware is
 `IdentityMiddleware`)
 
