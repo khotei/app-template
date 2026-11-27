@@ -140,9 +140,10 @@ gone.
 
 ## Queues
 
-`QueueSender` and `consumeQueue` (`packages/aws/queue`) are the two sides of SQS: the first encodes
-a message by its definition's schema ([database.md › The sends](database.md#the-sends)), the second
-decodes each body by it. A definition's queue is `ResourceName.build(STAGE, definition.name)`.
+`QueueSender` and `QueueConsumer.consume` (`packages/aws/queue`) are the two sides of SQS: the first
+encodes a message by its definition's schema ([database.md › The sends](database.md#the-sends)), the
+second decodes each body by it. A definition's queue is `ResourceName.build(STAGE,
+definition.name)`.
 
 - **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,
   with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch
@@ -176,7 +177,7 @@ decodes each body by it. A definition's queue is `ResourceName.build(STAGE, defi
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed
   function must list `500`.
 
-`consumeQueue` calls no SQS, so its suite needs none.
+`QueueConsumer.consume` calls no SQS, so its suite needs none.
 
 ## Tests on Docker
 

@@ -5,7 +5,7 @@ import { HttpTraceContext } from 'effect/http'
 import { SchemaCodec } from '@app-template/packages/schema'
 
 import { QueueClient } from '#aws/queue/queue.client'
-import { buildMessageCodec, type QueueDefinition } from '#aws/queue/queue-definition'
+import { type QueueDefinition, QueueMessage } from '#aws/queue/queue-definition'
 import { QueueError } from '#aws/queue/queue-error'
 
 export class QueueSender extends Context.Service<
@@ -29,7 +29,7 @@ export class QueueSender extends Context.Service<
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
-      const body = yield* SchemaCodec.encode(buildMessageCodec(definition))(message)
+      const body = yield* SchemaCodec.encode(QueueMessage.buildCodec(definition))(message)
       const url = yield* client.getUrl(buildName(definition.name))
       const span = yield* Effect.currentSpan.pipe(Effect.orDie)
       const { traceparent } = HttpTraceContext.toHeaders(span)

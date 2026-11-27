@@ -180,7 +180,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
 | database tools any app could use | `packages/db/` | `Transaction`, `DbClient` (the client's factory), `DbColumn` (the shared columns), `Keyed`, `DbFilter`, `DbQuery` (a query's failure as its `SqlError`) |
 | a service's where as its repository's filter; the orders a read sorts by | `kernel/data/data-where.ts`, `data-entity-order.ts` | `ServiceWhere`, `EntityOrder` |
-| the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/aws/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
+| the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/aws/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `QueueConsumer.consume` ([aws.md](aws.md)) |
 | codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `SchemaCodec`, `RowCodec`, `SchemaId.build` |
 | HTTP group | `application/http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`) |
 | a resource's wire shapes | `application/http-api/chat/api-chat.model.ts`, `request/api-request.model.ts` | `ApiChat` (`Chat.json.mapFields(…)`), `ApiRun`, `ApiMessage`; `RequestIssue`, `RequestInvalidError` |
@@ -188,7 +188,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | a middleware's layer, for a definition the contract holds | `apps/api/identity/identity.layer.ts`, `apps/api/shared/request.layer.ts` | `IdentityMiddlewareLayer`, `SchemaErrorsLayer` |
 | use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
-| worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
+| worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `QueueConsumer.consume` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
 | worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
@@ -246,9 +246,9 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
   method, and what the handler hands it to checks what it fails with: an endpoint's error list,
-  or the worker's `consumeQueue`, whose `never` makes a queue's handler end every failure; the api
-  provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer,
-  and a unit test from its mocks. Decision: [Use cases as
+  or the worker's `QueueConsumer.consume`, whose `never` makes a queue's handler end every failure;
+  the api provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its
+  layer, and a unit test from its mocks. Decision: [Use cases as
   functions](decisions.md#use-cases-as-functions).
 - **A rule another module owns is called, never copied.** The order module may read the
   customer's row itself, but whether a customer may order is the customer module's rule, so the

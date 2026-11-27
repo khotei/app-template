@@ -317,7 +317,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-27) A store unavailable under a reply's handling leaves its Run active for good, its
   chat refusing every ask: the handler can neither run nor write the Run's failure
   (`failUnanswered` in `application/chat/services/reply-chat.service.ts`), and the worker
-  acknowledges a record whose handler died (`consumeQueue`, `packages/aws/queue/queue.consumer.ts`).
+  acknowledges a record whose handler died (`QueueConsumer.consume`, `packages/aws/queue/queue.consumer.ts`).
   Left on the owner's word. Ways out to weigh: a retry of the failure's write inside the process,
   the owner's; a sweep of active Runs ([database.md › Stuck Runs](database.md#stuck-runs)).
 - (2026-11-27) A chat's newness is judged on a read before the write (`ChatState.isNew` in
@@ -335,8 +335,8 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-27) A dead-letter queue now fills only from a record whose process died three times
   under it (`kernel/aws/resources/resources.ts`), and nothing reads one: weigh dropping the
   queues against a consumer of them.
-- (2026-11-27) `consumeQueue` (`packages/aws/queue/queue.consumer.ts`): no test that an interrupt of
-  the worker ends the handling with no response, which a probe showed; the `process <queue>`
+- (2026-11-27) `QueueConsumer.consume` (`packages/aws/queue/queue.consumer.ts`): no test that an
+  interrupt of the worker ends the handling with no response, which a probe showed; the `process <queue>`
   span ends successful when a handler died, its own span alone failing; a handler that interrupts
   itself is acknowledged.
 - (2026-11-27) The worker's handler test (`apps/worker/__tests__/chat/chat.handler.test.ts`)
@@ -661,7 +661,7 @@ For `aws-deployment` (9), and the decision
 [Jobs as queue messages](decisions.md#jobs-as-queue-messages).
 
 - **The option.** Effect's `PersistedQueue` (`effect/persistence`) with `layerStoreSql` keeps
-  the jobs in a Postgres table and replaces our queue: `packages/aws/queue` (`consumeQueue`,
+  the jobs in a Postgres table and replaces our queue: `packages/aws/queue` (`QueueConsumer.consume`,
   `QueueSender` over SQS), the jobs' sends beside the queues' definitions, and the SQS
   queues, their dead letters and the worker's event source mapping in `deployment/`.
 - **What Postgres would bring.**

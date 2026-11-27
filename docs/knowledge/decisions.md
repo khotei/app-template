@@ -157,8 +157,8 @@ in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's sends a
   its doubles into the layer it provides (`Layer.provideMerge`), since the flow reads them itself;
   the worker's route test mocks the leaves, not the handlers; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
-  list, a job's failure at `consumeQueue`; `.claude/rules/layering.md › Handlers` and review, a
-  handler composing more than the user's record's read and one call.
+  list, a job's failure at `QueueConsumer.consume`; `.claude/rules/layering.md › Handlers` and
+  review, a handler composing more than the user's record's read and one call.
 - **If reversed:** each use case becomes a `Context.Service` whose layer provides
   the services it composes, and each handler group and the worker's route provide those layers.
 - **Revisit when:** a use case needs a second implementation, a test double or state of its own.
@@ -1427,10 +1427,10 @@ interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries)
 has and over which: [layering.md › Ports and domain
 services](../../.claude/rules/layering.md#ports-and-domain-services); who does the work of each job
 and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
-route lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one
-message concurrently, each under its own exit: one that dies is logged (`queue message failed`) and
-leaves the others running, and every record the worker saw to its end is acknowledged; what a
-redelivery then runs: [aws.md › Queues](aws.md#queues).
+route lists a queue's handlers, and `QueueConsumer.consume` runs each on every message of it, all
+of one message concurrently, each under its own exit: one that dies is logged (`queue message
+failed`) and leaves the others running, and every record the worker saw to its end is
+acknowledged; what a redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -1517,7 +1517,7 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   store error, so while the store is unavailable a reply's handler can neither run nor write the
   Run's failure: its record is acknowledged and the Run stays active, its chat refusing every ask,
   until the Run is repaired by hand.
-- **Guarded by:** the `QueueSender` e2e; `consumeQueue`'s unit tests; the unit tests of the
+- **Guarded by:** the `QueueSender` e2e; `QueueConsumer.consume`'s unit tests; the unit tests of the
   sends, of `AskChatService` and of the create flow; the ask service's Biome override, which
   admits of its infrastructure only
   `#*/infrastructure/*.queue` and nothing of `@app-template/packages/aws/queue`; the
@@ -1598,8 +1598,8 @@ services, `ChatService` reading the user's chat each retry names, for the reques
   logs. The assistant's errors settled in the service: the job's end is the transport's policy, and
   the service would log for its one caller. A use case per job between the handler and the service,
   holding only the job's end: a unit that adds only logs, where the use-case layer is kept for a
-  flow over several services. A record from each error to its log level in `consumeQueue`, the
-  handler passing it: declined by the owner for now. A port in `domain/` for the assistants the
+  flow over several services. A record from each error to its log level in `QueueConsumer.consume`,
+  the handler passing it: declined by the owner for now. A port in `domain/` for the assistants the
   service calls: an interface with one implementation for one caller, where its own override admits
   the `.llm` file by name. The title's run left in its handler: one of the chat's two jobs read and
   wrote records in a flow. One service sending the jobs and doing their work: each process would

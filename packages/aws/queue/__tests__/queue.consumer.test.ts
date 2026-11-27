@@ -3,7 +3,7 @@ import { Array as Arr, Context, Deferred, Effect, Order, Record as Rec, Ref, Sch
 
 import { recordLogs } from '@app-template/packages/testing'
 
-import { consumeQueue, SqsEvent } from '#aws/queue/queue.consumer'
+import { QueueConsumer, SqsEvent } from '#aws/queue/queue.consumer'
 
 class Replies extends Context.Service<Replies, { readonly label: string }>()(
   '@app-template/packages/aws/queue/Replies',
@@ -28,7 +28,7 @@ function buildRecord(
   }
 }
 
-describe('consumeQueue', () => {
+describe('QueueConsumer.consume', () => {
   it.effect('runs each decoded message and acknowledges each, one whose handler died too', () =>
     Effect.gen(function* () {
       const seen = yield* Ref.make<ReadonlyArray<string>>([])
@@ -36,7 +36,7 @@ describe('consumeQueue', () => {
         Records: [buildRecord('a', '{"ping":"ok"}'), buildRecord('b', '{"ping":"boom"}')],
       }
 
-      const response = yield* consumeQueue(pingQueue, [
+      const response = yield* QueueConsumer.consume(pingQueue, [
         ({ ping }) =>
           Ref.update(seen, Arr.append(ping)).pipe(
             Effect.andThen(ping === 'boom' ? Effect.die('boom') : Effect.void),
@@ -52,7 +52,7 @@ describe('consumeQueue', () => {
     Effect.gen(function* () {
       const seen = yield* Ref.make<ReadonlyArray<string>>([])
 
-      yield* consumeQueue(pingQueue, [
+      yield* QueueConsumer.consume(pingQueue, [
         Effect.fnUntraced(function* ({ ping }: { readonly ping: string }) {
           const { label } = yield* Replies
           yield* Ref.update(seen, Arr.append(`${label} ${ping}`))
@@ -74,7 +74,7 @@ describe('consumeQueue', () => {
     Effect.gen(function* () {
       const titled = yield* Deferred.make<void>()
 
-      yield* consumeQueue(pingQueue, [
+      yield* QueueConsumer.consume(pingQueue, [
         () => Deferred.await(titled),
         () => Deferred.succeed(titled, undefined),
       ])({ Records: [buildRecord('a', '{"ping":"ok"}')] })
@@ -90,7 +90,7 @@ describe('consumeQueue', () => {
       return Effect.gen(function* () {
         const seen = yield* Ref.make<ReadonlyArray<string>>([])
 
-        yield* consumeQueue(pingQueue, [
+        yield* QueueConsumer.consume(pingQueue, [
           () => Effect.die('boom'),
           ({ ping }) => Effect.yieldNow.pipe(Effect.andThen(Ref.update(seen, Arr.append(ping)))),
         ])({ Records: [buildRecord('a', '{"ping":"ok"}')] })
@@ -106,7 +106,7 @@ describe('consumeQueue', () => {
       const traceIds = yield* Ref.make<Record<string, string>>({})
       const traceId = '0af7651916cd43dd8448eb211c80319c'
 
-      const response = yield* consumeQueue(pingQueue, [
+      const response = yield* QueueConsumer.consume(pingQueue, [
         ({ ping }) =>
           Effect.currentSpan.pipe(
             Effect.orDie,
@@ -146,7 +146,7 @@ describe('consumeQueue', () => {
   it.effect('acknowledges a body that does not decode, unrun, and logs its decode error', () => {
     const { logs, layer: logger } = recordLogs('queueMessageId')
     return Effect.gen(function* () {
-      const response = yield* consumeQueue(pingQueue, [() => Effect.die('handler ran')])({
+      const response = yield* QueueConsumer.consume(pingQueue, [() => Effect.die('handler ran')])({
         Records: [buildRecord('a', '{"ping":1}')],
       })
 
