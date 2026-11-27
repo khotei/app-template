@@ -332,8 +332,7 @@ moves it into its own `Later` and deletes it here.
   span ends successful when a handler died, its own span alone failing; a handler that interrupts
   itself is acknowledged.
 - (2026-11-27) The worker's handler test (`apps/worker/__tests__/chat/chat.handler.test.ts`)
-  asserts the Run's rules, which belong in `ReplyChatService`'s test; a message gone and a chat
-  deleted or titled end `titleChat` under one log line (`apps/worker/chat/chat.handler.ts`).
+  asserts the Run's rules, which belong in `ReplyChatService`'s test.
 - (2026-11-27) `.claude/rules/layering.md` › Handlers gives a handler's span as
   `'<Group>Handler.<endpoint|job>'`, which does not name a listener; `aws.md` › Queues does not
   point to the store-outage cost that Jobs as queue messages states.
