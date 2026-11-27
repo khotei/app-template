@@ -129,7 +129,7 @@ describe('replyToMessage', () => {
       assert.deepStrictEqual(logs, [
         [
           'Info',
-          'reply skipped: its Run is done, failed or gone',
+          "reply skipped: no active Run for the job's message, chat and user",
           queuedRun.userMessageId,
           chatId,
           owner,

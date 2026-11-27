@@ -25,7 +25,7 @@ export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
     })
   },
   Effect.catchTag('RunNotFoundError', () =>
-    Effect.logInfo('reply skipped: its Run is done, failed or gone'),
+    Effect.logInfo("reply skipped: no active Run for the job's message, chat and user"),
   ),
   // The Run holds these failures now, so the job ends.
   Effect.catchTag(['RunStartedError', 'LlmError'], (error) => logFailed(Cause.fail(error))),
