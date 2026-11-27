@@ -1,8 +1,9 @@
 import { HttpApi } from 'effect/http-api'
 
-import { Auth, SchemaErrors } from '#http-api/api-security'
 import { ChatHttp } from '#http-api/chat.http'
 import { HealthHttp } from '#http-api/health.http'
+import { Auth } from '#http-api/identity.middleware'
+import { SchemaErrors } from '#http-api/request.middleware'
 import { UserHttp } from '#http-api/user.http'
 
 /** A middleware reaches only the groups added before it: an authed group joins the first `add`. */

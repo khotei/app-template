@@ -181,8 +181,9 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | a service's where as its repository's filter | `kernel/data/data-where.ts` | `encodeWhere` |
 | the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
 | codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
-| HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
-| the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity` as `RequestIdentity`, `SchemaErrors`, `RequestInvalidError` |
+| HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`) |
+| a resource's wire shapes | `application/http-api/api-chat.model.ts`, `api-request.model.ts` | `ApiChat` (`Chat.json.mapFields(…)`), `ApiRun`, `ApiMessage`; `RequestIssue`, `RequestInvalidError` |
+| the API contract: the groups assembled, the middlewares' definitions with the keys they provide; its snapshot | `application/http-api/api.ts`, `identity.middleware.ts`, `request.middleware.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity` as `RequestIdentity`; `SchemaErrors` |
 | a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
 | use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
@@ -306,7 +307,8 @@ imports need.
    provided in the worker's layer.
 5. **The boundary.** A group in `application/http-api/<entity>.http.ts` over the domain's ids,
    models and errors, each error with the status its class carries, a wire shape only where it
-   differs from the model ([application/CLAUDE.md](../../application/CLAUDE.md)), added to `Api`
+   differs from the model, in `api-<entity>.model.ts` beside it
+   ([application/CLAUDE.md](../../application/CLAUDE.md)), added to `Api`
    in `application/http-api/api.ts`, in the first `.add(…)` when it needs a user, else in the
    second, since `.middleware(Auth)` reaches only the groups added before it; its handler in
    `apps/api/<entity>/<entity>.handler.ts`, with a mapper in

@@ -327,11 +327,12 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 ### The API contract in the api
 
 The API contract is `application/http-api`, a part of the `application` workspace behind its own
-entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
-the definitions of its middlewares (`Auth`, which provides identity's `Identity` as
-`RequestIdentity`, `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers,
-stay in `apps/api`. It takes of a module only its models, ids, errors and `ChatState`, the
-group a wire shape reads, through the
+entry, `@app-template/application/http-api`: one group per resource (`<resource>.http.ts`), its
+wire shapes apart (`api-<resource>.model.ts`), the groups assembled into one `Api`, and the
+definitions of its middlewares with the keys they provide (`<name>.middleware.ts`: `Auth`, which
+provides identity's `Identity` as `RequestIdentity`, `SchemaErrors` with its
+`RequestInvalidError`), whose layers, with the handlers, stay in `apps/api`. It takes of a module
+only its models, ids, errors and `ChatState`, the group a wire shape reads, through the
 module's contract
 ([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
 case, so it loads no service, store or client; it is declared over the

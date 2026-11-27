@@ -27,7 +27,9 @@ what it may import: [› Dependency rules](../docs/knowledge/architecture.md#dep
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and its
   `<Model>Queue`, which holds each job's `send<Job>` and each event's `send<Event>`; no adapter
   wraps the worker.
-- **`http-api/` is the API contract,** which the api implements. A group takes the domain's schemas
+- **`http-api/` is the API contract,** which the api implements, its files flat by role
+  (`naming.md`): a `domain/` or `services/` folder there would fall under the modules' Biome
+  overrides. A group takes the domain's schemas
   as they are (ids, checks, models, errors), through the modules' contracts alone: an error's status
   is on its class (`{ httpApiStatus: 404 }`, the third argument of `Schema.TaggedError`), an
   endpoint or a middleware lists the bare class, and a model goes on the wire only as its
