@@ -428,31 +428,31 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   lists it, so an endpoint that needs another status needs another class; and a class without
   the key, or with it misspelled (`httpApiStatsu`), which `tsc` passes as `Annotations` takes
   any key (a wrong value's type fails `TS2769`), responds with `500`: past `make api-snapshot`,
-  only a handler test that asserts that class's status stops it. A user's
-  own group goes in `api.ts`'s first
-  `.add(…)`, before `.middleware(IdentityMiddleware)`: past it, only a handler that reads
-  `RequestIdentity` fails `tsc`. The web's endpoints are `<group><Endpoint>`, the components
-  follow the domain's classes (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers
-  (`ApiChat`), and a schema returned in more than one form, the bare one and each `.pipe(HttpApiSchema.status(…))`
-  counting as one, gets a numbered component (`<Class>Encoded_2`), which a wire shape's
-  `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move with every
-  wire change, and the web keeps a generator, with its command's peer `@effect/platform-node`
-  pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive` field, a message's
-  wire shape that nests `ApiRun` in place of its select-only Run, and two assertions that it
-  stays off (`listMessages`, `getRun`); a new shape built over the Run itself, not its json
-  variant, or a new listing of an error with a cause, would carry it, which only review of the
-  snapshot diff holds. A wire field the mapper sets is a function per model that has one, and a
-  handler that returns the model without it fails `tsc`. A name a group needs of a module is a
+  only a handler test that asserts that class's status stops it. A group whose every endpoint
+  needs a user goes in `api.ts`'s first `.add(…)`, before `.middleware(IdentityMiddleware)`, and one
+  that needs it on some endpoints puts the middleware on those: past it, only a handler that reads
+  `RequestIdentity` fails `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow
+  the domain's classes (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`),
+  and a schema returned in more than one form, the bare one and each
+  `.pipe(HttpApiSchema.status(…))` counting as one, gets a numbered component (`<Class>Encoded_2`),
+  which a wire shape's `identifier` avoids (`ApiRun` for the Run's three). Two checked-in files move
+  with every wire change, and the web keeps a generator, with its command's peer
+  `@effect/platform-node` pinned. Keeping the cause off the wire takes the Run's `Model.Sensitive`
+  field, a message's wire shape that nests `ApiRun` in place of its select-only Run, and two
+  assertions that it stays off (`listMessages`, `getRun`); a new shape built over the Run itself,
+  not its json variant, or a new listing of an error with a cause, would carry it, which only review
+  of the snapshot diff holds. A wire field the mapper sets is a function per model that has one, and
+  a handler that returns the model without it fails `tsc`. A name a group needs of a module is a
   line in that module's contract first. `bun build application/http-api/index.ts --target bun
   --metafile` lists 103 input files in its metafile, none of a service, an infrastructure, the
-  kernel, `packages/db` or Drizzle; through the modules' entries it read 664, 123 of them
-  Drizzle's. No check repeats that build: a
-  contract that re-exported a service's file would load it again, which the contracts' override
-  refuses and only review of a domain file's imports holds past it; a mechanical check of that
-  bundle is left to the web framework's work (the owner's word, 2026-11-25), and so is one of the
-  browser's: the `apps/web/**` override and the web's manifest, which declares no workspace but
-  `packages`, refuse a direct import of the app, but nothing refuses a server import that
-  reaches the bundle through a package they admit (`packages/ui` importing `packages/db`).
+  kernel, `packages/db` or Drizzle; through the modules' entries it read 664, 123 of them Drizzle's.
+  No check repeats that build: a contract that re-exported a service's file would load it again,
+  which the contracts' override refuses and only review of a domain file's imports holds past it; a
+  mechanical check of that bundle is left to the web framework's work (the owner's word,
+  2026-11-25), and so is one of the browser's: the `apps/web/**` override and the web's manifest,
+  which declares no workspace but `packages`, refuse a direct import of the app, but nothing refuses
+  a server import that reaches the bundle through a package they admit (`packages/ui` importing
+  `packages/db`).
 - **Guarded by:** `HttpApiBuilder` and `RequestIdentity` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
   `.middleware(IdentityMiddleware)` whose handler reads `RequestIdentity`, `TS377004`); the api's

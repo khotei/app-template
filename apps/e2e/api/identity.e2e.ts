@@ -2,24 +2,19 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { ApiClient, StrangerApiClient } from '@app-template/api/testing'
-import { IdentityUnknownError } from '@app-template/application/identity'
-import { assertSchemaEquals } from '@app-template/packages/testing'
+import { ApiClient } from '@app-template/api/testing'
 
 import { StandTest } from '#testing/stand.test-layer'
 
 describe('identity, through the api', () => {
-  it.live('get answers the identity recognise gave, and a browser with no cookie 401', () =>
+  it.live('get answers the identity recognise gave', () =>
     Effect.gen(function* () {
       const api = yield* ApiClient
-      const stranger = yield* StrangerApiClient
 
       const recognised = yield* api.identity.recognise()
       const answered = yield* api.identity.get()
-      const refused = yield* stranger.identity.get().pipe(Effect.flip)
 
       assert.strictEqual(answered.userId, recognised.userId)
-      assertSchemaEquals(IdentityUnknownError, refused, new IdentityUnknownError())
     }).pipe(Effect.provide(StandTest)),
   )
 })

@@ -23,7 +23,7 @@ import { ChatHandler } from '#api/chat/chat.handler'
 import { HealthHandler } from '#api/health/health.handler'
 import { IdentityHandler } from '#api/identity/identity.handler'
 import { IdentityMiddlewareLayer } from '#api/identity/identity.layer'
-import { SchemaErrorsLayer } from '#api/shared/schema-errors.layer'
+import { SchemaErrorsLayer } from '#api/shared/request.layer'
 
 const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide([HealthHandler, IdentityHandler, ChatHandler]),

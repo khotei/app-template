@@ -29,11 +29,11 @@ what it may import: [› Dependency rules](../docs/knowledge/architecture.md#dep
   wraps the worker.
 - **`http-api/` is the API contract,** which the api implements, its files flat by role
   (`naming.md`): a `domain/` or `services/` folder there would fall under the modules' Biome
-  overrides. A group takes the domain's schemas
-  as they are (ids, checks, models, errors), through the modules' contracts alone: an error's status
-  is on its class (`{ httpApiStatus: 404 }`, the third argument of `Schema.TaggedError`), an
-  endpoint or a middleware lists the bare class, and a model goes on the wire only as its
-  `<Model>.json`, never the class, so what the model keeps off the wire (a sensitive or select-only
-  field) stays off, with `.mapFields(…)` where the wire adds or swaps a field, named by an
-  `identifier` (`Api<Model>`). Decision:
+  overrides. A group takes the domain's schemas as they are (ids, checks, models, errors), through
+  the modules' contracts alone: an error's status is on its class (`{ httpApiStatus: 404 }`, the
+  third argument of `Schema.TaggedError`), an endpoint or a middleware lists the bare class, and a
+  model goes on the wire only as its `<Model>.json` (an unstored `Schema.Class` model as
+  `Schema.Struct(<Model>.fields)`), never the class, so what the model keeps off the wire (a
+  sensitive or select-only field) stays off, with `.mapFields(…)` where the wire adds or swaps a
+  field, each named by an `identifier` (`Api<Model>`). Decision:
   [The API contract in the api](../docs/knowledge/decisions.md#the-api-contract-in-the-api).

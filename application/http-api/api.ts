@@ -7,8 +7,9 @@ import { IdentityMiddleware } from '#http-api/identity.middleware'
 import { SchemaErrors } from '#http-api/request.middleware'
 
 /**
- * A middleware reaches only the groups added before it: a group whose handlers read the identity
- * joins the first `add`.
+ * A middleware reaches only the groups added before it: a group whose every endpoint needs the
+ * identity joins the first `add`; one that needs it on some endpoints puts
+ * `.middleware(IdentityMiddleware)` on those.
  */
 export class Api extends HttpApi.make('app-template')
   .add(ChatHttp)

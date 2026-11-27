@@ -1,10 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Duration, Effect, Option } from 'effect'
-import { Cookies, type HttpClientResponse } from 'effect/http'
+import { Cookies, HttpClient, type HttpClientResponse } from 'effect/http'
 
 import { owner } from '@app-template/application/chat/testing'
-import { IdentityUnknownError } from '@app-template/application/identity'
-import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { ApiClient, layerApiTest, ownerCookie, signedIn } from '#testing/api.test-layer'
 
@@ -89,27 +87,33 @@ describe('identity', () => {
   it.effect.each([
     { name: 'a forged cookie', cookies: Cookies.fromSetCookie('user_secret=forged') },
     { name: 'no cookie', cookies: Cookies.empty },
-  ])('GET /identity with $name is 401 IdentityUnknownError and stores no user', ({ cookies }) => {
-    const inserts: Array<unknown> = []
-    return Effect.gen(function* () {
-      const api = yield* ApiClient
+  ])(
+    'GET /identity with $name is 401 IdentityUnknownError, storing no user and setting no cookie',
+    ({ cookies }) => {
+      const inserts: Array<unknown> = []
+      return Effect.gen(function* () {
+        const http = yield* HttpClient.HttpClient
 
-      const error = yield* api.identity.get().pipe(Effect.flip)
+        // The api's client hands back no response on a failure, so the raw one reads its cookies.
+        const response = yield* http.get('/identity')
 
-      assertSchemaEquals(IdentityUnknownError, error, new IdentityUnknownError())
-      assert.deepStrictEqual(inserts, [])
-    }).pipe(
-      Effect.provide(
-        layerApiTest(
-          {
-            users: {
-              selectOne: () => Effect.succeedNone,
-              insert: (row) => Effect.sync(() => void inserts.push(row)),
+        assert.strictEqual(response.status, 401)
+        assert.deepStrictEqual(yield* response.json, { _tag: 'IdentityUnknownError' })
+        assert.isTrue(readUserSecretCookie(response).pipe(Option.isNone))
+        assert.deepStrictEqual(inserts, [])
+      }).pipe(
+        Effect.provide(
+          layerApiTest(
+            {
+              users: {
+                selectOne: () => Effect.succeedNone,
+                insert: (row) => Effect.sync(() => void inserts.push(row)),
+              },
             },
-          },
-          cookies,
+            cookies,
+          ),
         ),
-      ),
-    )
-  })
+      )
+    },
+  )
 })
