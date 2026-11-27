@@ -58,6 +58,7 @@ graph LR
 | 29 | `sdd-stages` | `chore` | 2 | done: [docs/tickets/2026-11-07-1232_sdd-stages/](../tickets/2026-11-07-1232_sdd-stages/feature.md) |
 | 30 | `effect-4-1` | `chore` | PR #39 | done, in the design audit's PR #39 |
 | 31 | `pure-models` | `refactor` | 30 | done: [docs/tickets/2026-11-25-1922_pure-models/](../tickets/2026-11-25-1922_pure-models/lab.md) |
+| 32 | `queue-events` | `feat` | 31 | done: [docs/tickets/2026-11-27-1131_queue-events/](../tickets/2026-11-27-1131_queue-events/lab.md) |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -309,6 +310,33 @@ questions. One section per ticket; each item says what goes wrong, with its file
 it was left, and the ways out to weigh. A design audit has a section too, whose findings no
 verifier has checked stand by title alone, marked so, until one does. A ticket that takes an item
 moves it into its own `Later` and deletes it here.
+
+### From `queue-events`
+
+- (2026-11-27) A store unavailable under a reply's handling leaves its Run active for good, its
+  chat refusing every ask: the handler can neither run nor write the Run's failure
+  (`failUnanswered` in `application/chat/services/reply-chat.service.ts`), and the worker
+  acknowledges a record whose handler died (`consumeQueue`, `packages/queue/queue.consumer.ts`).
+  Left on the owner's word. Ways out to weigh: a retry of the failure's write inside the process,
+  the owner's; a sweep of active Runs ([database.md › Stuck Runs](database.md#stuck-runs)).
+- (2026-11-27) A chat's newness is judged on a read before the write (`ChatState.isNew` in
+  `AskChatService.ask`, `application/chat/services/ask-chat.service.ts`): a second ask whose read
+  precedes a first one's whole reply sends a second `FirstMessageCreated`, of the second message,
+  which titles the chat if the first title is not written yet. Left: the window is a whole reply
+  wide on one side and a read wide on the other. Way out: judge newness inside the transaction.
+- (2026-11-27) A dead-letter queue now fills only from a record whose process died three times
+  under it (`kernel/aws/resources/resources.ts`), and nothing reads one: weigh dropping the
+  queues against a consumer of them.
+- (2026-11-27) `consumeQueue` (`packages/queue/queue.consumer.ts`): no test that an interrupt of
+  the worker ends the handling with no response, which a probe showed; the `process <queue>`
+  span ends successful when a handler died, its own span alone failing; a handler that interrupts
+  itself is acknowledged.
+- (2026-11-27) The worker's handler test (`apps/worker/__tests__/chat/chat.handler.test.ts`)
+  asserts the Run's rules, which belong in `ReplyChatService`'s test; a message gone and a chat
+  deleted or titled end `titleChat` under one log line (`apps/worker/chat/chat.handler.ts`).
+- (2026-11-27) `.claude/rules/layering.md` › Handlers gives a handler's span as
+  `'<Group>Handler.<endpoint|job>'`, which does not name a listener; `aws.md` › Queues does not
+  point to the store-outage cost that Jobs as queue messages states.
 
 ### From `lambda-processes`
 
