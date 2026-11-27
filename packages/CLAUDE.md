@@ -6,7 +6,8 @@ is this app's (its settings, its resources and their names, the pinned images) l
 
 - A package the web client imports ships to the browser: no Bun APIs, no `Bun.env`, no Node
   built-ins.
-- A file holds one role: a service or a group, with the types they take.
+- A file holds one role: a service or a group, with the types they take; a non-exported group
+  that one service alone reads sits in that service's file, above it.
 - Every exported function that is not a service is a static of a group, a class named for its
   meaning in `<package>-<what>.ts`, called `<Group>.<verb>`, a group of one member included; a
   static calls another by the class's name, never `this`

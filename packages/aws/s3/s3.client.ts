@@ -32,14 +32,6 @@ export interface ObjectHead {
   readonly fileName: Option.Option<string>
 }
 
-interface UploadState {
-  /** The latest part, held back until the next one proves it is not the last. */
-  readonly held: Option.Option<Uint8Array>
-  readonly uploadId: Option.Option<string>
-  readonly parts: ReadonlyArray<{ readonly PartNumber: number; readonly ETag: string | undefined }>
-  readonly size: number
-}
-
 /** An object's headers: what `put` writes of its options and what a read decodes of them. */
 class ObjectHeader {
   static readonly buildInlineDisposition = (fileName: string) => {
@@ -84,6 +76,14 @@ class ObjectHeader {
   })
 }
 
+interface UploadState {
+  /** The latest part, held back until the next one proves it is not the last. */
+  readonly held: Option.Option<Uint8Array>
+  readonly uploadId: Option.Option<string>
+  readonly parts: ReadonlyArray<{ readonly PartNumber: number; readonly ETag: string | undefined }>
+  readonly size: number
+}
+
 /** An upload's parts: their size, the state their fold starts from and how the content is cut. */
 class ObjectUpload {
   /** The S3 minimum for every part but the last. */
@@ -96,7 +96,7 @@ class ObjectUpload {
     size: 0,
   }
 
-  static readonly sizeOf = (chunks: ReadonlyArray<Uint8Array>) =>
+  static readonly countBytes = (chunks: ReadonlyArray<Uint8Array>) =>
     pipe(
       chunks,
       Arr.map((chunk) => chunk.length),
@@ -118,7 +118,7 @@ class ObjectUpload {
       Stream.transduce(
         Sink.reduceWhile(
           Arr.empty<Uint8Array>,
-          (held) => ObjectUpload.sizeOf(held) < ObjectUpload.partSize,
+          (held) => ObjectUpload.countBytes(held) < ObjectUpload.partSize,
           (held, chunk) => Arr.append(held, chunk),
         ),
       ),
