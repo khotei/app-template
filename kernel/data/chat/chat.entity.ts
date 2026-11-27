@@ -6,7 +6,6 @@ import type { Keyed } from '@app-template/packages/db'
 
 import { ChatColumns, type chats } from '#kernel/data/chat/chat.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
-import { RowOrder } from '#kernel/data/data-order'
 import type { FilterOf } from '#kernel/data/relations'
 
 /** A chat with its newest Run, flat, none before its first ask: every read nests it. */
@@ -28,9 +27,6 @@ export class ChatRow {
   static readonly setColumns = ['title', 'context', 'updatedAt'] as const satisfies ReadonlyArray<
     keyof ChatColumns
   >
-
-  /** Every read nests the chat's newest Run. */
-  static readonly withNewestRun = { run: { orderBy: RowOrder.newestFirst } } as const
 }
 
 /** What an update is handed: the columns it writes, and the row's key it leaves as it is. */
