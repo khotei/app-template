@@ -27,9 +27,10 @@ AWS's `secretAccessKey`), which keeps its tool's name.
 _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not the secret)
 
 **Identity**:
-What a request's credential names: today a user's id (`Identity`, `{ userId }`), later a token's
-claims; the api's `Auth` provides it to the handlers. Not the `User`, the user's whole record,
-which extends it. The `identity` module recognises a user by their user secret:
+What a request's credential names: today a user's id (`Identity`, `{ userId }`, a schema of the
+identity module), later a token's claims; the api's `Auth` provides it to the handlers under the
+key `RequestIdentity` of the API contract. Not the `User`, the user's whole record, which
+extends it. The `identity` module recognises a user by their user secret:
 `IdentityService.recognise` returns the user a known secret names, or a new user with a new
 secret; `authenticate` fails `IdentityUnknownError` on a secret it does not know.
 _Avoid_: Current user, principal, login, session, Auth (the api's middleware, `Auth`)

@@ -1,7 +1,12 @@
-import { Schema } from 'effect'
+import { Context, Schema } from 'effect'
 import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
 import { type Identity, IdentityUnknownError } from '@app-template/application/identity/contract'
+
+/** The `Identity` of the request's credential, which `Auth` provides to the handlers behind it. */
+export class RequestIdentity extends Context.Service<RequestIdentity, Identity>()(
+  '@app-template/application/http-api/RequestIdentity',
+) {}
 
 /** `path` mixes property names and array indices, as Standard Schema reports them. */
 export const RequestIssue = Schema.Struct({
@@ -16,7 +21,7 @@ export class RequestInvalidError extends Schema.TaggedError<RequestInvalidError>
   { httpApiStatus: 400 },
 ) {}
 
-export class Auth extends HttpApiMiddleware.Service<Auth, { provides: Identity }>()(
+export class Auth extends HttpApiMiddleware.Service<Auth, { provides: RequestIdentity }>()(
   '@app-template/application/http-api/Auth',
   {
     security: { cookie: HttpApiSecurity.apiKey({ key: 'user_secret', in: 'cookie' }) },

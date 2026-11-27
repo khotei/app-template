@@ -6,8 +6,9 @@ paths:
 
 # Models: one field list, a variant per use
 
-A domain model is a `Model.Class` of `effect/schema`: the class is what a read decodes,
-`<Model>.insert` and `<Model>.update` what a write encodes, `<Model>.json` what the api serves.
+A domain model of a stored record is a `Model.Class` of `effect/schema` (one no store holds, a
+`Schema.Class`): the class is what a read decodes, `<Model>.insert` and `<Model>.update` what a
+write encodes, `<Model>.json` what the api serves.
 `Model` and `VariantSchema` are `@stability unstable`: at an Effect upgrade, check each name used
 against the vendored module ([effect.md](effect.md)).
 Decision: [Models with variants](../../docs/knowledge/decisions.md#models-with-variants).

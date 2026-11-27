@@ -32,8 +32,8 @@ The behaviour is split by business capability, a module per capability under `ap
 `chat`, `user` and `identity`. `user` holds the user's model and its id, which other modules'
 models and the API contract name; `identity` the recognising of a user by its secret, the
 `IdentityUnknownError` its `authenticate` fails with and `Identity`, what a request's credential
-names, which the api's `Auth` provides to the handlers, and it imports `user`, never the
-reverse.
+names, which the api's `Auth` provides to the handlers as the API contract's `RequestIdentity`,
+and it imports `user`, never the reverse.
 
 - **Why:** a module owns what changes together. Who a user is changes apart from how the api
   recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
@@ -328,9 +328,9 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 
 The API contract is `application/http-api`, a part of the `application` workspace behind its own
 entry, `@app-template/application/http-api`: one group per resource, assembled into one `Api`, and
-the definitions of its middlewares (`Auth`, which provides identity's `Identity`,
-`SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers, stay in
-`apps/api`. It takes of a module only its models, ids, errors, `Identity` and `ChatState`, the
+the definitions of its middlewares (`Auth`, which provides identity's `Identity` as
+`RequestIdentity`, `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers,
+stay in `apps/api`. It takes of a module only its models, ids, errors and `ChatState`, the
 group a wire shape reads, through the
 module's contract
 ([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
@@ -429,7 +429,7 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   any key (a wrong value's type fails `TS2769`), responds with `500`: past `make api-snapshot`,
   only a handler test that asserts that class's status stops it. A user's
   own group goes in `api.ts`'s first
-  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `Identity` fails
+  `.add(…)`, before `.middleware(Auth)`: past it, only a handler that reads `RequestIdentity` fails
   `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow the domain's classes
   (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`), and a schema
   returned in more than one form, the bare one and each `.pipe(HttpApiSchema.status(…))`
@@ -452,9 +452,9 @@ reaches the browser, and the web declares no workspace of the app but `packages`
   browser's: the `apps/web/**` override and the web's manifest, which declares no workspace but
   `packages`, refuse a direct import of the app, but nothing refuses a server import that
   reaches the bundle through a package they admit (`packages/ui` importing `packages/db`).
-- **Guarded by:** `HttpApiBuilder` and `Identity` under `tsc` (a field the wire adds that the
+- **Guarded by:** `HttpApiBuilder` and `RequestIdentity` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
-  `.middleware(Auth)` whose handler reads `Identity`, `TS377004`); the api's snapshot test,
+  `.middleware(Auth)` whose handler reads `RequestIdentity`, `TS377004`); the api's snapshot test,
   and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares
