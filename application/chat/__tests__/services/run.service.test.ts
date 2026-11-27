@@ -53,8 +53,18 @@ const reads: ReadonlyArray<{
   },
   {
     name: 'user message',
-    where: { userMessageId: queuedRun.userMessageId, status: activeRunStatuses },
-    filter: { userMessageId: queuedRun.userMessageId, status: { in: ['queued', 'generating'] } },
+    where: {
+      userMessageId: queuedRun.userMessageId,
+      chatId: queuedRun.chatId,
+      userId: queuedRun.userId,
+      status: activeRunStatuses,
+    },
+    filter: {
+      userMessageId: queuedRun.userMessageId,
+      chatId: queuedRun.chatId,
+      userId: queuedRun.userId,
+      status: { in: ['queued', 'generating'] },
+    },
     key: { userMessageId: queuedRun.userMessageId },
   },
 ]

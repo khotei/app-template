@@ -9,11 +9,16 @@ export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMess
 
 /**
  * A Run as a read finds it: a user's by its id in its chat, which a call on a user's behalf
- * reads, or a message's in one of the statuses `status` lists, which its job reads.
+ * reads, or a user's message's in its chat in one of the statuses `status` lists, which its job
+ * reads.
  */
 export type RunWhere =
   | Types.Simplify<Pick<Run, 'id' | 'chatId' | 'userId'>>
-  | Types.Simplify<Pick<Run, 'userMessageId'> & { readonly status: ReadonlyArray<RunStatus> }>
+  | Types.Simplify<
+      Pick<Run, 'userMessageId' | 'chatId' | 'userId'> & {
+        readonly status: ReadonlyArray<RunStatus>
+      }
+    >
 
 export class RunService extends Context.Service<
   RunService,

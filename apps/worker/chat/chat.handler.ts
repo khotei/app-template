@@ -18,16 +18,25 @@ const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply fail
 export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
   function* (job: ReplyToMessage) {
     const replies = yield* ReplyChatService
-    return yield* replies.reply(job.messageId)
+    return yield* replies.reply({
+      userMessageId: job.messageId,
+      chatId: job.chatId,
+      userId: job.userId,
+    })
   },
   Effect.catchTag('RunNotFoundError', () =>
-    Effect.logInfo('reply skipped: its Run is done, failed or gone'),
+    Effect.logInfo("reply skipped: no active Run for the job's message, chat and user"),
   ),
   // The Run holds these failures now, so the job ends.
   Effect.catchTag(['RunStartedError', 'LlmError'], (error) => logFailed(Cause.fail(error))),
   // An interrupt skips every catch and tap, the consumer's log too; this handler still runs.
   Effect.onErrorIf(Cause.hasInterrupts, (cause) => logFailed(cause)),
-  (reply, job) => Effect.annotateLogs(reply, { messageId: job.messageId }),
+  (reply, job) =>
+    Effect.annotateLogs(reply, {
+      messageId: job.messageId,
+      chatId: job.chatId,
+      userId: job.userId,
+    }),
 )
 
 /**

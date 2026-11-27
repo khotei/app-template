@@ -1,10 +1,12 @@
 import { assert, describe, it } from '@effect/vitest'
+import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Layer } from 'effect'
 
 import { QueueError, QueueSender } from '@app-template/packages/queue'
+import { recordMessages } from '@app-template/packages/queue/testing'
 import { recordLogs } from '@app-template/packages/testing'
 
-import { ChatQueue } from '#chat/infrastructure/chat.queue'
+import { ChatQueue, ReplyToMessage } from '#chat/infrastructure/chat.queue'
 import { queuedRun } from '#testing/chat/chat.test-fixture'
 
 const refused = new QueueError({ cause: new Error('SQS is unavailable') })
@@ -15,6 +17,26 @@ const RefusingQueueTest = ChatQueue.layer.pipe(
 )
 
 describe('ChatQueue.sendReplyToMessage', () => {
+  it.effect("a reply job names the Run's user message, chat and user", () => {
+    const jobs = recordMessages()
+    const layer = ChatQueue.layer.pipe(Layer.provide(jobs.layer))
+    return Effect.gen(function* () {
+      const queue = yield* ChatQueue
+      yield* queue.sendReplyToMessage(queuedRun)
+
+      assertEquals(yield* jobs.sent, [
+        {
+          queue: 'reply-to-message',
+          message: new ReplyToMessage({
+            messageId: queuedRun.userMessageId,
+            chatId: queuedRun.chatId,
+            userId: queuedRun.userId,
+          }),
+        },
+      ])
+    }).pipe(Effect.provide(layer))
+  })
+
   it.effect(
     'a reply job SQS refuses is logged with its chat, Run, message and error, and fails it',
     () => {

@@ -10,9 +10,14 @@ import type { Run } from '#chat/domain/run.model'
 
 const { replyToMessage, firstMessageCreated } = resources.queues
 
-/** `messageId` is the user's message the worker replies to, through its active Run. */
+/**
+ * `messageId` is the user's message the worker replies to, through its active Run, in the chat
+ * `chatId`, of the user `userId`.
+ */
 export class ReplyToMessage extends Schema.Class<ReplyToMessage>('ReplyToMessage')({
   messageId: MessageId,
+  chatId: ChatId,
+  userId: UserId,
 }) {
   static readonly queue = {
     name: replyToMessage.name,
@@ -53,7 +58,14 @@ export class ChatQueue extends Context.Service<
 
     const sendReplyToMessage = Effect.fn('ChatQueue.sendReplyToMessage')(
       (run: Run) =>
-        queue.send(ReplyToMessage.queue, new ReplyToMessage({ messageId: run.userMessageId })),
+        queue.send(
+          ReplyToMessage.queue,
+          new ReplyToMessage({
+            messageId: run.userMessageId,
+            chatId: run.chatId,
+            userId: run.userId,
+          }),
+        ),
       Effect.tapError((error) => Effect.logError('reply job not queued', Cause.fail(error))),
       (sent, run) =>
         Effect.annotateLogs(sent, {
