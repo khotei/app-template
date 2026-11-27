@@ -106,3 +106,8 @@ ask   ──send FirstMessageCreated─▶ queue first-message-created ──▶
 - The `process <queue>` span ends successful when a handler died; the `queue message failed` log
   names the handler in its cause's trace — `packages/queue/queue.consumer.ts:54` — open
 - A handler that interrupts itself is acknowledged — `packages/queue/queue.consumer.ts:50` — open
+- A chat's newness is judged on a read before the write: a second ask whose read precedes a first
+  one's whole reply sends a second event, of the second message, which may title the chat —
+  `application/chat/services/ask-chat.service.ts:95` — open
+- A message gone and a chat deleted or titled end the title's handler under one log line —
+  `apps/worker/chat/chat.handler.ts:45` — open
