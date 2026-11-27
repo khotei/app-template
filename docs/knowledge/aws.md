@@ -142,8 +142,8 @@ gone.
 
 `QueueSender` and `QueueConsumer.consume` (`packages/aws/queue`) are the two sides of SQS: the first
 encodes a message by its definition's schema ([database.md › The sends](database.md#the-sends)), the
-second decodes each body by it. A definition's queue is `ResourceName.build(STAGE,
-definition.name)`.
+second decodes each body by it. A definition's queue is
+`ResourceName.build(STAGE, definition.name)`.
 
 - **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,
   with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch
