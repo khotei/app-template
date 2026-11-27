@@ -101,18 +101,17 @@ export class ReplyChatService extends Context.Service<
     // Run starts waits for them, so the Run it started is always there to fail and never stays
     // `generating`; they are interruptible, so the worker can still stop during the model's calls.
     const reply = Effect.fn('ReplyChatService.reply')(
-      (where: ReplyChatWhere) =>
-        start(where).pipe(
-          Effect.flatMap((started) =>
-            answer(started).pipe(
-              Effect.tap(compactOverLimit(started)),
-              Effect.flatMap(complete(started)),
-              transaction.run,
-              Effect.interruptible,
-              Effect.onError(failUnanswered(started)),
-            ),
-          ),
-        ),
+      function* (where: ReplyChatWhere) {
+        const started = yield* start(where)
+
+        yield* answer(started).pipe(
+          Effect.tap(compactOverLimit(started)),
+          Effect.flatMap(complete(started)),
+          transaction.run,
+          Effect.interruptible,
+          Effect.onError(failUnanswered(started)),
+        )
+      },
       // A Run's chat is there while the Run is, so a chat not found is a defect.
       Effect.catchTag('ChatNotFoundError', Effect.die),
       Effect.uninterruptible,
