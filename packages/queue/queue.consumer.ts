@@ -27,13 +27,8 @@ export interface SqsBatchResponse {
 }
 
 /**
- * Runs every handler on each record's message, decoded once by the definition's schema, all of a
- * record's concurrently, and acknowledges every record: SQS delivers one again only when the
- * process died under it, and then every handler runs again. A handler has no error channel, so
- * it ends its work's failure itself; one that dies is logged and leaves the others running, while
- * an interrupt ends them all and returns no response. A body
- * that does not decode never will, so it is logged and acknowledged, unrun. Each record runs in a
- * span under the one that sent it, else under the current span.
+ * Runs every handler on each record's message and acknowledges every record, so a redelivery,
+ * after the process died under one, runs every handler again. An interrupt returns no response.
  */
 export function consumeQueue<
   A,
@@ -52,7 +47,7 @@ export function consumeQueue<A, I, R>(
 ): (event: SqsEvent) => Effect.Effect<SqsBatchResponse, never, R> {
   const decode = Schema.decodeEffect(buildMessageCodec(definition))
 
-  const handleEach = (message: A) =>
+  const runHandlers = (message: A) =>
     Effect.forEach(
       handlers,
       (handle) =>
@@ -72,7 +67,7 @@ export function consumeQueue<A, I, R>(
     return decode(record.body).pipe(
       Effect.matchEffect({
         onFailure: (error) => Effect.logError('queue message does not decode', Cause.fail(error)),
-        onSuccess: handleEach,
+        onSuccess: runHandlers,
       }),
       Effect.annotateLogs({ queueMessageId: record.messageId }),
       Effect.withSpan(`process ${definition.name}`, {
