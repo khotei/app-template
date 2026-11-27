@@ -7,7 +7,6 @@
   },
   "dependencies": {
     "@app-template/kernel": "workspace:*",
-    "@app-template/packages": "workspace:*",
     "@pulumi/aws": "catalog:pulumi",
     "@pulumi/docker": "catalog:pulumi",
     "@pulumi/pulumi": "catalog:pulumi",
