@@ -124,7 +124,7 @@
       }
     },
     {
-      "includes": ["application/*/domain/**"],
+      "includes": ["application/*/domain/**", "packages/**", "kernel/**"],
       "linter": {
         "rules": {
           "complexity": {
@@ -245,7 +245,7 @@
                       "@app-template/application/use-cases/**",
                       "@effect/**"
                     ],
-                    "message": "a module's services import no workspace but @app-template/packages/schema for the codecs, the transaction of @app-template/packages/db, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no test support, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/queue, which a module's infrastructure holds (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
+                    "message": "a module's services import no workspace but @app-template/packages/schema for the codecs, the transaction of @app-template/packages/db, the data layer's stores (@app-template/kernel/data) and another module's entry, and no @effect/* package: no use case, no test support, nothing that connects to the environment such as @app-template/kernel/aws, @app-template/kernel/llm or @app-template/packages/aws/queue, which a module's infrastructure holds (decisions.md › A module's layers; Module contracts; Use cases above the modules; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/packages/db"],
@@ -289,7 +289,7 @@
                     "group": [
                       "@app-template/**",
                       "!@app-template/packages/{schema,testing}",
-                      "!@app-template/packages/queue/testing",
+                      "!@app-template/packages/aws/queue/testing",
                       "!@app-template/kernel/data",
                       "!@app-template/kernel/data/testing",
                       "!@app-template/application/*",
@@ -301,7 +301,7 @@
                       "!@effect/vitest/**",
                       "!@effect/platform-bun"
                     ],
-                    "message": "a module's services' tests import the workspaces the services do and test support: the /testing of those and of @app-template/packages/queue, @app-template/packages/testing, @effect/vitest and @effect/platform-bun; no use case, nothing else that connects to the environment (decisions.md › A module's layers; Module contracts; Use cases above the modules; Guards are configuration)"
+                    "message": "a module's services' tests import the workspaces the services do and test support: the /testing of those and of @app-template/packages/aws/queue, @app-template/packages/testing, @effect/vitest and @effect/platform-bun; no use case, nothing else that connects to the environment (decisions.md › A module's layers; Module contracts; Use cases above the modules; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/data"],
@@ -530,9 +530,11 @@
                       "!@app-template/kernel/data/testing",
                       "!@app-template/kernel/llm/model",
                       "!@app-template/packages/*",
-                      "!@app-template/packages/*/testing"
+                      "!@app-template/packages/aws/*",
+                      "!@app-template/packages/*/testing",
+                      "!@app-template/packages/aws/*/testing"
                     ],
-                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data), the language model's errors (@app-template/kernel/llm/model) and packages/*: no app or deployment above them, no client the processes provide (/config, /postgres, /aws, /llm); their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; The language model in the kernel; Guards are configuration)"
+                    "message": "the use cases import no workspace but a module's entry, the data layer (@app-template/kernel/data), the language model's errors (@app-template/kernel/llm/model) and packages/* with their sub-entries (@app-template/packages/aws/queue): no app or deployment above them, no client the processes provide (/config, /postgres, /aws, /llm); their tests add the /testing of those (decisions.md › Use cases above the modules; Clients from the context; The language model in the kernel; Guards are configuration)"
                   },
                   {
                     "group": ["@app-template/kernel/llm/model"],
@@ -587,23 +589,14 @@
                     "group": [
                       "@app-template/**",
                       "!@app-template/packages/*",
+                      "!@app-template/packages/aws/*",
                       "@app-template/packages/testing"
                     ],
-                    "message": "the data layer imports no workspace but packages/*: no module or model, no other kernel part such as @app-template/kernel/config; it takes its clients from the context (decisions.md › The data at the centre; Clients from the context; Guards are configuration)"
+                    "message": "the data layer imports no workspace but packages/* with their sub-entries (@app-template/packages/aws/s3): no module or model, no other kernel part such as @app-template/kernel/config; it takes its clients from the context (decisions.md › The data at the centre; Clients from the context; Guards are configuration)"
                   }
                 ]
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["packages/schema/schema-row-codec.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noStaticOnlyClass": "off"
           }
         }
       }

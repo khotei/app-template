@@ -157,8 +157,8 @@ in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's sends a
   its doubles into the layer it provides (`Layer.provideMerge`), since the flow reads them itself;
   the worker's route test mocks the leaves, not the handlers; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
-  list, a job's failure at `consumeQueue`; `.claude/rules/layering.md › Handlers` and review, a
-  handler composing more than the user's record's read and one call.
+  list, a job's failure at `QueueConsumer.consume`; `.claude/rules/layering.md › Handlers` and
+  review, a handler composing more than the user's record's read and one call.
 - **If reversed:** each use case becomes a `Context.Service` whose layer provides
   the services it composes, and each handler group and the worker's route provide those layers.
 - **Revisit when:** a use case needs a second implementation, a test double or state of its own.
@@ -256,7 +256,7 @@ the data layer's repository directly.
   the tables that check them, and the wire takes them through the domain's schemas.
   The domain taking the tables' values: the backend in every importer of a model. The queues'
   definitions in `services/`: the services' guard would admit `@app-template/kernel/aws` and
-  `@app-template/packages/queue`.
+  `@app-template/packages/aws/queue`.
 - **Cost:** a service depends on the data layer directly, so its unit tests mock the data layer's
   repositories; a value both the domain and a table hold is declared twice, held in step at the
   service that codes the row ([Checks kept in the tables](#checks-kept-in-the-tables)); one entry
@@ -271,7 +271,7 @@ the data layer's repository directly.
   admitting of another module only its contract's entry and refusing every part of the kernel
   and test support, which its tests' alone admits, the
   services' admitting of `@app-template/packages/db` only `Transaction`, and neither
-  `@app-template/kernel/aws` nor `@app-template/packages/queue` nor test support, nor any of their
+  `@app-template/kernel/aws` nor `@app-template/packages/aws/queue` nor test support, nor any of their
   infrastructure, and their tests' admitting test support and the queue file
   (`#*/infrastructure/*.queue`), whose events the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
@@ -292,7 +292,7 @@ the data layer's repository directly.
 
 The HTTP groups and the errors only HTTP raises (`RequestInvalidError`) live in
 `application/http-api`, the API contract, beside the modules and outside them, and their handlers
-in `apps/api`; the id format's schema (`buildIdSchema`) lives in
+in `apps/api`; the id format's schema (`SchemaId.build`) lives in
 `packages/schema`, and a model's insert variant generates an id of it
 ([Models with variants](#models-with-variants)).
 
@@ -673,7 +673,14 @@ and passes the record (`RunMove.start(run)`). A rule is typed over what it reads
 class: a check or a derived value takes a `Pick` of the fields it reads, a check that hands its
 record back is generic over it, and a move takes the model's fields (`RunFields`, the struct type
 of `Run.fields`) and returns `new Run(…)`. A static calls another by its class's name, never
-`this`, so a static passed as a value runs.
+`this`, so a static passed as a value runs. Outside the domain, a package's or kernel part's
+functions of one meaning are statics of one class named for it the same way (`RowCodec`); the
+data layer's, each a group named for what it serves: an entity's statements (`<Name>Statement`),
+an object store's keys (`<Name>Object`), the orders every table shares and a service's `where`.
+Every exported function of a package or kernel part that is not a service is such a static, a
+group of one member included, so each call reads `<Group>.<verb>`; a private helper of one flow
+stays module-level beside it, test support stays functions, and a `Layer` constant keeps its
+`<Service><Variant>` name.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.
@@ -687,7 +694,11 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
   could have anywhere chat (any shape) and these methods could be applied as clean functions and
   business rules"; and of the files (2026-11-25): "ChatGuard -> ensure, ChatStatus ->
   buildStatus, RunMove -> move rules", named `ChatPolicy`, `RunPolicy`, `RunMove`, `ChatState`,
-  `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian).
+  `RunState`, "i think there should be '-' not '.'", "a class with statics - yes" (translated from Russian);
+  for the data layer and the packages (issues #79 and #80, 2026-11-27): "we should have group
+  logic into classes with static methods and fields. Group it by meaning"; and the owner's
+  decision on this change's review (2026-11-27): a lone function too becomes a static of a small
+  class, so every call that is no service's reads `<Group>.<verb>`.
 - **Rejected:** the check written inline in the service's body: only a layer over fakes tests it,
   and the next service that needs it copies it. The rule's body moved into the class: it would
   apply to the class's instances alone, never to a variant or another shape. Members over the
@@ -698,11 +709,12 @@ of `Run.fields`) and returns `new Run(…)`. A static calls another by its class
   (`(run: Run)`): a struct of the same fields would fail to compile once the class has any
   member. A group file with a suffix of its own (`.policy`): a new row of naming.md for what
   `<owner>-<what>.ts` names.
-- **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so the domain's
-  override turns it off; a static declared after one that reads it at load is `undefined`, so a
-  group orders its statics. Each rule's signature names the fields it reads, a check that returns
-  its record a type parameter, and a model with moves one exported `<Model>Fields` type; a
-  combination keeps its name however few its callers
+- **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so one
+  override turns it off for the domain, `packages/` and `kernel/`, and a static-only class
+  anywhere else stays refused; a static declared after one that reads it at
+  load is `undefined`, so a group orders its statics. Each rule's signature names the fields it
+  reads, a check that returns its record a type parameter, and a model with moves one exported
+  `<Model>Fields` type; a combination keeps its name however few its callers
   ([Composition: wrap or compose](#composition-wrap-or-compose)).
 - **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the groups' unit tests,
   in `__tests__/domain/<group file>.test.ts`, calling the rules with plain structs, which
@@ -721,7 +733,7 @@ of the glossary, a refusal or a lifecycle move, sit in the groups beside it
 model that needs one holds the model's branded id and the pure steps with no domain meaning,
 generic over their types, that the module's code shares, in the file of the model that calls
 them (`isBlank` in `message.util.ts`); the module's one id schema is built by `packages/schema`'s
-`buildIdSchema`, which every module's ids share. A util file imports only `effect`,
+`SchemaId.build`, which every module's ids share. A util file imports only `effect`,
 `packages/schema` and other util files, never a model, so a model takes another model's id from
 its util file and no import cycle forms. A util that would only rename one
 built-in call is not written; the built-in is called.
@@ -746,7 +758,7 @@ built-in call is not written; the built-in is called.
   helper two models share sits in one of them, the one that calls it first, and the other imports
   that util file. A util a second workspace needs moves into a package, and the domain's Biome
   override then admits that package by name, as it admits `@app-template/packages/schema` for
-  `buildIdSchema`.
+  `SchemaId.build`.
 - **Guarded by:** review, by `.claude/rules/naming.md › Files`; Biome's `noImportCycles` refuses
   a util that imports a model importing it back; nothing refuses a rule written in a util.
 - **If reversed:** the utils go back into the model files beside the rules they serve, and each
@@ -806,9 +818,10 @@ message hold their Run as that select-only field.
   off the wire. The ids kept on a generator over `SecureRandom` that a service yields in its
   `make`, beside the variants: a test could fix an id, for a generator in every service and an
   id passed to each insert by hand. The codec built at each call
-  (`decodeWith(Schema.Option(<Model>))`, `encodeWith(<Model>.insert)`): the read's shape or the
+  (`SchemaCodec.decode(Schema.Option(<Model>))`, `SchemaCodec.encode(<Model>.insert)`): the read's
+  shape or the
   variant spelled again in every call, where `RowCodec` names it once. The codec statics on each
-  model (`<Model>.decodeOne = decodeWith(Schema.Option(this))`): each model imported
+  model (`<Model>.decodeOne = SchemaCodec.decode(Schema.Option(this))`): each model imported
   `packages/schema`'s codecs and held a static per shape its service coded, where a model imports
   only `effect`, ids and other models. The omit of `updatedAt` by its name (`makeUpdateWith`): a
   renewed field of another name kept its old value, where the marker finds it. A static per step
@@ -826,7 +839,8 @@ message hold their Run as that select-only field.
   column, so an update passes every field it must keep. A model carries six variants and the app
   reads four of them (the class, `insert`, `update`, `json`). A service still names its model
   at each read and write and builds the record it returns from what the variant made. A class
-  of statics alone trips Biome's `noStaticOnlyClass`, turned off for `RowCodec`'s file alone. The
+  of statics alone trips Biome's `noStaticOnlyClass`, turned off for `packages/`
+  ([Rules as pure functions](#rules-as-pure-functions)). The
   type finds a renewed key by its brand; a brand leaves the AST as it is, so the run time reads it
   off the schemas `Overrideable` composes (`schema.to.identifier`): an Effect release that builds
   `Overrideable` otherwise renews nothing, and `RowCodec`'s test of a record as read fails.
@@ -970,10 +984,11 @@ no app.
   smell"
   ([integration-of-bounded-contexts](https://software-architecture-guild.com/guide/architecture/domains/integration-of-bounded-contexts/),
   [styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/)).
-- **Rejected:** a package per kernel part: a manifest per part for one app's tools. `packages/aws`
-  moved whole: the inventory, its naming rule and the provisioner moved to `kernel/aws`; the
-  inventory's types and the dead-letter naming rule stay, imported by the kernel and by
-  `deployment/aws/`.
+- **Rejected:** a package per kernel part: a manifest per part for one app's tools. The AWS
+  inventory, its naming rule with the dead-letter suffix, and the provisioner in `packages/aws`:
+  a name and its suffix are this app's (`kernel/CLAUDE.md`), so they sit in `kernel/aws`
+  (`ResourceName`), imported by the apps and by `deployment/`; `packages/aws` holds the
+  inventory's types and the SQS and S3 clients as its sub-entries `queue` and `s3`.
 - **Cost:** one manifest declares every client's dependency, so the linker no longer stops a
   module reaching a kernel part it does not use, and inside the kernel the data's direction rests
   on Biome, not on `tsc -b`. One entry per part opens a part whole, so the layers that may take
@@ -991,13 +1006,13 @@ no app.
 
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
-`askModel` (the retries, the failure mapping and the finish-reason check), with its one final
+`LlmCall.ask` (the retries, the failure mapping and the finish-reason check), with its one final
 error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/model`, that loads no
 client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
 model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
 next message from its context, `ChatAssistant` the chat's title from its opening text. Each
 builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
-`LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
+`LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `LlmCall.ask` and fails with its
 `LlmError`. The domain keeps only what they take (`Message`); what one returns is declared beside it
 (`AssistantReply`, the title's schema),
 and a failed Run keeps the error's full text
@@ -1028,7 +1043,7 @@ client.
   inheritance or a third service for what one function does. Each service closing the client
   in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
   a purpose: its parameter was typed by Anthropic's request settings, so the services held one
-  provider's settings all the same. The module's own errors passed to `askModel` as two
+  provider's settings all the same. The module's own errors passed to `LlmCall.ask` as two
   constructors: every module that asks a model would declare the same error again and a mapping
   for it, and the domain's guard, which admits no kernel error, would gain nothing by it. Each
   service mapping `AiError` with its own `mapError`: the retry and finish-reason policy copied per
@@ -1052,7 +1067,7 @@ client.
   the assistants' suite over a recording client.
 - **If reversed:** a port per assistant comes back in `domain/` with an adapter constant each that
   only builds the same shape, or one port of two methods with a fake branch per method; errors
-  back in a module mean the module's own pair and a mapping for `askModel` to take.
+  back in a module mean the module's own pair and a mapping for `LlmCall.ask` to take.
 - **Revisit when:** a second provider lands, or a domain service other than a job's, which may
   not import the infrastructure, needs an assistant: then a port in `domain/` returns for that
   call.
@@ -1092,11 +1107,10 @@ its repositories are `<Name>Repository`; a table lives in `<name>.table.ts`, its
 `MessageEntity` nest their Run. The domain's records are models, and a model is the
 codec of its own row: its encoded side is the row of its one store, the rules read its type side
 only, and its service codes its row through `RowCodec`'s statics, which take the model, over
-the generic `encodeWith` and `decodeWith`, a read through the model in the read's shape and a
-write through its insert or update variant ([Models with variants](#models-with-variants)), with
-no mapper per model. A
-second stored form of a model brings back a mapper that lays the model's schemas over that
-store's columns.
+the generic `SchemaCodec.encode` and `SchemaCodec.decode`, a read through the model in the
+read's shape and a write through its insert or update variant
+([Models with variants](#models-with-variants)), with no mapper per model. A second stored
+form of a model brings back a mapper that lays the model's schemas over that store's columns.
 
 - **Why:** a reader tells the data's view from the domain's by the name alone, and a table from its
   entity by the file; tables that import only tables leave the entities free to nest one another
@@ -1191,7 +1205,7 @@ each, are a method each, which the service or use case holding them commits in o
   `makeWithTransaction` "uses savepoints for nested transactions"
   (`node_modules/.bun/effect@4.1.5/node_modules/effect/src/sql/SqlClient.ts:620-621`, its
   `SAVEPOINT` at `:339` and `:359`); the cases of `Transaction` that nest a `run` in a `run`
-  (`packages/db/__e2e__/db.client.e2e.ts`); the owner's words "use single transaction" and
+  (`packages/db/__e2e__/db-transaction.e2e.ts`); the owner's words "use single transaction" and
   "allow transaction in services if it doesn't breake upper transactions".
 - **Rejected:** a repository method that opens its own transaction for one record's rows in two
   tables, as `UserRepository.insert` did for a user and its credential: two ways to open one, and
@@ -1215,10 +1229,12 @@ each, are a method each, which the service or use case holding them commits in o
 ### A where's two forms
 
 A repository's `where` is Drizzle's relational filter object with its key required (`Keyed`): a
-relational query takes it as it is, a core-builder statement through `encodeFilter`
+relational query takes it as it is, a core-builder statement through `DbFilter.encode`
 (`packages/db`). A service's `where` is model values alone (a branded id, an `Option`, a list),
-which `encodeWhere` (`kernel/data/data-where.ts`) turns into that object, so no service writes a
-Drizzle operator.
+which `Where.encode` (`kernel/data/data-where.ts`) turns into that object, so no service
+writes a Drizzle operator. The two encoders are a pair, each named for the form it takes (`Where`
+the base word of `WhereValue` and `WhereRange`), which a reader follows from a service's where to
+the SQL: `Where.encode`, in the data layer, then `DbFilter.encode`, in `packages/db`.
 
 - **Why:** the least code of ours: Drizzle types and renders the filter, and a service's caller
   speaks the model's values.
@@ -1227,7 +1243,7 @@ Drizzle operator.
 - **Rejected:** an encoder of our own that builds every where's SQL itself, in place of
   Drizzle's filter object (PR #58, closed). A pick of a where's fields in
   every method: a where is written as a literal of its type's fields, which the compiler checks.
-- **Cost:** `encodeFilter` holds one type assertion over `relationsFilterToSQL`, a function of
+- **Cost:** `DbFilter.encode` holds one type assertion over `relationsFilterToSQL`, a function of
   Drizzle's rc line; a record handed whole from a variable compiles and makes every field a
   condition.
 - **Guarded by:** `Keyed`, which refuses a where that names no key, and
@@ -1357,9 +1373,9 @@ The app holds no attachments: a message is its text alone. Removed in every ring
 errors and two services, the reply's file parts, `Chat.attachments` and `Message.attachments`, and
 the data layer's `attachments` table with its entity, repository and relations, gone from the one
 `init` migration. What stays is the generic core they were built on: `FileEntity`, `FileRepository`
-and `buildFileKey` in `kernel/data/file`, its `FileRepositoryTest` fake; the kernel's AWS clients
+and `FileObject` in `kernel/data/file`, its `FileRepositoryTest` fake; the kernel's AWS clients
 with `S3BucketFromConfig`; the bucket in `kernel/aws/resources`, its provisioning in
-`deployment/aws/storage.ts` and MiniStack; `packages/s3` and `packages/aws`. The bucket keeps its
+`deployment/aws/storage.ts` and MiniStack; `packages/aws` with its `s3`. The bucket keeps its
 name `attachments` and the key prefix `attachments/`, so a redesign starts from a store that works
 without renaming provisioned resources. No app wires the files today.
 
@@ -1417,10 +1433,10 @@ interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries)
 has and over which: [layering.md › Ports and domain
 services](../../.claude/rules/layering.md#ports-and-domain-services); who does the work of each job
 and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
-route lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one
-message concurrently, each under its own exit: one that dies is logged (`queue message failed`) and
-leaves the others running, and every record the worker saw to its end is acknowledged; what a
-redelivery then runs: [aws.md › Queues](aws.md#queues).
+route lists a queue's handlers, and `QueueConsumer.consume` runs each on every message of it, all
+of one message concurrently, each under its own exit: one that dies is logged
+(`queue message failed`) and leaves the others running, and every record the worker saw to its
+end is acknowledged; what a redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -1440,7 +1456,7 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   that runs it share a verb because both take the glossary's word, not because one copies the
   other; the class never rides on the wire (the body is its fields, the queue routes it), so its
   name costs no deployed state. A handler's defect is a bug, which recurs on each delivery, or a
-  passing store error, as every repository dies on one (`orDieWithSqlError`); returning its record
+  passing store error, as every repository dies on one (`DbQuery.orDie`); returning its record
   would run every other handler of the queue again and dead-letter a bug's record after the same
   failure three times, so it is acknowledged, and a retry a handler's work needs runs inside the
   handler. A
@@ -1507,10 +1523,10 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   store error, so while the store is unavailable a reply's handler can neither run nor write the
   Run's failure: its record is acknowledged and the Run stays active, its chat refusing every ask,
   until the Run is repaired by hand.
-- **Guarded by:** the `QueueSender` e2e; `consumeQueue`'s unit tests; the unit tests of the
+- **Guarded by:** the `QueueSender` e2e; `QueueConsumer.consume`'s unit tests; the unit tests of the
   sends, of `AskChatService` and of the create flow; the ask service's Biome override, which
   admits of its infrastructure only
-  `#*/infrastructure/*.queue` and nothing of `@app-template/packages/queue`; the
+  `#*/infrastructure/*.queue` and nothing of `@app-template/packages/aws/queue`; the
   `infrastructure/` and `use-cases` rows of [architecture.md › Dependency
   rules](architecture.md#dependency-rules).
 - **If reversed:** a table of jobs and its repository in the data layer, and a sender over both.
@@ -1588,8 +1604,8 @@ services, `ChatService` reading the user's chat each retry names, for the reques
   logs. The assistant's errors settled in the service: the job's end is the transport's policy, and
   the service would log for its one caller. A use case per job between the handler and the service,
   holding only the job's end: a unit that adds only logs, where the use-case layer is kept for a
-  flow over several services. A record from each error to its log level in `consumeQueue`, the
-  handler passing it: declined by the owner for now. A port in `domain/` for the assistants the
+  flow over several services. A record from each error to its log level in `QueueConsumer.consume`,
+  the handler passing it: declined by the owner for now. A port in `domain/` for the assistants the
   service calls: an interface with one implementation for one caller, where its own override admits
   the `.llm` file by name. The title's run left in its handler: one of the chat's two jobs read and
   wrote records in a flow. One service sending the jobs and doing their work: each process would
@@ -1761,8 +1777,10 @@ what:
 A file imports its own part's files through the workspace's `#…` subpaths, never a relative path,
 and another part only through that part's entry, even inside one workspace. A part of the
 kernel, of `packages/` or of `application/` is imported by its folder: each of the three folders
-is one workspace with one export per part, its `index.ts`, and its test support, and a module with
-a contract one more, the contract's (`@app-template/application/<module>/contract`). The apps keep
+is one workspace with one export per part, its `index.ts`, and its test support, a module with
+a contract one more, the contract's (`@app-template/application/<module>/contract`), and a package
+with sub-entries one per sub-entry, a folder with its own `index.ts`
+(`@app-template/packages/aws/queue`). The apps keep
 their package names. The forms, with examples:
 [architecture.md › Imports](architecture.md#imports-workspace-vs-app-template).
 
@@ -1772,14 +1790,19 @@ their package names. The forms, with examples:
   workspace's files.
 - **Sources:** `.claude/rules/naming.md`; npm names allow one `/` after the scope, so a folder's
   path is a subpath of its folder's workspace; `tsc -b`'s TS6059 and TS6307 on a path into an
-  unreferenced project.
+  unreferenced project; the owner's shape for the packages (issue #80, 2026-11-27): the queue
+  and the bucket clients as sub-entries of `packages/aws`.
 - **Rejected:** relative paths inside a layer only: one more rule for a reader to apply, and no
   pattern tells a layer's own folder from the next. A workspace per part with `paths` aliases
   in `tsconfig.base.json`: an alias bypasses the linker entirely and needs a setting in every
   tool. A subpath per store or per layer (`/data/<store>`, `/chat/domain`): a caller must know
-  the part's inside; a module's contract is the one subpath past an entry, the part another
-  module may take, so a domain imports it without the module's services
-  ([Module contracts](#module-contracts)). A `tsconfig.json` project per module: its
+  the part's inside. Two subpaths pass an entry: a module's contract, the part another module
+  may take, so a domain imports it without the module's services
+  ([Module contracts](#module-contracts)); and a package's sub-entry, a client of its own whose
+  callers take it without the package's others (the worker's queue loads no S3 client), while
+  the clients over one provider share its package. A package per client (a queue's, a
+  bucket's): the provider's clients and its inventory's types in three packages, each
+  needing the others' names. A `tsconfig.json` project per module: its
   `references` would repeat the Biome overrides, one rule in two places.
 - **Cost:** every workspace declares its `imports`; one manifest declares every part's
   dependencies, so the linker tells the folders apart but not one part from another; a part's
@@ -1787,7 +1810,10 @@ their package names. The forms, with examples:
   the stores of `/data`) is held by the names it imports, and only a module's contract by a path; `application/`
   and `packages/` are one `tsconfig.json` project each, as the kernel is, so `tsc -b` no longer
   refuses an import between their parts ([Guards are configuration](#guards-are-configuration)
-  says what does).
+  says what does). `biome-imports.grit` names a part by the folder after the last `packages/`,
+  so a package's sub-entries are one part to it: a file of `aws/queue` reaches `aws/s3`'s files
+  by `#aws/s3/…`, which review alone refuses, and an override that admits `packages/*` names
+  `packages/aws/*` beside it.
 - **Guarded by:** `biome-imports.grit` and the overrides' `importNamePattern`, in the forms
   [architecture.md › Boundary guards](architecture.md#boundary-guards) lists.
 - **If reversed:** a folder splits into a workspace per part, each with its manifest, and the

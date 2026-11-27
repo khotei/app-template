@@ -2,10 +2,10 @@
 
 How the app stores its records in Postgres: where the tables are declared, how a row becomes a
 domain model, how the schema changes, and how tests get a database. The code:
-`@app-template/packages/db`, which knows no table (the client factory `createDb`, `Transaction`,
+`@app-template/packages/db`, which knows no table (the client factory `DbClient.create`, `Transaction`,
 the shared columns and the query helpers); the kernel's `postgres` part (`PgClientFromConfig`
 and the migrate program); the data layer, `kernel/data/` (the client `Db`, made by
-`createDb(relations)` over the `PgClient` in the context, the tables, their entities, the
+`DbClient.create(relations)` over the `PgClient` in the context, the tables, their entities, the
 migrations and the repositories over them); and a module's models, each the codec of its own
 row. Drizzle runs on `@effect/sql-pg` and is reached only through Effect: every query is an
 `Effect`, never a promise.
@@ -87,8 +87,8 @@ export const ChatEntity = Schema.Struct({
 
 Where a read's shape is not the entity's, the entity file holds the function from the one to the
 other: a message's Run comes from two relations, the newest that answers a user's message and
-the one that wrote an assistant's, so `buildMessageEntity` keeps the one its author has and the
-repository maps every read through it.
+the one that wrote an assistant's, so `MessageStatement.buildEntity` keeps the one its author has
+and the repository maps every read through it.
 
 A model is the codec of its own row: a `Model.Class` that declares each stored value as its row
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
@@ -105,7 +105,7 @@ model in the read's shape, whose nested models decode their own rows. A write bu
 ```ts
 const { set, row } = yield* RowCodec.makeInsert(Chat)({ userId })
 const found = yield* chats
-  .selectOne(encodeWhere(where))
+  .selectOne(Where.encode(where))
   .pipe(Effect.flatMap(RowCodec.decodeOne(Chat)))
 ```
 
@@ -128,14 +128,15 @@ states it with `orderBy`. A relational query returns nested rows typed as the en
 repository returns them as they are:
 
 ```ts
-const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: newestFirst } } })
+const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: EntityOrder.newestFirst } } })
 // rows: [{ id, userId, …, run: { id, chatId, status, … } | null }]
 ```
 
 A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
 in one relational query, and never a nested `with`: `Chat.run` and `Message.run` are model
 fields another table holds, read and never written by their own writes. A `one` relation over
-many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: newestFirst } }`, since a
+many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: EntityOrder.newestFirst } }`,
+since a
 relation holds no order and renders `limit 1`. A relational query
 aliases its table, so its `where` is the filter object, which the query renders on that alias,
 never a condition built on the `chats` constant.
@@ -151,7 +152,7 @@ object store a `<Name>EntityInsert`), a `<Name>EntitySet` and a `<Name>EntityWhe
 through its models (`IdentityService` over `UserRepository`). Rows of several tables that commit
 together are a method each, which their service commits in one transaction
 ([Transactions](#transactions)), as `IdentityService` does a user and its credential
-([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `orDieWithSqlError`
+([why](decisions.md#one-way-to-open-a-transaction)). Every method ends with `DbQuery.orDie`
 from `@app-template/packages/db`.
 
 A module's services call the data layer's repositories with the models as
@@ -169,12 +170,13 @@ takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, each m
 `undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's
 one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
 and the title's alike. What a service hands a repository is Drizzle's filter object, which
-`encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
-none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a range (`WhereRange`,
-`{ from, to }`) its bounds `{ gte, lte }` with either left out, any other value stays itself
-(`chats.selectOne(encodeWhere(where))`); a field a caller asks any of those three ways is typed
-`WhereValue<T>`. Every field of the value becomes a condition, so a caller writes its where as a
-literal of the type's fields, which the compiler checks, and never hands a record whole.
+`Where.encode(where)` of `@app-template/kernel/data` makes of any service's where: an
+`Option` of none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a range
+(`WhereRange`, `{ from, to }`) its bounds `{ gte, lte }` with either left out, any other value
+stays itself (`chats.selectOne(Where.encode(where))`); a field a caller asks any of those
+three ways is typed `WhereValue<T>`. Every field of the value becomes a condition, so a caller
+writes its where as a literal of the type's fields, which the compiler checks, and never hands a
+record whole.
 `RunService.getOne` reads by either of two keys, as `RunEntitySelectWhere` does, so `RunWhere` is a
 union of one member per key, the api's by the id and owner or the worker's by the message, its
 chat, its owner and statuses. So Drizzle's operators appear in that one function, never in a
@@ -197,17 +199,17 @@ A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>
 whose key is required, so no write compiles that names no row (`ChatEntityWhere`,
 `RunEntityWhere`); a read that also finds rows by another field takes its own
 `<Name>EntitySelectWhere` (a user's chats by `userId`, a Run by its user message).
-The entity file lists the columns an update may write once, as `<name>SetColumns`, typed by the
-table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
-fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
-repository writes `Struct.pick(set, <name>SetColumns)`, so a whole entity passed as a set writes
-only those columns; a column the set leaves out is not written, and a set that holds an
-`undefined` does not compile.
+The entity file lists the columns an update may write once, as `<Name>Statement.setColumns`,
+typed by the table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is
+no column fails typecheck on the tuple, and derives the `Set` type from it over the same
+columns; the repository writes `Struct.pick(set, <Name>Statement.setColumns)`, so a whole entity
+passed as a set writes only those columns; a column the set leaves out is not written, and a set
+that holds an `undefined` does not compile.
 A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
 <Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
 `FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
 keys names both, and its `where` must hold one. A relational query takes it as it
-is, and a core-builder statement as `encodeFilter(<table>, where)`, which renders the same
+is, and a core-builder statement as `DbFilter.encode(<table>, where)`, which renders the same
 object as that statement's condition. There a filter that names nothing matches no row
 (`` sql`false` ``), so no write goes without its `WHERE`; the key each `where` type requires
 keeps a read from one.
@@ -220,7 +222,7 @@ A rule that two writers could break between a read and a write is held by the da
 statement that writes. The caller checks the rule first, so a write the guard refuses only lost
 a race: every repository's `insert`, `update` and `delete` dies when Postgres refuses it or it
 touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the write's `RETURNING`,
-whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
+whose `NoSuchElementError` the method's `DbQuery.orDie` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
   active Run in a chat fails on the index and dies. `askChat` reads the chat with its
@@ -230,9 +232,10 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the columns of
-  `runSetColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
-  caller read and the Run its move made, stamps the second with the current time and passes it,
-  encoded, as the set, with the first's id under the status it was read in as the `where`, where
+  `RunStatement.setColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes
+  the Run a caller read and the Run its move made, stamps the second with the current time and
+  passes it, encoded, as the set, with the first's id under the status it was read in as the
+  `where`, where
   a read's `RunEntitySelectWhere` takes the id or the user's message under a status; so a write
   whose expected status another worker has left, or whose Run is gone, changes nothing and dies,
   in the repository. The reply's tail fails the Run its start wrote, by that write's status, so on
@@ -254,7 +257,7 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   refusal, then writes only the changed fields under the same `where`, so a row another writer
   changed in between is missed and the write dies. A repository's `update(set, where)` takes a
   set that is `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck, and a
-  `where` of a key and any field the row must still hold, rendered by `encodeFilter`
+  `where` of a key and any field the row must still hold, rendered by `DbFilter.encode`
   (above). The worked case is a chat's rename: the title renames `where` `title` is still
   `none`, so a rename landing between its read and its write wins, and the title's handling dies
   and fails.
@@ -273,7 +276,7 @@ writes yields `Transaction` and pipes its `run` on them (`yield* writes.pipe(tra
 from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e, so it runs on the
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
-([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
+([its e2e](../../packages/db/__e2e__/db-transaction.e2e.ts)). A service whose writes commit together
 passes `transaction.run` as the last argument of the function that holds them, or pipes it on them
 inside a longer flow: `IdentityService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
@@ -324,7 +327,7 @@ A job or an event is a queue message, and no table holds it: the record of its w
 chat's title) is the one the worker reads
 ([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
-- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through
+- **`QueueSender.send(definition, message)`** (`packages/aws/queue`) encodes the queue message through
   the definition's schema to a JSON string and sends it to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`,
   or the use case over it, sends its events after the commit of what they read, so a delivery
@@ -346,7 +349,7 @@ at the pinned version: `repos/drizzle/drizzle-kit/skills/drizzle/migrations.md`.
 | Command | Does |
 |---|---|
 | `make migration NAME=<name>` | `drizzle-kit generate --config kernel/data/drizzle.config.ts` from the root, whose paths it resolves against the working directory: compares the table files with the last snapshot and writes `kernel/data/migrations/<timestamp>_<name>/` (`migration.sql`, `snapshot.json`); needs no database |
-| `make migrate` | applies the pending migrations to `DATABASE_URL` through `migrateDatabase(folder)`, then logs `database migrated`, whether it applied one or none; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
+| `make migrate` | applies the pending migrations to `DATABASE_URL` through `DbMigration.apply(folder)`, then logs `database migrated`, whether it applied one or none; while the database refuses connections it retries, logging `database not reachable yet, retrying`; any other failed connection or query logs its cause at once |
 | `make migration-check` | drizzle-kit's dry run (`generate --explain`): fails when the table files differ from the migrations, printing the missing SQL and how to regenerate `init`; it writes nothing |
 
 - **`make migration-check` is soft locally and strict in CI.** In `make check` it counts every

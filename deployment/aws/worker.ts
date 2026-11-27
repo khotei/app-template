@@ -1,7 +1,7 @@
 import * as aws from '@pulumi/aws'
 import * as pulumi from '@pulumi/pulumi'
 
-import { buildResourceName, resources } from '@app-template/kernel/aws'
+import { ResourceName, resources } from '@app-template/kernel/aws'
 
 import { buildTags } from '#deployment/shared/tags'
 
@@ -24,7 +24,7 @@ export function createWorker(
   const worker = new aws.lambda.Function(
     name,
     {
-      name: buildResourceName(stage, name),
+      name: ResourceName.build(stage, name),
       role,
       runtime: 'provided.al2023',
       handler: 'bootstrap',

@@ -1,7 +1,7 @@
 import { type Brand, Effect, Predicate, Schema, Struct } from 'effect'
 import type { Model } from 'effect/schema'
 
-import { decodeWith, encodeWith } from '#schema/schema-codec'
+import { SchemaCodec } from '#schema/schema-codec'
 
 /** A model whose update variant is a struct, as a `Model.Class`'s is. */
 type UpdatableModel = Model.Any & {
@@ -45,7 +45,7 @@ const makeRowWith = <Variant extends Schema.Top>(variant: Variant) =>
   Effect.fnUntraced(
     function* (input: Variant['~type.make.in']) {
       const set = yield* variant.makeEffect(input)
-      const row = yield* encodeWith(variant)(set)
+      const row = yield* SchemaCodec.encode(variant)(set)
       return { set, row }
     },
     Effect.mapError((issue) => new Schema.SchemaError(issue)),
@@ -58,9 +58,11 @@ const makeRowWith = <Variant extends Schema.Top>(variant: Variant) =>
  */
 export class RowCodec {
   /** Decodes the row of a read of one, none when the store found none. */
-  static readonly decodeOne = <M extends Model.Any>(model: M) => decodeWith(Schema.Option(model))
+  static readonly decodeOne = <M extends Model.Any>(model: M) =>
+    SchemaCodec.decode(Schema.Option(model))
 
-  static readonly decodeMany = <M extends Model.Any>(model: M) => decodeWith(Schema.Array(model))
+  static readonly decodeMany = <M extends Model.Any>(model: M) =>
+    SchemaCodec.decode(Schema.Array(model))
 
   /** Makes a new record through the insert variant, its id and times its defaults: `{ set, row }`. */
   static readonly makeInsert = <M extends Model.Any>(model: M) =>

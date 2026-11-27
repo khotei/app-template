@@ -20,8 +20,8 @@ import {
   queuedRun,
 } from '@app-template/application/chat/testing'
 import type { ChatEntitySelectWhere } from '@app-template/kernel/data'
-import { recordMessages } from '@app-template/packages/queue/testing'
-import { encodeWith } from '@app-template/packages/schema'
+import { recordMessages } from '@app-template/packages/aws/queue/testing'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { askChat } from '#use-cases/chat/ask-chat.use-case'
@@ -29,7 +29,8 @@ import { askChat } from '#use-cases/chat/ask-chat.use-case'
 /** The chat read of `read`, whatever the where, after `before`, and inserts that keep nothing. */
 const asking = (read: Chat, before: Effect.Effect<void> = Effect.void): ChatRepositoryMocks => ({
   chats: {
-    selectOne: () => before.pipe(Effect.andThen(encodeWith(Chat)(read)), Effect.map(Option.some)),
+    selectOne: () =>
+      before.pipe(Effect.andThen(SchemaCodec.encode(Chat)(read)), Effect.map(Option.some)),
   },
   messages: { insert: () => Effect.void },
   runs: { insert: () => Effect.void },

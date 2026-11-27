@@ -1,6 +1,6 @@
 import { Effect } from 'effect'
 
-import { joinClassNames } from '@app-template/packages/ui'
+import { ClassName } from '@app-template/packages/ui'
 
 import { ApiClient } from '#web/shared/api.client'
 
@@ -24,6 +24,6 @@ export const renderHealthPanel = Effect.fn('renderHealthPanel')(function* (root:
       onFailure: (error) => ({ modifier: 'health--down', text: failureMessages[error._tag] }),
     }),
   )
-  panel.className = joinClassNames('health', view.modifier)
+  panel.className = ClassName.join('health', view.modifier)
   panel.textContent = view.text
 })

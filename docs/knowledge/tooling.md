@@ -298,7 +298,11 @@ browser's other packages; a new module, kernel part or other package adds nothin
 kernel is: each folder in it is a package, and which package imports which is held as
 [decisions.md › Guards are configuration](decisions.md#guards-are-configuration) says. A new
 package is a folder with its `index.ts`, an `exports` entry `./<name>` and an `imports` alias
-`"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, and its dependencies there.
+`"#<name>/*": "./<name>/*.ts"` in `packages/package.json`, and its dependencies there. A
+sub-entry, a client a package's callers take apart from its others, is a folder in it with its
+`index.ts` and an `exports` entry `./<name>/<sub>` (`@app-template/packages/aws/queue`); its files
+are reached by the package's alias, `#<name>/<sub>/…`, its test support by
+`#testing/<name>/<sub>/*`.
 
 ### Upgrade versions
 

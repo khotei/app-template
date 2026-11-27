@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, type Types } from 'effect'
 
-import { encodeWhere, MessageRepository, type WhereValue } from '@app-template/kernel/data'
+import { MessageRepository, Where, type WhereValue } from '@app-template/kernel/data'
 import { RowCodec } from '@app-template/packages/schema'
 
 import { Message, MessageNotFoundError } from '#chat/domain/message.model'
@@ -36,7 +36,7 @@ export class MessageService extends Context.Service<
     })
 
     const getOne = Effect.fn('MessageService.getOne')(
-      (where: MessageWhere) => messages.selectOne(encodeWhere(where)),
+      (where: MessageWhere) => messages.selectOne(Where.encode(where)),
       Effect.flatMap(RowCodec.decodeOne(Message)),
       (found, where) =>
         Effect.flatMap(
@@ -46,7 +46,7 @@ export class MessageService extends Context.Service<
     )
 
     const getMany = Effect.fn('MessageService.getMany')(
-      (where: MessageManyWhere) => messages.selectMany(encodeWhere(where)),
+      (where: MessageManyWhere) => messages.selectMany(Where.encode(where)),
       Effect.flatMap(RowCodec.decodeMany(Message)),
     )
 

@@ -1,6 +1,6 @@
 import { Array as Arr, Layer, Ref } from 'effect'
 
-import { QueueSender } from '#queue/queue.sender'
+import { QueueSender } from '#aws/queue/queue.sender'
 
 /** A message the recording sender took, under its definition's name. */
 export interface SentMessage {

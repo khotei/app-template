@@ -3,7 +3,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, FileSystem, Path } from 'effect'
 import { SqlClient } from 'effect/sql'
 
-import { migrateDatabase } from '#db/db-migrate'
+import { DbMigration } from '#db/db-migrate'
 import { PgClientTest } from '#testing/db/e2e/postgres.test-layer'
 
 /** A migrations folder of one migration, `20990101000000_probes`, that creates `probes`. */
@@ -21,14 +21,14 @@ const writeProbeMigrations = Effect.gen(function* () {
   return folder
 })
 
-describe('migrateDatabase', () => {
+describe('DbMigration.apply', () => {
   it.effect('applies the folder it is given once, a second call applying nothing', () =>
     Effect.gen(function* () {
       const folder = yield* writeProbeMigrations
       const sql = yield* SqlClient.SqlClient
 
-      yield* migrateDatabase(folder)
-      yield* migrateDatabase(folder)
+      yield* DbMigration.apply(folder)
+      yield* DbMigration.apply(folder)
       const probes = yield* sql`SELECT id FROM probes`
 
       assert.deepStrictEqual(probes, [])

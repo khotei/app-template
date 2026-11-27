@@ -1,4 +1,4 @@
-import { buildIdSchema } from '@app-template/packages/schema'
+import { SchemaId } from '@app-template/packages/schema'
 
-export const ChatId = buildIdSchema('ChatId')
+export const ChatId = SchemaId.build('ChatId')
 export type ChatId = typeof ChatId.Type

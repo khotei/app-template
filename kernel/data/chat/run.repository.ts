@@ -1,12 +1,12 @@
 import { Array as Arr, Context, Effect, Layer, type Option, Struct } from 'effect'
 
-import { encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
+import { DbFilter, DbQuery } from '@app-template/packages/db'
 
 import {
   type RunEntitySelectWhere,
   type RunEntitySet,
   type RunEntityWhere,
-  runSetColumns,
+  RunStatement,
 } from '#kernel/data/chat/run.entity'
 import { type RunColumns, runs } from '#kernel/data/chat/run.table'
 import { Db } from '#kernel/data/db.client'
@@ -27,23 +27,23 @@ export class RunRepository extends Context.Service<
     return {
       insert: Effect.fn('RunRepository.insert')(
         (run) => db.insert(runs).values(run),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       update: Effect.fn('RunRepository.update')(
         (set, where) =>
           db
             .update(runs)
-            .set(Struct.pick(set, runSetColumns))
-            .where(encodeFilter(runs, where))
+            .set(Struct.pick(set, RunStatement.setColumns))
+            .where(DbFilter.encode(runs, where))
             .returning({ id: runs.id }),
         Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
         Effect.asVoid,
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       selectOne: Effect.fn('RunRepository.selectOne')(
-        (where) => db.select().from(runs).where(encodeFilter(runs, where)).limit(1),
+        (where) => db.select().from(runs).where(DbFilter.encode(runs, where)).limit(1),
         Effect.map(Arr.head),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
     }
   }),

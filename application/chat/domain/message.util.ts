@@ -1,8 +1,8 @@
 import { pipe, String as Str } from 'effect'
 
-import { buildIdSchema } from '@app-template/packages/schema'
+import { SchemaId } from '@app-template/packages/schema'
 
-export const MessageId = buildIdSchema('MessageId')
+export const MessageId = SchemaId.build('MessageId')
 export type MessageId = typeof MessageId.Type
 
 /** A text Postgres can store: no NUL character. */

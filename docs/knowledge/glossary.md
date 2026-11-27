@@ -72,7 +72,7 @@ What the user does to a chat: their message stored with a queued Run, then its e
 (`UserMessageCreated`), which the reply hears, and a new chat's `ChatInitialized`
 (`POST /chats/:chatId/messages`, `askChat`). A chat no ask has
 reached is new and `idle`; asking a `queued` chat is refused as busy. The same verb names a Run
-asking the assistant for its reply and the assistant asking the language model (`askModel`): one
+asking the assistant for its reply and the assistant asking the language model (`LlmCall.ask`): one
 act, asking for an answer. Never an event put on its queue, which is a send.
 _Avoid_: Send (an event's, below), submit, post
 
@@ -91,8 +91,8 @@ A new Run of the message a failed Run answered, which the user asks for (`POST
 /chats/:chatId/runs`, `AskChatService.retry`), its event `MessageRetried`; only a chat's newest
 Run, once failed, can be retried (`RunPolicy.ensureRetryable`, `RunNotRetryableError`). Not a
 call repeated after its failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which
-is written with the call it repeats (*the model call's retries*, `retryWhileUnreachable`) and
-never alone.
+is written with the call it repeats (*the model call's retries*,
+`PostgresConnection.retryWhileUnreachable`) and never alone.
 _Avoid_: Rerun, resend, regenerate
 
 **Reply**:
@@ -181,8 +181,8 @@ _Avoid_: Database (for the bucket), storage, persistence
 A record as the data layer reads and writes it, derived from its table in the data layer's own
 types (`ChatEntity`, with its `Where` and `Set`): the one shape every read of its store
 returns, nesting a neighbour's `<Name>Columns` one level deep. Where a read's shape differs, the
-entity file's `build<Name>Entity` turns the read into it. Never a model; it is a model's encoded
-side, which the model decodes.
+entity is built from the read in the entity file, or in its repository's file when that
+repository alone builds it. Never a model; it is a model's encoded side, which the model decodes.
 _Avoid_: Model, row type, record class, DTO
 
 **Data layer**:
@@ -271,7 +271,7 @@ _Avoid_: Status for a derived value, stage
 A model's checks before a write, `<Model>Policy`, each an `ensure<Rule>` that fails with a
 refusal or passes, returning nothing (`ChatPolicy.ensureNotBusy`); a check that returns its record
 is generic over it (`RunPolicy.ensureUnstarted`). Not the language model's call policy
-(`llm-call-policy.ts`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
+(`LlmCall`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
 _Avoid_: Guard (a check by configuration), validator
 
 **Move**:
@@ -380,7 +380,7 @@ its user, and which the title hears). Not the chat's creation, which stores no m
 _Avoid_: Started, first message created
 
 **Queue message**:
-A message on a queue as `packages/queue` sends and consumes it: a body its definition's schema
+A message on a queue as `packages/aws/queue` sends and consumes it: a body its definition's schema
 encodes, with the sender's `traceparent`. Every job and event is one; SQS's own names stay
 (`MessageBody`, `messageId`, `messageAttributes`), and a log names its id `queueMessageId`.
 _Avoid_: Message (the chat's word), envelope

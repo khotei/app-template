@@ -8,7 +8,7 @@ import type { FilterOf } from '#kernel/data/relations'
 
 /**
  * A message with its Run, flat: a user's the newest that answers it, an assistant's the one that
- * wrote it. Every read nests it and picks the Run with `buildMessageEntity`.
+ * wrote it. Every read nests both and picks the Run with `MessageStatement.buildEntity`.
  */
 export const MessageEntity = Schema.Struct({
   ...MessageColumns.fields,
@@ -19,18 +19,19 @@ export type MessageEntity = typeof MessageEntity.Type
 /** A read finds a message by the key or a chat's by `chatId`, narrowed by the rest. */
 export type MessageEntityWhere = Keyed<FilterOf<'messages'>, MessageColumns, 'id' | 'chatId'>
 
-export const inCreationOrder = { createdAt: 'asc', id: 'asc' } as const
-
 interface MessageRead extends Omit<MessageEntity, 'run'> {
   readonly newestRun: RunColumns | null
   readonly replyOf: RunColumns | null
 }
 
-export const buildMessageEntity = ({
-  newestRun,
-  replyOf,
-  ...message
-}: MessageRead): MessageEntity => ({
-  ...message,
-  run: { user: newestRun, assistant: replyOf }[message.author],
-})
+/** What `MessageRepository` builds its statements from. */
+export class MessageStatement {
+  static readonly buildEntity = ({
+    newestRun,
+    replyOf,
+    ...message
+  }: MessageRead): MessageEntity => ({
+    ...message,
+    run: { user: newestRun, assistant: replyOf }[message.author],
+  })
+}

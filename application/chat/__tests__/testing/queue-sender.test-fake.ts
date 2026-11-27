@@ -1,6 +1,6 @@
 import { Effect, Layer } from 'effect'
 
-import { QueueError, QueueSender } from '@app-template/packages/queue'
+import { QueueError, QueueSender } from '@app-template/packages/aws/queue'
 
 /** A `QueueSender` that SQS refuses with "SQS is unavailable", once `before` has run. */
 export const layerRefusingQueueTest = (before: Effect.Effect<void> = Effect.void) =>

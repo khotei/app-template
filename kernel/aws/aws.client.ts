@@ -3,11 +3,11 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { type Config, Effect, Layer, Option } from 'effect'
 
 import { type AwsConfig, awsConfig } from '@app-template/kernel/config'
-import { QueueSender } from '@app-template/packages/queue'
-import { S3Bucket } from '@app-template/packages/s3'
+import { QueueSender } from '@app-template/packages/aws/queue'
+import { S3Bucket } from '@app-template/packages/aws/s3'
 
 import { resources } from '#kernel/aws/resources/resources'
-import { buildResourceName } from '#kernel/aws/resources/resources-naming'
+import { ResourceName } from '#kernel/aws/resources/resources-naming'
 
 const buildClientOptions = ({ region, endpoint }: AwsConfig) => ({
   region,
@@ -36,7 +36,7 @@ const SQSServiceFromConfig: Layer.Layer<SQSService, Config.ConfigError> = awsCon
 /** `S3Bucket` on the attachments bucket of the configured stage, over the `S3Service` in context. */
 export const S3BucketOfStage: Layer.Layer<S3Bucket, Config.ConfigError, S3Service> = awsConfig.pipe(
   Effect.map(({ stage }) =>
-    S3Bucket.layer({ bucket: buildResourceName(stage, resources.buckets.attachments.name) }),
+    S3Bucket.layer({ bucket: ResourceName.build(stage, resources.buckets.attachments.name) }),
   ),
   Layer.unwrap,
 )
@@ -48,7 +48,7 @@ export const S3BucketFromConfig: Layer.Layer<S3Bucket, Config.ConfigError> = S3B
 /** `QueueSender` on the queues of the configured stage, over the `SQSService` in context. */
 export const QueueSenderOfStage: Layer.Layer<QueueSender, Config.ConfigError, SQSService> =
   awsConfig.pipe(
-    Effect.map(({ stage }) => QueueSender.layer((name) => buildResourceName(stage, name))),
+    Effect.map(({ stage }) => QueueSender.layer((name) => ResourceName.build(stage, name))),
     Layer.unwrap,
   )
 

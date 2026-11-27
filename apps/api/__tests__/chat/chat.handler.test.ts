@@ -21,7 +21,7 @@ import type {
   MessageEntityWhere,
   RunEntitySelectWhere,
 } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import {
@@ -38,9 +38,10 @@ const asOwner = (mocks: ApiRepositoryMocks = {}) =>
 
 /** Reads that return the value given as their one row. */
 const reads = {
-  chat: (value: Chat) => () => encodeWith(Chat)(value).pipe(Effect.map(Option.some)),
-  message: (value: Message) => () => encodeWith(Message)(value).pipe(Effect.map(Option.some)),
-  run: (value: Run) => () => encodeWith(Run)(value).pipe(Effect.map(Option.some)),
+  chat: (value: Chat) => () => SchemaCodec.encode(Chat)(value).pipe(Effect.map(Option.some)),
+  message: (value: Message) => () =>
+    SchemaCodec.encode(Message)(value).pipe(Effect.map(Option.some)),
+  run: (value: Run) => () => SchemaCodec.encode(Run)(value).pipe(Effect.map(Option.some)),
 }
 
 const hello = { text: 'Hello' }
@@ -211,7 +212,7 @@ describe('chats', () => {
           chats: { selectOne: reads.chat(chat) },
           messages: {
             selectMany: () =>
-              encodeWith(Message)(
+              SchemaCodec.encode(Message)(
                 new Message({ ...firstMessage, run: Option.some(refusedRun) }),
               ).pipe(Effect.map(Arr.of)),
           },

@@ -3,7 +3,7 @@ import { assertEquals } from '@effect/vitest/utils'
 import { Effect, Option } from 'effect'
 
 import type { MessageEntityWhere } from '@app-template/kernel/data'
-import { encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals } from '@app-template/packages/testing'
 
 import { Message, MessageNotFoundError } from '#chat/domain/message.model'
@@ -11,7 +11,7 @@ import { MessageService } from '#chat/services/message.service'
 import { chat, firstMessage, owner } from '#testing/chat/chat.test-fixture'
 import { layerChatTest } from '#testing/chat/chat.test-layer'
 
-const firstMessageRow = encodeWith(Message)(firstMessage)
+const firstMessageRow = SchemaCodec.encode(Message)(firstMessage)
 
 const where = { id: firstMessage.id, chatId: chat.id, userId: owner }
 

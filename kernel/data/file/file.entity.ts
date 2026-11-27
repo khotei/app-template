@@ -1,7 +1,5 @@
 import type { Stream } from 'effect'
 
-export const buildFileKey = (id: string): string => `attachments/${id}`
-
 export interface FileEntity {
   readonly id: string
   readonly mediaType: string
@@ -24,4 +22,9 @@ export interface FileEntityWhere {
 
 export interface FileEntityDownloadWhere {
   readonly id: string
+}
+
+/** What `FileRepository` builds its requests from: a file's object key. */
+export class FileObject {
+  static readonly buildKey = (id: string): string => `attachments/${id}`
 }

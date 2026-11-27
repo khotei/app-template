@@ -15,13 +15,13 @@ paths:
   (`Effect.fn('<Service>.<method>')(port.<method>)`). An `Effect.fnUntraced` body is a generator.
 ```diff
 - const getOne = Effect.fn('OrderService.getOne')((where: OrderWhere) =>
--   orders.selectOne(encodeWhere(where)).pipe(               // the whole result, piped in the body
+-   orders.selectOne(Where.encode(where)).pipe(       // the whole result, piped in the body
 -     Effect.flatMap(RowCodec.decodeOne(Order)),
 -     Effect.flatMap(Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
 -   ),
 - )
 + const getOne = Effect.fn('OrderService.getOne')(
-+   (where: OrderWhere) => orders.selectOne(encodeWhere(where)),
++   (where: OrderWhere) => orders.selectOne(Where.encode(where)),
 +   Effect.flatMap(RowCodec.decodeOne(Order)),
 +   (found, where) =>
 +     Effect.flatMap(found, Effect.fromOption(() => new OrderNotFoundError({ id: where.id }))),
@@ -32,7 +32,7 @@ paths:
   the model in its name is often doing a neighbouring service's work.
 - A module-level function another module composes states `Effect.fn.Return<A, E, R>` on the
   generator; a helper used once, a composed function whose every caller dies on its errors
-  (`Effect.orDie`), a use case, or a job's handler, whose errors `consumeQueue`'s `never` checks,
+  (`Effect.orDie`), a use case, or a job's handler, whose errors `QueueConsumer.consume`'s `never` checks,
   stays inferred.
 - A pure builder that cannot fail returns the model, not an `Effect`.
 

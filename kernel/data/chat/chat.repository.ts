@@ -1,20 +1,20 @@
 import { Array as Arr, Context, Effect, Layer, Option, Struct } from 'effect'
 
-import { encodeFilter, orDieWithSqlError } from '@app-template/packages/db'
+import { DbFilter, DbQuery } from '@app-template/packages/db'
 
 import {
   type ChatEntity,
   type ChatEntitySelectWhere,
   type ChatEntitySet,
   type ChatEntityWhere,
-  chatSetColumns,
+  ChatStatement,
 } from '#kernel/data/chat/chat.entity'
 import { type ChatColumns, chats } from '#kernel/data/chat/chat.table'
-import { newestFirst } from '#kernel/data/chat/run.entity'
+import { EntityOrder } from '#kernel/data/data-entity-order'
 import { Db } from '#kernel/data/db.client'
 
 /** Every read nests the chat's newest Run. */
-const withNewestRun = { run: { orderBy: newestFirst } } as const
+const withNewestRun = { run: { orderBy: EntityOrder.newestFirst } } as const
 
 export class ChatRepository extends Context.Service<
   ChatRepository,
@@ -37,38 +37,39 @@ export class ChatRepository extends Context.Service<
     return {
       insert: Effect.fn('ChatRepository.insert')(
         (chat) => db.insert(chats).values(chat),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       update: Effect.fn('ChatRepository.update')(
         (set, where) =>
           db
             .update(chats)
-            .set(Struct.pick(set, chatSetColumns))
-            .where(encodeFilter(chats, where))
+            .set(Struct.pick(set, ChatStatement.setColumns))
+            .where(DbFilter.encode(chats, where))
             .returning({ id: chats.id }),
         Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
         Effect.asVoid,
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       selectOne: Effect.fn('ChatRepository.selectOne')(
         (where) => db.query.chats.findFirst({ where, with: withNewestRun }),
         Effect.map(Option.fromUndefinedOr),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       selectMany: Effect.fn('ChatRepository.selectMany')(
         (where) =>
           db.query.chats.findMany({
             where,
             with: withNewestRun,
-            orderBy: newestFirst,
+            orderBy: EntityOrder.newestFirst,
           }),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       delete: Effect.fn('ChatRepository.delete')(
-        (where) => db.delete(chats).where(encodeFilter(chats, where)).returning({ id: chats.id }),
+        (where) =>
+          db.delete(chats).where(DbFilter.encode(chats, where)).returning({ id: chats.id }),
         Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty),
         Effect.asVoid,
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
     }
   }),

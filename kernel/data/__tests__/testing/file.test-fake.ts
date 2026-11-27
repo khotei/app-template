@@ -12,9 +12,9 @@ import {
 } from 'effect'
 
 import {
-  buildFileKey,
   type DownloadedFileEntity,
   type FileEntityWhere,
+  FileObject,
 } from '#kernel/data/file/file.entity'
 import { FileRepository } from '#kernel/data/file/file.repository'
 
@@ -56,7 +56,7 @@ export const FileRepositoryTest = Layer.effect(
       insert: (insert) =>
         Effect.gen(function* () {
           const blob = yield* Stream.mkUint8Array(insert.content)
-          const url = new URL(`memory:${buildFileKey(insert.id)}`)
+          const url = new URL(`memory:${FileObject.buildKey(insert.id)}`)
           const file: DownloadedFileEntity = {
             ...Struct.pick(insert, ['id', 'mediaType', 'fileName']),
             url,

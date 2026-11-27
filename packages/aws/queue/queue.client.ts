@@ -1,7 +1,7 @@
 import { SQSService } from '@effect-aws/client-sqs'
-import { Cache, Context, Data, Duration, Effect, Exit, Layer } from 'effect'
+import { Cache, Context, Duration, Effect, Exit, Layer } from 'effect'
 
-export class QueueError extends Data.TaggedError('QueueError')<{ readonly cause: unknown }> {}
+import { QueueError } from '#aws/queue/queue-error'
 
 export class QueueClient extends Context.Service<
   QueueClient,
@@ -9,7 +9,7 @@ export class QueueClient extends Context.Service<
     /** The URL of the queue named `queue`, asked of SQS once; a failed lookup is asked again. */
     readonly getUrl: (queue: string) => Effect.Effect<string, QueueError>
   }
->()('@app-template/packages/queue/QueueClient', {
+>()('@app-template/packages/aws/queue/QueueClient', {
   make: Effect.gen(function* () {
     const sqs = yield* SQSService
     const urls = yield* Cache.makeWith(

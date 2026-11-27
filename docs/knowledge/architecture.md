@@ -147,6 +147,7 @@ import { buildApiChat } from '#api/chat/chat.mapper'          // this part
 - **`@app-template/<folder>`** reaches another part through its workspace's `exports`, each
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
+  a package's sub-entry by its own (`@app-template/packages/aws/queue`, `/aws/s3`),
   a module by its own (`@app-template/application/<module>` →
   `application/<module>/index.ts`, every layer), a module's contract by its folder
   (`@app-template/application/<module>/contract`), each with its test support's entries
@@ -173,21 +174,21 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job and event | `application/chat/infrastructure/chat.queue.ts` | the events `UserMessageCreated`, `MessageRetried` and `ChatInitialized`, each with its definition as its static `queue`; `ChatQueue`, its `sendUserMessageCreated`, `sendMessageRetried` and `sendChatInitialized` |
-| service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant` with `AssistantReply`, what its reply returns; `ChatAssistant`; both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
-| tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
+| service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant` with `AssistantReply`, what its reply returns; `ChatAssistant`; both piping the kernel's `LlmCall.ask` and failing with its `LlmError` ([ai.md](ai.md)) |
+| tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity` with `ChatStatement`, what its repository builds its statements from, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
-| database tools any app could use | `packages/db/` | `Transaction`, `createDb`, the shared columns, `Keyed`, `encodeFilter` |
-| a service's where as its repository's filter | `kernel/data/data-where.ts` | `encodeWhere` |
-| the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `consumeQueue` ([aws.md](aws.md)) |
-| codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `encodeWith`, `decodeWith`, `RowCodec`, `buildIdSchema` |
+| database tools any app could use | `packages/db/` | `Transaction`, `DbClient` (the client's factory), `DbColumn` (the shared columns), `Keyed`, `DbFilter`, `DbQuery` (a query's failure as its `SqlError`) |
+| a service's where as its repository's filter; the orders a read sorts by | `kernel/data/data-where.ts`, `data-entity-order.ts` | `Where`, `EntityOrder` |
+| the queue's two ends: the send of a definition's job with the current trace, the run of a queue's handlers on each job a batch delivers | `packages/aws/queue/queue.sender.ts`, `queue.consumer.ts` | `QueueSender`, `QueueConsumer.consume` ([aws.md](aws.md)) |
+| codecs whose failed encode or decode is a defect; a model's row coding, a read's rows into the model and a variant's make with its row, whose refused make dies; the id format's schema | `packages/schema/` | `SchemaCodec`, `RowCodec`, `SchemaId.build` |
 | HTTP group | `application/http-api/chat/chat.http.ts` | `ChatHttp` (`HttpApiGroup`) |
 | a resource's wire shapes | `application/http-api/chat/api-chat.model.ts`, `request/api-request.model.ts` | `ApiChat` (`Chat.json.mapFields(…)`), `ApiRun`, `ApiMessage`; `RequestIssue`, `RequestInvalidError` |
 | the API contract: the groups assembled, the middlewares' definitions with the keys they provide; its snapshot | `application/http-api/api.ts`, `identity/identity.middleware.ts`, `request/request.middleware.ts`; `apps/api/openapi.json` | `Api`; `IdentityMiddleware`, which provides identity's `IdentityClaims` under the key `Identity`; `SchemaErrors` |
 | a middleware's layer, for a definition the contract holds | `apps/api/identity/identity.layer.ts`, `apps/api/shared/request.layer.ts` | `IdentityMiddlewareLayer`, `SchemaErrorsLayer` |
 | use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
-| worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
+| worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `QueueConsumer.consume` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
 | worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
@@ -245,9 +246,9 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
   method, and what the handler hands it to checks what it fails with: an endpoint's error list,
-  or the worker's `consumeQueue`, whose `never` makes a queue's handler end every failure; the api
-  provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer,
-  and a unit test from its mocks. Decision: [Use cases as
+  or the worker's `QueueConsumer.consume`, whose `never` makes a queue's handler end every failure;
+  the api provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its
+  layer, and a unit test from its mocks. Decision: [Use cases as
   functions](decisions.md#use-cases-as-functions).
 - **A rule another module owns is called, never copied.** The order module may read the
   customer's row itself, but whether a customer may order is the customer module's rule, so the

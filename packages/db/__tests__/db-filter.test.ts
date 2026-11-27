@@ -1,13 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
 import { pgTable, QueryBuilder, text } from 'drizzle-orm/pg-core'
 
-import { encodeFilter, id } from '#db/db-columns'
+import { DbColumn } from '#db/db-column'
+import { DbFilter } from '#db/db-filter'
 
-const orders = pgTable('orders', { id: id(), note: text() })
+const orders = pgTable('orders', { id: DbColumn.id(), note: text() })
 
-describe('encodeFilter', () => {
-  const render = (filter: Parameters<typeof encodeFilter<typeof orders>>[1]) =>
-    new QueryBuilder().select().from(orders).where(encodeFilter(orders, filter)).toSQL()
+describe('DbFilter.encode', () => {
+  const render = (filter: Parameters<typeof DbFilter.encode<typeof orders>>[1]) =>
+    new QueryBuilder().select().from(orders).where(DbFilter.encode(orders, filter)).toSQL()
 
   it('renders the conditions of a filter', () => {
     assert.deepStrictEqual(render({ id: 'a' }), {

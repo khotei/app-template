@@ -1,14 +1,14 @@
 import { Array as Arr, Context, Duration, Effect, Layer, Option, pipe } from 'effect'
 
-import { type ObjectHead, S3Bucket } from '@app-template/packages/s3'
+import { type ObjectHead, S3Bucket } from '@app-template/packages/aws/s3'
 
 import {
-  buildFileKey,
   type DownloadedFileEntity,
   type FileEntity,
   type FileEntityDownloadWhere,
   type FileEntityInsert,
   type FileEntityWhere,
+  FileObject,
 } from '#kernel/data/file/file.entity'
 
 const urlLifetime = Duration.minutes(5)
@@ -60,16 +60,16 @@ export class FileRepository extends Context.Service<
     const bucket = yield* S3Bucket
 
     // Signing sends no request, so a missing file costs only its read.
-    const signUrl = (id: string) => bucket.url(buildFileKey(id), urlLifetime)
+    const signUrl = (id: string) => bucket.url(FileObject.buildKey(id), urlLifetime)
 
     const headFile = Effect.fnUntraced(function* (id: string) {
-      const head = yield* bucket.head(buildFileKey(id))
+      const head = yield* bucket.head(FileObject.buildKey(id))
       const url = yield* signUrl(id)
       return Option.map(head, (found) => buildFileEntity(found, { id, url }))
     })
 
     const downloadFile = Effect.fnUntraced(function* (id: string) {
-      const object = yield* bucket.download(buildFileKey(id))
+      const object = yield* bucket.download(FileObject.buildKey(id))
       const url = yield* signUrl(id)
       return Option.map(object, ({ head, blob }) => ({
         ...buildFileEntity(head, { id, url }),
@@ -82,7 +82,7 @@ export class FileRepository extends Context.Service<
     return {
       insert: Effect.fn('FileRepository.insert')(
         <E>({ id, content, mediaType, fileName }: FileEntityInsert<E>) =>
-          bucket.put(buildFileKey(id), content, { contentType: mediaType, fileName }),
+          bucket.put(FileObject.buildKey(id), content, { contentType: mediaType, fileName }),
       ),
       selectOne: Effect.fn('FileRepository.selectOne')(selectMany, Effect.map(Arr.head)),
       selectMany: Effect.fn('FileRepository.selectMany')(selectMany),
@@ -90,7 +90,7 @@ export class FileRepository extends Context.Service<
         downloadFile(id),
       ),
       delete: Effect.fn('FileRepository.delete')(({ id }: FileEntityWhere) =>
-        pipe(id, Arr.ensure, Arr.map(buildFileKey), bucket.deleteMany),
+        pipe(id, Arr.ensure, Arr.map(FileObject.buildKey), bucket.deleteMany),
       ),
     }
   }),

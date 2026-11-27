@@ -1,9 +1,9 @@
 import { ConfigProvider, Layer } from 'effect'
 
 import { ChatRepository, MessageRepository, RunRepository } from '@app-template/kernel/data'
+import { QueueSender } from '@app-template/packages/aws/queue'
 import type { Transaction } from '@app-template/packages/db'
 import { layerTransactionAround, TransactionTest } from '@app-template/packages/db/testing'
-import { QueueSender } from '@app-template/packages/queue'
 
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'

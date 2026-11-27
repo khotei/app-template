@@ -1,2 +1,2 @@
 export { type QueueName, resources } from '#kernel/aws/resources/resources'
-export { buildResourceName, projectName } from '#kernel/aws/resources/resources-naming'
+export { ResourceName } from '#kernel/aws/resources/resources-naming'

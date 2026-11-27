@@ -16,19 +16,20 @@ export type RunEntitySelectWhere = Keyed<
   'id' | 'userMessageId'
 >
 
-/** The columns an update may write. */
-export const runSetColumns = [
-  'status',
-  'failure',
-  'assistantMessageId',
-  'usage',
-  'updatedAt',
-] as const satisfies ReadonlyArray<keyof RunColumns>
+/** What `RunRepository` builds its statements from. */
+export class RunStatement {
+  /** The columns an update may write. */
+  static readonly setColumns = [
+    'status',
+    'failure',
+    'assistantMessageId',
+    'usage',
+    'updatedAt',
+  ] as const satisfies ReadonlyArray<keyof RunColumns>
+}
 
 /** What an update is handed: the columns it writes, and the row's key it leaves as it is. */
 export type RunEntitySet = Types.Simplify<
   Partial<Pick<RunColumns, 'id'>> &
-    RequireAtLeastOne<Pick<RunColumns, (typeof runSetColumns)[number]>>
+    RequireAtLeastOne<Pick<RunColumns, (typeof RunStatement.setColumns)[number]>>
 >
-
-export const newestFirst = { createdAt: 'desc', id: 'desc' } as const

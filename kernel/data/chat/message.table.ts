@@ -1,7 +1,7 @@
 import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import { foreignKey, index, pgEnum, snakeCase, text, unique, uuid } from 'drizzle-orm/pg-core'
 
-import { createdAt, id } from '@app-template/packages/db'
+import { DbColumn } from '@app-template/packages/db'
 
 import { chats } from '#kernel/data/chat/chat.table'
 
@@ -12,13 +12,13 @@ export const messageAuthor = pgEnum('message_author', messageAuthors)
 export const messages = snakeCase.table(
   'messages',
   {
-    id: id(),
+    id: DbColumn.id(),
     chatId: uuid().notNull(),
     /** The owner of the message's chat, held by `messages_chat_id_user_id_fk`. */
     userId: uuid().notNull(),
     author: messageAuthor().notNull(),
     text: text().notNull(),
-    createdAt: createdAt(),
+    createdAt: DbColumn.createdAt(),
   },
   (table) => [
     // One key over both columns, so `user_id` can only name the owner of `chat_id`.

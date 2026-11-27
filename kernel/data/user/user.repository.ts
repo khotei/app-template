@@ -1,6 +1,6 @@
 import { Context, Effect, Layer, Option } from 'effect'
 
-import { orDieWithSqlError } from '@app-template/packages/db'
+import { DbQuery } from '@app-template/packages/db'
 
 import { Db } from '#kernel/data/db.client'
 import type { UserEntity, UserEntityWhere } from '#kernel/data/user/user.entity'
@@ -20,16 +20,16 @@ export class UserRepository extends Context.Service<
     return {
       insert: Effect.fn('UserRepository.insert')(
         (user: UserEntity) => db.insert(users).values(user),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       insertCredential: Effect.fn('UserRepository.insertCredential')(
         (credential: CredentialColumns) => db.insert(credentials).values(credential),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
       selectOne: Effect.fn('UserRepository.selectOne')(
         (where: UserEntityWhere) => db.query.users.findFirst({ where }),
         Effect.map(Option.fromUndefinedOr),
-        orDieWithSqlError,
+        DbQuery.orDie,
       ),
     }
   }),

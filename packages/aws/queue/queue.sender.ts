@@ -2,10 +2,11 @@ import { SQSService } from '@effect-aws/client-sqs'
 import { Context, Effect, Layer, type Schema } from 'effect'
 import { HttpTraceContext } from 'effect/http'
 
-import { encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 
-import { QueueClient, QueueError } from '#queue/queue.client'
-import { buildMessageCodec, type QueueDefinition } from '#queue/queue-definition'
+import { QueueClient } from '#aws/queue/queue.client'
+import { type QueueDefinition, QueueMessage } from '#aws/queue/queue-definition'
+import { QueueError } from '#aws/queue/queue-error'
 
 export class QueueSender extends Context.Service<
   QueueSender,
@@ -19,7 +20,7 @@ export class QueueSender extends Context.Service<
       message: A,
     ) => Effect.Effect<void, QueueError>
   }
->()('@app-template/packages/queue/QueueSender', {
+>()('@app-template/packages/aws/queue/QueueSender', {
   make: Effect.fnUntraced(function* (buildName: (name: string) => string) {
     const sqs = yield* SQSService
     const client = yield* QueueClient
@@ -28,7 +29,7 @@ export class QueueSender extends Context.Service<
       definition: QueueDefinition<Schema.Codec<A, I>>,
       message: A,
     ) {
-      const body = yield* encodeWith(buildMessageCodec(definition))(message)
+      const body = yield* SchemaCodec.encode(QueueMessage.buildCodec(definition))(message)
       const url = yield* client.getUrl(buildName(definition.name))
       const span = yield* Effect.currentSpan.pipe(Effect.orDie)
       const { traceparent } = HttpTraceContext.toHeaders(span)

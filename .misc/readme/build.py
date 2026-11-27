@@ -536,7 +536,7 @@ def rules_and_style():
     ], title_accent=False) + 12
     y += f.box(rx, y, rw, "neu", "File names: `naming.md`", [
         "`<name>.<role>.ts`: `run.model.ts` `ask-chat.service.ts` `chat.http.ts`",
-        "`<owner>-<what>.ts`: `llm-call-policy.ts` `schema-codec.ts`",
+        "`<owner>-<what>.ts`: `llm-call.ts` `schema-codec.ts`",
     ], title_accent=False) + 12
     cw = (rw - 16) / 2
     wire = ["`Schema.TaggedError`", "`ChatBusyError` → `409`", "`RunNotFoundError` → `404`", ("m", "the api serves it as it is")]
@@ -564,7 +564,7 @@ def patterns():
             "// RunService.update(from, to):",
             "const { row } =",
             "  yield* RowCodec.makeUpdate(Run)(to)",
-            "runs.update(row, encodeWhere(",
+            "runs.update(row, Where.encode(",
             "  { id: from.id, status: from.status }))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),
         ("A rule keyed by a table", [

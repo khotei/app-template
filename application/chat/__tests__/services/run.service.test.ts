@@ -7,7 +7,7 @@ import {
   type RunEntitySet,
   type RunEntityWhere,
 } from '@app-template/kernel/data'
-import { encodeWith, RowCodec } from '@app-template/packages/schema'
+import { RowCodec, SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, epoch } from '@app-template/packages/testing'
 
 import { activeRunStatuses, Run, RunNotFoundError, type RunStatus } from '#chat/domain/run.model'
@@ -72,7 +72,7 @@ const reads: ReadonlyArray<{
 /** The service over a `RunRepository` that reads `stored`, whose updates land in `updates`. */
 function recordUpdates(stored: Option.Option<Run> = Option.some(queuedRun)) {
   const updates: Array<readonly [RunEntitySet, RunEntityWhere]> = []
-  const read = stored.pipe(Option.map(encodeWith(Run)), Effect.transposeOption)
+  const read = stored.pipe(Option.map(SchemaCodec.encode(Run)), Effect.transposeOption)
   const layer = layerChatTest({
     runs: {
       selectOne: () => read,
@@ -161,7 +161,7 @@ describe('RunService', () => {
           selectOne: (read) =>
             Effect.sync(() => {
               filters.push(read)
-            }).pipe(Effect.andThen(encodeWith(Run)(queuedRun)), Effect.map(Option.some)),
+            }).pipe(Effect.andThen(SchemaCodec.encode(Run)(queuedRun)), Effect.map(Option.some)),
         },
       })
       return Effect.gen(function* () {

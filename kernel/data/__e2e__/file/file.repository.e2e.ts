@@ -2,7 +2,7 @@ import { assert, describe, layer } from '@effect/vitest'
 import { S3Service } from '@effect-aws/client-s3'
 import { Array as Arr, Effect, Layer, Option, Stream, Struct } from 'effect'
 
-import { buildResourceName, resources } from '@app-template/kernel/aws'
+import { ResourceName, resources } from '@app-template/kernel/aws'
 import { AwsTest } from '@app-template/kernel/aws/testing/e2e'
 import { awsConfig } from '@app-template/kernel/config'
 import { png } from '@app-template/packages/testing'
@@ -34,7 +34,7 @@ describe('FileRepository on AwsTest', () => {
 
           const size = yield* files.insert(file(id))
           const head = yield* s3.headObject({
-            Bucket: buildResourceName(stage, resources.buckets.attachments.name),
+            Bucket: ResourceName.build(stage, resources.buckets.attachments.name),
             Key: `attachments/${id}`,
           })
 

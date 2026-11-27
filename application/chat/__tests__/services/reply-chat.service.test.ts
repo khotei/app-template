@@ -25,7 +25,7 @@ import type {
   RunEntitySet,
   RunEntityWhere,
 } from '@app-template/kernel/data'
-import { decodeWith, encodeWith } from '@app-template/packages/schema'
+import { SchemaCodec } from '@app-template/packages/schema'
 import { assertSchemaEquals, recordLogs } from '@app-template/packages/testing'
 
 import { Chat } from '#chat/domain/chat.model'
@@ -158,7 +158,10 @@ function storeRuns(writes: Writes, ...runs: ReadonlyArray<Run>) {
         stored = settled
       }),
     selectOne: (where: RunEntitySelectWhere) =>
-      find(decodeRunFilter(where)).pipe(Option.map(encodeWith(Run)), Effect.transposeOption),
+      find(decodeRunFilter(where)).pipe(
+        Option.map(SchemaCodec.encode(Run)),
+        Effect.transposeOption,
+      ),
     update: (set: RunEntitySet, where: RunEntityWhere) =>
       find(decodeRunFilter(where)).pipe(
         Option.match({
@@ -190,14 +193,14 @@ const replyingTo = (
 ): ChatRepositoryMocks => ({
   runs: { selectOne: runs.selectOne, update: runs.update },
   chats: {
-    selectOne: () => encodeWith(Chat)(asked).pipe(Effect.map(Option.some)),
+    selectOne: () => SchemaCodec.encode(Chat)(asked).pipe(Effect.map(Option.some)),
     update: (set) =>
       Effect.sync(() => {
         writes.chats.push(set)
       }),
   },
   messages: {
-    selectMany: () => Effect.forEach(history, (message) => encodeWith(Message)(message)),
+    selectMany: () => Effect.forEach(history, (message) => SchemaCodec.encode(Message)(message)),
     insert: (row) =>
       Effect.sync(() => {
         writes.messages.push(row)
@@ -251,9 +254,9 @@ describe('ReplyChatService', () => {
         const generatingMoves = ['queued → generating']
         assert.deepStrictEqual(asked, generatingMoves)
         assert.deepStrictEqual(halfway, generatingMoves)
-        const stored = yield* decodeWith(Schema.Array(Message.insert))(writes.messages).pipe(
-          Effect.head,
-        )
+        const stored = yield* SchemaCodec.decode(Schema.Array(Message.insert))(
+          writes.messages,
+        ).pipe(Effect.head)
         const message = new Message({
           author: 'assistant',
           id: stored.id,
@@ -264,7 +267,7 @@ describe('ReplyChatService', () => {
         })
         assert.deepStrictEqual(writes.messages, [
           // An explicit time enters the insert variant marked as an override of its default.
-          yield* encodeWith(Message.insert)({
+          yield* SchemaCodec.encode(Message.insert)({
             ...message,
             createdAt: Model.Override(message.createdAt),
           }),
@@ -278,7 +281,10 @@ describe('ReplyChatService', () => {
         })
         assert.deepStrictEqual(writes.runs.at(-1), [
           // An explicit time enters the update variant marked as an override of its default.
-          yield* encodeWith(Run.update)({ ...done, updatedAt: Model.Override(done.updatedAt) }),
+          yield* SchemaCodec.encode(Run.update)({
+            ...done,
+            updatedAt: Model.Override(done.updatedAt),
+          }),
           { id: queuedRun.id, status: 'generating' },
         ])
         assert.deepStrictEqual(writes.chats, [])
@@ -549,7 +555,9 @@ describe('ReplyChatService', () => {
         runs,
         chats: {
           selectOne: () =>
-            encodeWith(Chat)(chat).pipe(Effect.map((row) => Option.some({ ...row, ...written }))),
+            SchemaCodec.encode(Chat)(chat).pipe(
+              Effect.map((row) => Option.some({ ...row, ...written })),
+            ),
           update: (set) =>
             Effect.sync(() => {
               written = set
@@ -562,7 +570,7 @@ describe('ReplyChatService', () => {
               Arr.filter((message) =>
                 Predicate.hasProperty(id, 'gte') ? message.id >= String(id.gte) : true,
               ),
-              Effect.forEach((message) => encodeWith(Message)(message)),
+              Effect.forEach((message) => SchemaCodec.encode(Message)(message)),
             ),
           insert: () => Effect.void,
         },

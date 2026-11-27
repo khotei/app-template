@@ -32,8 +32,49 @@ export interface ObjectHead {
   readonly fileName: Option.Option<string>
 }
 
-/** The S3 minimum for every part but the last. */
-const partSize = 5 * 1024 * 1024
+/** An object's metadata: what `put` writes of its options and what a read decodes of them. */
+class ObjectMetadata {
+  static readonly buildInlineDisposition = (fileName: string) => {
+    const encoded = encodeURIComponent(fileName).replace(
+      /[!'()*]/g,
+      (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
+    )
+    return `inline; filename*=UTF-8''${encoded}`
+  }
+
+  static readonly inlineFileName = /^inline; filename\*=UTF-8''(.*)$/
+
+  static readonly buildInlineFileName = (disposition: string | undefined): Option.Option<string> =>
+    Option.fromNullishOr(disposition).pipe(
+      Option.flatMap(Str.match(ObjectMetadata.inlineFileName)),
+      Option.flatMap(Arr.get(1)),
+      Option.map(decodeURIComponent),
+    )
+
+  static readonly decode = ({
+    ContentType,
+    ContentDisposition,
+  }: {
+    readonly ContentType?: string | undefined
+    readonly ContentDisposition?: string | undefined
+  }) =>
+    Effect.fromNullishOr(ContentType).pipe(
+      Effect.map(
+        (contentType): ObjectHead => ({
+          contentType,
+          fileName: ObjectMetadata.buildInlineFileName(ContentDisposition),
+        }),
+      ),
+    )
+
+  static readonly build = ({ contentType, fileName }: PutOptions) => ({
+    ContentType: contentType,
+    ContentDisposition: Option.fromNullishOr(fileName).pipe(
+      Option.map(ObjectMetadata.buildInlineDisposition),
+      Option.getOrUndefined,
+    ),
+  })
+}
 
 interface UploadState {
   /** The latest part, held back until the next one proves it is not the last. */
@@ -43,45 +84,61 @@ interface UploadState {
   readonly size: number
 }
 
-const initialUploadState: UploadState = {
-  held: Option.none(),
-  uploadId: Option.none(),
-  parts: [],
-  size: 0,
+/** An upload's parts: their size, the state their fold starts from and how the content is cut. */
+class ObjectUpload {
+  /** The S3 minimum for every part but the last. */
+  static readonly partSize = 5 * 1024 * 1024
+
+  static readonly initialState: UploadState = {
+    held: Option.none(),
+    uploadId: Option.none(),
+    parts: [],
+    size: 0,
+  }
+
+  static readonly countBytes = (chunks: ReadonlyArray<Uint8Array>) =>
+    pipe(
+      chunks,
+      Arr.map((chunk) => chunk.length),
+      Num.sumAll,
+    )
+
+  static readonly hasBytes = (bytes: Uint8Array) => bytes.length > 0
+
+  /**
+   * Parts of at least `partSize`, the last one alone shorter.
+   *
+   * The transducer emits an empty group when the stream ends right after a part is cut, so a
+   * content of exactly `partSize` would gain an empty second part without the filter.
+   */
+  static readonly cutParts = <E>(
+    content: Stream.Stream<Uint8Array, E>,
+  ): Stream.Stream<Uint8Array, E> =>
+    content.pipe(
+      Stream.transduce(
+        Sink.reduceWhile(
+          Arr.empty<Uint8Array>,
+          (held) => ObjectUpload.countBytes(held) < ObjectUpload.partSize,
+          (held, chunk) => Arr.append(held, chunk),
+        ),
+      ),
+      Stream.map(Bytes.concat),
+      Stream.filter(ObjectUpload.hasBytes),
+    )
 }
 
-function buildInlineDisposition(fileName: string) {
-  const encoded = encodeURIComponent(fileName).replace(
-    /[!'()*]/g,
-    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`,
-  )
-  return `inline; filename*=UTF-8''${encoded}`
+/** A delete of many keys: how many one request takes and whether S3 kept any. */
+class ObjectDelete {
+  /** The most keys one `DeleteObjects` request takes. */
+  static readonly batchSize = 1000
+
+  /** `Quiet` returns only the keys it failed on; a missing key is no failure. */
+  static readonly hasKeptKeys = ({
+    Errors,
+  }: {
+    readonly Errors?: ReadonlyArray<unknown> | undefined
+  }) => Option.fromNullishOr(Errors).pipe(Option.exists(Arr.isReadonlyArrayNonEmpty))
 }
-
-const inlineFileName = /^inline; filename\*=UTF-8''(.*)$/
-
-const buildInlineFileName = (disposition: string | undefined): Option.Option<string> =>
-  Option.fromNullishOr(disposition).pipe(
-    Option.flatMap(Str.match(inlineFileName)),
-    Option.flatMap(Arr.get(1)),
-    Option.map(decodeURIComponent),
-  )
-
-const decodeObjectHead = ({
-  ContentType,
-  ContentDisposition,
-}: {
-  readonly ContentType?: string | undefined
-  readonly ContentDisposition?: string | undefined
-}) =>
-  Effect.fromNullishOr(ContentType).pipe(
-    Effect.map(
-      (contentType): ObjectHead => ({
-        contentType,
-        fileName: buildInlineFileName(ContentDisposition),
-      }),
-    ),
-  )
 
 const readBody = Effect.fnUntraced(function* ({
   Body,
@@ -91,49 +148,6 @@ const readBody = Effect.fnUntraced(function* ({
   const body = yield* Effect.fromNullishOr(Body)
   return yield* Effect.promise(() => body.transformToByteArray())
 })
-
-const buildObjectHeaders = ({ contentType, fileName }: PutOptions) => ({
-  ContentType: contentType,
-  ContentDisposition: Option.fromNullishOr(fileName).pipe(
-    Option.map(buildInlineDisposition),
-    Option.getOrUndefined,
-  ),
-})
-
-const sizeOf = (chunks: ReadonlyArray<Uint8Array>) =>
-  pipe(
-    chunks,
-    Arr.map((chunk) => chunk.length),
-    Num.sumAll,
-  )
-
-const hasBytes = (bytes: Uint8Array) => bytes.length > 0
-
-/**
- * Parts of at least `partSize`, the last one alone shorter.
- *
- * The transducer emits an empty group when the stream ends right after a part is cut, so a
- * content of exactly `partSize` would gain an empty second part without the filter.
- */
-const cutParts = <E>(content: Stream.Stream<Uint8Array, E>): Stream.Stream<Uint8Array, E> =>
-  content.pipe(
-    Stream.transduce(
-      Sink.reduceWhile(
-        Arr.empty<Uint8Array>,
-        (held) => sizeOf(held) < partSize,
-        (held, chunk) => Arr.append(held, chunk),
-      ),
-    ),
-    Stream.map(Bytes.concat),
-    Stream.filter(hasBytes),
-  )
-
-/** `Quiet` returns only the keys it failed on; a missing key is no failure. */
-const hasKeptKeys = ({ Errors }: { readonly Errors?: ReadonlyArray<unknown> | undefined }) =>
-  Option.fromNullishOr(Errors).pipe(Option.exists(Arr.isReadonlyArrayNonEmpty))
-
-/** The most keys one `DeleteObjects` request takes. */
-const deleteBatchSize = 1000
 
 export class S3Bucket extends Context.Service<
   S3Bucket,
@@ -158,7 +172,7 @@ export class S3Bucket extends Context.Service<
     /** Idempotent; one request per 1000 keys, none for no key. */
     readonly deleteMany: (keys: ReadonlyArray<string>) => Effect.Effect<void>
   }
->()('@app-template/packages/s3/S3Bucket', {
+>()('@app-template/packages/aws/s3/S3Bucket', {
   make: Effect.fnUntraced(function* ({ bucket }: { readonly bucket: string }) {
     const s3 = yield* S3Service
 
@@ -166,7 +180,7 @@ export class S3Bucket extends Context.Service<
 
     function createUpload(key: string, options: PutOptions) {
       const ref = buildObjectRef(key)
-      const headers = buildObjectHeaders(options)
+      const headers = ObjectMetadata.build(options)
 
       const openUpload = Effect.acquireRelease(
         s3
@@ -233,8 +247,8 @@ export class S3Bucket extends Context.Service<
     ) {
       const upload = createUpload(key, options)
       const state = yield* content.pipe(
-        cutParts,
-        Stream.runFoldEffect(() => initialUploadState, upload.receivePart),
+        ObjectUpload.cutParts,
+        Stream.runFoldEffect(() => ObjectUpload.initialState, upload.receivePart),
       )
       return yield* upload.finishUpload(state)
     }, Effect.scoped)
@@ -242,7 +256,7 @@ export class S3Bucket extends Context.Service<
     const download = Effect.fn('S3Bucket.download')(
       (key: string) => s3.getObject(buildObjectRef(key)),
       Effect.flatMap((object) =>
-        Effect.all({ head: decodeObjectHead(object), blob: readBody(object) }),
+        Effect.all({ head: ObjectMetadata.decode(object), blob: readBody(object) }),
       ),
       Effect.asSome,
       Effect.catchTag('NoSuchKey', () => Effect.succeedNone),
@@ -251,7 +265,7 @@ export class S3Bucket extends Context.Service<
 
     const head = Effect.fn('S3Bucket.head')(
       (key: string) => s3.headObject(buildObjectRef(key)),
-      Effect.flatMap(decodeObjectHead),
+      Effect.flatMap(ObjectMetadata.decode),
       Effect.asSome,
       Effect.catchTag('NotFound', () => Effect.succeedNone),
       Effect.orDie,
@@ -275,7 +289,7 @@ export class S3Bucket extends Context.Service<
         })
         .pipe(
           Effect.filterOrFail(
-            Predicate.not(hasKeptKeys),
+            Predicate.not(ObjectDelete.hasKeptKeys),
             ({ Errors }) => new Error('S3 kept keys asked to delete', { cause: Errors }),
           ),
           Effect.asVoid,
@@ -283,7 +297,11 @@ export class S3Bucket extends Context.Service<
         )
 
     const deleteMany = Effect.fn('S3Bucket.deleteMany')((keys: ReadonlyArray<string>) =>
-      pipe(keys, Arr.chunksOf(deleteBatchSize), Effect.forEach(deleteBatch, { discard: true })),
+      pipe(
+        keys,
+        Arr.chunksOf(ObjectDelete.batchSize),
+        Effect.forEach(deleteBatch, { discard: true }),
+      ),
     )
 
     return { put, download, head, url, deleteMany }

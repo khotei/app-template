@@ -3,7 +3,7 @@ import { createSelectSchema } from 'drizzle-orm/effect-schema'
 import { check, index, jsonb, snakeCase, text, unique, uuid } from 'drizzle-orm/pg-core'
 import { Schema } from 'effect'
 
-import { createdAt, id, updatedAt } from '@app-template/packages/db'
+import { DbColumn } from '@app-template/packages/db'
 
 import { users } from '#kernel/data/user/user.table'
 
@@ -20,15 +20,15 @@ export type ChatContext = typeof ChatContext.Type
 export const chats = snakeCase.table(
   'chats',
   {
-    id: id(),
+    id: DbColumn.id(),
     userId: uuid()
       .notNull()
       .references(() => users.id),
     title: text(),
     /** Null until the chat's context is cut. */
     context: jsonb().$type<ChatContext>(),
-    createdAt: createdAt(),
-    updatedAt: updatedAt(),
+    createdAt: DbColumn.createdAt(),
+    updatedAt: DbColumn.updatedAt(),
   },
   (table) => [
     check(
