@@ -28,7 +28,9 @@ Ask in order; the first yes decides:
    ones; a caller that needs only the old one keeps it.
 4. **An order of calls over several models of one module, their transaction or their sends** →
    the module's `<Verb><Model>Service` ([its role](layering.md#ports-and-domain-services)); an
-   order over modules, or what an entry adds, → a use case.
+   order over modules, or what an entry adds to one service's call (the read of the record it
+   takes, the event a module's fact raises after it), → a use case
+   ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
 
 ```ts
 // a wrap, a static beside `layer`: each holder from this layer gets the audit; `make` is unedited

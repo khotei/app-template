@@ -352,8 +352,9 @@ The words of the work the api hands to the worker. The queues, the stand and its
 **Job**:
 A queue message that hands one handler in the worker one piece of work, a command, shaped by its
 queue definition and named `<Verb><Object>` in this glossary's words for that work
-(`ShipOrder`; the chat sends none, as each of its queue messages is an event). Unheard, its work
-stays undone, so its sender settles a refused send. Not a CI job (a workflow's `jobs:`).
+(`ShipOrder`). Unheard, its work stays undone, so its sender settles a refused send. The chat
+sends none: the owner made each of its queue messages an event, the reply's two included, whose
+sender settles a refused send all the same. Not a CI job (a workflow's `jobs:`).
 _Avoid_: Task, message (the chat's word)
 
 **Event**:
