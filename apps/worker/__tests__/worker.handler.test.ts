@@ -3,7 +3,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
-import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
+import { ChatAssistant } from '@app-template/application/chat'
 import { chatId, firstMessage, owner } from '@app-template/application/chat/testing'
 import {
   ChatRepository,
@@ -64,7 +64,6 @@ describe('POST /events', () => {
               }).pipe(Effect.as(Option.none())),
           }),
           Layer.mock(ChatRepository, {}),
-          Layer.mock(MessageAssistant, {}),
           Layer.mock(ChatAssistant, {}),
           TransactionTest,
         ]),

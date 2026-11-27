@@ -5,12 +5,12 @@ import { chatContextConfig } from '@app-template/kernel/config'
 import type { Chat, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatContextTokenizer } from '#chat/domain/chat-context-tokenizer'
 import type { ContextMessage, Message } from '#chat/domain/message.model'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
+import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
 import { ChatService } from '#chat/services/chat.service'
 import { MessageService } from '#chat/services/message.service'
 
 /** The assistant's failures, named through it, as a service imports no part of the kernel that calls out. */
-type MessageAssistantError = Effect.Error<ReturnType<MessageAssistant['Service']['summarise']>>
+type ChatAssistantError = Effect.Error<ReturnType<ChatAssistant['Service']['summarise']>>
 
 /** The chat `chatId` names, of the user `userId` names, so none reads another's context. */
 export type ContextChatWhere = Types.Simplify<Pick<Message, 'chatId'> & Pick<Chat, 'userId'>>
@@ -35,13 +35,13 @@ export class ContextChatService extends Context.Service<
      */
     readonly compact: (
       where: ContextChatWhere,
-    ) => Effect.Effect<void, ChatNotFoundError | MessageAssistantError>
+    ) => Effect.Effect<void, ChatNotFoundError | ChatAssistantError>
   }
 >()('@app-template/application/chat/services/ContextChatService', {
   make: Effect.gen(function* () {
     const chats = yield* ChatService
     const messages = yield* MessageService
-    const assistant = yield* MessageAssistant
+    const assistant = yield* ChatAssistant
     const { chatContextTokensLimit } = yield* chatContextConfig
 
     // The messages a reply of `chat` sends: all of an uncompacted chat, those from its context's head.

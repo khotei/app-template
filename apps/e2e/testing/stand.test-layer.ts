@@ -3,12 +3,7 @@ import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
 
 import { ApiLayer, layerApiClient, StrangerApiClient } from '@app-template/api/testing'
-import {
-  AssistantReply,
-  ChatAssistant,
-  ChatTitle,
-  MessageAssistant,
-} from '@app-template/application/chat'
+import { AssistantReply, ChatAssistant, ChatTitle } from '@app-template/application/chat'
 import { resources } from '@app-template/kernel/aws'
 import { AwsTest, provisionWorker } from '@app-template/kernel/aws/testing/e2e'
 import { awsConfig } from '@app-template/kernel/config'
@@ -42,7 +37,7 @@ const buildConfigProvider = Effect.fnUntraced(function* (apiPort: number, worker
   })
 })
 
-/** What the worker's assistants answer every reply and title in the stand. */
+/** What the worker's assistant answers every reply and title in the stand. */
 export const scriptedAnswers = {
   reply: new AssistantReply({
     text: 'The scripted assistant answering the whole reply at once.',
@@ -57,15 +52,16 @@ export const scriptedAnswers = {
   title: ChatTitle.make('Scripted chat title'),
 }
 
-const AssistantsTest = Layer.mergeAll(
-  Layer.mock(MessageAssistant, {
-    reply: () => Effect.succeed(scriptedAnswers.reply),
-  }),
-  Layer.mock(ChatAssistant, { proposeTitle: () => Effect.succeed(scriptedAnswers.title) }),
-)
+const ChatAssistantTest = Layer.mock(ChatAssistant, {
+  reply: () => Effect.succeed(scriptedAnswers.reply),
+  proposeTitle: () => Effect.succeed(scriptedAnswers.title),
+})
 
 /** Fresh, so the apps share no layer with the test and run on the clients their config builds. */
-const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(Layer.provide(AssistantsTest), Layer.fresh)
+const Apps = Layer.merge(ApiLayer, WorkerProcess).pipe(
+  Layer.provide(ChatAssistantTest),
+  Layer.fresh,
+)
 
 /**
  * The api and the worker in one runtime over the test's database and stage, the assistant scripted,

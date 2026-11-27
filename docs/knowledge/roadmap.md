@@ -254,7 +254,7 @@ left.
   had), but the prompt converter in `AnthropicLanguageModel.ts` never emits it and still rejects
   any file media type but images, PDF and text.
 - **Inherits from `modular-monolith` (2026-11-02).** The prompts and the Anthropic calls live in
-  chat's assistants `MessageAssistant` and `ChatAssistant` (`application/chat/infrastructure/`),
+  chat's assistant `ChatAssistant` (`application/chat/infrastructure/`),
   the provider's settings in `kernel/llm`; a produced file is stored through `FileRepository` in
   the data layer, its bytes kept before the row that binds them, since S3 joins no transaction.
   Files outside a chat reopen [Files in the data layer](decisions.md#files-in-the-data-layer).
@@ -311,6 +311,19 @@ questions. One section per ticket; each item says what goes wrong, with its file
 it was left, and the ways out to weigh. A design audit has a section too, whose findings no
 verifier has checked stand by title alone, marked so, until one does. A ticket that takes an item
 moves it into its own `Later` and deletes it here.
+
+### From `chat-assistant`
+
+- (2026-11-27) Once, under `make check`, four cases of `apps/e2e/api/chat.e2e.ts`, all in
+  `a write Postgres refuses, through the api`, failed with "Test timed out in 30000ms" or
+  "60000ms": "an ask whose Run is refused leaves no message and no chat change", "a Run whose
+  move to done Postgres refuses ends failed with its chat and keeps no reply", "a retry after a
+  failed Run is answered by the worker, and a reload shows the reply" and "a refused chat delete
+  keeps every row". Vitest pointed at `:118`, `:134`, `:153` and `:177`, lines of other cases
+  among them, and printed a run of 5.43 s. The next `make test-e2e` and `make check`, the tree
+  unchanged, passed 87 of 87. The cause is not known. A first look: run `make test-e2e` again
+  until a case times out, and time each of those cases' stand, built per case as it alters the
+  schema; a guess, not checked: a stand's containers or a schema change slow under load.
 
 ### From `queue-events`
 
@@ -514,7 +527,7 @@ moves it into its own `Later` and deletes it here.
 - (2026-11-22) `ReplyChatService` and `TitleChatService` (`application/chat/services/`) each have
   one method, one implementation, no state across calls and one caller, its job's use case; no
   test replaces them, as the unit suites mock the leaves (the repositories, the queue sender, the
-  assistants). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
+  assistant). Effect's guidance leaves the choice open: `repos/effect/LLMS.md` says to prefer
   services, while its `Effect.fn` guidance and examples support a plain function that yields its
   services; each takes its assistant in its `make`, so its method requires nothing, as "service
   operations should have the `Requirements` parameter set to `never`"
@@ -602,10 +615,10 @@ moves it into its own `Later` and deletes it here.
   a limit near the model's window. Way out: the summary in a job of its own, with the cut applied
   before the chat's next reply.
 - (2026-11-26) With Anthropic's `fallbacks` on, a response holds two `response-metadata` parts
-  and `MessageAssistant.reply` keeps the model asked, not the one that answered; the app sends
+  and `ChatAssistant.reply` keeps the model asked, not the one that answered; the app sends
   none. Way out: read the last part once `fallbacks` is set.
 - (2026-11-26) A message's text goes into a summary's transcript unescaped
-  (`application/chat/infrastructure/message-assistant.llm.ts`), so one holding `</message>`
+  (`application/chat/infrastructure/chat-assistant.llm.ts`), so one holding `</message>`
   reads as a turn of its own; it reaches the summary of its user's chat alone. Claimed by a
   review, not run. Way out: a delimiter a text cannot hold.
 - (2026-11-26) A first answer over the limit compacts a context no done Run has sized, so the

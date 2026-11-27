@@ -82,9 +82,9 @@ Which suite runs where:
 |---|---|---|
 | behaviour | `application/<module>/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its leaves (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
-| boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistants over a recording client |
+| boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistant over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants, and its handlers over a module's test layer |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistant, and its handlers over a module's test layer |
 | assembled | `apps/e2e/api/`: the journey and the races and rollbacks of a service's or use case's transaction, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's
@@ -108,7 +108,7 @@ Which suite runs where:
   `make up`, and two trees run them side by side.
 - **The journey, in the `apps/e2e` test app.** `StandTest`, in the test app's support, runs the
   api's and the worker's layers in the test's runtime over a `PgClientTest` database, an
-  `AwsTest` stage and the chat module's scripted assistants ([ai.md](ai.md)). The races share
+  `AwsTest` stage and the chat module's scripted assistant ([ai.md](ai.md)). The races share
   its stand, and each rollback takes a stand of its own, since it alters the schema
   to make Postgres refuse a write. The journey proves the wiring; every rule keeps its lower
   seam.

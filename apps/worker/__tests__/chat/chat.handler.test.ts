@@ -19,7 +19,6 @@ import {
   owner,
   queuedRun,
   recordChatAssistant,
-  recordMessageAssistant,
 } from '@app-template/application/chat/testing'
 import type { RunEntitySet } from '@app-template/kernel/data'
 import { LlmError } from '@app-template/kernel/llm/model'
@@ -51,7 +50,7 @@ describe('replyToMessage', () => {
     'reply ends on LlmError after one call with a warning, the Run failed with its text and no reply written',
     () => {
       const error = new LlmError({ cause: '401 invalid x-api-key' })
-      const assistant = recordMessageAssistant(Effect.fail(error))
+      const assistant = recordChatAssistant({ reply: Effect.fail(error) })
       const { logs, layer: logger } = recordLogs()
       const updates: Array<RunEntitySet> = []
       return Effect.gen(function* () {
@@ -82,7 +81,7 @@ describe('replyToMessage', () => {
                 selectMany: () => Effect.all([SchemaCodec.encode(Message)(firstMessage)]),
               },
             },
-            { messageAssistant: assistant.layer },
+            { assistant: assistant.layer },
           ),
           logger,
         ]),
@@ -115,7 +114,7 @@ describe('replyToMessage', () => {
                 selectMany: () => Effect.all([SchemaCodec.encode(Message)(firstMessage)]),
               },
             },
-            { messageAssistant: recordMessageAssistant(Effect.fail(refused)).layer },
+            { assistant: recordChatAssistant({ reply: Effect.fail(refused) }).layer },
           ),
           logger,
         ]),
@@ -124,7 +123,7 @@ describe('replyToMessage', () => {
   )
 
   it.effect("reply skips a message with no active Run, logged under the event's ids", () => {
-    const assistant = recordMessageAssistant(Effect.never)
+    const assistant = recordChatAssistant({ reply: Effect.never })
     const { logs, layer: logger } = recordLogs('messageId', 'chatId', 'userId')
     return Effect.gen(function* () {
       yield* reply
@@ -143,7 +142,7 @@ describe('replyToMessage', () => {
       Effect.provide([
         layerChatTest(
           { runs: { selectOne: () => Effect.succeedNone } },
-          { messageAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),
@@ -151,7 +150,7 @@ describe('replyToMessage', () => {
   })
 
   it.effect('reply fails a Run a dead worker left started, with a warning, unasked', () => {
-    const assistant = recordMessageAssistant(Effect.never)
+    const assistant = recordChatAssistant({ reply: Effect.never })
     const { logs, layer: logger } = recordLogs()
     const updates: Array<RunEntitySet> = []
     return Effect.gen(function* () {
@@ -180,7 +179,7 @@ describe('replyToMessage', () => {
                 }),
             },
           },
-          { messageAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),
@@ -203,7 +202,7 @@ describe('replyToMessage', () => {
               update: () => Effect.die('no run was updated'),
             },
           },
-          { messageAssistant: recordMessageAssistant(Effect.never).layer },
+          { assistant: recordChatAssistant({ reply: Effect.never }).layer },
         ),
         logger,
       ]),
@@ -212,7 +211,7 @@ describe('replyToMessage', () => {
 
   it.effect('reply interrupted while the assistant answers warns once, with the interrupt', () => {
     const held = holdCall()
-    const assistant = recordMessageAssistant(held.hold.pipe(Effect.andThen(Effect.never)))
+    const assistant = recordChatAssistant({ reply: held.hold.pipe(Effect.andThen(Effect.never)) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       const running = yield* Effect.forkChild(reply)
@@ -228,7 +227,7 @@ describe('replyToMessage', () => {
             chats: { selectOne: readChat },
             messages: { selectMany: () => Effect.all([SchemaCodec.encode(Message)(firstMessage)]) },
           },
-          { messageAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),
@@ -248,7 +247,7 @@ const title = titleChat(chatInitialized)
 
 describe('titleChat', () => {
   it.effect('skips a chat the store finds titled or gone by the rename, and logs it', () => {
-    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
+    const assistant = recordChatAssistant({ title: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* title
@@ -261,7 +260,7 @@ describe('titleChat', () => {
             messages: { selectOne: selectsFirstMessage },
             chats: { selectOne: () => Effect.succeedNone },
           },
-          { chatAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),
@@ -269,7 +268,7 @@ describe('titleChat', () => {
   })
 
   it.effect('skips a message the store finds none of, without asking, and logs it', () => {
-    const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
+    const assistant = recordChatAssistant({ title: Effect.succeed(lisbonWeekend) })
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
       yield* title
@@ -280,7 +279,7 @@ describe('titleChat', () => {
       Effect.provide([
         layerChatTest(
           { messages: { selectOne: () => Effect.succeedNone } },
-          { chatAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),
@@ -289,7 +288,7 @@ describe('titleChat', () => {
 
   it.effect("leaves the chat untitled and logs the LlmError with the event's ids", () => {
     const error = new LlmError({ cause: '529 overloaded' })
-    const assistant = recordChatAssistant(Effect.fail(error))
+    const assistant = recordChatAssistant({ title: Effect.fail(error) })
     const { logs, layer: logger } = recordLogs('messageId', 'chatId', 'userId')
     return Effect.gen(function* () {
       yield* title
@@ -301,7 +300,7 @@ describe('titleChat', () => {
       Effect.provide([
         layerChatTest(
           { messages: { selectOne: selectsFirstMessage } },
-          { chatAssistant: assistant.layer },
+          { assistant: assistant.layer },
         ),
         logger,
       ]),

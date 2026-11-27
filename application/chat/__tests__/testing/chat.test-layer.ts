@@ -7,7 +7,6 @@ import { layerTransactionAround, TransactionTest } from '@app-template/packages/
 
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
 import { ChatAssistant } from '#chat/infrastructure/chat-assistant.llm'
-import { MessageAssistant } from '#chat/infrastructure/message-assistant.llm'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import { ChatService } from '#chat/services/chat.service'
 import { ContextChatService } from '#chat/services/context-chat.service'
@@ -31,12 +30,11 @@ export interface ChatRepositoryMocks {
 
 /**
  * The leaves the services take in their `make`, each a case's double: `recordMessages()`,
- * `recordMessageAssistant()`, `recordChatAssistant()`; one a case leaves out dies on its first call.
+ * `recordChatAssistant()`; one a case leaves out dies on its first call.
  */
 export interface ChatLeaves {
   readonly queue?: Layer.Layer<QueueSender>
-  readonly messageAssistant?: Layer.Layer<MessageAssistant>
-  readonly chatAssistant?: Layer.Layer<ChatAssistant>
+  readonly assistant?: Layer.Layer<ChatAssistant>
   readonly transaction?: Layer.Layer<Transaction>
   /** The setting's value: none of a case's contexts reaches it unless the case sets it. */
   readonly chatContextTokensLimit?: number
@@ -50,8 +48,7 @@ export const layerChatTest = (
   { chats = {}, messages = {}, runs = {} }: ChatRepositoryMocks,
   {
     queue = Layer.mock(QueueSender, {}),
-    messageAssistant = Layer.mock(MessageAssistant, {}),
-    chatAssistant = Layer.mock(ChatAssistant, {}),
+    assistant = Layer.mock(ChatAssistant, {}),
     transaction = TransactionTest,
     chatContextTokensLimit = 1_000_000,
   }: ChatLeaves = {},
@@ -72,8 +69,7 @@ export const layerChatTest = (
         Layer.mock(MessageRepository, messages),
         Layer.mock(RunRepository, runs),
         queue,
-        messageAssistant,
-        chatAssistant,
+        assistant,
         transaction,
       ),
     ),

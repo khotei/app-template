@@ -22,11 +22,11 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   they share, errors and the ports that reach outside; its `services/` the domain services, each
   model's `<Model>Service` over the data layer's repositories and the services composed over it; its
   `infrastructure/` everything of it that connects to the environment, the adapters of its ports,
-  the services a use case or the chat's worker services call over a client (the assistants) and its
-  queues' definitions ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once
-  another module needs one, an entry of its own that re-exports what other modules may take of its
-  `domain/`. Beside the modules, `application/http-api` holds the API contract, the HTTP groups over
-  the modules' models, ids and errors.
+  the services a use case or the chat's worker services call over a client (the chat's
+  assistant) and its queues' definitions ([A module's layers](decisions.md#a-modules-layers)); its
+  `contract/`, once another module needs one, an entry of its own that re-exports what other
+  modules may take of its `domain/`. Beside the modules, `application/http-api` holds the API
+  contract, the HTTP groups over the modules' models, ids and errors.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
@@ -92,11 +92,11 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
   `#<module>/infrastructure/*` but, in the chat's ask service, its `<model>.queue` file, whose
-  events the services' tests read too, and, in its reply and title services, each its assistant's
+  events the services' tests read too, and, in its reply, context and title services, the assistant's
   `.llm` file, and
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
   through a port its `domain/` declares, the sends of that queue file's `<Model>Queue`, or, in the worker's
-  services, the assistants that do the queues' work, and a module reaches its
+  services, the assistant that does the queues' work, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. A module's `domain/`
   takes another module only through its contract's entry, which Biome holds; of another module's
   entry its other layers take only the names of its contract, which review holds
@@ -174,7 +174,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job and event | `application/chat/infrastructure/chat.queue.ts` | the events `UserMessageCreated`, `MessageRetried` and `ChatInitialized`, each with its definition as its static `queue`; `ChatQueue`, its `sendUserMessageCreated`, `sendMessageRetried` and `sendChatInitialized` |
-| service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant` with `AssistantReply`, what its reply returns; `ChatAssistant`; both piping the kernel's `LlmCall.ask` and failing with its `LlmError` ([ai.md](ai.md)) |
+| service over a client, the module's one assistant, a method per output it asks a language model for (a reply, a summary, a title), holding a language model per output with its request settings and its prompts in a class of statics, with its `static layer` and no port in front | `application/chat/infrastructure/chat-assistant.llm.ts` | `ChatAssistant` with `ChatAssistantPrompt` and `AssistantReply`, what its reply returns; each method piping the kernel's `LlmCall.ask` and failing with its `LlmError` ([ai.md](ai.md)) |
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity` with `ChatStatement`, what its repository builds its statements from, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
@@ -190,12 +190,12 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `QueueConsumer.consume` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
 | worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `WorkerHandler` |
-| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
+| the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistant, `WorkerLayer` with it and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.client.ts` | `Api`, `ApiClient` |
 | test fixture: sample values and the functions that build them, plain data with no `Effect` to run and no layer | `application/chat/__tests__/testing/chat.test-fixture.ts`; `packages/testing/clock.test-fixture.ts` | `chat`, `chatId`; `epoch` |
 | test util: a function tests and test layers call (an assertion, a predicate, a builder of a value, a stream or an error, an effect on the e2e run's containers), building no layer and doubling no service | `application/chat/__tests__/testing/chat.test-util.ts`; `kernel/aws/__tests__/testing/e2e/provision.test-util.ts` | `holdCall`; `provision` |
-| test fake: the double of one service, port or leaf, a stateful one returning its handle with its layer | `application/chat/__tests__/testing/message-assistant.test-fake.ts`; `packages/db/__tests__/testing/transaction.test-fake.ts` | `recordMessageAssistant()`; `TransactionTest` |
+| test fake: the double of one service, port or leaf, a stateful one returning its handle with its layer | `application/chat/__tests__/testing/chat-assistant.test-fake.ts`; `packages/db/__tests__/testing/transaction.test-fake.ts` | `recordChatAssistant()`; `TransactionTest` |
 | test layer: a unit's real services over mocks and fakes, or a client on the e2e run's containers | `application/chat/__tests__/testing/chat.test-layer.ts`; `kernel/data/__tests__/testing/e2e/db.test-layer.ts` | `layerChatTest(…)`; `DbTest` |
 | test setup: the e2e run's vitest `globalSetup`, starting the containers and providing their addresses | `kernel/data/__tests__/testing/e2e/e2e.test-setup.ts` | its default export |
 

@@ -276,9 +276,8 @@ the data layer's repository directly.
   (`#*/infrastructure/*.queue`), whose events the ask service's tests read; the
   chat's ask service (`ask-chat.service.ts`) its own, which adds of the infrastructure the queue
   file alone, the chat's reply service (`reply-chat.service.ts`) and its context service
-  (`context-chat.service.ts`) theirs, which adds the message's assistant's `.llm` file alone,
-  and its title service (`title-chat.service.ts`) its own, which adds the chat's assistant's
-  `.llm` file alone
+  (`context-chat.service.ts`) theirs, and its title service (`title-chat.service.ts`) its own,
+  each adding the chat's assistant's `.llm` file alone
   ([The chat's jobs in their services](#the-chats-jobs-in-their-services)): the rows of a
   module's layers in [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/layering.md`, a repository or the data layer in an app's handler.
@@ -620,7 +619,7 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   `AskChatService` and the Run's job, its send and its handling, in a service of the Run: each use case
   that asks composed the request, the title's send and the reply's, and the new chat's rule sat in
   one of them. One service holding the request, the sends and the handling: the needs of two
-  processes (the queue's sender, the assistants) in one unit, which each process provides whole.
+  processes (the queue's sender, the assistant) in one unit, which each process provides whole.
   Every dependency of a service left open, the services it is composed over included, each
   process and test layer providing them below it: every root repeats the services' graph in
   levels of provides.
@@ -638,15 +637,15 @@ const remove = Effect.fn('FileOrderService.delete')(function* (where: OrderWhere
   every reader must apply is a service named for it. The plain `getMany` leaves an absent id out,
   so the rule the reader pipes names every absent id at once. The chat's jobs take three services
   and three Biome overrides, each of one process: `AskChatService`, the api's, admits the queue
-  file, `ReplyChatService`, the worker's, the message's assistant, and `TitleChatService`, the
-  worker's too, the chat's assistant; each takes other models'
+  file, `ReplyChatService`, the worker's, and `TitleChatService`, the worker's too, the chat's
+  assistant; each takes other models'
   services, by its file's name.
 - **Guarded by:** review, by `.claude/rules/composition.md`, which `make review-rules` prints for
   every TypeScript diff, and by `layering.md`; `noImportCycles` refuses a unit below that imports
   the one over it. Nothing refuses a fold, nor a service of another model, in a job's service or
   any other. The three services' Biome overrides admit of `@app-template/packages/db`
   only `Transaction`, as every service's does; of the infrastructure the ask service's
-  admits only the queue file, the reply and title services' only their assistant's `.llm` file;
+  admits only the queue file, the reply and title services' only the assistant's `.llm` file;
   the ask service's unit test pins each refusal before any write or job, and the api's e2e of an
   ask whose Run Postgres refuses keeps no message. `tsc` refuses a root that leaves a service's
   dependency unprovided; nothing refuses a wrap given at a root beside a holder's `layer`, which
@@ -710,12 +709,12 @@ stays module-level beside it, test support stays functions, and a `Layer` consta
   member. A group file with a suffix of its own (`.policy`): a new row of naming.md for what
   `<owner>-<what>.ts` names.
 - **Cost:** a class per kind, which Biome's `complexity/noStaticOnlyClass` refuses, so one
-  override turns it off for the domain, `packages/` and `kernel/`, and a static-only class
-  anywhere else stays refused; a static declared after one that reads it at
-  load is `undefined`, so a group orders its statics. Each rule's signature names the fields it
-  reads, a check that returns its record a type parameter, and a model with moves one exported
-  `<Model>Fields` type; a combination keeps its name however few its callers
-  ([Composition: wrap or compose](#composition-wrap-or-compose)).
+  override turns it off for the domain, `packages/`, `kernel/` and a module's `.llm` files,
+  whose prompts are a class of statics, and a static-only class anywhere else stays refused; a
+  static declared after one that reads it at load is `undefined`, so a group orders its statics.
+  Each rule's signature names the fields it reads, a check that returns its record a type
+  parameter, and a model with moves one exported `<Model>Fields` type; a combination keeps its
+  name however few its callers ([Composition: wrap or compose](#composition-wrap-or-compose)).
 - **Guarded by:** review, by `layering.md` and `.claude/rules/models.md`; the groups' unit tests,
   in `__tests__/domain/<group file>.test.ts`, calling the rules with plain structs, which
   `make typecheck` refuses once a rule is typed over the class, and passing a static as a value
@@ -1008,65 +1007,73 @@ no app.
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
 `LlmCall.ask` (the retries, the failure mapping and the finish-reason check), with its one final
 error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/model`, that loads no
-client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
-model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
-next message from its context, `ChatAssistant` the chat's title from its opening text. Each
-builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
-`LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `LlmCall.ask` and fails with its
-`LlmError`. The domain keeps only what they take (`Message`); what one returns is declared beside it
-(`AssistantReply`, the title's schema),
+client. Over it `chat`'s `infrastructure/` holds one assistant for the chat, `ChatAssistant`, a
+`Context.Service` with its `static layer` and a method per output asked of the language model:
+`reply`, the chat's next message from its context, `summarise`, the summary of what a cut leaves
+out, and `proposeTitle`, the chat's title from its opening text. Its `make` builds a model per
+output with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` (the reply's and the summary's)
+or `LLM_TITLE_MODEL`, each with its request settings; every method pipes `LlmCall.ask` and fails
+with its `LlmError`. The prompts are the statics of a class of their own, `ChatAssistantPrompt`,
+as a service's `make` cannot read a static of its own class: the class sits in its own base
+expression, which `tsc` refuses (TS2506). The domain keeps only what the assistant takes
+(`Message`); what a method returns is declared beside it (`AssistantReply`, the title's schema),
 and a failed Run keeps the error's full text
 ([A failed Run keeps its text](#a-failed-run-keeps-its-text)); no port stands in front of the
-services. A use case, or the chat's worker service of a job, yields the assistant it
-needs, a unit test swaps that service's layer, and the suite builds both layers over a recording
-client.
+service. A service of the chat's worker yields the assistant, a unit test swaps its layer for one
+fake, and the suite builds its layer over a recording client.
 
-- **Why:** the two jobs change for different reasons (a reply's prompt, history and cache; a
-  title's schema and low effort) and are called by different use cases, so one service holding
-  both gave each caller a method it never uses and each fake a branch for it. With one
-  implementation each, a port in `domain/` and an adapter constant only restated the service's
+- **Why:** one source for how the chat speaks to a language model: its prompts, its models and
+  their request settings read in one file, so a change to one output is made beside the others it
+  must agree with; the owner's call. With one
+  implementation, a port in `domain/` and an adapter constant only restated the service's
   shape: the class with its `layer` is the contract, and `Layer.succeed` of the same class is
   the double. The call policy is the app's for any model call, not chat's, so it lives once
   beside the client and a second module that asks a model pipes the same function; its error
   goes with it, so every caller names the same outcome and no module restates it. One error, not
   one per way the answer ended: no code branches on which, so a refusal reads from the cause's
   text (`finish reason content-filter`), as every other end does. The
-  kernel configures the client as it does Postgres (`PgClientFromConfig`), and the services,
-  which hold Anthropic's request settings anyway, build their models where they use them; the
+  kernel configures the client as it does Postgres (`PgClientFromConfig`), and the assistant,
+  which holds Anthropic's request settings anyway, builds its models where it uses them; the
   client stays a leaf the worker provides once.
 - **Sources:** `docs/knowledge/ai.md`; `.claude/rules/effect-services.md` (a service's layers
-  are statics, the client a leaf left open); `.claude/rules/composition.md` (one purpose per unit);
-  the roadmap's `bedrock-provider`.
-- **Rejected:** one `Assistant` port with `reply` and `proposeTitle` and one adapter
-  (`AssistantLlmFromConfig`): two purposes in one unit, an interface with one implementation, and a
-  fake scripted per method. A base class or a shared service holding the retries: an
-  inheritance or a third service for what one function does. Each service closing the client
-  in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
-  a purpose: its parameter was typed by Anthropic's request settings, so the services held one
+  are statics, the client a leaf left open); `.claude/rules/name-and-body.md` (5: a unit
+  below functional cohesion names its kind); the roadmap's `bedrock-provider`.
+- **Rejected:** an assistant per output (a reply's and a title's service, each with its fake):
+  each caller then saw only its method, but how the chat speaks to the model was spread over two
+  files that had to agree. One `Assistant` port with one adapter (`AssistantLlmFromConfig`): an
+  interface with one implementation. A base class or a shared service holding the retries: an
+  inheritance or a third service for what one function does. The assistant closing the client
+  in its `layer`: a leaf the rule leaves open. A builder in `kernel/llm` taking
+  a purpose: its parameter was typed by Anthropic's request settings, so the assistant held one
   provider's settings all the same. The module's own errors passed to `LlmCall.ask` as two
   constructors: every module that asks a model would declare the same error again and a mapping
   for it, and the domain's guard, which admits no kernel error, would gain nothing by it. Each
-  service mapping `AiError` with its own `mapError`: the retry and finish-reason policy copied per
-  service. A `packages/` workspace for the policy: a tool for every app for some 40 lines of this
+  method mapping `AiError` with its own `mapError`: the retry and finish-reason policy copied per
+  method. A `packages/` workspace for the policy: a tool for every app for some 40 lines of this
   app's policy.
-- **Cost:** the worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
+- **Cost:** every reader of `ChatAssistant` sees all three methods, held together only by their kind
+  (logical cohesion: the chat's calls to a language model), and its one fake scripts each, one a
+  case leaves out dying on its first call; the guard no longer tells one service's
+  assistant from another's, so nothing but review keeps the title service off `reply`. The
+  worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
   nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard, covers
   `askChat`; it admits `@app-template/kernel/llm/model`, for names matching
   `Llm…Error` only, so a use case may name a kernel error; the domain's admits none. A use case
   that names one imports a class whose file names the provider's package, so loading it loads
-  `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
-  adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the `application`
+  `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` to the assistant, not a
+  second adapter of one port. `@effect/ai-anthropic` is a runtime dependency of the `application`
   workspace and of the kernel. An operator tells a refusal from any other end only by the
   cause's text, not by a tag. No test checks the 10-minute wait, nor a request setting beside
   the model.
 - **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
   `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
   domain and the use cases take of `kernel/llm` only `/model`'s errors, by name; no service but
-  `ReplyChatService` and `TitleChatService` import an `.llm` file, each its own, so only they or a
-  use case reach the assistants);
-  the assistants' suite over a recording client.
-- **If reversed:** a port per assistant comes back in `domain/` with an adapter constant each that
-  only builds the same shape, or one port of two methods with a fake branch per method; errors
+  `ReplyChatService`, `ContextChatService` and `TitleChatService` imports the `.llm` file, so only
+  they reach the assistant; a use case reaches it through the module's entry, which nothing
+  refuses);
+  the assistant's suite over a recording client.
+- **If reversed:** a port comes back in `domain/` with an adapter constant that only builds the
+  same shape, with a fake branch per method; errors
   back in a module mean the module's own pair and a mapping for `LlmCall.ask` to take.
 - **Revisit when:** a second provider lands, or a domain service other than a job's, which may
   not import the infrastructure, needs an assistant: then a port in `domain/` returns for that
@@ -1568,7 +1575,7 @@ ends its work in one tail: the reply's skips a Run settled or gone, ends on a st
 assistant's error, which the Run already holds, logging each end once with its cause, an interrupt
 included; the title's skips a message not found and a chat gone or titled, each under its own log
 line, and logs the assistant's error; a defect, a refused move's included, is the queue consumer's
-to log. `ReplyChatService` takes `Transaction`, the message's assistant and the services of the
+to log. `ReplyChatService` takes `Transaction`, the chat's assistant and the services of the
 module's other models, for the records the reply writes, and reads from the config the tokens limit
 of a chat's context, as `ContextChatService` does, each where it uses it, so no instance carries a
 setting; `TitleChatService` the chat's assistant and those services, as its one write needs no
@@ -1584,7 +1591,7 @@ services, `ChatService` reading the user's chat each retry names, for the reques
   the transport's policy, as an HTTP status is the api's. A Run the start finds settled or gone has
   nothing to fail; one settled under the answer makes the tail's write die ([A Run's guarded
   moves](#a-runs-guarded-moves)). The split follows the processes: what the api provides (the
-  queue's sender) is the ask service's alone, what the worker provides (the assistants) the worker's
+  queue's sender) is the ask service's alone, what the worker provides (the assistant) the worker's
   services', so each process builds only its side, and each service's guard admits only its own
   infrastructure. Each worker service is functional, one purpose: the reply's and the title's
   services share only `MessageService`, and their callers and reasons to change (the Run's life, the
@@ -1605,12 +1612,12 @@ services, `ChatService` reading the user's chat each retry names, for the reques
   the service would log for its one caller. A use case per job between the handler and the service,
   holding only the job's end: a unit that adds only logs, where the use-case layer is kept for a
   flow over several services. A record from each error to its log level in `QueueConsumer.consume`,
-  the handler passing it: declined by the owner for now. A port in `domain/` for the assistants the
+  the handler passing it: declined by the owner for now. A port in `domain/` for the assistant the
   service calls: an interface with one implementation for one caller, where its own override admits
   the `.llm` file by name. The title's run left in its handler: one of the chat's two jobs read and
   wrote records in a flow. One service sending the jobs and doing their work: each process would
   provide the other's requirement, and one guard would admit both the queue file and the `.llm`
-  files. One worker service for both jobs, `ReplyChatService { replyMessage, replyTitle }`: temporal
+  file. One worker service for both jobs, `ReplyChatService { replyMessage, replyTitle }`: temporal
   cohesion, two units under one name, and a Reply that titles, which the glossary's Reply excludes.
   `askMessage` and `askRetryMessage`: "ask a message", and no retry message exists. `askAgain` for
   the retry: the model's word is retry (`RunPolicy.ensureRetryable`, `RunNotRetryableError`,
@@ -1640,9 +1647,9 @@ services, `ChatService` reading the user's chat each retry names, for the reques
   opens at most 10 unless told otherwise (`repos/effect/packages/sql/pg/src/PgPool.ts:234`), and the
   kernel's client passes only its url.
 - **Guarded by:** the unit tests of `ReplyChatService`, of `TitleChatService` and of each job's
-  end and its logs in its worker handler; the reply service's Biome override, which adds to the
-  services' the message's assistant's `.llm` file alone; the title service's, which adds the
-  chat's assistant's `.llm` file alone; the ask service's, which adds the queue file alone.
+  end and its logs in its worker handler; the reply and the title service's Biome overrides, each
+  adding to the services' the chat's assistant's `.llm` file alone; the ask service's, which adds
+  the queue file alone.
 - **If reversed:** the Run's rule and moves go back into the job's handler, which then fails the
   Run outside the service that holds the rule, and the title's reads and write go back into
   theirs.
@@ -1896,9 +1903,9 @@ that go through a changed interface, and the setup of a moved client.
 
 ### Leaf doubles without a contract suite
 
-The leaf doubles, `recordMessageAssistant` for `MessageAssistant`, `recordChatAssistant` for
-`ChatAssistant`, `recordMessages` for `QueueSender` and `FileRepositoryTest` for `FileRepository`,
-have no contract suite: no set of cases runs on both a double and the leaf's real layer.
+The leaf doubles, `recordChatAssistant` for `ChatAssistant`, `recordMessages` for `QueueSender`
+and `FileRepositoryTest` for `FileRepository`, have no contract suite: no set of cases runs on
+both a double and the leaf's real layer.
 
 - **Why:** a suite run on a double tests test support, which `.claude/rules/effect-tests.md`
   › What to test refuses; each leaf has one real layer.

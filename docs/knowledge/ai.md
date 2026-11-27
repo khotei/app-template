@@ -2,15 +2,16 @@
 
 How the assistant asks a language model for a reply or a title, which parts of `effect/ai` and
 `@effect/ai-anthropic` it uses, and what to know before changing its prompt or the title's schema.
-The code: the chat module's two services in its `infrastructure/`, one per answer asked of the
-language model, `MessageAssistant` (the reply: the system prompt and the reply's language model
-of `LLM_REPLY_MODEL`) and `ChatAssistant` (the title: its instruction, its schema and the title's
-language model of `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
-`@app-template/kernel/llm` the one function both pipe, `LlmCall.ask` (the retries, the finish-reason
-check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's client with the key of
-`ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/model` its one error, `LlmError`; and those
-settings in `@app-template/kernel/config`.
-The assistants' suite runs over a fake `HttpClient` that returns canned Anthropic bodies, so no
+The code: the chat module's one assistant in its `infrastructure/`, `ChatAssistant`, with a method
+per answer asked of the language model, `reply` and `summarise` on the reply's language model of
+`LLM_REPLY_MODEL` and `proposeTitle` (with the title's schema) on the title's of `LLM_TITLE_MODEL`,
+each an `AnthropicLanguageModel` with its settings, and its prompts, the statics of
+`ChatAssistantPrompt`; in `@app-template/kernel/llm` the one function every method pipes,
+`LlmCall.ask` (the retries, the finish-reason check and the failure mapping), and
+`AnthropicClientFromConfig` (Anthropic's client with the key of `ANTHROPIC_API_KEY`); in
+`@app-template/kernel/llm/model` its one error, `LlmError`; and those settings in
+`@app-template/kernel/config`.
+The assistant's suite runs over a fake `HttpClient` that returns canned Anthropic bodies, so no
 test needs a key or the network.
 
 Every module named here is unstable at the pinned version: check an API against the vendored
@@ -21,16 +22,19 @@ before using it, and read this page again after an upgrade.
 
 ```mermaid
 graph LR
-  M["MessageAssistant.reply<br/>generateText"] --> R["LlmCall.ask<br/>retries · finish reason · errors"]
+  M["ChatAssistant.reply<br/>generateText"] --> R["LlmCall.ask<br/>retries · finish reason · errors"]
+  S["ChatAssistant.summarise<br/>generateText"] --> R
   T["ChatAssistant.proposeTitle<br/>generateObject"] --> R
   R --> A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
 ```
 
-1. Each language model sends its fixed prompt as the request's `system`, set in its `config`: the
-   system prompt for a reply, the title instruction for a title. A prompt that asks the language
-   model to show its reasoning invites a refusal.
-2. `MessageAssistant.reply` calls `generateText` on the reply's language model with the chat's
+1. Each language model sends its fixed prompt, a static of `ChatAssistantPrompt`, as the
+   request's `system`, set in its `config`: for a reply, the assistant's role and how it answers;
+   for a summary, what to keep of the conversation and under which headings
+   ([below](#the-context-and-its-cut)); for a title, its length and language. A prompt that asks
+   the language model to show its reasoning invites a refusal.
+2. `ChatAssistant.reply` calls `generateText` on the reply's language model with the chat's
    context ([below](#the-context-and-its-cut)): each message, the user's and the assistant's, as
    its text. A failed Run leaves no reply, so two
    user messages may follow each other: `@effect/ai-anthropic` folds them into one, and the
@@ -48,7 +52,7 @@ graph LR
 A chat's context is what its reply sends the language model, read by
 `ContextChatService.getMessages`: the chat's messages from the start the chat stores
 (`messages.getMany` with `id: { from }`), opened by the latest summary of those before it, which
-`ChatContextTokenizer.withContext` puts first as a user message. The assistants take that list ready
+`ChatContextTokenizer.withContext` puts first as a user message. The assistant takes that list ready
 and only encode it. The history, every message of the chat, stays in the database and in the chat's
 list. Inside each reply's Run, after the answer and before it is stored, `ReplyChatService` asks
 `ChatContextPolicy.isOverLimit` whether the context is due a cut, by the answer's usage:
@@ -65,12 +69,12 @@ list. Inside each reply's Run, after the answer and before it is stored, `ReplyC
 
 The cut is rare and large on purpose: the provider's cache matches a prefix, so each cut rewrites
 the cache once, and between two cuts a chat's next request starts with its last one, which a case
-of the assistants' suite holds. When no tail fits 0.3 of the limit, the last message alone is
+of the assistant's suite holds. When no tail fits 0.3 of the limit, the last message alone is
 kept. A compacted context opens with its summary, a user message, so its first stored message
 may be the assistant's. `compact` asks no policy: called on a context whose split drops nothing,
 it summarises the messages that remain and keeps them, so its one caller asks the policy first.
 
-A cut keeps a summary of what it leaves out: `MessageAssistant.summarise` asks the reply's
+A cut keeps a summary of what it leaves out: `ChatAssistant.summarise` asks the reply's
 language model, under a system prompt of its own, for a summary of the messages the cut leaves
 out, the summary of an earlier cut put first among them, and the cut context opens with it as a
 user message. Those messages go as one user message, a transcript in `<conversation>`, each in a
@@ -85,8 +89,8 @@ together or not at all. The summary and the start are one write, so two replies 
 cut at once each store a whole pair. A cut context always holds a summary: one that fails fails
 the Run as a failed answer does, no reply stored and the context left as it was.
 
-The e2e journey runs no language model: its stand gives the worker a scripted `MessageAssistant`
-and `ChatAssistant` ([tooling.md › Tests](tooling.md#tests)), so only the assistants' suite
+The e2e journey runs no language model: its stand gives the worker a scripted `ChatAssistant`
+([tooling.md › Tests](tooling.md#tests)), so only the assistant's suite
 covers these steps.
 
 ## Request settings per purpose
