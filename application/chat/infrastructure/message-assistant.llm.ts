@@ -14,7 +14,7 @@ import {
 import type { Prompt } from 'effect/ai'
 
 import { llmModels } from '@app-template/kernel/config'
-import { askModel } from '@app-template/kernel/llm'
+import { LlmCall } from '@app-template/kernel/llm'
 import { LlmError } from '@app-template/kernel/llm/model'
 
 import { type ContextMessage, Message } from '#chat/domain/message.model'
@@ -98,7 +98,7 @@ export class MessageAssistant extends Context.Service<
     const reply = Effect.fn('MessageAssistant.reply')(
       (messages: ReadonlyArray<ContextMessage>) =>
         model.generateText({ prompt: Arr.map(messages, buildPromptMessage) }),
-      askModel,
+      LlmCall.ask,
       // The usage as the provider counted it; a count or the name it left out fails the decode.
       Effect.map(({ text, usage, content }) => ({
         text,
@@ -128,7 +128,7 @@ export class MessageAssistant extends Context.Service<
     const summarise = Effect.fn('MessageAssistant.summarise')(
       (messages: ReadonlyArray<ContextMessage>) =>
         summaryModel.generateText({ prompt: [buildSummaryRequest(messages)] }),
-      askModel,
+      LlmCall.ask,
       Effect.map(({ text }) => text),
       Effect.filterOrFail(
         flow(Str.trim, Str.isNonEmpty),

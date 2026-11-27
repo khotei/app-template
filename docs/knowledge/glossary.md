@@ -72,7 +72,7 @@ What the user does to a chat: their message stored with a queued Run, then its e
 (`UserMessageCreated`), which the reply hears, and a new chat's `ChatInitialized`
 (`POST /chats/:chatId/messages`, `askChat`). A chat no ask has
 reached is new and `idle`; asking a `queued` chat is refused as busy. The same verb names a Run
-asking the assistant for its reply and the assistant asking the language model (`askModel`): one
+asking the assistant for its reply and the assistant asking the language model (`LlmCall.ask`): one
 act, asking for an answer. Never an event put on its queue, which is a send.
 _Avoid_: Send (an event's, below), submit, post
 
@@ -271,7 +271,7 @@ _Avoid_: Status for a derived value, stage
 A model's checks before a write, `<Model>Policy`, each an `ensure<Rule>` that fails with a
 refusal or passes, returning nothing (`ChatPolicy.ensureNotBusy`); a check that returns its record
 is generic over it (`RunPolicy.ensureUnstarted`). Not the language model's call policy
-(`llm-call-policy.ts`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
+(`LlmCall`, its retries and finish reasons), nor SQS's `RedrivePolicy`.
 _Avoid_: Guard (a check by configuration), validator
 
 **Move**:

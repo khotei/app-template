@@ -536,7 +536,7 @@ def rules_and_style():
     ], title_accent=False) + 12
     y += f.box(rx, y, rw, "neu", "File names: `naming.md`", [
         "`<name>.<role>.ts`: `run.model.ts` `ask-chat.service.ts` `chat.http.ts`",
-        "`<owner>-<what>.ts`: `llm-call-policy.ts` `schema-codec.ts`",
+        "`<owner>-<what>.ts`: `llm-call.ts` `schema-codec.ts`",
     ], title_accent=False) + 12
     cw = (rw - 16) / 2
     wire = ["`Schema.TaggedError`", "`ChatBusyError` → `409`", "`RunNotFoundError` → `404`", ("m", "the api serves it as it is")]

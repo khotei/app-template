@@ -2,7 +2,7 @@ import { AnthropicLanguageModel } from '@effect/ai-anthropic'
 import { Context, Effect, Layer, Schema, SchemaTransformation } from 'effect'
 
 import { llmModels } from '@app-template/kernel/config'
-import { askModel } from '@app-template/kernel/llm'
+import { LlmCall } from '@app-template/kernel/llm'
 import type { LlmError } from '@app-template/kernel/llm/model'
 
 import { ChatTitle, maxTitleLength } from '#chat/domain/chat.model'
@@ -38,7 +38,7 @@ export class ChatAssistant extends Context.Service<
 
     const proposeTitle = Effect.fn('ChatAssistant.proposeTitle')(
       (text: string) => model.generateObject({ prompt: text, schema: TitleObject }),
-      askModel,
+      LlmCall.ask,
       Effect.map(({ value }) => value.title),
     )
 

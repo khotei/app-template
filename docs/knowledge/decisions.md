@@ -999,13 +999,13 @@ no app.
 
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
-`askModel` (the retries, the failure mapping and the finish-reason check), with its one final
+`LlmCall.ask` (the retries, the failure mapping and the finish-reason check), with its one final
 error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/model`, that loads no
 client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
 model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
 next message from its context, `ChatAssistant` the chat's title from its opening text. Each
 builds its one model with `AnthropicLanguageModel.make`, of `LLM_REPLY_MODEL` or
-`LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `askModel` and fails with its
+`LLM_TITLE_MODEL`, beside its prompt and request settings, pipes `LlmCall.ask` and fails with its
 `LlmError`. The domain keeps only what they take (`Message`); what one returns is declared beside it
 (`AssistantReply`, the title's schema),
 and a failed Run keeps the error's full text
@@ -1036,7 +1036,7 @@ client.
   inheritance or a third service for what one function does. Each service closing the client
   in its `layer`: a leaf the rule leaves open, provided twice. A builder in `kernel/llm` taking
   a purpose: its parameter was typed by Anthropic's request settings, so the services held one
-  provider's settings all the same. The module's own errors passed to `askModel` as two
+  provider's settings all the same. The module's own errors passed to `LlmCall.ask` as two
   constructors: every module that asks a model would declare the same error again and a mapping
   for it, and the domain's guard, which admits no kernel error, would gain nothing by it. Each
   service mapping `AiError` with its own `mapError`: the retry and finish-reason policy copied per
@@ -1060,7 +1060,7 @@ client.
   the assistants' suite over a recording client.
 - **If reversed:** a port per assistant comes back in `domain/` with an adapter constant each that
   only builds the same shape, or one port of two methods with a fake branch per method; errors
-  back in a module mean the module's own pair and a mapping for `askModel` to take.
+  back in a module mean the module's own pair and a mapping for `LlmCall.ask` to take.
 - **Revisit when:** a second provider lands, or a domain service other than a job's, which may
   not import the infrastructure, needs an assistant: then a port in `domain/` returns for that
   call.

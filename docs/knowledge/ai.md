@@ -6,7 +6,7 @@ The code: the chat module's two services in its `infrastructure/`, one per answe
 language model, `MessageAssistant` (the reply: the system prompt and the reply's language model
 of `LLM_REPLY_MODEL`) and `ChatAssistant` (the title: its instruction, its schema and the title's
 language model of `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
-`@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the finish-reason
+`@app-template/kernel/llm` the one function both pipe, `LlmCall.ask` (the retries, the finish-reason
 check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's client with the key of
 `ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/model` its one error, `LlmError`; and those
 settings in `@app-template/kernel/config`.
@@ -21,7 +21,7 @@ before using it, and read this page again after an upgrade.
 
 ```mermaid
 graph LR
-  M["MessageAssistant.reply<br/>generateText"] --> R["askModel<br/>retries · finish reason · errors"]
+  M["MessageAssistant.reply<br/>generateText"] --> R["LlmCall.ask<br/>retries · finish reason · errors"]
   T["ChatAssistant.proposeTitle<br/>generateObject"] --> R
   R --> A["AnthropicLanguageModel<br/>model, prompt as system, settings"]
   A --> K["AnthropicClientFromConfig<br/>AnthropicClient · HttpClient"]
@@ -108,7 +108,7 @@ covers these steps.
 
 ## Failures and retries
 
-`askModel` asks again in place only what the provider marks retryable, and lets out of either
+`LlmCall.ask` asks again in place only what the provider marks retryable, and lets out of either
 assistant only a final failure, as one `LlmError`; the chat's services turn it into a failed Run,
 which keeps the error's full text, or an untitled chat. A
 queue message is never retried ([aws.md › Queues](aws.md#queues)).
@@ -126,7 +126,7 @@ failure's `cause`, and the api's wire shapes omit it.
 
 ### The finish reason
 
-`askModel` reads `finishReason` after its retries, so an answer that did not finish fails at
+`LlmCall.ask` reads `finishReason` after its retries, so an answer that did not finish fails at
 once, even when its text reads whole. A title cut at `max_tokens` inside its JSON, or refused as
 prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
 it is asked again as a malformed answer and ends as `LlmError`, a refusal too. The

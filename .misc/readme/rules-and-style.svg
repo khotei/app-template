@@ -64,7 +64,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <rect x="380" y="239" width="552" height="81" rx="8" class="box k-neu"/>
 <text x="392" y="263" class="b" xml:space="preserve">File names: <tspan class="code">naming.md</tspan></text>
 <text x="392" y="283" xml:space="preserve"><tspan class="code">&lt;name&gt;.&lt;role&gt;.ts</tspan>: <tspan class="code">run.model.ts</tspan> <tspan class="code">ask-chat.service.ts</tspan> <tspan class="code">chat.http.ts</tspan></text>
-<text x="392" y="303" xml:space="preserve"><tspan class="code">&lt;owner&gt;-&lt;what&gt;.ts</tspan>: <tspan class="code">llm-call-policy.ts</tspan> <tspan class="code">schema-codec.ts</tspan></text>
+<text x="392" y="303" xml:space="preserve"><tspan class="code">&lt;owner&gt;-&lt;what&gt;.ts</tspan>: <tspan class="code">llm-call.ts</tspan> <tspan class="code">schema-codec.ts</tspan></text>
 <rect x="380" y="332" width="268" height="120" rx="8" class="box k-bnd"/>
 <text x="392" y="356" class="b a-bnd" xml:space="preserve">on the wire: <tspan class="code">effect.md</tspan></text>
 <text x="392" y="376" xml:space="preserve"><tspan class="code">Schema.TaggedError</tspan></text>
