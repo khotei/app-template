@@ -44,14 +44,9 @@ worker's route lists a queue's handlers; the chat's two jobs keep one handler ea
   owner's "Yes" to: "defect только в лог, без DLQ".
 - [N:ai] The decisions this rewrites: Jobs as queue messages (a defect returns the record), Use
   cases above the modules ("no events … between modules") waits for L2.
-- [D:ai] A record whose handler died is returned in `batchItemFailures` again, so SQS delivers it
-  up to `maxReceiveCount` and then dead-letters it; every handler of it runs again. Claimed by
-  the Hunt pass, `packages/queue/queue.consumer.ts:50`: every repository dies on a store error
-  (`orDieWithSqlError`), so a connection reset under `runs.getOne`
-  (`application/chat/services/reply-chat.service.ts:89`) is acknowledged with the Run left
-  `queued`, and one under the answer whose `failed` write dies too leaves it `generating`
-  (`reply-chat.service.ts:101`); the chat then refuses every ask, and nothing repairs it. Without
-  it the system loses the only repair of a Run a passing store outage left active.
+- [D] A record whose handler died stays acknowledged; nothing returns to SQS. The owner, on a
+  store outage under a reply's handling, which leaves its Run active with no one to fail it:
+  "let's leave it for later. Maybe for this we could retry in effect style without sqs retry."
 
 ### Output
 
@@ -97,8 +92,15 @@ ask   ──send FirstMessageCreated─▶ queue first-message-created ──▶
   its redrive still worth its resources? — `kernel/aws/resources/resources.ts:17-27` — open
 - The moved handler test asserts the Run's rules, which belong in `ReplyChatService`'s test —
   `apps/worker/__tests__/chat/chat.handler.test.ts:42` — open
-- The route test's `{ batchItemFailures: [] }` holds whatever the handler does; its fate follows
-  L1's `[D:ai]` — `apps/worker/__tests__/worker.handler.test.ts:63` — open
+- The route test's `{ batchItemFailures: [] }` holds whatever the handler does —
+  `apps/worker/__tests__/worker.handler.test.ts:63` — done in L1 (L1.7)
+- A Run a store outage left active under a reply's handling is repaired by hand; the owner's way
+  out is a retry of the failure's write inside the process —
+  `application/chat/services/reply-chat.service.ts:50-53` — open
+- The span form `'<Group>Handler.<endpoint|job>'` does not cover a listener named for its work —
+  `.claude/rules/layering.md:79` — open
+- `aws.md` › Queues does not point to the store-outage cost the decision states —
+  `docs/knowledge/aws.md:162` — open
 - No test that an interrupt of the worker ends the handling with no response; a probe showed it —
   `packages/queue/__tests__/queue.consumer.test.ts` — open
 - The `process <queue>` span ends successful when a handler died; the `queue message failed` log
