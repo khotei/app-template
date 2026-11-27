@@ -13,7 +13,7 @@ const toLlmError = ({ message }: AiError.AiError) => new LlmError({ cause: messa
 
 const retryAfterOf = ({ retryAfter }: AiError.AiError) => retryAfter ?? Duration.zero
 
-/** A `retryAfter` over 30 s, such as a daily token limit's, would outlast the job. */
+/** A `retryAfter` over 30 s, such as a daily token limit's, would outlast the handling. */
 const isWorthRetrying = (error: AiError.AiError) =>
   error.isRetryable && Duration.isLessThanOrEqualTo(retryAfterOf(error), Duration.seconds(30))
 

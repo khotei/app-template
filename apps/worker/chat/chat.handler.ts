@@ -1,10 +1,11 @@
 import { Cause, Effect } from 'effect'
 
 import {
-  FirstMessageCreated,
+  ChatInitialized,
+  MessageRetried,
   ReplyChatService,
-  ReplyToMessage,
   TitleChatService,
+  UserMessageCreated,
 } from '@app-template/application/chat'
 import type { QueueName } from '@app-template/kernel/aws'
 import { consumeQueue, type SqsEvent } from '@app-template/packages/queue'
@@ -12,30 +13,30 @@ import { consumeQueue, type SqsEvent } from '@app-template/packages/queue'
 const logFailed = (cause: Cause.Cause<unknown>) => Effect.logWarning('reply failed', cause)
 
 /**
- * Replies to the job's user message and ends the job on any outcome but a bug, logging each end
- * but a defect, which the queue's consumer logs.
+ * Replies to the event's user message, stored or retried, and ends its handling on any outcome but
+ * a bug, logging each end but a defect, which the queue's consumer logs.
  */
 export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
-  function* (job: ReplyToMessage) {
+  function* (event: UserMessageCreated | MessageRetried) {
     const replies = yield* ReplyChatService
     return yield* replies.reply({
-      userMessageId: job.messageId,
-      chatId: job.chatId,
-      userId: job.userId,
+      userMessageId: event.messageId,
+      chatId: event.chatId,
+      userId: event.userId,
     })
   },
   Effect.catchTag('RunNotFoundError', () =>
-    Effect.logInfo("reply skipped: no active Run for the job's message, chat and user"),
+    Effect.logInfo("reply skipped: no active Run for the event's message, chat and user"),
   ),
-  // The Run holds these failures now, so the job ends.
+  // The Run holds these failures now, so the handling ends.
   Effect.catchTag(['RunStartedError', 'LlmError'], (error) => logFailed(Cause.fail(error))),
   // An interrupt skips every catch and tap, the consumer's log too; this handler still runs.
   Effect.onErrorIf(Cause.hasInterrupts, (cause) => logFailed(cause)),
-  (reply, job) =>
+  (reply, event) =>
     Effect.annotateLogs(reply, {
-      messageId: job.messageId,
-      chatId: job.chatId,
-      userId: job.userId,
+      messageId: event.messageId,
+      chatId: event.chatId,
+      userId: event.userId,
     }),
 )
 
@@ -44,9 +45,9 @@ export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
  * titled meanwhile, or an assistant error, is logged and skipped.
  */
 export const titleChat = Effect.fn('ChatHandler.titleChat')(
-  function* (event: FirstMessageCreated) {
+  function* (event: ChatInitialized) {
     const titles = yield* TitleChatService
-    return yield* titles.title({ id: event.id, chatId: event.chatId, userId: event.userId })
+    return yield* titles.title({ id: event.messageId, chatId: event.chatId, userId: event.userId })
   },
   Effect.catchTags({
     LlmError: (error) =>
@@ -56,17 +57,15 @@ export const titleChat = Effect.fn('ChatHandler.titleChat')(
   }),
   (title, event) =>
     Effect.annotateLogs(title, {
-      messageId: event.id,
+      messageId: event.messageId,
       chatId: event.chatId,
       userId: event.userId,
     }),
 )
 
-/**
- * The chat's jobs and events, each consumed from its queue by its handlers, keyed by the queue's
- * name.
- */
+/** The chat's events, each consumed from its queue by its handlers, keyed by the queue's name. */
 export const ChatHandler = {
-  [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, [replyToMessage]),
-  [FirstMessageCreated.queue.name]: consumeQueue(FirstMessageCreated.queue, [titleChat]),
+  [UserMessageCreated.queue.name]: consumeQueue(UserMessageCreated.queue, [replyToMessage]),
+  [MessageRetried.queue.name]: consumeQueue(MessageRetried.queue, [replyToMessage]),
+  [ChatInitialized.queue.name]: consumeQueue(ChatInitialized.queue, [titleChat]),
 } satisfies Partial<Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, unknown>>>

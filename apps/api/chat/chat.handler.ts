@@ -9,6 +9,7 @@ import {
 } from '@app-template/application/chat'
 import { Api } from '@app-template/application/http-api'
 import { Identity } from '@app-template/application/identity'
+import { askChat } from '@app-template/application/use-cases'
 
 import { buildApiChat } from '#api/chat/chat.mapper'
 
@@ -55,7 +56,7 @@ export const ChatHandler = HttpApiBuilder.group(
       }),
       ask: Effect.fn('ChatHandler.ask')(function* ({ params, payload }) {
         const identity = yield* Identity
-        return yield* askService.ask({ id: params.chatId, userId: identity.userId }, payload.text)
+        return yield* askChat({ id: params.chatId, userId: identity.userId }, payload.text)
       }),
       retryRun: Effect.fn('ChatHandler.retryRun')(function* ({ params }) {
         const identity = yield* Identity

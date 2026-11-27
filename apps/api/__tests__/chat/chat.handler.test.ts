@@ -98,26 +98,27 @@ describe('chats', () => {
     }).pipe(Effect.provide(asOwner())),
   )
 
-  it.effect('POST /chats/:chatId/messages is 202 with the queued Run of the user message', () => {
+  it.effect('POST /chats/:chatId/messages is 202 with the user message and its queued Run', () => {
     const asked: Array<MessageColumns> = []
     return Effect.gen(function* () {
       const api = yield* ApiClient
 
-      const [queued, response] = yield* api.chats.ask({
+      const [message, response] = yield* api.chats.ask({
         params: { chatId: chat.id },
         payload: hello,
         responseMode: 'decoded-and-response',
       })
 
       assert.strictEqual(response.status, 202)
-      assert.deepInclude(queued, {
-        chatId: chat.id,
+      assert.deepInclude(message, { chatId: chat.id, author: 'user', text: 'Hello' })
+      assert.deepInclude(Option.getOrThrow(message.run), {
+        userMessageId: message.id,
         status: 'queued',
         assistantMessageId: Option.none(),
       })
       assert.deepStrictEqual(
         Arr.map(asked, ({ id, author, text }) => ({ id, author, text })),
-        [{ id: queued.userMessageId, author: 'user', text: 'Hello' }],
+        [{ id: message.id, author: 'user', text: 'Hello' }],
       )
     }).pipe(
       Effect.provide(

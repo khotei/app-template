@@ -43,8 +43,8 @@ Code reads top to bottom, grows by a row or a unit, not a branch ([composition.m
   (`withRetry(step)`) nor a branch that dies (`if (…) return yield* Effect.die(…)`).
 - A step used once stays in its flow, so the flow reads whole: statements in a generator, or a named
   function expression in the `pipe` or combinator that orders the steps, when its name says what a
-  lambda would not (`pipe(rows, function dropStale(rows) { … })`). One used from two places is a
-  declaration or an arrow constant, as are a tail's recovery and one transaction's writes.
+  lambda would not (`pipe(rows, function dropStale(rows) { … })`); so do a transaction's writes,
+  piped on its `run`. Used twice: a declaration or an arrow constant, as is a tail's recovery.
 - A service is read with `yield*`, in a generator, never by `use`, `useSync` or a combinator over
   it; `make lint` refuses the two and `Effect.flatMap`, `map`, `andThen` and `tap`, data-first or
   piped, on a capitalised name. A call never takes another call's result as its subject; `make lint`

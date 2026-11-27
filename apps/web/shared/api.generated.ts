@@ -157,9 +157,9 @@ export type ChatsAskRequestJson = { readonly "text": string }
 
 export const ChatsAskRequestJson = Schema.Struct({ "text": Schema.String.check(Schema.isMaxCodePoints(20000).annotate({ "expected": "a string with at most 20000 code points" })).check(Schema.isPattern(new globalThis.RegExp("^[^\\0]*$", "u")).annotate({ "expected": "a string matching the RegExp ^[^\\0]*$" })) })
 
-export type ChatsAsk202 = ApiRun
+export type ChatsAsk202 = ApiMessage
 
-export const ChatsAsk202 = ApiRun
+export const ChatsAsk202 = ApiMessage
 
 export type ChatsAsk400 = RequestInvalidErrorEncoded
 

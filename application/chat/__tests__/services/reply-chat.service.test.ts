@@ -221,12 +221,12 @@ const lastWrite = (writes: Writes) =>
     Option.getOrThrow,
   )
 
-/** What the job of `run` names: its user message, chat and user. */
-const jobOf = (run: Run) => Struct.pick(run, ['userMessageId', 'chatId', 'userId'])
+/** What the event of `run` names: its user message, chat and user. */
+const eventOf = (run: Run) => Struct.pick(run, ['userMessageId', 'chatId', 'userId'])
 
 const reply = Effect.gen(function* () {
   const replies = yield* ReplyChatService
-  return yield* replies.reply(jobOf(queuedRun))
+  return yield* replies.reply(eventOf(queuedRun))
 })
 
 describe('ReplyChatService', () => {
@@ -392,7 +392,7 @@ describe('ReplyChatService', () => {
       const short = userMessageAt(3, 'x'.repeat(100))
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        yield* replies.reply(jobOf(queuedRun))
+        yield* replies.reply(eventOf(queuedRun))
 
         assert.deepStrictEqual(
           Arr.map(writes.chats, ({ context }) => context),
@@ -426,7 +426,7 @@ describe('ReplyChatService', () => {
       })
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        yield* replies.reply(jobOf(queuedRun))
+        yield* replies.reply(eventOf(queuedRun))
 
         assert.deepStrictEqual(written, [
           [0, 0],
@@ -466,7 +466,7 @@ describe('ReplyChatService', () => {
       const writes = noWrites()
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        const error = yield* replies.reply(jobOf(queuedRun)).pipe(Effect.flip)
+        const error = yield* replies.reply(eventOf(queuedRun)).pipe(Effect.flip)
 
         assert.strictEqual(error, assistantOverloaded)
         assert.deepStrictEqual(yield* assistant.summarised, [
@@ -508,7 +508,7 @@ describe('ReplyChatService', () => {
     const writes = noWrites()
     return Effect.gen(function* () {
       const replies = yield* ReplyChatService
-      const exit = yield* replies.reply(jobOf(queuedRun)).pipe(Effect.exit)
+      const exit = yield* replies.reply(eventOf(queuedRun)).pipe(Effect.exit)
 
       assert.isTrue(Exit.hasDies(exit))
       assert.deepStrictEqual(moves(writes), ['queued → generating', 'generating → failed'])
@@ -569,10 +569,10 @@ describe('ReplyChatService', () => {
       }
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        yield* replies.reply(jobOf(queuedRun))
+        yield* replies.reply(eventOf(queuedRun))
         yield* runs.settle(queuedRun)
 
-        yield* replies.reply(jobOf(queuedRun))
+        yield* replies.reply(eventOf(queuedRun))
 
         assert.deepStrictEqual(yield* assistant.contexts, [
           history,
@@ -597,7 +597,7 @@ describe('ReplyChatService', () => {
     const writes = noWrites()
     return Effect.gen(function* () {
       const replies = yield* ReplyChatService
-      yield* replies.reply(jobOf(lastRun))
+      yield* replies.reply(eventOf(lastRun))
 
       assertEquals(yield* assistant.contexts, [[whatIsThis, aPhoto, andAgain, andNow]])
     }).pipe(
@@ -666,7 +666,7 @@ describe('ReplyChatService', () => {
   )
 
   it.effect(
-    "a failed Run's job delivered again after its retry starts the retry's Run, whose own job then fails it as started",
+    "a failed Run's event delivered again after its retry starts the retry's Run, whose own event then fails it as started",
     () => {
       const held = holdCall()
       const assistant = recordMessageAssistant(held.hold.pipe(Effect.as(sure)))
@@ -674,9 +674,9 @@ describe('ReplyChatService', () => {
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
 
-        const again = yield* replies.reply(jobOf(queuedRun)).pipe(Effect.exit, Effect.forkChild)
+        const again = yield* replies.reply(eventOf(queuedRun)).pipe(Effect.exit, Effect.forkChild)
         yield* held.reached
-        const own = yield* replies.reply(jobOf(retried)).pipe(Effect.flip)
+        const own = yield* replies.reply(eventOf(retried)).pipe(Effect.flip)
         yield* held.release
         const againExit = yield* Fiber.join(again)
 
@@ -754,16 +754,16 @@ describe('ReplyChatService', () => {
   )
 
   it.effect.each([
-    { name: "another user's", job: { ...jobOf(queuedRun), userId: stranger } },
-    { name: "another chat's", job: { ...jobOf(queuedRun), chatId: unknownChatId } },
+    { name: "another user's", event: { ...eventOf(queuedRun), userId: stranger } },
+    { name: "another chat's", event: { ...eventOf(queuedRun), chatId: unknownChatId } },
   ])(
     "reply to an active Run's message under $name id fails RunNotFoundError, writing nothing and asking no assistant",
-    ({ job }) => {
+    ({ event }) => {
       const assistant = recordMessageAssistant(Effect.succeed(sure))
       const writes = noWrites()
       return Effect.gen(function* () {
         const replies = yield* ReplyChatService
-        const error = yield* replies.reply(job).pipe(Effect.flip)
+        const error = yield* replies.reply(event).pipe(Effect.flip)
 
         assertSchemaEquals(
           RunNotFoundError,

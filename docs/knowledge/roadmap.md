@@ -320,10 +320,17 @@ moves it into its own `Later` and deletes it here.
   Left on the owner's word. Ways out to weigh: a retry of the failure's write inside the process,
   the owner's; a sweep of active Runs ([database.md › Stuck Runs](database.md#stuck-runs)).
 - (2026-11-27) A chat's newness is judged on a read before the write (`ChatState.isNew` in
-  `AskChatService.ask`, `application/chat/services/ask-chat.service.ts`): a second ask whose read
-  precedes a first one's whole reply sends a second `FirstMessageCreated`, of the second message,
+  `askChat`, `application/use-cases/chat/ask-chat.use-case.ts`): a second ask whose read
+  precedes a first one's whole reply sends a second `ChatInitialized`, of the second message,
   which titles the chat if the first title is not written yet. Left: the window is a whole reply
   wide on one side and a read wide on the other. Way out: judge newness inside the transaction.
+- (2026-11-27) A new chat's `ChatInitialized` is lost for good when `AskChatService.ask` dies
+  after its commit: SQS refuses `UserMessageCreated` to the client but took it, and the worker
+  started the Run, so the refusal's guarded `failed` write dies; or a store error on that write.
+  `askChat` (`application/use-cases/chat/ask-chat.use-case.ts`) then dies before the chat's send,
+  the reply is stored, and the chat is never titled, as every later ask reads a Run. Before
+  `askChat`, the title's event went before the reply's. Ways out to weigh: send `ChatInitialized`
+  before the ask's send, or on the ask's death too.
 - (2026-11-27) A dead-letter queue now fills only from a record whose process died three times
   under it (`kernel/aws/resources/resources.ts`), and nothing reads one: weigh dropping the
   queues against a consumer of them.
@@ -351,7 +358,7 @@ moves it into its own `Later` and deletes it here.
 ### From `reply-run`
 
 - (2026-11-11) A Run stays `queued` for good, its chat busy, when the api dies between the commit
-  and the reply's send (`ChatQueue.sendReplyToMessage`, called by
+  and the reply's send (`ChatQueue.sendUserMessageCreated` or `sendMessageRetried`, called by
   `application/chat/services/ask-chat.service.ts`, the last step of `ask` and
   `retry`): a send SQS refuses fails the Run, and a client's abort leaves it sent
   ([decision](decisions.md#a-runs-job-on-interrupt-and-on-two-deliveries)), but no handler runs in
@@ -461,7 +468,7 @@ moves it into its own `Later` and deletes it here.
   every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
   Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
   word.
-- (2026-11-21) A service that holds its own transaction and sends its jobs after it
+- (2026-11-21) A service that holds its own transaction and sends its events after it
   (`AskChatService.ask`) cannot join a caller's transaction: wrapped in an outer
   `transaction.run`, its transaction becomes a savepoint (`makeWithTransaction` "uses savepoints
   for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect

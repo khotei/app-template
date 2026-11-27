@@ -223,8 +223,8 @@ touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the writ
 whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `AskChatService.ask` reads the chat
-  with its newest Run and refuses a chat whose Run is active (`ChatPolicy.ensureNotBusy`,
+  active Run in a chat fails on the index and dies. `askChat` reads the chat with its
+  newest Run and `AskChatService.ask` refuses a chat whose Run is active (`ChatPolicy.ensureNotBusy`,
   `ChatBusyError`, 409);
   of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
@@ -274,7 +274,8 @@ from the context, `PgClientFromConfig` in the processes and `DbTest` in the e2e,
 connection `Db` uses), the one way to open a transaction. A `run` inside a `run` is a savepoint of
 the outer one: it rolls back alone on its own failure and commits with the outer
 ([its e2e](../../packages/db/__e2e__/db.client.e2e.ts)). A service whose writes commit together
-passes `transaction.run` as the last argument of the function that holds them: `IdentityService`'s
+passes `transaction.run` as the last argument of the function that holds them, or pipes it on them
+inside a longer flow: `IdentityService`'s
 new user and its credential, `AskChatService.ask`'s the user's message and its queued Run,
 `ReplyChatService.reply`'s answer the chat's history, the assistant's call and the reply with the
 Run's `done`, so that transaction,
@@ -312,8 +313,8 @@ fails `ChatBusyError`. A worker that dies (a killed process, the function's time
 by the next delivery, up to the queue's visibility timeout later, which finds the Run started,
 and fails it. A store unavailable under a handling leaves it so: every repository dies on a store
 error, so the handler can neither start the Run nor write its `failed`, and the worker
-acknowledges its record. So do a process that dies between the commit and the send and a job
-whose every delivery kills its process, and nothing consumes the dead-letter queue
+acknowledges its record. So do a process that dies between the commit and the send and a queue
+message whose every delivery kills its process, and nothing consumes the dead-letter queue
 ([aws.md › Queues](aws.md#queues)). Such a Run stays active until it is repaired by hand. No sweep
 over active Runs exists: by age alone it could not tell a dead Run from one waiting in a backlog.
 
@@ -325,16 +326,16 @@ chat's title) is the one the worker reads
 
 - **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through
   the definition's schema to a JSON string and sends it to the definition's queue;
-  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`
-  sends its jobs and events after its transaction commits, so a delivery always finds the record it
-  names. A transaction that fails keeps no row and responds with `500`.
-- **A send SQS refuses** is logged with its ids: the reply's with its chat's, its user message's and
-  its Run's, the event's with its message's, its chat's and its user's. For the reply's,
-  `AskChatService` also fails the Run it sent through `RunService.update` and the Run's `fail`, by
-  its id, with the queue's error's full text as its failure, and the request responds with `202` and
-  that failed Run; the message is stored and shown failed with its retry,
-  `POST /chats/:chatId/runs`. The event's send only logs it. A send that never happens after the commit:
-  [Stuck Runs](#stuck-runs).
+  `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`,
+  or the use case over it, sends its events after the commit of what they read, so a delivery
+  always finds the record it names. A transaction that fails keeps no row and responds with `500`.
+- **A send SQS refuses** is logged with its event's ids: its chat's, its user's and its message's.
+  For the reply's two, `UserMessageCreated` and `MessageRetried`, `AskChatService` also fails the
+  Run it sent through `RunService.update` and the Run's `fail`, by its id, with the queue's error's
+  full text as its failure, and the request responds with `202` and that failed Run, a retry's
+  alone, an ask's inside its message; the message is stored and shown failed with its retry, `POST
+  /chats/:chatId/runs`. `ChatInitialized`'s send only logs it. A send that never happens after the
+  commit: [Stuck Runs](#stuck-runs).
 
 ## Migrations
 

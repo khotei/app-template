@@ -6,6 +6,7 @@ import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import {
   AskChatService,
+  ChatQueue,
   ChatService,
   MessageService,
   RunService,
@@ -34,6 +35,7 @@ const ApiRoutes = HttpApiBuilder.layer(Api).pipe(
 export const ApiHttp = HttpRouter.serve(ApiRoutes).pipe(
   Layer.provide([
     AskChatService.layer,
+    ChatQueue.layer,
     ChatService.layer,
     MessageService.layer,
     RunService.layer,

@@ -1,5 +1,6 @@
 import { Option, Schema, type Types } from 'effect'
 
+import type { Chat } from '#chat/domain/chat.model'
 import type { Run, RunStatus } from '#chat/domain/run.model'
 
 /** What a chat's newest Run makes of it. */
@@ -22,7 +23,6 @@ export class ChatState {
     Option.match(newestRun, { onNone: () => 'idle', onSome: ({ status }) => chatStates[status] })
 
   /** True while no ask has reached the chat: every user message starts a Run, so none is newest. */
-  static readonly isNew = (
-    newestRun: Option.Option<Types.Simplify<Pick<Run, 'status'>>>,
-  ): boolean => Option.isNone(newestRun)
+  static readonly isNew = (chat: Types.Simplify<Pick<Chat, 'run'>>): boolean =>
+    Option.isNone(chat.run)
 }

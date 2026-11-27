@@ -9,7 +9,7 @@ export type RunCreate = Types.Simplify<Pick<Run, 'chatId' | 'userId' | 'userMess
 
 /**
  * A Run as a read finds it: a user's by its id in its chat, which a call on a user's behalf
- * reads, or a user's message's in its chat in one of the statuses `status` lists, which its job
+ * reads, or a user's message's in its chat in one of the statuses `status` lists, which its reply
  * reads.
  */
 export type RunWhere =

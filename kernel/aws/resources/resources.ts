@@ -14,13 +14,18 @@ export const resources = {
     },
   },
   queues: {
-    replyToMessage: {
-      name: 'reply-to-message',
+    userMessageCreated: {
+      name: 'user-message-created',
       maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },
-    firstMessageCreated: {
-      name: 'first-message-created',
+    chatInitialized: {
+      name: 'chat-initialized',
+      maxReceiveCount: 3,
+      visibilityTimeoutSeconds: workerTimeoutSeconds,
+    },
+    messageRetried: {
+      name: 'message-retried',
       maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },

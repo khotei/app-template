@@ -1,100 +1,101 @@
-import { Cause, Context, Effect, Layer, Schema } from 'effect'
+import { Cause, Context, Effect, Layer, Schema, Struct, type Types } from 'effect'
 
 import { UserId } from '@app-template/application/user'
 import { resources } from '@app-template/kernel/aws'
 import { type QueueDefinition, type QueueError, QueueSender } from '@app-template/packages/queue'
 
 import { ChatId } from '#chat/domain/chat.util'
+import type { Message } from '#chat/domain/message.model'
 import { MessageId } from '#chat/domain/message.util'
-import type { Run } from '#chat/domain/run.model'
 
-const { replyToMessage, firstMessageCreated } = resources.queues
+const { userMessageCreated, chatInitialized, messageRetried } = resources.queues
 
-/**
- * `messageId` is the user's message the worker replies to, through its active Run, in the chat
- * `chatId`, of the user `userId`.
- */
-export class ReplyToMessage extends Schema.Class<ReplyToMessage>('ReplyToMessage')({
-  messageId: MessageId,
-  chatId: ChatId,
-  userId: UserId,
-}) {
+/** The user's message an event names, by its id, chat and user. */
+type EventMessage = Types.Simplify<Pick<Message, 'id' | 'chatId' | 'userId'>>
+
+/** The three events' fields: ids alone, never the message's text, which no listener reads. */
+const eventFields = { chatId: ChatId, userId: UserId, messageId: MessageId }
+
+/** The user's message `messageId` was stored in the chat `chatId`, of the user `userId`. */
+export class UserMessageCreated extends Schema.Class<UserMessageCreated>('UserMessageCreated')(
+  eventFields,
+) {
   static readonly queue = {
-    name: replyToMessage.name,
+    name: userMessageCreated.name,
     schema: this,
-  } satisfies QueueDefinition<typeof ReplyToMessage>
+  } satisfies QueueDefinition<typeof UserMessageCreated>
 }
 
-/** The user's message `id` is the first of the chat `chatId`, of the user `userId`. */
-export class FirstMessageCreated extends Schema.Class<FirstMessageCreated>('FirstMessageCreated')({
-  id: MessageId,
-  chatId: ChatId,
-  userId: UserId,
-}) {
+/** The chat `chatId`, of the user `userId`, got its first user message, `messageId`. */
+export class ChatInitialized extends Schema.Class<ChatInitialized>('ChatInitialized')(eventFields) {
   static readonly queue = {
-    name: firstMessageCreated.name,
+    name: chatInitialized.name,
     schema: this,
-  } satisfies QueueDefinition<typeof FirstMessageCreated>
+  } satisfies QueueDefinition<typeof ChatInitialized>
 }
 
-/** Hands the worker the chat's jobs and events, each on its own queue. */
+/** The user retried the reply to their message `messageId`, in the chat `chatId`, of `userId`. */
+export class MessageRetried extends Schema.Class<MessageRetried>('MessageRetried')(eventFields) {
+  static readonly queue = {
+    name: messageRetried.name,
+    schema: this,
+  } satisfies QueueDefinition<typeof MessageRetried>
+}
+
+/** An event's fields for the message, which its send's logs carry too. */
+const buildEventFields = (message: EventMessage) => ({
+  ...Struct.pick(message, ['chatId', 'userId']),
+  messageId: message.id,
+})
+
+/** Hands the worker the chat's events, each on its own queue. */
 export class ChatQueue extends Context.Service<
   ChatQueue,
   {
     /**
-     * Sends the job that replies to the Run's user message; one SQS refuses is logged and fails
-     * with its `QueueError`.
+     * Sends the event that the user's message was stored; one SQS refuses is logged and fails with
+     * its `QueueError`, as the message's Run then has no reply to wait for.
      */
-    readonly sendReplyToMessage: (run: Run) => Effect.Effect<void, QueueError>
+    readonly sendUserMessageCreated: (message: EventMessage) => Effect.Effect<void, QueueError>
     /**
-     * Sends the event that the Run's user message is its chat's first; one SQS refuses is logged,
-     * and the ask goes on.
+     * Sends the event that the user retried their message's reply; one SQS refuses is logged and
+     * fails with its `QueueError`, as `sendUserMessageCreated`'s.
      */
-    readonly sendFirstMessageCreated: (run: Run) => Effect.Effect<void>
+    readonly sendMessageRetried: (message: EventMessage) => Effect.Effect<void, QueueError>
+    /**
+     * Sends the event that the message is its chat's first; one SQS refuses is logged, and the ask
+     * goes on.
+     */
+    readonly sendChatInitialized: (message: EventMessage) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/infrastructure/ChatQueue', {
   make: Effect.gen(function* () {
     const queue = yield* QueueSender
 
-    const sendReplyToMessage = Effect.fn('ChatQueue.sendReplyToMessage')(
-      (run: Run) =>
-        queue.send(
-          ReplyToMessage.queue,
-          new ReplyToMessage({
-            messageId: run.userMessageId,
-            chatId: run.chatId,
-            userId: run.userId,
-          }),
-        ),
-      Effect.tapError((error) => Effect.logError('reply job not queued', Cause.fail(error))),
-      (sent, run) =>
-        Effect.annotateLogs(sent, {
-          chatId: run.chatId,
-          runId: run.id,
-          messageId: run.userMessageId,
-        }),
+    const sendUserMessageCreated = Effect.fn('ChatQueue.sendUserMessageCreated')(
+      (message: EventMessage) =>
+        queue.send(UserMessageCreated.queue, new UserMessageCreated(buildEventFields(message))),
+      Effect.tapError((error) =>
+        Effect.logError("user message's event not queued", Cause.fail(error)),
+      ),
+      (sent, message) => Effect.annotateLogs(sent, buildEventFields(message)),
     )
 
-    const sendFirstMessageCreated = Effect.fn('ChatQueue.sendFirstMessageCreated')(
-      (run: Run) =>
-        queue.send(
-          FirstMessageCreated.queue,
-          new FirstMessageCreated({
-            id: run.userMessageId,
-            chatId: run.chatId,
-            userId: run.userId,
-          }),
-        ),
-      Effect.ignore({ log: 'Error', message: 'first message event not queued' }),
-      (sent, run) =>
-        Effect.annotateLogs(sent, {
-          messageId: run.userMessageId,
-          chatId: run.chatId,
-          userId: run.userId,
-        }),
+    const sendMessageRetried = Effect.fn('ChatQueue.sendMessageRetried')(
+      (message: EventMessage) =>
+        queue.send(MessageRetried.queue, new MessageRetried(buildEventFields(message))),
+      Effect.tapError((error) => Effect.logError("retry's event not queued", Cause.fail(error))),
+      (sent, message) => Effect.annotateLogs(sent, buildEventFields(message)),
     )
 
-    return { sendReplyToMessage, sendFirstMessageCreated }
+    const sendChatInitialized = Effect.fn('ChatQueue.sendChatInitialized')(
+      (message: EventMessage) =>
+        queue.send(ChatInitialized.queue, new ChatInitialized(buildEventFields(message))),
+      Effect.ignore({ log: 'Error', message: "chat's initialization event not queued" }),
+      (sent, message) => Effect.annotateLogs(sent, buildEventFields(message)),
+    )
+
+    return { sendUserMessageCreated, sendMessageRetried, sendChatInitialized }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

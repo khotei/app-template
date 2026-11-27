@@ -12,14 +12,14 @@ import { AwsTest } from '#testing/aws/e2e/aws.test-layer'
 
 const QueueSenderTest = QueueSenderOfStage.pipe(Layer.provideMerge(AwsTest))
 
-/** A message shaped as a reply's, since the kernel knows no module's queues. */
+/** A message shaped as a user message's event, since the kernel knows no module's queues. */
 class SampleMessage extends Schema.Class<SampleMessage>('SampleMessage')({
   chatId: Schema.String,
 }) {}
 
 /** On a queue every stage provisions, so the sender sends to its real queue. */
 const sampleQueue = {
-  name: resources.queues.replyToMessage.name,
+  name: resources.queues.userMessageCreated.name,
   schema: SampleMessage,
 } satisfies QueueDefinition<typeof SampleMessage>
 

@@ -66,7 +66,9 @@ Decision: [Records open, rules called](../../docs/knowledge/decisions.md#records
 
 A module's reaction to another module's fact listens to an event the fact's module sends after its
 commit; a job carries work its sender asks for and settles (a slow call, a retry), never a
-reaction to another module's write. A flow that needs an order or one transaction over modules is
-one use case, run synchronously, never a chain of events.
+reaction to another module's write. A fact whose refused send its sender settles (it fails the
+fact's record) may stay an event where the owner names it so
+([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)). A flow that needs an
+order or one transaction over modules is one use case, run synchronously, never a chain of events.
 Decision:
 [Use cases above the modules](../../docs/knowledge/decisions.md#use-cases-above-the-modules).

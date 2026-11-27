@@ -57,7 +57,7 @@ export class ReplyChatService extends Context.Service<
         return yield* runs.update(run, yield* RunMove.fail(run, cause))
       })
 
-    // Reads the job's active Run and starts it; a Run some worker started was left by a worker that
+    // Reads the message's active Run and starts it; a Run some worker started was left by a worker that
     // died, so it fails as it is read.
     const start = Effect.fnUntraced(function* (where: ReplyChatWhere) {
       const active = yield* runs.getOne({ ...where, status: activeRunStatuses })

@@ -48,7 +48,7 @@ inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`
 `TestClock`) needs vitest.
 
 - **Unit and e2e: only our code is under test.** A unit test runs our domain services, handlers
-  and use cases, once one exists, and needs no process outside vitest. An e2e test proves an
+  and use cases, and needs no process outside vitest. An e2e test proves an
   adapter, a service's or use case's transaction or the journey on the e2e run's containers.
   What each kind checks and how to write it: [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/` and

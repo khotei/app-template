@@ -61,7 +61,7 @@ graph TD
 ```
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
-each module, the API contract and the use cases, once one exists, a folder with one entry, a
+each module, the API contract and the use cases, a folder with one entry, a
 module's contract a folder in it with an entry of its own over files of its `domain/`. The
 `apps/e2e` test app runs both app layers in one test process, starts no process of its own, and
 nothing imports it.
@@ -92,7 +92,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
   `#<module>/infrastructure/*` but, in the chat's ask service, its `<model>.queue` file, whose
-  jobs and events the services' tests read too, and, in its reply and title services, each its assistant's
+  events the services' tests read too, and, in its reply and title services, each its assistant's
   `.llm` file, and
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
   through a port its `domain/` declares, the sends of that queue file's `<Model>Queue`, or, in the worker's
@@ -172,7 +172,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | a model's rules, a class of statics per kind ([Rules as pure functions](decisions.md#rules-as-pure-functions)) | `application/chat/domain/chat-policy.ts`, `run-move.ts`, `chat-state.ts` | `ChatPolicy`, `RunMove`, `ChatState` |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| a module's queues: their definitions and the send of each job and event | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` and the event `FirstMessageCreated`, each with its definition as its static `queue`; `ChatQueue`, its `sendReplyToMessage` and `sendFirstMessageCreated` |
+| a module's queues: their definitions and the send of each job and event | `application/chat/infrastructure/chat.queue.ts` | the events `UserMessageCreated`, `MessageRetried` and `ChatInitialized`, each with its definition as its static `queue`; `ChatQueue`, its `sendUserMessageCreated`, `sendMessageRetried` and `sendChatInitialized` |
 | service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant` with `AssistantReply`, what its reply returns; `ChatAssistant`; both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
@@ -184,6 +184,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
 | the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity`, `SchemaErrors`, `RequestInvalidError` |
 | a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
+| use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
 | worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `WorkerHandler` |
@@ -213,7 +214,10 @@ modules it touches: an order over modules, holding the transaction their writes 
 the modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
 module's models and services, and an order over one module's services, with their transaction and
 their sends, is that module's `<Verb><Model>Service` ([composition.md › Where a change
-goes](../../.claude/rules/composition.md#where-a-change-goes)). When a flow becomes one and how it
+goes](../../.claude/rules/composition.md#where-a-change-goes)), save the owner's `askChat`, which
+adds an entry's own steps to one service's call: the read of the chat `AskChatService.ask` takes,
+and the event a new chat raises ([Use cases above the
+modules](decisions.md#use-cases-above-the-modules)). When a flow becomes one and how it
 orders its writes: [.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
 modules has the same shape as one that does not:
 
@@ -251,8 +255,8 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
   Decision: [Records open, rules called](decisions.md#records-open-rules-called).
 - **A module reacts to another's write only by an event.** A flow with an order or one
   transaction over modules runs synchronously in one use case; a job carries work its sender asks
-  for and settles (the assistant's reply), and an event a fact any module's handler in the worker
-  may listen to (a new chat's first message, which the title listens to). Decision:
+  for and settles, and an event a fact any module's handler in the worker may listen to (a user's
+  message, which the reply hears; a chat's first, which the title hears). Decision:
   [Use cases above the modules](decisions.md#use-cases-above-the-modules).
 
 ## Add a new entity

@@ -54,15 +54,15 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Use cases
 
-- A use case is what a handler calls, and only a handler, for a flow no one service owns (an order
-  over modules), never for a read of the user's record before one call or for a job's end alone.
-- An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
-  [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
-- It holds only its flow over modules: the order of the calls and their transaction. It
-  reads and writes through domain services, never a repository: a read, a write or a rule no
-  service offers goes to the service or model it belongs to, and a step two use cases share lives
-  once, as a service's method; a use case holds no rule of its own and never calls another
-  ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
+- A use case is what a handler calls, and only a handler: an order over modules, or one service's
+  call with an entry's steps around it (the read of the record it takes, the event its fact raises),
+  never that read alone or a job's end.
+- An `Effect.fn` yielding the services, ports, `Transaction` and `<Model>Queue` it composes.
+  Decision: [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
+- It holds only its flow: the calls' order, their transaction and its sends. It reads and writes
+  through domain services, never a repository: a read, a write or a rule no service offers goes to
+  its service or model, and a step two use cases share is a service's method; it holds no rule and
+  calls no use case ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
 - Read or delete a set through one batch call, never one call per id; return a model as is.
 
 ## Handlers

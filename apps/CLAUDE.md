@@ -1,6 +1,6 @@
 # apps
 
-Thin processes: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev server).
+Thin processes: `api` (HTTP), `worker` (queue messages) and `web` (browser UI plus its dev server).
 
 - `main.ts` starts the process. `api` and `worker` build it in `layer.ts`, which `main.ts` runs
   and no package exports, except the app's `./testing` for the e2e through the api. `ApiHttp`

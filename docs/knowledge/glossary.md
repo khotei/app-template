@@ -62,13 +62,13 @@ written with its qualifier or its library's name.
 _Avoid_: Prompt, completion, turn
 
 **Ask**:
-What the user does to a chat: their message stored with a queued Run, then the job that answers
-it sent, and a new chat's first message's event (`POST /chats/:chatId/messages`,
-`AskChatService.ask`). A chat no ask has
+What the user does to a chat: their message stored with a queued Run, then its event sent
+(`UserMessageCreated`), which the reply hears, and a new chat's `ChatInitialized`
+(`POST /chats/:chatId/messages`, `askChat`). A chat no ask has
 reached is new and `idle`; asking a `queued` chat is refused as busy. The same verb names a Run
 asking the assistant for its reply and the assistant asking the language model (`askModel`): one
-act, asking for an answer. Never a job put on its queue, which is a send.
-_Avoid_: Send (a job's, below), submit, post
+act, asking for an answer. Never an event put on its queue, which is a send.
+_Avoid_: Send (an event's, below), submit, post
 
 **Run**:
 The work of answering one user message: its status, its failure and, once done, its usage (the
@@ -78,15 +78,15 @@ once it is done, writes the assistant's message.
 Capitalised in prose; in code `Run`, and `run` or `runs` for a value or the table. Not the verb
 *run* (Effect's `run*`, `Transaction`'s `run`, a test that runs), which never takes a Run as its
 object; *a run* as a noun only qualified (a test run, a dry run).
-_Avoid_: Job (a queue message that names the user message whose active Run the worker starts),
-task, attempt
+_Avoid_: Job (a queue message that hands the worker work), task, attempt
 
 **Retry**:
 A new Run of the message a failed Run answered, which the user asks for (`POST
-/chats/:chatId/runs`, `AskChatService.retry`); only a chat's newest Run, once failed,
-can be retried (`RunPolicy.ensureRetryable`, `RunNotRetryableError`). Not a call repeated after its
-failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which is written with the call
-it repeats (*the model call's retries*, `retryWhileUnreachable`) and never alone.
+/chats/:chatId/runs`, `AskChatService.retry`), its event `MessageRetried`; only a chat's newest
+Run, once failed, can be retried (`RunPolicy.ensureRetryable`, `RunNotRetryableError`). Not a
+call repeated after its failure (`Effect.retry`, a `Schedule`, a provider's `retryAfter`), which
+is written with the call it repeats (*the model call's retries*, `retryWhileUnreachable`) and
+never alone.
 _Avoid_: Rerun, resend, regenerate
 
 **Reply**:
@@ -134,7 +134,7 @@ word has the senses its entry gives; the `_Avoid_` lists name the synonyms the s
 do not.
 
 **Part**:
-A folder other code reaches only through its entry: a module, the use cases once one exists, a
+A folder other code reaches only through its entry: a module, the use cases, a
 folder of the kernel (`kernel/<part>`) or a package. It reaches its own files through
 `#<part>/…`, the kernel's through `#kernel/<part>/…`, and its test support through
 `#testing/<part>/…`.
@@ -186,7 +186,7 @@ _Avoid_: Persistence layer, DAL, repository layer, shared domain
 
 **Application**:
 The ring of the behaviour, under `application/`: the modules and, above them, the use cases that
-compose them, once one exists. It holds every business rule; the data layer stores what it
+compose them. It holds every business rule; the data layer stores what it
 decides, the boundary connects it to the world, and the apps run it. Not the whole template,
 which is *the template*.
 _Avoid_: Application layer, app (a process under `apps/`), business layer
@@ -352,18 +352,24 @@ The words of the work the api hands to the worker. The queues, the stand and its
 **Job**:
 A queue message that hands one handler in the worker one piece of work, a command, shaped by its
 queue definition and named `<Verb><Object>` in this glossary's words for that work
-(`ReplyToMessage`, which names the user's message, its chat and its user, whose active Run the
-worker starts). Unheard, its work stays undone, so its sender settles a refused send. Not a CI
-job (a workflow's `jobs:`).
+(`ShipOrder`). Unheard, its work stays undone, so its sender settles a refused send. The chat
+sends none: the owner made each of its queue messages an event, the reply's two included, whose
+sender settles a refused send all the same. Not a CI job (a workflow's `jobs:`).
 _Avoid_: Task, message (the chat's word)
 
 **Event**:
 A queue message that states a fact a module's commit made true, named `<Object><PastVerb>`
-(`FirstMessageCreated`, which names a new chat's first message, its chat and its user): a list
-of listeners, any module's handlers in the worker, none required, each ending alone. Not a job,
-a command with one handler whose sender settles its refused send; not SQS's event (`SqsEvent`),
-the batch the worker is posted.
+(`UserMessageCreated` and `MessageRetried`, which name the user's message, its chat and its user,
+and which the reply hears; `ChatInitialized`, below): a list of listeners, any module's handlers
+in the worker, each ending alone, none required but the reply, as the sender of its two events
+fails the Run on a refused send. Not a job, a command with one handler whose sender settles its
+refused send; not SQS's event (`SqsEvent`), the batch the worker is posted.
 _Avoid_: Notification, signal, message (the chat's word)
+
+**Initialized**:
+Of a chat: it got its first user message (`ChatInitialized`, which names that message, its chat and
+its user, and which the title hears). Not the chat's creation, which stores no message.
+_Avoid_: Started, first message created
 
 **Queue message**:
 A message on a queue as `packages/queue` sends and consumes it: a body its definition's schema
@@ -374,8 +380,8 @@ _Avoid_: Message (the chat's word), envelope
 **Send**:
 A job or an event put on its queue after the commit of what it reads: `<Model>Queue.send<Name>`
 in its module's `<model>.queue` file, over `QueueSender.send`, which encodes it by its definition
-and carries the current trace. A send SQS refuses is logged, and fails the job's Run when it has
-one.
+and carries the current trace. A send SQS refuses is logged, and fails the Run whose reply the
+event asks for (`UserMessageCreated`, `MessageRetried`).
 _Avoid_: Publish, enqueue, dispatch, ask (the user's act)
 
 **Handling**:
