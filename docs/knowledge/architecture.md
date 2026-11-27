@@ -92,11 +92,11 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 - **Inside a module** the layers point inward too: `domain/` imports neither
   `#<module>/services/*` nor `#<module>/infrastructure/*`, `services/` not
   `#<module>/infrastructure/*` but, in the chat's ask service, its `<model>.queue` file, whose
-  jobs the services' tests read too, and, in its reply and title services, each its assistant's
+  jobs and events the services' tests read too, and, in its reply and title services, each its assistant's
   `.llm` file, and
   `infrastructure/` not `#<module>/services/*`; a service reaches the outside world only
   through a port its `domain/` declares, the sends of that queue file's `<Model>Queue`, or, in the worker's
-  services, the assistants that do the jobs' work, and a module reaches its
+  services, the assistants that do the queues' work, and a module reaches its
   own files, its contract's too, through `#<module>/…`, never its entry. A module's `domain/`
   takes another module only through its contract's entry, which Biome holds; of another module's
   entry its other layers take only the names of its contract, which review holds
@@ -172,7 +172,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | a model's rules, a class of statics per kind ([Rules as pure functions](decisions.md#rules-as-pure-functions)) | `application/chat/domain/chat-policy.ts`, `run-move.ts`, `chat-state.ts` | `ChatPolicy`, `RunMove`, `ChatState` |
 | util: a model's branded id and its pure steps with no domain meaning that the module's code shares; what it imports: [naming.md › Files](../../.claude/rules/naming.md#files) ([Utils apart from models](decisions.md#utils-apart-from-models)) | `application/chat/domain/chat.util.ts`, `message.util.ts` | `ChatId`, `MessageId`, `isBlank` |
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
-| a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `ChatQueue`, its `sendReplyToMessage` and `sendTitleChat` |
+| a module's queues: their definitions and the send of each job and event | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` and the event `FirstMessageCreated`, each with its definition as its static `queue`; `ChatQueue`, its `sendReplyToMessage` and `sendFirstMessageCreated` |
 | service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant` with `AssistantReply`, what its reply returns; `ChatAssistant`; both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
@@ -185,7 +185,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity`, `SchemaErrors`, `RequestInvalidError` |
 | a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
-| worker handler: each job's end in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
+| worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
 | worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
@@ -212,7 +212,7 @@ Every use case lives in `application/use-cases/<module>/<verb>-<object>.use-case
 modules it touches: an order over modules, holding the transaction their writes share. It composes
 the modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
 module's models and services, and an order over one module's services, with their transaction and
-their jobs' sends, is that module's `<Verb><Model>Service` ([composition.md › Where a change
+their sends, is that module's `<Verb><Model>Service` ([composition.md › Where a change
 goes](../../.claude/rules/composition.md#where-a-change-goes)). When a flow becomes one and how it
 orders its writes: [.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
 modules has the same shape as one that does not:
@@ -240,7 +240,7 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
   method, and what the handler hands it to checks what it fails with: an endpoint's error list,
-  or the worker's `consumeQueue`, whose `never` makes a job's handler end every failure; the api
+  or the worker's `consumeQueue`, whose `never` makes a queue's handler end every failure; the api
   provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer,
   and a unit test from its mocks. Decision: [Use cases as
   functions](decisions.md#use-cases-as-functions).
@@ -249,8 +249,10 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
   use case calls it. How to tell one rule from two that only look alike:
   [modules.md › Another module's rule copied](../../.claude/rules/modules.md#another-modules-rule-copied).
   Decision: [Records open, rules called](decisions.md#records-open-rules-called).
-- **No module reacts to another's write.** The flow runs synchronously in one use case; a job
-  carries only work that outlives the request (the assistant's reply, the title). Decision:
+- **A module reacts to another's write only by an event.** A flow with an order or one
+  transaction over modules runs synchronously in one use case; a job carries work its sender asks
+  for and settles (the assistant's reply), and an event a fact any module's handler in the worker
+  may listen to (a new chat's first message, which the title listens to). Decision:
   [Use cases above the modules](decisions.md#use-cases-above-the-modules).
 
 ## Add a new entity
@@ -291,9 +293,9 @@ imports need.
    the new files. A purpose the service was not made for comes later as a service composed over it,
    never as an edit of it ([Composition: wrap or compose](decisions.md#composition-wrap-or-compose)).
 4. **The flows.** An order over the module's services, their transaction or their sends is its
-   `<Verb><Model>Service`; an order over modules is a [use case](#a-use-case); a job's end is its
-   handler's, in the worker.
-   A job adds its queue to the inventory and its definition to the module's `infrastructure/`
+   `<Verb><Model>Service`; an order over modules is a [use case](#a-use-case); a job's or an
+   event's handling is ended by its handler, in the worker.
+   A job or an event adds its queue to the inventory and its definition to the module's `infrastructure/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
    ([database.md › The sends](database.md#the-sends)) and its handler in
    `apps/worker/<module>/<module>.handler.ts`, entered in the worker's route, the services it reads

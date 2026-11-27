@@ -1,9 +1,9 @@
 import { Cause, Effect } from 'effect'
 
 import {
+  FirstMessageCreated,
   ReplyChatService,
   ReplyToMessage,
-  TitleChat,
   TitleChatService,
 } from '@app-template/application/chat'
 import type { QueueName } from '@app-template/kernel/aws'
@@ -31,24 +31,32 @@ export const replyToMessage = Effect.fn('ChatHandler.replyToMessage')(
 )
 
 /**
- * Titles the job's chat; a chat gone or titled meanwhile, or an assistant error, is logged and
- * skipped.
+ * Titles the chat of the event's first message; a chat gone or titled meanwhile, or an assistant
+ * error, is logged and skipped.
  */
 export const titleChat = Effect.fn('ChatHandler.titleChat')(
-  function* (job: TitleChat) {
+  function* (event: FirstMessageCreated) {
     const titles = yield* TitleChatService
-    return yield* titles.title(job.chatId)
+    return yield* titles.title(event.chatId)
   },
   Effect.catchTags({
     LlmError: (error) =>
       Effect.logWarning('title skipped: the assistant failed', Cause.fail(error)),
     ChatNotFoundError: () => Effect.logInfo('title skipped: chat deleted or titled'),
   }),
-  (title, job) => Effect.annotateLogs(title, { chatId: job.chatId }),
+  (title, event) =>
+    Effect.annotateLogs(title, {
+      messageId: event.id,
+      chatId: event.chatId,
+      userId: event.userId,
+    }),
 )
 
-/** The chat's jobs, each consumed from its queue by its handlers, keyed by the queue's name. */
+/**
+ * The chat's jobs and events, each consumed from its queue by its handlers, keyed by the queue's
+ * name.
+ */
 export const ChatHandler = {
   [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, [replyToMessage]),
-  [TitleChat.queue.name]: consumeQueue(TitleChat.queue, [titleChat]),
+  [FirstMessageCreated.queue.name]: consumeQueue(FirstMessageCreated.queue, [titleChat]),
 } satisfies Partial<Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, unknown>>>

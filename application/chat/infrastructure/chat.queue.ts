@@ -1,14 +1,14 @@
 import { Cause, Context, Effect, Layer, Schema } from 'effect'
 
+import { UserId } from '@app-template/application/user'
 import { resources } from '@app-template/kernel/aws'
 import { type QueueDefinition, type QueueError, QueueSender } from '@app-template/packages/queue'
 
-import type { Chat } from '#chat/domain/chat.model'
 import { ChatId } from '#chat/domain/chat.util'
 import { MessageId } from '#chat/domain/message.util'
 import type { Run } from '#chat/domain/run.model'
 
-const { replyToMessage, titleChat } = resources.queues
+const { replyToMessage, firstMessageCreated } = resources.queues
 
 /** `messageId` is the user's message the worker replies to, through its active Run. */
 export class ReplyToMessage extends Schema.Class<ReplyToMessage>('ReplyToMessage')({
@@ -20,17 +20,19 @@ export class ReplyToMessage extends Schema.Class<ReplyToMessage>('ReplyToMessage
   } satisfies QueueDefinition<typeof ReplyToMessage>
 }
 
-/** `chatId` is the chat the worker titles, from the first message it reads there. */
-export class TitleChat extends Schema.Class<TitleChat>('TitleChat')({
+/** The user's message `id` is the first of the chat `chatId`, of the user `userId`. */
+export class FirstMessageCreated extends Schema.Class<FirstMessageCreated>('FirstMessageCreated')({
+  id: MessageId,
   chatId: ChatId,
+  userId: UserId,
 }) {
   static readonly queue = {
-    name: titleChat.name,
+    name: firstMessageCreated.name,
     schema: this,
-  } satisfies QueueDefinition<typeof TitleChat>
+  } satisfies QueueDefinition<typeof FirstMessageCreated>
 }
 
-/** Hands the worker the chat's jobs, each on its own queue. */
+/** Hands the worker the chat's jobs and events, each on its own queue. */
 export class ChatQueue extends Context.Service<
   ChatQueue,
   {
@@ -39,8 +41,11 @@ export class ChatQueue extends Context.Service<
      * with its `QueueError`.
      */
     readonly sendReplyToMessage: (run: Run) => Effect.Effect<void, QueueError>
-    /** Sends the job that titles the chat; one SQS refuses is logged, and the ask goes on. */
-    readonly sendTitleChat: (chat: Chat) => Effect.Effect<void>
+    /**
+     * Sends the event that the Run's user message is its chat's first; one SQS refuses is logged,
+     * and the ask goes on.
+     */
+    readonly sendFirstMessageCreated: (run: Run) => Effect.Effect<void>
   }
 >()('@app-template/application/chat/infrastructure/ChatQueue', {
   make: Effect.gen(function* () {
@@ -58,13 +63,26 @@ export class ChatQueue extends Context.Service<
         }),
     )
 
-    const sendTitleChat = Effect.fn('ChatQueue.sendTitleChat')(
-      (chat: Chat) => queue.send(TitleChat.queue, new TitleChat({ chatId: chat.id })),
-      Effect.ignore({ log: 'Error', message: 'title job not queued' }),
-      (sent, chat) => Effect.annotateLogs(sent, { chatId: chat.id }),
+    const sendFirstMessageCreated = Effect.fn('ChatQueue.sendFirstMessageCreated')(
+      (run: Run) =>
+        queue.send(
+          FirstMessageCreated.queue,
+          new FirstMessageCreated({
+            id: run.userMessageId,
+            chatId: run.chatId,
+            userId: run.userId,
+          }),
+        ),
+      Effect.ignore({ log: 'Error', message: 'first message event not queued' }),
+      (sent, run) =>
+        Effect.annotateLogs(sent, {
+          messageId: run.userMessageId,
+          chatId: run.chatId,
+          userId: run.userId,
+        }),
     )
 
-    return { sendReplyToMessage, sendTitleChat }
+    return { sendReplyToMessage, sendFirstMessageCreated }
   }),
 }) {
   static readonly layer = Layer.effect(this, this.make)

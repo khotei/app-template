@@ -168,7 +168,7 @@ takes (`SetRequired<ChatWhere, 'userId'>` of `type-fest`, `MessageWhere`, the fi
 `RunWhere`); a narrowing a caller may leave out is an absent key, never an `Option` nor an
 `undefined` ([effect.md › Schemas](../../.claude/rules/effect.md#schemas)): `ChatWhere`, a model's
 one where, is the id with `userId?` and `title?`, so `ChatService.update` takes the user's rename
-and the title job's alike. What a service hands a repository is Drizzle's filter object, which
+and the title's alike. What a service hands a repository is Drizzle's filter object, which
 `encodeWhere(where)` of `@app-template/kernel/data` makes of any service's where: an `Option` of
 none becomes `{ isNull: true }`, of some its value, a list `{ in: […] }`, a range (`WhereRange`,
 `{ from, to }`) its bounds `{ gte, lte }` with either left out, any other value stays itself
@@ -254,9 +254,9 @@ whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defec
   changed in between is missed and the write dies. A repository's `update(set, where)` takes a
   set that is `RequireAtLeastOne` from `type-fest`, so an empty write fails typecheck, and a
   `where` of a key and any field the row must still hold, rendered by `encodeFilter`
-  (above). The worked case is a chat's rename: the title job renames `where` `title` is still
-  `none`, so a rename landing between its read and its write wins, and the title job dies and
-  fails.
+  (above). The worked case is a chat's rename: the title renames `where` `title` is still
+  `none`, so a rename landing between its read and its write wins, and the title's handling dies
+  and fails.
 
 `ChatRepository.delete(where)` is one statement: the chat's messages and Runs go by the cascade, and
 `ChatService.delete` is all the api's delete calls. It takes the chat's id with its owner, both
@@ -318,21 +318,22 @@ age alone it could not tell a dead Run from one waiting in a backlog.
 
 ## The sends
 
-A job is a queue message, and no table holds it: the record of its work (the Run, the
+A job or an event is a queue message, and no table holds it: the record of its work (the Run, the
 chat's title) is the one the worker reads
 ([decisions.md › Jobs as queue messages](decisions.md#jobs-as-queue-messages)).
 
-- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through the
-  definition's schema to a JSON string and sends it to the definition's queue;
+- **`QueueSender.send(definition, message)`** (`packages/queue`) encodes the queue message through
+  the definition's schema to a JSON string and sends it to the definition's queue;
   `QueueSenderOfStage` in `kernel/aws` names that queue for the stage. A `<Verb><Model>Service`
-  sends its jobs after its transaction commits, so a delivery always finds the record it names. A transaction
-  that fails keeps no row and responds with `500`.
-- **A send SQS refuses** is logged with the id of its chat, and the reply's with its user
-  message's and its Run's too. For the reply's, `AskChatService` also fails the Run it sent
-  through `RunService.update` and the Run's `fail`, by its id, with the queue's error's full text
-  as its failure, and the request responds with `202` and that failed Run; the message is stored
-  and shown failed with its retry, `POST /chats/:chatId/runs`. The title's send only logs it. A
-  send that never happens after the commit: [Stuck Runs](#stuck-runs).
+  sends its jobs and events after its transaction commits, so a delivery always finds the record it
+  names. A transaction that fails keeps no row and responds with `500`.
+- **A send SQS refuses** is logged with its ids: the reply's with its chat's, its user message's and
+  its Run's, the event's with its message's, its chat's and its user's. For the reply's,
+  `AskChatService` also fails the Run it sent through `RunService.update` and the Run's `fail`, by
+  its id, with the queue's error's full text as its failure, and the request responds with `202` and
+  that failed Run; the message is stored and shown failed with its retry,
+  `POST /chats/:chatId/runs`. The event's send only logs it. A send that never happens after the commit:
+  [Stuck Runs](#stuck-runs).
 
 ## Migrations
 

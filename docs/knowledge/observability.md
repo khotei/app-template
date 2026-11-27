@@ -9,7 +9,7 @@ request; a *span* is one timed operation in it.
 The api's `POST` is the trace's root. Under it come the services' `Effect.fn('<Service>.<method>')`
 spans, `sql.transaction` and each statement with `db.query.text`, then `QueueSender.send`. The
 worker's `process <queue>` span (kind `consumer`, named after OTel's messaging conventions) hangs
-under that send, and under it the job's handler (`ChatHandler.<job>`), its SQL and
+under that send, and under it each handler of the queue (`ChatHandler.<work>`), its SQL and
 `LanguageModel.generateText` (a reply) or `LanguageModel.generateObject` (a title) with `gen_ai.*`
 attributes (model, response id, tokens). A failure is a span event `exception` with its type,
 message and stack. Every log line carries `trace_id` and `span_id`. Tempo derives `calls_total` and

@@ -65,42 +65,53 @@ reverse.
 
 ### Use cases above the modules
 
-Every use case lives in `application/use-cases/<module>/`, above the modules: synchronous, one transaction
-whatever modules it touches; no events, facades or reactions between modules. A use case is an
-order over modules, holding the transaction their writes share; it composes the
-modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
-module's models and services, and an order over one module's services, a request's checks with
-the writes that commit together and the jobs sent after them, sits in that module's
-`<Verb><Model>Service`, the transaction piped on those writes (`AskChatService`,
-[Composition: wrap or compose](#composition-wrap-or-compose),
-[The chat's jobs in their services](#the-chats-jobs-in-their-services),
+Every use case lives in `application/use-cases/<module>/`, above the modules: synchronous, one
+transaction whatever modules it touches; no facades between modules. A module may send an event, a
+fact its commit made true, as a queue message, and any module's handler in the worker may listen to
+it ([Jobs as queue messages](#jobs-as-queue-messages)); a flow that needs an order or one
+transaction over modules is still a use case. A use case is an order over modules, holding the
+transaction their writes share; it composes the modules' services and model rules and holds nothing
+else: a rule, a read or a write stays in its module's models and services, and an order over one
+module's services, a request's checks with the writes that commit together and the jobs and events
+sent after them, sits in that module's `<Verb><Model>Service`, the transaction piped on those writes
+(`AskChatService`, [Composition: wrap or compose](#composition-wrap-or-compose), [The chat's jobs in
+their services](#the-chats-jobs-in-their-services),
 [layering.md](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases)). The
 shape: [architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
   from the request to the last write, debuggable without following an event; one transaction for
-  free on one database.
-- **Sources:** departs from the guide's "Transactions are local to a module; cross-module
-  workflows coordinate with events or explicit orchestration"
+  free on one database. A reaction needs none of the three: its sender does not wait for it and
+  shares no write with it, so as an event it stays out of the sender's flow, which never names
+  its listeners, and a second module listens without a change to the sender.
+- **Sources:** departs from the guide's "Transactions are local to a module", and follows its
+  "cross-module workflows coordinate with events or explicit orchestration" for a reaction alone
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   the guide's "Async messaging does not magically reduce coupling strength"
-  ([dimensions](https://software-architecture-guild.com/guide/architecture/boundaries/dimensions-of-coupling/)).
+  ([dimensions](https://software-architecture-guild.com/guide/architecture/boundaries/dimensions-of-coupling/));
+  the owner's "Different modules could handle same event but in different way. We should allow
+  it." (2026-11-27).
 - **Rejected:** a module's own use cases in its `services/`, only the spanning ones above: two
-  homes, and a flow moves when it grows a module. Reactions through jobs: the request, event, job
-  path is hard to debug in production. A transaction per module: it guards a data boundary the
-  data layer does not have. A use case that reads or writes a repository itself: a second owner of
-  the record's coding and guard, which the next flow copies (a Run's guarded write was coded
-  twice).
+  homes, and a flow moves when it grows a module. A reaction sent as a job, a command its sender
+  addresses: the sender would name each listener and change with each new one. A flow with an order
+  or one transaction over modules sent as events: its steps would commit apart, and its path from
+  the request, through the queue, is hard to debug in production. A transaction per module: it
+  guards a data boundary the data layer does not have. A use case that reads or writes a repository
+  itself: a second owner of the record's coding and guard, which the next flow copies (a Run's
+  guarded write was coded twice).
 - **Cost:** a module's flows live outside the module; a shared transaction makes a module harder
-  to extract. A read or a write one flow needs becomes a service method first.
+  to extract. A read or a write one flow needs becomes a service method first. An event's listener
+  runs after its sender's commit, in the worker, so it sees the fact late, its failure reaches no
+  one but the log, and an event a process dies before sending is lost.
 - **Guarded by:** the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/layering.md › Use cases` refuses a rule or a capability in a use case, and
-  `.claude/rules/modules.md` a job that carries a module's reaction to another module's write.
-- **If reversed:** events between modules need an event ledger, a handler per reaction and
-  at-least-once delivery; a send that spans modules loses its one transaction.
+  `.claude/rules/modules.md` a reaction sent as a job and an ordered flow sent as events.
+- **If reversed:** each reaction becomes a step of its sender's use case, run in the request, or a
+  job its sender sends, and the sender names every listener.
 - **Revisit when:** a module must be extracted into its own process, or a flow must outlive the
-  request it starts in for a reason other than slow work.
+  request it starts in for a reason other than slow work; or a listener cannot afford an event
+  lost between its sender's commit and its send (an outbox then).
 
 ### Use cases as functions
 
@@ -1365,34 +1376,37 @@ without renaming provisioned resources. No app wires the files today.
 
 ### Jobs as queue messages
 
-A job is a queue message, and no table holds it: the work it hands over keeps its own record
-(the Run, the chat's title), which the worker reads to handle it once, to settle a Run whose worker
-died and to write a failure. `QueueSender.send` encodes the job by its definition; the
-`<Verb><Model>Service` that writes its record sends it after its commit, so every delivery finds
-its record. Each job goes through its `send<Job>`, a
-method of its module's `<Model>Queue` in its module's infrastructure, in the file of its queue's
-definition, which takes `QueueSender` in its `make`, only sends the job and logs a send SQS
-refuses. A job hands its worker one piece of work, as a command message does in messaging,
-and is named as one: `<Verb><Object>` in the glossary's words for the work it hands
-over, never after a method, its queue or one step of the work; its queue, its `send<Job>` and the
-worker's handler that ends it take its name. The chat's two are `ReplyToMessage { messageId }`, on
+A job, like an event, is a queue message, and no table holds it: the work it hands over keeps its
+own record (the Run, the chat's title), which the worker reads to handle it once, to settle a Run
+whose worker died and to write a failure. `QueueSender.send` encodes the job by its definition; the
+`<Verb><Model>Service` that writes its record sends it after its commit, so every delivery finds its
+record. Each job goes through its `send<Job>`, a method of its module's `<Model>Queue` in its
+module's infrastructure, in the file of its queue's definition, which takes `QueueSender` in its
+`make`, only sends the job and logs a send SQS refuses. A job hands its worker one piece of work, as
+a command message does in messaging, and is named as one: `<Verb><Object>` in the glossary's words
+for the work it hands over, never after a method, its queue or one step of the work; its queue, its
+`send<Job>` and the worker's handler that ends it take its name. An event states a fact its sender's
+commit made true, as an event message does in messaging, for a list of listeners, none required:
+named `<Object><PastVerb>`, its queue and its `send<Event>` take its name, and each listener is
+named for its own work. Unheard, does the system break, and does the sender settle a refused send?
+Yes to either makes it a job. The chat's job is `ReplyToMessage { messageId }`, on
 `reply-to-message`, sent by `ChatQueue.sendReplyToMessage` and ended by
-`ChatHandler.replyToMessage`, and `TitleChat { chatId }`, on `title-chat`, sent by
-`ChatQueue.sendTitleChat` and ended by `ChatHandler.titleChat`. The reply's names the user's
-message and starts its active Run, which the unique index on a chat's active Run keeps to one; what
-a job that names no one Run costs: [A Run's job on interrupt and on two
-deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's names the chat, whose first
-message the worker reads. The reply's send returns its `QueueError`, and `AskChatService`, the api's
-half, sends it from both its methods after their commit and fails the Run through
-`RunService.update` and the Run's `fail`, with the error's full text as its failure; the request
-responds with `202` and that failed Run; what a client's abort leaves: [A Run's job on interrupt and
-on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The title's send only logs it,
-as its work has no record to settle. Which services a Run has and over which: [layering.md › Ports
-and domain services](../../.claude/rules/layering.md#ports-and-domain-services); who does each job's
-work: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's route
-lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one message
-concurrently, each under its own exit: one that dies is logged (`queue message failed`) and leaves
-the others running, and every record the worker saw to its end is acknowledged; what a
+`ChatHandler.replyToMessage`; its event is `FirstMessageCreated { id, chatId, userId }`, ids alone,
+on `first-message-created`, sent by `ChatQueue.sendFirstMessageCreated` and listened to by
+`ChatHandler.titleChat`. The reply's names the user's message and starts its active Run, which the
+unique index on a chat's active Run keeps to one; what a job that names no one Run costs: [A Run's
+job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The event
+names a new chat's first message, which the title reads. The reply's send returns its `QueueError`,
+and `AskChatService`, the api's half, sends it from both its methods after their commit and fails
+the Run through `RunService.update` and the Run's `fail`, with the error's full text as its failure;
+the request responds with `202` and that failed Run; what a client's abort leaves: [A Run's job on
+interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The event's send
+only logs it, as its sender settles nothing. Which services a Run has and over which: [layering.md ›
+Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services); who does each
+job's work: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
+route lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one
+message concurrently, each under its own exit: one that dies is logged (`queue message failed`) and
+leaves the others running, and every record the worker saw to its end is acknowledged; what a
 redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
@@ -1421,35 +1435,37 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
   research on naming a queue's message (EIP's Command, Document and Event Messages, NServiceBus,
   MassTransit, the job frameworks) and the owner's call of the names (2026-11-21); the owner's
   call that a queue's message runs several handlers, a defect only logged, with no dead-letter
-  for it, and any retry inside the process (2026-11-27).
+  for it, and any retry inside the process (2026-11-27); the owner's call that a new chat's first
+  message goes out as the event `FirstMessageCreated`, of ids alone, which the title listens to,
+  and the reply stays a command (2026-11-27).
 - **Rejected:** a table of jobs in the data layer, a row per job beside its work's record: a second
   status for one piece of work, written in the same transaction. The send last inside the
   transaction: SQS may deliver it before the commit shows the record, and the worker skips it as a
-  deleted chat's, leaving the reply queued. A stuck Run that a retry may take after an age: a
-  rule by time, and a Run that reads queued while it is lost. A callback into the send that
-  settles its refusal: infrastructure would decide the refusal's outcome and depend on the Run.
-  The settlement as a `RunService` method: the Run's records would know the queue. Each send a
-  function that reads `QueueSender` itself: its caller took the sender in its `make` only to
-  provide it to each call. A function beside the use cases that both call: a use case calling
-  another. A port the service calls, adapted in infrastructure: a declaration in the domain and an
-  adapter in front of one implementation.
-  The settlement
-  copied into each use case that sends the reply: one step in two places, where a fix must land
-  in both. A sweep resending unsent work: a schedule and a route of its own, and a reply
-  up to a minute late. Retries with a delay per attempt: a failed reply the user waits on through
-  every attempt, and code that counts them. The title's send inline in its use case: the send's
-  policy, its log and its annotations in a flow, and a second form of the sending rule beside the
-  reply's send. A domain error wrapping `QueueError` and a `503` for a refused reply: a second
-  name for one failure, which the Run already holds, and a retry is the client's next step either
-  way. Job names that follow the service methods (`ReplyMessage`, `ReplyTitle`): a method's
-  rename would ripple into the class, the send, the handler and the queue, and `ReplyMessage`
-  reads as a noun, a message holding a reply. The old `GenerateAssistantMessage` and
-  `GenerateChatTitle`: one act under two verbs, `generate` in the job and `reply` in the service
-  that runs it, and a name for one step of the work, the model's call. An event
-  (`UserMessageCreated`): the new chat's rule would move to the worker or ride as a flag, one event
-  for two consumers needs a fan-out, and a retry is not that fact. A record whose handler died
-  returned in `batchItemFailures`: SQS's retry of a bug, which runs every handler of the queue
-  again and fills the dead-letter queue with what no one reads.
+  deleted chat's, leaving the reply queued. A stuck Run that a retry may take after an age: a rule
+  by time, and a Run that reads queued while it is lost. A callback into the send that settles its
+  refusal: infrastructure would decide the refusal's outcome and depend on the Run. The settlement
+  as a `RunService` method: the Run's records would know the queue. Each send a function that reads
+  `QueueSender` itself: its caller took the sender in its `make` only to provide it to each call. A
+  function beside the use cases that both call: a use case calling another. A port the service
+  calls, adapted in infrastructure: a declaration in the domain and an adapter in front of one
+  implementation. The settlement copied into each use case that sends the reply: one step in two
+  places, where a fix must land in both. A sweep resending unsent work: a schedule and a route of
+  its own, and a reply up to a minute late. Retries with a delay per attempt: a failed reply the
+  user waits on through every attempt, and code that counts them. The event's send inline in its
+  service: the send's policy, its log and its annotations in a flow, and a second form of the
+  sending rule beside the reply's send. A domain error wrapping `QueueError` and a `503` for a
+  refused reply: a second name for one failure, which the Run already holds, and a retry is the
+  client's next step either way. Job names that follow the service methods (`ReplyMessage`,
+  `ReplyTitle`): a method's rename would ripple into the class, the send, the handler and the queue,
+  and `ReplyMessage` reads as a noun, a message holding a reply. The old `GenerateAssistantMessage`
+  and `GenerateChatTitle`: one act under two verbs, `generate` in the job and `reply` in the service
+  that runs it, and a name for one step of the work, the model's call. The reply as an event
+  (`UserMessageCreated`, `RunCreated`): unheard, the Run stays queued and its chat busy, and its
+  sender settles a refused send by failing the Run, so it is a job; and a retry is not that fact.
+  The title listening to every user message's event: the new chat's rule would move to the worker or
+  ride as a flag. The title's job `TitleChat`: the sender would name the work its fact starts. A
+  record whose handler died returned in `batchItemFailures`: SQS's retry of a bug, which runs every
+  handler of the queue again and fills the dead-letter queue with what no one reads.
 - **Cost:** a process that dies between the commit and the send leaves the Run queued and its chat
   busy ([roadmap.md › Later](roadmap.md#later)). A refused send responds with `202`, so a client
   reads the failure from the Run's status, not the response's. A domain service now reaches its
@@ -1473,16 +1489,17 @@ redelivery then runs: [aws.md › Queues](aws.md#queues).
 ### The chat's jobs in their services
 
 A chat's jobs are split at the queue: `AskChatService`, in the api, stores a request and sends its
-jobs after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and the worker does each
-one's work in a service of its own. Each is the last grouping of the module's logic before the
-worker's handler of the job: its class is named for its verb and its main method repeats that verb,
-any other method named for its own act in the model's words. The two sides meet by one grammar: the
-api sends the job `<Verb><Object>`, through a private step `ask<Verb>` when two flows send it, and
-the worker's `<Verb><Model>Service.<verb>` does that work.
+job and event after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and the worker
+does each one's work in a service of its own. Each is the last grouping of the module's logic before
+the worker's handler of the job: its class is named for its verb and its main method repeats that
+verb, any other method named for its own act in the model's words. The two sides meet by one
+grammar: the api sends the job `<Verb><Object>`, through a private step `ask<Verb>` when two flows
+send it, and the worker's `<Verb><Model>Service.<verb>` does that work; an event's listener and its
+service are named for their own work (`ChatHandler.titleChat`, `TitleChatService.title`).
 
 ```text
-api:    AskChatService.ask ──new chat──▶ TitleChat ──────▶ ChatHandler.titleChat ──────▶ TitleChatService.title
-                           └─askReply──▶ ReplyToMessage ─▶ ChatHandler.replyToMessage ─▶ ReplyChatService.reply
+api:    AskChatService.ask ──new chat──▶ FirstMessageCreated ─▶ ChatHandler.titleChat ──────▶ TitleChatService.title
+                           └─askReply──▶ ReplyToMessage ──────▶ ChatHandler.replyToMessage ─▶ ReplyChatService.reply
         AskChatService.retry ─askReply─▶ (the same)
 ```
 

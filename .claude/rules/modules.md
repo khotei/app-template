@@ -62,9 +62,11 @@ case, never repeated. The test: if the owner changes the rule, must this module 
 one rule, call it. No: two rules that only look alike, each kept by its module.
 Decision: [Records open, rules called](../../docs/knowledge/decisions.md#records-open-rules-called).
 
-## A job that reacts to another module's write
+## A reaction sent as a job, or an ordered flow as events
 
-A job carries work that outlives a request (a slow call, a retry), never a module's reaction to
-another module's write: a flow over several modules is one use case, run synchronously.
+A module's reaction to another module's fact listens to an event the fact's module sends after its
+commit; a job carries work its sender asks for and settles (a slow call, a retry), never a
+reaction to another module's write. A flow that needs an order or one transaction over modules is
+one use case, run synchronously, never a chain of events.
 Decision:
 [Use cases above the modules](../../docs/knowledge/decisions.md#use-cases-above-the-modules).

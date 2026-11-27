@@ -19,15 +19,15 @@ export type AskChatWhere = Types.Simplify<SetRequired<Pick<ChatWhere, 'id' | 'us
 
 /**
  * Asks a chat for the assistant's work on the user's behalf, storing what the work reads before it
- * sends its jobs.
+ * sends its jobs and events.
  */
 export class AskChatService extends Context.Service<
   AskChatService,
   {
     /**
      * Asks the user's chat `where` names for a reply to `text`: stores the message with its queued
-     * Run, then sends a new chat's title job and the reply's; returns the Run sent, or failed with
-     * the full text of SQS's refusal. Another user's chat is not found.
+     * Run, then sends a new chat's first message's event and the reply's job; returns the Run sent,
+     * or failed with the full text of SQS's refusal. Another user's chat is not found.
      */
     readonly ask: (
       where: AskChatWhere,
@@ -90,9 +90,9 @@ export class AskChatService extends Context.Service<
       return yield* Effect.gen(function* () {
         const run = yield* createMessageRun(chat, text)
 
-        // A chat no ask has reached yet is titled once, from its first message; the title's send
-        // never fails, so the jobs go in either order.
-        if (ChatState.isNew(chat.run)) yield* queue.sendTitleChat(chat)
+        // A chat no ask has reached yet gets its first message's event once; the event's send never
+        // fails, so the sends go in either order.
+        if (ChatState.isNew(chat.run)) yield* queue.sendFirstMessageCreated(run)
         return yield* askReply(run)
       }).pipe(Effect.uninterruptible)
     })

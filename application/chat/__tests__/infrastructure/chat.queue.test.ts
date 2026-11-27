@@ -5,7 +5,7 @@ import { QueueError, QueueSender } from '@app-template/packages/queue'
 import { recordLogs } from '@app-template/packages/testing'
 
 import { ChatQueue } from '#chat/infrastructure/chat.queue'
-import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
+import { queuedRun } from '#testing/chat/chat.test-fixture'
 
 const refused = new QueueError({ cause: new Error('SQS is unavailable') })
 
@@ -39,16 +39,25 @@ describe('ChatQueue.sendReplyToMessage', () => {
   )
 })
 
-describe('ChatQueue.sendTitleChat', () => {
+describe('ChatQueue.sendFirstMessageCreated', () => {
   it.effect(
-    'a title job SQS refuses is logged with its chat and error, and the ask goes on',
+    "a first message's event SQS refuses is logged with its ids and error, and the ask goes on",
     () => {
-      const { logs, layer: logger } = recordLogs('chatId')
+      const { logs, layer: logger } = recordLogs('messageId', 'chatId', 'userId')
       return Effect.gen(function* () {
         const queue = yield* ChatQueue
-        yield* queue.sendTitleChat(chat)
+        yield* queue.sendFirstMessageCreated(queuedRun)
 
-        assert.deepStrictEqual(logs, [['Error', 'title job not queued', chat.id, refused]])
+        assert.deepStrictEqual(logs, [
+          [
+            'Error',
+            'first message event not queued',
+            queuedRun.userMessageId,
+            queuedRun.chatId,
+            queuedRun.userId,
+            refused,
+          ],
+        ])
       }).pipe(Effect.provide([RefusingQueueTest, logger]))
     },
   )

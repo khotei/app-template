@@ -4,7 +4,7 @@ import { ConfigProvider, Effect, Layer } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
 import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
-import { chatId } from '@app-template/application/chat/testing'
+import { chatId, firstMessage, owner } from '@app-template/application/chat/testing'
 import {
   ChatRepository,
   type MessageEntityWhere,
@@ -25,7 +25,7 @@ const buildRecord = (queue: string, body: unknown) => ({
 describe('POST /events', () => {
   it.effect('runs a batch on the handler of the queue it came from', () => {
     const reads: Array<MessageEntityWhere> = []
-    // Only the title job's first read returns: any other store call dies.
+    // Only the title's first read returns: any other store call dies.
     const events = WorkerHttp.pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
       Layer.provide([
@@ -52,7 +52,11 @@ describe('POST /events', () => {
       ),
     )
     return Effect.gen(function* () {
-      const record = buildRecord('app-template-test-title-chat', { chatId })
+      const record = buildRecord('app-template-test-first-message-created', {
+        id: firstMessage.id,
+        chatId,
+        userId: owner,
+      })
 
       const response = yield* HttpClientRequest.post('/events').pipe(
         HttpClientRequest.bodyJsonUnsafe({ Records: [record] }),

@@ -104,10 +104,10 @@ stage is new on every e2e run.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/infrastructure/<model>.queue.ts`,
-   a static `queue` of its job's class reading `name` from the entry, and its row in the worker's route
-   (`apps/worker/worker.handler.ts`), which typecheck asks for. A bucket's entry alone reaches no
-   code: `S3BucketFromConfig` binds the one `S3Bucket` to the `attachments` entry, so a second
-   bucket needs a client of its own
+   a static `queue` of its job's or event's class reading `name` from the entry, and its row in
+   the worker's route (`apps/worker/worker.handler.ts`), which typecheck asks for. A bucket's
+   entry alone reaches no code: `S3BucketFromConfig` binds the one `S3Bucket` to the
+   `attachments` entry, so a second bucket needs a client of its own
    ([architecture.md › Add a store's client](architecture.md#add-a-stores-client)).
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
@@ -149,10 +149,10 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`. A queue of the inventory with no consumer fails typecheck; a batch of
   a queue outside the inventory responds with `500`, a deployment bug.
-- **The work's record keeps a job's work to one.** A queue's handler reads the record of its work
-  (the Run and the chat's title, through `ReplyChatService` and `TitleChatService`, which report one
-  settled, started or gone as a typed error) and skips work already settled; it ends its own work on
-  any outcome but success, an interrupt included
+- **The work's record keeps a queue message's work to one.** A queue's handler reads the record of
+  its work (the Run and the chat's title, through `ReplyChatService` and `TitleChatService`, which
+  report one settled, started or gone as a typed error) and skips work already settled; it ends its
+  own work on any outcome but success, an interrupt included
   ([database.md › Stuck Runs](database.md#stuck-runs)). A body that does not decode never will, so
   it is logged and acknowledged, unrun.
 - **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker that
