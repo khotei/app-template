@@ -111,7 +111,7 @@ const RunFilter = Schema.Struct({
 })
 type RunFilter = typeof RunFilter.Type
 
-const decodeRunFilter = Schema.decodeUnknownSync(RunFilter)
+const decodeRunFilter = Schema.decodeUnknownSync(RunFilter, { onExcessProperty: 'error' })
 
 /** Whether `value` is what `condition` names: anything, or the value itself. */
 const holds = <A>(condition: A | undefined, value: A) =>
