@@ -994,7 +994,7 @@ no app.
 `kernel/llm` configures Anthropic's client (`AnthropicClientFromConfig`: the key of
 `ANTHROPIC_API_KEY`, a 10-minute wait for a byte) and holds the app's one call policy,
 `askModel` (the retries, the failure mapping and the finish-reason check), with its one final
-error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/error`, that loads no
+error, `LlmError`, behind an entry of its own, `@app-template/kernel/llm/model`, that loads no
 client. Over it `chat`'s `infrastructure/` holds one assistant per answer asked of the language
 model, each a `Context.Service` with its `static layer`: `MessageAssistant` answers the chat's
 next message from its context, `ChatAssistant` the chat's title from its opening text. Each
@@ -1038,7 +1038,7 @@ client.
   app's policy.
 - **Cost:** the worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
   nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard, covers
-  `askChat`; it admits `@app-template/kernel/llm/error`, for names matching
+  `askChat`; it admits `@app-template/kernel/llm/model`, for names matching
   `Llm…Error` only, so a use case may name a kernel error; the domain's admits none. A use case
   that names one imports a class whose file names the provider's package, so loading it loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
@@ -1048,7 +1048,7 @@ client.
   the model.
 - **Guarded by:** the rows of a module's `domain/`, `services/` and `infrastructure/` and of
   `use-cases` in [architecture.md › Dependency rules](architecture.md#dependency-rules) (the
-  domain and the use cases take of `kernel/llm` only `/error`'s errors, by name; no service but
+  domain and the use cases take of `kernel/llm` only `/model`'s errors, by name; no service but
   `ReplyChatService` and `TitleChatService` import an `.llm` file, each its own, so only they or a
   use case reach the assistants);
   the assistants' suite over a recording client.

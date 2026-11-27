@@ -6,7 +6,7 @@ import { HttpClient, type HttpClientRequest, HttpClientResponse } from 'effect/h
 import { TestClock } from 'effect/testing'
 
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
-import type { LlmError } from '@app-template/kernel/llm/error'
+import type { LlmError } from '@app-template/kernel/llm/model'
 
 import { ChatTitle } from '#chat/domain/chat.model'
 import type { ContextMessage } from '#chat/domain/message.model'

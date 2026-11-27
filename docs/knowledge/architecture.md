@@ -78,7 +78,7 @@ that refuses the row's ✗, each guard described in [Boundary guards](#boundary-
 | a module's `infrastructure/` | ✗, its own entry too | ✓, through its entry | ✗ | ✓ | ✓ | ✓ | `application/*/infrastructure/**`; its own entry, `use-cases`: `noImportCycles` on a cycle, else review |
 | a contract | ✗; of its module only `domain/` files, never their index, a policy or a move group | ✗ | ✗ | ✗ | ✗ | `schema` only | `application/*/contract/**` |
 | `application/http-api` | ✗, but its contract | ✓, through its own entry only | ✗ | ✗ | ✗ | ✗ | `application/http-api/**` |
-| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/error`'s errors only | ✓ | `application/use-cases/**`, `/llm/error` by name; review, `/testing` and `kernel/data` |
+| `use-cases` | ✓, every layer; `/testing` in its tests only | ✓ | — | its tests only | `/llm/model`'s errors only | ✓ | `application/use-cases/**`, `/llm/model` by name; review, `/testing` and `kernel/data` |
 | `kernel/data` | ✗ | ✗ | ✗ | — | ✗ | ✓ | `kernel/data/**` |
 | rest of `kernel` | ✗ | ✗ | ✗ | ✓ | ✓, the parts below it | ✓ | TS2307, a module, `use-cases`; a part above or beside it: `noImportCycles` on a cycle, else review |
 | `packages/*` | ✗ | ✗ | ✗ | ✗ | ✗ | ✓, the ones below it | `biome-imports.grit` and TS2307, any workspace; a package above it: `noImportCycles` on a cycle, else review |

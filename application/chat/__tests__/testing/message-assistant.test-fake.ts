@@ -1,6 +1,6 @@
 import { Array as Arr, Effect, Layer, Ref } from 'effect'
 
-import type { LlmError } from '@app-template/kernel/llm/error'
+import type { LlmError } from '@app-template/kernel/llm/model'
 
 import type { ContextMessage } from '#chat/domain/message.model'
 import { type AssistantReply, MessageAssistant } from '#chat/infrastructure/message-assistant.llm'

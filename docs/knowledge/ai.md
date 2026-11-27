@@ -8,7 +8,7 @@ of `LLM_REPLY_MODEL`) and `ChatAssistant` (the title: its instruction, its schem
 language model of `LLM_TITLE_MODEL`), each an `AnthropicLanguageModel` with its settings; in
 `@app-template/kernel/llm` the one function both pipe, `askModel` (the retries, the finish-reason
 check and the failure mapping), and `AnthropicClientFromConfig` (Anthropic's client with the key of
-`ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/error` its one error, `LlmError`; and those
+`ANTHROPIC_API_KEY`); in `@app-template/kernel/llm/model` its one error, `LlmError`; and those
 settings in `@app-template/kernel/config`.
 The assistants' suite runs over a fake `HttpClient` that returns canned Anthropic bodies, so no
 test needs a key or the network.

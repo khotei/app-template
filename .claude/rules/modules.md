@@ -51,7 +51,8 @@ Decisions: [Module contracts](../../docs/knowledge/decisions.md#module-contracts
 
 A check that refuses a write, a status move, a choice between outcomes or a domain
 model belongs in a module's `domain/` or `services/`, even when every module needs it;
-an entity keeps only what the store enforces (a column, a check, an index).
+an entity keeps only what the store enforces (a column, a check, an index), and a kernel part's
+`.model` file only the errors the part fails with.
 Decisions: [One kernel](../../docs/knowledge/decisions.md#one-kernel),
 [The data at the centre](../../docs/knowledge/decisions.md#the-data-at-the-centre).
 

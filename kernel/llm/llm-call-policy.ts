@@ -1,7 +1,7 @@
 import { Duration, Effect, Schedule } from 'effect'
 import type { AiError, Response } from 'effect/ai'
 
-import { LlmError } from '#kernel/llm/llm.error'
+import { LlmError } from '#kernel/llm/llm.model'
 
 const isFinished = ({ finishReason }: { readonly finishReason: Response.FinishReason }) =>
   finishReason === 'stop'

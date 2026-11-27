@@ -22,7 +22,7 @@ import {
   recordMessageAssistant,
 } from '@app-template/application/chat/testing'
 import type { RunEntitySet } from '@app-template/kernel/data'
-import { LlmError } from '@app-template/kernel/llm/error'
+import { LlmError } from '@app-template/kernel/llm/model'
 import { encodeWith } from '@app-template/packages/schema'
 import { recordLogs } from '@app-template/packages/testing'
 
