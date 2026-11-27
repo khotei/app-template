@@ -53,7 +53,7 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   a range; a field a caller asks any of the three ways is `WhereValue<T>`.
   Its key, and the owner on a type only a user's calls take, are required fields; a narrowing the
   caller may leave out is an absent key, `key?: T` ([effect.md › Schemas](effect.md#schemas)).
-- A method hands its repository `DbWhere.encode(where)`, the service form's encoder as
+- A method hands its repository `Where.encode(where)`, the service form's encoder as
   `DbFilter.encode` is the repository form's: an `Option` of none is `{ isNull: true }`, a list
   `{ in: […] }`, a range `{ from, to }` its bounds (`{ gte, lte }`, either left out), any other
   value itself. Every field becomes a condition, so a caller writes a where as a literal of its
@@ -68,7 +68,7 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - orders.getMany({ customerId, status: Option.fromUndefinedOr(query.status) })  // a null column
 + orders.getMany({ customerId, ...(query.status === undefined ? {} : { status: query.status }) })
 - repository.selectOne({ id, note: Option.getOrElse(note, () => ({ isNull: true })) })
-+ repository.selectOne(DbWhere.encode(where))
++ repository.selectOne(Where.encode(where))
 - orders.getOne(order)                                      // every field of the record a condition
 + orders.getOne({ id: order.id, customerId: order.customerId })
 ```

@@ -41,7 +41,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="40" y="130" xml:space="preserve"><tspan class="code">// RunService.update(from, to):</tspan></text>
 <text x="40" y="150" xml:space="preserve"><tspan class="code">const { row } =</tspan></text>
 <text x="40" y="170" xml:space="preserve"><tspan class="code">  yield* RowCodec.makeUpdate(Run)(to)</tspan></text>
-<text x="40" y="190" xml:space="preserve"><tspan class="code">runs.update(row, DbWhere.encode(</tspan></text>
+<text x="40" y="190" xml:space="preserve"><tspan class="code">runs.update(row, Where.encode(</tspan></text>
 <text x="40" y="210" xml:space="preserve"><tspan class="code">  { id: from.id, status: from.status }))</tspan></text>
 <text x="40" y="237" class="m" xml:space="preserve">the write carries the status the Run was read in, so a Run</text>
 <text x="40" y="256" class="m" xml:space="preserve">moved since dies</text>

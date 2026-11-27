@@ -564,7 +564,7 @@ def patterns():
             "// RunService.update(from, to):",
             "const { row } =",
             "  yield* RowCodec.makeUpdate(Run)(to)",
-            "runs.update(row, DbWhere.encode(",
+            "runs.update(row, Where.encode(",
             "  { id: from.id, status: from.status }))",
         ], "the write carries the status the Run was read in, so a Run moved since dies"),
         ("A rule keyed by a table", [

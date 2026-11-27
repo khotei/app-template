@@ -1,6 +1,6 @@
 export * from '#kernel/data/chat/index'
 export * from '#kernel/data/data-migrations'
-export { DbWhere, type WhereRange, type WhereValue } from '#kernel/data/data-where'
+export { Where, type WhereRange, type WhereValue } from '#kernel/data/data-where'
 export * from '#kernel/data/db.client'
 export * from '#kernel/data/file/index'
 export * from '#kernel/data/postgres-repositories'

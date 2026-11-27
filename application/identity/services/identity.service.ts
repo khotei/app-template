@@ -4,10 +4,10 @@ import { Base64Url } from 'effect/encoding'
 
 import { User } from '@app-template/application/user'
 import {
-  DbWhere,
   type UserEntity,
   type UserEntityCredential,
   UserRepository,
+  Where,
 } from '@app-template/kernel/data'
 import { Transaction } from '@app-template/packages/db'
 import { RowCodec } from '@app-template/packages/schema'
@@ -48,7 +48,7 @@ export class IdentityService extends Context.Service<
 
     const authenticate = Effect.fn('IdentityService.authenticate')(
       hashSecret,
-      Effect.flatMap((credentials) => users.selectOne(DbWhere.encode({ credentials }))),
+      Effect.flatMap((credentials) => users.selectOne(Where.encode({ credentials }))),
       Effect.flatMap(RowCodec.decodeOne(User)),
       Effect.flatMap(Effect.fromOption(() => new IdentityUnknownError())),
       Effect.map((user) => new IdentityClaims({ userId: user.id })),
