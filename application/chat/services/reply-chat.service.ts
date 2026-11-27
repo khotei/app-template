@@ -57,6 +57,17 @@ export class ReplyChatService extends Context.Service<
         return yield* runs.update(run, yield* RunMove.fail(run, cause))
       })
 
+    // Reads the job's active Run and starts it; a Run some worker started was left by a worker that
+    // died, so it fails as it is read.
+    const start = Effect.fnUntraced(function* (where: ReplyChatWhere) {
+      const active = yield* runs.getOne({ ...where, status: activeRunStatuses })
+      const queued = yield* RunPolicy.ensureUnstarted(active).pipe(
+        Effect.onError(failUnanswered(active)),
+      )
+
+      return yield* runs.update(queued, yield* RunMove.start(queued))
+    })
+
     const answer = Effect.fnUntraced(function* (started: Run) {
       const context = yield* contexts.getMessages(Struct.pick(started, ['chatId', 'userId']))
 
@@ -91,12 +102,7 @@ export class ReplyChatService extends Context.Service<
     // `generating`; they are interruptible, so the worker can still stop during the model's calls.
     const reply = Effect.fn('ReplyChatService.reply')(
       function* (where: ReplyChatWhere) {
-        const active = yield* runs.getOne({ ...where, status: activeRunStatuses })
-        // A Run some worker started was left by a worker that died, so it fails as it is read.
-        const queued = yield* RunPolicy.ensureUnstarted(active).pipe(
-          Effect.onError(failUnanswered(active)),
-        )
-        const started = yield* runs.update(queued, yield* RunMove.start(queued))
+        const started = yield* start(where)
 
         yield* answer(started).pipe(
           Effect.tap(compactOverLimit(started)),
