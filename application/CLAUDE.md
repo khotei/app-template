@@ -1,6 +1,6 @@
 # application
 
-The behaviour ring: the modules and, once one exists, the use cases over them. What each layer
+The behaviour ring: the modules and the use cases over them. What each layer
 of a module holds: [architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings);
 what it may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 

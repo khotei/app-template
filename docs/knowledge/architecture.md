@@ -61,7 +61,7 @@ graph TD
 ```
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
-each module, the API contract and the use cases, once one exists, a folder with one entry, a
+each module, the API contract and the use cases, a folder with one entry, a
 module's contract a folder in it with an entry of its own over files of its `domain/`. The
 `apps/e2e` test app runs both app layers in one test process, starts no process of its own, and
 nothing imports it.
@@ -184,6 +184,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | HTTP group | `application/http-api/chat.http.ts` | `ChatHttp` (`HttpApiGroup`); `ApiChat` (`Chat.json.mapFields(…)`) |
 | the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity`, `SchemaErrors`, `RequestInvalidError` |
 | a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
+| use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
 | worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `WorkerHandler` |
@@ -251,8 +252,8 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
   Decision: [Records open, rules called](decisions.md#records-open-rules-called).
 - **A module reacts to another's write only by an event.** A flow with an order or one
   transaction over modules runs synchronously in one use case; a job carries work its sender asks
-  for and settles (the assistant's reply), and an event a fact any module's handler in the worker
-  may listen to (a new chat's first message, which the title listens to). Decision:
+  for and settles, and an event a fact any module's handler in the worker may listen to (a user's
+  message, which the reply hears; a chat's first, which the title hears). Decision:
   [Use cases above the modules](decisions.md#use-cases-above-the-modules).
 
 ## Add a new entity

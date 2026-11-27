@@ -102,7 +102,7 @@ changes it.
 | Folder | What it holds |
 |---|---|
 | `apps/` | the three processes, thin entry points that assemble the layers; `apps/e2e` tests them assembled |
-| `application/` | the behaviour: the modules `chat`, `user` and `identity`, and above them, once one exists, a use case for a flow over modules, in `application/use-cases/<module>/` |
+| `application/` | the behaviour: the modules `chat`, `user` and `identity`, and above them the use cases, for a flow over modules or the owner's `askChat`, in `application/use-cases/<module>/` |
 | `kernel/` | the configured clients (`config`, `postgres`, `aws`, `llm`) and `kernel/data`: every table, migration and repository |
 | `packages/` | generic tools that know no app: database, S3 and queue clients, the AWS inventory's types, the codecs and the id schema (`schema`), UI, test helpers |
 | `deployment/` | the Pulumi program of the local stand: MiniStack with the database, the bucket, the queues and the worker's Lambda mappings inside it, and the telemetry backend, from resource code an AWS stack can call |

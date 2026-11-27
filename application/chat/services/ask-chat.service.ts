@@ -1,11 +1,11 @@
-import { Cause, Context, Effect, Layer, Struct, type Types } from 'effect'
+import { Cause, Context, Effect, Layer, Option, Struct, type Types } from 'effect'
 import type { SetRequired } from 'type-fest'
 
 import { Transaction } from '@app-template/packages/db'
 
-import type { ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
+import type { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
 import { ChatPolicy } from '#chat/domain/chat-policy'
-import { ChatState } from '#chat/domain/chat-state'
+import { Message } from '#chat/domain/message.model'
 import type { Run, RunNotRetryableError } from '#chat/domain/run.model'
 import { RunMove } from '#chat/domain/run-move'
 import { RunPolicy } from '#chat/domain/run-policy'
@@ -25,14 +25,11 @@ export class AskChatService extends Context.Service<
   AskChatService,
   {
     /**
-     * Asks the user's chat `where` names for a reply to `text`: stores the message with its queued
-     * Run, then sends a new chat's initialization and the message's events; returns the Run sent,
-     * or failed with the full text of SQS's refusal. Another user's chat is not found.
+     * Asks the chat, as its caller read it, for a reply to `text`: stores the message with its
+     * queued Run, then sends the message's event; returns the message with the Run sent, or failed
+     * with the full text of SQS's refusal.
      */
-    readonly ask: (
-      where: AskChatWhere,
-      text: string,
-    ) => Effect.Effect<Run, ChatNotFoundError | ChatBusyError>
+    readonly ask: (chat: Chat, text: string) => Effect.Effect<Message, ChatBusyError>
     /**
      * Retries the failed newest Run of the user's chat `where` names: stores a new queued Run of
      * its user message, then sends the retry's event, its refusal failing the Run as `ask`'s does.
@@ -67,8 +64,7 @@ export class AskChatService extends Context.Service<
 
     // Uninterruptible whole: a client's abort after the Run commits would leave it queued with no
     // event, its chat busy and its retry refused.
-    const ask = Effect.fn('AskChatService.ask')(function* (where: AskChatWhere, text: string) {
-      const chat = yield* chats.getOne({ id: where.id, userId: where.userId })
+    const ask = Effect.fn('AskChatService.ask')(function* (chat: Chat, text: string) {
       yield* ChatPolicy.ensureNotBusy(chat.run)
 
       // The message and its Run commit together, and alone: a Run that loses the race keeps no
@@ -87,10 +83,8 @@ export class AskChatService extends Context.Service<
         return { message, run }
       }).pipe(transaction.run)
 
-      // A chat no ask has reached yet gets its initialization's event once; that send never fails,
-      // so the sends go in either order.
-      if (ChatState.isNew(chat.run)) yield* queue.sendChatInitialized(message)
-      return yield* queue.sendUserMessageCreated(message).pipe(failRunOnRefusal(run))
+      const sent = yield* queue.sendUserMessageCreated(message).pipe(failRunOnRefusal(run))
+      return new Message({ ...message, run: Option.some(sent) })
     }, Effect.uninterruptible)
 
     const retry = Effect.fn('AskChatService.retry')(function* (where: AskChatWhere) {

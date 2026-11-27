@@ -10,6 +10,7 @@
     "./user": "./user/index.ts",
     "./user/contract": "./user/contract/index.ts",
     "./http-api": "./http-api/index.ts",
+    "./use-cases": "./use-cases/index.ts",
     "./chat/testing": "./chat/__tests__/testing/index.ts"
   },
   "imports": {
@@ -17,6 +18,7 @@
     "#identity/*": "./identity/*.ts",
     "#user/*": "./user/*.ts",
     "#http-api/*": "./http-api/*.ts",
+    "#use-cases/*": "./use-cases/*.ts",
     "#testing/chat/*": "./chat/__tests__/testing/*.ts",
     "#testing/identity/*": "./identity/__tests__/testing/*.ts"
   },

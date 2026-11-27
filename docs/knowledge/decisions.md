@@ -76,8 +76,12 @@ module's services, a request's checks with the writes that commit together and t
 sent after them, sits in that module's `<Verb><Model>Service`, the transaction piped on those writes
 (`AskChatService`, [Composition: wrap or compose](#composition-wrap-or-compose), [The chat's jobs in
 their services](#the-chats-jobs-in-their-services),
-[layering.md](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases)). The
-shape: [architecture.md › A use case](architecture.md#a-use-case).
+[layering.md](../../.claude/rules/layering.md#writes-and-sends-in-services-and-use-cases)), save
+`askChat`, the owner's use case inside the chat module: it reads the user's chat, hands it to
+`AskChatService.ask`, which checks it, stores the message with its Run and sends the message's
+event, and then sends a new chat's `ChatInitialized`, so the fact about the chat leaves the service
+that stores the message, and the request, the ask and the chat's event read as one flow. The shape:
+[architecture.md › A use case](architecture.md#a-use-case).
 
 - **Why:** one home for every flow, so a flow that grows a second module does not move; one path
   from the request to the last write, debuggable without following an event; one transaction for
@@ -89,8 +93,9 @@ shape: [architecture.md › A use case](architecture.md#a-use-case).
   ([styles/modular-monolith](https://software-architecture-guild.com/guide/architecture/styles/modular-monolith/));
   the guide's "Async messaging does not magically reduce coupling strength"
   ([dimensions](https://software-architecture-guild.com/guide/architecture/boundaries/dimensions-of-coupling/));
-  the owner's "Different modules could handle same event but in different way. We should allow
-  it." (2026-11-27).
+  the owner's "Different modules could handle same event but in different way. We should allow it."
+  (2026-11-27); the owner's call that the chat's event leaves `ask` for a use case "which will
+  combine the API request with ask and ask title" (issue #82, 2026-11-27).
 - **Rejected:** a module's own use cases in its `services/`, only the spanning ones above: two
   homes, and a flow moves when it grows a module. A reaction sent as a job, a command its sender
   addresses: the sender would name each listener and change with each new one. A flow with an order
@@ -99,10 +104,12 @@ shape: [architecture.md › A use case](architecture.md#a-use-case).
   guards a data boundary the data layer does not have. A use case that reads or writes a repository
   itself: a second owner of the record's coding and guard, which the next flow copies (a Run's
   guarded write was coded twice).
-- **Cost:** a module's flows live outside the module; a shared transaction makes a module harder
-  to extract. A read or a write one flow needs becomes a service method first. An event's listener
-  runs after its sender's commit, in the worker, so it sees the fact late, its failure reaches no
-  one but the log, and an event a process dies before sending is lost.
+- **Cost:** a module's flows live outside the module; a shared transaction makes a module harder to
+  extract. One flow, an ask, spans a service and a use case, and the use case reads the chat the
+  service used to read, so an order inside one module has two homes. A read or a write one flow
+  needs becomes a service method first. An event's listener runs after its sender's commit, in the
+  worker, so it sees the fact late, its failure reaches no one but the log, and an event a process
+  dies before sending is lost.
 - **Guarded by:** the rows of a module's layers in
   [architecture.md › Dependency rules](architecture.md#dependency-rules);
   `.claude/rules/layering.md › Use cases` refuses a rule or a capability in a use case, and
@@ -116,15 +123,16 @@ shape: [architecture.md › A use case](architecture.md#a-use-case).
 ### Use cases as functions
 
 A use case is an `Effect.fn` that yields what it composes, its type inferred; which flow is one:
-[layering.md › Use cases](../../.claude/rules/layering.md#use-cases). A job's end over one
-method of a `<Verb><Model>Service` is no use case but the worker's handler of the job:
-[The chat's jobs in their services](#the-chats-jobs-in-their-services). A flow inside the module is
-that service's, so `AskChatService.ask` and `retry` take `{ id, userId }` and read the user's chat
-themselves, and a read of the user's record before one call is its handler's: the list of a chat's
-messages reads the user's chat (`ChatService.getOne`), then lists (`MessageService.getMany`). The
-process provides the services a handler or use case reads: the api in `ApiHttp`, after
-`HttpRouter.serve`, the worker in its layer. A job's sends are a service's: [Jobs as queue
-messages](#jobs-as-queue-messages).
+[layering.md › Use cases](../../.claude/rules/layering.md#use-cases). A job's end over one method of
+a `<Verb><Model>Service` is no use case but the worker's handler of the job: [The chat's jobs in
+their services](#the-chats-jobs-in-their-services). A flow inside the module is that service's, so
+`AskChatService.retry` takes `{ id, userId }` and reads the user's chat itself, save the ask, whose
+chat `askChat` reads for `AskChatService.ask` ([Use cases above the
+modules](#use-cases-above-the-modules)), and a read of the user's record before one call is its
+handler's: the list of a chat's messages reads the user's chat (`ChatService.getOne`), then lists
+(`MessageService.getMany`). The process provides the services a handler or use case reads: the api
+in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer. A job's sends are a service's:
+[Jobs as queue messages](#jobs-as-queue-messages).
 
 - **Why:** a `Context.Service` per use case wrote its method's type a second time, the endpoint's
   errors among it, and closed its services in a layer that each handler group or route provided
@@ -143,12 +151,11 @@ messages](#jobs-as-queue-messages).
   own for each such endpoint. The list's owner as a `where` field of its query: a chat that is not
   the user's, or none, would answer `200` with an empty list in place of `404 ChatNotFoundError`.
 - **Cost:** one endpoint, the list of a chat's messages, whose handler makes two calls, the chat's
-  read and the list. `ask` and `retry` cannot be called with a `Chat` already read: a caller that
-  holds one passes its key and owner, and the service reads it again. A flow that reads a service
-  its process lacks fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit
-  test merges its doubles into the layer it provides (`Layer.provideMerge`), since the flow reads
-  them itself; the worker's route test mocks the leaves, not the handlers; a span is the
-  function's name.
+  read and the list. `retry` cannot be called with a `Chat` already read: a caller that holds one
+  passes its key and owner, and the service reads it again. A flow that reads a service its process
+  lacks fails `tsc` at the process's `main.ts` and its tests, not at the flow; a unit test merges
+  its doubles into the layer it provides (`Layer.provideMerge`), since the flow reads them itself;
+  the worker's route test mocks the leaves, not the handlers; a span is the function's name.
 - **Guarded by:** `tsc`: a service the process does not provide, an error the endpoint does not
   list, a job's failure at `consumeQueue`; `.claude/rules/layering.md › Handlers` and review, a
   handler composing more than the user's record's read and one call.
@@ -1028,8 +1035,8 @@ client.
   service. A `packages/` workspace for the policy: a tool for every app for some 40 lines of this
   app's policy.
 - **Cost:** the worker's handlers match the assistant's error by its tag (`'LlmError'`) and import
-  nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard for a future
-  use case, covers no file today; it admits `@app-template/kernel/llm/error`, for names matching
+  nothing of `kernel/llm`. The `application/use-cases/**` override, the layer's guard, covers
+  `askChat`; it admits `@app-template/kernel/llm/error`, for names matching
   `Llm…Error` only, so a use case may name a kernel error; the domain's admits none. A use case
   that names one imports a class whose file names the provider's package, so loading it loads
   `@effect/ai-anthropic`; a second provider adds a `layer<Variant>` per service, not a second
@@ -1395,8 +1402,8 @@ each `{ chatId, userId, messageId }`, ids alone: `UserMessageCreated`, on `user-
 sent by `ChatQueue.sendUserMessageCreated` for each user message an ask stores, and
 `MessageRetried`, on `message-retried`, sent by `ChatQueue.sendMessageRetried` for a retry, both
 heard by `ChatHandler.replyToMessage`; and `ChatInitialized`, on `chat-initialized`, sent by
-`ChatQueue.sendChatInitialized` when a chat gets its first user message and heard by
-`ChatHandler.titleChat`. The reply reads the user's message with its chat and user and starts its
+`ChatQueue.sendChatInitialized`, from `askChat`, when a chat gets its first user message and heard
+by `ChatHandler.titleChat`. The reply reads the user's message with its chat and user and starts its
 active Run, read by all three, so an event naming another chat's or user's ids finds none; the
 unique index on a chat's active Run keeps it to one; what an event that names no one Run costs: [A
 Run's job on interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). The
@@ -1404,15 +1411,16 @@ title reads the first message `ChatInitialized` names. The reply's two sends ret
 `QueueError`, and `AskChatService`, the api's half, sends `UserMessageCreated` from `ask` and
 `MessageRetried` from `retry` after their commit and fails the Run through `RunService.update` and
 the Run's `fail`, with the error's full text as its failure; the request responds with `202` and
-that failed Run; what a client's abort leaves: [A Run's job on interrupt and on two
-deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries). `ChatInitialized`'s send only logs its
-refusal, as its sender settles nothing. Which services a Run has and over which: [layering.md ›
-Ports and domain services](../../.claude/rules/layering.md#ports-and-domain-services); who does the
-work of each job and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services).
-The worker's route lists a queue's handlers, and `consumeQueue` runs each on every message of it,
-all of one message concurrently, each under its own exit: one that dies is logged (`queue message
-failed`) and leaves the others running, and every record the worker saw to its end is acknowledged;
-what a redelivery then runs: [aws.md › Queues](aws.md#queues).
+that failed Run, an ask's inside its message; what a client's abort leaves: [A Run's job on
+interrupt and on two deliveries](#a-runs-job-on-interrupt-and-on-two-deliveries).
+`ChatInitialized`'s send only logs its refusal, as its sender settles nothing. Which services a Run
+has and over which: [layering.md › Ports and domain
+services](../../.claude/rules/layering.md#ports-and-domain-services); who does the work of each job
+and event: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's
+route lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one
+message concurrently, each under its own exit: one that dies is logged (`queue message failed`) and
+leaves the others running, and every record the worker saw to its end is acknowledged; what a
+redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
@@ -1513,19 +1521,19 @@ what a redelivery then runs: [aws.md › Queues](aws.md#queues).
 ### The chat's jobs in their services
 
 A chat's queue messages are split at the queue: `AskChatService`, in the api, stores a request and
-sends its events after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), and
-the worker does each one's work in a service of its own. Each is the last grouping of the module's
-logic before the worker's handler of the event: its class is named for its verb and its
-main method repeats that verb, any other method named for its own act in the model's words. The two
-sides meet by one grammar: an event's listener and its service are named for their own work
-(`ChatHandler.replyToMessage`, `ReplyChatService.reply`; `ChatHandler.titleChat`,
-`TitleChatService.title`); a job, where one exists, is `<Verb><Object>`, and the worker's
-`<Verb><Model>Service.<verb>` does that work.
+sends its events after the commit ([Jobs as queue messages](#jobs-as-queue-messages)), `askChat` a
+new chat's `ChatInitialized` after the ask, and the worker does each one's work in a service of its
+own. Each is the last grouping of the module's logic before the worker's handler of the event: its
+class is named for its verb and its main method repeats that verb, any other method named for its
+own act in the model's words. The two sides meet by one grammar: an event's listener and its service
+are named for their own work (`ChatHandler.replyToMessage`, `ReplyChatService.reply`;
+`ChatHandler.titleChat`, `TitleChatService.title`); a job, where one exists, is `<Verb><Object>`,
+and the worker's `<Verb><Model>Service.<verb>` does that work.
 
 ```text
-api:    AskChatService.ask ──new chat──▶ ChatInitialized ────▶ ChatHandler.titleChat ──────▶ TitleChatService.title
-                           └───────────▶ UserMessageCreated ─▶ ChatHandler.replyToMessage ─▶ ReplyChatService.reply
-        AskChatService.retry ──────────▶ MessageRetried ─────▶ (the same)
+api:    askChat ──────new chat──────────▶ ChatInitialized ────▶ ChatHandler.titleChat ──────▶ TitleChatService.title
+          └─ AskChatService.ask ────────▶ UserMessageCreated ─▶ ChatHandler.replyToMessage ─▶ ReplyChatService.reply
+        AskChatService.retry ───────────▶ MessageRetried ─────▶ (the same)
 ```
 
 `ReplyChatService.reply` does the reply's work, given the user's message, its chat and its user the
@@ -1549,7 +1557,7 @@ module's other models, for the records the reply writes, and reads from the conf
 of a chat's context, as `ContextChatService` does, each where it uses it, so no instance carries a
 setting; `TitleChatService` the chat's assistant and those services, as its one write needs no
 transaction; `AskChatService` takes `Transaction`, the queue's sender, its queue file and those
-services, `ChatService` reading the user's chat each request names, for the request and its sends
+services, `ChatService` reading the user's chat each retry names, for the request and its sends
 ([Composition: wrap or compose](#composition-wrap-or-compose)).
 
 - **Why:** each job's run sits in one service: the rule a job keeps (an unstarted Run only), the
@@ -1630,19 +1638,19 @@ services, `ChatService` reading the user's chat each request names, for the requ
 What a Run's job accepts when it is cut short or handled twice. `ReplyChatService.reply` starts the
 Run in one uninterruptible step, and its tail fails the Run that step wrote on any failure, an
 interrupt included: a worker interrupted while the reply reads its Run starts it, then fails it, and
-one interrupted while the assistant answers leaves the Run `failed`, not started. `AskChatService`'s
-`ask` and `retry` run whole, uninterruptible, so a client that aborts still leaves the Run stored
-with its events sent, or failed by a refused send. Two deliveries at the same instant both read the
-Run queued; the loser's guarded `generating` write dies before its tail exists, so it fails nothing
-and the winner's reply stands. A Run settled or deleted under the reply makes the tail's write die,
-and the Run stays as the other writer left it. The reply's events name the user's message, not a
-Run, so a delivery starts whichever Run of it is active then: a failed Run's event delivered again
-after the user's retry starts the retry's Run, whose own event then finds it started and fails it
-with `RunStartedError`, and the user retries once more. The tail fails only the Run its start wrote,
-so a reply that dies after its Run was failed and retried fails no later Run; the api fails a
-refused send's Run by that Run too, so a refusal that arrives after SQS took the event anyway and a
-worker settled the Run dies on the write's guard and fails no later Run ([A Run's guarded
-moves](#a-runs-guarded-moves)).
+one interrupted while the assistant answers leaves the Run `failed`, not started. `askChat` and
+`AskChatService.retry` run whole, uninterruptible, and `AskChatService.ask` too, for any caller, so
+a client that aborts still leaves the Run stored with its events sent, or failed by a refused send.
+Two deliveries at the same instant both read the Run queued; the loser's guarded `generating` write
+dies before its tail exists, so it fails nothing and the winner's reply stands. A Run settled or
+deleted under the reply makes the tail's write die, and the Run stays as the other writer left it.
+The reply's events name the user's message, not a Run, so a delivery starts whichever Run of it is
+active then: a failed Run's event delivered again after the user's retry starts the retry's Run,
+whose own event then finds it started and fails it with `RunStartedError`, and the user retries once
+more. The tail fails only the Run its start wrote, so a reply that dies after its Run was failed and
+retried fails no later Run; the api fails a refused send's Run by that Run too, so a refusal that
+arrives after SQS took the event anyway and a worker settled the Run dies on the write's guard and
+fails no later Run ([A Run's guarded moves](#a-runs-guarded-moves)).
 
 - **Why:** the start runs whole and the handler sits on all that follows it, so no failure or
   interrupt of the reply leaves the Run started for the next delivery, and the reply reads as if
@@ -1668,13 +1676,14 @@ moves](#a-runs-guarded-moves)).
   delivered again after a retry fails the retry's Run, and the user retries again. A model's error
   on a Run whose chat was deleted meanwhile ends the handling as a defect, not as a warning. An
   interrupt waits for the start's read and write to end.
-- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a
-  retry interrupted while their Run is stored and an ask and a retry interrupted while their chat
-  is read, and of `ReplyChatService`, one while the assistant
-  answers, one while the reply reads its Run, one losing the `generating` write to a rival, one of a
-  failed Run's event delivered again after its retry, one that dies after its Run was failed elsewhere
-  and retried, and `AskChatService`'s of a refused send whose Run a worker settled, which fails no
-  later Run; the reply's handler's test of an interrupt's end and its log.
+- **Guarded by:** the unit tests of `AskChatService`, one interrupted mid-send, an ask and a retry
+  interrupted while their Run is stored and a retry interrupted while its chat is read, and of
+  `askChat`, a new chat's ask interrupted while its chat is read and while its Run is stored, and of
+  `ReplyChatService`, one while the assistant answers, one while the reply reads its Run, one losing
+  the `generating` write to a rival, one of a failed Run's event delivered again after its retry,
+  one that dies after its Run was failed elsewhere and retried, and `AskChatService`'s of a refused
+  send whose Run a worker settled, which fails no later Run; the reply's handler's test of an
+  interrupt's end and its log.
 - **If reversed:** the handler on the whole function again, failing the message's active Run as
   it stands: a reply that dies late fails a retry's Run, and two deliveries at once lose the reply.
 - **Revisit when:** the logs show retries failed as started, or Runs left queued.

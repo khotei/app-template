@@ -320,7 +320,7 @@ moves it into its own `Later` and deletes it here.
   Left on the owner's word. Ways out to weigh: a retry of the failure's write inside the process,
   the owner's; a sweep of active Runs ([database.md › Stuck Runs](database.md#stuck-runs)).
 - (2026-11-27) A chat's newness is judged on a read before the write (`ChatState.isNew` in
-  `AskChatService.ask`, `application/chat/services/ask-chat.service.ts`): a second ask whose read
+  `askChat`, `application/use-cases/chat/ask-chat.use-case.ts`): a second ask whose read
   precedes a first one's whole reply sends a second `ChatInitialized`, of the second message,
   which titles the chat if the first title is not written yet. Left: the window is a whole reply
   wide on one side and a read wide on the other. Way out: judge newness inside the transaction.
@@ -461,7 +461,7 @@ moves it into its own `Later` and deletes it here.
   every unit file fails. Its `pool: 'threads'` passed all unit and e2e files once, not soaked.
   Ways out to weigh: wait for a Bun with the call, or move every test run to threads on the owner's
   word.
-- (2026-11-21) A service that holds its own transaction and sends its jobs after it
+- (2026-11-21) A service that holds its own transaction and sends its events after it
   (`AskChatService.ask`) cannot join a caller's transaction: wrapped in an outer
   `transaction.run`, its transaction becomes a savepoint (`makeWithTransaction` "uses savepoints
   for nested transactions", `repos/effect/packages/effect/src/sql/SqlClient.ts:620-621`, effect

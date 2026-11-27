@@ -260,7 +260,7 @@ def how_it_works():
               ["`AskChatService.ask` stores the user's message and its `queued` Run together"], h=126),
         f.box(xs[2], y1, bw, "bnd", "3 · After the commit",
               ["sends `UserMessageCreated` to SQS, and `ChatInitialized` on a chat's first message",
-               "responds `202` with the Run"], h=126),
+               "responds `202` with the message"], h=126),
     ]
     for i in range(2):
         f.arrow([(xs[i] + bw, y1 + 63), (xs[i + 1], y1 + 63)])
@@ -456,7 +456,7 @@ def module_design():
     sx, sw = 28, 400
     side_x, side_w = 478, 172
     rows = [
-        ("bnd", "handler · `apps/`", ["`ChatHandler` of the api and the worker", ("m", "calls one method, at most after the user's record's read"), ("m", "a job's ends the job in one tail: what it skips and logs")]),
+        ("bnd", "handler · `apps/`", ["`ChatHandler` of the api and the worker", ("m", "calls one method, at most after the user's record's read"), ("m", "an event's ends its handling in one tail: what it skips and logs")]),
         ("beh", "`<Verb><Model>Service` · `services/`", ["`AskChatService.ask`, `.retry`", "`ReplyChatService.reply`", "`TitleChatService.title`"]),
         ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`RunService.update(from, to)`: under the status read"]),
         ("beh", "rules and moves · `domain/`", ["`ChatPolicy` `RunPolicy` `RunMove`", "`ChatState` `RunState`", ("m", "a class of statics per kind, beside the model")]),
@@ -578,9 +578,9 @@ def patterns():
             "const { message, run } = yield* Effect.gen(…",
             "  … messages.create, then runs.create …",
             "}).pipe(transaction.run)",
-            "if (ChatState.isNew(chat.run))",
-            "  yield* queue.sendChatInitialized(message)",
-            "yield* queue.sendUserMessageCreated(message)",
+            "const sent = yield* queue",
+            "  .sendUserMessageCreated(message)",
+            "  .pipe(failRunOnRefusal(run))",
         ], "a delivery always finds the Run it names"),
         ("Errors handled once, at the flow's end", [
             "replies.reply(event.messageId).pipe(",

@@ -400,11 +400,11 @@
         ],
         "responses": {
           "202": {
-            "description": "ApiRun",
+            "description": "ApiMessage",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ApiRun"
+                  "$ref": "#/components/schemas/ApiMessage"
                 }
               }
             }

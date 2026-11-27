@@ -64,7 +64,7 @@ _Avoid_: Prompt, completion, turn
 **Ask**:
 What the user does to a chat: their message stored with a queued Run, then its event sent
 (`UserMessageCreated`), which the reply hears, and a new chat's `ChatInitialized`
-(`POST /chats/:chatId/messages`, `AskChatService.ask`). A chat no ask has
+(`POST /chats/:chatId/messages`, `askChat`). A chat no ask has
 reached is new and `idle`; asking a `queued` chat is refused as busy. The same verb names a Run
 asking the assistant for its reply and the assistant asking the language model (`askModel`): one
 act, asking for an answer. Never an event put on its queue, which is a send.
@@ -134,7 +134,7 @@ word has the senses its entry gives; the `_Avoid_` lists name the synonyms the s
 do not.
 
 **Part**:
-A folder other code reaches only through its entry: a module, the use cases once one exists, a
+A folder other code reaches only through its entry: a module, the use cases, a
 folder of the kernel (`kernel/<part>`) or a package. It reaches its own files through
 `#<part>/…`, the kernel's through `#kernel/<part>/…`, and its test support through
 `#testing/<part>/…`.
@@ -186,7 +186,7 @@ _Avoid_: Persistence layer, DAL, repository layer, shared domain
 
 **Application**:
 The ring of the behaviour, under `application/`: the modules and, above them, the use cases that
-compose them, once one exists. It holds every business rule; the data layer stores what it
+compose them. It holds every business rule; the data layer stores what it
 decides, the boundary connects it to the world, and the apps run it. Not the whole template,
 which is *the template*.
 _Avoid_: Application layer, app (a process under `apps/`), business layer

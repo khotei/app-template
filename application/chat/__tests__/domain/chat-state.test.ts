@@ -2,6 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Option } from 'effect'
 
 import { ChatState } from '#chat/domain/chat-state'
+import { chat, queuedRun } from '#testing/chat/chat.test-fixture'
 
 describe('ChatState.build', () => {
   it('reads a chat no ask has reached as idle', () => {
@@ -20,10 +21,10 @@ describe('ChatState.build', () => {
 
 describe('ChatState.isNew', () => {
   it('reads a chat no ask has reached as new', () => {
-    assert.isTrue(ChatState.isNew(Option.none()))
+    assert.isTrue(ChatState.isNew(chat))
   })
 
   it('reads a chat with a Run as not new', () => {
-    assert.isFalse(ChatState.isNew(Option.some({ status: 'done' })))
+    assert.isFalse(ChatState.isNew({ run: Option.some(queuedRun) }))
   })
 })

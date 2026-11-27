@@ -223,8 +223,8 @@ touches no row (`Effect.filterOrFail(Arr.isReadonlyArrayNonEmpty)` over the writ
 whose `NoSuchElementError` the method's `orDieWithSqlError` turns into the defect):
 
 - **Insert under a partial unique index.** `RunRepository.insert` is a plain insert, so a second
-  active Run in a chat fails on the index and dies. `AskChatService.ask` reads the chat
-  with its newest Run and refuses a chat whose Run is active (`ChatPolicy.ensureNotBusy`,
+  active Run in a chat fails on the index and dies. `askChat` reads the chat with its
+  newest Run and `AskChatService.ask` refuses a chat whose Run is active (`ChatPolicy.ensureNotBusy`,
   `ChatBusyError`, 409);
   of two asks that both read none at once, the second's Run insert, its last write, dies on the
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with

@@ -61,7 +61,7 @@ export class ChatHttp extends HttpApiGroup.make('chats').add(
     payload: Schema.Struct({
       text: Message.fields.text.check(Schema.isMaxLength(20_000)),
     }),
-    success: ApiRun.pipe(HttpApiSchema.status(202)),
+    success: ApiMessage.pipe(HttpApiSchema.status(202)),
     error: [ChatNotFoundError, ChatBusyError],
   }),
   HttpApiEndpoint.post('retryRun', '/chats/:chatId/runs', {
