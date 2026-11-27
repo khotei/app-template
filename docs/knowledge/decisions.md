@@ -674,8 +674,10 @@ class: a check or a derived value takes a `Pick` of the fields it reads, a check
 record back is generic over it, and a move takes the model's fields (`RunFields`, the struct type
 of `Run.fields`) and returns `new Run(…)`. A static calls another by its class's name, never
 `this`, so a static passed as a value runs. Outside the domain, a package's or kernel part's
-functions of one meaning are statics of one class named for it the same way (`RowCodec`), the
-data layer's an entity's `<Name>Statement`; a function alone in its meaning stays a function.
+functions of one meaning are statics of one class named for it the same way (`RowCodec`); the
+data layer's, each a group named for what it serves: an entity's statements (`<Name>Statement`),
+an object store's keys (`<Name>Object`), the orders every table shares and a service's `where`.
+A function alone in its meaning stays a function.
 
 - **Why:** a pure piece is tested with plain values and no layer, and a new rule combines pieces
   that are already tested instead of repeating their logic; a service reads as reads and writes.

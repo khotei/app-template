@@ -37,11 +37,12 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
   update variants, which a write encodes ([models.md](models.md)), are no second shape either.
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read.
-- What a repository builds its statements from (the columns an update writes, a read's nesting,
-  an entity built from a read) are statics of `<Name>Statement` in the entity's file
-  (`OrderStatement.setColumns`; `<Name>Object` over an object store), the orders every table shares
-  `EntityOrder`'s; a table, a `pgEnum` and `<Name>Columns` stay exports, as drizzle-kit reads a
-  module's exports alone.
+- An entity's file holds, besides the entity and its verbs' types, what its repository builds
+  its statements from (the columns an update writes, a read's nesting, the entity built from a
+  read) as statics of `<Name>Statement` (`OrderStatement.setColumns`), `<Name>Object` over an
+  object store; the orders every table shares are a static group beside the entities. A helper
+  one repository alone uses stays in the repository's file, unexported, as an entity file is
+  exported whole. A table, a `pgEnum` and `<Name>Columns` stay exports: drizzle-kit reads exports alone.
 
 ## A where's two forms
 
