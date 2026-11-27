@@ -1,10 +1,10 @@
 import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
-import { ConfigProvider, Effect, Layer } from 'effect'
+import { Array as Arr, ConfigProvider, Effect, Layer, Option } from 'effect'
 import { HttpClient, HttpClientRequest } from 'effect/http'
 
 import { ChatAssistant, MessageAssistant } from '@app-template/application/chat'
-import { chatId } from '@app-template/application/chat/testing'
+import { chatId, firstMessage, owner } from '@app-template/application/chat/testing'
 import {
   ChatRepository,
   type MessageEntityWhere,
@@ -12,6 +12,7 @@ import {
   RunRepository,
 } from '@app-template/kernel/data'
 import { TransactionTest } from '@app-template/packages/db/testing'
+import { recordLogs } from '@app-template/packages/testing'
 
 import { WorkerHttp } from '#worker/layer'
 
@@ -25,15 +26,16 @@ const buildRecord = (queue: string, body: unknown) => ({
 describe('POST /events', () => {
   it.effect('runs a batch on the handler of the queue it came from', () => {
     const reads: Array<MessageEntityWhere> = []
-    // Only the title job's first read returns: any other store call dies, and fails the batch.
+    const { logs, layer: logger } = recordLogs()
+    // Only the title's first read returns: any other store call dies, which the consumer logs.
     const events = WorkerHttp.pipe(
       Layer.provideMerge(BunHttpServer.layerTest),
       Layer.provide([
         Layer.mock(MessageRepository, {
-          selectMany: (where) =>
+          selectOne: (where) =>
             Effect.sync(() => {
               reads.push(where)
-            }).pipe(Effect.as([])),
+            }).pipe(Effect.as(Option.none())),
         }),
         Layer.mock(ChatRepository, {}),
         Layer.mock(RunRepository, {}),
@@ -50,9 +52,14 @@ describe('POST /events', () => {
           }),
         ),
       ),
+      Layer.provide(logger),
     )
     return Effect.gen(function* () {
-      const record = buildRecord('app-template-test-title-chat', { chatId })
+      const record = buildRecord('app-template-test-first-message-created', {
+        id: firstMessage.id,
+        chatId,
+        userId: owner,
+      })
 
       const response = yield* HttpClientRequest.post('/events').pipe(
         HttpClientRequest.bodyJsonUnsafe({ Records: [record] }),
@@ -61,7 +68,8 @@ describe('POST /events', () => {
 
       assert.strictEqual(response.status, 200)
       assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
-      assert.deepStrictEqual(reads, [{ chatId }])
+      assert.deepStrictEqual(reads, [{ id: firstMessage.id, chatId, userId: owner }])
+      assert.isFalse(Arr.some(logs, ([, message]) => message === 'queue message failed'))
     }).pipe(Effect.provide(events))
   })
 })

@@ -59,7 +59,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="40" y="351" xml:space="preserve"><tspan class="code">  function* (chat, text) { … }, transaction.run)</tspan></text>
 <text x="40" y="371" xml:space="preserve"><tspan class="code">const run = yield* createMessageRun(chat, text)</tspan></text>
 <text x="40" y="391" xml:space="preserve"><tspan class="code">if (ChatState.isNew(chat.run))</tspan></text>
-<text x="40" y="411" xml:space="preserve"><tspan class="code">  yield* queue.sendTitleChat(chat)</tspan></text>
+<text x="40" y="411" xml:space="preserve"><tspan class="code">  yield* queue.sendFirstMessageCreated(run)</tspan></text>
 <text x="40" y="431" xml:space="preserve"><tspan class="code">return yield* askReply(run)</tspan></text>
 <text x="40" y="458" class="m" xml:space="preserve">a delivery always finds the Run it names</text>
 <rect x="488" y="287" width="444" height="188" rx="8" class="box k-neu"/>

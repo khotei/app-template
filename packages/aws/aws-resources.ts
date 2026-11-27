@@ -5,7 +5,7 @@ export interface BucketResource {
 
 export interface QueueResource {
   readonly name: string
-  /** How many deliveries a message whose handler keeps failing gets before its dead-letter queue. */
+  /** How many times a message is delivered unacknowledged before its dead-letter queue takes it. */
   readonly maxReceiveCount: number
   /** How long a delivered message stays hidden: AWS refuses a mapping on less than its function's timeout. */
   readonly visibilityTimeoutSeconds: number

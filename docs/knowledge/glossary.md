@@ -62,8 +62,9 @@ written with its qualifier or its library's name.
 _Avoid_: Prompt, completion, turn
 
 **Ask**:
-What the user does to a chat: their message stored with a queued Run, then the jobs that answer
-it sent (`POST /chats/:chatId/messages`, `AskChatService.ask`). A chat no ask has
+What the user does to a chat: their message stored with a queued Run, then the job that answers
+it sent, and a new chat's first message's event (`POST /chats/:chatId/messages`,
+`AskChatService.ask`). A chat no ask has
 reached is new and `idle`; asking a `queued` chat is refused as busy. The same verb names a Run
 asking the assistant for its reply and the assistant asking the language model (`askModel`): one
 act, asking for an answer. Never a job put on its queue, which is a send.
@@ -160,8 +161,8 @@ _Avoid_: Interface (TypeScript's `interface` keeps it), API
 **Record**:
 One stored instance of a model: a row of its table, or an object in the bucket with its metadata,
 read and written as its entity. Not an entry of `decisions.md`, which is a decision; not SQS's
-record (`SqsRecord`, an event's `Records`), written *SQS record*; not a fake that keeps the calls
-it takes (`record<Thing>()`); TypeScript's `Record` is the library's.
+record (`SqsRecord`, an `SqsEvent`'s `Records`), written *SQS record*; not a fake that keeps the
+calls it takes (`record<Thing>()`); TypeScript's `Record` is the library's.
 _Avoid_: Document, item, row (its table's encoded form)
 
 **Store**:
@@ -220,8 +221,8 @@ _Avoid_: DTO layer, SDK, wire schemas, shared domain
 One scenario that composes domain services and model rules over modules, their writes in one
 transaction; what a handler calls when a flow is more than one service method and
 no one service owns it ([which flow](../../.claude/rules/layering.md#use-cases)). It holds only its
-flow, the order of the calls, the transaction, what it skips and logs; each module's rules, records
-and jobs stay in its models and services, and an order over one module's services is that
+flow, the order of the calls, the transaction, what it skips and logs; each module's rules, records,
+jobs and events stay in its models and services, and an order over one module's services is that
 module's `<Verb><Model>Service`.
 _Avoid_: Interactor, orchestrator, workflow, application service, job
 
@@ -326,10 +327,11 @@ and use cases alike. Decision:
 _Avoid_: Layering (an Effect `Layer` is the wiring, not the unit), inheritance, decoration
 
 **Handler**:
-The function that serves one request or one job in an app: an HTTP group's (`<Name>Handler`) or
-a job's in the worker (`<Name>Handler.<job>`), which ends the job in one tail. Not a Lambda's
-`handler` setting, AWS's field.
-_Avoid_: Controller, consumer (the function that runs a queue's handler), processor, endpoint
+The function that serves one request or one queue message in an app: an HTTP group's
+(`<Name>Handler`) or, in the worker, a job's or an event's listener's (`<Name>Handler.<work>`),
+which ends its work in one tail; a queue lists its handlers, and each runs on every message of
+it. Not a Lambda's `handler` setting, AWS's field.
+_Avoid_: Controller, consumer (the function that runs a queue's handlers), processor, endpoint
 
 **Kernel**:
 The workspace `kernel/`: the data layer at its centre, and around it the tools of `packages/*`
@@ -348,22 +350,31 @@ The words of the work the api hands to the worker. The queues, the stand and its
 [aws.md](aws.md).
 
 **Job**:
-A queue message that hands the worker one piece of work, shaped by its queue definition,
-and named `<Verb><Object>` in this glossary's words for that work (`ReplyToMessage`,
-`TitleChat`). The reply's names the user's message whose active Run the worker starts, the
-title's the chat it titles. Not a CI job (a workflow's `jobs:`).
-_Avoid_: Task, event (SQS's event carries the batch), command, message (the chat's word)
+A queue message that hands one handler in the worker one piece of work, a command, shaped by its
+queue definition and named `<Verb><Object>` in this glossary's words for that work
+(`ReplyToMessage`, which names the user's message whose active Run the worker starts). Unheard,
+its work stays undone, so its sender settles a refused send. Not a CI job (a workflow's `jobs:`).
+_Avoid_: Task, message (the chat's word)
+
+**Event**:
+A queue message that states a fact a module's commit made true, named `<Object><PastVerb>`
+(`FirstMessageCreated`, which names a new chat's first message, its chat and its user): a list
+of listeners, any module's handlers in the worker, none required, each ending alone. Not a job,
+a command with one handler whose sender settles its refused send; not SQS's event (`SqsEvent`),
+the batch the worker is posted.
+_Avoid_: Notification, signal, message (the chat's word)
 
 **Queue message**:
 A message on a queue as `packages/queue` sends and consumes it: a body its definition's schema
-encodes, with the sender's `traceparent`. Every job is one; SQS's own names stay
+encodes, with the sender's `traceparent`. Every job and event is one; SQS's own names stay
 (`MessageBody`, `messageId`, `messageAttributes`), and a log names its id `queueMessageId`.
-_Avoid_: Message (the chat's word), event, envelope
+_Avoid_: Message (the chat's word), envelope
 
 **Send**:
-A job put on its queue after the commit of what it reads: `<Model>Queue.send<Job>` in its
-module's `<model>.queue` file, over `QueueSender.send`, which encodes it by its definition and
-carries the current trace. A send SQS refuses is logged, and fails the job's Run when it has one.
+A job or an event put on its queue after the commit of what it reads: `<Model>Queue.send<Name>`
+in its module's `<model>.queue` file, over `QueueSender.send`, which encodes it by its definition
+and carries the current trace. A send SQS refuses is logged, and fails the job's Run when it has
+one.
 _Avoid_: Publish, enqueue, dispatch, ask (the user's act)
 
 **Handling**:
@@ -412,8 +423,8 @@ process's name.
 _Avoid_: Monitoring data, diagnostics, instrumentation
 
 **Trace**:
-The tree of spans that follows one request in the `api`, or one job's handling in the `worker`;
-one trace id joins them.
+The tree of spans that follows one request in the `api`, or one queue message's handling in the
+`worker`; one trace id joins them.
 _Avoid_: Request log, transaction, flow
 
 **Span**:

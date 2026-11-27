@@ -19,8 +19,8 @@ export const resources = {
       maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },
-    titleChat: {
-      name: 'title-chat',
+    firstMessageCreated: {
+      name: 'first-message-created',
       maxReceiveCount: 3,
       visibilityTimeoutSeconds: workerTimeoutSeconds,
     },

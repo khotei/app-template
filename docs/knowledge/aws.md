@@ -104,10 +104,10 @@ stage is new on every e2e run.
 
 1. Add the entry to `resources.ts`; a queue's dead-letter queue is derived, not listed.
 2. For a queue, add its definition in `application/<module>/infrastructure/<model>.queue.ts`,
-   a static `queue` of its job's class reading `name` from the entry, and its row in the worker's route
-   (`apps/worker/worker.handler.ts`), which typecheck asks for. A bucket's entry alone reaches no
-   code: `S3BucketFromConfig` binds the one `S3Bucket` to the `attachments` entry, so a second
-   bucket needs a client of its own
+   a static `queue` of its job's or event's class reading `name` from the entry, and its row in
+   the worker's route (`apps/worker/worker.handler.ts`), which typecheck asks for. A bucket's
+   entry alone reaches no code: `S3BucketFromConfig` binds the one `S3Bucket` to the
+   `attachments` entry, so a second bucket needs a client of its own
    ([architecture.md › Add a store's client](architecture.md#add-a-stores-client)).
    Code that names a missing entry fails typecheck.
 3. `make up` creates it locally.
@@ -149,24 +149,27 @@ decodes each body by it. A definition's queue is `buildResourceName(STAGE, defin
   Lambda Web Adapter makes on AWS. The worker picks a batch's consumer by the queue name in its
   records' `eventSourceARN`. A queue of the inventory with no consumer fails typecheck; a batch of
   a queue outside the inventory responds with `500`, a deployment bug.
-- **The work's record keeps a job's work to one.** A queue's handler reads the record of its work
-  (the Run and the chat's title, through `ReplyChatService` and `TitleChatService`, which report one
-  settled, started or gone as a typed error) and skips work already settled; it ends its own work on
-  any outcome but success, an interrupt included
+- **The work's record keeps a queue message's work to one.** A queue's handler reads the record of
+  its work (the Run and the chat's title, through `ReplyChatService` and `TitleChatService`, which
+  report one settled, started or gone as a typed error) and skips work already settled; it ends its
+  own work on any outcome but success, an interrupt included
   ([database.md › Stuck Runs](database.md#stuck-runs)). A body that does not decode never will, so
   it is logged and acknowledged, unrun.
 - **Delivery is at-least-once:** the reply's job fails a Run it finds started, as the worker that
   started it died, so a copy delivered while the first is still handled fails a live Run, a rare
   case accepted; of two delivered at the same instant, the one that loses its start's write dies
   and fails nothing.
-- **Only a defect returns to the queue.** A handler has no error channel: it settles its work's
-  failure itself. A record whose handler dies (a process that dies included) is
-  returned in `batchItemFailures`, or not returned at all; SQS delivers it again once the queue's
-  visibility timeout, the worker function's 600 s, has passed, and after `maxReceiveCount`, 3,
-  redrives it to `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping
-  on a queue that hides a message less than its function's timeout.
-- **Nothing consumes a dead-letter queue.** A Run's worker writes `failed` on any outcome but
-  success; one that no worker settles stays active
+- **Only a dead process returns a record to the queue.** A queue lists its handlers, which run
+  concurrently on each record. A handler has no error channel: it settles its work's failure
+  itself, and one that dies is logged (`queue message failed`) while the others run on. The
+  worker acknowledges every record it saw to its end, so `batchItemFailures` stays empty. A
+  record whose process died is not acknowledged; SQS delivers it again once the queue's
+  visibility timeout, the worker function's 600 s, has passed, and every handler of its queue
+  runs again, so each is safe to run twice; after `maxReceiveCount`, 3, SQS redrives it to
+  `<queue>-dlq`. A delivery after the work settled skips it. AWS refuses a mapping on a queue that
+  hides a message less than its function's timeout.
+- **Nothing consumes a dead-letter queue.** It fills only from records a process died under. A
+  Run's worker writes `failed` on any outcome but success; one that no worker settles stays active
   ([database.md › Stuck Runs](database.md#stuck-runs)).
 - **AWS differs in one HTTP status.** MiniStack counts any non-2xx response as a failed invoke; Lambda
   Web Adapter only the codes in `AWS_LWA_ERROR_STATUS_CODES`, none by default, so the deployed

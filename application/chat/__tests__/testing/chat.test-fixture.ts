@@ -23,7 +23,7 @@ export const owner = UserId.make('0192d4e0-7b3a-7c00-8000-000000000010')
 /** An untitled chat of `owner`, created at `epoch`, so a later write shows as a moved `updatedAt`. */
 export const chat = new Chat({ id: chatId, userId: owner, createdAt: epoch, updatedAt: epoch })
 
-/** The first message of `chat`, the one its title job reads. */
+/** The first message of `chat`, the one its title reads. */
 export const firstMessage = new Message({
   author: 'user',
   id: messageId,

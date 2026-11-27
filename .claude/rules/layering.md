@@ -46,12 +46,11 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - The writes commit in one transaction, `Transaction`'s `run` piped on them or their function's last
   argument, spanning a language-model call only to store its answer, never a send. An object store
   joins none: keep the bytes before the row that binds them, delete them once the rows are gone.
-- Send a job after the commit of the writes it reads, so a delivery always finds its record,
-  through its `send<Job>`, which logs a refusal and returns it only where its caller settles it
+- Send a job or an event after the commit of the writes it reads, so a delivery finds its record,
+  through its `send<Name>`, which logs a refusal and returns it only where its caller settles it
   on a record ([decision](../../docs/knowledge/decisions.md#jobs-as-queue-messages)).
 - Hold no lock in the process: a rule two writers could break is a guard in the write itself,
-  which dies when refused, and a write sets only the fields its writer owns:
-  [database.md › Guards](../../docs/knowledge/database.md#guards).
+  which dies when refused, and a write sets only the fields its writer owns: [database.md › Guards](../../docs/knowledge/database.md#guards).
 
 ## Use cases
 
@@ -73,8 +72,9 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
   one returns the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with
   the domain's errors as they are. It composes nothing else, holds no rule and imports no
   repository or data layer, which only the process's `layer.ts` provides.
-- A job is handled once, unretried. The worker's `<Verb><Model>Service` ends its work on any
-  outcome but success, an interrupt included, and work a dead handling left started. The job's
-  handler ends the job in one tail: what it skips and logs ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+- A queue message is handled once, unretried, each handler safe to run twice ([why](../../docs/knowledge/aws.md#queues)).
+  The worker's `<Verb><Model>Service` ends its work on any outcome but success, an interrupt
+  included, and work a dead handling left started. Each handler ends its work in one tail:
+  what it skips and logs ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - A handler is `Effect.fn('<Group>Handler.<endpoint|job>')`; an api handler that returns a constant
   is a plain function with no span; an effectful group or router builder is `Effect.fnUntraced` ([why](effect-services.md#functions)).

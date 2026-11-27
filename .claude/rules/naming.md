@@ -25,13 +25,13 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.port` | a service the domain declares to reach outside, with the values it takes and returns | `domain/` |
 | `.service` | `<model>.service.ts`, `<aspect>-<model>.service.ts` composed over it, `<operation>.service.ts` for one of no model | `services/`; a package's or kernel part's takes its role's (`.client`, `.sender`) |
 | `.use-case` | `<verb>-<object>.use-case.ts`: one use case | `application/use-cases/<module>/` |
-| `.queue` · `.llm` | `<model>.queue.ts`: the queues' definitions, jobs and `<Model>Queue`, their sends · `<model>-assistant.llm.ts`: one assistant per output asked of a language model | `infrastructure/` |
+| `.queue` · `.llm` | `<model>.queue.ts`: the queues' definitions, jobs, events and `<Model>Queue`, their sends · `<model>-assistant.llm.ts`: one assistant per output asked of a language model | `infrastructure/` |
 | `.table` · `.entity` · `.repository` | a table with any it alone owns (drizzle-kit reads `*/*.table.ts`) · `<Name>Entity` and its verbs' types · one store's access | `kernel/data/<store>/` |
 | `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
-| `.sender` · `.consumer` | the queue's send · its run of a handler per job | `packages/queue` |
+| `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each message | `packages/queue` |
 | `.http` | a resource's `HttpApiGroup` with its wire shapes | `application/http-api/` |
 | `.mapper` | a model's wire shape, where it differs | `apps/api/<resource>/` |
-| `.handler` | a resource's handlers, of its endpoints or its jobs; the worker's route | `apps/api/<resource>/`, `apps/worker/<resource>/`; the route `apps/worker/` |
+| `.handler` | a resource's handlers, of its endpoints, its jobs or the events it listens to; the worker's route | `apps/api/<resource>/`, `apps/worker/<resource>/`; the route `apps/worker/` |
 | `.layer` | the layers of services another workspace declares (the API contract's middlewares), each `<Service>Layer` | an app |
 | `.test` · `.e2e` | a unit test · a test on the e2e run's containers, each named for its source | `__tests__/` · `__e2e__/`, `apps/e2e` |
 | `.test-fixture` · `.test-util` | sample values, plain data · a helper, building no layer and doubling nothing | `__tests__/testing/` |
@@ -66,6 +66,10 @@ keep theirs. What each role holds and may import, with this app's files of each:
 - A job is named `<Verb><Object>` in the glossary's words for the work it asks of its worker
   (`ShipOrder`), never after a method, its queue or one step of the work; its queue
   (`ship-order`), its `send<Job>` and the handler that ends it (`shipOrder`) take that name.
+- An event is named `<Object><PastVerb>` for the fact its sender's commit made true
+  (`OrderShipped`), never after a listener or the work one does; its queue (`order-shipped`) and
+  its `send<Event>` take that name, and each handler that listens is named for its own work
+  (`notifyCustomer`).
 - Other constants are `camelCase`, `as const` for literal objects and arrays; a `Layer` constant
   is `PascalCase`, `<Service><Variant>` for a service declared elsewhere.
 - A test-only layer ends in `Test`: a fake `<Service>Test`, a model's real services over fakes

@@ -5,10 +5,10 @@ import { Array as Arr, Effect, Exit, Fiber, Option } from 'effect'
 import {
   Chat,
   ChatTitle,
+  FirstMessageCreated,
   Message,
   ReplyToMessage,
   Run,
-  TitleChat,
 } from '@app-template/application/chat'
 import {
   chat,
@@ -16,6 +16,7 @@ import {
   firstMessage,
   holdCall,
   layerChatTest,
+  owner,
   queuedRun,
   recordChatAssistant,
   recordMessageAssistant,
@@ -219,13 +220,14 @@ describe('replyToMessage', () => {
   })
 })
 
-/** A message read that returns the chat's messages as `firstMessage` alone. */
-const selectsFirstMessage = () =>
-  Effect.forEach([firstMessage], (message) => encodeWith(Message)(message))
+/** A message read that finds `firstMessage`. */
+const selectsFirstMessage = () => encodeWith(Message)(firstMessage).pipe(Effect.map(Option.some))
 
 const lisbonWeekend = ChatTitle.make('Lisbon weekend')
 
-const title = titleChat(new TitleChat({ chatId }))
+const firstMessageCreated = new FirstMessageCreated({ id: firstMessage.id, chatId, userId: owner })
+
+const title = titleChat(firstMessageCreated)
 
 describe('titleChat', () => {
   it.effect('skips a chat the store finds titled or gone by the rename, and logs it', () => {
@@ -239,7 +241,7 @@ describe('titleChat', () => {
       Effect.provide([
         layerChatTest(
           {
-            messages: { selectMany: selectsFirstMessage },
+            messages: { selectOne: selectsFirstMessage },
             chats: { selectOne: () => Effect.succeedNone },
           },
           { chatAssistant: assistant.layer },
@@ -249,7 +251,7 @@ describe('titleChat', () => {
     )
   })
 
-  it.effect('logs a chat gone when it holds no message, without asking', () => {
+  it.effect('logs a chat gone when its message is gone, without asking', () => {
     const assistant = recordChatAssistant(Effect.succeed(lisbonWeekend))
     const { logs, layer: logger } = recordLogs()
     return Effect.gen(function* () {
@@ -260,7 +262,7 @@ describe('titleChat', () => {
     }).pipe(
       Effect.provide([
         layerChatTest(
-          { messages: { selectMany: () => Effect.succeed([]) } },
+          { messages: { selectOne: () => Effect.succeedNone } },
           { chatAssistant: assistant.layer },
         ),
         logger,
@@ -268,18 +270,20 @@ describe('titleChat', () => {
     )
   })
 
-  it.effect("leaves the chat untitled and logs the LlmError with the job's chat", () => {
+  it.effect("leaves the chat untitled and logs the LlmError with the event's ids", () => {
     const error = new LlmError({ cause: '529 overloaded' })
     const assistant = recordChatAssistant(Effect.fail(error))
-    const { logs, layer: logger } = recordLogs('chatId')
+    const { logs, layer: logger } = recordLogs('messageId', 'chatId', 'userId')
     return Effect.gen(function* () {
       yield* title
 
-      assert.deepStrictEqual(logs, [['Warn', 'title skipped: the assistant failed', chatId, error]])
+      assert.deepStrictEqual(logs, [
+        ['Warn', 'title skipped: the assistant failed', firstMessage.id, chatId, owner, error],
+      ])
     }).pipe(
       Effect.provide([
         layerChatTest(
-          { messages: { selectMany: selectsFirstMessage } },
+          { messages: { selectOne: selectsFirstMessage } },
           { chatAssistant: assistant.layer },
         ),
         logger,

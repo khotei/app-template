@@ -25,7 +25,8 @@ what it may import: [› Dependency rules](../docs/knowledge/architecture.md#dep
   ([decision](../docs/knowledge/decisions.md#a-modules-layers)). An adapter of a port, or a
   service its module calls there, keeps its client and prompts inside, so callers never see them.
 - A `<model>.queue.ts` in `infrastructure/` holds the module's queue definitions and its
-  `<Model>Queue`, which holds each job's `send<Job>`; no adapter wraps the worker.
+  `<Model>Queue`, which holds each job's `send<Job>` and each event's `send<Event>`; no adapter
+  wraps the worker.
 - **`http-api/` is the API contract,** which the api implements. A group takes the domain's schemas
   as they are (ids, checks, models, errors), through the modules' contracts alone: an error's status
   is on its class (`{ httpApiStatus: 404 }`, the third argument of `Schema.TaggedError`), an

@@ -16,7 +16,7 @@ import { assertSchemaEquals, epoch, isUuidV7 } from '@app-template/packages/test
 import { Chat, ChatBusyError, ChatNotFoundError } from '#chat/domain/chat.model'
 import { Message } from '#chat/domain/message.model'
 import { Run, RunNotRetryableError } from '#chat/domain/run.model'
-import { ReplyToMessage, TitleChat } from '#chat/infrastructure/chat.queue'
+import { FirstMessageCreated, ReplyToMessage } from '#chat/infrastructure/chat.queue'
 import { AskChatService } from '#chat/services/ask-chat.service'
 import {
   assistantMessageAt,
@@ -128,7 +128,7 @@ const retry = Effect.fnUntraced(function* (where = inChat) {
 
 describe('AskChatService', () => {
   it.live(
-    "ask inserts the user message and its queued Run, writing no chat, then sends a new chat's title job and the reply's",
+    "ask inserts the user message and its queued Run, writing no chat, then sends a new chat's first message's event and the reply's job",
     () => {
       const inserts = noInserts()
       const jobs = recordMessages()
@@ -161,7 +161,14 @@ describe('AskChatService', () => {
         ])
         assert.deepStrictEqual(inserts.runs, [yield* encodeWith(Run)(run)])
         assertEquals(yield* jobs.sent, [
-          { queue: 'title-chat', message: new TitleChat({ chatId: chat.id }) },
+          {
+            queue: 'first-message-created',
+            message: new FirstMessageCreated({
+              id: userMessage.id,
+              chatId: chat.id,
+              userId: chat.userId,
+            }),
+          },
           replyJob(run),
         ])
       }).pipe(
@@ -170,7 +177,7 @@ describe('AskChatService', () => {
     },
   )
 
-  it.effect("ask on an answered chat sends the reply's job alone", () => {
+  it.effect("ask on an answered chat sends the reply's job alone, and no event", () => {
     const jobs = recordMessages()
     return Effect.gen(function* () {
       const run = yield* ask('And in Porto?')
@@ -285,35 +292,38 @@ describe('AskChatService', () => {
     }).pipe(Effect.provide(layer))
   })
 
-  it.effect('ask of a new chat interrupted while its Run is stored still sends both jobs', () => {
-    const held = holdCall()
-    const jobs = recordMessages()
-    return Effect.gen(function* () {
-      const running = yield* ask('Plan a weekend in Lisbon').pipe(Effect.forkChild)
-      yield* held.reached
-      const interrupting = yield* Fiber.interrupt(running).pipe(
-        Effect.forkChild({ startImmediately: true }),
-      )
-      yield* held.release
-      yield* Fiber.join(interrupting)
+  it.effect(
+    'ask of a new chat interrupted while its Run is stored still sends its event and its job',
+    () => {
+      const held = holdCall()
+      const jobs = recordMessages()
+      return Effect.gen(function* () {
+        const running = yield* ask('Plan a weekend in Lisbon').pipe(Effect.forkChild)
+        yield* held.reached
+        const interrupting = yield* Fiber.interrupt(running).pipe(
+          Effect.forkChild({ startImmediately: true }),
+        )
+        yield* held.release
+        yield* Fiber.join(interrupting)
 
-      assert.deepStrictEqual(
-        Arr.map(yield* jobs.sent, ({ queue }) => queue),
-        ['title-chat', 'reply-to-message'],
-      )
-    }).pipe(
-      Effect.provide(
-        layerChatTest(
-          {
-            ...reading(chat),
-            messages: { insert: () => Effect.void },
-            runs: { insert: () => held.hold },
-          },
-          { queue: jobs.layer },
+        assert.deepStrictEqual(
+          Arr.map(yield* jobs.sent, ({ queue }) => queue),
+          ['first-message-created', 'reply-to-message'],
+        )
+      }).pipe(
+        Effect.provide(
+          layerChatTest(
+            {
+              ...reading(chat),
+              messages: { insert: () => Effect.void },
+              runs: { insert: () => held.hold },
+            },
+            { queue: jobs.layer },
+          ),
         ),
-      ),
-    )
-  })
+      )
+    },
+  )
 
   it.effect('retry interrupted while its Run is stored still sends its job', () => {
     const held = holdCall()
@@ -492,7 +502,7 @@ describe('AskChatService', () => {
   )
 
   it.effect(
-    "a new chat's ask whose sends SQS refuses tries the title's and the reply's, and returns the failed Run",
+    "a new chat's ask whose sends SQS refuses goes on past the event to the reply's job, and returns the failed Run",
     () => {
       let tried = 0
       const { updates, layer } = recordUpdates(
