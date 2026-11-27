@@ -2,8 +2,13 @@ import { type Redacted, Schema } from 'effect'
 
 import { UserId } from '@app-template/application/user/contract'
 
-/** What a request's credential names; the user's whole record is a `User`. */
-export class Identity extends Schema.Class<Identity>('Identity')({ userId: UserId }) {}
+/**
+ * What a request's credential claims: today the user's id, later a token's claims; the user's whole
+ * record is a `User`.
+ */
+export class IdentityClaims extends Schema.Class<IdentityClaims>('IdentityClaims')({
+  userId: UserId,
+}) {}
 
 export class IdentityUnknownError extends Schema.TaggedError<IdentityUnknownError>()(
   'IdentityUnknownError',

@@ -31,14 +31,14 @@ may import what:
 The behaviour is split by business capability, a module per capability under `application/`:
 `chat`, `user` and `identity`. `user` holds the user's model and its id, which other modules'
 models and the API contract name; `identity` the recognising of a user by its secret, the
-`IdentityUnknownError` its `authenticate` fails with and `Identity`, what a request's credential
-names, which the api's `IdentityMiddleware` provides to the handlers as the API contract's
-`RequestIdentity`, and it imports `user`, never the reverse.
+`IdentityUnknownError` its `authenticate` fails with and `IdentityClaims`, what a request's
+credential claims, which the api's `IdentityMiddleware` provides to the handlers under the API
+contract's key `Identity`, and it imports `user`, never the reverse.
 
 - **Why:** a module owns what changes together. Who a user is changes apart from how the api
   recognises one: a chat names its owner by id and needs nothing of the secret, so `chat` imports
-  `user`'s contract, and a second way to sign in changes `identity` alone. An `Identity` is what
-  a request's credential names (today a user's id, later, with OAuth, a token's claims) and a
+  `user`'s contract, and a second way to sign in changes `identity` alone. `IdentityClaims` are
+  what a request's credential claims (today a user's id, later, with OAuth, a token's claims) and a
   `User` the whole record that extends it, so the two keep two names (the owner's word,
   2026-11-25).
 - **Sources:** the guide's "a module's mission fits one sentence" and "what always changes
@@ -331,8 +331,8 @@ entry, `@app-template/application/http-api`: a folder per resource, as the api's
 holding its group (`<resource>.http.ts`), its wire shapes apart (`api-<resource>.model.ts`) and any
 middleware of its own, the request's errors with their middleware in `request/`; the groups
 assembled into one `Api`, and the definitions of its middlewares with the keys they provide
-(`<name>.middleware.ts`: `IdentityMiddleware`, which provides identity's `Identity` as
-`RequestIdentity`, `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers,
+(`<name>.middleware.ts`: `IdentityMiddleware`, which provides identity's `IdentityClaims` under the
+key `Identity`, `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers,
 stay in `apps/api`. It takes of a module only its models, ids, errors and `ChatState`, the group a
 wire shape reads, through the module's contract ([Module contracts](#module-contracts)), never its
 entry, and no kernel part, package or use case, so it loads no service, store or client; it is
@@ -429,7 +429,7 @@ and keeps the client `@effect/openapi-generator`'s command writes from it, check
   only a handler test that asserts that class's status stops it. A group whose every endpoint
   needs a user goes in `api.ts`'s first `.add(…)`, before `.middleware(IdentityMiddleware)`, and one
   that needs it on some endpoints puts the middleware on those: past it, only a handler that reads
-  `RequestIdentity` fails `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow
+  `Identity` fails `tsc`. The web's endpoints are `<group><Endpoint>`, the components follow
   the domain's classes (`IdentityUnknownErrorEncoded`) and the wire shapes' identifiers (`ApiChat`),
   and a schema returned in more than one form, the bare one and each
   `.pipe(HttpApiSchema.status(…))` counting as one, gets a numbered component (`<Class>Encoded_2`),
@@ -451,9 +451,9 @@ and keeps the client `@effect/openapi-generator`'s command writes from it, check
   which declares no workspace but `packages`, refuse a direct import of the app, but nothing refuses
   a server import that reaches the bundle through a package they admit (`packages/ui` importing
   `packages/db`).
-- **Guarded by:** `HttpApiBuilder` and `RequestIdentity` under `tsc` (a field the wire adds that the
+- **Guarded by:** `HttpApiBuilder` and `Identity` under `tsc` (a field the wire adds that the
   handler's result lacks fails `TS2322` at each handler that returns it unmapped, and a group past
-  `.middleware(IdentityMiddleware)` whose handler reads `RequestIdentity`, `TS377004`); the api's
+  `.middleware(IdentityMiddleware)` whose handler reads `Identity`, `TS377004`); the api's
   snapshot test, and its handler tests of the `400`, `401`, `404` and `409` an error's class gives;
   `make api-client-check`, which compares the client with what the generator's command writes
   from the snapshot (`make api-snapshot` rewrites both); the web's manifest, which declares

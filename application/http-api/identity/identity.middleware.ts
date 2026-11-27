@@ -1,19 +1,19 @@
 import { Context } from 'effect'
 import { HttpApiMiddleware, HttpApiSecurity } from 'effect/http-api'
 
-import { type Identity, IdentityUnknownError } from '@app-template/application/identity/contract'
+import {
+  type IdentityClaims,
+  IdentityUnknownError,
+} from '@app-template/application/identity/contract'
 
-/**
- * The `Identity` of the request's credential, which `IdentityMiddleware` provides to the handlers
- * behind it.
- */
-export class RequestIdentity extends Context.Service<RequestIdentity, Identity>()(
-  '@app-template/application/http-api/RequestIdentity',
+/** The key under which `IdentityMiddleware` provides the request's claims to the handlers. */
+export class Identity extends Context.Service<Identity, IdentityClaims>()(
+  '@app-template/application/http-api/Identity',
 ) {}
 
 export class IdentityMiddleware extends HttpApiMiddleware.Service<
   IdentityMiddleware,
-  { provides: RequestIdentity }
+  { provides: Identity }
 >()('@app-template/application/http-api/IdentityMiddleware', {
   security: { cookie: HttpApiSecurity.apiKey({ key: 'user_secret', in: 'cookie' }) },
   error: IdentityUnknownError,

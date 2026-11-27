@@ -27,15 +27,18 @@ AWS's `secretAccessKey`), which keeps its tool's name.
 _Avoid_: Token, session id, api key, cookie (the cookie carries it; it is not the secret)
 
 **Identity**:
-What a request's credential names: today a user's id (`Identity`, `{ userId }`, a schema of the
-identity module), later a token's claims; the api's `IdentityMiddleware` provides it to the
-handlers under the key `RequestIdentity` of the API contract; `POST /identity` responds with it,
-and `GET /identity` reads it. Not the `User`, the user's whole record, which extends it. The
-`identity` module recognises a user by their user secret: `IdentityService.recognise` answers the
-identity of the user a known secret names, or of a new user with a new secret; `authenticate`
-answers the identity or fails `IdentityUnknownError` on a secret it does not know.
+Who a request's credential says its sender is, in two names. `IdentityClaims` is the value, a
+schema of the identity module (`{ userId }`): what the credential claims, today a user's id, later
+a token's claims; `IdentityService` answers it, `POST /identity` responds with it and
+`GET /identity` reads it. `Identity` is the API contract's key under which `IdentityMiddleware`
+provides the request's claims to the handlers (`yield* Identity`). Not the `User`, the user's whole
+record, which extends the claims. The `identity` module recognises a user by their user secret:
+`IdentityService.recognise` answers the claims of the user a known secret names, or of a new user
+with a new secret; `authenticate` answers the claims or fails `IdentityUnknownError` on a secret
+it does not know.
 _Avoid_: Current user, principal, login, session, auth (the api's middleware is
-`IdentityMiddleware`)
+`IdentityMiddleware`), `RequestIdentity` (reads as a request for an identity), payload (a record's
+stored bytes, or a request's body)
 
 **Chat**:
 The ordered messages between one user and the assistant, with an optional title. While the chat
@@ -241,7 +244,7 @@ _Avoid_: Entity group, root, aggregate root
 **Model**:
 The class of a domain concept as its module sees it, with its pure operations (`Chat`,
 `Message`): a stored record's is a `Model.Class`, one no store holds a `Schema.Class`
-(`Identity`). A stored model's encoded side is the row of its one store (`null`, a `Date`); the
+(`IdentityClaims`). A stored model's encoded side is the row of its one store (`null`, a `Date`); the
 rules read its type side only. Its variants are the shapes one field list gives each use: the
 class what a read decodes, `insert` and `update` what a write encodes, `json` what the api
 serves; a record read with it from another table is a field of the class alone

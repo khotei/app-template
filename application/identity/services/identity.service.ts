@@ -13,7 +13,7 @@ import { Transaction } from '@app-template/packages/db'
 import { RowCodec } from '@app-template/packages/schema'
 
 import {
-  Identity,
+  IdentityClaims,
   IdentityUnknownError,
   randomBytesPerSecret,
   type UserSecret,
@@ -24,13 +24,15 @@ export class IdentityService extends Context.Service<
   IdentityService,
   {
     /**
-     * The identity a valid secret names, with that secret; any other secret registers a new user
-     * and answers its identity with a new secret.
+     * The claims of the user a valid secret names, with that secret; any other secret registers a
+     * new user and answers its claims with a new secret.
      */
     readonly recognise: (
       secret: UserSecret,
-    ) => Effect.Effect<{ readonly identity: Identity; readonly secret: UserSecret }>
-    readonly authenticate: (secret: UserSecret) => Effect.Effect<Identity, IdentityUnknownError>
+    ) => Effect.Effect<{ readonly claims: IdentityClaims; readonly secret: UserSecret }>
+    readonly authenticate: (
+      secret: UserSecret,
+    ) => Effect.Effect<IdentityClaims, IdentityUnknownError>
   }
 >()('@app-template/application/identity/services/IdentityService', {
   make: Effect.gen(function* () {
@@ -49,7 +51,7 @@ export class IdentityService extends Context.Service<
       Effect.flatMap((credentials) => users.selectOne(encodeWhere({ credentials }))),
       Effect.flatMap(RowCodec.decodeOne(User)),
       Effect.flatMap(Effect.fromOption(() => new IdentityUnknownError())),
-      Effect.map((user) => new Identity({ userId: user.id })),
+      Effect.map((user) => new IdentityClaims({ userId: user.id })),
     )
 
     // The user and its credential commit together: a user is never stored without its secret.
@@ -68,13 +70,13 @@ export class IdentityService extends Context.Service<
       const { set, row } = yield* RowCodec.makeInsert(User)({})
       const credential = yield* hashSecret(fresh)
       yield* createUser(row, credential)
-      return { identity: new Identity({ userId: set.id }), secret: fresh }
+      return { claims: new IdentityClaims({ userId: set.id }), secret: fresh }
     })
 
     const recognise = Effect.fn('IdentityService.recognise')(
       function* (secret: UserSecret) {
-        const identity = yield* authenticate(secret)
-        return { identity, secret }
+        const claims = yield* authenticate(secret)
+        return { claims, secret }
       },
       Effect.catchTag('IdentityUnknownError', () => register()),
     )
