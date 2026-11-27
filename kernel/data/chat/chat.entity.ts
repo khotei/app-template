@@ -22,7 +22,7 @@ export type ChatEntityWhere = Keyed<TableFilter<typeof chats>, ChatColumns, 'id'
 export type ChatEntitySelectWhere = Keyed<FilterOf<'chats'>, ChatColumns, 'id' | 'userId'>
 
 /** What `ChatRepository` builds its statements from. */
-export class ChatRow {
+export class ChatStatement {
   /** The columns an update may write. */
   static readonly setColumns = ['title', 'context', 'updatedAt'] as const satisfies ReadonlyArray<
     keyof ChatColumns
@@ -32,5 +32,5 @@ export class ChatRow {
 /** What an update is handed: the columns it writes, and the row's key it leaves as it is. */
 export type ChatEntitySet = Types.Simplify<
   Partial<Pick<ChatColumns, 'id'>> &
-    RequireAtLeastOne<Pick<ChatColumns, (typeof ChatRow.setColumns)[number]>>
+    RequireAtLeastOne<Pick<ChatColumns, (typeof ChatStatement.setColumns)[number]>>
 >

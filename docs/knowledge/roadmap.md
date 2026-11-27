@@ -570,9 +570,9 @@ moves it into its own `Later` and deletes it here.
   contract shared with the browser (`HttpApiClient.make(Api)`, `sideEffects: false`, a values
   file) was left to `web-app` (7) on the owner's yes. Way out: that ticket weighs it against the
   generated client.
-- (2026-11-26) `<Name>Row.setColumns` copy by hand the fields a model's update variant writes
-  (`kernel/data/chat/run.entity.ts`, `RunRow.setColumns`): a field added to one side alone is not
-  refused. Way out: derive the list from the table's columns, or compare the two in a test.
+- (2026-11-26) `<Name>Statement.setColumns` copy by hand the fields a model's update variant
+  writes (`kernel/data/chat/run.entity.ts`, `RunStatement.setColumns`): a field added to one side
+  alone is not refused. Way out: derive the list from the table's columns, or compare the two in a test.
 - (2026-11-26) A domain's source may import test support through the `#testing/<module>/*` alias:
   the `application/*/domain/**` override refuses the `/testing` entries by their package path
   alone (`.misc/lint/biome.base.json`). Claimed by a review, not probed. Way out: refuse the

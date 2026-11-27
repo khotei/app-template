@@ -17,7 +17,7 @@ export type RunEntitySelectWhere = Keyed<
 >
 
 /** What `RunRepository` builds its statements from. */
-export class RunRow {
+export class RunStatement {
   /** The columns an update may write. */
   static readonly setColumns = [
     'status',
@@ -31,5 +31,5 @@ export class RunRow {
 /** What an update is handed: the columns it writes, and the row's key it leaves as it is. */
 export type RunEntitySet = Types.Simplify<
   Partial<Pick<RunColumns, 'id'>> &
-    RequireAtLeastOne<Pick<RunColumns, (typeof RunRow.setColumns)[number]>>
+    RequireAtLeastOne<Pick<RunColumns, (typeof RunStatement.setColumns)[number]>>
 >

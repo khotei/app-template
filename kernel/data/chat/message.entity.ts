@@ -4,12 +4,12 @@ import type { Keyed } from '@app-template/packages/db'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
-import { RowOrder } from '#kernel/data/data-order'
+import { EntityOrder } from '#kernel/data/data-entity-order'
 import type { FilterOf } from '#kernel/data/relations'
 
 /**
  * A message with its Run, flat: a user's the newest that answers it, an assistant's the one that
- * wrote it. Every read nests both and picks the Run with `MessageRow.buildEntity`.
+ * wrote it. Every read nests both and picks the Run with `MessageStatement.buildEntity`.
  */
 export const MessageEntity = Schema.Struct({
   ...MessageColumns.fields,
@@ -26,10 +26,10 @@ interface MessageRead extends Omit<MessageEntity, 'run'> {
 }
 
 /** What `MessageRepository` builds its statements from. */
-export class MessageRow {
+export class MessageStatement {
   /** Every read nests the Runs `buildEntity` picks from. */
   static readonly withRuns = {
-    newestRun: { orderBy: RowOrder.newestFirst },
+    newestRun: { orderBy: EntityOrder.newestFirst },
     replyOf: true,
   } as const
 

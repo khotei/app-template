@@ -5,14 +5,14 @@ import { DbQuery } from '@app-template/packages/db'
 import {
   type MessageEntity,
   type MessageEntityWhere,
-  MessageRow,
+  MessageStatement,
 } from '#kernel/data/chat/message.entity'
 import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
-import { RowOrder } from '#kernel/data/data-order'
+import { EntityOrder } from '#kernel/data/data-entity-order'
 import { Db } from '#kernel/data/db.client'
 
 /** Every read is in creation order. */
-const read = { orderBy: RowOrder.inCreationOrder, with: MessageRow.withRuns } as const
+const read = { orderBy: EntityOrder.inCreationOrder, with: MessageStatement.withRuns } as const
 
 export class MessageRepository extends Context.Service<
   MessageRepository,
@@ -34,12 +34,12 @@ export class MessageRepository extends Context.Service<
       ),
       selectOne: Effect.fn('MessageRepository.selectOne')(
         (where) => db.query.messages.findFirst({ where, ...read }),
-        Effect.map(flow(Option.fromUndefinedOr, Option.map(MessageRow.buildEntity))),
+        Effect.map(flow(Option.fromUndefinedOr, Option.map(MessageStatement.buildEntity))),
         DbQuery.orDie,
       ),
       selectMany: Effect.fn('MessageRepository.selectMany')(
         (where) => db.query.messages.findMany({ where, ...read }),
-        Effect.map(Arr.map(MessageRow.buildEntity)),
+        Effect.map(Arr.map(MessageStatement.buildEntity)),
         DbQuery.orDie,
       ),
     }

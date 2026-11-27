@@ -87,8 +87,8 @@ export const ChatEntity = Schema.Struct({
 
 Where a read's shape is not the entity's, the entity file holds the function from the one to the
 other: a message's Run comes from two relations, the newest that answers a user's message and
-the one that wrote an assistant's, so `MessageRow.buildEntity` keeps the one its author has and the
-repository maps every read through it.
+the one that wrote an assistant's, so `MessageStatement.buildEntity` keeps the one its author has
+and the repository maps every read through it.
 
 A model is the codec of its own row: a `Model.Class` that declares each stored value as its row
 holds it, a nullable column as `Schema.OptionFromNullOr(…)` and a timestamp as a `Date`
@@ -128,14 +128,14 @@ states it with `orderBy`. A relational query returns nested rows typed as the en
 repository returns them as they are:
 
 ```ts
-const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: RowOrder.newestFirst } } })
+const rows = yield* db.query.chats.findMany({ with: { run: { orderBy: EntityOrder.newestFirst } } })
 // rows: [{ id, userId, …, run: { id, chatId, status, … } | null }]
 ```
 
 A repository whose entity nests a relation reads the entity `with` the top-level relations it nests,
 in one relational query, and never a nested `with`: `Chat.run` and `Message.run` are model
 fields another table holds, read and never written by their own writes. A `one` relation over
-many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: RowOrder.newestFirst } }`,
+many rows (a chat's Runs) is ordered by the read, `{ run: { orderBy: EntityOrder.newestFirst } }`,
 since a
 relation holds no order and renders `limit 1`. A relational query
 aliases its table, so its `where` is the filter object, which the query renders on that alias,
@@ -199,12 +199,12 @@ A write of some fields under a condition takes a `<Name>EntitySet` and a `<Name>
 whose key is required, so no write compiles that names no row (`ChatEntityWhere`,
 `RunEntityWhere`); a read that also finds rows by another field takes its own
 `<Name>EntitySelectWhere` (a user's chats by `userId`, a Run by its user message).
-The entity file lists the columns an update may write once, as `<Name>Row.setColumns`, typed by the
-table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is no column
-fails typecheck on the tuple, and derives the `Set` type from it over the same columns; the
-repository writes `Struct.pick(set, <Name>Row.setColumns)`, so a whole entity passed as a set writes
-only those columns; a column the set leaves out is not written, and a set that holds an
-`undefined` does not compile.
+The entity file lists the columns an update may write once, as `<Name>Statement.setColumns`,
+typed by the table's columns (`satisfies ReadonlyArray<keyof <Name>Columns>`), so a name that is
+no column fails typecheck on the tuple, and derives the `Set` type from it over the same
+columns; the repository writes `Struct.pick(set, <Name>Statement.setColumns)`, so a whole entity
+passed as a set writes only those columns; a column the set leaves out is not written, and a set
+that holds an `undefined` does not compile.
 A `where` type is the table's filter with its key required, `Keyed<TableFilter<typeof <table>>,
 <Name>Columns, '<key>'>` from `@app-template/packages/db`, over the data layer's
 `FilterOf<'<table>'>` where the read is a relational query; a read that finds by either of two
@@ -232,9 +232,10 @@ whose `NoSuchElementError` the method's `DbQuery.orDie` turns into the defect):
   index, rolled back whole with its message and binds: a lost race of that narrow window responds with
   500.
 - **Update under a `where`.** `RunRepository.update(set, where)` writes the columns of
-  `RunRow.setColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes the Run a
-  caller read and the Run its move made, stamps the second with the current time and passes it,
-  encoded, as the set, with the first's id under the status it was read in as the `where`, where
+  `RunStatement.setColumns` `WHERE id = … AND status = …`: `RunService.update(from, to)` takes
+  the Run a caller read and the Run its move made, stamps the second with the current time and
+  passes it, encoded, as the set, with the first's id under the status it was read in as the
+  `where`, where
   a read's `RunEntitySelectWhere` takes the id or the user's message under a status; so a write
   whose expected status another worker has left, or whose Run is gone, changes nothing and dies,
   in the repository. The reply's tail fails the Run its start wrote, by that write's status, so on

@@ -38,9 +38,9 @@ update(set: OrderEntitySet, where: OrderEntityWhere): Effect<void>
 - The filter lives in the `where`, a relation in the database (`ON DELETE CASCADE`), never in code
   after the read.
 - What a repository builds its statements from (the columns an update writes, a read's nesting,
-  an entity built from a read) are statics of `<Name>Row` in the entity's file
-  (`OrderRow.setColumns`; `<Name>Object` over an object store), the orders every table shares
-  `RowOrder`'s; a table, a `pgEnum` and `<Name>Columns` stay exports, as drizzle-kit reads a
+  an entity built from a read) are statics of `<Name>Statement` in the entity's file
+  (`OrderStatement.setColumns`; `<Name>Object` over an object store), the orders every table shares
+  `EntityOrder`'s; a table, a `pgEnum` and `<Name>Columns` stay exports, as drizzle-kit reads a
   module's exports alone.
 
 ## A where's two forms
