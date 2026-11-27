@@ -47,10 +47,10 @@ Tests run on vitest, on the Bun runtime (`bun --bun`), so `Bun.serve` and the ot
 inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
 `TestClock`) needs vitest.
 
-- **Unit and e2e: only our code is under test.** A unit test runs our domain services, use cases
-  and handlers and needs no process outside vitest. An e2e test proves an adapter, a use case's
-  transaction or the journey on the e2e run's containers. What each kind checks and how to write it:
-  [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
+- **Unit and e2e: only our code is under test.** A unit test runs our domain services, handlers
+  and use cases, once one exists, and needs no process outside vitest. An e2e test proves an
+  adapter, a service's or use case's transaction or the journey on the e2e run's containers.
+  What each kind checks and how to write it: [effect-tests.md › Unit and e2e](../../.claude/rules/effect-tests.md#unit-and-e2e).
 - **A folder per kind, beside the source.** Every workspace keeps its unit tests in `__tests__/` and
   its e2e in `__e2e__/`, at its top, but for the test app `apps/e2e`, which is all e2e; a test
   mirrors its source path there, and a suite with no source is named for what it checks. A module
@@ -80,11 +80,11 @@ Which suite runs where:
 
 | Ring | Suite | Runs on |
 |---|---|---|
-| behaviour | `application/<module>/__tests__/`, `application/use-cases/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its leaves (`@app-template/application/<module>/testing`), `TransactionTest` |
+| behaviour | `application/<module>/__tests__/` | memory only: `Layer.mock` of the repositories, the kernel's `FileRepositoryTest` (`@app-template/kernel/data/testing`), a module's fakes of its leaves (`@app-template/application/<module>/testing`), `TransactionTest` |
 | data | `kernel/data/__e2e__/<store>/` | Postgres (`DbTest`) or MiniStack (`AwsTest`), in entities |
 | boundary | `kernel/<part>/__e2e__/`, `packages/<package>/__e2e__/`; an infrastructure suite in `application/<module>/__tests__/infrastructure/` | the e2e run's containers; the assistants over a recording client |
 | tools | `kernel/<part>/__tests__/`, `packages/<package>/__tests__/` | memory only |
-| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants |
+| apps | `apps/<app>/__tests__/` | memory only: the api's HTTP layer (`ApiHttp`) over mocks of the repositories and the fakes of the leaves; the worker's HTTP layer (`WorkerHttp`) over mocks of the repositories and of the assistants, and its handlers over a module's test layer |
 | assembled | `apps/e2e/api/`: the journey and the races and rollbacks of a service's or use case's transaction, each a request to the api | both app layers in one runtime (`StandTest`) |
 
 - **The data layer's suites.** A repository's `.repository.e2e.ts` and an entity's

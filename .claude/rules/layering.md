@@ -22,7 +22,7 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 - A service composed over `<Model>Service` holds the purpose it adds and reaches the model's records
   only through it, a repository only for what it adds, so each row has one owner: a model that
   stores bytes with its records → `File<Model>Service`, holding the bytes' store.
-- The last grouping of a module's logic before a use case, which use cases share, is a
+- The last grouping of a module's logic, which handlers and use cases share, is a
   `<Verb><Model>Service` ([its form](naming.md#symbols)): it composes the module's services, rules,
   `Transaction` and what one process provides, the api's its `<Model>Queue`, the worker's
   its `.llm` files, each admitted by its file's own Biome override, and calls no use case
@@ -55,26 +55,26 @@ Words: [glossary.md › Architecture language](../../docs/knowledge/glossary.md#
 
 ## Use cases
 
-- A use case is what a handler calls, and only a handler, for a flow no one service owns (a job's
-  end and its logs, an order over modules), never for a read of the user's record before one call.
+- A use case is what a handler calls, and only a handler, for a flow no one service owns (an order
+  over modules), never for a read of the user's record before one call or for a job's end alone.
 - An `Effect.fn` that yields the domain services, ports and `Transaction` it composes. Decision:
   [Use cases as functions](../../docs/knowledge/decisions.md#use-cases-as-functions).
-- It holds only its flow: the order of the calls, the transaction, what it skips and logs. It
+- It holds only its flow over modules: the order of the calls and their transaction. It
   reads and writes through domain services, never a repository: a read, a write or a rule no
   service offers goes to the service or model it belongs to, and a step two use cases share lives
   once, as a service's method; a use case holds no rule of its own and never calls another
   ([decision](../../docs/knowledge/decisions.md#use-cases-above-the-modules)).
-- A job is handled once, unretried: the worker's `<Verb><Model>Service` ends its work on any outcome
-  but success, an interrupt included, and work a dead handling left started; the use case ends the
-  job in one tail ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
 - Read or delete a set through one batch call, never one call per id; return a model as is.
 
 ## Handlers
 
 - A handler decodes the input, calls one domain service method or one use case, before it at most
-  the read of the record it acts in for the user (`<Model>Service.getOne` with the owner), returns
-  the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with the domain's
-  errors as they are. It composes nothing else, holds no rule and imports no repository or data
-  layer, which only the process's `layer.ts` provides.
-- An api handler is `Effect.fn('<Group>Handler.<endpoint>')`, one returning a constant a plain
-  function, no span; an effectful group or router builder `Effect.fnUntraced` ([why](effect-services.md#functions)).
+  the read of the record it acts in for the user (`<Model>Service.getOne` with the owner); an api
+  one returns the model (`Effect.map(buildApi<Model>)` where the wire adds a field) and fails with
+  the domain's errors as they are. It composes nothing else, holds no rule and imports no
+  repository or data layer, which only the process's `layer.ts` provides.
+- A job is handled once, unretried. The worker's `<Verb><Model>Service` ends its work on any
+  outcome but success, an interrupt included, and work a dead handling left started. The job's
+  handler ends the job in one tail: what it skips and logs ([decision](../../docs/knowledge/decisions.md#the-chats-jobs-in-their-services)).
+- A handler is `Effect.fn('<Group>Handler.<endpoint|job>')`; an api handler that returns a constant
+  is a plain function with no span; an effectful group or router builder is `Effect.fnUntraced` ([why](effect-services.md#functions)).

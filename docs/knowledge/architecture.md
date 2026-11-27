@@ -18,15 +18,15 @@ Every dependency points inward, from the boundary to the behaviour to the data:
   relation, the migrations, and a repository per store in the data layer's own types, the
   bucket's objects among them. It takes its clients from the context.
 - **The behaviour**, `application/`: the modules and above them every use case in
-  `application/use-cases`. A module's `domain/` holds its models, pure rules and the utils they
-  share, errors and the ports that reach outside; its `services/` the domain services, each
-  model's `<Model>Service` over the data layer's repositories and the services composed over it;
-  its `infrastructure/` everything of it that connects to the environment, the adapters of its
-  ports, the services a use case or the chat's worker services call over a client (the
-  assistants) and its queues' definitions ([A module's layers](decisions.md#a-modules-layers));
-  its `contract/`, once another module needs one, an entry of its own that re-exports what other
-  modules may take of its `domain/`. Beside the modules, `application/http-api` holds the API
-  contract, the HTTP groups over the modules' models, ids and errors.
+  `application/use-cases/<module>/`. A module's `domain/` holds its models, pure rules and the utils
+  they share, errors and the ports that reach outside; its `services/` the domain services, each
+  model's `<Model>Service` over the data layer's repositories and the services composed over it; its
+  `infrastructure/` everything of it that connects to the environment, the adapters of its ports,
+  the services a use case or the chat's worker services call over a client (the assistants) and its
+  queues' definitions ([A module's layers](decisions.md#a-modules-layers)); its `contract/`, once
+  another module needs one, an entry of its own that re-exports what other modules may take of its
+  `domain/`. Beside the modules, `application/http-api` holds the API contract, the HTTP groups over
+  the modules' models, ids and errors.
 - **The boundary**, everything that touches the world outside the process: the kernel's
   configured clients (`/config`, `/postgres`, `/aws`, `/llm`), each module's
   `infrastructure/`, and the apps, thin entry points that assemble the layers and provide the
@@ -61,9 +61,10 @@ graph TD
 ```
 
 `application/` is one workspace, `@app-template/application`, and one `tsconfig.json` project:
-each module, the use cases and the API contract a folder with one entry, a module's contract a
-folder in it with an entry of its own over files of its `domain/`. The `apps/e2e` test app
-runs both app layers in one test process, starts no process of its own, and nothing imports it.
+each module, the API contract and the use cases, once one exists, a folder with one entry, a
+module's contract a folder in it with an entry of its own over files of its `domain/`. The
+`apps/e2e` test app runs both app layers in one test process, starts no process of its own, and
+nothing imports it.
 
 ## Dependency rules
 
@@ -140,13 +141,13 @@ import { Effect } from 'effect'                             // external packages
 
 import { ChatService } from '@app-template/application/chat'  // another part
 
-import { titleChat } from '#use-cases/chat/title-chat.use-case'  // this part
+import { buildApiChat } from '#api/chat/chat.mapper'          // this part
 ```
 
 - **`@app-template/<folder>`** reaches another part through its workspace's `exports`, each
   entry an `index.ts` barrel: the kernel one per part (`@app-template/kernel/data` →
   `kernel/data/index.ts`, every store), a package by its folder (`@app-template/packages/db`),
-  a module or the use cases by theirs (`@app-template/application/<module>` →
+  a module by its own (`@app-template/application/<module>` →
   `application/<module>/index.ts`, every layer), a module's contract by its folder
   (`@app-template/application/<module>/contract`), each with its test support's entries
   ([tooling.md › Tests](tooling.md#tests)). An entry only re-exports what other parts import,
@@ -173,7 +174,6 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | domain service | `application/chat/services/chat.service.ts` | `ChatService`, over the data layer's `ChatRepository` |
 | a module's queues: their definitions and the send of each job | `application/chat/infrastructure/chat.queue.ts` | the job `ReplyToMessage` with its definition as its static `ReplyToMessage.queue`; `ChatQueue`, its `sendReplyToMessage` and `sendTitleChat` |
 | service over a client, one per output it asks a language model for (a reply, a title), holding the language model, its prompt and its request settings, with its `static layer` and no port in front | `application/chat/infrastructure/message-assistant.llm.ts`, `chat-assistant.llm.ts` | `MessageAssistant` with `AssistantReply`, what its reply returns; `ChatAssistant`; both piping the kernel's `askModel` and failing with its `LlmError` ([ai.md](ai.md)) |
-| use case | `application/use-cases/chat/title-chat.use-case.ts` | `titleChat` |
 | tables, entities, relations: a table with the values its checks declare and its `<Name>Columns` ([database.md](database.md)); an entity, the one shape its store's reads return, with the types its repository's verbs take ([repositories.md](../../.claude/rules/repositories.md)) | `kernel/data/chat/chat.table.ts`, `chat.entity.ts`; `kernel/data/relations.ts` | `chats`, `ChatEntity`, `relations` |
 | repository | `kernel/data/chat/chat.repository.ts`; `kernel/data/file/file.repository.ts` | `ChatRepository` over `Db`; `FileRepository` over `S3Bucket` |
 | database client and migrations | `kernel/data/db.client.ts`, `kernel/data/data-migrations.ts`; `kernel/postgres/` | `Db`; `PgClientFromConfig` and the `make migrate` program ([database.md](database.md)) |
@@ -185,7 +185,8 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | the API contract: the groups assembled, the middlewares' definitions; its snapshot | `application/http-api/api.ts`, `api-security.ts`; `apps/api/openapi.json` | `Api`; `Auth`, which provides identity's `Identity`, `SchemaErrors`, `RequestInvalidError` |
 | a middleware's layer, for a definition the contract holds | `apps/api/shared/api-security.layer.ts` | `AuthLayer`, `SchemaErrorsLayer` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
-| worker route: each queue's use case, run through `consumeQueue` | `apps/worker/worker.handler.ts` | `WorkerHandler` |
+| worker handler: each job's end in one tail, what it skips and logs, run through `consumeQueue` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
+| worker route: each queue's handler | `apps/worker/worker.handler.ts` | `WorkerHandler` |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistants, `WorkerLayer` with them and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.client.ts` | `Api`, `ApiClient` |
@@ -208,14 +209,12 @@ What goes where, which support a test may import and what runs on what:
 ## A use case
 
 Every use case lives in `application/use-cases/<module>/<verb>-<object>.use-case.ts`, whichever
-modules it touches: an order over modules, holding the transaction their writes share, or a job's
-end, what it skips and logs. It composes the modules' services and model rules and holds nothing
-else: a rule, a read or a write stays in its module's models and services, and an order over one
-module's services, with their transaction and their jobs' sends, is that module's
-`<Verb><Model>Service`
-([composition.md › Where a change goes](../../.claude/rules/composition.md#where-a-change-goes)).
-When a flow becomes one and how it orders its writes:
-[.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
+modules it touches: an order over modules, holding the transaction their writes share. It composes
+the modules' services and model rules and holds nothing else: a rule, a read or a write stays in its
+module's models and services, and an order over one module's services, with their transaction and
+their jobs' sends, is that module's `<Verb><Model>Service` ([composition.md › Where a change
+goes](../../.claude/rules/composition.md#where-a-change-goes)). When a flow becomes one and how it
+orders its writes: [.claude/rules/layering.md](../../.claude/rules/layering.md). One that spans
 modules has the same shape as one that does not:
 
 ```ts
@@ -240,10 +239,11 @@ export const placeOrder = Effect.fn('placeOrder')(function* (
 ```
 
 - **Its type is inferred, its services its process's.** A handler calls it as it calls a service
-  method, and what the handler hands it to checks what it fails with: the worker's
-  `consumeQueue`, whose `never` makes the use case end every failure, or an endpoint's error
-  list; the api provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker
-  in its layer, and a unit test from its mocks. Decision: [Use cases as functions](decisions.md#use-cases-as-functions).
+  method, and what the handler hands it to checks what it fails with: an endpoint's error list,
+  or the worker's `consumeQueue`, whose `never` makes a job's handler end every failure; the api
+  provides the services it reads in `ApiHttp`, after `HttpRouter.serve`, the worker in its layer,
+  and a unit test from its mocks. Decision: [Use cases as
+  functions](decisions.md#use-cases-as-functions).
 - **A rule another module owns is called, never copied.** The order module may read the
   customer's row itself, but whether a customer may order is the customer module's rule, so the
   use case calls it. How to tell one rule from two that only look alike:
@@ -291,11 +291,13 @@ imports need.
    the new files. A purpose the service was not made for comes later as a service composed over it,
    never as an edit of it ([Composition: wrap or compose](decisions.md#composition-wrap-or-compose)).
 4. **The flows.** An order over the module's services, their transaction or their sends is its
-   `<Verb><Model>Service`; an order over modules, or a job's end, is a [use case](#a-use-case).
+   `<Verb><Model>Service`; an order over modules is a [use case](#a-use-case); a job's end is its
+   handler's, in the worker.
    A job adds its queue to the inventory and its definition to the module's `infrastructure/`
    ([aws.md › Adding a resource](aws.md#adding-a-resource)), its send
-   ([database.md › The sends](database.md#the-sends)) and the use case it runs, entered in the
-   worker's route, the services it reads provided in the worker's layer.
+   ([database.md › The sends](database.md#the-sends)) and its handler in
+   `apps/worker/<module>/<module>.handler.ts`, entered in the worker's route, the services it reads
+   provided in the worker's layer.
 5. **The boundary.** A group in `application/http-api/<entity>.http.ts` over the domain's ids,
    models and errors, each error with the status its class carries, a wire shape only where it
    differs from the model ([application/CLAUDE.md](../../application/CLAUDE.md)), added to `Api`

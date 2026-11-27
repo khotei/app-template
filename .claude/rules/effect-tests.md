@@ -17,14 +17,14 @@ Where each kind of test and its support live, and what a test may import:
   test support itself (a fake, a test layer).
 - A rule once, at the lowest seam that owns it: a pure domain function before a domain service,
   a domain service before a use case, a use case before a handler. A handler test checks only what
-  its app adds: a status, a cookie, the shape on the wire.
+  its app adds: a status, a cookie, the shape on the wire; a job's, how the job ends and what it logs.
 - Never assert what the code leaves undefined, such as the order of rows with equal timestamps.
 
 ## Unit and e2e
 
-- A unit test runs the real services and use cases over a `Layer.mock(<Name>Repository, { … })` of
-  each repository, giving only the methods its flow may call (any other dies with
-  `UnimplementedError`), and over the leaves a case may double, each defaulting to
+- A unit test runs the real services and their callers (a handler, a use case) over a mock of each
+  repository, `Layer.mock(<Name>Repository, { … })`, giving only the methods its flow may call (any
+  other dies with `UnimplementedError`), and over the leaves a case may double, each defaulting to
   `Layer.mock(<Leaf>, {})`, the transaction to its own test layer, until a case passes a fake. It
   starts no container and asserts the row or the `set` and `where` a write was handed, never a read
   back. A use case's unit test checks the order of its steps and the jobs it sends, not the rules.

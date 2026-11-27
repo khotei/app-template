@@ -1,8 +1,8 @@
 # application
 
-The behaviour ring: the modules and the use cases over them. What each layer of a module holds:
-[architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings); what it
-may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
+The behaviour ring: the modules and, once one exists, the use cases over them. What each layer
+of a module holds: [architecture.md › The three rings](../docs/knowledge/architecture.md#the-three-rings);
+what it may import: [› Dependency rules](../docs/knowledge/architecture.md#dependency-rules).
 
 - **No I/O and no ambient state outside a module's `infrastructure/`:** no `Bun.env`, and
   `make typecheck` refuses the clock, `crypto.randomUUID()`, `fetch` and `process.env` anywhere

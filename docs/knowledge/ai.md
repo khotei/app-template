@@ -109,7 +109,7 @@ covers these steps.
 ## Failures and retries
 
 `askModel` asks again in place only what the provider marks retryable, and lets out of either
-assistant only a final failure, as one `LlmError`; the use cases turn it into a failed Run,
+assistant only a final failure, as one `LlmError`; the chat's services turn it into a failed Run,
 which keeps the error's full text, or an untitled chat. A
 job is never retried ([aws.md › Queues](aws.md#queues)).
 
@@ -121,8 +121,8 @@ job is never retried ([aws.md › Queues](aws.md#queues)).
 | an answer that finished any other way than `stop` (`content-filter` for Anthropic's `refusal`, `length` at `max_tokens`, `unknown` for a stop reason the package does not map), or a blank reply | no: `LlmError`, its partial text dropped |
 
 The final error's `cause` is the `AiError`'s message, the finish reason or a blank reply's decode
-error, for operators: the use cases log it, a failed Run keeps it as its failure's `cause`, and
-the api's wire shapes omit it.
+error, for operators: the worker's handlers of the jobs log it, a failed Run keeps it as its
+failure's `cause`, and the api's wire shapes omit it.
 
 ### The finish reason
 
@@ -130,7 +130,7 @@ the api's wire shapes omit it.
 once, even when its text reads whole. A title cut at `max_tokens` inside its JSON, or refused as
 prose, fails `generateObject`'s decode first: `StructuredOutputError` carries no finish reason, so
 it is asked again as a malformed answer and ends as `LlmError`, a refusal too. The
-title's use case logs either and leaves the chat untitled.
+title's handler logs either and leaves the chat untitled.
 
 ## Prompt caching
 

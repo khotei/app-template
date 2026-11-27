@@ -27,3 +27,6 @@ export const resources = {
   },
   worker: { name: 'worker', timeoutSeconds: workerTimeoutSeconds },
 } as const satisfies Resources
+
+/** The name of a queue of the inventory, which keys the worker's routes. */
+export type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name']

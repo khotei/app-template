@@ -8,7 +8,7 @@ Thin processes: `api` (HTTP), `worker` (jobs) and `web` (browser UI plus its dev
   use case a handler calls, which reads them per request, finds them too: a provide on a handler
   group reaches only what its builder yields. `ApiLayer` provides
   the transaction, the queue sender and the stores, which the api's tests replace under
-  `ApiHttp`. The worker's `layer.ts` provides what its route's use cases read. Where those e2e
+  `ApiHttp`. The worker's `layer.ts` provides what its handlers read. Where those e2e
   and the apps' unit suites live and what they run on:
   [tooling.md › Tests](../docs/knowledge/tooling.md#tests).
 - **Apps never import each other.** Shared code moves down into `application` or `packages/*`.

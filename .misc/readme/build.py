@@ -337,8 +337,8 @@ def infrastructure():
     # row 2: make dev
     r2, h2 = 214, 96
     f.box(28, r2, 150, "bnd", "`apps/web` :3001", ["health panel", "proxies `/api/*`"], h=h2)
-    f.box(240, r2, 230, "bnd", "`apps/api` :3000", ["routes, use cases", "and the ask's sends"], h=h2)
-    f.box(600, r2, 230, "bnd", "`apps/worker` :3002", ["`POST /events`", "runs each job's use case"], h=h2)
+    f.box(240, r2, 230, "bnd", "`apps/api` :3000", ["routes, handlers", "and the ask's sends"], h=h2)
+    f.box(600, r2, 230, "bnd", "`apps/worker` :3002", ["`POST /events`", "runs each job's handler"], h=h2)
     # arrows between rows 1 and 2
     f.arrow([(103, r1 + h1), (103, r2)])
     f.label(111, (r1 + h1 + r2) / 2 + 5, "HTTP", anchor="start")
@@ -449,15 +449,14 @@ def architecture():
 # ==========================================================================================
 def module_design():
     f = Fig("module-design", "How a module is cut",
-            "From a handler down: use cases, the module's <Verb><Model>Service, its <Model>Service "
+            "From a handler down: the module's <Verb><Model>Service, its <Model>Service "
             "over the data layer's repositories, and its models' rules and moves; a change that "
             "is no fix wraps or composes a unit instead of editing it.")
     f.text(28, 42, "How a module is cut, in `chat`", "h")
     sx, sw = 28, 400
     side_x, side_w = 478, 172
     rows = [
-        ("bnd", "handler · `apps/`", ["`ChatHandler`, `WorkerHandler`", ("m", "calls one method or use case, at most after the user's record's read")]),
-        ("beh", "use case · `application/use-cases`", ["`replyToMessage` `titleChat`", ("m", "a plain `Effect.fn`; only a handler calls it")]),
+        ("bnd", "handler · `apps/`", ["`ChatHandler` of the api and the worker", ("m", "calls one method, at most after the user's record's read"), ("m", "a job's ends the job in one tail: what it skips and logs")]),
         ("beh", "`<Verb><Model>Service` · `services/`", ["`AskChatService.ask`, `.retry`", "`ReplyChatService.reply`", "`TitleChatService.title`"]),
         ("beh", "`<Model>Service` · `services/`", ["`ChatService` `MessageService` `RunService`", "`create` `getOne(where)` `update(to, where)`", "`RunService.update(from, to)`: under the status read"]),
         ("beh", "rules and moves · `domain/`", ["`ChatPolicy` `RunPolicy` `RunMove`", "`ChatState` `RunState`", ("m", "a class of statics per kind, beside the model")]),
@@ -472,13 +471,13 @@ def module_design():
         y0 = tops[i][0] + tops[i][1]
         y1 = tops[i + 1][0]
         f.arrow([(sx + 60, y0), (sx + 60, y1)])
-        f.label(sx + 68, (y0 + y1) / 2 + 5, "calls" if i < 3 else "applies", anchor="start")
+        f.label(sx + 68, (y0 + y1) / 2 + 5, "calls" if i < 2 else "applies", anchor="start")
     # side boxes
-    vy, vh = tops[2]
+    vy, vh = tops[1]
     ih = f.box(side_x, vy - 8, side_w, "bnd", "`infrastructure/`", ["`chat.queue.ts`", "`MessageAssistant`", "`ChatAssistant`"])
     f.arrow([(sx + sw, vy + vh / 2), (side_x, vy + vh / 2)])
     f.label((sx + sw + side_x) / 2, vy + vh / 2 - 8, "calls")
-    my, mh = tops[3]
+    my, mh = tops[2]
     dh = f.box(side_x, my - 4, side_w, "dat", "`kernel/data`", ["`ChatRepository`", "`MessageRepository`", "`RunRepository`"])
     f.arrow([(sx + sw, my + mh / 2), (side_x, my + mh / 2)])
     f.label((sx + sw + side_x) / 2, my + mh / 2 - 8, "calls")

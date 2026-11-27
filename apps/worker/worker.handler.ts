@@ -1,23 +1,21 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
-import { ReplyToMessage, TitleChat } from '@app-template/application/chat'
-import { replyToMessage, titleChat } from '@app-template/application/use-cases'
-import { buildResourceName, type resources } from '@app-template/kernel/aws'
+import { buildResourceName, type QueueName } from '@app-template/kernel/aws'
 import { awsConfig } from '@app-template/kernel/config'
-import { buildQueueName, consumeQueue, SqsEvent } from '@app-template/packages/queue'
+import { buildQueueName, SqsEvent } from '@app-template/packages/queue'
 
-type QueueName = (typeof resources.queues)[keyof typeof resources.queues]['name']
+import { ChatHandler } from '#worker/chat/chat.handler'
 
-type JobServices = Effect.Services<ReturnType<typeof replyToMessage | typeof titleChat>>
+type JobServices = Effect.Services<ReturnType<(typeof ChatHandler)[keyof typeof ChatHandler]>>
 
-const routes = {
-  [ReplyToMessage.queue.name]: consumeQueue(ReplyToMessage.queue, replyToMessage),
-  [TitleChat.queue.name]: consumeQueue(TitleChat.queue, titleChat),
-} satisfies Record<QueueName, (event: SqsEvent) => Effect.Effect<unknown, never, JobServices>>
+const routes = { ...ChatHandler } satisfies Record<
+  QueueName,
+  (event: SqsEvent) => Effect.Effect<unknown, never, JobServices>
+>
 
 /**
- * `POST /events`: the batch an SQS mapping invokes the worker with, run by the use case of the
+ * `POST /events`: the batch an SQS mapping invokes the worker with, run by the handler of the
  * queue it came from; a batch of a queue with none is a defect.
  */
 export const WorkerHandler = HttpRouter.use(

@@ -23,7 +23,7 @@ const buildRecord = (queue: string, body: unknown) => ({
 })
 
 describe('POST /events', () => {
-  it.effect('runs a batch on the use case of the queue it came from', () => {
+  it.effect('runs a batch on the handler of the queue it came from', () => {
     const reads: Array<MessageEntityWhere> = []
     // Only the title job's first read returns: any other store call dies, and fails the batch.
     const events = WorkerHttp.pipe(

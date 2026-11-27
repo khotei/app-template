@@ -51,12 +51,12 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 <text x="40" y="278" xml:space="preserve">proxies <tspan class="code">/api/*</tspan></text>
 <rect x="240" y="214" width="230" height="96" rx="8" class="box k-bnd"/>
 <text x="252" y="238" class="b a-bnd" xml:space="preserve"><tspan class="code">apps/api</tspan> :3000</text>
-<text x="252" y="258" xml:space="preserve">routes, use cases</text>
+<text x="252" y="258" xml:space="preserve">routes, handlers</text>
 <text x="252" y="278" xml:space="preserve">and the ask's sends</text>
 <rect x="600" y="214" width="230" height="96" rx="8" class="box k-bnd"/>
 <text x="612" y="238" class="b a-bnd" xml:space="preserve"><tspan class="code">apps/worker</tspan> :3002</text>
 <text x="612" y="258" xml:space="preserve"><tspan class="code">POST /events</tspan></text>
-<text x="612" y="278" xml:space="preserve">runs each job's use case</text>
+<text x="612" y="278" xml:space="preserve">runs each job's handler</text>
 <polyline points="103,140 103,205" class="ln"/>
 <polygon points="103,214 98,204 108,204" class="hd"/>
 <rect x="108" y="170.1" width="45.4783" height="16.1" class="lbg"/>

@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 727" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 628" role="img" aria-labelledby="title desc">
 <title id="title">How a module is cut</title>
-<desc id="desc">From a handler down: use cases, the module's &lt;Verb&gt;&lt;Model&gt;Service, its &lt;Model&gt;Service over the data layer's repositories, and its models' rules and moves; a change that is no fix wraps or composes a unit instead of editing it.</desc>
+<desc id="desc">From a handler down: the module's &lt;Verb&gt;&lt;Model&gt;Service, its &lt;Model&gt;Service over the data layer's repositories, and its models' rules and moves; a change that is no fix wraps or composes a unit instead of editing it.</desc>
 <style>
 svg { --bg: #ffffff; --frame: #d1d9e0; --ink: #1f2328; --muted: #59636e; --line: #6e7781;
   --bnd: #0969da; --bnd-f: #ddf4ff; --beh: #8250df; --beh-f: #fbefff;
@@ -33,72 +33,64 @@ text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", 
 .hd { fill: var(--line); } .hd-bad { fill: var(--bad); }
 .lbg { fill: var(--bg); } .p-bnd { fill: var(--bnd-f); } .p-beh { fill: var(--beh-f); }
 </style>
-<rect x="0.5" y="0.5" width="959" height="726" rx="12" class="panel"/>
+<rect x="0.5" y="0.5" width="959" height="627" rx="12" class="panel"/>
 <text x="28" y="42" class="h" xml:space="preserve">How a module is cut, in <tspan class="code">chat</tspan></text>
 <rect x="28" y="66" width="400" height="99" rx="8" class="box k-bnd"/>
 <text x="40" y="90" class="b a-bnd" xml:space="preserve">handler · <tspan class="code">apps/</tspan></text>
-<text x="40" y="110" xml:space="preserve"><tspan class="code">ChatHandler</tspan>, <tspan class="code">WorkerHandler</tspan></text>
-<text x="40" y="129" class="m" xml:space="preserve">calls one method or use case, at most after the user's</text>
-<text x="40" y="148" class="m" xml:space="preserve">record's read</text>
-<rect x="28" y="199" width="400" height="80" rx="8" class="box k-beh"/>
-<text x="40" y="223" class="b a-beh" xml:space="preserve">use case · <tspan class="code">application/use-cases</tspan></text>
-<text x="40" y="243" xml:space="preserve"><tspan class="code">replyToMessage</tspan> <tspan class="code">titleChat</tspan></text>
-<text x="40" y="262" class="m" xml:space="preserve">a plain <tspan class="code">Effect.fn</tspan>; only a handler calls it</text>
-<rect x="28" y="313" width="400" height="101" rx="8" class="box k-beh"/>
-<text x="40" y="337" class="b a-beh" xml:space="preserve"><tspan class="code">&lt;Verb&gt;&lt;Model&gt;Service</tspan> · <tspan class="code">services/</tspan></text>
-<text x="40" y="357" xml:space="preserve"><tspan class="code">AskChatService.ask</tspan>, <tspan class="code">.retry</tspan></text>
-<text x="40" y="377" xml:space="preserve"><tspan class="code">ReplyChatService.reply</tspan></text>
-<text x="40" y="397" xml:space="preserve"><tspan class="code">TitleChatService.title</tspan></text>
-<rect x="28" y="448" width="400" height="121" rx="8" class="box k-beh"/>
-<text x="40" y="472" class="b a-beh" xml:space="preserve"><tspan class="code">&lt;Model&gt;Service</tspan> · <tspan class="code">services/</tspan></text>
-<text x="40" y="492" xml:space="preserve"><tspan class="code">ChatService</tspan> <tspan class="code">MessageService</tspan> <tspan class="code">RunService</tspan></text>
-<text x="40" y="512" xml:space="preserve"><tspan class="code">create</tspan> <tspan class="code">getOne(where)</tspan> <tspan class="code">update(to, where)</tspan></text>
-<text x="40" y="532" xml:space="preserve"><tspan class="code">RunService.update(from, to)</tspan>: under the status</text>
-<text x="40" y="552" xml:space="preserve">read</text>
-<rect x="28" y="603" width="400" height="100" rx="8" class="box k-beh"/>
-<text x="40" y="627" class="b a-beh" xml:space="preserve">rules and moves · <tspan class="code">domain/</tspan></text>
-<text x="40" y="647" xml:space="preserve"><tspan class="code">ChatPolicy</tspan> <tspan class="code">RunPolicy</tspan> <tspan class="code">RunMove</tspan></text>
-<text x="40" y="667" xml:space="preserve"><tspan class="code">ChatState</tspan> <tspan class="code">RunState</tspan></text>
-<text x="40" y="686" class="m" xml:space="preserve">a class of statics per kind, beside the model</text>
+<text x="40" y="110" xml:space="preserve"><tspan class="code">ChatHandler</tspan> of the api and the worker</text>
+<text x="40" y="129" class="m" xml:space="preserve">calls one method, at most after the user's record's read</text>
+<text x="40" y="148" class="m" xml:space="preserve">a job's ends the job in one tail: what it skips and logs</text>
+<rect x="28" y="199" width="400" height="101" rx="8" class="box k-beh"/>
+<text x="40" y="223" class="b a-beh" xml:space="preserve"><tspan class="code">&lt;Verb&gt;&lt;Model&gt;Service</tspan> · <tspan class="code">services/</tspan></text>
+<text x="40" y="243" xml:space="preserve"><tspan class="code">AskChatService.ask</tspan>, <tspan class="code">.retry</tspan></text>
+<text x="40" y="263" xml:space="preserve"><tspan class="code">ReplyChatService.reply</tspan></text>
+<text x="40" y="283" xml:space="preserve"><tspan class="code">TitleChatService.title</tspan></text>
+<rect x="28" y="334" width="400" height="121" rx="8" class="box k-beh"/>
+<text x="40" y="358" class="b a-beh" xml:space="preserve"><tspan class="code">&lt;Model&gt;Service</tspan> · <tspan class="code">services/</tspan></text>
+<text x="40" y="378" xml:space="preserve"><tspan class="code">ChatService</tspan> <tspan class="code">MessageService</tspan> <tspan class="code">RunService</tspan></text>
+<text x="40" y="398" xml:space="preserve"><tspan class="code">create</tspan> <tspan class="code">getOne(where)</tspan> <tspan class="code">update(to, where)</tspan></text>
+<text x="40" y="418" xml:space="preserve"><tspan class="code">RunService.update(from, to)</tspan>: under the status</text>
+<text x="40" y="438" xml:space="preserve">read</text>
+<rect x="28" y="489" width="400" height="100" rx="8" class="box k-beh"/>
+<text x="40" y="513" class="b a-beh" xml:space="preserve">rules and moves · <tspan class="code">domain/</tspan></text>
+<text x="40" y="533" xml:space="preserve"><tspan class="code">ChatPolicy</tspan> <tspan class="code">RunPolicy</tspan> <tspan class="code">RunMove</tspan></text>
+<text x="40" y="553" xml:space="preserve"><tspan class="code">ChatState</tspan> <tspan class="code">RunState</tspan></text>
+<text x="40" y="572" class="m" xml:space="preserve">a class of statics per kind, beside the model</text>
 <polyline points="88,165 88,190" class="ln"/>
 <polygon points="88,199 83,189 93,189" class="hd"/>
 <rect x="93" y="175.1" width="36.24" height="16.1" class="lbg"/>
 <text x="96" y="187" class="m" xml:space="preserve">calls</text>
-<polyline points="88,279 88,304" class="ln"/>
-<polygon points="88,313 83,303 93,303" class="hd"/>
-<rect x="93" y="289.1" width="36.24" height="16.1" class="lbg"/>
-<text x="96" y="301" class="m" xml:space="preserve">calls</text>
-<polyline points="88,414 88,439" class="ln"/>
-<polygon points="88,448 83,438 93,438" class="hd"/>
-<rect x="93" y="424.1" width="36.24" height="16.1" class="lbg"/>
-<text x="96" y="436" class="m" xml:space="preserve">calls</text>
-<polyline points="88,569 88,594" class="ln"/>
-<polygon points="88,603 83,593 93,593" class="hd"/>
-<rect x="93" y="579.1" width="53.9002" height="16.1" class="lbg"/>
-<text x="96" y="591" class="m" xml:space="preserve">applies</text>
-<rect x="478" y="305" width="172" height="101" rx="8" class="box k-bnd"/>
-<text x="490" y="329" class="b a-bnd" xml:space="preserve"><tspan class="code">infrastructure/</tspan></text>
-<text x="490" y="349" xml:space="preserve"><tspan class="code">chat.queue.ts</tspan></text>
-<text x="490" y="369" xml:space="preserve"><tspan class="code">MessageAssistant</tspan></text>
-<text x="490" y="389" xml:space="preserve"><tspan class="code">ChatAssistant</tspan></text>
-<polyline points="428,363.5 469,363.5" class="ln"/>
-<polygon points="478,363.5 468,368.5 468,358.5" class="hd"/>
-<rect x="434.88" y="343.6" width="36.24" height="16.1" class="lbg"/>
-<text x="453" y="355.5" class="m" text-anchor="middle" xml:space="preserve">calls</text>
-<rect x="478" y="444" width="172" height="101" rx="8" class="box k-dat"/>
-<text x="490" y="468" class="b a-dat" xml:space="preserve"><tspan class="code">kernel/data</tspan></text>
-<text x="490" y="488" xml:space="preserve"><tspan class="code">ChatRepository</tspan></text>
-<text x="490" y="508" xml:space="preserve"><tspan class="code">MessageRepository</tspan></text>
-<text x="490" y="528" xml:space="preserve"><tspan class="code">RunRepository</tspan></text>
-<polyline points="428,508.5 469,508.5" class="ln"/>
-<polygon points="478,508.5 468,513.5 468,503.5" class="hd"/>
-<rect x="434.88" y="488.6" width="36.24" height="16.1" class="lbg"/>
-<text x="453" y="500.5" class="m" text-anchor="middle" xml:space="preserve">calls</text>
-<rect x="478" y="557" width="172" height="96" rx="8" class="box k-neu"/>
-<text x="490" y="579" class="m" xml:space="preserve">and <tspan class="code">Transaction</tspan>,</text>
-<text x="490" y="598" class="m" xml:space="preserve">from <tspan class="code">packages/db</tspan>,</text>
-<text x="490" y="617" class="m" xml:space="preserve">for the writes that</text>
-<text x="490" y="636" class="m" xml:space="preserve">commit together</text>
+<polyline points="88,300 88,325" class="ln"/>
+<polygon points="88,334 83,324 93,324" class="hd"/>
+<rect x="93" y="310.1" width="36.24" height="16.1" class="lbg"/>
+<text x="96" y="322" class="m" xml:space="preserve">calls</text>
+<polyline points="88,455 88,480" class="ln"/>
+<polygon points="88,489 83,479 93,479" class="hd"/>
+<rect x="93" y="465.1" width="53.9002" height="16.1" class="lbg"/>
+<text x="96" y="477" class="m" xml:space="preserve">applies</text>
+<rect x="478" y="191" width="172" height="101" rx="8" class="box k-bnd"/>
+<text x="490" y="215" class="b a-bnd" xml:space="preserve"><tspan class="code">infrastructure/</tspan></text>
+<text x="490" y="235" xml:space="preserve"><tspan class="code">chat.queue.ts</tspan></text>
+<text x="490" y="255" xml:space="preserve"><tspan class="code">MessageAssistant</tspan></text>
+<text x="490" y="275" xml:space="preserve"><tspan class="code">ChatAssistant</tspan></text>
+<polyline points="428,249.5 469,249.5" class="ln"/>
+<polygon points="478,249.5 468,254.5 468,244.5" class="hd"/>
+<rect x="434.88" y="229.6" width="36.24" height="16.1" class="lbg"/>
+<text x="453" y="241.5" class="m" text-anchor="middle" xml:space="preserve">calls</text>
+<rect x="478" y="330" width="172" height="101" rx="8" class="box k-dat"/>
+<text x="490" y="354" class="b a-dat" xml:space="preserve"><tspan class="code">kernel/data</tspan></text>
+<text x="490" y="374" xml:space="preserve"><tspan class="code">ChatRepository</tspan></text>
+<text x="490" y="394" xml:space="preserve"><tspan class="code">MessageRepository</tspan></text>
+<text x="490" y="414" xml:space="preserve"><tspan class="code">RunRepository</tspan></text>
+<polyline points="428,394.5 469,394.5" class="ln"/>
+<polygon points="478,394.5 468,399.5 468,389.5" class="hd"/>
+<rect x="434.88" y="374.6" width="36.24" height="16.1" class="lbg"/>
+<text x="453" y="386.5" class="m" text-anchor="middle" xml:space="preserve">calls</text>
+<rect x="478" y="443" width="172" height="96" rx="8" class="box k-neu"/>
+<text x="490" y="465" class="m" xml:space="preserve">and <tspan class="code">Transaction</tspan>,</text>
+<text x="490" y="484" class="m" xml:space="preserve">from <tspan class="code">packages/db</tspan>,</text>
+<text x="490" y="503" class="m" xml:space="preserve">for the writes that</text>
+<text x="490" y="522" class="m" xml:space="preserve">commit together</text>
 <text x="672" y="90" class="b" xml:space="preserve">Where a change goes</text>
 <text x="672" y="112" class="m" xml:space="preserve">ask in order; the first yes decides</text>
 <rect x="672" y="128" width="260" height="61" rx="8" class="box k-neu"/>
