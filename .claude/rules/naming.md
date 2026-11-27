@@ -29,7 +29,7 @@ keep theirs. What each role holds and may import, with this app's files of each:
 | `.client` | a client of one external system, or the layer that builds it | a package, an app, `kernel/data`, a kernel part |
 | `.sender` · `.consumer` | the queue's send · its run of the queue's handlers on each message | `packages/queue` |
 | `.http` | a resource's `HttpApiGroup` | `application/http-api/<resource>/` |
-| `.middleware` | `<name>.middleware.ts`: the definitions of the API contract's middlewares and the keys they provide | `application/http-api/<resource>/`, `shared/` for one no resource owns |
+| `.middleware` | `<name>.middleware.ts`: the definitions of the API contract's middlewares and the keys they provide | `application/http-api/<resource>/` |
 | `.mapper` | a model's wire shape, where it differs | `apps/api/<resource>/` |
 | `.handler` | a resource's handlers, of its endpoints, its jobs or the events it listens to; the worker's route | `apps/api/<resource>/`, `apps/worker/<resource>/`; the route `apps/worker/` |
 | `.layer` | the layers of services another workspace declares (the API contract's middlewares), each `<Service>Layer` | an app |

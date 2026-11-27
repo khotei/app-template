@@ -328,29 +328,26 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 
 The API contract is `application/http-api`, a part of the `application` workspace behind its own
 entry, `@app-template/application/http-api`: a folder per resource, as the api's handlers have,
-holding its group (`<resource>.http.ts`), its wire shapes apart (`api-<resource>.model.ts`) and
-any middleware of its own, and `shared/` what no resource owns; the groups assembled into one
-`Api`, and the definitions of its middlewares with the keys they provide (`<name>.middleware.ts`:
-`IdentityMiddleware`, which provides identity's `Identity` as `RequestIdentity`, `SchemaErrors`
-with its `RequestInvalidError`), whose layers, with the handlers, stay in `apps/api`. It takes of
-a module only its models, ids, errors and `ChatState`, the group a wire shape reads, through the
-module's contract
-([Module contracts](#module-contracts)), never its entry, and no kernel part, package or use
-case, so it loads no service, store or client; it is declared over the
-domain's schemas: ids, payload checks, models and errors are
-the domain's own; an error's status is on its class, the annotation `{ httpApiStatus: <code> }`
-of `Schema.TaggedError`, and an endpoint or a middleware lists the bare class; a wire shape is
-its model's json variant (`<Model>.json`), which
-leaves out what the model keeps off the wire, with `.mapFields(…)` where the wire adds or swaps a
-field, named by an `identifier` so the snapshot holds it once; a field the wire adds is set by
-the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which a handler pipes
-on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`).
-A field no client may see is declared so once, in its model
-([Models with variants](#models-with-variants)): a failed Run's `failure` is `Model.Sensitive`,
-so it stays in its row, off the wire of `ApiRun` and `ApiMessage`. The api's unit test writes
-`apps/api/openapi.json`; the web reads that file by path and keeps the client
-`@effect/openapi-generator`'s command writes from it, checked in. Nothing of `application/`
-reaches the browser, and the web declares no workspace of the app but `packages`.
+holding its group (`<resource>.http.ts`), its wire shapes apart (`api-<resource>.model.ts`) and any
+middleware of its own, the request's errors with their middleware in `request/`; the groups
+assembled into one `Api`, and the definitions of its middlewares with the keys they provide
+(`<name>.middleware.ts`: `IdentityMiddleware`, which provides identity's `Identity` as
+`RequestIdentity`, `SchemaErrors` with its `RequestInvalidError`), whose layers, with the handlers,
+stay in `apps/api`. It takes of a module only its models, ids, errors and `ChatState`, the group a
+wire shape reads, through the module's contract ([Module contracts](#module-contracts)), never its
+entry, and no kernel part, package or use case, so it loads no service, store or client; it is
+declared over the domain's schemas: ids, payload checks, models and errors are the domain's own; an
+error's status is on its class, the annotation `{ httpApiStatus: <code> }` of `Schema.TaggedError`,
+and an endpoint or a middleware lists the bare class; a wire shape is its model's json variant
+(`<Model>.json`), which leaves out what the model keeps off the wire, with `.mapFields(…)` where the
+wire adds or swaps a field, named by an `identifier` so the snapshot holds it once; a field the wire
+adds is set by the api's mapper (`buildApiChat` sets `state` through `ChatState.build`), which a
+handler pipes on the model it returns (`Effect.fn(…)(body, Effect.map(buildApiChat))`). A field no
+client may see is declared so once, in its model ([Models with variants](#models-with-variants)): a
+failed Run's `failure` is `Model.Sensitive`, so it stays in its row, off the wire of `ApiRun` and
+`ApiMessage`. The api's unit test writes `apps/api/openapi.json`; the web reads that file by path
+and keeps the client `@effect/openapi-generator`'s command writes from it, checked in. Nothing of
+`application/` reaches the browser, and the web declares no workspace of the app but `packages`.
 
 - **Why:** a contract of its own declared each id, constrained string, status list and error a
   second time (23 twins of the domain's, 5 ids among them, with the tables' limits, patterns

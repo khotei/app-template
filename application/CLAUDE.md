@@ -28,8 +28,8 @@ what it may import: [› Dependency rules](../docs/knowledge/architecture.md#dep
   `<Model>Queue`, which holds each job's `send<Job>` and each event's `send<Event>`; no adapter
   wraps the worker.
 - **`http-api/` is the API contract,** which the api implements, a folder per resource as the api
-  has, `shared/` for what no resource owns (`naming.md`), never a folder named as a module's layer:
-  a `domain/` or `services/` there would fall under the modules' Biome overrides. A group takes the
+  has, the request's own included (`naming.md`), never a folder named as a module's layer: a
+  `domain/` or `services/` there would fall under the modules' Biome overrides. A group takes the
   domain's schemas as they are (ids, checks, models, errors), through the modules' contracts alone:
   an error's status is on its class (`{ httpApiStatus: 404 }`, the third argument of
   `Schema.TaggedError`), an endpoint or a middleware lists the bare class, and a model goes on the

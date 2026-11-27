@@ -4,7 +4,7 @@ import { ChatHttp } from '#http-api/chat/chat.http'
 import { HealthHttp } from '#http-api/health/health.http'
 import { IdentityHttp } from '#http-api/identity/identity.http'
 import { IdentityMiddleware } from '#http-api/identity/identity.middleware'
-import { SchemaErrors } from '#http-api/shared/request.middleware'
+import { SchemaErrors } from '#http-api/request/request.middleware'
 
 /**
  * A middleware reaches only the groups added before it: a group whose every endpoint needs the
