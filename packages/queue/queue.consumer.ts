@@ -35,6 +35,17 @@ export interface SqsBatchResponse {
  * that does not decode never will, so it is logged and acknowledged, unrun. Each record runs in a
  * span under the one that sent it, else under the current span.
  */
+export function consumeQueue<
+  A,
+  I,
+  H extends Arr.NonEmptyReadonlyArray<(message: A) => Effect.Effect<unknown, never, unknown>>,
+>(
+  definition: QueueDefinition<Schema.Codec<A, I>>,
+  handlers: H,
+): (
+  event: SqsEvent,
+) => Effect.Effect<SqsBatchResponse, never, Effect.Services<ReturnType<H[number]>>>
+// One `R` infers only the first handler's services; the signature above takes their union.
 export function consumeQueue<A, I, R>(
   definition: QueueDefinition<Schema.Codec<A, I>>,
   handlers: Arr.NonEmptyReadonlyArray<(message: A) => Effect.Effect<unknown, never, R>>,

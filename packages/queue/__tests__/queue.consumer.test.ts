@@ -1,9 +1,17 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Array as Arr, Effect, Order, Record as Rec, Ref, Schema } from 'effect'
+import { Array as Arr, Context, Effect, Order, Record as Rec, Ref, Schema } from 'effect'
 
 import { recordLogs } from '@app-template/packages/testing'
 
 import { consumeQueue, SqsEvent } from '#queue/queue.consumer'
+
+class Replies extends Context.Service<Replies, { readonly label: string }>()(
+  '@app-template/packages/queue/Replies',
+) {}
+
+class Titles extends Context.Service<Titles, { readonly label: string }>()(
+  '@app-template/packages/queue/Titles',
+) {}
 
 const pingQueue = { name: 'pings', schema: Schema.Struct({ ping: Schema.String }) }
 
@@ -40,17 +48,26 @@ describe('consumeQueue', () => {
     }),
   )
 
-  it.effect('runs every handler on a message', () =>
+  it.effect('runs every handler on a message, each over the services it reads', () =>
     Effect.gen(function* () {
       const seen = yield* Ref.make<ReadonlyArray<string>>([])
 
       yield* consumeQueue(pingQueue, [
-        ({ ping }) => Ref.update(seen, Arr.append(`reply ${ping}`)),
-        ({ ping }) => Ref.update(seen, Arr.append(`title ${ping}`)),
+        Effect.fnUntraced(function* ({ ping }: { readonly ping: string }) {
+          const { label } = yield* Replies
+          yield* Ref.update(seen, Arr.append(`${label} ${ping}`))
+        }),
+        Effect.fnUntraced(function* ({ ping }: { readonly ping: string }) {
+          const { label } = yield* Titles
+          yield* Ref.update(seen, Arr.append(`${label} ${ping}`))
+        }),
       ])({ Records: [buildRecord('a', '{"ping":"ok"}')] })
 
       assert.deepStrictEqual(Arr.sort(yield* Ref.get(seen), Order.String), ['reply ok', 'title ok'])
-    }),
+    }).pipe(
+      Effect.provideService(Replies, { label: 'reply' }),
+      Effect.provideService(Titles, { label: 'title' }),
+    ),
   )
 
   it.effect(
