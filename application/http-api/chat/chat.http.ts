@@ -14,7 +14,7 @@ import {
   RunNotRetryableError,
 } from '@app-template/application/chat/contract'
 
-import { ApiChat, ApiMessage, ApiRun } from '#http-api/api-chat.model'
+import { ApiChat, ApiMessage, ApiRun } from '#http-api/chat/api-chat.model'
 
 const chatPath = { chatId: ChatId }
 

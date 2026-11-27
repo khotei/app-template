@@ -1,7 +1,7 @@
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-import { ApiIdentity } from '#http-api/api-identity.model'
-import { IdentityMiddleware } from '#http-api/identity.middleware'
+import { ApiIdentity } from '#http-api/identity/api-identity.model'
+import { IdentityMiddleware } from '#http-api/identity/identity.middleware'
 
 /**
  * `IdentityMiddleware` guards `get` alone: `recognise` reads the cookie itself, so it can answer

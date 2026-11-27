@@ -327,9 +327,10 @@ in `apps/api`; the id format's schema (`buildIdSchema`) lives in
 ### The API contract in the api
 
 The API contract is `application/http-api`, a part of the `application` workspace behind its own
-entry, `@app-template/application/http-api`: one group per resource (`<resource>.http.ts`), its
-wire shapes apart (`api-<resource>.model.ts`), the groups assembled into one `Api`, and the
-definitions of its middlewares with the keys they provide (`<name>.middleware.ts`:
+entry, `@app-template/application/http-api`: a folder per resource, as the api's handlers have,
+holding its group (`<resource>.http.ts`), its wire shapes apart (`api-<resource>.model.ts`) and
+any middleware of its own, and `shared/` what no resource owns; the groups assembled into one
+`Api`, and the definitions of its middlewares with the keys they provide (`<name>.middleware.ts`:
 `IdentityMiddleware`, which provides identity's `Identity` as `RequestIdentity`, `SchemaErrors`
 with its `RequestInvalidError`), whose layers, with the handlers, stay in `apps/api`. It takes of
 a module only its models, ids, errors and `ChatState`, the group a wire shape reads, through the
