@@ -6,7 +6,7 @@ import type { TestProject } from 'vitest/node'
 
 import { ministackImage, postgresImage } from '@app-template/kernel/config'
 import { ministackRegion } from '@app-template/packages/aws/testing/e2e'
-import { migrateDatabase } from '@app-template/packages/db'
+import { DbMigration } from '@app-template/packages/db'
 import { templateDatabase } from '@app-template/packages/db/testing/e2e'
 
 import { migrationsFolder } from '#kernel/data/data-migrations'
@@ -28,7 +28,7 @@ async function startPostgresWithTemplate() {
     yield* admin.unsafe(`CREATE DATABASE ${templateDatabase}`)
     // The provide closes the migration's pool here: `CREATE DATABASE … TEMPLATE` refuses a
     // template that still has a session.
-    yield* migrateDatabase(migrationsFolder).pipe(Effect.provide(onDatabase(templateDatabase)))
+    yield* DbMigration.apply(migrationsFolder).pipe(Effect.provide(onDatabase(templateDatabase)))
     yield* admin.unsafe(`ALTER DATABASE ${templateDatabase} IS_TEMPLATE true`)
   }).pipe(Effect.provide(onDatabase(container.getDatabase())))
 

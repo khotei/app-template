@@ -7,19 +7,21 @@ import type { SqlError } from 'effect/sql'
 
 import { DbQuery } from '#db/db-query'
 
-/** Applies the pending migrations of `folder`. */
-export const migrateDatabase = Effect.fn('migrateDatabase')(
-  function* (
-    folder: string,
-  ): Effect.fn.Return<
-    void,
-    EffectDrizzleQueryError | MigratorInitError | SqlError.SqlError,
-    PgClient.PgClient
-  > {
-    const db = yield* PgDrizzle.makeWithDefaults()
+export class DbMigration {
+  /** Applies the pending migrations of `folder`. */
+  static readonly apply = Effect.fn('DbMigration.apply')(
+    function* (
+      folder: string,
+    ): Effect.fn.Return<
+      void,
+      EffectDrizzleQueryError | MigratorInitError | SqlError.SqlError,
+      PgClient.PgClient
+    > {
+      const db = yield* PgDrizzle.makeWithDefaults()
 
-    // `migrate` reads the folder before it returns its effect, so a missing folder would throw here.
-    yield* Effect.suspend(() => migrate(db, { migrationsFolder: folder }))
-  },
-  Effect.catchTag('EffectDrizzleQueryError', DbQuery.unwrapError),
-)
+      // `migrate` reads the folder before it returns its effect, so a missing folder would throw here.
+      yield* Effect.suspend(() => migrate(db, { migrationsFolder: folder }))
+    },
+    Effect.catchTag('EffectDrizzleQueryError', DbQuery.unwrapError),
+  )
+}

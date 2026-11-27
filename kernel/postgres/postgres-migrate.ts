@@ -3,12 +3,12 @@ import { Effect } from 'effect'
 
 import { MinimumLogLevelFromConfig } from '@app-template/kernel/config'
 import { migrationsFolder } from '@app-template/kernel/data'
-import { migrateDatabase } from '@app-template/packages/db'
+import { DbMigration } from '@app-template/packages/db'
 
 import { PgClientFromConfig } from '#kernel/postgres/postgres.client'
 import { retryWhileUnreachable } from '#kernel/postgres/postgres-retry'
 
-export const applyMigrations = migrateDatabase(migrationsFolder).pipe(
+export const applyMigrations = DbMigration.apply(migrationsFolder).pipe(
   Effect.andThen(Effect.logInfo('database migrated')),
 )
 
