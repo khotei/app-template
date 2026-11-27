@@ -57,6 +57,17 @@ export class ReplyChatService extends Context.Service<
         return yield* runs.update(run, yield* RunMove.fail(run, cause))
       })
 
+    // Reads the job's active Run and starts it; a Run some worker started was left by a worker that
+    // died, so it fails as it is read.
+    const start = Effect.fnUntraced(function* (where: ReplyChatWhere) {
+      const active = yield* runs.getOne({ ...where, status: activeRunStatuses })
+      const queued = yield* RunPolicy.ensureUnstarted(active).pipe(
+        Effect.onError(failUnanswered(active)),
+      )
+
+      return yield* runs.update(queued, yield* RunMove.start(queued))
+    })
+
     const answer = Effect.fnUntraced(function* (started: Run) {
       const context = yield* contexts.getMessages(Struct.pick(started, ['chatId', 'userId']))
 
@@ -90,22 +101,18 @@ export class ReplyChatService extends Context.Service<
     // Run starts waits for them, so the Run it started is always there to fail and never stays
     // `generating`; they are interruptible, so the worker can still stop during the model's calls.
     const reply = Effect.fn('ReplyChatService.reply')(
-      function* (where: ReplyChatWhere) {
-        const active = yield* runs.getOne({ ...where, status: activeRunStatuses })
-        // A Run some worker started was left by a worker that died, so it fails as it is read.
-        const queued = yield* RunPolicy.ensureUnstarted(active).pipe(
-          Effect.onError(failUnanswered(active)),
-        )
-        const started = yield* runs.update(queued, yield* RunMove.start(queued))
-
-        yield* answer(started).pipe(
-          Effect.tap(compactOverLimit(started)),
-          Effect.flatMap(complete(started)),
-          transaction.run,
-          Effect.interruptible,
-          Effect.onError(failUnanswered(started)),
-        )
-      },
+      (where: ReplyChatWhere) =>
+        start(where).pipe(
+          Effect.flatMap((started) =>
+            answer(started).pipe(
+              Effect.tap(compactOverLimit(started)),
+              Effect.flatMap(complete(started)),
+              transaction.run,
+              Effect.interruptible,
+              Effect.onError(failUnanswered(started)),
+            ),
+          ),
+        ),
       // A Run's chat is there while the Run is, so a chat not found is a defect.
       Effect.catchTag('ChatNotFoundError', Effect.die),
       Effect.uninterruptible,
