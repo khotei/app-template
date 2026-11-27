@@ -11,8 +11,11 @@ import { type MessageColumns, messages } from '#kernel/data/chat/message.table'
 import { EntityOrder } from '#kernel/data/data-entity-order'
 import { Db } from '#kernel/data/db.client'
 
-/** Every read is in creation order. */
-const read = { orderBy: EntityOrder.inCreationOrder, with: MessageStatement.withRuns } as const
+/** Every read is in creation order and nests the Runs `MessageStatement.buildEntity` picks from. */
+const read = {
+  orderBy: EntityOrder.inCreationOrder,
+  with: { newestRun: { orderBy: EntityOrder.newestFirst }, replyOf: true },
+} as const
 
 export class MessageRepository extends Context.Service<
   MessageRepository,

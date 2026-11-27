@@ -4,7 +4,6 @@ import type { Keyed } from '@app-template/packages/db'
 
 import { MessageColumns } from '#kernel/data/chat/message.table'
 import { RunColumns } from '#kernel/data/chat/run.table'
-import { EntityOrder } from '#kernel/data/data-entity-order'
 import type { FilterOf } from '#kernel/data/relations'
 
 /**
@@ -27,12 +26,6 @@ interface MessageRead extends Omit<MessageEntity, 'run'> {
 
 /** What `MessageRepository` builds its statements from. */
 export class MessageStatement {
-  /** Every read nests the Runs `buildEntity` picks from. */
-  static readonly withRuns = {
-    newestRun: { orderBy: EntityOrder.newestFirst },
-    replyOf: true,
-  } as const
-
   static readonly buildEntity = ({
     newestRun,
     replyOf,
