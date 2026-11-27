@@ -312,6 +312,19 @@ it was left, and the ways out to weigh. A design audit has a section too, whose 
 verifier has checked stand by title alone, marked so, until one does. A ticket that takes an item
 moves it into its own `Later` and deletes it here.
 
+### From `chat-assistant`
+
+- (2026-11-27) Once, under `make check`, four cases of `apps/e2e/api/chat.e2e.ts`, all in
+  `a write Postgres refuses, through the api`, failed with "Test timed out in 30000ms" or
+  "60000ms": "an ask whose Run is refused leaves no message and no chat change", "a Run whose
+  move to done Postgres refuses ends failed with its chat and keeps no reply", "a retry after a
+  failed Run is answered by the worker, and a reload shows the reply" and "a refused chat delete
+  keeps every row". Vitest pointed at `:118`, `:134`, `:153` and `:177`, lines of other cases
+  among them, and printed a run of 5.43 s. The next `make test-e2e` and `make check`, the tree
+  unchanged, passed 87 of 87. The cause is not known. A first look: run `make test-e2e` again
+  until a case times out, and time each of those cases' stand, built per case as it alters the
+  schema; a guess, not checked: a stand's containers or a schema change slow under load.
+
 ### From `queue-events`
 
 - (2026-11-27) A store unavailable under a reply's handling leaves its Run active for good, its
