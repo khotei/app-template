@@ -1392,9 +1392,8 @@ and domain services](../../.claude/rules/layering.md#ports-and-domain-services);
 work: [The chat's jobs in their services](#the-chats-jobs-in-their-services). The worker's route
 lists a queue's handlers, and `consumeQueue` runs each on every message of it, all of one message
 concurrently, each under its own exit: one that dies is logged (`queue message failed`) and leaves
-the others running, and every record the worker saw to its end is acknowledged. SQS delivers a
-record again only when the process died under it, and then every handler of its queue runs
-again, so each is safe to run twice.
+the others running, and every record the worker saw to its end is acknowledged; what a
+redelivery then runs: [aws.md › Queues](aws.md#queues).
 
 - **Why:** every duty a job's row held already sits on the work's record; a row beside it is a
   second status for one piece of work. The send after the commit needs no relay and no sweep, and
