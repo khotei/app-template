@@ -8,8 +8,13 @@ import { filtersOf } from '#lint/rule-filters'
 
 const root = resolve(import.meta.dirname, '../..')
 
+// The vendored repositories under repos/ put `git ls-files` past Node's default buffer of 1 MiB.
+const GIT_OUTPUT_LIMIT = 64 * 1024 * 1024
+
 function git(...args) {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean)
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: GIT_OUTPUT_LIMIT })
+    .split('\n')
+    .filter(Boolean)
 }
 
 // The limits are numbers in the maintenance rule's limits line, its one author: the line that reads
