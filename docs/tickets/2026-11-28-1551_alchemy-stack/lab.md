@@ -596,10 +596,41 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
   one screen, "API status: ok"; a message posted by `curl` through the web's `/api` has its
   assistant reply within 4 s. The Shape's check, a reply seen in the browser, cannot run: the
   web has no chat screen (`apps/web/features` holds `health` alone). `make deploy STAGE=<stage>`
-  runs `alchemy deploy`; it has not been run against AWS. `make dev-<app>` and
-  `make debug-<app>` stay on the host over `make up`'s stand until L5.
+  runs `alchemy deploy`; it has not been run against AWS. The Shape keeps the api's and the
+  worker's host entries until L4, for the e2e's stand; the targets `make dev-<app>` and
+  `make debug-<app>` stay past it, until L5, since they run over `make up`'s stand, which
+  L5 removes.
 - [N:ai] `alchemy dev` is stopped by an interrupt (Ctrl-C, `SIGINT`), which also ends the
   web's dev server; `ps` after it shows none of its processes (2026-11-28).
+- [N:ai] Piece 1's run (`make dev-stack`, L3.1): `Done: 8 succeeded (11.9s)`; the instance is
+  PostgreSQL 18.7 with one row in `__alchemy_migrations` and the tables `chats`, `credentials`,
+  `messages`, `runs`, `users`; `UserMessageCreated` has its `RedrivePolicy` with
+  `maxReceiveCount` 3.
+- [N:ai] Rules this step crosses beside the guard and `Independent apps`, each rewritten at L5:
+  `apps/CLAUDE.md`, "`layer.ts` … no package exports" (the api exports `./layer`, the worker
+  `./handler`; its line is updated); `.claude/rules/modules.md:44`, `deployment` takes of the
+  kernel "the configuration, the inventory and the files' key" (`Api.ts` and `Worker.ts` import
+  `/data` and `/llm`).
+- [N:ai] The review of L3 (Intent, Hunt, Rules; 2026-11-28), its fixes as `REVIEW` rounds:
+  the worker's function had a public Function URL, Alchemy's default (L3.6); its batches ran
+  below `LOG_LEVEL`, the level provided to its layers and not merged into their context
+  (L3.7, shown by the reviewer's probe, not seen in a run of the stack); the queues hid a
+  message for the worker's timeout plus 30 s, a margin nothing asked for, where the
+  inventory says 600 s (L3.8; with 600 the mappings are created and a message gets its reply);
+  the guard let `deployment` import any subpath of an app, `/testing` too (L3.9).
+  Rejected: `satisfies Record<QueueName, unknown>` in `Queues.ts` (it checks the keys, the rows'
+  type is `declare`'s); `Effect.fromNullishOr(sent)` in `Api.ts` (the rule's own conversion of
+  a nullable); `senders` keyed by `string` in `Bindings.ts` (`QueueSender.layer`'s `sendTo`
+  takes a `string`, a `packages` signature); L3.2 as one commit (the guard's change is what
+  makes its import pass `make lint`).
+- [D:ai] **The SQS request's shape is written twice** (`deployment/Bindings.ts:25-28`,
+  `packages/aws/queue/queue.sender.ts:59-63`; shown by reading). Knowledge says the SQS
+  transport is `layerSqs` "with its client and its request's shape"; the function's transport
+  writes `MessageBody` and the `traceparent` attribute again. An attribute added to one
+  misses the other, and the consumer reads it. Options: one builder of the request's body
+  and attributes in `packages/aws/queue`, used by both (a change in `packages`); or leave it,
+  since `layerSqs` goes with MiniStack in L5 and one copy remains. Proposed: leave it, a
+  `Later` line to recheck at L5. Without the builder: two copies until L5.
 - [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
@@ -662,6 +693,11 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 
 ## Later
 
+- `deployment/CLAUDE.md` describes a transition ("replaces `local/` and `aws/`", "while both
+  stand") and lists three of the stack's files, and `aws.md` opens with "while the move … is
+  under way": against `claude-md.md` (the review of L3, judgement). L5 rewrites both.
+- The SQS request's shape, written in `deployment/Bindings.ts` and in `QueueSender.layerSqs`:
+  recheck at L5 that one copy is left (L3's `[D:ai]`).
 - floci publishes TCP port 4566, the main tree's MiniStack port (`AWS_ENDPOINT_URL` of
   `.env.example`): there `make dev` and `make up` cannot both hold it. Not run; it goes with
   MiniStack in L5.
