@@ -402,17 +402,27 @@ left.
     retries it twice, so a first message that makes the model overrun the title's length pays
     three calls.
   - **The provider's own limits documented** as the stop behind the app's: a workspace for the
-    app, its monthly spend limit and its `tokens_per_day`, auto-reload off.
+    app apart from the one its developers use, its monthly spend limit and its `tokens_per_day`,
+    auto-reload off.
+  - **What is left, on the wire.** A user reads their own spend, their allowance and when it
+    renews; anyone reads the service's totals for the period, spent and left, with no user named.
+    The page that shows either is `web-app`'s (7). It takes
+    [Later › From `context-window`](#from-context-window)'s usage that counts a summary's call.
 - **Out of scope.** Telling one person from another, and anything at the edge
-  ([`identity-cost`](#35-identity-cost)); billing, credits or payment; a usage on the wire for
-  the chat to show, in [Later › From `context-window`](#from-context-window).
+  ([`identity-cost`](#35-identity-cost)); billing, credits or payment; the page that shows a
+  usage (`web-app`, 7).
 - **The fact that shapes it.** While a user is free to create, an allowance per user bounds
   nothing: the service's budget is the bound, and the allowance only keeps one user from spending
   the day. Whoever spends the day's budget still denies the service to every user until the next
   day; making that dear is `identity-cost`.
-- **Open questions for its Shape.** The budget's and the allowance's values (proposed to the
-  owner: 10 USD a day for the service, 0.10 USD a day for a user); what a user reads when either
-  is spent; totals read by a `sum` over an index or kept in a counter row, the second being what
+- **Open questions for its Shape.** The budget's and the allowance's values and their period: the
+  owner's own figures (2026-11-28) are 150 USD a month for users, of a provider credit of 200 a
+  month whose other 50 stay for development, and 5 USD a user as an example; against them stands
+  that 30 users, or one person behind 30, spend the month at 5 USD each, so a daily share of the
+  month (about 5 USD) and a smaller allowance for a user nobody knows are to weigh; the unit a
+  user is shown, a share left or money, as a token's price differs tenfold by its kind and no one
+  count of tokens says what is left; what a user reads when either is spent; totals read by a
+  `sum` over an index or kept in a counter row, the second being what
   `.claude/rules/repositories.md` leans to and one row every ask contends for; how an unfinished
   answer's usage reaches the record, `LlmCall.ask` discarding it with the answer; the limit's
   floor, as a limit small against one message summarises on every turn (seen at a limit of 100);
