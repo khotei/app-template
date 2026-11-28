@@ -31,7 +31,7 @@ binds, and [Knowledge](#knowledge) states what binds now:
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | done |
-| L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | in progress |
+| L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | done |
 | L3 | One stack in `deployment/` declares the queues, the bucket, the database, the api's and the worker's functions and the web; `make dev` runs it on floci · visible: `make dev`, a chat message gets its reply through the Function URL | minimal | build | todo |
 | L4 | The e2e's two kinds: in-process on a floci container of their own, the journeys through the deployed stack · visible: `make test-e2e` green, its duration beside today's 6.09 s | minimal | build | todo |
 | L5 | Pulumi and MiniStack are gone; `aws.md`, `tooling.md`, `architecture.md`, the worktree rules and the import guard say what holds · visible: `make check` green | minimal | build | todo |
@@ -500,77 +500,72 @@ Can you write the signature now?
 
 ## L2 — The api and the worker on Node
 
-### Shape
+### Output
 
-The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
+The api and the worker run on Node.js 24 everywhere they run today: under `make dev`
+(`node --watch`), in the unit tests and in the e2e (`bunx vitest`), with no Bun API and no
+`@effect/platform-bun` in their graph; the web alone stays on Bun. To see it: `make check`
+(239 unit and 87 e2e cases, on Node), and
+`make up && make dev`, then `GET /health` on the api's port and through the web's proxy.
 
-### Notes
-
-- [D] **The Shape, five pieces, each green alone** (the owner's "ok", 2026-11-28). Bun stays the launcher of
-  `make dev` until L3 (`bun --watch main.ts` runs `@effect/platform-node` too, I assume; the
-  first piece shows it), so the stand plays after every piece.
-  1. **The api's routes apart from its process.** `apps/api/layer.ts` exports `ApiRoutes` (the
-     `HttpApi`'s layer with its handlers and middlewares) and `ApiUseCases`, neither naming a
-     server; `ApiLayer` serves them through `NodeHttpServer` and provides `NodeCrypto`. Test:
-     the three handler suites, their test layer on `NodeHttpServer.layerTest`.
-  2. **The worker's route as a function.** `apps/worker/worker.handler.ts` exports
-     `(event: SqsEvent) => Effect<SqsBatchResponse, never, JobServices>`, keyed as today; the
-     `POST /events` that calls it stays in the worker's `layer.ts` until L3. Test:
-     `worker.handler.test.ts` calls the function, with no server.
-  3. **`QueueSender` takes its send.** `QueueSender.layer(send)` where
-     `send: (queueName: string, message: { body: string; traceparent: string }) =>
-     Effect<void, QueueError>`; `kernel/aws` builds today's from `SQSService` and the queue's
-     URL, L3 from `AWS.SQS.SendMessage`. Test: the sender's suite, on a `send` that records.
-  4. **The tests on Node.** `vitest` without `--bun`; `types: ["node"]` and `@types/node`, the
-     web keeping `types: ["bun"]`; the stand's `Bun.listen` becomes `node:net`; the test layers'
-     `BunCrypto`, `BunFileSystem` and `BunPath` their Node counterparts. Check: `make check`.
-  5. **The model's idle limit on Node.** `kernel/llm` gives the client a dispatcher whose
-     headers and body timeouts are ten minutes, in place of Bun's `timeout`. Test first: a
-     server silent past the default, which fails today under Node.
-- [D] **`S3Bucket` stays as it is in this step** (the owner's "ok"). No process provides it
-  (`docs/knowledge/decisions.md › Clients from the context`), so rebuilding it over operations
-  changes nothing a run shows; without it the system loses nothing until a module stores
-  files. It goes to Later.
-- [N:ai] **The review of L2** (the rounds L2.1 to L2.6; Intent, Hunt and Rules, 2026-11-28)
-  found that three of the accepted pieces were built otherwise and defended in commit messages
-  alone. Each is a proposal below until the owner makes it a `[D]`; the pieces' lines above stay
-  as the owner accepted them.
-- [D:ai] **The launcher is Node already** (`apps/api/package.json:13`,
-  `apps/worker/package.json:13`), against "Bun stays the launcher of `make dev` until L3".
-  Shown: the undici client the worker needs dies under Bun 1.4.5 with `dispatcher.destroy is
-  not a function` (L2.6). Kept, the api restarts on an edit in about 0.9 s against 0.31 s, and
-  Node stops on a missing `.env.pulumi` where Bun went on. Reverted, the worker runs
-  under Bun on `fetch` and its replies have no working idle limit until L3. Proposed: keep Node.
-- [D] **The model's call ends after ten minutes, as it did** (the owner's "ok", 2026-11-28, after
-  "Code should work same"): `LlmCall.ask` gives up a call, its retries included, after ten
-  minutes with an `LlmError`, by `Effect.timeoutOrElse` (`kernel/llm/llm-call.ts`), in place of
-  piece 5's dispatcher: the undici client of `@effect/platform-node` overwrites a request's
-  idle timeouts with its own (`NodeHttpClient.ts:221-222`). It differs from Bun's in one way:
-  it bounds the whole call, not a silence inside it.
-- [D:ai] **The SQS transport is `QueueSender.layerSqs` in `packages/aws/queue`**
-  (`packages/aws/queue/queue.sender.ts:42`), against piece 3's "`kernel/aws` builds today's".
-  It needs `QueueClient` and the SQS request's shape, both of that package; in `kernel/aws` the
-  kernel would hold an SQS request. Proposed: keep it in the package.
-- [N:ai] Stop ("wtf??? Everyting should work the same? … I change only deployment and node, and
-  app shoudl work as expected", the owner, 2026-11-28): a proposal to reword the tests' rule on
-  `Equal.equals` for errors went. Nobody asked for it and no behaviour of the app hangs on it:
-  the rule, `assertSchemaEquals` and every test stay as they are. The run behind it (equal
-  errors compare equal on Node, not under Bun) is a fact about the test runtime alone.
-- [N:ai] Rejected: the `orDie` on a missing `traceparent` in `QueueSender.send` (it cannot
-  fire, `effect: http/HttpTraceContext.ts:52`, and stands beside the same `orDie` on the
-  current span; the other spelling is an optional field on the transport's message); a unit
-  test for `POST /events` (the journeys of `apps/e2e` run it, and L3 deletes the route);
-  `Effect.fn.Return` on `consumeEvent` (after L2.7 it fails with nothing and its result is
-  inferred from the routes' table).
-- [N:ai] The decisions this step rewrites: none reversed. `Clients from the context` holds
-  (the kernel still builds the clients); `Independent apps` holds until L3, where `deployment`
-  imports the apps by the owner's word in Knowledge.
+What L3 takes from it: `ApiRoutes` and `ApiUseCases` (`apps/api/layer.ts`), the contract's
+routes and the services they read, on no server; `consumeEvent(stage)`
+(`apps/worker/worker.handler.ts`), the worker's route as a function of the SQS event;
+`QueueSender.layer(sendTo)` (`packages/aws/queue/queue.sender.ts`), the sender over a transport
+it is given. The app's behaviour is the one before the step; the model's call still ends after
+ten minutes, now by `LlmCall.ask`.
 
 ## L3 — One stack in `deployment/`
+
+### Shape
+
+Not written: the owner's. A proposal is the first note below.
 
 ### Notes
 
 <a id="l3-notes"></a>
+
+- [D:ai] **A proposed Shape, five pieces, each green alone.** No file of `application/`,
+  `kernel/data` or a handler changes; what changes below the wiring is named in its piece.
+  Until L4 the e2e keep MiniStack and Pulumi beside the new stack, so `make check` stays as it
+  is. Every Alchemy name is rechecked in `repos/alchemy` first, as L1's notes say; the
+  probe's files in `.claude/worktrees/alchemy-probe/deployment/probe/app` are the draft.
+  1. **The resources.** `deployment/alchemy.run.ts` (the stack), `Queues.ts` (the three queues,
+     each with its dead-letter queue, the visibility timeout from the worker's), `Database.ts`
+     (a Postgres 18 instance with `kernel/data/migrations`), `Files.ts` (the bucket and its
+     lifecycle rule); `deployment` takes `pg`. Visible: `make stack`, a new target for
+     `alchemy dev --config deployment/alchemy.run.ts`, ends `Done`, and the instance holds the
+     migration.
+  2. **The api's function.** `deployment/Api.ts` builds `ApiUseCases` and `ApiRoutes` once over
+     the repositories, `SQL.PostgresLayer` and a `QueueSender` whose transport is
+     `AWS.SQS.SendMessage` (`deployment/Bindings.ts`), wraps `fetch` in `HttpEffect.toHandled`
+     and names its `memorySize`. Below the wiring: none. The import guard lets `deployment`
+     import the apps and `application/` (the break Knowledge allows, rewritten at L5).
+     Visible: through the Function URL, `POST /identity` sets the cookie, `GET /identity` reads
+     it, `POST /chats` stores a chat.
+  3. **The worker's function.** `deployment/Worker.ts` hands one handler to
+     `AWS.SQS.consumeQueueMessages` for each queue, its services built once, the assistant over
+     Anthropic's client on the undici client. Below the wiring, one change:
+     `consumeEvent` takes the queues' names as a table from a queue's own name to its
+     route's, where it takes the stage today, since Alchemy names the queues; the host worker
+     passes today's names. Visible: a message posted through the api gets its reply and its
+     chat a title (it needs `ANTHROPIC_API_KEY`).
+  4. **The web.** The stack runs the web's dev server (`AWS.Website.StaticSite`, `dev.command`),
+     whose proxy takes the api's origin from a setting, the Function URL here, in place of
+     `localhost:${API_PORT}`. Below the wiring: `apps/web/main.ts`, that one setting.
+     Visible: the page loads and `/api/health` answers through it.
+  5. **`make dev` is the stack.** `make dev` runs `alchemy dev`, `make deploy` stands beside it,
+     `make stack` goes; the api's and the worker's host entries stay for the e2e's stand until
+     L4. `tooling.md` and `aws.md` say how the stand runs. Visible: `make dev`, then a chat
+     message gets its reply in the browser.
+- [D:ai] **Out of this step, each to Later:** the telemetry backend's container in dev
+  (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
+  still read by `alchemy logs`); `make debug-<app>` for a function.
+- [N:ai] The decision this step crosses: `Independent apps` (`docs/knowledge/decisions.md`),
+  "apps never import … `deployment`" holds, but `deployment` now imports the apps, which its
+  guard refuses today. What it costs: the functions' files see every app's layer, and the rule
+  "deployment imports of the kernel only /config, /aws and /data" goes. The owner allowed it
+  in Knowledge; L5 rewrites the decision and the guard.
 
 - [D] **The cookie: the wrapper, and an issue upstream** (the owner's "ok", 2026-11-28). Alchemy runs `fetch` bare, so `securitySetCookie`'s pre-response
   handler never runs (L1, check 4). Options: wrap `fetch` in `HttpEffect.toHandled` in
@@ -590,6 +585,17 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
 - [D] Go after the probe: the stack is built on Alchemy and floci as measured, slower than
   today's stand, and its speed is improved after the feature plays ("ok, lets continue and them
   will improve performance", the owner, 2026-11-28).
+- [D] The lab changes the processes' wiring and the deployment alone; the app's code, on
+  Effect, works as before ("Code should work same. we use effect, and it should ramain", "we
+  change only api layer like on hight level abstractions and deployment", the owner,
+  2026-11-28). A change below the wiring is named to the owner before it is made.
+- [D] The api and the worker start under `node --watch` in `make dev` since L2, not in L3: the
+  undici client the worker's model call needs does not run under Bun (the owner's "ok").
+- [D] The transport of `QueueSender` over SQS is `QueueSender.layerSqs` in `packages/aws/queue`,
+  with its client and its request's shape; the kernel gives it the stage's naming (the
+  owner's "ok").
+- [D] A model's call ends after ten minutes with an `LlmError`, by `LlmCall.ask`, on the whole
+  call with its retries (the owner's "ok").
 - [D] One description, one mode: what `alchemy dev` runs on floci, `alchemy deploy` runs on AWS.
 - [D] Alchemy and everything of it lives in `deployment/` ("all should be inside deployment").
 - [D] The Alchemy code is wired with Effect's core: layers, services, `Config`.
