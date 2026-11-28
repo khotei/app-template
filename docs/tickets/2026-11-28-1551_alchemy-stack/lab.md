@@ -555,13 +555,11 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
   (`packages/aws/queue/queue.sender.ts:42`), against piece 3's "`kernel/aws` builds today's".
   It needs `QueueClient` and the SQS request's shape, both of that package; in `kernel/aws` the
   kernel would hold an SQS request. Proposed: keep it in the package.
-- [D:ai] **`Equal.equals` on errors: the ban's reason is gone on Node**
-  (`.claude/rules/effect-tests.md:71`, `docs/knowledge/tooling.md:136`,
-  `packages/testing/schema.test-util.ts:7`). Shown: a one-off test compared two equal
-  `Schema.TaggedError`s 200 000 times; under `bunx vitest` none differed, under
-  `bun --bun vitest` the test failed. Options: keep `assertSchemaEquals` as the one way and
-  reword its reason (it still gives a diff by field); lift the ban. Proposed: keep it,
-  reworded, in this lab's close.
+- [N:ai] Stop ("wtf??? Everyting should work the same? … I change only deployment and node, and
+  app shoudl work as expected", the owner, 2026-11-28): a proposal to reword the tests' rule on
+  `Equal.equals` for errors went. Nobody asked for it and no behaviour of the app hangs on it:
+  the rule, `assertSchemaEquals` and every test stay as they are. The run behind it (equal
+  errors compare equal on Node, not under Bun) is a fact about the test runtime alone.
 - [N:ai] Rejected: the `orDie` on a missing `traceparent` in `QueueSender.send` (it cannot
   fire, `effect: http/HttpTraceContext.ts:52`, and stands beside the same `orDie` on the
   current span; the other spelling is an optional field on the transport's message); a unit
