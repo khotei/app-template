@@ -69,6 +69,8 @@ or {
         "kernel",
         "packages"
       },
+      and { $workspace <: "api", not $kernelPart <: "layer" },
+      and { $workspace <: "worker", not $kernelPart <: "handler" },
       and {
         $workspace <: "kernel",
         not $kernelPart <: or {
@@ -79,7 +81,7 @@ or {
         }
       }
     },
-    register_diagnostic(span=$source, message="deployment imports the apps it deploys, application/, packages/* and of the kernel only /config, /aws, /data and /llm, whatever its manifest declares (decisions.md › One kernel)")
+    register_diagnostic(span=$source, message="deployment imports of the apps only the api's /layer and the worker's /handler, application/, packages/* and of the kernel only /config, /aws, /data and /llm, whatever its manifest declares (decisions.md › One kernel)")
   },
   specifier($source) where {
     $source <: r"['\"`]\.\.?/.*['\"`]",
