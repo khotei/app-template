@@ -623,14 +623,14 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
   a nullable); `senders` keyed by `string` in `Bindings.ts` (`QueueSender.layer`'s `sendTo`
   takes a `string`, a `packages` signature); L3.2 as one commit (the guard's change is what
   makes its import pass `make lint`).
-- [D:ai] **The SQS request's shape is written twice** (`deployment/Bindings.ts:25-28`,
+- [D] **The SQS request's shape is written twice; it stays so until L5** (the owner's "ok", 2026-11-28) (`deployment/Bindings.ts:25-28`,
   `packages/aws/queue/queue.sender.ts:59-63`; shown by reading). Knowledge says the SQS
   transport is `layerSqs` "with its client and its request's shape"; the function's transport
   writes `MessageBody` and the `traceparent` attribute again. An attribute added to one
   misses the other, and the consumer reads it. Options: one builder of the request's body
   and attributes in `packages/aws/queue`, used by both (a change in `packages`); or leave it,
-  since `layerSqs` goes with MiniStack in L5 and one copy remains. Proposed: leave it, a
-  `Later` line to recheck at L5. Without the builder: two copies until L5.
+  since `layerSqs` goes with MiniStack in L5 and one copy remains. Taken: leave it, a
+  `Later` line to recheck at L5.
 - [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
@@ -697,7 +697,7 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
   stand") and lists three of the stack's files, and `aws.md` opens with "while the move … is
   under way": against `claude-md.md` (the review of L3, judgement). L5 rewrites both.
 - The SQS request's shape, written in `deployment/Bindings.ts` and in `QueueSender.layerSqs`:
-  recheck at L5 that one copy is left (L3's `[D:ai]`).
+  recheck at L5 that one copy is left (L3's `[D]`).
 - floci publishes TCP port 4566, the main tree's MiniStack port (`AWS_ENDPOINT_URL` of
   `.env.example`): there `make dev` and `make up` cannot both hold it. Not run; it goes with
   MiniStack in L5.
