@@ -29,7 +29,7 @@ binds, and [Knowledge](#knowledge) states what binds now:
 
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | todo |
+| L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | in progress |
 | L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | todo |
 | L3 | One stack in `deployment/` declares the queues, the bucket, the database, the api's and the worker's functions and the web; `make dev` runs it on floci · visible: `make dev`, a chat message gets its reply through the Function URL | minimal | build | todo |
 | L4 | The e2e's two kinds: in-process on a floci container of their own, the journeys through the deployed stack · visible: `make test-e2e` green, its duration beside today's 6.09 s | minimal | build | todo |
@@ -125,6 +125,59 @@ cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the image this Alchemy ve
   14. A model's call silent for more than five minutes on Node's `fetch`: the worker's reply
       can take minutes, and `kernel/llm` relies on Bun's `timeout` option today.
 
+#### The probe's run
+
+- [A:ai] **Run on 2026-11-28 in `.claude/worktrees/alchemy-probe` (branch `wt/alchemy-probe`, the
+  draft staged there, uncommitted):** the two reference examples copied as they are to
+  `deployment/probe/httpapi` and `deployment/probe/rds`, and a stack of ours,
+  `deployment/probe/app` (the api's real routes, a Postgres 18 instance with the repo's
+  migrations, three queues, a worker, the file operations, the web). One machine, Docker
+  29.9.3, Node 24.18.0, Bun 1.4.5, one run each unless a count is given. To repeat:
+  `cd deployment/probe/app && PROBE_PLAIN=a PROBE_SECRET=b ../../node_modules/.bin/alchemy dev --stage probe_app`.
+
+  | Check | Result | What ran, and its numbers |
+  |---|---|---|
+  | 1 the examples | passes | `aws-lambda-httpapi`: 27.5 s from the command to `Done` the first time (17.8 s of it floci's start), 9.1 s again; a function's first call 8.5 s, then 8 to 12 ms. `aws-rds` (Aurora, a network, a function): 24.7 s, a query through the Function URL 31 to 36 ms. `make up` in the same tree: 9.6 s, then 2.8 s |
+  | 2 a function over the workspaces | passes | `deployment/probe/app/Api.ts` imports `@app-template/api`, `application`, `kernel`, `packages`; it bundles and answers on `nodejs24.x`. The api's `layer.ts` stays out: a Bun-free `apps/api/routes.ts` exports the routes and the use cases |
+  | 3 the reload | passes, slower than today | an edit in `application/` and the api's handler to the next response: 2.6, 2.2, 2.1 s; the stack does not re-plan, the log shows `code swapped` alone. Today under `bun --watch`: 0.32, 0.31, 0.31 s |
+  | 4 the routes behind `fetch` | passes with a wrapper | `HttpRouter.toHttpEffect` over the api's `HttpApi`, the use cases provided as a built context. **The cookie is lost as Alchemy runs `fetch`**: see the correction under "Serving the `HttpApi`" |
+  | 5 the database | passes | Postgres 18.7 on floci; the drizzle-kit folder applied through `migrations` (one row in `__alchemy_migrations`, six tables); host `<id>.rds.localhost.floci.io:5432`, which resolves to 127.0.0.1 on the host too. `GET /identity` (one read, a pool per invocation) 34 to 40 ms over ten requests, `GET /health` 7 to 8 ms. A pool per environment was not built |
+  | 6 one function, three queues | passes | each queue's batch reached its own handler by `eventSourceARN`; a record in `batchItemFailures` came back alone after 91 s (the visibility timeout was 90 s), a defect redelivered its whole batch |
+  | 7 the bindings | passes | `QueueSender` built over `AWS.SQS.SendMessage` type-checks and sends (`deployment/probe/app/Bindings.ts`); put, head, get, a 5 MiB multipart, abort, delete and a presigned GET ran from a function, and the presigned URL (`http://localhost.floci.io:4566/…`) opened from the host. `S3Bucket` itself was not rebuilt over them |
+  | 8 settings | passes | a `Config` read in construction reaches the function; unset, the deploy fails at once with `ConfigError`; a default is not bound and applies at runtime. Every bound value, a `Config.String` too, is `{"_tag":"Redacted","value":"…"}` in plain text. `AWS_REGION` read in construction did not fail the create on floci and was not bound; real AWS not checked |
+  | 9 our services in construction | passes | `Layer.build` of the repositories, `Db`, `Transaction` and the use cases in construction; `Queues` yielded by the api, the worker and the stack kept one id each |
+  | 10 two databases on port 5432 | passes for two stages | the Aurora cluster of `probe_rds` and the instance of `probe_app` answered at once, told apart by host name. Two worktrees as such were not run |
+  | 11 the e2e | passes, slower than today | a floci of its own on a free port: ready in 0.6 to 1.0 s, three queues and a bucket in 45 ms, stopped in 0.13 s. `beforeAll(deploy(Stack))` with `dev: true` under `vitest` on Node (`journey.probe.ts`): 22.8 s on a new stage, 14.7 and 15.0 s on an existing one, about 6.5 s of it the import. Today: the whole run 87 tests in 5.0 s, its two journey files (10 tests) 4.0 s |
+  | 12 the web | half | `StaticSite` with `dev.command` ran the web's Bun server and the `Router` served its page at `http://localhost:9500`. **`/api/*` to the Function URL fails on floci**: 502, `BlockedOriginHostException: CloudFront origin host resolves to a blocked address` |
+  | 13 `.alchemy/` and the logs | passes | `.alchemy/` is `path.resolve('.alchemy')`, the working directory (`alchemy: AlchemyContext.ts:35-46`, read, not run with `--config`); `alchemy logs --stage <stage> -r <Id> --since 5m` prints a dev function's log |
+  | 14 a silent model call | fails as it stands | Node 24's `fetch` ends a response silent for 301 s: `UND_ERR_HEADERS_TIMEOUT` before the headers, `UND_ERR_BODY_TIMEOUT` between chunks; an `AbortSignal.timeout` of 600 s changes neither. The reply needs a dispatcher with its own timeouts |
+
+- [A:ai] **Today beside Alchemy, measured in the same tree:**
+
+  | What | Today (`make up`, `bun --watch`) | Alchemy on floci |
+  |---|---|---|
+  | the stand up, first time | 9.6 s | 27.5 s |
+  | the stand up, again | 2.8 s | 9.1 s |
+  | an edit to the next response | 0.31 s | 2.1 to 2.6 s |
+  | `GET /health` | 0.7 to 0.9 ms | 7 to 8 ms |
+  | `GET /identity`, one database read | 1.7 to 4.2 ms | 34 to 40 ms |
+  | the journeys of `apps/e2e` | 4.0 s for both files | 14.7 s for one file on a deployed stage |
+  | the in-process e2e's emulator | (MiniStack, not timed apart) | floci ready in 0.6 to 1.0 s |
+
+- [A:ai] **What the run met that no note named:**
+  1. A function's memory defaults to 128 MB (`aws: Lambda/Function.ts:272-277`). The api's
+     function died on its first database request with no log line and a 502; at 1024 MB it
+     runs.
+  2. `migrationsTransport: "direct"` needs the `pg` package beside `@alchemy.run/sql`, its
+     optional peer: without it the deploy fails with `Failed to load the 'pg' driver`.
+  3. Under this repo's `exactOptionalPropertyTypes`, `domain: { router }` and
+     `{ url: api.functionUrl }` of `AWS.Website` do not type-check; they run.
+  4. The stack ran under Node: the failing import's frames are `node:internal/modules/esm` and
+     `@alchemy.run/node-utils/lib/loader/hooks.js`.
+  5. Each start of `alchemy dev` plans the functions as `update` with nothing changed.
+  6. The `aws-lambda-httpapi` example's `GET /?jobId=<a created id>` answers 500 with no body;
+     not looked into, the repo has no DynamoDB.
+
 #### Today's stand
 
 - [A:ai] `make up` runs Pulumi (`deployment/`, about 330 lines): a MiniStack per worktree on port
@@ -181,7 +234,12 @@ cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the image this Alchemy ve
     provided to that effect as a built `Context`.
   - `toHttpEffect` adds no request logger (`HttpRouter.serve` does); Alchemy adds a tracer.
   - Cookies survive: the event's `cookies` are joined into a `cookie` header and `Set-Cookie`
-    goes out as the event's `cookies` (`aws: Lambda/HttpServer.ts`). A response is buffered whole,
+    goes out as the event's `cookies` (`aws: Lambda/HttpServer.ts`). **Corrected by L1's run:** a
+    cookie set by `HttpApiBuilder.securitySetCookie` is lost. It is written by a pre-response
+    handler (`effect: http-api/HttpApiBuilder.ts:635-648`), which only `HttpEffect.toHandled`
+    applies (`effect: http/HttpEffect.ts:53`), and Alchemy runs `fetch` without it
+    (`alchemy: Http.ts:76`): the function's own payload carried no `cookies`. With `fetch`
+    wrapped in `HttpEffect.toHandled` the `Set-Cookie` arrives and the identity reads back. A response is buffered whole,
     6 MB at most, unless the Function URL's `invokeMode` is `RESPONSE_STREAM`.
   - The bootstrap provides Node's services, a fetch client and a random source, but no `Digest`,
     which `IdentityService` reads: `NodeCrypto.layer` of `@effect/platform-node` gives it.
@@ -197,7 +255,9 @@ cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the image this Alchemy ve
   that reads the managed secret each time it runs and gives `{ host, port, url, … }`; its URL
   carries `sslmode=no-verify`. Alchemy's own `SQL.PostgresLayer({ url })` provides `PgClient` and
   `SqlClient` from a pool opened at most once per invocation and closed when it settles, and
-  works under Drizzle's Effect driver.
+  works under Drizzle's Effect driver. **Confirmed and sharpened by L1's run:** the layer is
+  built once, in construction (`sql: Postgres.ts:96-103`); only the pool behind it opens per
+  invocation. So the repositories and the services over it are built once too.
   - `@effect/sql-pg` 4.1.5 speaks the protocol over `node:net` itself: no native module.
   - floci serves real Postgres containers; version 18 is in its catalogue, 16 its default. The
     repo's migration needs 18.
@@ -231,7 +291,8 @@ cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the image this Alchemy ve
   provided inside the handlers.
 - [A:ai] **The dev loop** (`cli/dev`, `aws: Lambda/FlociFunctionProvider.ts`). `alchemy dev`
   re-runs the stack under `bun --watch`: a save in any file the stack imports restarts it and
-  re-plans. The function's own watch rebuilds its bundle and floci swaps it, 100–500 ms by the
+  re-plans. **Corrected by L1's run:** a save in `application/` or an app swapped the
+  function's code with no re-plan; a save in a file of the stack itself re-planned in 0.4 s. The function's own watch rebuilds its bundle and floci swaps it, 100–500 ms by the
   docs. Issue 3565 (a needless update per reload) does not hit zip functions by its own text.
   An inspector in a function's container is in no doc.
 - [A:ai] **Tests** (`repos/alchemy/packages/alchemy-test/src/`, `testing/test-harness`).
@@ -316,7 +377,7 @@ cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the image this Alchemy ve
   |---|---|---|
   | a layer per service of ours, built from a binding (`Bindings.ts`) | `QueueSender` and `S3Bucket` over `AWS.SQS.SendMessage` and `AWS.S3.<Op>` | a second client and hand-written IAM; the apps learning of Alchemy |
   | `Layer.build` into the construction's scope | what lives for the environment (the services, the model's client) | a layer torn down before the first request |
-  | a layer provided per invocation | the Postgres pool, Alchemy's `SQL.PostgresLayer` | a socket dead after a freeze |
+  | `SQL.PostgresLayer`, built once in construction (corrected by L1's run: not per invocation) | the Postgres client, whose pool opens per invocation | a socket dead after a freeze |
   | `Layer.provideMerge` over the binding layers | the construction's `<Op>Http` layers | a binding without its layer, found at deploy |
   | `Config` read while layers are built in construction | the model's key and names, the log level, `NODE_ENV` | a setting the function never receives |
   | one handler over a table `as const satisfies Record<QueueName, …>` | the worker's routes by queue | a queue with no handler; a batch run by the wrong one |
