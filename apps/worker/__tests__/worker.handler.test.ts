@@ -64,14 +64,9 @@ describe('consumeEvent', () => {
           Layer.mock(ChatAssistant, {}),
           TransactionTest,
         ]),
-        // Merged, not provided: `consumeEvent` reads the stage itself, with each event.
-        Layer.provideMerge(
+        Layer.provide(
           ConfigProvider.layer(
-            ConfigProvider.fromUnknown({
-              AWS_REGION: 'us-east-1',
-              STAGE: 'test',
-              LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000,
-            }),
+            ConfigProvider.fromUnknown({ LLM_CHAT_CONTEXT_TOKENS_LIMIT: 1_000_000 }),
           ),
         ),
         Layer.provide(logger),
@@ -83,7 +78,7 @@ describe('consumeEvent', () => {
           messageId: firstMessage.id,
         })
 
-        const response = yield* consumeEvent({ Records: [record] })
+        const response = yield* consumeEvent('test')({ Records: [record] })
 
         assert.deepStrictEqual(response, { batchItemFailures: [] })
         assert.deepStrictEqual(

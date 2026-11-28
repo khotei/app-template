@@ -6,7 +6,7 @@ import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
-import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
+import { awsConfig, MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
@@ -15,14 +15,24 @@ import { Transaction } from '@app-template/packages/db'
 
 import { consumeEvent } from '#worker/worker.handler'
 
-/** `POST /events`: the worker's route for the batch an SQS mapping invokes it with. */
-const WorkerEvents = HttpRouter.add(
-  'POST',
-  '/events',
-  Effect.gen(function* () {
-    const event = yield* HttpServerRequest.schemaBodyJson(SqsEvent)
-    const response = yield* consumeEvent(event)
-    return HttpServerResponse.jsonUnsafe(response)
+/**
+ * `POST /events`: the worker's route for the batch an SQS mapping invokes it with. The stage is
+ * read once, as the route is built, so a worker with no stage does not start.
+ */
+const WorkerEvents = HttpRouter.use(
+  Effect.fnUntraced(function* (router) {
+    const { stage } = yield* awsConfig
+    const consume = consumeEvent(stage)
+
+    yield* router.add(
+      'POST',
+      '/events',
+      Effect.gen(function* () {
+        const event = yield* HttpServerRequest.schemaBodyJson(SqsEvent)
+        const response = yield* consume(event)
+        return HttpServerResponse.jsonUnsafe(response)
+      }),
+    )
   }),
 )
 

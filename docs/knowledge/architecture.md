@@ -189,7 +189,7 @@ Using the files of `chat` as the map; what each may import: [Dependency rules](#
 | use case: an order over modules, or the owner's `askChat` inside the chat module | `application/use-cases/chat/ask-chat.use-case.ts` | `askChat`, over `ChatService`, `AskChatService` and `ChatQueue` |
 | api handler | `apps/api/chat/chat.handler.ts` | `ChatHandler` (`HttpApiBuilder.group`) |
 | worker handler: each job's or event's handling ended in one tail, what it skips and logs, run through `QueueConsumer.consume` per queue | `apps/worker/chat/chat.handler.ts` | `ChatHandler`, its routes keyed by queue name, over `replyToMessage` and `titleChat` |
-| worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `consumeEvent`, which the `POST /events` of `apps/worker/layer.ts` calls |
+| worker route: each queue's handlers | `apps/worker/worker.handler.ts` | `consumeEvent(stage)`, which the `POST /events` of `apps/worker/layer.ts` builds once and calls |
 | the process's layer | `apps/api/layer.ts`, `apps/worker/layer.ts` | `ApiHttp`, the routes with the services the api's handlers read, over the repositories and ports, `ApiLayer` with the clients, `WorkerProcess` but its assistant, `WorkerLayer` with it and Anthropic's client; `main.ts` runs them |
 | browser feature | `apps/web/features/health/health-panel.ts` | `renderHealthPanel` |
 | the web's client | `apps/web/shared/api.generated.ts`, `apps/web/shared/api.client.ts` | `Api`, `ApiClient` |
