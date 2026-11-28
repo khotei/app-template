@@ -2,6 +2,7 @@ import * as AWS from '@alchemy.run/aws'
 import * as Alchemy from 'alchemy'
 import { Effect } from 'effect'
 
+import Api from '#deployment/Api'
 import { Database } from '#deployment/Database'
 import { Files } from '#deployment/Files'
 import { Queues } from '#deployment/Queues'
@@ -13,8 +14,10 @@ export default Alchemy.Stack(
     const queues = yield* Queues
     const database = yield* Database
     const files = yield* Files
+    const api = yield* Api
 
     return {
+      apiUrl: api.functionUrl,
       userMessageCreatedQueue: queues['user-message-created'].queueUrl,
       chatInitializedQueue: queues['chat-initialized'].queueUrl,
       messageRetriedQueue: queues['message-retried'].queueUrl,

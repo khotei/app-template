@@ -565,6 +565,13 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 - [N:ai] The files of `deployment/` take Alchemy's names (`Queues.ts`, `Database.ts`), against
   `.claude/rules/naming.md`'s kebab-case with a role suffix: the break Knowledge allows, the
   rule rewritten at L5. `make lint` passes them as they are.
+- [N:ai] Piece 2, what the run showed (`make dev-stack`, then `curl` on the output's `apiUrl`):
+  `POST /identity` 201 with `Set-Cookie`, `GET /identity` 200 with that cookie, `POST /chats`
+  201 and one row in `chats`, `POST /chats/:id/messages` 202 and one message waiting in each of
+  `UserMessageCreated` and `ChatInitialized`. `make dev-stack` now exports `.env` without
+  `AWS_ENDPOINT_URL`, since a function is bound the settings its construction reads. The api's
+  manifest exports `./layer`; `deployment` imports it, and the guard lets it import the apps
+  and `application/`. No test of this piece runs in `make check`: the stack's test kind is L4's.
 - [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
@@ -627,6 +634,13 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 
 ## Later
 
+- The api's bundle warns of two imports it cannot resolve, `mysql2/promise`
+  (`@alchemy.run/sql`'s MySQL driver) and `react-devtools-core` (`@alchemy.run/sigil`); both
+  are left external and neither is reached (`make dev-stack`, 2026-11-28). To do: name them
+  external in the function's build, or find why the api's graph holds Alchemy's CLI renderer.
+- The identity's cookie is `Secure`, and the Function URL on floci is `http`: `curl -b` does not
+  send it back (seen 2026-11-28; a header by hand does). A browser treats `*.localhost` as
+  secure; to recheck with the web in piece 4.
 - **Reminder: AWS opened a way to run Bun on Lambda as a zip function; check it at this lab's
   close.** Customer-managed runtimes (GA 2026-11-18) run a zip Event Function on a runtime image
   from ECR, and the launch post names Bun: with them the functions of this lab could move back

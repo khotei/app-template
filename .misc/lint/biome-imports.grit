@@ -63,6 +63,9 @@ or {
     $source <: r"['\"`]@app-template/([a-z0-9-]+)/?([a-z0-9-]*).*['\"`]"($workspace, $kernelPart),
     or {
       not $workspace <: or {
+        "api",
+        "worker",
+        "application",
         "kernel",
         "packages"
       },
@@ -75,7 +78,7 @@ or {
         }
       }
     },
-    register_diagnostic(span=$source, message="deployment imports no workspace but packages/* and of the kernel /config, /aws and /data, whatever its manifest declares (decisions.md › One kernel)")
+    register_diagnostic(span=$source, message="deployment imports the apps it deploys, application/, packages/* and of the kernel only /config, /aws and /data, whatever its manifest declares (decisions.md › One kernel)")
   },
   specifier($source) where {
     $source <: r"['\"`]\.\.?/.*['\"`]",

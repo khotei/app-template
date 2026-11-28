@@ -8,7 +8,10 @@
   "dependencies": {
     "@alchemy.run/aws": "catalog:alchemy",
     "@alchemy.run/sql": "catalog:alchemy",
+    "@app-template/api": "workspace:*",
     "@app-template/kernel": "workspace:*",
+    "@app-template/packages": "workspace:*",
+    "@effect/platform-node": "catalog:effect",
     "@pulumi/aws": "catalog:pulumi",
     "@pulumi/docker": "catalog:pulumi",
     "@pulumi/pulumi": "catalog:pulumi",

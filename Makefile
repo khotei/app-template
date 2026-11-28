@@ -102,9 +102,10 @@ api-client-check: ## Fail when the web's client differs from what the api's snap
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
 
-# Only the stage leaves .env: its AWS_ENDPOINT_URL is MiniStack's, and the stack finds floci itself.
+# A function is bound the settings its construction reads, so .env is exported; all but
+# AWS_ENDPOINT_URL, which is MiniStack's: the stack finds floci itself.
 dev-stack: ## Run the Alchemy stack on floci in the stage of .env, until L3 makes it `make dev`
-	cd deployment && ALCHEMY_STAGE="$$(. ../.env && echo "$$STAGE")" bunx alchemy dev
+	$(EXPORT_ENV) && unset AWS_ENDPOINT_URL && cd deployment && ALCHEMY_STAGE="$$STAGE" bunx alchemy dev
 
 dev-api: migrate ## Run the api
 	bun --filter @app-template/api dev
