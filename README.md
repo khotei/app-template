@@ -52,7 +52,8 @@ Requires Bun at the version in `package.json › packageManager`, GNU Make, Dock
 make setup   # bun install, git hooks, the Claude Code plugin, .env from .env.example
 make up      # MiniStack with Postgres, the bucket and the queues inside it, and Grafana; migrates
              # (the first make up downloads several GB: the provider plugins and the Grafana image)
-make dev     # runs make migrate, then api, worker and web together; needs make up's stand
+make dev     # the Alchemy stack on floci: api, worker, web, their database and queues;
+             # needs Docker, and nothing of make up
 ```
 
 `.env` needs your `ANTHROPIC_API_KEY`; `.env.example` leaves it empty and names the language models
@@ -67,8 +68,8 @@ in `LLM_REPLY_MODEL` and `LLM_TITLE_MODEL`, and the tokens a chat's context may 
   the containers and MiniStack's resources"
   width="830">
 
-`make dev` runs the three processes on the host; `make up` has Pulumi start the two containers and
-create the resources inside MiniStack.
+`make dev` runs the Alchemy stack; `make up` has Pulumi start the two containers and create the
+resources inside MiniStack, the stand of the e2e tests and of `make dev-<app>`, drawn above.
 
 | Process | URL | Try |
 |---|---|---|

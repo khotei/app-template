@@ -142,7 +142,14 @@ Which suite runs where:
   others in a [worktree](#worktrees). The web server proxies `/api/*` to `API_ORIGIN`, or
   with none set to `localhost:${API_PORT}`, so the browser stays same-origin and the api needs
   no CORS.
-- **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
+- **The stand.** `make dev` runs `alchemy dev` on `deployment/alchemy.run.ts`: it starts floci,
+  creates the queues, the database with its migrations and the bucket in the stage of `.env`,
+  runs the api and the worker as functions and the web's dev server, and prints `webUrl` and
+  `apiUrl`. An edit redeploys the function it touches. It needs Docker and
+  `ANTHROPIC_API_KEY`, and none of `make up`'s stand
+  ([aws.md › The local stand-in](aws.md#the-local-stand-in)).
+- **A single app on the host.** `make dev-api`, or `cd apps/api && bun run dev`, over
+  `make up`'s stand. Both read the same root `.env`.
 - **Debugging.** The api and the worker run on Node.js, so `make debug-api` and
   `make debug-worker` print Node's inspector line, both on its default port, one at a time:
 
@@ -150,7 +157,8 @@ Which suite runs where:
   Debugger listening on ws://127.0.0.1:9229/<session>
   ```
 
-  An editor or `chrome://inspect` attaches to that address. `make debug-web` prints Bun's own
+  They debug the host process, not the stand's function. An editor or `chrome://inspect`
+  attaches to that address. `make debug-web` prints Bun's own
   block with a `https://debug.bun.sh/#…` link. Debug mode keeps the app's reload mode, so
   `debug-api` restarts on an edit as `dev-api` does.
 

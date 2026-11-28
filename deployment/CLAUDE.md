@@ -7,7 +7,7 @@ inside MiniStack the resources of `aws/`. `aws/` holds the resource code as func
 
 - `alchemy.run.ts` is the Alchemy stack that replaces `local/` and `aws/`, one file per
   resource or group beside it (`Queues.ts`, `Database.ts`, `Files.ts`), in Alchemy's own file
-  names; `make dev-stack` runs it on floci. Before naming an Alchemy API, read
+  names; `make dev` runs it on floci. Before naming an Alchemy API, read
   `.claude/rules/alchemy.md`. While both stand, the rules below bind `local/` and `aws/` alone.
 - Never run `pulumi destroy` or `up --refresh` on the local stack; `make down` and `make reset`
   work through Docker (why: the same section).

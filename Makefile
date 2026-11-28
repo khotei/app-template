@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset worktree dev dev-stack dev-api dev-worker dev-web debug-api \
+.PHONY: help setup stack up down reset worktree dev deploy dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
   fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle vendor-alchemy \
   migrate migration migration-check api-snapshot api-client-check
@@ -99,18 +99,21 @@ api-client-check: ## Fail when the web's client differs from what the api's snap
 	@$(API_CLIENT) | cmp -s - shared/api.generated.ts || \
 		{ echo 'The web client is stale: run make api-snapshot and commit it' >&2; exit 1; }
 
-dev: migrate ## Run api, worker and web together in dev mode
-	bun --filter './apps/*' dev
-
-# A function is bound the settings its construction reads, so .env is exported; all but
-# AWS_ENDPOINT_URL, which is MiniStack's: the stack finds floci itself.
-dev-stack: ## Run the Alchemy stack on floci in the stage of .env, until L3 makes it `make dev`
+# The Alchemy stack: it starts floci itself, one container for every tree, and each tree's stage
+# keeps its resources apart. A function is bound the settings its construction reads, so .env is
+# exported; all but AWS_ENDPOINT_URL, which is MiniStack's.
+dev: ## Run the stack on floci in the stage of .env: api, worker, web, their database and queues
 	$(EXPORT_ENV) && unset AWS_ENDPOINT_URL && cd deployment && ALCHEMY_STAGE="$$STAGE" bunx alchemy dev
 
-dev-api: migrate ## Run the api
+# The settings the functions are bound come from the caller's environment, never from .env.
+deploy: ## Deploy the stack to AWS: STAGE=<stage>
+	@test -n "$(STAGE)" || { echo 'usage: make deploy STAGE=<stage>'; exit 1; }
+	cd deployment && ALCHEMY_STAGE="$(STAGE)" bunx alchemy deploy
+
+dev-api: migrate ## Run the api on the host, over make up's stand
 	bun --filter @app-template/api dev
 
-dev-worker: migrate ## Run the worker
+dev-worker: migrate ## Run the worker on the host, over make up's stand
 	bun --filter @app-template/worker dev
 
 dev-web: ## Run the web dev server

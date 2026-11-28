@@ -592,6 +592,14 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
   pass it (`make typecheck`, TS2322). And the web's proxy drops the browser's `Host`: with
   it floci answered `/api/health` itself, as it finds a function by the host's name. The
   web still falls back to `localhost:${API_PORT}` with no `API_ORIGIN`, for `make dev-web`.
+- [N:ai] Piece 5, what the run showed (`make dev`): the browser at `webUrl` shows the web's
+  one screen, "API status: ok"; a message posted by `curl` through the web's `/api` has its
+  assistant reply within 4 s. The Shape's check, a reply seen in the browser, cannot run: the
+  web has no chat screen (`apps/web/features` holds `health` alone). `make deploy STAGE=<stage>`
+  runs `alchemy deploy`; it has not been run against AWS. `make dev-<app>` and
+  `make debug-<app>` stay on the host over `make up`'s stand until L5.
+- [N:ai] `alchemy dev` is stopped by an interrupt (Ctrl-C, `SIGINT`), which also ends the
+  web's dev server; `ps` after it shows none of its processes (2026-11-28).
 - [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
@@ -654,6 +662,12 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 
 ## Later
 
+- floci publishes TCP port 4566, the main tree's MiniStack port (`AWS_ENDPOINT_URL` of
+  `.env.example`): there `make dev` and `make up` cannot both hold it. Not run; it goes with
+  MiniStack in L5.
+- `make deploy` has not been run against AWS: which settings the functions need in the
+  caller's environment, the web's deploy, and the state store (`Alchemy.localState()` keeps
+  it on the deploying machine).
 - The web on a deploy is not declared: `deployment/Web.ts` is `Command.Dev`, which does nothing
   outside dev. To do with the first deploy to AWS: a `StaticSite` with `build`, and the `Router`
   whose `/api/*` goes to the Function URL (refused on floci, L1 check 12); and an issue
