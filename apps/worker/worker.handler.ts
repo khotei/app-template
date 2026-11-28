@@ -1,11 +1,7 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 
 import { type QueueName, ResourceName } from '@app-template/kernel/aws'
-import {
-  QueueConsumer,
-  type SqsBatchResponse,
-  type SqsEvent,
-} from '@app-template/packages/aws/queue'
+import { QueueConsumer, type SqsEvent } from '@app-template/packages/aws/queue'
 
 import { ChatHandler } from '#worker/chat/chat.handler'
 
