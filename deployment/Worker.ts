@@ -17,7 +17,8 @@ import { Queues, workerTimeout } from '#deployment/Queues'
 /** The worker as a function: one handler on the three queues, its services built once. */
 export default class Worker extends AWS.Lambda.Function<Worker>()(
   'Worker',
-  { main: import.meta.url, timeout: workerTimeout, memorySize: 1024 },
+  // No Function URL, which is public unless refused: the worker is invoked by its queues alone.
+  { main: import.meta.url, functionUrl: false, timeout: workerTimeout, memorySize: 1024 },
   Effect.gen(function* () {
     const connect = yield* AWS.RDS.Connect(yield* Database, { database: databaseName })
     const Postgres = SQL.PostgresLayer({ url: Effect.map(connect, ({ url }) => url) })
