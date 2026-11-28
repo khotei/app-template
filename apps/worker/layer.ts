@@ -1,8 +1,8 @@
 import { createServer } from 'node:http'
 
-import { NodeHttpServer } from '@effect/platform-node'
+import { NodeHttpClient, NodeHttpServer } from '@effect/platform-node'
 import { Effect, Layer } from 'effect'
-import { FetchHttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
@@ -48,5 +48,6 @@ export const WorkerLayer = WorkerProcess.pipe(
   Layer.provide(ChatAssistant.layer),
   Layer.provide(AnthropicClientFromConfig),
   Layer.provide(Otlp.layerFromConfig({ resource: { serviceName: 'worker' } })),
-  Layer.provide([FetchHttpClient.layer, OtlpSerialization.layerProtobuf]),
+  // Not `fetch`, which ends a model's answer silent for 300 s: `kernel/llm`'s client says why.
+  Layer.provide([NodeHttpClient.layerUndici, OtlpSerialization.layerProtobuf]),
 )

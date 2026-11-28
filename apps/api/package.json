@@ -10,8 +10,8 @@
     "#testing/*": "./__tests__/testing/*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",
-    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch main.ts"
+    "dev": "node --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",
+    "debug": "node --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch main.ts"
   },
   "dependencies": {
     "@app-template/application": "workspace:*",

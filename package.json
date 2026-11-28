@@ -26,6 +26,7 @@
     "runtime": {
       "@testcontainers/postgresql": "12.2.2",
       "@types/bun": "1.4.5",
+      "@types/node": "24.19.4",
       "testcontainers": "12.2.2",
       "type-fest": "6.0.3"
     },
@@ -65,6 +66,7 @@
     "@biomejs/biome": "catalog:tools",
     "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
+    "@types/node": "catalog:runtime",
     "drizzle-kit": "catalog:drizzle",
     "husky": "catalog:tools",
     "markdownlint-cli2": "catalog:tools",

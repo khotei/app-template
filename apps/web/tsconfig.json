@@ -1,6 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    // The web alone runs on Bun: its dev server and its bundler.
+    "types": ["bun"],
     "lib": ["ESNext", "DOM"],
     "rootDir": ".",
     "outDir": "../../node_modules/.cache/tsc/web"

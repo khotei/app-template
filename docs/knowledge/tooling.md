@@ -142,34 +142,35 @@ Which suite runs where:
   others in a [worktree](#worktrees). The web server proxies `/api/*` to
   `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
-- **Debugging.** `make debug-api` prints an inspector block:
+- **Debugging.** The api and the worker run on Node.js, so `make debug-api` and
+  `make debug-worker` print Node's inspector line, both on its default port, one at a time:
 
   ```text
-  Inspect in browser:
-    https://debug.bun.sh/#localhost:6499/<session>
+  Debugger listening on ws://127.0.0.1:9229/<session>
   ```
 
-  Open the link to get breakpoints, the console and profiling. Editors attach to the
-  `ws://localhost:6499/<session>` address printed under it. Debug mode keeps the app's reload mode,
-  so `debug-api` restarts on an edit as `dev-api` does.
+  An editor or `chrome://inspect` attaches to that address. `make debug-web` prints Bun's own
+  block with a `https://debug.bun.sh/#…` link. Debug mode keeps the app's reload mode, so
+  `debug-api` restarts on an edit as `dev-api` does.
 
 ### `--hot` vs `--watch`, and why there is no `--dev`
 
-| | `--hot` (`web`) | `--watch` (`api`, `worker`) |
+| | `bun --hot` (`web`) | `node --watch` (`api`, `worker`) |
 |---|---|---|
 | On change | re-evaluates the changed files inside the running process | re-executes the process into a fresh runtime |
-| PID | the same | may stay the same: Bun restarts by `exec` |
+| PID | the same | a new child process each time |
 | `globalThis` | survives | reset |
 | Top-level state of a file (a cache, a counter) | rebuilt, so data is lost | rebuilt |
 | Timers and open connections | survive the reload | gone |
 
 Under `--hot`, `Bun.serve` swaps its routes in place, which is all `web` needs. An Effect runtime
 is not swapped: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
-one. So the api and the worker run under `--watch`: a re-exec leaves nothing to stop, and each
-`main.ts` is one `runMain`. While the api re-execs its port is closed, about 0.3 s from
-`api stopped` to `Listening on`, and a request the web proxies then responds with `500`.
+one. So the api and the worker run under Node's `--watch`: a restart leaves nothing to stop, and
+each `main.ts` is one `runMain`. While the api restarts its port is closed, about 0.9 s from the
+edit to `api started`, and a request the web proxies then responds with `500`.
 
-Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
+Neither runtime has a `--dev` flag. "Development" means two things here: the reload flag in the
+app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
 server's `Bun.serve({ development })`.
 
@@ -214,12 +215,14 @@ TCP ports, and the database's volume stays.
 - **Loading.** `env = false` in `bunfig.toml` turns off Bun's own loading of `.env` files, so a
   process reads only the files its command names. Each app script passes
   `--env-file=../../.env --env-file=../../.env.pulumi`, paths relative to the app folder, and
-  `make migrate` the same two files; the second wins, and Bun skips a missing one. This works from
+  `make migrate` the same two files; the second wins. Bun (the web, `make migrate`) skips a
+  missing one; Node (the api, the worker) stops with `node: <file>: not found`. This works from
   `make` at the root and from `bun run dev` inside the app.
   The one exception is `make up`: Pulumi starts `deployment/local/index.ts` itself, so no
   `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The
   shell reads the file as its own syntax, so a value with a space must be quoted.
-- **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
+- **A missing `.env`** is ignored by Bun without a warning. The process it starts then fails at
+  startup while
   building the first layer that reads a setting, with Effect's `ConfigError` naming the first
   missing or invalid variable. Variables exported in the shell work without a file, which is how
   CI runs.

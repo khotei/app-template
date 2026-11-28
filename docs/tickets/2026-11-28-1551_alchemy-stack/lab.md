@@ -611,8 +611,13 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
 - `docs/knowledge/tooling.md › Tests` says errors are compared by their encoded form because
   "under Bun two errors with equal fields differ at random"; whether Node shows it was not
   run — this lab's close — open
-- `tsconfig.base.json` still has `types: ["bun"]`: `kernel/llm` names `BunFetchRequestInit`
-  until the model's idle limit moves to Node — L2, the fifth piece — open
+- The api's restart on an edit under `node --watch` takes about 0.9 s (three runs: 0.91, 0.92,
+  0.96 s) against 0.31 s under `bun --watch`; it joins the speed item above — L2 — open
+- `make debug-api` and `make debug-worker` both take Node's inspector port 9229, so one runs
+  at a time (`apps/api/package.json`, `apps/worker/package.json`) — L3, where the debug targets
+  are redrawn — open
+- No test holds the model's client to a response silent past 300 s: it would take five
+  minutes; the run is in L2.6's message — this lab's close — open
 - `S3Bucket` over operations a binding can feed, when a module stores files
   (`packages/aws/s3/s3.client.ts`) — L2's notes — open
 - `make debug-<app>`: an inspector inside a floci function's container was not looked at —
