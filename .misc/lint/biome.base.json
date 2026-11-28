@@ -304,7 +304,7 @@
                       "@effect/**",
                       "!@effect/vitest",
                       "!@effect/vitest/**",
-                      "!@effect/platform-bun"
+                      "!@effect/platform-node"
                     ],
                     "message": "a module's services' tests import the workspaces the services do and test support: the /testing of those and of @app-template/packages/aws/queue, @app-template/packages/testing, @effect/vitest and @effect/platform-bun; no use case, nothing else that connects to the environment (decisions.md › A module's layers; Module contracts; Use cases above the modules; Guards are configuration)"
                   },

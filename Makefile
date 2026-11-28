@@ -92,7 +92,7 @@ migration-check: ## Fail when an entity changed without a migration
 API_CLIENT = cd apps/web && bunx --no-install --bun openapigen -s ../api/openapi.json -n Api -f httpapi
 
 api-snapshot: ## Rewrite the api's OpenAPI snapshot from its code, then the web's client from it
-	bun --bun vitest run --project unit apps/api/__tests__/openapi.test.ts -u
+	bunx vitest run --project unit apps/api/__tests__/openapi.test.ts -u
 	$(API_CLIENT) > shared/api.generated.ts
 
 api-client-check: ## Fail when the web's client differs from what the api's snapshot generates
@@ -170,10 +170,10 @@ typecheck: ## Typecheck every workspace with Effect diagnostics
 test: test-unit test-e2e ## Run the unit and the e2e tests
 
 test-unit: ## Run the unit tests under __tests__/ (no Docker)
-	bun --bun vitest run --project unit
+	bunx vitest run --project unit
 
 test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own containers (Docker running)
-	bun --bun vitest run --project e2e
+	bunx vitest run --project e2e
 
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive

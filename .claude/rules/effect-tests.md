@@ -59,7 +59,7 @@ Where each kind of test and its support live, and what a test may import:
   instants. Move a `TestClock` only in a test about a delay or an expiry, never inside a shared
   `layer(…)` block.
 - A model's new id cannot be pinned, as it is read past any `SecureRandom` layer: assert its form
-  (`isUuidV7`) and build the expected record with it. `BunCrypto.layer` only under a service that
+  (`isUuidV7`) and build the expected record with it. `NodeCrypto.layer` only under a service that
   yields a crypto service.
 
 ## Writing a test

@@ -606,6 +606,13 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
   2.6 s against 0.31 s; a request with one database read 34 to 40 ms against 2 ms (a pool per
   environment was not measured); a journey file 14.7 s on a deployed stage against 4.0 s for
   both today; the stand's start 9.1 s against 2.8 s — [The probe's run](#the-probes-run) — open
+- `kernel/postgres/postgres-migrate.ts` still runs on `BunRuntime`, a script `make migrate` starts
+  with Bun; it goes with `make migrate` when the instance's `migrations` replace it — L3 — open
+- `docs/knowledge/tooling.md › Tests` says errors are compared by their encoded form because
+  "under Bun two errors with equal fields differ at random"; whether Node shows it was not
+  run — this lab's close — open
+- `tsconfig.base.json` still has `types: ["bun"]`: `kernel/llm` names `BunFetchRequestInit`
+  until the model's idle limit moves to Node — L2, the fifth piece — open
 - `S3Bucket` over operations a binding can feed, when a module stores files
   (`packages/aws/s3/s3.client.ts`) — L2's notes — open
 - `make debug-<app>`: an inspector inside a floci function's container was not looked at —

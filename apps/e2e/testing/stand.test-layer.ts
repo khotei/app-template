@@ -1,3 +1,5 @@
+import { type AddressInfo, createServer } from 'node:net'
+
 import { PgClient } from '@effect/sql-pg'
 import { ConfigProvider, Effect, Layer, Redacted } from 'effect'
 import { FetchHttpClient } from 'effect/http'
@@ -12,11 +14,11 @@ import { PgClientTest } from '@app-template/packages/db/testing/e2e'
 import { WorkerProcess } from '@app-template/worker/testing'
 
 // `Config.Port` refuses 0, so neither app can take an ephemeral port itself.
-const findFreePort = Effect.sync(() => {
-  const probe = Bun.listen({ hostname: 'localhost', port: 0, socket: { data() {} } })
-  const { port } = probe
-  probe.stop(true)
-  return port
+const findFreePort = Effect.callback<number>((resume) => {
+  const probe = createServer().listen(0, 'localhost', () => {
+    const { port } = probe.address() as AddressInfo
+    probe.close(() => resume(Effect.succeed(port)))
+  })
 })
 
 /**

@@ -31,10 +31,10 @@ One file, or the tests whose name matches, through vitest itself (`--project e2e
 file, Docker running; `vitest` without `run` watches):
 
 ```sh
-bun --bun vitest run --project unit <workspace>/__tests__/<path>.test.ts -t <name>
+bunx vitest run --project unit <workspace>/__tests__/<path>.test.ts -t <name>
 ```
 
-`bun --bun vitest run` runs both projects at once; `bun test` would instead start Bun's own test
+`bunx vitest run` runs both projects at once; `bun test` would instead start Bun's own test
 runner, which ignores the vitest projects and their setup.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare` (`make lint`
@@ -43,9 +43,9 @@ and `make fmt` call Biome themselves); each process app (`api`, `worker`, `web`)
 
 ## Tests
 
-Tests run on vitest, on the Bun runtime (`bun --bun`), so `Bun.serve` and the other Bun APIs work
-inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
-`TestClock`) needs vitest.
+Tests run on vitest, on Node.js (`bunx vitest`, never `bun --bun`), the runtime the api and the
+worker are deployed on, so a Bun API fails a test as it would fail the function. Bun's own
+runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`, `TestClock`) needs vitest.
 
 - **Unit and e2e: only our code is under test.** A unit test runs our domain services, handlers
   and use cases, and needs no process outside vitest. An e2e test proves an
@@ -131,7 +131,7 @@ Which suite runs where:
   checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
-  reporter; `bun --bun vitest run --reporter=default` forces it.
+  reporter; `bunx vitest run --reporter=default` forces it.
 - **Errors are compared by their encoded form,** with `assertSchemaEquals` from
   `@app-template/packages/testing`: under Bun two errors with equal fields differ at random (why:
   its TSDoc). A `Data.TaggedError` has no encoded form: its class and its fields are compared.
