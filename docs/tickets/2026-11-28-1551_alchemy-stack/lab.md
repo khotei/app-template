@@ -192,6 +192,16 @@ Sources: `https://alchemy.run/aws/local-development/`,
 - [D] No hacks: nothing that works around Alchemy or floci (a bind mount, a cast runtime, an
   unreleased branch).
 - [D] The hosting is AWS, on Lambda.
+- [D] The configuration is written the way Alchemy recommends. Where that meets one of this
+  repo's rules, the rule may be broken for now ("If needed breake the rules for now", the owner,
+  2026-11-28, on the two cases below); each break is named in the step that makes it, with the
+  rule or guard it crosses, and the rule is rewritten at this lab's close.
+  - The stack importing an app's file (a function's class beside the app's code) crosses
+    `deployment`'s row of [architecture.md › Dependency rules](../../knowledge/architecture.md#dependency-rules),
+    which `biome-imports.grit` refuses.
+  - Physical names Alchemy generates cross the inventory's naming rule
+    ([aws.md › The inventory](../../knowledge/aws.md#the-inventory)): the apps, the worker's
+    routing by queue name and the e2e provisioner all build a name from the stage.
 
 ## Later
 
