@@ -386,6 +386,15 @@ Sources: `https://alchemy.run/aws/local-development/`,
 - [D] No hacks: nothing that works around Alchemy or floci (a bind mount, a cast runtime, an
   unreleased branch).
 - [D] The hosting is AWS, on Lambda.
+- [D] The e2e keep their two kinds (the owner's "ok", 2026-11-28). The in-process ones (the
+  adapters' and the services') stand on a floci container of their own per run, started and
+  stopped by testcontainers on a free port, their resources made through the SDK and a database
+  copied from the template per test, as today with MiniStack. The journeys of `apps/e2e` run
+  through the deployed stack: `beforeAll(deploy(Stack))` of Alchemy's test harness with
+  `dev: true`, on the shared floci, in the stage the harness derives from the worktree
+  (`repos/alchemy/packages/alchemy-test/src/`, the worktree's stage), driven over the api's
+  Function URL. Open: the scripted assistant in a deployed worker, the data the journeys share,
+  and both speeds, unmeasured.
 - [D] The configuration is written the way Alchemy recommends. Where that meets one of this
   repo's rules, the rule may be broken for now ("If needed breake the rules for now", the owner,
   2026-11-28, on the two cases below); each break is named in the step that makes it, with the
