@@ -24,12 +24,13 @@ binds, and [Knowledge](#knowledge) states what binds now:
 - "Now, will nodejs. alchemy and all related in deployment, and effect core all wire up alchemy
   code."
 - "during implementatin agent could recheck ideas by reading and searching inside repos"
+- After L1's numbers: "ok, lets continue and them will improve performance"
 
 ## Map
 
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
-| L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | in progress |
+| L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | done |
 | L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | todo |
 | L3 | One stack in `deployment/` declares the queues, the bucket, the database, the api's and the worker's functions and the web; `make dev` runs it on floci · visible: `make dev`, a chat message gets its reply through the Function URL | minimal | build | todo |
 | L4 | The e2e's two kinds: in-process on a floci container of their own, the journeys through the deployed stack · visible: `make test-e2e` green, its duration beside today's 6.09 s | minimal | build | todo |
@@ -462,11 +463,102 @@ Sources beyond the vendored tree: `https://github.com/alchemy-run/floci`, alchem
 
 ### Output
 
+**Go, on the owner's word after the numbers** ("ok, lets continue and them will improve
+performance"). Twelve of the fourteen checks pass, check 12 by half, check 14 not as it stands;
+the table, with each number and today's beside it, is [The probe's run](#the-probes-run). The
+notes above stay in the file, against a close's habit: the Map sends every later step to them.
+The draft stays in `.claude/worktrees/alchemy-probe` for the performance work.
+
+What the later steps carry from it:
+
+1. The Postgres layer and every service over it are built once, in construction; the pool
+   alone opens per invocation.
+2. `fetch` is wrapped in `HttpEffect.toHandled`, or the identity's cookie is lost (a
+   proposal, [L3's notes](#l3-notes)).
+3. The functions name their `memorySize`: at the default 128 MB the api dies with no log.
+4. `deployment` depends on `pg` for the migrations' direct transport.
+5. The web's `/api/*` cannot go through the `Router` on floci.
+6. A reply's call to the model needs its own idle limit on Node: `fetch` ends at 301 s.
+
+The proof, condensed from the probe's `Api.ts`, which type-checked and ran (`handled` stands
+for its `HttpEffect.toHandled` wrapper):
+
+```ts
+const connect = yield* AWS.RDS.Connect(yield* Database, { database: databaseName })
+const Postgres = SQL.PostgresLayer({ url: Effect.map(connect, ({ url }) => url) })
+const infrastructure = Layer.succeedContext(yield* Layer.build(Infrastructure))
+const useCases = Layer.succeedContext(
+  yield* Layer.build(ApiUseCases.pipe(Layer.provide(infrastructure))),
+)
+const routes = yield* HttpRouter.toHttpEffect(
+  ApiRoutes.pipe(Layer.provide([infrastructure, useCases]), Layer.provide([HttpPlatform.layer, Etag.layer])),
+)
+return { fetch: handled(routes).pipe(Effect.provide(useCases)) }
+```
+
+Can you write the signature now?
+
+## L2 — The api and the worker on Node
+
+### Shape
+
+Not written: the owner's. A proposal is in the notes below.
+
+### Notes
+
+- [D:ai] **A proposed Shape, five pieces, each green alone.** Bun stays the launcher of
+  `make dev` until L3 (`bun --watch main.ts` runs `@effect/platform-node` too, I assume; the
+  first piece shows it), so the stand plays after every piece.
+  1. **The api's routes apart from its process.** `apps/api/layer.ts` exports `ApiRoutes` (the
+     `HttpApi`'s layer with its handlers and middlewares) and `ApiUseCases`, neither naming a
+     server; `ApiLayer` serves them through `NodeHttpServer` and provides `NodeCrypto`. Test:
+     the three handler suites, their test layer on `NodeHttpServer.layerTest`.
+  2. **The worker's route as a function.** `apps/worker/worker.handler.ts` exports
+     `(event: SqsEvent) => Effect<SqsBatchResponse, never, JobServices>`, keyed as today; the
+     `POST /events` that calls it stays in the worker's `layer.ts` until L3. Test:
+     `worker.handler.test.ts` calls the function, with no server.
+  3. **`QueueSender` takes its send.** `QueueSender.layer(send)` where
+     `send: (queueName: string, message: { body: string; traceparent: string }) =>
+     Effect<void, QueueError>`; `kernel/aws` builds today's from `SQSService` and the queue's
+     URL, L3 from `AWS.SQS.SendMessage`. Test: the sender's suite, on a `send` that records.
+  4. **The tests on Node.** `vitest` without `--bun`; `types: ["node"]` and `@types/node`, the
+     web keeping `types: ["bun"]`; the stand's `Bun.listen` becomes `node:net`; the test layers'
+     `BunCrypto`, `BunFileSystem` and `BunPath` their Node counterparts. Check: `make check`.
+  5. **The model's idle limit on Node.** `kernel/llm` gives the client a dispatcher whose
+     headers and body timeouts are ten minutes, in place of Bun's `timeout`. Test first: a
+     server silent past the default, which fails today under Node.
+- [D:ai] **`S3Bucket` stays as it is in this step.** No process provides it
+  (`docs/knowledge/decisions.md › Clients from the context`), so rebuilding it over operations
+  changes nothing a run shows; without it the system loses nothing until a module stores
+  files. It goes to Later.
+- [N:ai] The decisions this step rewrites: none reversed. `Clients from the context` holds
+  (the kernel still builds the clients); `Independent apps` holds until L3, where `deployment`
+  imports the apps by the owner's word in Knowledge.
+
+## L3 — One stack in `deployment/`
+
+### Notes
+
+<a id="l3-notes"></a>
+
+- [D:ai] **The cookie.** Alchemy runs `fetch` bare, so `securitySetCookie`'s pre-response
+  handler never runs (L1, check 4). Options: wrap `fetch` in `HttpEffect.toHandled` in
+  `deployment/Api.ts`, eight lines of Effect's public API, the way Effect's own servers run a
+  handler; or set the cookie on the response in the handler, which the `HttpApi`'s typed
+  handlers do not offer. Proposed: the wrapper, and an issue upstream. Without it no user is
+  recognised twice.
+- [D:ai] **The web in dev.** floci's CloudFront refuses the Function URL as an origin (L1,
+  check 12). Proposed: the web's own `/api/*` proxy stays, pointed at the Function URL; the
+  `Router` route is declared for a deploy and rechecked on a floci bump.
+
 ## Knowledge
 
 - [D] The api and the worker run as Alchemy's Effect functions on Node.js 24, zip-packaged
   ("ok. lets try node", the owner, 2026-11-28, replacing their earlier word of the same day for
   Bun). Bun stays for installing, the scripts and the web's dev server.
+- [D] Go after the probe: the stack is built on Alchemy and floci as measured, slower than
+  today's stand, and its speed is improved after the feature plays ("ok, lets continue and them
+  will improve performance", the owner, 2026-11-28).
 - [D] One description, one mode: what `alchemy dev` runs on floci, `alchemy deploy` runs on AWS.
 - [D] Alchemy and everything of it lives in `deployment/` ("all should be inside deployment").
 - [D] The Alchemy code is wired with Effect's core: layers, services, `Config`.
@@ -510,8 +602,14 @@ Sources beyond the vendored tree: `https://github.com/alchemy-run/floci`, alchem
   Proxy is the docs' answer — `aws-deployment` — open
 - `NODE_ENV` must be set where the stack is deployed, or the cookie loses `Secure`
   (`apps/api/identity/identity.handler.ts`) — L3 — open
-- The stack re-plans on every save of a file it imports, the whole of `application/` once
-  `deployment/` imports the apps; its cost is check 3 — L1 — open
+- **Speed, after the minimal pass** (the owner's word): an edit to the next response 2.1 to
+  2.6 s against 0.31 s; a request with one database read 34 to 40 ms against 2 ms (a pool per
+  environment was not measured); a journey file 14.7 s on a deployed stage against 4.0 s for
+  both today; the stand's start 9.1 s against 2.8 s — [The probe's run](#the-probes-run) — open
+- `S3Bucket` over operations a binding can feed, when a module stores files
+  (`packages/aws/s3/s3.client.ts`) — L2's notes — open
+- The stack re-plans on every save of a file it imports: L1's check 3 showed no re-plan on a
+  save in `application/` — L1 — answered, to drop on the owner's word
 - `make debug-<app>`: an inspector inside a floci function's container was not looked at —
   L3 — open
 - The telemetry backend's container in dev, and whether a function's spans reach it from a
