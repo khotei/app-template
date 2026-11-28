@@ -48,7 +48,7 @@ export const S3BucketFromConfig: Layer.Layer<S3Bucket, Config.ConfigError> = S3B
 /** `QueueSender` on the queues of the configured stage, over the `SQSService` in context. */
 export const QueueSenderOfStage: Layer.Layer<QueueSender, Config.ConfigError, SQSService> =
   awsConfig.pipe(
-    Effect.map(({ stage }) => QueueSender.layer((name) => ResourceName.build(stage, name))),
+    Effect.map(({ stage }) => QueueSender.layerSqs((name) => ResourceName.build(stage, name))),
     Layer.unwrap,
   )
 

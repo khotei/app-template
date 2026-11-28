@@ -8,6 +8,12 @@ import { QueueClient } from '#aws/queue/queue.client'
 import { type QueueDefinition, QueueMessage } from '#aws/queue/queue-definition'
 import { QueueError } from '#aws/queue/queue-error'
 
+/** A queue message as its transport takes it: the encoded body and the trace it was sent in. */
+export interface QueueSenderMessage {
+  readonly body: string
+  readonly traceparent: string
+}
+
 export class QueueSender extends Context.Service<
   QueueSender,
   {
@@ -20,34 +26,45 @@ export class QueueSender extends Context.Service<
       message: A,
     ) => Effect.Effect<void, QueueError>
   }
->()('@app-template/packages/aws/queue/QueueSender', {
-  make: Effect.fnUntraced(function* (buildName: (name: string) => string) {
-    const sqs = yield* SQSService
-    const client = yield* QueueClient
+>()('@app-template/packages/aws/queue/QueueSender') {
+  /** `sendTo` hands the queue a definition names its encoded message: the transport. */
+  static readonly layer = (
+    sendTo: (queue: string, message: QueueSenderMessage) => Effect.Effect<void, QueueError>,
+  ): Layer.Layer<QueueSender> =>
+    Layer.succeed(this, {
+      send: Effect.fn('QueueSender.send')(function* <A, I>(
+        definition: QueueDefinition<Schema.Codec<A, I>>,
+        message: A,
+      ) {
+        const body = yield* SchemaCodec.encode(QueueMessage.buildCodec(definition))(message)
+        const span = yield* Effect.currentSpan.pipe(Effect.orDie)
+        const traceparent = yield* Effect.fromNullishOr(
+          HttpTraceContext.toHeaders(span).traceparent,
+        ).pipe(Effect.orDie)
 
-    const send = Effect.fn('QueueSender.send')(function* <A, I>(
-      definition: QueueDefinition<Schema.Codec<A, I>>,
-      message: A,
-    ) {
-      const body = yield* SchemaCodec.encode(QueueMessage.buildCodec(definition))(message)
-      const url = yield* client.getUrl(buildName(definition.name))
-      const span = yield* Effect.currentSpan.pipe(Effect.orDie)
-      const { traceparent } = HttpTraceContext.toHeaders(span)
-      yield* sqs
-        .sendMessage({
-          QueueUrl: url,
-          MessageBody: body,
-          MessageAttributes: { traceparent: { DataType: 'String', StringValue: traceparent } },
-        })
-        .pipe(Effect.mapError((cause) => new QueueError({ cause })))
+        yield* sendTo(definition.name, { body, traceparent })
+      }),
     })
 
-    return { send }
-  }),
-}) {
-  /** `buildName` turns a definition's name into its queue's. */
-  static readonly layer = (
+  /** Over SQS: `buildName` turns a definition's name into its queue's. */
+  static readonly layerSqs = (
     buildName: (name: string) => string,
   ): Layer.Layer<QueueSender, never, SQSService> =>
-    Layer.effect(this, this.make(buildName)).pipe(Layer.provide(QueueClient.layer))
+    Effect.gen(function* () {
+      const sqs = yield* SQSService
+      const client = yield* QueueClient
+
+      return QueueSender.layer(
+        Effect.fnUntraced(function* (queue, { body, traceparent }) {
+          const url = yield* client.getUrl(buildName(queue))
+          yield* sqs
+            .sendMessage({
+              QueueUrl: url,
+              MessageBody: body,
+              MessageAttributes: { traceparent: { DataType: 'String', StringValue: traceparent } },
+            })
+            .pipe(Effect.mapError((cause) => new QueueError({ cause })))
+        }),
+      )
+    }).pipe(Layer.unwrap, Layer.provide(QueueClient.layer))
 }
