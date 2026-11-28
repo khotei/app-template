@@ -31,7 +31,8 @@ The owner's words (2026-11-28), from the session that researched this:
 | L5 | Pulumi and MiniStack are gone; `aws.md`, `tooling.md` and the worktree rules say what holds · visible: `make check` green | minimal | build | todo |
 | L6 | Later: the items of the open list the owner picks | hard | build | todo |
 
-The steps past L1 are a proposal: L1's Output may redraw them. Deploying to a real AWS account
+Every step opens by rechecking the notes it builds on against `repos/alchemy`, as
+[L1's notes](#notes) say. The steps past L1 are a proposal: L1's Output may redraw them. Deploying to a real AWS account
 (a VPC, a private database, IAM roles, secrets, the edge) stays the roadmap's
 [`aws-deployment`](../../knowledge/roadmap.md#9-aws-deployment), which builds on this stack.
 
@@ -48,10 +49,36 @@ Not written: a learn step. Its draft lives in its own worktree
 
 ### Notes
 
-Nothing below was run. Each fact was read on 2026-11-28 from the named source: the repo, the
-tarballs `alchemy@2.0.0-beta.87` and `@alchemy.run/aws@2.0.0-beta.87` (paths under their `src/`),
-and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
-(`aws: Local/Floci.ts:47`).
+**These notes are leads, not facts** (the owner, 2026-11-28: "during implementatin agent could
+recheck ideas by reading and searching inside repos"). They were gathered in one session by
+reading, mostly through agents' summaries, and nothing in them was run but the two test runs
+under Node named below. So every step that builds on a note opens by checking it:
+
+1. **Before a Shape, a design or a line of code that names an Alchemy API, find it in the
+   vendored `repos/alchemy`** by `.claude/rules/alchemy.md`: the resource's file for its props,
+   the nearest `examples/aws-*` for the order of the units, the integration test for what a
+   guide leaves out. Quote it as `path:line` in the step's notes.
+2. **A note that the source contradicts is corrected here in the same commit,** with what the
+   source says; a note the source does not show is marked `assumed` until a run settles it.
+3. **Read the whole unit, not the line a note cites:** a prop's neighbours, the provider's
+   `reconcile`, the `Floci<Resource>Provider.ts` beside it. The notes were written from excerpts.
+4. **The probe (L1) is the run** for whatever reading cannot settle; a later step that meets a
+   new unknown stops and probes it the same way, in a worktree of its own.
+
+How to find a note's source now that the session's downloads are gone: `aws: <path>` is
+`repos/alchemy/packages/aws/src/<path>`, `alchemy: <path>` is
+`repos/alchemy/packages/alchemy/src/<path>`, and a guide named by its page (`aws/messaging/sqs`,
+`project-structure/file-layout`) is that path under `repos/alchemy/website/src/content/docs/`.
+floci is not vendored: its notes cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the
+image this Alchemy version pins (`aws: Local/Floci.ts:47`). What each kind of note stands on:
+
+| The notes on | Read from | Trust |
+|---|---|---|
+| Alchemy's API (props, defaults, the dev providers) | the published packages' source, the same code as `repos/alchemy` | a line number may be off; the claim is likely right |
+| Alchemy's conventions | its guides and examples | a guide can lag its source: check the source |
+| floci | its source at the pinned tag, by an agent | recheck before relying on a number |
+| what others do, the benchmarks, AWS's new runtimes | the web, on 2026-11-28 | dated; recheck before a decision rests on one |
+| this repo under Node | two runs in this worktree: `bunx vitest run` without `--bun`, and `effect-tsgo -b` with the Node types | measured |
 
 - [R] The six checks, each with what its failure means:
   1. A Lambda container in floci reaches a process on the host at `host.docker.internal`; a
