@@ -55,6 +55,10 @@
     "drizzle": {
       "drizzle-kit": "1.0.0-rc.6",
       "drizzle-orm": "1.0.0-rc.6"
+    },
+    "alchemy": {
+      "@alchemy.run/aws": "2.0.0-beta.87",
+      "alchemy": "2.0.0-beta.87"
     }
   },
   "devDependencies": {

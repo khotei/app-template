@@ -6,10 +6,12 @@
     "#deployment/*": "./*.ts"
   },
   "dependencies": {
+    "@alchemy.run/aws": "catalog:alchemy",
     "@app-template/kernel": "workspace:*",
     "@pulumi/aws": "catalog:pulumi",
     "@pulumi/docker": "catalog:pulumi",
     "@pulumi/pulumi": "catalog:pulumi",
+    "alchemy": "catalog:alchemy",
     "effect": "catalog:effect"
   }
 }

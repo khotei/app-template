@@ -4,7 +4,7 @@
 
 .PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
-  fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle \
+  fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle vendor-alchemy \
   migrate migration migration-check api-snapshot api-client-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -189,3 +189,9 @@ vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/d
 	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \
 		https://github.com/drizzle-team/drizzle-orm.git $(DRIZZLE_TAG) \
 		-m ':wrench: chore(deps): Vendor drizzle-orm at $(DRIZZLE_TAG)'
+
+vendor-alchemy: ALCHEMY_TAG = v$(shell bun pm pkg get catalogs.alchemy.alchemy 2>/dev/null | tr -d '"')
+vendor-alchemy: ## Pull alchemy-run/alchemy at the catalog pin into repos/alchemy (commits)
+	git subtree $(if $(wildcard repos/alchemy),pull,add) --squash --prefix repos/alchemy \
+		https://github.com/alchemy-run/alchemy.git $(ALCHEMY_TAG) \
+		-m ':wrench: chore(deps): Vendor alchemy at $(ALCHEMY_TAG)'
