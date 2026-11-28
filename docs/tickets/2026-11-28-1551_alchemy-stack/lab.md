@@ -221,8 +221,9 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
 - [D:ai] **The layout and the moves, Alchemy's way with Bun kept:**
 
   ```
-  alchemy.run.ts            the Stack: providers, state, the mode's branch, the outputs
   deployment/
+    alchemy.run.ts          the Stack: providers, state, the mode's layer, the outputs
+    Dockerfile              one image; the api's and the worker's command differ
     Queues.ts               each queue with its dead-letter queue, as declarations
     Storage.ts              the bucket and its lifecycle rule
     Database.ts             the Postgres instance
@@ -230,8 +231,18 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
     Web.ts                  the site and its router
     Compute.ts              the service: the api and the worker on the host or as functions
     dev-relay.ts            the forwarder's handler
-  apps/Dockerfile           one image; the api's and the worker's command differ
   ```
+
+  All of it sits in `deployment/`, the owner's question of 2026-11-28 ("Could it be all in
+  deployment?"): the root keeps no stack file. The CLI takes the stack's file as
+  `--config <file>`, `alchemy.run.ts` at the working directory being only its default
+  (`alchemy: Cli/commands/flags.ts:166`; the tutorial runs `alchemy deploy --config
+  stacks/github.ts`), so the `make` targets run `bun alchemy <command> --config
+  deployment/alchemy.run.ts` from the root. This leaves convention 1 below in one point, the
+  file's place. The image's build context stays the repository root, since the image copies the
+  workspaces, with `dockerfile: 'deployment/Dockerfile'`; every path in the stack is anchored
+  with `import.meta.dirname`, as relative ones resolve from the working directory. Where
+  `.alchemy/` lands when the file is not at the root is the probe's check 13.
 
   | Today | Its fate |
   |---|---|
@@ -264,7 +275,7 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
   | `Layer.mergeAll` for the providers, `Layer.unwrap` for the layer the mode picks | the root's wiring | providers built twice; the mode read in more than one place |
 
   ```ts
-  // alchemy.run.ts — the body has no branch; the mode picks a layer once, at the root
+  // deployment/alchemy.run.ts — the body has no branch; the mode picks a layer once, at the root
   Effect.gen(function* () {
     const compute = yield* Compute
 
