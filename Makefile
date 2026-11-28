@@ -2,9 +2,9 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
+.PHONY: help setup stack up down reset worktree dev deploy dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
-  fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle \
+  fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle vendor-alchemy \
   migrate migration migration-check api-snapshot api-client-check
 
 # The local Pulumi project: each tree's file backend under its .data/, named per command, so no
@@ -92,20 +92,28 @@ migration-check: ## Fail when an entity changed without a migration
 API_CLIENT = cd apps/web && bunx --no-install --bun openapigen -s ../api/openapi.json -n Api -f httpapi
 
 api-snapshot: ## Rewrite the api's OpenAPI snapshot from its code, then the web's client from it
-	bun --bun vitest run --project unit apps/api/__tests__/openapi.test.ts -u
+	bunx vitest run --project unit apps/api/__tests__/openapi.test.ts -u
 	$(API_CLIENT) > shared/api.generated.ts
 
 api-client-check: ## Fail when the web's client differs from what the api's snapshot generates
 	@$(API_CLIENT) | cmp -s - shared/api.generated.ts || \
 		{ echo 'The web client is stale: run make api-snapshot and commit it' >&2; exit 1; }
 
-dev: migrate ## Run api, worker and web together in dev mode
-	bun --filter './apps/*' dev
+# The Alchemy stack: it starts floci itself, one container for every tree, and each tree's stage
+# keeps its resources apart. A function is bound the settings its construction reads, so .env is
+# exported; all but AWS_ENDPOINT_URL, which is MiniStack's.
+dev: ## Run the stack on floci in the stage of .env: api, worker, web, their database and queues
+	$(EXPORT_ENV) && unset AWS_ENDPOINT_URL && cd deployment && ALCHEMY_STAGE="$$STAGE" bunx alchemy dev
 
-dev-api: migrate ## Run the api
+# The settings the functions are bound come from the caller's environment, never from .env.
+deploy: ## Deploy the stack to AWS: STAGE=<stage>
+	@test -n "$(STAGE)" || { echo 'usage: make deploy STAGE=<stage>'; exit 1; }
+	cd deployment && ALCHEMY_STAGE="$(STAGE)" bunx alchemy deploy
+
+dev-api: migrate ## Run the api on the host, over make up's stand
 	bun --filter @app-template/api dev
 
-dev-worker: migrate ## Run the worker
+dev-worker: migrate ## Run the worker on the host, over make up's stand
 	bun --filter @app-template/worker dev
 
 dev-web: ## Run the web dev server
@@ -170,10 +178,10 @@ typecheck: ## Typecheck every workspace with Effect diagnostics
 test: test-unit test-e2e ## Run the unit and the e2e tests
 
 test-unit: ## Run the unit tests under __tests__/ (no Docker)
-	bun --bun vitest run --project unit
+	bunx vitest run --project unit
 
 test-e2e: ## Run the e2e tests under __e2e__/ and apps/e2e/ on their own containers (Docker running)
-	bun --bun vitest run --project e2e
+	bunx vitest run --project e2e
 
 outdated: ## List outdated dependencies in every workspace
 	bun outdated --recursive
@@ -189,3 +197,9 @@ vendor-drizzle: ## Pull drizzle-team/drizzle-orm at the catalog pin into repos/d
 	git subtree $(if $(wildcard repos/drizzle),pull,add) --squash --prefix repos/drizzle \
 		https://github.com/drizzle-team/drizzle-orm.git $(DRIZZLE_TAG) \
 		-m ':wrench: chore(deps): Vendor drizzle-orm at $(DRIZZLE_TAG)'
+
+vendor-alchemy: ALCHEMY_TAG = v$(shell bun pm pkg get catalogs.alchemy.alchemy 2>/dev/null | tr -d '"')
+vendor-alchemy: ## Pull alchemy-run/alchemy at the catalog pin into repos/alchemy (commits)
+	git subtree $(if $(wildcard repos/alchemy),pull,add) --squash --prefix repos/alchemy \
+		https://github.com/alchemy-run/alchemy.git $(ALCHEMY_TAG) \
+		-m ':wrench: chore(deps): Vendor alchemy at $(ALCHEMY_TAG)'

@@ -1,4 +1,4 @@
-import { BunFileSystem, BunPath } from '@effect/platform-bun'
+import { NodeFileSystem, NodePath } from '@effect/platform-node'
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, FileSystem, Path } from 'effect'
 import { SqlClient } from 'effect/sql'
@@ -32,6 +32,6 @@ describe('DbMigration.apply', () => {
       const probes = yield* sql`SELECT id FROM probes`
 
       assert.deepStrictEqual(probes, [])
-    }).pipe(Effect.provide([PgClientTest, BunFileSystem.layer, BunPath.layer])),
+    }).pipe(Effect.provide([PgClientTest, NodeFileSystem.layer, NodePath.layer])),
   )
 })

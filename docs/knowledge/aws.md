@@ -9,6 +9,12 @@ the e2e support, [tooling.md › Tests](tooling.md#tests).
 
 ## The local stand-in
 
+Two stands exist while the move to Alchemy is under way. `make dev` runs the Alchemy stack of
+`deployment/alchemy.run.ts` on [floci](https://github.com/alchemy-run/floci), which
+`alchemy dev` starts itself: one container for every tree on TCP port 4566, each tree's
+resources named by its stage. The rest of this page describes the other, which the e2e tests,
+`make up` and the `make dev-<app>` targets use.
+
 [MiniStack](https://hub.docker.com/r/ministackorg/ministack) emulates S3, SQS and RDS on the TCP
 port of `AWS_ENDPOINT_URL`, one per tree ([tooling.md › Worktrees](tooling.md#worktrees)).
 `deployment/local/` is a Pulumi project of its
@@ -142,8 +148,9 @@ gone.
 
 `QueueSender` and `QueueConsumer.consume` (`packages/aws/queue`) are the two sides of SQS: the first
 encodes a message by its definition's schema ([database.md › The sends](database.md#the-sends)), the
-second decodes each body by it. A definition's queue is
-`ResourceName.build(STAGE, definition.name)`.
+second decodes each body by it. The sender takes its transport: `QueueSender.layer(sendTo)` hands
+`sendTo` the definition's name, the encoded body and the trace, and `QueueSender.layerSqs` is the
+one over SQS, where a definition's queue is `ResourceName.build(STAGE, definition.name)`.
 
 - **SQS invokes the worker.** Each queue has an event source mapping to the worker's function,
   with `ReportBatchItemFailures`. Locally the function runs in MiniStack's proxy mode: each batch

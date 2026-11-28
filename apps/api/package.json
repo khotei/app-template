@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./layer": "./layer.ts",
     "./testing": "./__tests__/testing/index.ts"
   },
   "imports": {
@@ -10,14 +11,14 @@
     "#testing/*": "./__tests__/testing/*.ts"
   },
   "scripts": {
-    "dev": "bun --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",
-    "debug": "bun --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch main.ts"
+    "dev": "node --env-file=../../.env --env-file=../../.env.pulumi --watch main.ts",
+    "debug": "node --env-file=../../.env --env-file=../../.env.pulumi --inspect --watch main.ts"
   },
   "dependencies": {
     "@app-template/application": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
-    "@effect/platform-bun": "catalog:effect",
+    "@effect/platform-node": "catalog:effect",
     "effect": "catalog:effect"
   },
   "devDependencies": {

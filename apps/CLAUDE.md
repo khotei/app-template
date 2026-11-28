@@ -3,7 +3,9 @@
 Thin processes: `api` (HTTP), `worker` (queue messages) and `web` (browser UI plus its dev server).
 
 - `main.ts` starts the process. `api` and `worker` build it in `layer.ts`, which `main.ts` runs
-  and no package exports, except the app's `./testing` for the e2e through the api. `ApiHttp`
+  and no package exports but for `deployment`, which builds the same routes and handlers into
+  functions (the api's `./layer`, the worker's `./handler`), and the app's `./testing` for the
+  e2e through the api. `ApiHttp`
   provides, after `HttpRouter.serve`, the `application/` services the api's handlers read, so a
   use case a handler calls, which reads them per request, finds them too: a provide on a handler
   group reaches only what its builder yields. `ApiLayer` provides

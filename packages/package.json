@@ -37,6 +37,6 @@
   },
   "devDependencies": {
     "@effect-aws/client-lambda": "catalog:effect-aws",
-    "@effect/platform-bun": "catalog:effect"
+    "@effect/platform-node": "catalog:effect"
   }
 }

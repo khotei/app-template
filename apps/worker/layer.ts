@@ -1,24 +1,49 @@
-import { BunHttpServer } from '@effect/platform-bun'
-import { Effect, Layer } from 'effect'
-import { FetchHttpClient, HttpRouter } from 'effect/http'
+import { createServer } from 'node:http'
+
+import { NodeHttpClient, NodeHttpServer } from '@effect/platform-node'
+import { Effect, Layer, Record } from 'effect'
+import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
-import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
+import { ResourceName, resources } from '@app-template/kernel/aws'
+import { awsConfig, MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
+import { SqsEvent } from '@app-template/packages/aws/queue'
 import { Transaction } from '@app-template/packages/db'
 
-import { WorkerHandler } from '#worker/worker.handler'
+import { consumeEvent } from '#worker/worker.handler'
 
-export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide([ReplyChatService.layer, TitleChatService.layer]),
+/**
+ * `POST /events`: the worker's route for the batch an SQS mapping invokes it with. The stage is
+ * read once, as the route is built, so a worker with no stage does not start.
+ */
+const WorkerEvents = HttpRouter.use(
+  Effect.fnUntraced(function* (router) {
+    const { stage } = yield* awsConfig
+    const consume = consumeEvent(
+      Record.fromIterableWith(Record.values(resources.queues), ({ name }) => [
+        ResourceName.build(stage, name),
+        name,
+      ]),
+    )
+
+    yield* router.add(
+      'POST',
+      '/events',
+      Effect.gen(function* () {
+        const event = yield* HttpServerRequest.schemaBodyJson(SqsEvent)
+        const response = yield* consume(event)
+        return HttpServerResponse.jsonUnsafe(response)
+      }),
+    )
+  }),
 )
 
-const BunHttpServerFromConfig = workerPort.pipe(
-  Effect.map((port) => BunHttpServer.layer({ port })),
-  Layer.unwrap,
+export const WorkerHttp = HttpRouter.serve(WorkerEvents).pipe(
+  Layer.provide([ReplyChatService.layer, TitleChatService.layer]),
 )
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
@@ -31,7 +56,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([PostgresRepositories, Transaction.layer]),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
-  Layer.provide(BunHttpServerFromConfig),
+  Layer.provide(NodeHttpServer.layerConfig(createServer, { port: workerPort })),
   Layer.provide(MinimumLogLevelFromConfig),
 )
 
@@ -39,5 +64,6 @@ export const WorkerLayer = WorkerProcess.pipe(
   Layer.provide(ChatAssistant.layer),
   Layer.provide(AnthropicClientFromConfig),
   Layer.provide(Otlp.layerFromConfig({ resource: { serviceName: 'worker' } })),
-  Layer.provide([FetchHttpClient.layer, OtlpSerialization.layerProtobuf]),
+  // Not `fetch`, which ends a model's answer silent for 300 s: `kernel/llm`'s client says why.
+  Layer.provide([NodeHttpClient.layerUndici, OtlpSerialization.layerProtobuf]),
 )

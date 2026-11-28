@@ -6,9 +6,9 @@
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
-    "types": ["bun"],
+    "types": ["node"],
 
-    // Bundler mode: Bun runs .ts sources, workspaces export .ts directly
+    // Bundler mode: Node and Bun run .ts sources, workspaces export .ts directly
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,

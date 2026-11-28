@@ -1,6 +1,6 @@
-import { BunRuntime } from '@effect/platform-bun'
+import { NodeRuntime } from '@effect/platform-node'
 import { Layer } from 'effect'
 
 import { ApiLayer } from '#api/layer'
 
-BunRuntime.runMain(Layer.launch(ApiLayer))
+NodeRuntime.runMain(Layer.launch(ApiLayer))

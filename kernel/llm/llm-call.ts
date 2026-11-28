@@ -36,11 +36,17 @@ export class LlmCall {
     ),
   )
 
+  /** Past it a silent language model is given up: Anthropic SDK's own limit. */
+  private static readonly answerLimit = Duration.minutes(10)
+
+  private static readonly failSilent = () =>
+    Effect.fail(new LlmError({ cause: 'the model kept silent for ten minutes' }))
+
   /**
    * `request` asked again while the provider marks its failure retryable, then its failure, or an
    * answer the language model did not finish, as an `LlmError`. Checked after the call's retries,
    * an unfinished answer is not asked again: resent with the same prompt and limits, it would most
-   * likely end the same way.
+   * likely end the same way. The whole call, its retries included, ends after ten minutes.
    */
   static readonly ask = <A extends { readonly finishReason: Response.FinishReason }>(
     request: Effect.Effect<A, AiError.AiError>,
@@ -48,6 +54,7 @@ export class LlmCall {
     request.pipe(
       Effect.retry({ times: 2, while: LlmCall.isWorthRetrying, schedule: LlmCall.retrySchedule }),
       Effect.mapError(LlmCall.toLlmError),
+      Effect.timeoutOrElse({ duration: LlmCall.answerLimit, orElse: LlmCall.failSilent }),
       Effect.filterOrFail(LlmCall.isFinished, LlmCall.toUnfinishedError),
     )
 }

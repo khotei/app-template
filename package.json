@@ -26,6 +26,7 @@
     "runtime": {
       "@testcontainers/postgresql": "12.2.2",
       "@types/bun": "1.4.5",
+      "@types/node": "24.19.4",
       "testcontainers": "12.2.2",
       "type-fest": "6.0.3"
     },
@@ -55,12 +56,19 @@
     "drizzle": {
       "drizzle-kit": "1.0.0-rc.6",
       "drizzle-orm": "1.0.0-rc.6"
+    },
+    "alchemy": {
+      "@alchemy.run/aws": "2.0.0-beta.87",
+      "@alchemy.run/sql": "2.0.0-beta.87",
+      "alchemy": "2.0.0-beta.87",
+      "pg": "8.22.0"
     }
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:tools",
     "@effect/tsgo": "catalog:typescript",
     "@types/bun": "catalog:runtime",
+    "@types/node": "catalog:runtime",
     "drizzle-kit": "catalog:drizzle",
     "husky": "catalog:tools",
     "markdownlint-cli2": "catalog:tools",

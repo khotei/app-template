@@ -31,10 +31,10 @@ One file, or the tests whose name matches, through vitest itself (`--project e2e
 file, Docker running; `vitest` without `run` watches):
 
 ```sh
-bun --bun vitest run --project unit <workspace>/__tests__/<path>.test.ts -t <name>
+bunx vitest run --project unit <workspace>/__tests__/<path>.test.ts -t <name>
 ```
 
-`bun --bun vitest run` runs both projects at once; `bun test` would instead start Bun's own test
+`bunx vitest run` runs both projects at once; `bun test` would instead start Bun's own test
 runner, which ignores the vitest projects and their setup.
 
 Scripts live only where `make` calls them: the root `package.json` holds `prepare` (`make lint`
@@ -43,9 +43,9 @@ and `make fmt` call Biome themselves); each process app (`api`, `worker`, `web`)
 
 ## Tests
 
-Tests run on vitest, on the Bun runtime (`bun --bun`), so `Bun.serve` and the other Bun APIs work
-inside them. Bun's own runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`,
-`TestClock`) needs vitest.
+Tests run on vitest, on Node.js (`bunx vitest`, never `bun --bun`), the runtime the api and the
+worker are deployed on, so a Bun API fails a test as it would fail the function. Bun's own
+runner is not used, because `@effect/vitest` (`it.effect`, `it.layer`, `TestClock`) needs vitest.
 
 - **Unit and e2e: only our code is under test.** A unit test runs our domain services, handlers
   and use cases, and needs no process outside vitest. An e2e test proves an
@@ -131,7 +131,7 @@ Which suite runs where:
   checks, so a small problem in a test is solved by a plainer test, not by a helper.
 - **Output.** vitest switches to its `minimal` reporter when it detects an agent (`CLAUDECODE`,
   `AI_AGENT`): failures and a summary only. A terminal without them gets the per-file `default`
-  reporter; `bun --bun vitest run --reporter=default` forces it.
+  reporter; `bunx vitest run --reporter=default` forces it.
 - **Errors are compared by their encoded form,** with `assertSchemaEquals` from
   `@app-template/packages/testing`: under Bun two errors with equal fields differ at random (why:
   its TSDoc). A `Data.TaggedError` has no encoded form: its class and its fields are compared.
@@ -139,37 +139,47 @@ Which suite runs where:
 ## Run and debug
 
 - **Ports.** `API_PORT` (3000), `WEB_PORT` (3001) and `WORKER_PORT` (3002) come from `.env`,
-  others in a [worktree](#worktrees). The web server proxies `/api/*` to
-  `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
-- **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
-- **Debugging.** `make debug-api` prints an inspector block:
+  others in a [worktree](#worktrees). The web server proxies `/api/*` to `API_ORIGIN`, or
+  with none set to `localhost:${API_PORT}`, so the browser stays same-origin and the api needs
+  no CORS.
+- **The stand.** `make dev` runs `alchemy dev` on `deployment/alchemy.run.ts`: it starts floci,
+  creates the queues, the database with its migrations and the bucket in the stage of `.env`,
+  runs the api and the worker as functions and the web's dev server, and prints `webUrl` and
+  `apiUrl`. An edit redeploys the function it touches. It needs Docker and
+  `ANTHROPIC_API_KEY`, and none of `make up`'s stand
+  ([aws.md › The local stand-in](aws.md#the-local-stand-in)).
+- **A single app on the host.** `make dev-api`, or `cd apps/api && bun run dev`, over
+  `make up`'s stand. Both read the same root `.env`.
+- **Debugging.** The api and the worker run on Node.js, so `make debug-api` and
+  `make debug-worker` print Node's inspector line, both on its default port, one at a time:
 
   ```text
-  Inspect in browser:
-    https://debug.bun.sh/#localhost:6499/<session>
+  Debugger listening on ws://127.0.0.1:9229/<session>
   ```
 
-  Open the link to get breakpoints, the console and profiling. Editors attach to the
-  `ws://localhost:6499/<session>` address printed under it. Debug mode keeps the app's reload mode,
-  so `debug-api` restarts on an edit as `dev-api` does.
+  They debug the host process, not the stand's function. An editor or `chrome://inspect`
+  attaches to that address. `make debug-web` prints Bun's own
+  block with a `https://debug.bun.sh/#…` link. Debug mode keeps the app's reload mode, so
+  `debug-api` restarts on an edit as `dev-api` does.
 
 ### `--hot` vs `--watch`, and why there is no `--dev`
 
-| | `--hot` (`web`) | `--watch` (`api`, `worker`) |
+| | `bun --hot` (`web`) | `node --watch` (`api`, `worker`) |
 |---|---|---|
 | On change | re-evaluates the changed files inside the running process | re-executes the process into a fresh runtime |
-| PID | the same | may stay the same: Bun restarts by `exec` |
+| PID | the same | a new child process each time |
 | `globalThis` | survives | reset |
 | Top-level state of a file (a cache, a counter) | rebuilt, so data is lost | rebuilt |
 | Timers and open connections | survive the reload | gone |
 
 Under `--hot`, `Bun.serve` swaps its routes in place, which is all `web` needs. An Effect runtime
 is not swapped: each edit re-evaluates `effect` itself and starts a new `runMain` beside the old
-one. So the api and the worker run under `--watch`: a re-exec leaves nothing to stop, and each
-`main.ts` is one `runMain`. While the api re-execs its port is closed, about 0.3 s from
-`api stopped` to `Listening on`, and a request the web proxies then responds with `500`.
+one. So the api and the worker run under Node's `--watch`: a restart leaves nothing to stop, and
+each `main.ts` is one `runMain`. While the api restarts its port is closed, about 0.9 s from the
+edit to `api started`, and a request the web proxies then responds with `500`.
 
-Bun has no `--dev` flag. "Development" means two things here: the reload flag in the app's `dev`
+Neither runtime has a `--dev` flag. "Development" means two things here: the reload flag in the
+app's `dev`
 script, and `NODE_ENV="development"`, which turns on HMR and browser console forwarding in the web
 server's `Bun.serve({ development })`.
 
@@ -214,12 +224,14 @@ TCP ports, and the database's volume stays.
 - **Loading.** `env = false` in `bunfig.toml` turns off Bun's own loading of `.env` files, so a
   process reads only the files its command names. Each app script passes
   `--env-file=../../.env --env-file=../../.env.pulumi`, paths relative to the app folder, and
-  `make migrate` the same two files; the second wins, and Bun skips a missing one. This works from
+  `make migrate` the same two files; the second wins. Bun (the web, `make migrate`) skips a
+  missing one; Node (the api, the worker) stops with `node: <file>: not found`. This works from
   `make` at the root and from `bun run dev` inside the app.
   The one exception is `make up`: Pulumi starts `deployment/local/index.ts` itself, so no
   `--env-file` reaches it, and the recipe loads `.env` into the shell's environment instead. The
   shell reads the file as its own syntax, so a value with a space must be quoted.
-- **A missing `.env`** is ignored by Bun without a warning. The process then fails at startup while
+- **A missing `.env`** is ignored by Bun without a warning. The process it starts then fails at
+  startup while
   building the first layer that reads a setting, with Effect's `ConfigError` naming the first
   missing or invalid variable. Variables exported in the shell work without a file, which is how
   CI runs.
@@ -311,13 +323,13 @@ are reached by the package's alias, `#<name>/<sub>/…`, its test support by
 3. Run `bun install`, then `make check`, and commit `package.json` with `bun.lock`; after an
    `effect` bump, run `make api-snapshot` before `make check`: the api's snapshot and the web's
    client both come from effect's code.
-4. After an `effect` or `drizzle` catalog bump, run `make vendor-effect` or `make vendor-drizzle`
-   on the now clean tree. `git subtree` refuses any uncommitted change, so the bump and the
-   vendoring are two commits of the same PR.
+4. After an `effect`, `drizzle` or `alchemy` catalog bump, run `make vendor-effect`,
+   `make vendor-drizzle` or `make vendor-alchemy` on the now clean tree. `git subtree` refuses
+   any uncommitted change, so the bump and the vendoring are two commits of the same PR.
    The squash merge drops the pull's `git-subtree-dir:` and `git-subtree-split:` lines, and the
    next pull reads the newest commit on `main` that names the prefix, the last split line in it
    winning. So the PR body carries one prefix's pair, each line at its start, outside the HTML
-   comment; a PR that vendors both libraries leaves the other pair to the next PR's body.
+   comment; a PR that vendors several libraries leaves the other pairs to the next PRs' bodies.
 
 Another repository vendored under `repos/` gets one more target of the same shape.
 

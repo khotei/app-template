@@ -1,4 +1,4 @@
-import { BunCrypto, BunHttpServer } from '@effect/platform-bun'
+import { NodeCrypto, NodeHttpServer } from '@effect/platform-node'
 import { Clock, ConfigProvider, Context, DateTime, Effect, Layer, Option, Ref } from 'effect'
 import { Cookies, HttpClient } from 'effect/http'
 import { HttpApiClient } from 'effect/http-api'
@@ -28,7 +28,7 @@ export class ApiClient extends Context.Service<ApiClient, HttpApiClient.ForApi<t
     Layer.effect(this, HttpApiClient.make(Api, { baseUrl }))
 }
 
-/** The host `BunHttpServer.layerTest` serves on; a cookie is scoped to a host, whatever its TCP port. */
+/** The host `NodeHttpServer.layerTest` serves on; a cookie is scoped to a host, whatever its TCP port. */
 const testServerUrl = 'http://127.0.0.1'
 
 /**
@@ -98,8 +98,8 @@ export const layerApiServerTest = ({
       Layer.mock(MessageRepository, messages),
       Layer.mock(RunRepository, runs),
     ]),
-    Layer.provideMerge(BunHttpServer.layerTest),
-    Layer.provide([BunCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
+    Layer.provideMerge(NodeHttpServer.layerTest),
+    Layer.provide([NodeCrypto.layer, ConfigProvider.layer(ConfigProvider.fromUnknown({}))]),
   )
 
 /** The cookie of a browser that signed in before, as `owner`, whom `signedIn` finds. */
