@@ -15,6 +15,10 @@ The owner's words (2026-11-28), from the session that researched this:
 - "I'd like to stay on aws, because this is well paid skill."
 - On the web: "I believe web will be dev server like nextjs, or something like this."
 - "could we work with worktree as we did, and run e2e test as we do now?"
+- "But do best from perspective of alchymy. Maybe group aws resource which we bould and simmilar
+  things with alchymi deployment. Reorganise files if needed. But use lasteet best practices and
+  recommendations."
+- "I expect best written configuration as it possible from alchemy recommendations."
 
 ## Map
 
@@ -152,9 +156,12 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
   prod        as local prod, on AWS
   ```
 
-  - The apps' code does not change: `BunRuntime`, `BunHttpServer` and `POST /events` stay.
-  - Names come from the inventory, `resources` and `ResourceName.build` of `kernel/aws`.
-  - Local prod differs from dev by one environment variable the stack reads.
+  - The apps' entry points do not change: `BunRuntime`, `BunHttpServer` and `POST /events` stay.
+  - It is written Alchemy's way wherever Bun allows, as the conventions below list: the layout,
+    the declarations, generated names, outputs as the processes' environment. What Bun rules out
+    is bindings alone.
+  - Dev is told from the rest by `(yield* AlchemyContext).dev`; local prod differs from dev by
+    one environment variable the stack reads.
   - The forwarder is the one piece with no counterpart in production: about 15 lines that do what
     MiniStack's proxy mode does today. Without it the worker cannot run on the host.
   - The e2e keep their own Postgres container and take a floci container in MiniStack's place;
@@ -163,6 +170,115 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
     its resource changes and its function runs on Node, the framework's own target.
   - The worktree rule changes from "its own containers" to "its own stage and host ports, one
     shared floci"; `RDS_BASE_PORT`, the per-tree emulator port and `ministackImage` go.
+
+- [A:ai] **Alchemy's own conventions** (its docs as Markdown, `https://alchemy.run/<page>.md`,
+  its `examples/` and `packages/aws/AGENTS.md`; read 2026-11-28, `main` compared with beta.87):
+  1. `alchemy.run.ts` at the workspace root is the composition root alone: "name the Stack, merge
+     Providers, pick a State Store, wire units into outputs" (`project-structure/file-layout`).
+     A monorepo starts with a single Stack at the root (`project-structure/monorepo`).
+  2. "one file per Resource or Layer, group Resources that travel together"; a declaration is
+     inert until a Stack yields it and is memoized by its logical id, so several units may yield
+     one. Modules and ids are PascalCase in every example (`src/Db.ts`, `"JobsTable"`).
+  3. A resource a producer and a consumer share has its own module (`aws/messaging/sqs`).
+  4. A per-stage setting sits beside its resource, read from `Stack`, not in the root file.
+  5. No physical names: Alchemy generates `<stack>-<id>-<stage>-<suffix>` and tags each resource
+     with its stack, stage and id (`alchemy: PhysicalName.ts:64`, `Tags.ts:39`). An explicit name
+     appears in the examples only to adopt a resource that exists.
+  6. Runtime code reaches a resource through a binding, which writes the IAM statement and the
+     environment variable. **Bindings exist only in a function Alchemy bundles** (a zip function
+     on Node). For an image function or a host process the stated way is the resources' outputs
+     as `env`, and IAM by `fn.bind(sid, { policyStatements })` (issue 3288, open; the repo's own
+     `EventSourceMapping.test.ts:376`).
+  7. A consumer sets `functionUrl: false`: left out, a function gets a public URL.
+  8. An image function: `image: { context, dockerfile, command }`, sources literal,
+     `architecture` required, no secrets in build args. A raw `EventSourceMapping` defaults to
+     `ReportBatchItemFailures` for SQS and grants no IAM; the queue's visibility timeout is at
+     least the function's timeout.
+  9. `Config` read in the stack's construction is bound as a secret; a function's `env` is stored
+     in state as a fingerprint. In beta.87 a secret `env` value is plain text in the function's
+     configuration; `main` moves it to SSM (PR 3741).
+  10. State: `AWS.state()` (DynamoDB) for shared and CI stages; `Alchemy.localState()` writes
+      `.alchemy/`, gitignored, not for CI. The stage: `--stage`, then `ALCHEMY_STAGE`, then
+      `dev_$USER` or `live_$USER`; a worktree derives it from its folder; no fixed `dev.port`.
+  11. Removal is `destroy` by default; `RemovalPolicy.retain(stage === "prod")` beside the
+      resource. A renamed id replaces the resource unless piped through `Alchemy.renamedFrom`.
+  12. The web: `Website.StaticSite` with `build` and `dev` commands, and `Website.Router` with
+      `"/api/*": { url }`; the router is emulated in dev.
+  13. Tests: `Test.make({ providers, state, dev: true })`, `beforeAll(deploy(Stack))`, a stage per
+      run, `test_$USER` by default.
+  14. A plain container: `Docker.Container` of `@alchemy.run/docker`. One declared in dev alone
+      is in no example; nor is any guidance for or against branching on the mode, which
+      Alchemy's own `StaticSite` does.
+  Stale between beta.87 and `main` (235 commits): `ALCHEMY_DEV` is false under `Test.make` in
+  beta.87 (fixed by PR 3328), so the stack reads `AlchemyContext.dev`; five breaking changes
+  wait in `main` (secret env to SSM, state encryption, masked `state read`, deletion protection
+  refused, distilled pinned to `main`), so the version is pinned exactly and these notes are
+  read again at each bump.
+
+- [D:ai] **The layout and the moves, Alchemy's way with Bun kept:**
+
+  ```
+  alchemy.run.ts            the Stack: providers, state, the mode's branch, the outputs
+  deployment/
+    Queues.ts               each queue with its dead-letter queue, as declarations
+    Storage.ts              the bucket and its lifecycle rule
+    Database.ts             the Postgres instance
+    Telemetry.ts            the telemetry backend's container, dev only
+    dev-relay.ts            the forwarder's handler
+  apps/Dockerfile           one image; the api's and the worker's command differ
+  ```
+
+  | Today | Its fate |
+  |---|---|
+  | `kernel/aws/resources/resources.ts`, the inventory as data | becomes the declarations of `deployment/`: one source |
+  | `ResourceName.build`, `app-template-<stage>-<name>` | deleted: Alchemy names the resources |
+  | the clients of `kernel/aws` that build a name from `STAGE` | stay, and read the bucket's name and each queue's URL from `Config` |
+  | the worker picking a queue's handler by a built name (`apps/worker/worker.handler.ts`) | picks it by the queue's ARN from `Config` |
+  | `deployment/aws/*.ts`, `deployment/local/*`, `deployment/shared/tags.ts` | deleted: Pulumi, MiniStack, and tags Alchemy writes itself |
+  | `STAGE`, `.env.pulumi`, `RDS_BASE_PORT`, the emulator's port per tree | `ALCHEMY_STAGE`; the values come from the stack as each process's `env` |
+  | `make up` then `make dev` | `make dev` runs `bun alchemy dev`; `make dev-prod`, `make deploy` beside it |
+
+  The shape of the stack's branch, every name read in the sources above, none of it run:
+
+  ```ts
+  const { dev } = yield* AlchemyContext
+  const env = { FILES_BUCKET: bucket.bucketName, REPLY_QUEUE_URL: reply.queueUrl /* … */ }
+  if (dev && !localProd) {
+    yield* Command.Dev('Api', { command: 'bun run dev', cwd: 'apps/api', env })
+    const worker = yield* Command.Dev('Worker', { command: 'bun run dev', cwd: 'apps/worker', env })
+    const relay = yield* AWS.Lambda.Function('DevRelay', {
+      main: './deployment/dev-relay.ts', functionUrl: false, env: { WORKER_URL: worker.url },
+    })
+    yield* consume(relay)   // an EventSourceMapping and its three SQS actions per queue
+  } else {
+    const image = { context: '.', dockerfile: 'apps/Dockerfile' }
+    yield* AWS.Lambda.Function('Api', {
+      image: { ...image, command: ['apps/api/main.ts'] }, architecture: 'arm64', env,
+    })
+    const worker = yield* AWS.Lambda.Function('Worker', {
+      image: { ...image, command: ['apps/worker/main.ts'] }, architecture: 'arm64',
+      functionUrl: false, timeout: Duration.minutes(10), env,
+    })
+    yield* consume(worker)
+  }
+  ```
+
+  What this crosses, by the owner's word in Knowledge: the inventory's naming rule (the apps no
+  longer build a name; `kernel/aws`, the worker's routing and the e2e provisioner change);
+  `deployment/CLAUDE.md`'s "names follow the kernel's naming rule"; the file-naming rule, for
+  PascalCase modules in `deployment/`. The stack imports no app file, so the import guard holds.
+
+- [Q:ai] The most idiomatic Alchemy is bindings, and bindings need a zip function on Node: the
+  api and the worker as classes in their own files, no branch on the mode, no forwarder, no
+  hand-written IAM, the fast swap. The owner's `[D]` (Bun at runtime) rules it out; said here so
+  the cost of that `[D]` is on the page: the forwarder, `fn.bind` statements, a slow local prod.
+
+- [R] Checks the conventions add to the probe: 7. a host process under `Command.Dev` reaches
+  floci (are the endpoint and the credentials in its `env`, or ours to pass?); 8. an
+  `EventSourceMapping` and `fn.bind` on an image function; 9. the dev `Router` proxying `/api/*`
+  to a host process's URL; 10. `Test.make({ dev: true })` per test file beside today's
+  provisioning through the SDK, in seconds; 11. the Drizzle migrations through
+  `DBInstance.migrations` with `migrationsTransport: "direct"`, or `make migrate` kept.
 
 - [N:ai] Risks the probe sizes: the e2e's speed, as a forwarder needs a Lambda container per
   test where MiniStack needed none (the largest); the forwarder's delay in dev; two databases on
