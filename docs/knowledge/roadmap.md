@@ -423,6 +423,22 @@ left.
   (signing in is `identity-cost`'s; until it lands every user is the first kind). The figures
   are money, so the budget counts money, as a token's price differs tenfold by its kind.
   Proposed and not yet the owner's: a user is shown a share left and a time, not money.
+- **Options, the smallest that works first.** Each is whole by itself and the next builds on
+  it; the owner picks where the first lab stops.
+  1. **The provider's limit alone, no code.** A workspace for the app with a monthly spend limit
+     of 150 USD. Bounds the loss at once; one person can spend the month, and then no user is
+     answered until the next.
+  2. **A record and two sums.** A usage row a call; an ask is refused once the user's sum passes
+     the allowance or the service's sum passes the month's budget. Stops one user spending the
+     month. Asks sent together overshoot by what is in flight, and a user who makes new users
+     still spends the month, at 0.30 USD each.
+  3. **A daily share of the month.** The service's budget read per day (about 5 USD). A bad day
+     costs a day, not the month.
+  4. **A hold before the call.** Closes the overshoot of 2.
+  5. **Smaller requests, caps on a user's chats and active Runs, the usage on the wire.** Each
+     alone; none is needed for 2 to hold.
+  The smallest that answers the owner's aim (no one person spends the 150 USD) is 1 and 2 with
+  3: the provider's limit behind, the record and the sums in front, the day as the unit of loss.
 - **Open questions for its Shape.** The period: the owner's figures read as a month's, and
   against a month alone stands that 500 users nobody knows spend it at 0.30 USD each, so a daily
   share of the month for the service (about 5 USD) is to weigh, and for a user a calendar period
@@ -515,6 +531,22 @@ left.
   ACL 5 USD a month, a rule 1 USD, 0.60 USD a million requests, so about 10 USD a month with
   four rules at this app's size (from 2027-02-01 about 7.30 USD a protected resource, the rules
   within); Cognito is free to 10 000 monthly users.
+- **Options, by what each needs.** None bounds the spend, `spend-limits`'s budget does; each
+  makes spending the day dearer or shows who does it. The owner picks which the first lab takes.
+
+  | Option | Stops | Walked around by | Needs |
+  |---|---|---|---|
+  | One share of a day for all users nobody knows | them taking the signed-in's share | signing in | code, on `spend-limits` |
+  | Sign-in through Cognito, the larger allowance | a user made by one request | bought or throwaway accounts | a Cognito pool; code in `identity` |
+  | A user's network kept, users of one sharing an allowance | many users from one address | proxies | an address the api can trust |
+  | A rate rule per address on `POST /identity` | users made in bulk from one address | proxies | CloudFront and AWS WAF |
+  | AWS WAF's Challenge on the routes that write | scripts with no browser | solving services | CloudFront and AWS WAF, the web's client |
+  | Address reputation rule groups | cloud hosts and known proxies | residential proxies | CloudFront and AWS WAF |
+  | A log line a request, WAF and CloudFront logs | nothing; shows who | — | the edge for the address |
+  | An alarm on a day's spend | nothing; tells the owner | — | a metric of each call's cost |
+
+  The smallest that works with no edge is the first two rows: one share for users nobody knows
+  and sign-in for more. Every row that needs AWS WAF waits for `aws-deployment` (9).
 - **Open questions for its Shape.** How the api verifies Cognito's token, which
   [Authentication with Jose](#authentication-with-jose) already weighs, and whether a signed-in
   user keeps the chats of the user the browser was before; the hosted sign-in page or the app's
