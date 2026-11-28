@@ -653,6 +653,11 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 
 ## Knowledge
 
+- [D] **Bun runs the deployed api and worker; AWS may go** ("accept that I want use bun,
+  maybe switch from aws", the owner, 2026-11-28, after L3 was built and reviewed). It
+  replaces the first line below, Node.js 24 in the functions. Not settled: the host (a Bun
+  container on AWS, another cloud, or Lambda once Alchemy runs Bun there), so no step is
+  redrawn yet; L3's stack stands as built until the owner picks.
 - [D] The api and the worker run as Alchemy's Effect functions on Node.js 24, zip-packaged
   ("ok. lets try node", the owner, 2026-11-28, replacing their earlier word of the same day for
   Bun). Bun stays for installing, the scripts and the web's dev server.
