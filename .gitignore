@@ -9,6 +9,9 @@ dist
 # local data (MiniStack's state, the Pulumi backend)
 .data
 
+# Alchemy's local state, bundles and logs
+.alchemy
+
 # generated when `make stack` creates the stack: the encryption salt of a stack with no secrets
 deployment/local/Pulumi.local.yaml
 

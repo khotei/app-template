@@ -32,7 +32,7 @@ binds, and [Knowledge](#knowledge) states what binds now:
 |---|---|---|---|---|
 | L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | done |
 | L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | done |
-| L3 | One stack in `deployment/` declares the queues, the bucket, the database, the api's and the worker's functions and the web; `make dev` runs it on floci · visible: `make dev`, a chat message gets its reply through the Function URL | minimal | build | todo |
+| L3 | One stack in `deployment/` declares the queues, the bucket, the database, the api's and the worker's functions and the web; `make dev` runs it on floci · visible: `make dev`, a chat message gets its reply through the Function URL | minimal | build | in progress |
 | L4 | The e2e's two kinds: in-process on a floci container of their own, the journeys through the deployed stack · visible: `make test-e2e` green, its duration beside today's 6.09 s | minimal | build | todo |
 | L5 | Pulumi and MiniStack are gone; `aws.md`, `tooling.md`, `architecture.md`, the worktree rules and the import guard say what holds · visible: `make check` green | minimal | build | todo |
 | L6 | Later: the items of the open list the owner picks | hard | build | todo |
@@ -332,6 +332,8 @@ cite `alchemy-run/floci` at the tag `2.4.0-alchemy.3`, the image this Alchemy ve
   7. `Config` is read in construction; state: `AWS.state()` for shared stages,
      `Alchemy.localState()` (`.alchemy/`, gitignored) locally; the stage from `--stage`, then
      `ALCHEMY_STAGE`, then `dev_$USER` or `live_$USER`; a worktree derives its own.
+     **Corrected in L3:** Alchemy derives nothing; `environments/worktrees` says to name the
+     stage oneself, so `make dev-stack` passes `.env`'s `STAGE` as `ALCHEMY_STAGE`.
   8. Removal is `destroy` by default, `RemovalPolicy.retain` beside the resource; a renamed id
      replaces unless piped through `Alchemy.renamedFrom`.
   9. The web: `Website.StaticSite` with `build` and `dev`, `Website.Router` for `/api/*`.
@@ -519,13 +521,13 @@ ten minutes, now by `LlmCall.ask`.
 
 ### Shape
 
-Not written: the owner's. A proposal is the first note below.
+The five pieces of the first note below, accepted by the owner's "ok" (2026-11-28).
 
 ### Notes
 
 <a id="l3-notes"></a>
 
-- [D:ai] **A proposed Shape, five pieces, each green alone.** No file of `application/`,
+- [D] **The Shape, five pieces, each green alone** (the owner's "ok", 2026-11-28). No file of `application/`,
   `kernel/data` or a handler changes; what changes below the wiring is named in its piece.
   Until L4 the e2e keep MiniStack and Pulumi beside the new stack, so `make check` stays as it
   is. Every Alchemy name is rechecked in `repos/alchemy` first, as L1's notes say; the
@@ -558,14 +560,20 @@ Not written: the owner's. A proposal is the first note below.
      `make stack` goes; the api's and the worker's host entries stay for the e2e's stand until
      L4. `tooling.md` and `aws.md` say how the stand runs. Visible: `make dev`, then a chat
      message gets its reply in the browser.
-- [D:ai] **Out of this step, each to Later:** the telemetry backend's container in dev
+- [N:ai] The first piece's target is `make dev-stack`, not `make stack` as the Shape names it:
+  `make stack` is the Pulumi stack's until L5.
+- [N:ai] The files of `deployment/` take Alchemy's names (`Queues.ts`, `Database.ts`), against
+  `.claude/rules/naming.md`'s kebab-case with a role suffix: the break Knowledge allows, the
+  rule rewritten at L5. `make lint` passes them as they are.
+- [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
 - [N:ai] The decision this step crosses: `Independent apps` (`docs/knowledge/decisions.md`),
   "apps never import … `deployment`" holds, but `deployment` now imports the apps, which its
   guard refuses today. What it costs: the functions' files see every app's layer, and the rule
   "deployment imports of the kernel only /config, /aws and /data" goes. The owner allowed it
-  in Knowledge; L5 rewrites the decision and the guard.
+  in Knowledge and confirmed it for this step ("ok", 2026-11-28); L5 rewrites the decision and
+  the guard.
 
 - [D] **The cookie: the wrapper, and an issue upstream** (the owner's "ok", 2026-11-28). Alchemy runs `fetch` bare, so `securitySetCookie`'s pre-response
   handler never runs (L1, check 4). Options: wrap `fetch` in `HttpEffect.toHandled` in

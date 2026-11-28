@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup stack up down reset worktree dev dev-api dev-worker dev-web debug-api \
+.PHONY: help setup stack up down reset worktree dev dev-stack dev-api dev-worker dev-web debug-api \
   debug-worker debug-web check doc-lint sh-lint link-check review-rules lint \
   fmt typecheck test test-unit test-e2e outdated vendor-effect vendor-drizzle vendor-alchemy \
   migrate migration migration-check api-snapshot api-client-check
@@ -101,6 +101,10 @@ api-client-check: ## Fail when the web's client differs from what the api's snap
 
 dev: migrate ## Run api, worker and web together in dev mode
 	bun --filter './apps/*' dev
+
+# Only the stage leaves .env: its AWS_ENDPOINT_URL is MiniStack's, and the stack finds floci itself.
+dev-stack: ## Run the Alchemy stack on floci in the stage of .env, until L3 makes it `make dev`
+	cd deployment && ALCHEMY_STAGE="$$(. ../.env && echo "$$STAGE")" bunx alchemy dev
 
 dev-api: migrate ## Run the api
 	bun --filter @app-template/api dev
