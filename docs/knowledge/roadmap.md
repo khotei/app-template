@@ -61,7 +61,7 @@ graph LR
 | 32 | `queue-events` | `feat` | 31 | done: [docs/tickets/2026-11-27-1131_queue-events/](../tickets/2026-11-27-1131_queue-events/lab.md) |
 | 33 | [`security-hardening`](#33-security-hardening) | `fix` | — | planned |
 | 34 | [`spend-limits`](#34-spend-limits) | `feat` | 33 | planned |
-| 35 | [`identity-cost`](#35-identity-cost) | `feat` | 34 (9 for the edge rules) | planned |
+| 35 | [`identity-cost`](#35-identity-cost) | `feat` | 34 (9 for the edge rules and Cognito) | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -396,7 +396,10 @@ left.
     answers "who spent the most in the last hour".
   - **A daily budget for the whole service**, checked before a Run is created and again before a
     model's call, with an error of its own on the wire (429) and what its user is told.
-  - **A daily allowance per user**, a cap on a user's chats and on a user's active Runs.
+  - **An allowance per user**, a cap on a user's chats and on a user's active Runs.
+  - **Asks sent together cannot pass a budget together.** A check that reads the spend and a
+    record written after the call let every ask in flight through; an ask holds its estimated
+    cost against the budget before its call, and the call's end settles what it cost.
   - **Smaller requests by default**: the context limit and each call's `max_tokens`.
   - **A retry counted as an ask**, and a title's schema failure not retried: `LlmCall.ask`
     retries it twice, so a first message that makes the model overrun the title's length pays
@@ -404,7 +407,7 @@ left.
   - **The provider's own limits documented** as the stop behind the app's: a workspace for the
     app apart from the one its developers use, its monthly spend limit and its `tokens_per_day`,
     auto-reload off.
-  - **What is left, on the wire.** A user reads their own spend, their allowance and when it
+  - **What is left, on the wire.** A user reads the share of their allowance left and when it
     renews; anyone reads the service's totals for the period, spent and left, with no user named.
     The page that shows either is `web-app`'s (7). It takes
     [Later › From `context-window`](#from-context-window)'s usage that counts a summary's call.
@@ -415,19 +418,23 @@ left.
   nothing: the service's budget is the bound, and the allowance only keeps one user from spending
   the day. Whoever spends the day's budget still denies the service to every user until the next
   day; making that dear is `identity-cost`.
-- **Open questions for its Shape.** The budget's and the allowance's values and their period: the
-  owner's own figures (2026-11-28) are 150 USD a month for users, of a provider credit of 200 a
-  month whose other 50 stay for development, and 5 USD a user as an example; against them stands
-  that 30 users, or one person behind 30, spend the month at 5 USD each, so a daily share of the
-  month (about 5 USD) and a smaller allowance for a user nobody knows are to weigh; the unit a
-  user is shown, a share left or money, as a token's price differs tenfold by its kind and no one
-  count of tokens says what is left; what a user reads when either is spent; totals read by a
-  `sum` over an index or kept in a counter row, the second being what
-  `.claude/rules/repositories.md` leans to and one row every ask contends for; how an unfinished
-  answer's usage reaches the record, `LlmCall.ask` discarding it with the answer; the limit's
-  floor, as a limit small against one message summarises on every turn (seen at a limit of 100);
-  whether the budget counts money or tokens, a dense message costing ten times an English one of
-  the same length; whether a cut-off answer is stored as the reply or stays a failed Run.
+- **Decided by the owner (2026-11-28).** Of a provider credit of 200 USD a month, 150 are for
+  users and 50 stay for development. A user nobody knows has 0.30 USD, a signed-in one 2 USD
+  (signing in is `identity-cost`'s; until it lands every user is the first kind). The figures
+  are money, so the budget counts money, as a token's price differs tenfold by its kind.
+  Proposed and not yet the owner's: a user is shown a share left and a time, not money.
+- **Open questions for its Shape.** The period: the owner's figures read as a month's, and
+  against a month alone stands that 500 users nobody knows spend it at 0.30 USD each, so a daily
+  share of the month for the service (about 5 USD) is to weigh, and for a user a calendar period
+  or a rolling one, which is one `sum` over the record's last hours and renews no two users at
+  once; what an ask holds before its call, its prompt and `max_tokens` at the output's price
+  being the upper bound, and what frees a hold whose worker died; what a user reads when a
+  budget is spent; totals read by a `sum` over an index or kept in a counter row, the second
+  being what `.claude/rules/repositories.md` leans to and one row every ask contends for; how an
+  unfinished answer's usage reaches the record, `LlmCall.ask` discarding it with the answer; the
+  limit's floor, as a limit small against one message summarises on every turn (seen at a limit
+  of 100); whether a cut-off answer is stored as the reply or stays a failed Run; whether the
+  service's totals are public at all, no project read for the facts below showing them.
 - **Facts (2026-11-27).**
   - **Nothing limits spend.** `ask` checks that the chat is not busy and no more
     (`application/chat/services/ask-chat.service.ts`); a user's chats are unbounded, one active
@@ -450,6 +457,32 @@ left.
     chats to meet the provider's limit 9 to 45 USD a minute by tier. The provider offers a
     monthly spend limit for a workspace, a `tokens_per_day` rate limit and no limit per key; its
     usage API lags by hours, so a budget cannot read it.
+- **Facts (2026-11-28), how others count.** Read by an agent in seven open-source chat apps'
+  code at their newest commit and in the gateways' documentation; three checked again by hand in
+  the clones (LibreChat `4700c44`, `vercel/ai-chatbot` `a8989b5`, `huggingface/chat-ui`
+  `7fc0f67`). None run.
+  - **Three of the seven limit a user at all, one in money.** LibreChat keeps a balance in
+    `tokenCredits` (1 000 000 to the dollar), writes a transaction a call with the rate it was
+    priced at, and holds an ask's cost before its call by a conditional update on
+    `reservedCredits`, so asks sent together see each other; a spend past the balance is
+    clamped to zero and forgiven. `vercel/ai-chatbot` counts a user's messages of the last hour
+    before the call and stores no cost; `chat-ui` inserts the message's event first and counts
+    after, by user and by address, taking the larger. Open WebUI records tokens for its admin
+    and refuses nothing.
+  - **A gateway's stop is approximate.** Cloudflare AI Gateway calls its spend limit eventually
+    consistent, the cost recorded after the response; Vercel AI Gateway calls its budget a soft
+    cap; LiteLLM's budgets need its Postgres and an open issue of 2026-09-07 reports a new end
+    user's first concurrent requests passing the default budget. Langfuse and Stripe's meters
+    report and stop nothing. So the record stays the app's own.
+  - **What a user is shown.** A share and a time of renewal: LibreChat's `percent` display,
+    T3 Chat's bar with a countdown, Duck.ai, Gemini and Claude by their help pages. T3 Chat and
+    Writingmate moved from counted messages to credits, by their own posts, as a message to a
+    cheap model spent what one to a dear model did.
+  - **Renewal.** The gateways and Duck.ai renew at midnight UTC; products renew on rolling
+    windows of four to five hours.
+  - **A stream cut short.** Anthropic's `message_delta` usage is cumulative, so the last one
+    received is a lower bound; LibreChat counts the text already sent and records it as an
+    abort. This app streams no reply yet.
 - **Status.** Planned.
 
 ### 35. `identity-cost`
@@ -459,8 +492,13 @@ left.
 - **Scope.**
   - **The network a user was created from**, a truncated address on the user, so users of one
     network share an allowance and a network creates so many a day.
-  - **A share of the day's budget for new users**, so a wave of them cannot take the share of
-    the users already there.
+  - **Signing in, for the larger allowance**: Amazon Cognito with a social provider and no
+    password of the app's own. A signed-in user is an account, which rewrites the glossary's
+    User ("Not an account: there is nothing to sign in to") and `identity`; the user nobody
+    knows stays, with the smaller allowance.
+  - **One share of the day's budget for all users nobody knows**, so a wave of them cannot take
+    the share of the signed-in: when it is spent they are offered sign-in, and the signed-in go
+    on.
   - **The viewer's address the api can trust**, and one log line a request with its user,
     address and TLS fingerprint, never a message's text or the cookie's secret.
   - **At the edge**, once `aws-deployment` (9) gives one: a rate rule per address on
@@ -471,11 +509,17 @@ left.
   - **Retention**: how long an address and a usage row are kept, and where a project says so.
 - **Out of scope.** The budget itself ([`spend-limits`](#34-spend-limits)); payment; phone
   verification.
-- **Open questions for its Shape.** **Anonymous use or sign-in**: proposed to the owner, a small
-  anonymous allowance and sign-in for more, which rewrites the glossary's User ("Not an account:
-  there is nothing to sign in to") and meets
-  [Authentication with Jose](#authentication-with-jose); Cognito or another provider; what of the
-  edge can be tested, MiniStack evaluating no WAF rule; whether CloudFront overwrites a
+- **Decided by the owner (2026-11-28).** A small allowance with no sign-in and a larger one
+  signed in (0.30 and 2 USD, `spend-limits`'s to enforce); sign-in through Cognito; AWS WAF in
+  front. What the guard costs, by AWS's pricing pages as an agent read them on 2026-11-27: a web
+  ACL 5 USD a month, a rule 1 USD, 0.60 USD a million requests, so about 10 USD a month with
+  four rules at this app's size (from 2027-02-01 about 7.30 USD a protected resource, the rules
+  within); Cognito is free to 10 000 monthly users.
+- **Open questions for its Shape.** How the api verifies Cognito's token, which
+  [Authentication with Jose](#authentication-with-jose) already weighs, and whether a signed-in
+  user keeps the chats of the user the browser was before; the hosted sign-in page or the app's
+  own; the share for users nobody knows (30 to 50% of a day proposed); what of the edge can be
+  tested, MiniStack evaluating no WAF rule; whether CloudFront overwrites a
   `CloudFront-Viewer-*` header a viewer sent, not verified; the truncation (`/24` and `/48`
   proposed) and the retention (30 days for an address, 90 for a usage row proposed; general
   guidance, not legal advice).
@@ -489,6 +533,19 @@ left.
   documentation says not to rely on them to control cost. AWS WAF's Account Creation Fraud
   Prevention wants a registration page with a form, which this app has not. Today the api logs a
   request's method, URL and status, no address and no user, and stores no address anywhere.
+- **Facts (2026-11-28), how others limit a guest.** As an agent read them, none run; the
+  reports are their authors' claims.
+  - **A limit per guest was walked around by making guests.** `vercel/ai-chatbot` added a limit
+    by address "to prevent session rotation abuse" (PR #1436, 2026-03-02) and by 2026-03-20 gave
+    a guest and a signed-in user the same 10 messages an hour, in its `entitlements.ts` at
+    `a8989b5`. OpenCode's free models, limited by address, were reached through rotating VPNs
+    (Socket, 2026-10-29). `chat-ui` counts by user and by address and takes the larger.
+  - **What a check costs honest users.** One developer reports a 500 USD bill from 100 000
+    requests with no real user, and about a fifth of conversions lost to reCAPTCHA v3 before
+    replacing it (R. Oloo, dev.to, 2025-12-19; the post sells the replacement).
+  - **Cognito.** Issues OIDC tokens a JWKS verifies; MiniStack 1.5.31 emulates it with fixed
+    codes and a real JWKS endpoint; an email code needs its Essentials plan and SES, whose
+    default sender is held to 50 emails a day; a pre sign-up trigger can refuse a sign-up.
 - **Status.** Planned.
 
 ## Later
