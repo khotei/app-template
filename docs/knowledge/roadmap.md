@@ -59,6 +59,9 @@ graph LR
 | 30 | `effect-4-1` | `chore` | PR #39 | done, in the design audit's PR #39 |
 | 31 | `pure-models` | `refactor` | 30 | done: [docs/tickets/2026-11-25-1922_pure-models/](../tickets/2026-11-25-1922_pure-models/lab.md) |
 | 32 | `queue-events` | `feat` | 31 | done: [docs/tickets/2026-11-27-1131_queue-events/](../tickets/2026-11-27-1131_queue-events/lab.md) |
+| 33 | [`security-hardening`](#33-security-hardening) | `fix` | — | planned |
+| 34 | [`spend-limits`](#34-spend-limits) | `feat` | 33 | planned |
+| 35 | [`identity-cost`](#35-identity-cost) | `feat` | 34 (9 for the edge rules) | planned |
 
 The ticket `2026-10-16-1607_effect-setup` is **superseded at S12**; later tickets built what it
 left.
@@ -176,6 +179,34 @@ left.
   dropped, while a reader of the old build refuses a body without it (`Missing key`), the case
   [aws.md › Queues](aws.md#queues) logs and acknowledges unrun. The reply and title jobs lost `chatId`
   this way; the title's later took `chatId` in place of `messageId`, on a new queue (2026-11-21).
+- **Inherits from the security audit (2026-11-27).** What only the AWS stack can close, each read
+  from AWS's documentation on that date and none run, as no stack exists and MiniStack 1.5.31
+  evaluates no WAF rule and models no CloudFront viewer header:
+  - **An edge in front of the api.** AWS WAF attaches to a CloudFront distribution, an ALB or a
+    REST API, not to a Lambda function URL or an HTTP API, so a Function URL for the api needs
+    CloudFront before any WAF rule exists; behind origin access control a function URL wants the
+    client to send the SHA-256 of a POST's body in `x-amz-content-sha256`, which a REST API as the
+    origin does not. The api accepts requests through the edge alone, so the viewer's address it
+    reads (`CloudFront-Viewer-Address`) is the edge's word.
+  - **The web without the hand-written proxy.** Static files from S3 and `/api/*` as a cache
+    behaviour replace `apps/web/main.ts`'s proxy outside development.
+  - **The worker with no public listener.** A Lambda on its SQS mappings, no function URL of
+    `AuthType NONE`; `scalingConfig.maximumConcurrency` on each mapping and an explicit pool size,
+    as a reply holds a connection for its model's call
+    ([decisions.md](./decisions.md), "The chat's jobs in their services").
+  - **The database's defaults.** `deployment/aws/database.ts` declares `publiclyAccessible: true`,
+    `skipFinalSnapshot: true`, a password from settings and no `storageEncrypted`, right for the
+    emulator alone: an AWS stage takes a private instance in a VPC, encrypted at creation (it
+    cannot be added later), with deletion protection and a password RDS manages.
+  - **The cookie and the headers.** HTTPS only at the viewer, the managed
+    `SecurityHeadersPolicy`, and `NODE_ENV` set on every deployed process, as the cookie is
+    `Secure` under `production` alone (`apps/api/identity/identity.handler.ts`).
+  - **Logs that name who.** WAF logs and CloudFront standard logs hold the viewer's address,
+    country, network and TLS fingerprint with no application code; cookie logging stays off, and
+    a rate rule is never keyed on the `user_secret` cookie as is, since a WAF log prints the first
+    32 characters of a custom key. `LOG_LEVEL` is never `Debug` on a deployed stage:
+    `packages/db/db.client.ts` logs every statement's parameters at that level.
+  The edge's rules themselves belong to [`identity-cost`](#35-identity-cost).
 - **To weigh.** [Ideas to weigh › Queue on SQS or in Postgres](#queue-on-sqs-or-in-postgres)
   decides whether the worker is a Lambda on SQS or a long-running poller;
   [Telemetry readable by an agent and on AWS](#telemetry-readable-by-an-agent-and-on-aws) the
@@ -302,6 +333,162 @@ left.
   per-token prices were not readable from aws.amazon.com/bedrock/pricing and need the AWS
   calculator. MiniStack 1.5.31 emulates Bedrock Runtime with canned replies that fail a schema
   and does not emulate the Messages endpoint, so local runs call Anthropic.
+- **Status.** Planned.
+
+### 33. `security-hardening`
+
+- **Goal.** The holes the security audit of 2026-11-27 found that code alone closes are closed,
+  each with a test that fails before its fix: none waits for the AWS stack, and
+  [sdd.md](./sdd.md) defers no security hole.
+- **Scope.**
+  - **The web's proxy targets the api alone.** `proxyToApi` (`apps/web/main.ts`) builds its target
+    from the request's path against the api's origin, so a path can name another host: the
+    request, its cookie included, goes there and the answer comes back on the web's origin. The
+    target is built from the fixed origin, its path and query set after.
+  - **A title is asked for an untitled chat alone.** `TitleChatService.title` asks the model
+    before it applies the "still untitled" condition, so a replayed or duplicated event pays a
+    call for nothing; the condition is read first.
+  - **A batch runs bounded.** `QueueConsumer` runs a batch's records with
+    `concurrency: 'unbounded'`; a number takes its place.
+  - **A request's body is bounded.** `BunHttpServer.layer` takes only a port in
+    `apps/api/layer.ts` and `apps/worker/layer.ts`, so a body is buffered up to Bun's own cap
+    before the 20 000-character check reads it, and an idle connection is never closed; both
+    servers take a body limit and an idle timeout.
+  - **`recognise` refuses a cross-site form.** `POST /identity` answers any request with no valid
+    cookie with a new user and its cookie, and a cross-site form post carries none
+    (`SameSite=Lax`), so a page elsewhere can replace a visitor's user, whose chats are then out
+    of reach for good; the endpoint requires what a form cannot send.
+  - **A process states its environment.** `NODE_ENV` defaults to `development`
+    (`kernel/config/config.ts`), under which the cookie is not `Secure`.
+  - **The local stand listens on loopback.** The containers of `deployment/local/` and the three
+    dev servers bind every interface, with no authentication on MiniStack, Postgres (`app`/`app`)
+    or Grafana.
+  - **The Claude workflows run for the repository's own people.** `.github/workflows/claude.yml`
+    starts on any `@claude` mention, with no `author_association` condition.
+- **Out of scope.** A limit on what a user spends ([`spend-limits`](#34-spend-limits)); what makes
+  a user cost something ([`identity-cost`](#35-identity-cost)); the AWS stack's own settings
+  ([`aws-deployment`](#9-aws-deployment)); pagination, already in
+  [Later › From `pure-models`](#from-pure-models); a secret's rotation and revocation, which
+  wait for [Authentication with Jose](#authentication-with-jose).
+- **Open questions for its Shape.** Whether loopback binds break MiniStack's delivery to the
+  worker through `host.docker.internal` on Linux; which request `recognise` refuses (a required
+  header, visible in the contract and needing `make api-snapshot`, or `Sec-Fetch-Site`); the body
+  limit's value, 256 KiB holding 20 000 characters as escaped JSON; whether the Postgres
+  container MiniStack publishes takes a bind address at all.
+- **Facts (2026-11-27).** Run against the local stand, the three dev servers started by hand:
+  through the web's port a request reached a listener on another port with the visitor's cookie,
+  and that listener's `Set-Cookie` and HTML came back on the web's origin; one record repeated
+  three times in a batch for a titled chat showed three `ChatAssistant.proposeTitle` spans; a
+  120 MB body to `POST /chats/:chatId/messages` answered 400 and left the api at 558 MB from 116;
+  `POST /identity` with a foreign `Origin`, a form content type and no cookie answered 201 with a
+  new user. Checked and sound: every read's `where` carries the user (ten cross-user requests
+  answered 404), the request schemas, parameterised SQL, the one active Run per chat.
+- **Status.** Planned.
+
+### 34. `spend-limits`
+
+- **Goal.** No user, and no number of users together, spends more of the owner's model budget in
+  a day than the owner set: every model call is recorded against its user, and an ask is refused
+  once the day's budget is spent.
+- **Scope.**
+  - **A usage record per model call**, reply, summary and title alike, whatever the call's end,
+    keyed to the user and to no chat, priced when written. It is what a budget reads and what
+    answers "who spent the most in the last hour".
+  - **A daily budget for the whole service**, checked before a Run is created and again before a
+    model's call, with an error of its own on the wire (429) and what its user is told.
+  - **A daily allowance per user**, a cap on a user's chats and on a user's active Runs.
+  - **Smaller requests by default**: the context limit and each call's `max_tokens`.
+  - **A retry counted as an ask**, and a title's schema failure not retried: `LlmCall.ask`
+    retries it twice, so a first message that makes the model overrun the title's length pays
+    three calls.
+  - **The provider's own limits documented** as the stop behind the app's: a workspace for the
+    app apart from the one its developers use, its monthly spend limit and its `tokens_per_day`,
+    auto-reload off.
+  - **What is left, on the wire.** A user reads their own spend, their allowance and when it
+    renews; anyone reads the service's totals for the period, spent and left, with no user named.
+    The page that shows either is `web-app`'s (7). It takes
+    [Later › From `context-window`](#from-context-window)'s usage that counts a summary's call.
+- **Out of scope.** Telling one person from another, and anything at the edge
+  ([`identity-cost`](#35-identity-cost)); billing, credits or payment; the page that shows a
+  usage (`web-app`, 7).
+- **The fact that shapes it.** While a user is free to create, an allowance per user bounds
+  nothing: the service's budget is the bound, and the allowance only keeps one user from spending
+  the day. Whoever spends the day's budget still denies the service to every user until the next
+  day; making that dear is `identity-cost`.
+- **Open questions for its Shape.** The budget's and the allowance's values and their period: the
+  owner's own figures (2026-11-28) are 150 USD a month for users, of a provider credit of 200 a
+  month whose other 50 stay for development, and 5 USD a user as an example; against them stands
+  that 30 users, or one person behind 30, spend the month at 5 USD each, so a daily share of the
+  month (about 5 USD) and a smaller allowance for a user nobody knows are to weigh; the unit a
+  user is shown, a share left or money, as a token's price differs tenfold by its kind and no one
+  count of tokens says what is left; what a user reads when either is spent; totals read by a
+  `sum` over an index or kept in a counter row, the second being what
+  `.claude/rules/repositories.md` leans to and one row every ask contends for; how an unfinished
+  answer's usage reaches the record, `LlmCall.ask` discarding it with the answer; the limit's
+  floor, as a limit small against one message summarises on every turn (seen at a limit of 100);
+  whether the budget counts money or tokens, a dense message costing ten times an English one of
+  the same length; whether a cut-off answer is stored as the reply or stays a failed Run.
+- **Facts (2026-11-27).**
+  - **Nothing limits spend.** `ask` checks that the chat is not busy and no more
+    (`application/chat/services/ask-chat.service.ts`); a user's chats are unbounded, one active
+    Run a chat. Run locally: 40 `POST /identity` and 150 `POST /chats` all answered 201 within a
+    second.
+  - **A deleted chat takes its spend with it.** A Run's key to its chat cascades and the usage
+    is the Run's (`kernel/data/chat/run.table.ts`). Run locally: a chat deleted while its Run
+    generated answered 204, the model's call ran on and failed on the foreign key, and no usage
+    was left.
+  - **Only a done Run holds a usage** (`RunMove.complete`, `runs_usage_check`); a failed or
+    unfinished reply, a summary and a title are billed and recorded nowhere.
+  - **Sizes.** A reply's `max_tokens` is 16 000, a summary's 8 000, a title's 1 000
+    (`application/chat/infrastructure/chat-assistant.llm.ts`); `LLM_CHAT_CONTEXT_TOKENS_LIMIT` is
+    1 000 000 in `.env.example`. Run locally: 19 992 characters of English counted 4 294 prompt
+    tokens, 20 000 CJK characters 41 901.
+  - **The cache.** Run locally: a turn 17 s after the last read 41 897 tokens from the cache, a
+    turn 5 min 41 s after read none and wrote them all again; the summary's model sets no cache.
+  - **Estimates, not run**, from the provider's pricing and rate-limit pages as an agent read
+    them on that date: the dearest ask about 3.30 USD; one chat about 0.24 USD a minute; enough
+    chats to meet the provider's limit 9 to 45 USD a minute by tier. The provider offers a
+    monthly spend limit for a workspace, a `tokens_per_day` rate limit and no limit per key; its
+    usage API lags by hours, so a budget cannot read it.
+- **Status.** Planned.
+
+### 35. `identity-cost`
+
+- **Goal.** Spending the service's daily budget, and so denying it to honest users, costs an
+  attacker more than creating users: a new user is slower to make, worth less, and seen.
+- **Scope.**
+  - **The network a user was created from**, a truncated address on the user, so users of one
+    network share an allowance and a network creates so many a day.
+  - **A share of the day's budget for new users**, so a wave of them cannot take the share of
+    the users already there.
+  - **The viewer's address the api can trust**, and one log line a request with its user,
+    address and TLS fingerprint, never a message's text or the cookie's secret.
+  - **At the edge**, once `aws-deployment` (9) gives one: a rate rule per address on
+    `POST /identity`, AWS WAF's Challenge action on the routes that write, the address
+    reputation rule groups.
+  - **Alerts**: the cost of each call as a metric, an alarm on a share of the day's budget
+    spent within an hour.
+  - **Retention**: how long an address and a usage row are kept, and where a project says so.
+- **Out of scope.** The budget itself ([`spend-limits`](#34-spend-limits)); payment; phone
+  verification.
+- **Open questions for its Shape.** **Anonymous use or sign-in**: proposed to the owner, a small
+  anonymous allowance and sign-in for more, which rewrites the glossary's User ("Not an account:
+  there is nothing to sign in to") and meets
+  [Authentication with Jose](#authentication-with-jose); Cognito or another provider; what of the
+  edge can be tested, MiniStack evaluating no WAF rule; whether CloudFront overwrites a
+  `CloudFront-Viewer-*` header a viewer sent, not verified; the truncation (`/24` and `/48`
+  proposed) and the retention (30 days for an address, 90 for a usage row proposed; general
+  guidance, not legal advice).
+- **Facts (2026-11-27).** As an agent read the sources on that date, none run. OWASP LLM10:2025
+  (Unbounded Consumption) names rate limits, user quotas and monitoring; OWASP's Automated
+  Threat Handbook, for account creation, limiting what a new account can do and the rate of
+  creation; its cheat sheets call CAPTCHA defence in depth and an address block no sole defence.
+  Each cost on a user is cheap to pay, by the sellers' own price pages: residential proxies 2 to
+  8 USD a GB, a solved challenge 1.2 to 2 USD a thousand; so none of them is a bound. No AWS
+  service keeps a daily token budget per user: API Gateway usage plans count requests and its
+  documentation says not to rely on them to control cost. AWS WAF's Account Creation Fraud
+  Prevention wants a registration page with a form, which this app has not. Today the api logs a
+  request's method, URL and status, no address and no user, and stores no address anywhere.
 - **Status.** Planned.
 
 ## Later
