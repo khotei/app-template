@@ -189,6 +189,9 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
      on Node). For an image function or a host process the stated way is the resources' outputs
      as `env`, and IAM by `fn.bind(sid, { policyStatements })` (issue 3288, open; the repo's own
      `EventSourceMapping.test.ts:376`).
+     Alchemy's own guide for its code composes with layers the same way
+     (`packages/aws/AGENTS.md`: `Layer.mergeAll`, and `Layer.provideMerge` for a composite over
+     its foundation).
   7. A consumer sets `functionUrl: false`: left out, a function gets a public URL.
   8. An image function: `image: { context, dockerfile, command }`, sources literal,
      `architecture` required, no secrets in build args. A raw `EventSourceMapping` defaults to
@@ -224,6 +227,8 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
     Storage.ts              the bucket and its lifecycle rule
     Database.ts             the Postgres instance
     Telemetry.ts            the telemetry backend's container, dev only
+    Web.ts                  the site and its router
+    Compute.ts              the service: the api and the worker on the host or as functions
     dev-relay.ts            the forwarder's handler
   apps/Dockerfile           one image; the api's and the worker's command differ
   ```
@@ -238,30 +243,63 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
   | `STAGE`, `.env.pulumi`, `RDS_BASE_PORT`, the emulator's port per tree | `ALCHEMY_STAGE`; the values come from the stack as each process's `env` |
   | `make up` then `make dev` | `make dev` runs `bun alchemy dev`; `make dev-prod`, `make deploy` beside it |
 
-  The shape of the stack's branch, every name read in the sources above, none of it run:
+  The stack is an Effect program, so its logic is structured by Effect's core, by this repo's
+  own Effect rules (`.claude/rules/effect-style.md`, `effect-services.md`, `composition.md`);
+  the owner's word, 2026-11-28: "you could use full power of effect core, also adjust plan so
+  you could struct logic in alchyme with it". Each use below removes a way to get the stack
+  wrong; one that removes none is not written. The Effect names were read in `repos/effect`
+  (`Context.Service`, `Layer.unwrap`, `Layer.mergeAll`, `Config.schema`, `Duration.sum`,
+  `Effect.fn`, `Effect.forEach`); the Alchemy names in the sources above; none of it run.
+
+  | Effect's means | What it holds in the stack | The mistake it removes |
+  |---|---|---|
+  | a `Context.Service` with two layers | `Compute`: where the api and the worker run. `layerHost` is the two `Command.Dev` and the forwarder, `layerLambda` the two image functions | a branch on the mode through the stack's body; a third placement is a third layer |
+  | a table `as const satisfies Record<Mode, …>` | the mode (`dev`, `localProd`, `deployed`) to its `Compute` layer | a mode added and forgotten: it fails typecheck until its row exists |
+  | `Config`, read in the stack's construction | the stack's settings and the secrets the processes take (the model's key), from `kernel/config` | a setting read from `process.env` by hand; a secret in state as plain text |
+  | one `Schema.Struct` of the processes' environment, in `kernel/config` | the apps decode it with `Config.schema`; the stack's `env` record `satisfies` its keys | a key the stack writes and no process reads, or the reverse |
+  | `Duration`, one value derived from another | the queues' visibility timeout as `Duration.sum` of the worker's timeout and a margin | AWS refusing a mapping, or a message delivered twice, when one number changes alone |
+  | `Effect.fn('<Unit>.<step>')` | each declaration unit (`Queues.withDeadLetters`, `Compute.worker`) | a failed deploy that names no unit; each unit is a span in the deploy's trace |
+  | `Effect.forEach` over the queues' table | a queue, its dead-letter queue, its mapping and its IAM statement, per row | a queue declared without its mapping or its permission |
+  | errors in one tail | the stack's body reads as if nothing fails; a failure is logged once at its end | a `try` around a step in mid-flow |
+  | `Layer.mergeAll` for the providers, `Layer.unwrap` for the layer the mode picks | the root's wiring | providers built twice; the mode read in more than one place |
 
   ```ts
-  const { dev } = yield* AlchemyContext
-  const env = { FILES_BUCKET: bucket.bucketName, REPLY_QUEUE_URL: reply.queueUrl /* … */ }
-  if (dev && !localProd) {
-    yield* Command.Dev('Api', { command: 'bun run dev', cwd: 'apps/api', env })
-    const worker = yield* Command.Dev('Worker', { command: 'bun run dev', cwd: 'apps/worker', env })
-    const relay = yield* AWS.Lambda.Function('DevRelay', {
-      main: './deployment/dev-relay.ts', functionUrl: false, env: { WORKER_URL: worker.url },
-    })
-    yield* consume(relay)   // an EventSourceMapping and its three SQS actions per queue
-  } else {
-    const image = { context: '.', dockerfile: 'apps/Dockerfile' }
-    yield* AWS.Lambda.Function('Api', {
-      image: { ...image, command: ['apps/api/main.ts'] }, architecture: 'arm64', env,
-    })
-    const worker = yield* AWS.Lambda.Function('Worker', {
-      image: { ...image, command: ['apps/worker/main.ts'] }, architecture: 'arm64',
-      functionUrl: false, timeout: Duration.minutes(10), env,
-    })
-    yield* consume(worker)
-  }
+  // alchemy.run.ts — the body has no branch; the mode picks a layer once, at the root
+  Effect.gen(function* () {
+    const compute = yield* Compute
+
+    const bucket = yield* Files
+    const queues = yield* Queues
+    const database = yield* Database
+
+    const env = buildProcessEnv({ bucket, queues, database })   // satisfies ProcessEnv's keys
+    const api = yield* compute.api(env)
+    yield* compute.worker(env, queues)
+
+    const web = yield* Web(api.url)
+    return { url: web.url }
+  }).pipe(Effect.provide(ComputeByMode))
   ```
+
+  ```ts
+  // deployment/Compute.ts
+  export class Compute extends Context.Service<Compute, {
+    readonly api: (env: ProcessEnv) => Effect.Effect<{ readonly url: Output<string> }, …>
+    readonly worker: (env: ProcessEnv, queues: Queues) => Effect.Effect<void, …>
+  }>()('@app-template/deployment/Compute') {
+    static readonly layerHost = Layer.effect(this, …)     // Command.Dev ×2, the forwarder
+    static readonly layerLambda = Layer.effect(this, …)   // image functions, their mappings
+  }
+  const layers = {
+    dev: Compute.layerHost,
+    localProd: Compute.layerLambda,
+    deployed: Compute.layerLambda,
+  } as const satisfies Record<Mode, Layer.Layer<Compute, …>>
+  ```
+
+  `Compute` is a service by this repo's own rule: one "a second implementation stands in for".
+  The declarations (`Files`, `Queues`, `Database`, `Web`) stay plain exported effects, Alchemy's
+  form: each has one implementation, so a service in front of them would be a pass-through.
 
   What this crosses, by the owner's word in Knowledge: the inventory's naming rule (the apps no
   longer build a name; `kernel/aws`, the worker's routing and the e2e provisioner change);
@@ -278,7 +316,9 @@ and floci at the tag `2.4.0-alchemy.3`, the image that Alchemy version pins
   `EventSourceMapping` and `fn.bind` on an image function; 9. the dev `Router` proxying `/api/*`
   to a host process's URL; 10. `Test.make({ dev: true })` per test file beside today's
   provisioning through the SDK, in seconds; 11. the Drizzle migrations through
-  `DBInstance.migrations` with `migrationsTransport: "direct"`, or `make migrate` kept.
+  `DBInstance.migrations` with `migrationsTransport: "direct"`, or `make migrate` kept; 12. a
+  `Context.Service` of ours provided to the stack's program by `Effect.provide`, its layer
+  yielding Alchemy resources: does the Stack accept it, and do the resources keep their ids?
 
 - [N:ai] Risks the probe sizes: the e2e's speed, as a forwarder needs a Lambda container per
   test where MiniStack needed none (the largest); the forwarder's delay in dev; two databases on
