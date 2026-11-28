@@ -1,6 +1,8 @@
-import { BunHttpServer } from '@effect/platform-bun'
+import { createServer } from 'node:http'
+
+import { NodeHttpServer } from '@effect/platform-node'
 import { Effect, Layer } from 'effect'
-import { FetchHttpClient, HttpRouter } from 'effect/http'
+import { FetchHttpClient, HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
@@ -8,17 +10,24 @@ import { MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/conf
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
 import { PgClientFromConfig } from '@app-template/kernel/postgres'
+import { SqsEvent } from '@app-template/packages/aws/queue'
 import { Transaction } from '@app-template/packages/db'
 
-import { WorkerHandler } from '#worker/worker.handler'
+import { consumeEvent } from '#worker/worker.handler'
 
-export const WorkerHttp = HttpRouter.serve(WorkerHandler).pipe(
-  Layer.provide([ReplyChatService.layer, TitleChatService.layer]),
+/** `POST /events`: the worker's route for the batch an SQS mapping invokes it with. */
+const WorkerEvents = HttpRouter.add(
+  'POST',
+  '/events',
+  Effect.gen(function* () {
+    const event = yield* HttpServerRequest.schemaBodyJson(SqsEvent)
+    const response = yield* consumeEvent(event)
+    return HttpServerResponse.jsonUnsafe(response)
+  }),
 )
 
-const BunHttpServerFromConfig = workerPort.pipe(
-  Effect.map((port) => BunHttpServer.layer({ port })),
-  Layer.unwrap,
+export const WorkerHttp = HttpRouter.serve(WorkerEvents).pipe(
+  Layer.provide([ReplyChatService.layer, TitleChatService.layer]),
 )
 
 const LogWorkerLifecycle = Effect.logInfo('worker started').pipe(
@@ -31,7 +40,7 @@ export const WorkerProcess = Layer.merge(WorkerHttp, LogWorkerLifecycle).pipe(
   Layer.provide([PostgresRepositories, Transaction.layer]),
   Layer.provide(Db.layer),
   Layer.provide(PgClientFromConfig),
-  Layer.provide(BunHttpServerFromConfig),
+  Layer.provide(NodeHttpServer.layerConfig(createServer, { port: workerPort })),
   Layer.provide(MinimumLogLevelFromConfig),
 )
 

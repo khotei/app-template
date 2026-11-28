@@ -1,9 +1,8 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 
 import { type QueueName, ResourceName } from '@app-template/kernel/aws'
 import { awsConfig } from '@app-template/kernel/config'
-import { QueueConsumer, SqsEvent } from '@app-template/packages/aws/queue'
+import { QueueConsumer, type SqsEvent } from '@app-template/packages/aws/queue'
 
 import { ChatHandler } from '#worker/chat/chat.handler'
 
@@ -15,31 +14,20 @@ const routes = { ...ChatHandler } satisfies Record<
 >
 
 /**
- * `POST /events`: the batch an SQS mapping invokes the worker with, run by the handler of the
- * queue it came from; a batch of a queue with none is a defect.
+ * Runs the batch an SQS mapping invokes the worker with on the handler of the queue it came
+ * from; a batch of a queue with none is a defect.
  */
-export const WorkerHandler = HttpRouter.use(
-  Effect.fnUntraced(function* (router) {
-    const { stage } = yield* awsConfig
-    const consumers = Record.mapKeys(routes, (name) => ResourceName.build(stage, name))
+export const consumeEvent = Effect.fnUntraced(function* (event: SqsEvent) {
+  const { stage } = yield* awsConfig
+  const consumers = Record.mapKeys(routes, (name) => ResourceName.build(stage, name))
 
-    yield* router.add(
-      'POST',
-      '/events',
-      Effect.gen(function* () {
-        const event = yield* HttpServerRequest.schemaBodyJson(SqsEvent)
-        const consume = yield* pipe(
-          Arr.head(event.Records),
-          Option.flatMap((record) =>
-            Record.get(consumers, QueueConsumer.buildQueueName(record.eventSourceARN)),
-          ),
-          Effect.fromOption,
-          Effect.orDie,
-        )
-
-        const response = yield* consume(event)
-        return HttpServerResponse.jsonUnsafe(response)
-      }),
-    )
-  }),
-)
+  const consume = yield* pipe(
+    Arr.head(event.Records),
+    Option.flatMap((record) =>
+      Record.get(consumers, QueueConsumer.buildQueueName(record.eventSourceARN)),
+    ),
+    Effect.fromOption,
+    Effect.orDie,
+  )
+  return yield* consume(event)
+})

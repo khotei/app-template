@@ -1,9 +1,7 @@
-import { BunHttpServer } from '@effect/platform-bun'
 import { assert, describe, it } from '@effect/vitest'
 import { Array as Arr, ConfigProvider, Effect, Layer, Option } from 'effect'
-import { HttpClient, HttpClientRequest } from 'effect/http'
 
-import { ChatAssistant } from '@app-template/application/chat'
+import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
 import { chatId, firstMessage, owner } from '@app-template/application/chat/testing'
 import {
   ChatRepository,
@@ -15,7 +13,7 @@ import {
 import { TransactionTest } from '@app-template/packages/db/testing'
 import { recordLogs } from '@app-template/packages/testing'
 
-import { WorkerHttp } from '#worker/layer'
+import { consumeEvent } from '#worker/worker.handler'
 
 const buildRecord = (queue: string, body: unknown) => ({
   messageId: 'a',
@@ -24,7 +22,7 @@ const buildRecord = (queue: string, body: unknown) => ({
   messageAttributes: {},
 })
 
-describe('POST /events', () => {
+describe('consumeEvent', () => {
   it.effect.each([
     {
       queue: 'chat-initialized',
@@ -48,8 +46,7 @@ describe('POST /events', () => {
       const { logs, layer: logger } = recordLogs()
       // Only the first read of each handler returns, empty: any other store call dies, which the
       // consumer logs.
-      const events = WorkerHttp.pipe(
-        Layer.provideMerge(BunHttpServer.layerTest),
+      const handlers = Layer.mergeAll(ReplyChatService.layer, TitleChatService.layer).pipe(
         Layer.provide([
           Layer.mock(MessageRepository, {
             selectOne: (read) =>
@@ -67,7 +64,8 @@ describe('POST /events', () => {
           Layer.mock(ChatAssistant, {}),
           TransactionTest,
         ]),
-        Layer.provide(
+        // Merged, not provided: `consumeEvent` reads the stage itself, with each event.
+        Layer.provideMerge(
           ConfigProvider.layer(
             ConfigProvider.fromUnknown({
               AWS_REGION: 'us-east-1',
@@ -85,20 +83,16 @@ describe('POST /events', () => {
           messageId: firstMessage.id,
         })
 
-        const response = yield* HttpClientRequest.post('/events').pipe(
-          HttpClientRequest.bodyJsonUnsafe({ Records: [record] }),
-          HttpClient.execute,
-        )
+        const response = yield* consumeEvent({ Records: [record] })
 
-        assert.strictEqual(response.status, 200)
-        assert.deepStrictEqual(yield* response.json, { batchItemFailures: [] })
+        assert.deepStrictEqual(response, { batchItemFailures: [] })
         assert.deepStrictEqual(
           Arr.map(reads, ([read]) => read),
           [store],
         )
         assert.deepInclude(reads[0]?.[1], where)
         assert.isFalse(Arr.some(logs, ([, message]) => message === 'queue message failed'))
-      }).pipe(Effect.provide(events))
+      }).pipe(Effect.provide(handlers))
     },
   )
 })

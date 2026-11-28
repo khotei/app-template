@@ -17,7 +17,7 @@
     "@app-template/application": "workspace:*",
     "@app-template/kernel": "workspace:*",
     "@app-template/packages": "workspace:*",
-    "@effect/platform-bun": "catalog:effect",
+    "@effect/platform-node": "catalog:effect",
     "effect": "catalog:effect"
   },
   "devDependencies": {
