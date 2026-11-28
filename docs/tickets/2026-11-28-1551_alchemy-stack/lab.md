@@ -201,8 +201,23 @@ Sources: `https://alchemy.run/aws/local-development/`,
   (`docs/knowledge/roadmap.md`, entry 9, "Inherits from `telemetry-minimal`") — L4 — open
 - A Function URL behind CloudFront with origin access control wants `x-amz-content-sha256` on a
   POST (`docs/knowledge/roadmap.md`, entry 9, the security audit) — `aws-deployment` — open
-- Bun on a customer-managed runtime once Alchemy releases them: a zip function with the fast swap
-  and no image rebuild — after a release past `2.0.0-beta.87` — open
+- **Reminder: AWS opened a cleaner way to run Bun on Lambda; check it again before L4 and at this
+  lab's close.** Customer-managed runtimes (GA 2026-11-18) run a zip Event Function on a runtime
+  image from ECR, and the launch post names Bun; such a function would keep the Function URL and
+  the SQS mappings, hot-swap in `alchemy dev` like any zip function, and need no image rebuild
+  per edit, so local prod and dev could become one mode. What to check, each by its source:
+  1. `npm view alchemy dist-tags`: a release past `2.0.0-beta.87` that ships PRs 3664 and 3668
+     (`AWS.Lambda.Runtime`, `RuntimeAlias`, and their run on floci).
+  2. Whether its `runtime` contract still reads "its image must provide Node.js and the Node.js
+     runtime interface client" (`Lambda/Function.ts` on `main`), or admits a Bun image.
+  3. A Bun runtime image to stand on: `@beesolve/lambda-bun-runtime` v4 (one star on 2026-11-28),
+     or an official one from Bun or AWS, should either appear.
+  4. Lambda Web Functions taking a custom runtime or an image (aws-lambda-roadmap issue 103);
+     today they refuse both.
+  5. Bun's `oven-sh/bun` issue 47213 (the same random values in clones of one snapshot) before
+     any use of SnapStart.
+  Until 1 and 2 hold, this path is a hack by the owner's rule and stays out — after a release
+  past `2.0.0-beta.87` — open
 - `make debug-<app>` in local prod: an inspector inside a floci Lambda container was not looked
   at — L4 — open
 - The image is arm64 on this machine; a CI runner on x86 builds it under emulation — L4 — open
