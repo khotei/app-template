@@ -6,6 +6,7 @@ import Api from '#deployment/Api'
 import { Database } from '#deployment/Database'
 import { Files } from '#deployment/Files'
 import { Queues } from '#deployment/Queues'
+import { Web } from '#deployment/Web'
 import Worker from '#deployment/Worker'
 
 export default Alchemy.Stack(
@@ -17,8 +18,10 @@ export default Alchemy.Stack(
     const files = yield* Files
     const api = yield* Api
     const worker = yield* Worker
+    const web = yield* Web
 
     return {
+      webUrl: web.url,
       apiUrl: api.functionUrl,
       worker: worker.functionName,
       userMessageCreatedQueue: queues['user-message-created'].queueUrl,

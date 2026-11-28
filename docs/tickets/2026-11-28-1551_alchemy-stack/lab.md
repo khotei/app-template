@@ -584,6 +584,14 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
   `NodeHttpClient.layerUndiciNoDispatcher` over `dispatcherLayerGlobal`, which closes nothing;
   the request's timeouts are the same, set per request by `makeUndici`. The host worker keeps
   `layerUndici`.
+- [N:ai] Piece 4, what the run showed (`make dev-stack`, then `curl` on `localhost:$WEB_PORT`):
+  the page 200, `/api/health` `{"status":"ok"}`, `POST /api/identity` a cookie that
+  `GET /api/identity` answers 200 with. Two things differ from the Shape.
+  `deployment/Web.ts` is `Command.Dev`, the resource `StaticSite` runs its `dev.command` by:
+  `StaticSite`'s `dev.env` is typed for strings, so the Function URL, an `Output`, does not
+  pass it (`make typecheck`, TS2322). And the web's proxy drops the browser's `Host`: with
+  it floci answered `/api/health` itself, as it finds a function by the host's name. The
+  web still falls back to `localhost:${API_PORT}` with no `API_ORIGIN`, for `make dev-web`.
 - [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
@@ -646,6 +654,10 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 
 ## Later
 
+- The web on a deploy is not declared: `deployment/Web.ts` is `Command.Dev`, which does nothing
+  outside dev. To do with the first deploy to AWS: a `StaticSite` with `build`, and the `Router`
+  whose `/api/*` goes to the Function URL (refused on floci, L1 check 12); and an issue
+  upstream that `StaticSite`'s `dev.env` takes no `Output`.
 - The 300 s check of the model's client (L1, check 14) ran on `layerUndici`; on the global
   dispatcher `deployment/Worker.ts` uses it has not been run. To do: repeat check 14 through
   the worker's function.

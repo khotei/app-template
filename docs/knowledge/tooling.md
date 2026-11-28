@@ -139,8 +139,9 @@ Which suite runs where:
 ## Run and debug
 
 - **Ports.** `API_PORT` (3000), `WEB_PORT` (3001) and `WORKER_PORT` (3002) come from `.env`,
-  others in a [worktree](#worktrees). The web server proxies `/api/*` to
-  `localhost:${API_PORT}`, so the browser stays same-origin and the api needs no CORS.
+  others in a [worktree](#worktrees). The web server proxies `/api/*` to `API_ORIGIN`, or
+  with none set to `localhost:${API_PORT}`, so the browser stays same-origin and the api needs
+  no CORS.
 - **A single app.** `make dev-api`, or `cd apps/api && bun run dev`. Both read the same root `.env`.
 - **Debugging.** The api and the worker run on Node.js, so `make debug-api` and
   `make debug-worker` print Node's inspector line, both on its default port, one at a time:
