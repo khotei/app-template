@@ -32,8 +32,10 @@ export default class Worker extends AWS.Lambda.Function<Worker>()(
       // Not `fetch`, which ends a model's answer silent for 300 s: `kernel/llm`'s client says why.
       // On undici's global dispatcher: this construction also runs where the stack is deployed,
       // under Bun, whose dispatcher of its own cannot be closed.
-      Layer.provide([NodeHttpClient.layerUndiciNoDispatcher, MinimumLogLevelFromConfig]),
+      Layer.provide(NodeHttpClient.layerUndiciNoDispatcher),
       Layer.provide(NodeHttpClient.dispatcherLayerGlobal),
+      // Merged, not only provided: a batch runs in this context, so the level must be in it.
+      Layer.provideMerge(MinimumLogLevelFromConfig),
       Layer.build,
     )
 
