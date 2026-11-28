@@ -541,16 +541,12 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
   not a function` (L2.6). Kept, the api restarts on an edit in about 0.9 s against 0.31 s, and
   Node stops on a missing `.env.pulumi` where Bun went on. Reverted, the worker runs
   under Bun on `fetch` and its replies have no working idle limit until L3. Proposed: keep Node.
-- [D:ai] **The model's call has no idle limit and no test of one**
-  (`kernel/llm/llm.client.ts:16`, `apps/worker/layer.ts:52`), against piece 5's ten-minute
-  dispatcher and its test. Shown: through `NodeHttpClient.layerUndici` a response silent for
-  310 s arrives; the client sets 60 minutes for the headers and nothing for the body
-  (`@effect/platform-node` `NodeHttpClient.ts:221-222`). Claimed by the Hunt pass: a model that
-  accepts the connection and never answers holds a local reply for up to 60 minutes, and SQS
-  hands the message out again once its visibility timeout passes; deployed, the function's
-  timeout ends it. Options: none, as now; `Effect.timeout` of the worker's timeout on the
-  call, one line and one test with `TestClock`. Without it the local worker alone can hold a
-  reply for an hour. Proposed: the `Effect.timeout`, as the hard pass's item.
+- [D] **The model's call ends after ten minutes, as it did** (the owner's "ok", 2026-11-28, after
+  "Code should work same"): `LlmCall.ask` gives up a call, its retries included, after ten
+  minutes with an `LlmError`, by `Effect.timeoutOrElse` (`kernel/llm/llm-call.ts`), in place of
+  piece 5's dispatcher: the undici client of `@effect/platform-node` overwrites a request's
+  idle timeouts with its own (`NodeHttpClient.ts:221-222`). It differs from Bun's in one way:
+  it bounds the whole call, not a silence inside it.
 - [D:ai] **The SQS transport is `QueueSender.layerSqs` in `packages/aws/queue`**
   (`packages/aws/queue/queue.sender.ts:42`), against piece 3's "`kernel/aws` builds today's".
   It needs `QueueClient` and the SQS request's shape, both of that package; in `kernel/aws` the
@@ -651,8 +647,6 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
 - `make debug-api` and `make debug-worker` both take Node's inspector port 9229, so one runs
   at a time (`apps/api/package.json`, `apps/worker/package.json`) — L3, where the debug targets
   are redrawn — open
-- No test holds the model's client to a response silent past 300 s: it would take five
-  minutes; the run is in L2.6's message — this lab's close — open
 - The stand's `findFreePort` has no `error` listener and leaves its probe open on an
   interrupt, so a failed `listen` hangs the stand until vitest's timeout where `Bun.listen`
   died at once; claimed by L2's review, not run (`apps/e2e/testing/stand.test-layer.ts:18`) —

@@ -310,4 +310,36 @@ describe('ChatAssistant', () => {
       }).pipe(Effect.provide(layer))
     },
   )
+
+  it.effect('summarise fails with LlmError once the model has kept silent for ten minutes', () => {
+    const silent = ChatAssistant.layer.pipe(
+      Layer.provide(AnthropicClientFromConfig),
+      Layer.provide([
+        Layer.succeed(
+          HttpClient.HttpClient,
+          HttpClient.make(() => Effect.never),
+        ),
+        ConfigProvider.layer(
+          ConfigProvider.fromUnknown({
+            ANTHROPIC_API_KEY: 'sk-test-key',
+            LLM_REPLY_MODEL: 'claude-sonnet-5-5',
+            LLM_TITLE_MODEL: 'claude-haiku-5-5',
+          }),
+        ),
+      ]),
+    )
+    return Effect.gen(function* () {
+      const assistant = yield* ChatAssistant
+      const failing = yield* assistant.summarise(hi).pipe(Effect.flip, Effect.forkChild)
+
+      yield* TestClock.adjust('9 minutes')
+      const waiting = failing.pollUnsafe()
+      yield* TestClock.adjust('1 minute')
+
+      const failure = yield* Fiber.join(failing)
+      assert.isUndefined(waiting)
+      assert.strictEqual(failure._tag, 'LlmError')
+      assert.include(failure.cause, 'ten minutes')
+    }).pipe(Effect.provide(silent))
+  })
 })
