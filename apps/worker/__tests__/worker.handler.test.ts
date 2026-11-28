@@ -25,17 +25,17 @@ const buildRecord = (queue: string, body: unknown) => ({
 describe('consumeEvent', () => {
   it.effect.each([
     {
-      queue: 'chat-initialized',
+      queue: 'chat-initialized' as const,
       store: 'messages',
       where: { id: firstMessage.id, chatId, userId: owner },
     },
     {
-      queue: 'user-message-created',
+      queue: 'user-message-created' as const,
       store: 'runs',
       where: { userMessageId: firstMessage.id, chatId, userId: owner },
     },
     {
-      queue: 'message-retried',
+      queue: 'message-retried' as const,
       store: 'runs',
       where: { userMessageId: firstMessage.id, chatId, userId: owner },
     },
@@ -72,13 +72,15 @@ describe('consumeEvent', () => {
         Layer.provide(logger),
       )
       return Effect.gen(function* () {
-        const record = buildRecord(`app-template-test-${queue}`, {
+        const record = buildRecord(`its-own-name-of-${queue}`, {
           chatId,
           userId: owner,
           messageId: firstMessage.id,
         })
 
-        const response = yield* consumeEvent('test')({ Records: [record] })
+        const response = yield* consumeEvent({ [`its-own-name-of-${queue}`]: queue })({
+          Records: [record],
+        })
 
         assert.deepStrictEqual(response, { batchItemFailures: [] })
         assert.deepStrictEqual(

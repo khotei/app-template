@@ -6,6 +6,7 @@ import Api from '#deployment/Api'
 import { Database } from '#deployment/Database'
 import { Files } from '#deployment/Files'
 import { Queues } from '#deployment/Queues'
+import Worker from '#deployment/Worker'
 
 export default Alchemy.Stack(
   'AppTemplate',
@@ -15,9 +16,11 @@ export default Alchemy.Stack(
     const database = yield* Database
     const files = yield* Files
     const api = yield* Api
+    const worker = yield* Worker
 
     return {
       apiUrl: api.functionUrl,
+      worker: worker.functionName,
       userMessageCreatedQueue: queues['user-message-created'].queueUrl,
       chatInitializedQueue: queues['chat-initialized'].queueUrl,
       messageRetriedQueue: queues['message-retried'].queueUrl,

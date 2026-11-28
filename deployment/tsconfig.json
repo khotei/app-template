@@ -5,5 +5,11 @@
     "outDir": "../node_modules/.cache/tsc/deployment"
   },
   "include": ["**/*.ts"],
-  "references": [{ "path": "../apps/api" }, { "path": "../kernel" }, { "path": "../packages" }]
+  "references": [
+    { "path": "../apps/api" },
+    { "path": "../apps/worker" },
+    { "path": "../application" },
+    { "path": "../kernel" },
+    { "path": "../packages" }
+  ]
 }

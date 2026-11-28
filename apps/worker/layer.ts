@@ -1,11 +1,12 @@
 import { createServer } from 'node:http'
 
 import { NodeHttpClient, NodeHttpServer } from '@effect/platform-node'
-import { Effect, Layer } from 'effect'
+import { Effect, Layer, Record } from 'effect'
 import { HttpRouter, HttpServerRequest, HttpServerResponse } from 'effect/http'
 import { Otlp, OtlpSerialization } from 'effect/observability'
 
 import { ChatAssistant, ReplyChatService, TitleChatService } from '@app-template/application/chat'
+import { ResourceName, resources } from '@app-template/kernel/aws'
 import { awsConfig, MinimumLogLevelFromConfig, workerPort } from '@app-template/kernel/config'
 import { Db, PostgresRepositories } from '@app-template/kernel/data'
 import { AnthropicClientFromConfig } from '@app-template/kernel/llm'
@@ -22,7 +23,12 @@ import { consumeEvent } from '#worker/worker.handler'
 const WorkerEvents = HttpRouter.use(
   Effect.fnUntraced(function* (router) {
     const { stage } = yield* awsConfig
-    const consume = consumeEvent(stage)
+    const consume = consumeEvent(
+      Record.fromIterableWith(Record.values(resources.queues), ({ name }) => [
+        ResourceName.build(stage, name),
+        name,
+      ]),
+    )
 
     yield* router.add(
       'POST',

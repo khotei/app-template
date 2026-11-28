@@ -1,6 +1,6 @@
 import { Array as Arr, Effect, Option, pipe, Record } from 'effect'
 
-import { type QueueName, ResourceName } from '@app-template/kernel/aws'
+import type { QueueName } from '@app-template/kernel/aws'
 import { QueueConsumer, type SqsEvent } from '@app-template/packages/aws/queue'
 
 import { ChatHandler } from '#worker/chat/chat.handler'
@@ -14,20 +14,19 @@ const routes = { ...ChatHandler } satisfies Record<
 
 /**
  * Runs the batch an SQS mapping invokes the worker with on the handler of the queue it came
- * from, among the queues of `stage`; a batch of a queue with none is a defect.
+ * from. `queues` names each queue's route by the queue's own name, the last part of its ARN; a
+ * batch of a queue it does not hold is a defect.
  */
-export const consumeEvent = (stage: string) => {
-  const consumers = Record.mapKeys(routes, (name) => ResourceName.build(stage, name))
-
-  return Effect.fnUntraced(function* (event: SqsEvent) {
+export const consumeEvent = (queues: Record<string, QueueName>) =>
+  Effect.fnUntraced(function* (event: SqsEvent) {
     const consume = yield* pipe(
       Arr.head(event.Records),
       Option.flatMap((record) =>
-        Record.get(consumers, QueueConsumer.buildQueueName(record.eventSourceARN)),
+        Record.get(queues, QueueConsumer.buildQueueName(record.eventSourceARN)),
       ),
+      Option.map((name) => routes[name]),
       Effect.fromOption,
       Effect.orDie,
     )
     return yield* consume(event)
   })
-}

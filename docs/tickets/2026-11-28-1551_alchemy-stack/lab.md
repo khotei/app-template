@@ -572,6 +572,18 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
   `AWS_ENDPOINT_URL`, since a function is bound the settings its construction reads. The api's
   manifest exports `./layer`; `deployment` imports it, and the guard lets it import the apps
   and `application/`. No test of this piece runs in `make check`: the stack's test kind is L4's.
+- [N:ai] Piece 3, what the run showed (`make dev-stack`, then `curl` on `apiUrl`): a message
+  posted to a new chat has its run `done` with an assistant message 2.8 s later, and the chat
+  the title "Greeting in Three Words" 1.4 s after that. `consumeEvent` takes a table from a
+  queue's own name to its route's; the host worker builds it from the stage, the function from
+  the queues' `queueName`. The worker's manifest exports `./handler`; the guard lets
+  `deployment` import the kernel's `/llm`.
+- [N:ai] A function's construction also runs where the stack is deployed, under Bun, and
+  `NodeHttpClient.layerUndici` built there fails the deploy: `dispatcher.destroy is not a
+  function` (`make dev-stack`, 2026-11-28). `Worker.ts` takes
+  `NodeHttpClient.layerUndiciNoDispatcher` over `dispatcherLayerGlobal`, which closes nothing;
+  the request's timeouts are the same, set per request by `makeUndici`. The host worker keeps
+  `layerUndici`.
 - [D] **Out of this step, each to Later** (the owner's "ok"): the telemetry backend's container in dev
   (today `make up` starts Grafana; without it L3's stand shows no traces, and every log is
   still read by `alchemy logs`); `make debug-<app>` for a function.
@@ -634,6 +646,9 @@ The five pieces of the first note below, accepted by the owner's "ok" (2026-11-2
 
 ## Later
 
+- The 300 s check of the model's client (L1, check 14) ran on `layerUndici`; on the global
+  dispatcher `deployment/Worker.ts` uses it has not been run. To do: repeat check 14 through
+  the worker's function.
 - The api's bundle warns of two imports it cannot resolve, `mysql2/promise`
   (`@alchemy.run/sql`'s MySQL driver) and `react-devtools-core` (`@alchemy.run/sigil`); both
   are left external and neither is reached (`make dev-stack`, 2026-11-28). To do: name them
