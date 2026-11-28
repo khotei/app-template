@@ -31,7 +31,7 @@ binds, and [Knowledge](#knowledge) states what binds now:
 | Step | Goal, and how to see it | Pass | Kind | Status |
 |---|---|---|---|---|
 | L1 | The probe answers go or no-go on the checks below, in a throwaway worktree · visible: a table of what ran and its timings | minimal | learn | done |
-| L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | todo |
+| L2 | The api and the worker run on Node and no longer need Bun's server: their routes and services stand apart from the process wiring, the queue and file services take their operations, the tests run on Node · visible: `make check` green with `vitest` on Node | minimal | build | in progress |
 | L3 | One stack in `deployment/` declares the queues, the bucket, the database, the api's and the worker's functions and the web; `make dev` runs it on floci · visible: `make dev`, a chat message gets its reply through the Function URL | minimal | build | todo |
 | L4 | The e2e's two kinds: in-process on a floci container of their own, the journeys through the deployed stack · visible: `make test-e2e` green, its duration beside today's 6.09 s | minimal | build | todo |
 | L5 | Pulumi and MiniStack are gone; `aws.md`, `tooling.md`, `architecture.md`, the worktree rules and the import guard say what holds · visible: `make check` green | minimal | build | todo |
@@ -502,11 +502,11 @@ Can you write the signature now?
 
 ### Shape
 
-Not written: the owner's. A proposal is in the notes below.
+The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
 
 ### Notes
 
-- [D:ai] **A proposed Shape, five pieces, each green alone.** Bun stays the launcher of
+- [D] **The Shape, five pieces, each green alone** (the owner's "ok", 2026-11-28). Bun stays the launcher of
   `make dev` until L3 (`bun --watch main.ts` runs `@effect/platform-node` too, I assume; the
   first piece shows it), so the stand plays after every piece.
   1. **The api's routes apart from its process.** `apps/api/layer.ts` exports `ApiRoutes` (the
@@ -527,7 +527,7 @@ Not written: the owner's. A proposal is in the notes below.
   5. **The model's idle limit on Node.** `kernel/llm` gives the client a dispatcher whose
      headers and body timeouts are ten minutes, in place of Bun's `timeout`. Test first: a
      server silent past the default, which fails today under Node.
-- [D:ai] **`S3Bucket` stays as it is in this step.** No process provides it
+- [D] **`S3Bucket` stays as it is in this step** (the owner's "ok"). No process provides it
   (`docs/knowledge/decisions.md › Clients from the context`), so rebuilding it over operations
   changes nothing a run shows; without it the system loses nothing until a module stores
   files. It goes to Later.
@@ -541,13 +541,13 @@ Not written: the owner's. A proposal is in the notes below.
 
 <a id="l3-notes"></a>
 
-- [D:ai] **The cookie.** Alchemy runs `fetch` bare, so `securitySetCookie`'s pre-response
+- [D] **The cookie: the wrapper, and an issue upstream** (the owner's "ok", 2026-11-28). Alchemy runs `fetch` bare, so `securitySetCookie`'s pre-response
   handler never runs (L1, check 4). Options: wrap `fetch` in `HttpEffect.toHandled` in
   `deployment/Api.ts`, eight lines of Effect's public API, the way Effect's own servers run a
   handler; or set the cookie on the response in the handler, which the `HttpApi`'s typed
   handlers do not offer. Proposed: the wrapper, and an issue upstream. Without it no user is
   recognised twice.
-- [D:ai] **The web in dev.** floci's CloudFront refuses the Function URL as an origin (L1,
+- [D] **The web in dev: its own proxy stays** (the owner's "ok", 2026-11-28). floci's CloudFront refuses the Function URL as an origin (L1,
   check 12). Proposed: the web's own `/api/*` proxy stays, pointed at the Function URL; the
   `Router` route is declared for a deploy and rechecked on a floci bump.
 
@@ -608,8 +608,6 @@ Not written: the owner's. A proposal is in the notes below.
   both today; the stand's start 9.1 s against 2.8 s — [The probe's run](#the-probes-run) — open
 - `S3Bucket` over operations a binding can feed, when a module stores files
   (`packages/aws/s3/s3.client.ts`) — L2's notes — open
-- The stack re-plans on every save of a file it imports: L1's check 3 showed no re-plan on a
-  save in `application/` — L1 — answered, to drop on the owner's word
 - `make debug-<app>`: an inspector inside a floci function's container was not looked at —
   L3 — open
 - The telemetry backend's container in dev, and whether a function's spans reach it from a
