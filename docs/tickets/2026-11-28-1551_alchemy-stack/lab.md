@@ -531,6 +531,43 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
   (`docs/knowledge/decisions.md › Clients from the context`), so rebuilding it over operations
   changes nothing a run shows; without it the system loses nothing until a module stores
   files. It goes to Later.
+- [N:ai] **The review of L2** (the rounds L2.1 to L2.6; Intent, Hunt and Rules, 2026-11-28)
+  found that three of the accepted pieces were built otherwise and defended in commit messages
+  alone. Each is a proposal below until the owner makes it a `[D]`; the pieces' lines above stay
+  as the owner accepted them.
+- [D:ai] **The launcher is Node already** (`apps/api/package.json:13`,
+  `apps/worker/package.json:13`), against "Bun stays the launcher of `make dev` until L3".
+  Shown: the undici client the worker needs dies under Bun 1.4.5 with `dispatcher.destroy is
+  not a function` (L2.6). Kept, the api restarts on an edit in about 0.9 s against 0.31 s, and
+  Node stops on a missing `.env.pulumi` where Bun went on. Reverted, the worker runs
+  under Bun on `fetch` and its replies have no working idle limit until L3. Proposed: keep Node.
+- [D:ai] **The model's call has no idle limit and no test of one**
+  (`kernel/llm/llm.client.ts:16`, `apps/worker/layer.ts:52`), against piece 5's ten-minute
+  dispatcher and its test. Shown: through `NodeHttpClient.layerUndici` a response silent for
+  310 s arrives; the client sets 60 minutes for the headers and nothing for the body
+  (`@effect/platform-node` `NodeHttpClient.ts:221-222`). Claimed by the Hunt pass: a model that
+  accepts the connection and never answers holds a local reply for up to 60 minutes, and SQS
+  hands the message out again once its visibility timeout passes; deployed, the function's
+  timeout ends it. Options: none, as now; `Effect.timeout` of the worker's timeout on the
+  call, one line and one test with `TestClock`. Without it the local worker alone can hold a
+  reply for an hour. Proposed: the `Effect.timeout`, as the hard pass's item.
+- [D:ai] **The SQS transport is `QueueSender.layerSqs` in `packages/aws/queue`**
+  (`packages/aws/queue/queue.sender.ts:42`), against piece 3's "`kernel/aws` builds today's".
+  It needs `QueueClient` and the SQS request's shape, both of that package; in `kernel/aws` the
+  kernel would hold an SQS request. Proposed: keep it in the package.
+- [D:ai] **`Equal.equals` on errors: the ban's reason is gone on Node**
+  (`.claude/rules/effect-tests.md:71`, `docs/knowledge/tooling.md:136`,
+  `packages/testing/schema.test-util.ts:7`). Shown: a one-off test compared two equal
+  `Schema.TaggedError`s 200 000 times; under `bunx vitest` none differed, under
+  `bun --bun vitest` the test failed. Options: keep `assertSchemaEquals` as the one way and
+  reword its reason (it still gives a diff by field); lift the ban. Proposed: keep it,
+  reworded, in this lab's close.
+- [N:ai] Rejected: the `orDie` on a missing `traceparent` in `QueueSender.send` (it cannot
+  fire, `effect: http/HttpTraceContext.ts:52`, and stands beside the same `orDie` on the
+  current span; the other spelling is an optional field on the transport's message); a unit
+  test for `POST /events` (the journeys of `apps/e2e` run it, and L3 deletes the route);
+  `Effect.fn.Return` on `consumeEvent` (after L2.7 it fails with nothing and its result is
+  inferred from the routes' table).
 - [N:ai] The decisions this step rewrites: none reversed. `Clients from the context` holds
   (the kernel still builds the clients); `Independent apps` holds until L3, where `deployment`
   imports the apps by the owner's word in Knowledge.
@@ -618,6 +655,13 @@ The five pieces of the notes below, accepted by the owner's "ok" (2026-11-28).
   are redrawn — open
 - No test holds the model's client to a response silent past 300 s: it would take five
   minutes; the run is in L2.6's message — this lab's close — open
+- The stand's `findFreePort` has no `error` listener and leaves its probe open on an
+  interrupt, so a failed `listen` hangs the stand until vitest's timeout where `Bun.listen`
+  died at once; claimed by L2's review, not run (`apps/e2e/testing/stand.test-layer.ts:18`) —
+  L4, where the stand is redrawn — open
+- The import guard lets a module's service test import the whole `@effect/platform-node`
+  index, `NodeHttpServer` and `NodeHttpClient` with it, as it let Bun's
+  (`.misc/lint/biome.base.json:307`) — this lab's close — open
 - `S3Bucket` over operations a binding can feed, when a module stores files
   (`packages/aws/s3/s3.client.ts`) — L2's notes — open
 - `make debug-<app>`: an inspector inside a floci function's container was not looked at —
